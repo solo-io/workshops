@@ -10,13 +10,19 @@ The goal of this workshop is to show several unique features of the Service Mesh
 - Multi-cluster traffic
 - Failover
 
-## Prerequisites
+## Lab environment
+
+![Lab](images/lab.png)
 
 To make sure anyone can easily perform the different tasks, we have provisioned a Virtual Machine for each of you.
 
-You'll be able to deploy several Kubernetes clusters on this machine using Kind.
+You'll be able to deploy several Kubernetes clusters on this machine using *Kind*.
+
+*MetalLB* has been deployed to expose the Load Balancer services you'll create on your Kubernetes clusters.
 
 All the prerequisites have already been deployed on your machine.
+
+## Prerequisites
 
 You'll use *Chrome Remote Desktop* to access your machine, so the only thing you need is a Google Account.
 
