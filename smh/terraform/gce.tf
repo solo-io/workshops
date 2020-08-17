@@ -8,6 +8,8 @@ resource "google_compute_instance" "default" {
   machine_type = "n1-standard-4"
   zone         = "europe-west1-b"
 
+  tags = ["http-server", "https-server"]
+
   boot_disk {
     initialize_params {
       image = "debian-9-stretch-v20200714"

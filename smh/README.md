@@ -24,50 +24,49 @@ All the prerequisites have already been deployed on your machine.
 
 ## Prerequisites
 
-You'll use *Chrome Remote Desktop* to access your machine, so the only thing you need is a Google Account.
+You will be accessing your Virtual Machine using [Apache Guacamole](https://guacamole.apache.org/).
 
-Go to the https://remotedesktop.google.com/headless URL and click on the `BEGIN` button.
-
-On the next page, click on the `Next` button.
-
-Finally, on the following page, click on the `Authorize` button.
-
-If you're not already logged in your Google account, you'll be asked to do so.
-
-You should now have the information below:
-
-![Chrome Remote Desktop](images/chrome-remote-desktop.png)
-
-Copy the `Debian Linux` section using the icon on the right and paste it in the shared Google doc provided by your instructors.
+Apache Guacamole is a clientless remote desktop gateway. Thanks to HTML5, once Guacamole is installed on a server, all you need to access your desktops is a web browser.
 
 ## Access your virtual machine
 
-When your instructor has processed the *Chrome Remote Desktop* information of all the students, you'll be able to access your virtual machine.
+Log into your Virtual Machine using your web browser.
 
-Go to the https://remotedesktop.google.com/access URL.
+![First login](images/setup.png)
 
-You should see your VM:
+Click on the `use default config` button.
 
-![Chrome Remote Desktop VM](images/chrome-remote-desktop-vm.png)
+> If you made a mistake and clicked on the other option, you won't see the menu at the top.
+>
+> In that case, right click on the desktop and select `Open Terminal Here`.
+>
+> Then, execute the following commands:
+> ```
+> xfce4-panel --quit
+> pkill xfconfd
+> rm -rf /home/solo/.config/xfce4/xfconf
+> xfce4-panel &
+> ```
+> Now, click on the right button ;-)
 
-Click on it and use the PIN code provided by your instructor.
+Click on the `Applications` menu on the top left corner and select `Terminal Emulator`.
 
-You should now have access to your dekstop:
+You should now see the `solo.io` background:
 
 ![Desktop](images/desktop.png)
 
-If you have an issue with the keyboard layout, click on the `Applications` button on the top left corner, select `Settings` and then `Keyboard`.
-
-In the `Layout` tab, you can add the layout you want to use and delete the default one:
-
-<img src="images/keyboard.png" alt="keyboard" width="300"/>
+> If you have an issue with the keyboard layout, click on the `Applications` button on the top left corner, select `Settings` and then `Keyboard`.
+>
+> In the `Layout` tab, you can add the layout you want to use and delete the default one:
+>
+> <img src="images/keyboard.png" alt="keyboard" width="300"/>
 
 ## Lab 1 : Deploy your Kubernetes clusters
 
-Open the terminal and go to the `scripts` directory:
+From the terminal go to the `/home/solo/workshops/smh` directory:
 
 ```
-cd scripts
+cd /home/solo/workshops/smh
 ```
 
 Run the following commands to deploy 2 Kubernetes clusters:
