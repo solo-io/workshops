@@ -32,26 +32,9 @@ Apache Guacamole is a clientless remote desktop gateway. Thanks to HTML5, once G
 
 Log into your Virtual Machine using your web browser.
 
-![First login](images/setup.png)
+The URL is `http://<ip address provided by the instructor>/guacamole/`
 
-Click on the `use default config` button.
-
-> If you made a mistake and clicked on the other option, you won't see the menu at the top.
->
-> In that case, right click on the desktop and select `Open Terminal Here`.
->
-> Then, execute the following commands:
-> ```
-> xfce4-panel --quit
-> pkill xfconfd
-> rm -rf /home/solo/.config/xfce4/xfconf
-> xfce4-panel &
-> ```
-> Now, click on the right button ;-)
-
-Click on the `Applications` menu on the top left corner and select `Terminal Emulator`.
-
-You should now see the `solo.io` background:
+The user is `solo` and the password is `Workshop1#`
 
 ![Desktop](images/desktop.png)
 
@@ -71,16 +54,16 @@ cd /home/solo/workshops/smh
 
 Run the following commands to deploy 2 Kubernetes clusters:
 
-```
-./kind/deploy-1.17.sh 1
-./kind/deploy-1.17.sh 2
+```bash
+./scripts/deploy.sh 1
+./scripts/deploy.sh 2
 ```
 
 Then run the following commands to wait for all the Pods to be ready:
 
-```
-./kind/check.sh 1
-./kind/check.sh 2
+```bash
+./scripts/check.sh 1
+./scripts/check.sh 2
 ```
 
 Now, if you execute the `kubectl get pods -A` command, you should obtain the following:
@@ -113,7 +96,7 @@ CURRENT   NAME         CLUSTER      AUTHINFO     NAMESPACE
 
 Run the following command to make `kind-kind1` the current cluster.
 
-```
+```bash
 kubectl config use-context kind-kind1
 ```
 
@@ -121,14 +104,14 @@ kubectl config use-context kind-kind1
 
 First of all, you need to install the *meshctl* CLI:
 
-```
+```bash
 curl -sL https://run.solo.io/meshctl/install | sh
 export PATH=$HOME/.service-mesh-hub/bin:$PATH
 ```
 
 Now, you can install Service Mesh Hub on your first cluster:
 
-```
+```bash
 meshctl install --register --context kind-kind1
 ```
 
@@ -136,7 +119,7 @@ As you can see, we also registered it.
 
 Now let's register the second cluster:
 
-```
+```bash
 meshctl cluster register \
   --remote-cluster-name new-remote-cluster \
   --remote-context kind-kind2
@@ -148,7 +131,7 @@ You can install Istio by yourself or use the *meshctl* CLI for that.
 
 To be able to deploy Istio with Kiali, we need to create the secrets corresponding to the admin password.
 
-```
+```bash
 KIALI_USERNAME=$(printf '%s' admin | base64)
 KIALI_PASSPHRASE=$(printf '%s' admin | base64)
 NAMESPACE=istio-system
@@ -187,7 +170,7 @@ EOF
 
 Now let's deploy Istio on the first cluster:
 
-```
+```bash
 meshctl mesh install istio1.6 --context kind-kind1 --create-operator-namespace=false --operator-spec=- <<EOF
 apiVersion: install.istio.io/v1alpha1
 kind: IstioOperator
@@ -227,7 +210,7 @@ As you can see, *meshctl* simply using the *Istio Operator* to deploy Istio.
 
 We follow the same approach to deploy Istio on the second Kubernetes cluster:
 
-```
+```bash
 meshctl mesh install istio1.6 --context kind-kind2 --create-operator-namespace=false --operator-spec=- <<EOF
 apiVersion: install.istio.io/v1alpha1
 kind: IstioOperator
@@ -263,6 +246,28 @@ spec:
 EOF
 ```
 
+<!--bash
+until kubectl --context kind-kind1 get ns istio-system
+do
+  sleep 1
+done
+
+until [ $(kubectl --context kind-kind1 -n istio-system get pods -o jsonpath='{range .items[*].status.containerStatuses[*]}{.ready}{"\n"}{end}' | grep true -c) -eq 10 ]; do
+  echo "Waiting for all the Istio pods to become ready"
+  sleep 1
+done
+
+until kubectl --context kind-kind2 get ns istio-system
+do
+  sleep 1
+done
+
+until [ $(kubectl --context kind-kind2 -n istio-system get pods -o jsonpath='{range .items[*].status.containerStatuses[*]}{.ready}{"\n"}{end}' | grep true -c) -eq 10 ]; do
+  echo "Waiting for all the Istio pods to become ready"
+  sleep 1
+done
+-->
+
 Run the following command until all the Istio Pods are ready:
 
 ```
@@ -291,7 +296,7 @@ Service Mesh Hub can help unify the root identity between multiple service mesh 
 
 Run the following command to create the *Virtual Mesh*:
 
-```
+```bash
 cat << EOF | kubectl --context kind-kind1 apply -f -
 apiVersion: networking.smh.solo.io/v1alpha1
 kind: VirtualMesh

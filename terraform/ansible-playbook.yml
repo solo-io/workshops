@@ -1,0 +1,452 @@
+---
+- hosts: hosts
+  remote_user: solo
+  become: yes
+  become_user: root
+  become_method: sudo
+
+  tasks:
+
+  - name: Install jq
+    apt:
+      name: jq
+      state: present
+
+  - name: Install curl
+    apt:
+      name: curl
+      state: present
+
+  - name: Install apt-transport-https
+    apt:
+      name: apt-transport-https
+      state: present
+
+  - name: Install ca-certificates
+    apt:
+      name: ca-certificates
+      state: present
+
+  - name: Install gnupg-agent
+    apt:
+      name: gnupg-agent
+      state: present
+
+  - name: Install software-properties-common
+    apt:
+      name: software-properties-common
+      state: present
+
+  - name: Add Docker apt key
+    apt_key:
+      url: https://download.docker.com/linux/debian/gpg
+      state: present
+
+  - apt_repository:
+      repo: deb [arch=amd64] https://download.docker.com/linux/debian {{ ansible_distribution_release }} stable
+      state: present
+
+  - name: Install docker-ce
+    apt:
+      name: docker-ce
+      state: present
+      update_cache: yes
+
+  - name: Install docker-ce-cli
+    apt:
+      name: docker-ce-cli
+      state: present
+
+  - name: Install containerd.io
+    apt:
+      name: containerd.io
+      state: present
+
+  - name: Add the solo user to the docker group
+    user:
+      name: solo
+      groups: docker
+      append: yes
+
+  - name: Download kind
+    get_url:
+      url: https://kind.sigs.k8s.io/dl/v0.8.1/kind-linux-amd64
+      dest: /usr/local/bin/kind
+      mode: '0755'
+
+  - name: Get Latest Kubernetes Version
+    get_url:
+      url: https://storage.googleapis.com/kubernetes-release/release/stable.txt
+      dest: /tmp/version
+
+  - name: Read Kubernetes version
+    command: cat /tmp/version
+    register: kubernetes_version
+
+  - debug:
+      msg: "Kubernetes version is {{ kubernetes_version.stdout }}"
+
+  - name: Download kubectl
+    get_url:
+      url: "https://storage.googleapis.com/kubernetes-release/release/{{ kubernetes_version.stdout }}/bin/linux/amd64/kubectl"
+      dest: /usr/local/bin/kubectl
+      mode: '0755'
+
+  - name: Install bash-completion
+    apt:
+      name: bash-completion
+      state: present
+
+  - name: Enable kubectl autocompletion
+    shell: kubectl completion bash > /etc/bash_completion.d/kubectl
+
+  - name: Install xfce4
+    apt:
+      name: xfce4
+      state: present
+
+  - name: Install desktop-base
+    apt:
+      name: desktop-base
+      state: present
+
+  - name: Install xscreensaver
+    apt:
+      name: xscreensaver
+      state: present
+
+  - name: Install task-xfce-desktop
+    apt:
+      name: task-xfce-desktop
+      state: present
+
+  - name: Disable the lightdm service
+    service:
+      name: lightdm
+      enabled: no
+
+  - name: Download Google Chrome
+    get_url:
+      url: https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
+      dest: /tmp/google-chrome-stable_current_amd64.deb
+
+  - name: Install Google Chrome
+    apt: deb="/tmp/google-chrome-stable_current_amd64.deb"
+
+  - name: Download the Solo background image
+    get_url:
+      url: https://github.com/solo-io/workshops/raw/master/smh/terraform/solo-white.png
+      dest: /home/solo/solo-white.png
+
+  - name: Install libcairo2-dev
+    apt:
+      name: libcairo2-dev
+      state: present
+
+  - name: Install libjpeg62-turbo-dev
+    apt:
+      name: libjpeg62-turbo-dev
+      state: present
+
+  - name: Install libpng-dev
+    apt:
+      name: libpng-dev
+      state: present
+
+  - name: Install libtool-bin
+    apt:
+      name: libtool-bin
+      state: present
+
+  - name: Install libossp-uuid-dev
+    apt:
+      name: libossp-uuid-dev
+      state: present
+
+  - name: Install libavcodec-dev
+    apt:
+      name: libavcodec-dev
+      state: present
+
+  - name: Install libavformat-dev
+    apt:
+      name: libavformat-dev
+      state: present
+
+  - name: Install libavutil-dev
+    apt:
+      name: libavutil-dev
+      state: present
+
+  - name: Install libswscale-dev
+    apt:
+      name: libswscale-dev
+      state: present
+
+  - name: Install freerdp2-dev
+    apt:
+      name: freerdp2-dev
+      state: present
+
+  - name: Install libpango1.0-dev
+    apt:
+      name: libpango1.0-dev
+      state: present
+
+  - name: Install libssh2-1-dev
+    apt:
+      name: libssh2-1-dev
+      state: present
+
+  - name: Install libtelnet-dev
+    apt:
+      name: libtelnet-dev
+      state: present
+
+  - name: Install libvncserver-dev
+    apt:
+      name: libvncserver-dev
+      state: present
+
+  - name: Install libwebsockets-dev
+    apt:
+      name: libwebsockets-dev
+      state: present
+
+  - name: Install libpulse-dev
+    apt:
+      name: libpulse-dev
+      state: present
+
+  - name: Install libssl-dev
+    apt:
+      name: libssl-dev
+      state: present
+
+  - name: Install libvorbis-dev
+    apt:
+      name: libvorbis-dev
+      state: present
+
+  - name: Install libwebp-dev
+    apt:
+      name: libwebp-dev
+      state: present
+
+  - name: Unarchive guacamole
+    unarchive:
+      src: http://apache.org/dyn/closer.cgi?action=download&filename=guacamole/1.2.0/source/guacamole-server-1.2.0.tar.gz
+      dest: /
+      remote_src: yes
+
+  - name: Configure guacamole
+    shell: cd /guacamole-server-1.2.0 && ./configure --with-init-dir=/etc/init.d
+
+  - name: Make guacamole
+    shell: cd /guacamole-server-1.2.0 && make
+
+  - name: Make install guacamole
+    shell: cd /guacamole-server-1.2.0 && make install
+
+  - name: Install tomcat8
+    apt:
+      name: tomcat8
+      state: present
+
+  - name: Download guacamole war
+    get_url:
+      url: http://apache.org/dyn/closer.cgi?action=download&filename=guacamole/1.2.0/binary/guacamole-1.2.0.war
+      dest: /var/lib/tomcat8/webapps/guacamole.war
+
+  - name: Install autocutsel
+    apt:
+      name: autocutsel
+      state: present
+
+  - name: Install tightvncserver
+    apt:
+      name: tightvncserver
+      state: present
+
+  - name: Install socat
+    apt:
+      name: socat
+      state: present
+
+  - name: Create the /home/solo/.vnc directory if it does not exist
+    file:
+      path: /home/solo/.vnc
+      state: directory
+      owner: solo
+      group: solo
+      mode: '0700'
+
+  - name: Remove /home/solo/.vnc/passwd
+    file:
+      path: /home/solo/.vnc/passwd
+      state: absent
+
+  - name: Set VNC password
+    shell: echo password | vncpasswd -f > /home/solo/.vnc/passwd
+    become_user: solo
+    become_method: su
+
+  - name: Set the permissions of the /home/solo/.vnc/passwd file
+    file:
+      path: /home/solo/.vnc/passwd
+      owner: solo
+      group: solo
+      mode: '0600'
+
+  - name: Set the /home/solo/.vnc/xstartup content
+    copy:
+      content: |
+                #!/bin/sh
+                /etc/X11/Xsession /usr/bin/xfce4-session
+      dest: /home/solo/.vnc/xstartup
+
+  - name: Set the permissions of the /home/solo/.vnc/xstartup file
+    file:
+      path: /home/solo/.vnc/xstartup
+      owner: solo
+      group: solo
+      mode: '0777'
+
+  - name: Create the /etc/guacamole directory if it does not exist
+    file:
+      path: /etc/guacamole
+      state: directory
+
+  - name: Set the /etc/guacamole/guacd.conf content
+    copy:
+      content: |
+                [server]
+
+                bind_host = localhost
+                bind_port = 4822
+      dest: /etc/guacamole/guacd.conf
+
+  - name: Set the /etc/guacamole/user-mapping.xml content
+    copy:
+      content: |
+                <user-mapping>
+                  <authorize username="solo" password="Workshop1#">
+                    <protocol>vnc</protocol>
+                    <param name="hostname">localhost</param>
+                    <param name="port">5901</param>
+                    <param name="password">password</param>
+                  </authorize>
+                </user-mapping>
+      dest: /etc/guacamole/user-mapping.xml
+
+  - name: Set the /etc/systemd/system/vncserver@.service content
+    copy:
+      content: |
+                [Unit]
+                Description=Remote desktop service (VNC)
+                After=syslog.target network.target
+
+                [Service]
+                Type=forking
+                User=solo
+
+                # Clean any existing files in /tmp/.X11-unix environment
+                ExecStartPre=/bin/sh -c '/usr/bin/vncserver -kill %i > /dev/null 2>&1 || :'
+                ExecStart=/usr/bin/vncserver -geometry 1800x1000 -depth 16 -dpi 120 -alwaysshared -localhost %i
+                ExecStop=/usr/bin/vncserver -kill %i
+
+                [Install]
+                WantedBy=multi-user.target
+      dest: /etc/systemd/system/vncserver@.service
+
+  - name: Set the /etc/systemd/system/socat.service content
+    copy:
+      content: |
+                [Unit]
+                Description=Socat service
+                After=tomcat8.target
+
+                [Service]
+                Type=simple
+                User=root
+
+                # Clean any existing files in /tmp/.X11-unix environment
+                ExecStartPre=/bin/sh -c '/usr/bin/pkill socat > /dev/null 2>&1 || :'
+                ExecStart=/usr/bin/socat tcp-listen:80,reuseaddr,fork tcp:localhost:8080
+                ExecStop=/usr/bin/pkill socat
+
+                [Install]
+                WantedBy=multi-user.target
+      dest: /etc/systemd/system/socat.service
+  
+  - name: Run ldconfig
+    shell: ldconfig
+
+  - name: Enable the vncserver service
+    service:
+      name: vncserver@:1
+      enabled: yes
+ 
+  - name: Enable the guacd service
+    service:
+      name: guacd
+      enabled: yes
+
+  - name: Enable the tomcat8 service
+    service:
+      name: tomcat8
+      enabled: yes
+
+  - name: Enable the socat service
+    service:
+      name: socat
+      enabled: yes
+
+  - name: Clone the workshop repo
+    git:
+      repo: https://github.com/solo-io/workshops.git
+      dest: /home/solo/workshops
+    become_user: solo
+    become_method: su
+
+  - name: Unarchive the default xfce4 config
+    unarchive:
+      src: https://github.com/solo-io/workshops/raw/master/smh/terraform/config.tgz
+      dest: /home/solo
+      remote_src: yes
+
+  - name: Enable clipboard when launching the terminal
+    shell: echo '/usr/bin/autocutsel -s CLIPBOARD -fork' >> /home/solo/.bashrc
+    become_user: solo
+    become_method: su
+
+  - name: Add VSCode apt key
+    apt_key:
+      url: https://packages.microsoft.com/keys/microsoft.asc
+      state: present
+
+  - apt_repository:
+      repo: deb [arch=amd64] https://packages.microsoft.com/repos/vscode stable main
+      state: present
+
+  - name: Install VSCode
+    apt:
+      name: code
+      state: present
+      update_cache: yes
+
+  - name: Fix a known issue with VSCode
+    shell: sed -i 's/BIG-REQUESTS/_IG-REQUESTS/' /usr/lib/x86_64-linux-gnu/libxcb.so.1.1.0
+
+  - name: Install glooctl
+    shell: curl -sL https://run.solo.io/gloo/install | sh
+    become_user: solo
+    become_method: su
+
+  - name: Add glooctl to the path
+    shell: echo 'export PATH=$HOME/.gloo/bin:$PATH' >> /home/solo/.bashrc
+    become_user: solo
+    become_method: su
+
+  - name: Reboot VM
+    reboot:
