@@ -327,14 +327,14 @@ metadata:
  labels:
    app: bluegreen
    text: blue
- name: service-blue
+ name: service-bluegreen
  namespace: default
 spec:
  ports:
  - name: color
-   port: 10000
+   port: 8080
    protocol: TCP
-   targetPort: 10000
+   targetPort: 8080
  selector:
    app: bluegreen
    text: blue
@@ -350,107 +350,25 @@ metadata:
  name: echo-blue
  namespace: default
 spec:
- progressDeadlineSeconds: 600
  replicas: 1
- revisionHistoryLimit: 10
  selector:
    matchLabels:
      app: bluegreen
      text: blue
- strategy:
-   rollingUpdate:
-     maxSurge: 25%
-     maxUnavailable: 25%
-   type: RollingUpdate
  template:
    metadata:
-     creationTimestamp: null
      labels:
        app: bluegreen
        text: blue
    spec:
      containers:
      - args:
+       - -listen=:8080
        - -text="blue-pod"
-       image: hashicorp/http-echo@sha256:ba27d460cd1f22a1a4331bdf74f4fccbc025552357e8a3249c40ae216275de96
-       imagePullPolicy: IfNotPresent
+       image: hashicorp/http-echo
        name: echo
-       resources: {}
-       terminationMessagePath: /dev/termination-log
-       terminationMessagePolicy: File
-     - args:
-       - --config-yaml
-       - |2
-
-         node:
-          cluster: ingress
-          id: "ingress~for-testing"
-          metadata:
-           role: "default~proxy"
-         static_resources:
-           listeners:
-           - name: listener_0
-             address:
-               socket_address: { address: 0.0.0.0, port_value: 10000 }
-             filter_chains:
-             - filters:
-               - name: envoy.filters.network.http_connection_manager
-                 typed_config:
-                   "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
-                   stat_prefix: ingress_http
-                   codec_type: AUTO
-                   route_config:
-                     name: local_route
-                     virtual_hosts:
-                     - name: local_service
-                       domains: ["*"]
-                       routes:
-                       - match: { prefix: "/" }
-                         route: { cluster: some_service }
-                   http_filters:
-                   - name: envoy.filters.http.health_check
-                     typed_config:
-                       "@type": type.googleapis.com/envoy.extensions.filters.http.health_check.v3.HealthCheck
-                       pass_through_mode: true
-                   - name: envoy.filters.http.router
-           clusters:
-           - name: some_service
-             connect_timeout: 0.25s
-             type: STATIC
-             lb_policy: ROUND_ROBIN
-             load_assignment:
-               cluster_name: some_service
-               endpoints:
-               - lb_endpoints:
-                 - endpoint:
-                     address:
-                       socket_address:
-                         address: 0.0.0.0
-                         port_value: 5678
-         admin:
-           access_log_path: /dev/null
-           address:
-             socket_address:
-               address: 0.0.0.0
-               port_value: 19000
-       - --disable-hot-restart
-       - --log-level
-       - debug
-       - --concurrency
-       - "1"
-       - --file-flush-interval-msec
-       - "10"
-       image: envoyproxy/envoy:v1.14.2
-       imagePullPolicy: IfNotPresent
-       name: envoy
-       resources: {}
-       terminationMessagePath: /dev/termination-log
-       terminationMessagePolicy: File
-     dnsPolicy: ClusterFirst
-     restartPolicy: Always
-     schedulerName: default-scheduler
-     securityContext: {}
-     terminationGracePeriodSeconds: 0
+       ports:
+       - containerPort: 80
 EOF
 
 kubectl apply --context kind-kind3 -f - <<EOF
@@ -459,14 +377,15 @@ kind: Service
 metadata:
  labels:
    app: bluegreen
- name: service-green
+   text: green
+ name: service-bluegreen
  namespace: default
 spec:
  ports:
  - name: color
-   port: 10000
+   port: 8080
    protocol: TCP
-   targetPort: 10000
+   targetPort: 8080
  selector:
    app: bluegreen
    text: green
@@ -482,108 +401,34 @@ metadata:
  name: echo-green
  namespace: default
 spec:
- progressDeadlineSeconds: 600
  replicas: 1
- revisionHistoryLimit: 10
  selector:
    matchLabels:
      app: bluegreen
      text: green
- strategy:
-   rollingUpdate:
-     maxSurge: 25%
-     maxUnavailable: 25%
-   type: RollingUpdate
  template:
    metadata:
-     creationTimestamp: null
      labels:
        app: bluegreen
        text: green
    spec:
      containers:
      - args:
+       - -listen=:8080
        - -text="green-pod"
-       image: hashicorp/http-echo@sha256:ba27d460cd1f22a1a4331bdf74f4fccbc025552357e8a3249c40ae216275de96
-       imagePullPolicy: IfNotPresent
+       image: hashicorp/http-echo
        name: echo
-       resources: {}
-       terminationMessagePath: /dev/termination-log
-       terminationMessagePolicy: File
-     - args:
-       - --config-yaml
-       - |2
-
-         node:
-          cluster: ingress
-          id: "ingress~for-testing"
-          metadata:
-           role: "default~proxy"
-         static_resources:
-           listeners:
-           - name: listener_0
-             address:
-               socket_address: { address: 0.0.0.0, port_value: 10000 }
-             filter_chains:
-             - filters:
-               - name: envoy.filters.network.http_connection_manager
-                 typed_config:
-                   "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
-                   stat_prefix: ingress_http
-                   codec_type: AUTO
-                   route_config:
-                     name: local_route
-                     virtual_hosts:
-                     - name: local_service
-                       domains: ["*"]
-                       routes:
-                       - match: { prefix: "/" }
-                         route: { cluster: some_service }
-                   http_filters:
-                   - name: envoy.filters.http.health_check
-                     typed_config:
-                       "@type": type.googleapis.com/envoy.extensions.filters.http.health_check.v3.HealthCheck
-                       pass_through_mode: true
-                   - name: envoy.filters.http.router
-           clusters:
-           - name: some_service
-             connect_timeout: 0.25s
-             type: STATIC
-             lb_policy: ROUND_ROBIN
-             load_assignment:
-               cluster_name: some_service
-               endpoints:
-               - lb_endpoints:
-                 - endpoint:
-                     address:
-                       socket_address:
-                         address: 0.0.0.0
-                         port_value: 5678
-         admin:
-           access_log_path: /dev/null
-           address:
-             socket_address:
-               address: 0.0.0.0
-               port_value: 19000
-       - --disable-hot-restart
-       - --log-level
-       - debug
-       - --concurrency
-       - "1"
-       - --file-flush-interval-msec
-       - "10"
-       image: envoyproxy/envoy:v1.14.2
-       imagePullPolicy: IfNotPresent
-       name: envoy
-       resources: {}
-       terminationMessagePath: /dev/termination-log
-       terminationMessagePolicy: File
-     dnsPolicy: ClusterFirst
-     restartPolicy: Always
-     schedulerName: default-scheduler
-     securityContext: {}
-     terminationGracePeriodSeconds: 0
+       ports:
+       - containerPort: 80
 EOF
+```
+
+Use the following commands to wait for the blue and green Pods to be deployed on the Gloo clusters:
+
+```bash
+
+kubectl --context kind-kind2 rollout status deployment echo-blue
+kubectl --context kind-kind3 rollout status deployment echo-green
 ```
 
 Now, let's create some federated objects:
@@ -593,17 +438,18 @@ kubectl apply --context kind-kind1 -f - <<EOF
 apiVersion: fed.gloo.solo.io/v1
 kind: FederatedUpstream
 metadata:
-  name: default-service-blue
+  name: default-service-bluegreen
   namespace: gloo-fed
 spec:
   placement:
     clusters:
       - kind2
+      - kind3
     namespaces:
       - gloo-system
   template:
     metadata:
-      name: default-service-blue-10000
+      name: default-service-bluegreen-8080
     spec:
       discoveryMetadata: {}
       healthChecks:
@@ -615,22 +461,20 @@ spec:
           timeout: 1s
           unhealthyThreshold: 1
       kube:
-        selector:
-          app: bluegreen
-          text: blue
-        serviceName: service-blue
+        serviceName: service-bluegreen
         serviceNamespace: default
-        servicePort: 10000
+        servicePort: 8080
 ---
 apiVersion: fed.gateway.solo.io/v1
 kind: FederatedVirtualService
 metadata:
-  name: simple-route
+  name: any-bluegreen
   namespace: gloo-fed
 spec:
   placement:
     clusters:
       - kind2
+      - kind3
     namespaces:
       - gloo-system
   template:
@@ -644,19 +488,19 @@ spec:
           routeAction:
             single:
               upstream:
-                name: default-service-blue-10000
+                name: default-service-bluegreen-8080
                 namespace: gloo-system
     metadata:
-      name: simple-route
+      name: any-bluegreen
 EOF
 ```
 
-The FederatedUpstream creates an Upstream in the target clusters (only the first Gloo cluster in this case) and the FederatedVirtualService does the same with VirtualServices.
+The FederatedUpstream creates an Upstream in the target clusters and the FederatedVirtualService does the same with VirtualServices.
 
 You can run execute the following command to validate tha the Upstream object has been correctly created in the first Gloo cluster:
 
 ```bash
-kubectl --context kind-kind2 -n gloo-system get upstream default-service-blue-10000 -o yaml
+kubectl --context kind-kind2 -n gloo-system get upstream default-service-bluegreen-8080 -o yaml
 ```
 
 You should get something similar to that:
@@ -665,17 +509,18 @@ You should get something similar to that:
 apiVersion: gloo.solo.io/v1
 kind: Upstream
 metadata:
+  creationTimestamp: "2020-08-19T10:48:14Z"
+  generation: 10
+  labels:
+    fed.solo.io/owner: gloo-fed.default-service-bluegreen
 ...
-  name: default-service-blue-10000
+  name: default-service-bluegreen-8080
   namespace: gloo-system
-  resourceVersion: "7621"
-  selfLink: /apis/gloo.solo.io/v1/namespaces/gloo-system/upstreams/default-service-blue-10000
-  uid: 20f8737f-8f55-469b-933b-f766a3623e2a
+  resourceVersion: "12452"
+  selfLink: /apis/gloo.solo.io/v1/namespaces/gloo-system/upstreams/default-service-bluegreen-8080
+  uid: f9206f0d-a58a-4b2b-b320-59aadba8304f
 spec:
-  discoveryMetadata:
-    labels:
-      app: bluegreen
-      text: blue
+  discoveryMetadata: {}
   healthChecks:
   - healthyThreshold: 1
     httpHealthCheck:
@@ -685,18 +530,27 @@ spec:
     timeout: 1s
     unhealthyThreshold: 1
   kube:
-    selector:
-      app: bluegreen
-      text: blue
-    serviceName: service-blue
+    serviceName: service-bluegreen
     serviceNamespace: default
-    servicePort: 10000
+    servicePort: 8080
 status:
   reportedBy: gloo
   state: 1
 ```
 
-You can do the same for the VirtualService object
+You can do the same for the VirtualService object.
+
+It means that you can now access the `service-bluegreen` from both Gloo clusters:
+
+```bash
+kubectl config use-context kind-kind2
+curl $(glooctl proxy url)
+
+kubectl config use-context kind-kind3
+curl $(glooctl proxy url)
+```
+
+One will return `blue-pod` while the other one will return `green-pod`.
 
 ## Failover
 
@@ -716,11 +570,11 @@ spec:
  - priorityGroup:
    - cluster: kind3
      upstreams:
-     - name: default-service-green-10000
+     - name: default-service-bluegreen-8080
        namespace: gloo-system
  primary:
    clusterName: kind2
-   name: default-service-blue-10000
+   name: default-service-bluegreen-8080
    namespace: gloo-system
 EOF
 ```
@@ -778,7 +632,7 @@ spec:
 EOF
 ```
 
-Check that you can access the application on the first Gloo cluster:
+Check that you can still access the application on the first Gloo cluster:
 
 ```bash
 kubectl config use-context kind-kind2
@@ -793,18 +647,27 @@ You should get this output:
 
 ## Failover the workload
 
-Run the following commands to fail te blue Pod:
+Run the following commands to scale down the `echo-blue` deployment to 0:
 
 ```bash
 kubectl config use-context kind-kind2
-kubectl port-forward deploy/echo-blue 19000 &
-curl -v -X POST  http://localhost:19000/healthcheck/fail
+kubectl scale deploy/echo-blue --replicas=0
 ```
  
-Check that you can access the application on the first Gloo cluster:
+![Failover](images/failover.png)
+
+Wait until the `echo-blue` pod has been terminated:
 
 ```bash
-kubectl config use-context kind-kind2
+until [ $(kubectl get pods -l text=blue -o json | jq '.items | length') -eq 0 ]; do
+  echo "Waiting for the echo-blue pod to terminate"
+  sleep 1
+done
+```
+
+Check that you can still access the application on the first Gloo cluster:
+
+```bash
 curl $(glooctl proxy url)/
 ```
 
@@ -814,8 +677,20 @@ You should now get this output:
 "green-pod"
 ```
 
+It means that the Gloo gateway has sent the request to the second Gloo cluster because the service wasn't available locally.
+
 ## Cleanup
 
-```bash
+Kill the kubectl port forward processes:
+
+```
 pkill kubectl
+```
+
+Delete the Kubernetes clusters:
+
+```
+kind delete cluster --name kind1
+kind delete cluster --name kind2
+kind delete cluster --name kind3
 ```
