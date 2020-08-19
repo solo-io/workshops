@@ -28,7 +28,10 @@ Run the following command is used to initialize the working directory:
 terraform init
 ```
 
-Edit the `gce.tf` file to change the `count` value to the number of Virtual Machines you want to provision.
+Edit the `gce.tf` file to adapt it to your needs:
+
+- the `count` value should be updated to reflect the number of Virtual Machines you want to provision
+- the `zone` value should be updated to use a GCP zone that is part of a region close to the people who will attend the workshop
 
 Run the following command to deploy the Virtual Machines:
 
