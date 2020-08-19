@@ -135,7 +135,7 @@
 
   - name: Download the Solo background image
     get_url:
-      url: https://github.com/solo-io/workshops/raw/master/smh/terraform/solo-white.png
+      url: https://github.com/solo-io/workshops/raw/master/terraform/solo-white.png
       dest: /home/solo/solo-white.png
 
   - name: Install libcairo2-dev
@@ -411,7 +411,7 @@
 
   - name: Unarchive the default xfce4 config
     unarchive:
-      src: https://github.com/solo-io/workshops/raw/master/smh/terraform/config.tgz
+      src: https://github.com/solo-io/workshops/raw/master/terraform/config.tgz
       dest: /home/solo
       remote_src: yes
 

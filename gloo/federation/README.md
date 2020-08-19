@@ -109,6 +109,12 @@ Upgrade `glooctl` using the following command:
 glooctl upgrade --release=v1.5.0-beta18
 ```
 
+Set the `LICENSE_KEY` variable with the value provided by the instructor:
+
+```
+export LICENSE_KEY=<license>
+```
+
 Create the following configuration file to enable Multicluster RBAC:
 
 ```bash
@@ -152,8 +158,16 @@ glooctl install gateway enterprise --version 1.5.0-beta7 --values values.yaml --
 Use the following commands to wait for the Gloo components to be deployed on all the clusters:
 
 ```bash
-until [ $(kubectl --context kind-kind1 -n gloo-system get pods -o jsonpath='{range .items[*].status.containerStatuses[*]}{.ready}{"\n"}{end}' | grep false -c) -eq 0 ]; do
-  echo "Waiting for all the gloo-system pods to become ready on cluster kind-kind1"
+
+kubectl --context kind-kind1 -n gloo-fed rollout status deployment gloo-fed
+
+until kubectl --context kind-kind2 get ns gloo-system
+do
+  sleep 1
+done
+
+until kubectl --context kind-kind3 get ns gloo-system
+do
   sleep 1
 done
 
