@@ -218,7 +218,9 @@ kubectl config use-context kind-kind1
 kubectl port-forward svc/gloo-fed-console -n gloo-fed 8090:8090
 ```
 
-Access the UI at http://localhost:8090
+Access the UI at http://localhost:8090 and have a look at the different tabs.
+
+![UI](images/ui.png)
 
 ## Secure the communications between the Gloo clusters
 
@@ -552,7 +554,7 @@ curl $(glooctl proxy url)
 
 One will return `blue-pod` while the other one will return `green-pod`.
 
-## Failover
+## Failover configuration
 
 When an Upstream fails or becomes unhealthy, Gloo Federation can automatically fail traffic over to a different Gloo instance and Upstream.
 
@@ -679,13 +681,18 @@ You should now get this output:
 
 It means that the Gloo gateway has sent the request to the second Gloo cluster because the service wasn't available locally.
 
+## Monitoring
+
+If you go back to the Admin UI and click on the `Gloo Instances tab`, you can see the 2 Gloo clusters:
+
+![Instances](images/instances.png)
+
+If you click on `View Gloo Details` on the first one, and then on the `Upstreams` tab, you can see that the Upstream has been failing over:
+
+![Upstreams](images/upstreams.png)
+
+
 ## Cleanup
-
-Kill the kubectl port forward processes:
-
-```
-pkill kubectl
-```
 
 Delete the Kubernetes clusters:
 

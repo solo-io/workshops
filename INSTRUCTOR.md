@@ -73,3 +73,13 @@ When you deliver the workshop, take the IP addresses from the `hosts` file and p
 They simply need to access their Virtual Machine using `http://<ip address>/guacamole/`.
 
 The user is `solo` and the password is `Workshop1#`
+
+## Test
+
+From any workshop directory (`gloo/federation`, for example), you can run the following command to extract all the instructions from the README.md and run them:
+
+```
+cat README.md | ../../md-to-bash.sh | bash
+```
+
+It allows you to test that all the instructions are still working after you modify the README.md

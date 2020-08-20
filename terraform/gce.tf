@@ -3,7 +3,7 @@ locals {
 }
 
 resource "google_compute_instance" "default" {
-  count         = "2"
+  count         = "1"
   name         = "test-${count.index + 1}"
   machine_type = "n1-standard-4"
   zone         = "europe-west1-b"
