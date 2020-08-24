@@ -55,15 +55,17 @@ cd /home/solo/workshops/smh
 Run the following commands to deploy 2 Kubernetes clusters:
 
 ```bash
-./scripts/deploy.sh 1
-./scripts/deploy.sh 2
+../scripts/deploy.sh 1
+../scripts/deploy.sh 2
+../scripts/deploy.sh 3
 ```
 
 Then run the following commands to wait for all the Pods to be ready:
 
 ```bash
-./scripts/check.sh 1
-./scripts/check.sh 2
+../scripts/check.sh 1
+../scripts/check.sh 2
+../scripts/check.sh 3
 ```
 
 Now, if you execute the `kubectl get pods -A` command, you should obtain the following:
@@ -84,14 +86,15 @@ metallb-system       controller-5c9894b5cd-cn9x2                   1/1     Runni
 metallb-system       speaker-d7jkp                                 1/1     Running   0          4h26m
 ```
 
-Note that this the output for the second cluster.
+Note that this the output for the third cluster.
 
 You can see that your currently connected to this cluster by executing the `kubectl config get-contexts` command:
 
 ```
 CURRENT   NAME         CLUSTER      AUTHINFO     NAMESPACE
           kind-kind1   kind-kind1   kind-kind1   
-*         kind-kind2   kind-kind2   kind-kind2
+          kind-kind2   kind-kind2   kind-kind2
+*         kind-kind3   kind-kind3   kind-kind3
 ````
 
 Run the following command to make `kind-kind1` the current cluster.
@@ -109,109 +112,35 @@ curl -sL https://run.solo.io/meshctl/install | sh
 export PATH=$HOME/.service-mesh-hub/bin:$PATH
 ```
 
-Now, you can install Service Mesh Hub on your first cluster:
+Now, you can install Service Mesh Hub on your admin cluster:
 
 ```bash
-meshctl install --register --context kind-kind1
+meshctl install
 ```
 
-As you can see, we also registered it.
-
-Now let's register the second cluster:
+Then, you need to register the two other clusters:
 
 ```bash
 meshctl cluster register \
-  --remote-cluster-name new-remote-cluster \
+  --cluster-name kind2 \
+  --mgmt-context kind-kind1 \
   --remote-context kind-kind2
+
+meshctl cluster register \
+  --cluster-name kind3 \
+  --mgmt-context kind-kind1 \
+  --remote-context kind-kind3
 ```
 
 ## Lab 3 : Deploy Istio on both clusters
 
-You can install Istio by yourself or use the *meshctl* CLI for that.
-
-To be able to deploy Istio with Kiali, we need to create the secrets corresponding to the admin password.
-
-```bash
-KIALI_USERNAME=$(printf '%s' admin | base64)
-KIALI_PASSPHRASE=$(printf '%s' admin | base64)
-NAMESPACE=istio-system
-
-kubectl --context kind-kind1 create namespace $NAMESPACE
-kubectl --context kind-kind2 create namespace $NAMESPACE
-
-cat <<EOF | kubectl --context kind-kind1 apply -f -
-apiVersion: v1
-kind: Secret
-metadata:
-  name: kiali
-  namespace: $NAMESPACE
-  labels:
-    app: kiali
-type: Opaque
-data:
-  username: $KIALI_USERNAME
-  passphrase: $KIALI_PASSPHRASE
-EOF
-
-cat <<EOF | kubectl --context kind-kind2 apply -f -
-apiVersion: v1
-kind: Secret
-metadata:
-  name: kiali
-  namespace: $NAMESPACE
-  labels:
-    app: kiali
-type: Opaque
-data:
-  username: $KIALI_USERNAME
-  passphrase: $KIALI_PASSPHRASE
-EOF
-```
-
 Now let's deploy Istio on the first cluster:
 
 ```bash
-meshctl mesh install istio1.6 --context kind-kind1 --create-operator-namespace=false --operator-spec=- <<EOF
-apiVersion: install.istio.io/v1alpha1
-kind: IstioOperator
-metadata:
-  name: istiocontrolplane-default
-  namespace: istio-system
-spec:
-  profile: default
-  addonComponents:
-    istiocoredns:
-      enabled: true
-    grafana:
-      enabled: true
-    kiali:
-      enabled: true
-    prometheus:
-      enabled: true
-    tracing:
-      enabled: true
-  values:
-    global:
-      controlPlaneSecurityEnabled: true
-      mtls:
-        enabled: true
-      pilotCertProvider: kubernetes
-      podDNSSearchNamespaces:
-      - global
-      - '{{ valueOrDefault .DeploymentMeta.Namespace "default" }}.global'
-      proxy:
-        accessLogFile: /dev/stdout
-    prometheus:
-      enabled: false
-EOF
-````
-
-As you can see, *meshctl* simply using the *Istio Operator* to deploy Istio.
-
-We follow the same approach to deploy Istio on the second Kubernetes cluster:
+./istio-1.7.0/bin/istioctl --context kind-kind2 operator init
 
 ```bash
-meshctl mesh install istio1.6 --context kind-kind2 --create-operator-namespace=false --operator-spec=- <<EOF
+cat << EOF | kubectl --context kind-kind2 apply -f -
 apiVersion: install.istio.io/v1alpha1
 kind: IstioOperator
 metadata:
@@ -230,39 +159,59 @@ spec:
       enabled: true
     tracing:
       enabled: true
-  values:
-    global:
-      controlPlaneSecurityEnabled: true
-      mtls:
-        enabled: true
-      pilotCertProvider: kubernetes
-      podDNSSearchNamespaces:
-      - global
-      - '{{ valueOrDefault .DeploymentMeta.Namespace "default" }}.global'
-      proxy:
-        accessLogFile: /dev/stdout
+  meshConfig:
+    accessLogFile: /dev/stdout
+    enableAutoMtls: true
+EOF
+```
+
+And deploy Istio on the second cluster:
+
+```bash
+./istio-1.7.0/bin/istioctl --context kind-kind3 operator init
+
+cat << EOF | kubectl --context kind-kind3 apply -f -
+apiVersion: install.istio.io/v1alpha1
+kind: IstioOperator
+metadata:
+  name: istiocontrolplane-default
+  namespace: istio-system
+spec:
+  profile: default
+  addonComponents:
+    istiocoredns:
+      enabled: true
+    grafana:
+      enabled: true
+    kiali:
+      enabled: true
     prometheus:
-      enabled: false
+      enabled: true
+    tracing:
+      enabled: true
+  meshConfig:
+    accessLogFile: /dev/stdout
+    enableAutoMtls: true
 EOF
 ```
 
 <!--bash
-until kubectl --context kind-kind1 get ns istio-system
-do
-  sleep 1
-done
-
-until [ $(kubectl --context kind-kind1 -n istio-system get pods -o jsonpath='{range .items[*].status.containerStatuses[*]}{.ready}{"\n"}{end}' | grep true -c) -eq 10 ]; do
-  echo "Waiting for all the Istio pods to become ready"
-  sleep 1
-done
-
 until kubectl --context kind-kind2 get ns istio-system
 do
   sleep 1
 done
 
-until [ $(kubectl --context kind-kind2 -n istio-system get pods -o jsonpath='{range .items[*].status.containerStatuses[*]}{.ready}{"\n"}{end}' | grep true -c) -eq 10 ]; do
+until [ $(kubectl --context kind-kind2 -n istio-system get pods -o jsonpath='{range .items[*].status.containerStatuses[*]}{.ready}{"\n"}{end}' | grep true -c) -eq 8 ]; do
+  echo "Waiting for all the Istio pods to become ready"
+  sleep 1
+done
+
+until kubectl --context kind-kind3 get ns istio-system
+do
+  sleep 1
+done
+
+until [ $(kubectl --context kind-kind3 -n istio-system get pods -o jsonpath='{range .items[*].status.containerStatuses[*]}{.ready}{"\n"}{end}' | grep true -c) -eq 8 ]; do
   echo "Waiting for all the Istio pods to become ready"
   sleep 1
 done
@@ -271,24 +220,23 @@ done
 Run the following command until all the Istio Pods are ready:
 
 ```
-kubectl --context kind-kind1 get pods -n istio-system
+kubectl --context kind-kind2 get pods -n istio-system
 ```
 
 When it's case, you should get this output:
 
 ```
-NAME                                   READY   STATUS    RESTARTS   AGE
-grafana-74dc798895-xlrxn               1/1     Running   0          6m57s
-istio-ingressgateway-f6ccd5595-vgl2c   1/1     Running   0          7m2s
-istio-operator-74687d7859-nkk2q        1/1     Running   0          7m34s
-istio-tracing-8584b4d7f9-ftlwg         1/1     Running   0          6m57s
-istiocoredns-7ffc9b7fcf-fk7wn          2/2     Running   0          6m57s
-istiod-6b49d46f8b-l9cb9                1/1     Running   0          7m10s
-kiali-6f457f5964-4h4q4                 1/1     Running   0          6m56s
-prometheus-c44ffc7d4-cgffh             2/2     Running   0          6m56s
+NAME                                    READY   STATUS    RESTARTS   AGE
+grafana-7d7f48894b-7gl6d                1/1     Running   0          84s
+istio-ingressgateway-658c5c4489-kq8hl   1/1     Running   0          88s
+istio-tracing-68b5cc6685-9wdlz          1/1     Running   0          84s
+istiocoredns-685b5c449f-wk4l5           2/2     Running   0          84s
+istiod-6f5fd7cb8f-mvwbk                 1/1     Running   0          98s
+kiali-64f76f6c9b-bzkls                  1/1     Running   0          84s
+prometheus-5bcb77c949-zjl9d             1/1     Running   0          83s
 ```
 
-Check the status on the second cluster using `kubectl --context kind-kind2 get pods -n istio-system`
+Check the status on the second cluster using `kubectl --context kind-kind3 get pods -n istio-system`
 
 ## Lab 4 : Create the Virtual Mesh
 
@@ -297,6 +245,93 @@ Service Mesh Hub can help unify the root identity between multiple service mesh 
 Run the following command to create the *Virtual Mesh*:
 
 ```bash
+cat << EOF | kubectl --context kind-kind1 apply -f -
+apiVersion: networking.smh.solo.io/v1alpha2
+kind: VirtualMesh
+metadata:
+  name: virtual-mesh
+  namespace: service-mesh-hub
+spec:
+  mtlsConfig:
+    autoRestartPods: true
+    shared:
+      rootCertificateAuthority:
+        generated: null
+  federation: {}
+  meshes:
+  - name: istiod-istio-system-kind2
+    namespace: service-mesh-hub
+  - name: istiod-istio-system-kind3
+    namespace: service-mesh-hub
+EOF
+```
+
+
+
+
+
+
+
+
+
+
+kubectl --context kind-kind2 label namespace default istio-injection=enabled
+#kubectl --context kind-kind2 apply -f https://raw.githubusercontent.com/istio/istio/1.6.7/samples/bookinfo/platform/kube/bookinfo.yaml
+kubectl --context kind-kind2 apply -f https://raw.githubusercontent.com/istio/istio/1.6.7/samples/bookinfo/platform/kube/bookinfo.yaml -l 'app,version notin (v3)'
+kubectl --context kind-kind2 apply -f https://raw.githubusercontent.com/istio/istio/1.6.7/samples/bookinfo/platform/kube/bookinfo.yaml -l 'account'
+kubectl --context kind-kind2 apply -f https://raw.githubusercontent.com/istio/istio/1.6.7/samples/bookinfo/networking/bookinfo-gateway.yaml
+
+kubectl --context kind-kind3 label namespace default istio-injection=enabled
+kubectl --context kind-kind3 apply -f https://raw.githubusercontent.com/istio/istio/1.6.7/samples/bookinfo/platform/kube/bookinfo.yaml
+kubectl --context kind-kind3 apply -f https://raw.githubusercontent.com/istio/istio/1.6.7/samples/bookinfo/networking/bookinfo-gateway.yaml
+
+```bash
+cat << EOF | kubectl --context kind-kind1 apply -f -
+apiVersion: networking.smh.solo.io/v1alpha2
+kind: VirtualMesh
+metadata:
+  name: virtual-mesh
+  namespace: service-mesh-hub
+spec:
+  mtlsConfig:
+    autoRestartPods: true
+    shared:
+      rootCertificateAuthority:
+        generated: null
+  federation: {}
+  globalAccessPolicy: ENABLED
+  meshes:
+  - name: istiod-istio-system-kind2
+    namespace: service-mesh-hub
+  - name: istiod-istio-system-kind3
+    namespace: service-mesh-hub
+EOF
+```
+
+kubectl --context kind-kind2 apply -f - <<EOF
+apiVersion: "security.istio.io/v1beta1"
+kind: "PeerAuthentication"
+metadata:
+  name: "default"
+  namespace: "istio-system"
+spec:
+  mtls:
+    mode: STRICT
+EOF
+
+# Verify TLS (before and after)
+
+kubectl --context kind-kind3 apply -f - <<EOF
+apiVersion: "security.istio.io/v1beta1"
+kind: "PeerAuthentication"
+metadata:
+  name: "default"
+  namespace: "istio-system"
+spec:
+  mtls:
+    mode: STRICT
+EOF
+
 cat << EOF | kubectl --context kind-kind1 apply -f -
 apiVersion: networking.smh.solo.io/v1alpha1
 kind: VirtualMesh
@@ -320,11 +355,406 @@ spec:
   - name: istio-istio-system-new-remote-cluster
     namespace: service-mesh-hub
 EOF
-```
 
-At this point we need to bounce the istiod control plane. This is because the Istio control plane picks up the CA for Citadel and does not rotate it often enough. This is being improved in future versions of Istio.
+sleep 15
 
-```
-kubectl --context kind-kind1 delete pod -n istio-system -l app=istiod
-kubectl --context kind-kind2 delete pod -n istio-system -l app=istiod
-```
+kubectl --context kind-kind1 get virtualmeshcertificatesigningrequest -n service-mesh-hub
+
+until kubectl --context kind-kind1 get secret -n istio-system cacerts
+do
+  sleep 1
+done
+
+until kubectl --context kind-kind2 get secret -n istio-system cacerts
+do
+  sleep 1
+done
+
+kubectl --context kind-kind1 get serviceentry -n istio-system
+kubectl --context kind-kind2 get serviceentry -n istio-system
+
+until meshctl check
+do
+  sleep 1
+done
+
+kubectl --context kind-kind2 apply -f - <<EOF
+apiVersion: "security.istio.io/v1beta1"
+kind: "AuthorizationPolicy"
+metadata:
+  name: "productpage-viewer"
+  namespace: default
+spec:
+  selector:
+    matchLabels:
+      app: productpage
+  rules:
+  - to:
+    - operation:
+        methods: ["GET"]
+EOF
+
+kubectl --context kind-kind3 apply -f - <<EOF
+apiVersion: "security.istio.io/v1beta1"
+kind: "AuthorizationPolicy"
+metadata:
+  name: "productpage-viewer"
+  namespace: default
+spec:
+  selector:
+    matchLabels:
+      app: productpage
+  rules:
+  - to:
+    - operation:
+        methods: ["GET"]
+EOF
+
+cat << EOF | kubectl --context kind-kind1 apply -f -
+apiVersion: networking.smh.solo.io/v1alpha2
+kind: AccessPolicy
+metadata:
+  namespace: service-mesh-hub
+  name: productpage
+spec:
+  sourceSelector:
+  - kubeServiceAccountRefs:
+      serviceAccounts:
+        - name: bookinfo-productpage
+          namespace: default
+          clusterName: kind2
+  destinationSelector:
+  - kubeServiceMatcher:
+      namespaces:
+      - default
+EOF
+
+cat << EOF | kubectl --context kind-kind1 apply -f -
+apiVersion: networking.smh.solo.io/v1alpha2
+kind: AccessPolicy
+metadata:
+  namespace: service-mesh-hub
+  name: reviews
+spec:
+  sourceSelector:
+  - kubeServiceAccountRefs:
+      serviceAccounts:
+        - name: bookinfo-reviews
+          namespace: default
+          clusterName: kind2
+  destinationSelector:
+  - kubeServiceMatcher:
+      namespaces:
+      - default
+      labels:
+        service: ratings
+
+
+apiVersion: networking.smh.solo.io/v1alpha1
+kind: AccessControlPolicy
+metadata:
+  namespace: service-mesh-hub
+  name: reviews
+spec:
+  sourceSelector:
+    serviceAccountRefs:
+      serviceAccounts:
+        - name: bookinfo-reviews
+          namespace: default
+          cluster: remote-cluster
+  destinationSelector:
+    matcher:
+      namespaces:
+        - default
+EOF
+
+cat << EOF | kubectl --context kind-kind1 apply -f -
+apiVersion: networking.smh.solo.io/v1alpha1
+kind: AccessControlPolicy
+metadata:
+  namespace: service-mesh-hub
+  name: reviews
+spec:
+  sourceSelector:
+    serviceAccountRefs:
+      serviceAccounts:
+        - name: bookinfo-reviews
+          namespace: default
+          cluster: management-plane
+  destinationSelector:
+    matcher:
+      namespaces:
+        - default
+      labels:
+        service: ratings
+EOF
+
+cat << EOF | kubectl --context kind-kind1 apply -f -
+apiVersion: networking.smh.solo.io/v1alpha1
+kind: TrafficPolicy
+metadata:
+  namespace: service-mesh-hub
+  name: local-reviews
+spec:
+  destinationSelector:
+    serviceRefs:
+      services:
+        - cluster: management-plane
+          name: reviews
+          namespace: default
+  trafficShift:
+    destinations:
+      - destination:
+          cluster: management-plane
+          name: reviews
+          namespace: default
+        weight: 50
+      - destination:
+          cluster: new-remote-cluster
+          name: reviews
+          namespace: default
+        weight: 50
+EOF
+
+cat << EOF | kubectl --context kind-kind1 apply -f -
+apiVersion: networking.smh.solo.io/v1alpha1
+kind: TrafficPolicy
+metadata:
+  namespace: service-mesh-hub
+  name: remote-reviews
+spec:
+  outlierDetection:
+    consecutiveErrors: 3
+    interval: 60s
+    baseEjectionTime: 3m
+  destinationSelector:
+    serviceRefs:
+      services:
+        - cluster: new-remote-cluster
+          name: reviews
+          namespace: default
+EOF
+
+#spec:
+#  requestTimeout: 2s
+# Doesn't work when kind2 is down
+# outlierDetection:
+#    consecutiveErrors: 3
+# Doesn't work either
+
+kubectl --context kind-kind1 -n istio-system delete pod -l app=istiod
+kubectl --context kind-kind2 -n istio-system delete pod -l app=istiod
+
+kubectl --context kind-kind1 delete po --all
+kubectl --context kind-kind2 delete po --all
+
+kubectl --context kind-kind1 -n istio-system delete pod -l app=istio-ingressgateway
+kubectl --context kind-kind2 -n istio-system delete pod -l app=istio-ingressgateway
+
+#kubectl --context kind-kind1 -n istio-system delete pod -l app=prometheus
+#kubectl --context kind-kind2 -n istio-system delete pod -l app=prometheus
+
+#kubectl --context kind-kind1 -n istio-system delete po --all
+#kubectl --context kind-kind2 -n istio-system delete po --all
+
+cat << EOF | kubectl --context kind-kind1 apply -f -
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: coredns
+  namespace: istio-system
+  labels:
+    app: istiocoredns
+    release: istio
+data:
+  Corefile: |
+    management-plane {
+             grpc . 127.0.0.1:8053
+          }
+    new-remote-cluster {
+             grpc . 127.0.0.1:8053
+          }
+    .:53 {
+          errors
+          health
+          grpc global 127.0.0.1:8053
+          forward . /etc/resolv.conf {
+            except global
+          }
+          prometheus :9153
+          cache 30
+          reload
+        }
+EOF
+
+cat << EOF | kubectl --context kind-kind1 apply -f -
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: coredns
+  namespace: kube-system
+data:
+  Corefile: |
+    .:53 {
+        errors
+        health {
+           lameduck 5s
+        }
+        ready
+        kubernetes cluster.local in-addr.arpa ip6.arpa {
+           pods insecure
+           fallthrough in-addr.arpa ip6.arpa
+           ttl 30
+        }
+        prometheus :9153
+        forward . /etc/resolv.conf
+        cache 30
+        loop
+        reload
+        loadbalance
+    }
+    management-plane:53 {
+        errors
+        cache 30
+        forward . $(kubectl --context kind-kind1 get svc -n istio-system istiocoredns -o jsonpath={.spec.clusterIP}):53
+    }
+    new-remote-cluster:53 {
+        errors
+        cache 30
+        forward . $(kubectl --context kind-kind1 get svc -n istio-system istiocoredns -o jsonpath={.spec.clusterIP}):53
+    }
+    global:53 {
+        errors
+        cache 30
+        forward . $(kubectl --context kind-kind1 get svc -n istio-system istiocoredns -o jsonpath={.spec.clusterIP}):53
+    }
+EOF
+
+cat << EOF | kubectl --context kind-kind2 apply -f -
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: coredns
+  namespace: istio-system
+  labels:
+    app: istiocoredns
+    release: istio
+data:
+  Corefile: |
+    management-plane {
+             grpc . 127.0.0.1:8053
+          }
+    new-remote-cluster {
+             grpc . 127.0.0.1:8053
+          }
+    .:53 {
+          errors
+          health
+          grpc global 127.0.0.1:8053
+          forward . /etc/resolv.conf {
+            except global
+          }
+          prometheus :9153
+          cache 30
+          reload
+        }
+EOF
+
+cat << EOF | kubectl --context kind-kind2 apply -f -
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: coredns
+  namespace: kube-system
+data:
+  Corefile: |
+    .:53 {
+        errors
+        health {
+           lameduck 5s
+        }
+        ready
+        kubernetes cluster.local in-addr.arpa ip6.arpa {
+           pods insecure
+           fallthrough in-addr.arpa ip6.arpa
+           ttl 30
+        }
+        prometheus :9153
+        forward . /etc/resolv.conf
+        cache 30
+        loop
+        reload
+        loadbalance
+    }
+    management-plane:53 {
+        errors
+        cache 30
+        forward . $(kubectl --context kind-kind2 get svc -n istio-system istiocoredns -o jsonpath={.spec.clusterIP}):53
+    }
+    new-remote-cluster:53 {
+        errors
+        cache 30
+        forward . $(kubectl --context kind-kind2 get svc -n istio-system istiocoredns -o jsonpath={.spec.clusterIP}):53
+    }
+    global:53 {
+        errors
+        cache 30
+        forward . $(kubectl --context kind-kind2 get svc -n istio-system istiocoredns -o jsonpath={.spec.clusterIP}):53
+    }
+EOF
+
+while true; do 
+  curl -s -o /dev/null -w '%{response_code}\t%{time_starttransfer}\n' http://172.18.0.210/productpage
+  sleep 1
+done
+
+cat << EOF # | kubectl --context kind-kind2 delete -f -
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-ingress
+spec:
+  podSelector: {}
+  policyTypes:
+  - Ingress
+EOF
+
+# k --context kind-kind2 scale deployment -n istio-system istio-ingressgateway --replicas=0
+
+
+
+
+
+
+exit
+
+kubectl --context kind-kind1 apply -f - <<EOF
+apiVersion: "security.istio.io/v1beta1"
+kind: "PeerAuthentication"
+metadata:
+  name: "default"
+  namespace: "istio-system"
+spec:
+  mtls:
+    mode: STRICT
+EOF
+
+
+cat << EOF | kubectl --context kind-kind1 apply -f -
+apiVersion: networking.smh.solo.io/v1alpha1
+kind: AccessControlPolicy
+metadata:
+  namespace: service-mesh-hub
+  name: bash
+spec:
+  sourceSelector:
+    serviceAccountRefs:
+      serviceAccounts:
+        - name: default
+          namespace: default
+          cluster: management-plane
+  destinationSelector:
+    matcher:
+      namespaces:
+        - default
+EOF
