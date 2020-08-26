@@ -60,6 +60,8 @@ Remove the SSH known hosts (optional, but recommended as Google Cloud reuses the
 echo > $HOME/.ssh/known_hosts
 ```
 
+If you want the `LICENSE_KEY` environment variable to be set in the Virtual Machines, just set this variable on your laptop before running the `ansible-playbook` command.
+
 Run the ansible playbook to apply all the prerequisites to the Virtual Machines
 
 ```

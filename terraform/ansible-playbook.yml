@@ -448,5 +448,10 @@
     become_user: solo
     become_method: su
 
+  - name: Add glooctl to the path
+    shell: echo "export LICENSE_KEY={{ lookup('env','LICENSE_KEY') }}" >> /home/solo/.bashrc
+    become_user: solo
+    become_method: su
+
   - name: Reboot VM
     reboot:

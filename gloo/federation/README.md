@@ -79,11 +79,13 @@ Upgrade `glooctl` using the following command:
 glooctl upgrade --release=v1.5.0-beta18
 ```
 
-Set the `LICENSE_KEY` variable with the value provided by the instructor:
+Check if the `LICENSE_KEY` variable is already set.
 
-```
-export LICENSE_KEY=<license>
-```
+>If it's not, set the `LICENSE_KEY` variable with the value provided by the instructor:
+>
+>```
+>export LICENSE_KEY=<license>
+>```
 
 Create the following configuration file to enable Multicluster RBAC:
 
