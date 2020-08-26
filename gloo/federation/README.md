@@ -20,7 +20,7 @@ From the terminal go to the `/home/solo/workshops/gloo/federation` directory:
 cd /home/solo/workshops/gloo/federation
 ```
 
-Run the following commands to deploy 2 Kubernetes clusters:
+Run the following commands to deploy 3 Kubernetes clusters:
 
 ```bash
 ../../scripts/deploy.sh 1

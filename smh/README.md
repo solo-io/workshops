@@ -22,7 +22,7 @@ From the terminal go to the `/home/solo/workshops/smh` directory:
 cd /home/solo/workshops/smh
 ```
 
-Run the following commands to deploy 2 Kubernetes clusters:
+Run the following commands to deploy 3 Kubernetes clusters:
 
 ```bash
 ../scripts/deploy.sh 1
