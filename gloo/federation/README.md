@@ -454,6 +454,14 @@ spec:
       name: default-service-bluegreen-8080
     spec:
       discoveryMetadata: {}
+      healthChecks:
+        - healthyThreshold: 1
+          httpHealthCheck:
+            path: /
+          interval: 1s
+          noTrafficInterval: 1s
+          timeout: 1s
+          unhealthyThreshold: 1
       kube:
         serviceName: service-bluegreen
         serviceNamespace: default

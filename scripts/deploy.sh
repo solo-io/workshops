@@ -29,12 +29,6 @@ kubeadmConfigPatches:
   nodeRegistration:
     kubeletExtraArgs:
       node-labels: "topology.kubernetes.io/region=us-east-1,topology.kubernetes.io/zone=us-east-1c"
-containerdConfigPatches:
-- |-
-  [plugins."io.containerd.grpc.v1.cri".registry.mirrors."docker.io"]
-    endpoint = ["http://${myip}:8180"]
-  [plugins."io.containerd.grpc.v1.cri".registry.mirrors."quay.io"]
-    endpoint = ["http://${myip}:8181"]
 EOF
 
 kind create cluster --name kind${number} --config kind${number}.yaml
