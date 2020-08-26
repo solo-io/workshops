@@ -30,7 +30,6 @@ The user is `solo` and the password is `Workshop1#`
 >
 > <img src="images/keyboard.png" alt="keyboard" width="300"/>
 
-This Github repo contains several Workshop created by solo.io:
+You can find the list of the available workshops using the link below:
 
-- [Gloo Federation](gloo/federation/README.md)
-- [Service Mesh Hub (work in progress)](smh/README.md)
+[Workshops](WORKSHOPS.md)
