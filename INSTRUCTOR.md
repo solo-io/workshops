@@ -30,6 +30,7 @@ terraform init
 
 Edit the `gce.tf` file to adapt it to your needs:
 
+- the prefix of the `name` is `test-` by default, change it to your name, for example, to avoid conflicts with other workshops
 - the `count` value should be updated to reflect the number of Virtual Machines you want to provision
 - the `zone` value should be updated to use a GCP zone that is part of a region close to the people who will attend the workshop
 
