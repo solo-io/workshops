@@ -475,6 +475,18 @@ NAME      TYPE                                          DATA   AGE
 cacerts   certificates.smh.solo.io/issued_certificate   5      2m23s
 ```
 
+<!--bash
+until kubectl --context kind-kind2 get secret -n istio-system cacerts
+do
+  sleep 1
+done
+
+until kubectl --context kind-kind3 get secret -n istio-system cacerts
+do
+  sleep 1
+done
+-->
+
 Now, let's check what certificates we get:
 
 ```bash
@@ -563,16 +575,12 @@ command terminated with exit code 1
 
 You can see that the chain is now identical.
 
-<!--bash
-until kubectl --context kind-kind2 get secret -n istio-system cacerts
-do
-  sleep 1
-done
+<!--
+kubectl --context kind-kind2 -n istio-system delete pod -l app=istio-ingressgateway
+kubectl --context kind-kind3 -n istio-system delete pod -l app=istio-ingressgateway
 
-until kubectl --context kind-kind3 get secret -n istio-system cacerts
-do
-  sleep 1
-done
+kubectl --context kind-kind2 delete pod --all
+kubectl --context kind-kind3 delete pod --all
 -->
 
 <!--bash
@@ -585,11 +593,6 @@ until [ $(kubectl --context kind-kind3 get pods -o jsonpath='{range .items[*].st
   echo "Waiting for all the pods of the default namespace to become ready"
   sleep 1
 done
--->
-
-<!--
-kubectl --context kind-kind2 -n istio-system delete pod -l app=istio-ingressgateway
-kubectl --context kind-kind3 -n istio-system delete pod -l app=istio-ingressgateway
 -->
 
 ## Lab 6 : Access Control
@@ -631,7 +634,7 @@ You should get the following error message:
 
 ```
 RBAC: access denied
-````
+```
 
 You need to create an Istio AuthorizationPolicy on each cluster to allow access to the application:
 
