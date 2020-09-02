@@ -78,7 +78,7 @@ kubectl config use-context kind-kind1
 First of all, you need to install the *meshctl* CLI:
 
 ```bash
-curl -sL https://run.solo.io/meshctl/install | sh
+curl -sL https://run.solo.io/meshctl/install | SMH_VERSION=v0.7.2 sh -
 export PATH=$HOME/.service-mesh-hub/bin:$PATH
 ```
 
