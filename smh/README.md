@@ -575,7 +575,7 @@ command terminated with exit code 1
 
 You can see that the chain is now identical.
 
-<!--
+<!--bash
 kubectl --context kind-kind2 -n istio-system delete pod -l app=istio-ingressgateway
 kubectl --context kind-kind3 -n istio-system delete pod -l app=istio-ingressgateway
 
