@@ -65,7 +65,7 @@ CURRENT   NAME         CLUSTER      AUTHINFO     NAMESPACE
           kind-kind1   kind-kind1   kind-kind1   
           kind-kind2   kind-kind2   kind-kind2
 *         kind-kind3   kind-kind3   kind-kind3
-````
+```
 
 Run the following command to make `kind-kind1` the current cluster.
 
@@ -576,6 +576,8 @@ command terminated with exit code 1
 You can see that the chain is now identical.
 
 <!--bash
+sleep 30
+
 kubectl --context kind-kind2 -n istio-system delete pod -l app=istio-ingressgateway
 kubectl --context kind-kind3 -n istio-system delete pod -l app=istio-ingressgateway
 
