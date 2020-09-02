@@ -296,7 +296,7 @@ Service Mesh Hub can help unify the root identity between multiple service mesh 
 Run this command to see how the communication between microservices occur currently:
 
 ```bash
-kubectl --context kind-kind2 exec -it deploy/reviews-v1 -c istio-proxy \
+kubectl --context kind-kind2 exec -t deploy/reviews-v1 -c istio-proxy \
 -- openssl s_client -showcerts -connect ratings:9080
 ```
 
@@ -355,7 +355,7 @@ EOF
 Run the command again:
 
 ```bash
-kubectl --context kind-kind2 exec -it deploy/reviews-v1 -c istio-proxy \
+kubectl --context kind-kind2 exec -t deploy/reviews-v1 -c istio-proxy \
 -- openssl s_client -showcerts -connect ratings:9080
 ```
 
@@ -392,7 +392,7 @@ As you can see, mTLS is now enabled.
 Now, run the same command on the second cluster:
 
 ```bash
-kubectl --context kind-kind3 exec -it deploy/reviews-v1 -c istio-proxy \
+kubectl --context kind-kind3 exec -t deploy/reviews-v1 -c istio-proxy \
 -- openssl s_client -showcerts -connect ratings:9080
 ```
 
@@ -478,7 +478,7 @@ cacerts   certificates.smh.solo.io/issued_certificate   5      2m23s
 Now, let's check what certificates we get:
 
 ```bash
-kubectl --context kind-kind2 exec -it deploy/reviews-v1 -c istio-proxy \
+kubectl --context kind-kind2 exec -t deploy/reviews-v1 -c istio-proxy \
 -- openssl s_client -showcerts -connect ratings:9080
 ```
 
@@ -521,7 +521,7 @@ command terminated with exit code 1
 And let's compare with what we get on the second cluster:
 
 ```bash
-kubectl --context kind-kind3 exec -it deploy/reviews-v1 -c istio-proxy \
+kubectl --context kind-kind3 exec -t deploy/reviews-v1 -c istio-proxy \
 -- openssl s_client -showcerts -connect ratings:9080
 ```
 
