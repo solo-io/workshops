@@ -78,7 +78,7 @@ kubectl config use-context kind-kind1
 First of all, you need to install the *meshctl* CLI:
 
 ```bash
-curl -sL https://run.solo.io/meshctl/install | SMH_VERSION=v0.7.2 sh -
+curl -sL https://run.solo.io/meshctl/install | SMH_VERSION=v0.7.4 sh -
 export PATH=$HOME/.service-mesh-hub/bin:$PATH
 ```
 
@@ -153,6 +153,16 @@ spec:
   meshConfig:
     accessLogFile: /dev/stdout
     enableAutoMtls: true
+    trustDomain: kind2
+  values:
+    global:
+      trustDomain: kind2
+  components:
+    pilot:
+      k8s:
+        env:
+          - name: PILOT_SKIP_VALIDATE_TRUST_DOMAIN
+            value: "true"
 EOF
 ```
 
@@ -185,6 +195,16 @@ spec:
   meshConfig:
     accessLogFile: /dev/stdout
     enableAutoMtls: true
+    trustDomain: kind3
+  values:
+    global:
+      trustDomain: kind3
+  components:
+    pilot:
+      k8s:
+        env:
+          - name: PILOT_SKIP_VALIDATE_TRUST_DOMAIN
+            value: "true"
 EOF
 ```
 
@@ -487,6 +507,28 @@ do
 done
 -->
 
+<!--bash
+sleep 30
+
+kubectl --context kind-kind2 -n istio-system delete pod -l app=istio-ingressgateway
+kubectl --context kind-kind3 -n istio-system delete pod -l app=istio-ingressgateway
+
+kubectl --context kind-kind2 delete pod --all
+kubectl --context kind-kind3 delete pod --all
+-->
+
+<!--bash
+until [ $(kubectl --context kind-kind2 get pods -o jsonpath='{range .items[*].status.containerStatuses[*]}{.ready}{"\n"}{end}' | grep false -c) -eq 0 ]; do
+  echo "Waiting for all the pods of the default namespace to become ready"
+  sleep 1
+done
+
+until [ $(kubectl --context kind-kind3 get pods -o jsonpath='{range .items[*].status.containerStatuses[*]}{.ready}{"\n"}{end}' | grep false -c) -eq 0 ]; do
+  echo "Waiting for all the pods of the default namespace to become ready"
+  sleep 1
+done
+-->
+
 Now, let's check what certificates we get:
 
 ```bash
@@ -575,28 +617,6 @@ command terminated with exit code 1
 
 You can see that the chain is now identical.
 
-<!--bash
-sleep 30
-
-kubectl --context kind-kind2 -n istio-system delete pod -l app=istio-ingressgateway
-kubectl --context kind-kind3 -n istio-system delete pod -l app=istio-ingressgateway
-
-kubectl --context kind-kind2 delete pod --all
-kubectl --context kind-kind3 delete pod --all
--->
-
-<!--bash
-until [ $(kubectl --context kind-kind2 get pods -o jsonpath='{range .items[*].status.containerStatuses[*]}{.ready}{"\n"}{end}' | grep false -c) -eq 0 ]; do
-  echo "Waiting for all the pods of the default namespace to become ready"
-  sleep 1
-done
-
-until [ $(kubectl --context kind-kind3 get pods -o jsonpath='{range .items[*].status.containerStatuses[*]}{.ready}{"\n"}{end}' | grep false -c) -eq 0 ]; do
-  echo "Waiting for all the pods of the default namespace to become ready"
-  sleep 1
-done
--->
-
 ## Lab 6 : Access Control
 
 In the previous guide, we federated multiple meshes and established a shared root CA for a shared identity domain. Now that we have a logical VirtualMesh, we need a way to establish access policies across the multiple meshes, without treating each of them individually. Service Mesh Hub helps by establishing a single, unified API that understands the logical VirtualMesh construct.
@@ -674,6 +694,27 @@ spec:
 EOF
 ```
 
+```bash
+cat << EOF | kubectl --context kind-kind1 apply -f -
+apiVersion: networking.smh.solo.io/v1alpha2
+kind: AccessPolicy
+metadata:
+  namespace: service-mesh-hub
+  name: productpage-viewer
+spec:
+  sourceSelector:
+  - kubeServiceAccountRefs:
+      serviceAccounts:
+        - name: bookinfo-productpage
+          namespace: default
+          clusterName: kind2
+  destinationSelector:
+  - kubeServiceMatcher:
+      namespaces:
+      - default
+EOF
+```
+
 Now, refresh the page again and you should be able to access the application, but neither the product `details` nor the `reviews`:
 
 ![Bookinfo RBAC 1](images/bookinfo-rbac1.png)
@@ -741,6 +782,7 @@ On the first cluster, the `v3` version of the `reviews` micro service doesn't ex
 Let's create the following TrafficPolicy:
 
 ```bash
+
 cat << EOF | kubectl --context kind-kind1 apply -f -
 apiVersion: networking.smh.solo.io/v1alpha2
 kind: TrafficPolicy

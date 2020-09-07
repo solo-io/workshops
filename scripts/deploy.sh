@@ -1,6 +1,10 @@
 number=$1
 
-myip=$(hostname -i)
+if hostname -i; then
+  myip=$(hostname -i)
+else
+  myip=$(ipconfig getifaddr en0)
+fi
 
 cat << EOF > kind${number}.yaml
 kind: Cluster
