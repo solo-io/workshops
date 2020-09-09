@@ -984,41 +984,7 @@ You should get the following error message:
 RBAC: access denied
 ```
 
-You need to create an Istio AuthorizationPolicy on each cluster to allow access to the application:
-
-```bash
-kubectl --context kind-kind2 apply -f - <<EOF
-apiVersion: "security.istio.io/v1beta1"
-kind: "AuthorizationPolicy"
-metadata:
-  name: "productpage-viewer"
-  namespace: default
-spec:
-  selector:
-    matchLabels:
-      app: productpage
-  rules:
-  - to:
-    - operation:
-        methods: ["GET"]
-EOF
-
-kubectl --context kind-kind3 apply -f - <<EOF
-apiVersion: "security.istio.io/v1beta1"
-kind: "AuthorizationPolicy"
-metadata:
-  name: "productpage-viewer"
-  namespace: default
-spec:
-  selector:
-    matchLabels:
-      app: productpage
-  rules:
-  - to:
-    - operation:
-        methods: ["GET"]
-EOF
-```
+You need to create a Service Mesh Hub Access Policy to allow the Istio Ingress Gateway to access the `productpage` microservice:
 
 ```bash
 cat << EOF | kubectl --context kind-kind1 apply -f -
@@ -1026,26 +992,28 @@ apiVersion: networking.smh.solo.io/v1alpha2
 kind: AccessPolicy
 metadata:
   namespace: service-mesh-hub
-  name: productpage-viewer
+  name: istio-ingressgateway
 spec:
   sourceSelector:
   - kubeServiceAccountRefs:
       serviceAccounts:
-        - name: bookinfo-productpage
-          namespace: default
+        - name: istio-ingressgateway-service-account
+          namespace: istio-system
           clusterName: kind2
   destinationSelector:
   - kubeServiceMatcher:
       namespaces:
       - default
+      labels:
+        service: productpage
 EOF
 ```
 
-Now, refresh the page again and you should be able to access the application, but neither the product `details` nor the `reviews`:
+Now, refresh the page again and you should be able to access the application, but neither the `details` nor the `reviews`:
 
 ![Bookinfo RBAC 1](images/bookinfo-rbac1.png)
 
-You can create a Service Mesh Hub Access Policy to allow the `productpage` micro service to talk to the other services in the default namespace:
+You can create another Service Mesh Hub Access Policy to allow the `productpage` micro service to talk to these 2 micro services:
 
 ```bash
 cat << EOF | kubectl --context kind-kind1 apply -f -
@@ -1065,6 +1033,13 @@ spec:
   - kubeServiceMatcher:
       namespaces:
       - default
+      labels:
+        service: details
+  - kubeServiceMatcher:
+      namespaces:
+      - default
+      labels:
+        service: reviews
 EOF
 ```
 
@@ -1201,6 +1176,27 @@ spec:
       - default
       labels:
         service: reviews
+  destinationSelector:
+  - kubeServiceMatcher:
+      namespaces:
+      - default
+      labels:
+        service: ratings
+EOF
+
+We shoudl allow that:
+cat << EOF | kubectl --context kind-kind1 apply -f -
+apiVersion: networking.smh.solo.io/v1alpha2
+kind: AccessPolicy
+metadata:
+  namespace: service-mesh-hub
+  name: reviews
+spec:
+  sourceSelector:
+  - kubeServiceAccountRefs:
+      serviceAccounts:
+        - name: bookinfo-reviews
+          namespace: default
   destinationSelector:
   - kubeServiceMatcher:
       namespaces:
@@ -1365,7 +1361,7 @@ kubectl --context kind-kind2 patch deployment reviews-v1  --type json   -p '[{"o
 kubectl --context kind-kind2 patch deployment reviews-v2  --type json   -p '[{"op": "remove", "path": "/spec/template/spec/containers/0/command"}]'
 ```
 
-If you refresh the web page several times, you should see only the versions `v1` (no stars) and `v2` (black stars), which means that all the requests are handled by the first cluster.
+Afer 2 minutes, if you refresh the web page several times, you should see only the versions `v1` (no stars) and `v2` (black stars), which means that all the requests are handled by the first cluster.
 
 ## Lab 9 : Securing the Edge
 
@@ -1870,9 +1866,42 @@ status:
       state: 1
 ```
 
-The Gloo gateway is accessible using the `172.18.0.221` IP address.
+Check that all the Pods are running in the `default` namespace:
 
-Go to the http://172.18.0.221/productpage URL to check that you can now access the productpage service using Gloo.
+```bash
+kubectl --context kind-kind2 get pods
+```
+
+When it's the case, the Gloo gateway is accessible using the `172.18.0.221` IP address.
+
+Go to the http://172.18.0.221/productpage URL to check that you can now access the `productpage` micro service using Gloo.
+
+As you could have guessed, Gloo isn't allowed to talk to the `productpage` micro service.
+
+Let's create an `AccessPolicy` to allow that:
+
+```bash
+cat << EOF | kubectl --context kind-kind1 apply -f -
+apiVersion: networking.smh.solo.io/v1alpha2
+kind: AccessPolicy
+metadata:
+  namespace: service-mesh-hub
+  name: gloo
+spec:
+  sourceSelector:
+  - kubeServiceAccountRefs:
+      serviceAccounts:
+        - name: gateway-proxy
+          namespace: gloo-system
+          clusterName: kind2
+  destinationSelector:
+  - kubeServiceMatcher:
+      namespaces:
+      - default
+      labels:
+        service: productpage
+EOF
+```
 
 Now let's see what we can do with Gloo that we couldn't do with the Istio Ingressgateway.
 
