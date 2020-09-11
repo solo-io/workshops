@@ -1080,6 +1080,8 @@ Refresh the page another time and all the services should now work:
 
 On the first cluster, the `v3` version of the `reviews` micro service doesn't exist, so we're going to redirect some of the traffic to the second cluster to make it available.
 
+![Multicluster traffic](images/multicluster-traffic.png)
+
 Let's create the following TrafficPolicy:
 
 ```bash
@@ -1370,6 +1372,8 @@ We've seen in the previous labs how the Istio Ingressgateway can be used for mul
 While the Istio Ingressgateway can also be used to expose your applications to the outside world, it doesn't provide all the features most of the people need (external authenticaion, rate limiting, ...).
 
 Gloo is a feature-rich next-generation API gateway which provides these features. Gloo is exceptional in its function-level routing; its support for legacy apps, microservices and serverless; its discovery capabilities; its numerous features; and its tight integration with leading open-source projects. Gloo is uniquely designed to support hybrid applications, in which multiple technologies, architectures, protocols, and clouds can coexist.
+
+![Gloo SMH](images/gloo-smh-1.png)
 
 Let's deploy Gloo on the fist cluster:
 
