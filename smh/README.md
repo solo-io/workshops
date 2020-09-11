@@ -297,6 +297,9 @@ reviews-v3-7dbcdcbc56-trjdx       2/2     Running   0          2m22s
 
 As you can see, it deployed all the versions of the `reviews` micro service.
 
+![Initial setup](images/initial-setup.png)
+
+
 <!--bash
 until [ $(kubectl --context kind-kind2 get pods -o jsonpath='{range .items[*].status.containerStatuses[*]}{.ready}{"\n"}{end}' | grep false -c) -eq 0 ]; do
   echo "Waiting for all the pods of the default namespace to become ready"
