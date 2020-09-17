@@ -5,7 +5,7 @@ locals {
 resource "google_compute_instance" "default" {
   count         = "1"
   name         = "denis-${count.index + 1}"
-  machine_type = "n1-standard-4"
+  machine_type = "n1-standard-8"
   zone         = "europe-west1-b"
 
   tags = ["http-server", "https-server"]

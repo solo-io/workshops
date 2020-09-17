@@ -458,5 +458,24 @@
       name: apache2-utils
       state: present
 
+  - name: Add Helm apt key
+    apt_key:
+      url: https://baltocdn.com/helm/signing.asc
+      state: present
+
+  - name: Install apt-transport-https
+    apt:
+      name: apt-transport-https
+      state: present
+
+  - apt_repository:
+      repo: deb https://baltocdn.com/helm/stable/debian/ all main
+      state: present
+
+  - name: Install helm
+    apt:
+      name: helm
+      state: present
+
   - name: Reboot VM
     reboot:
