@@ -42,7 +42,13 @@ terraform apply -auto-approve
 
 When the deployment is finished, you need to run the ansible script to deploy the prerequisites.
 
-Load the lab ssh key:
+Load the `lab` ssh key:
+
+---
+**NOTE**  
+If you don't already have the `lab` private key available locally, retrieve it from the shared Google Drive that contains other workshop resources.
+
+---
 
 ```
 ssh-add lab
