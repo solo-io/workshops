@@ -255,7 +255,7 @@ Check the status on the second cluster using `kubectl --context kind-kind3 get p
 
 ## Lab 4 : Deploy the Bookinfo demo app
 
-Run the following commands to deploy the app on the first cluster:
+Run the following commands to deploy the bookinfo app on the first cluster:
 
 ```bash
 kubectl --context kind-kind2 label namespace default istio-injection=enabled
@@ -277,7 +277,7 @@ reviews-v2-7d79d5bd5d-mpsk2       2/2     Running   0          2m34s
 
 As you can see, it didn't deploy the `v3` version of the `reviews` micro service.
 
-Run the following commands to deploy the app on the first cluster:
+Now, run the following commands to deploy the bookinfo app on the second cluster:
 
 ```bash
 kubectl --context kind-kind3 label namespace default istio-injection=enabled
