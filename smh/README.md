@@ -1,6 +1,6 @@
 # Service Mesh Hub workshop
 
-Service Mesh Hub (smh) is a Kubernetes-native management plane that enables configuration and operational management of multiple heterogeneous service meshes across multiple clusters through a unified API. The Service Mesh Hub API integrates with the leading service meshes and abstracts away differences between their disparate API's, allowing users to configure a set of different service meshes through a single API. Service Mesh Hub is engineered with a focus on its utility as an operational management tool, providing both graphical and command line UIs, observability features, and debugging tools.
+[Service Mesh Hub](https://docs.solo.io/service-mesh-hub/latest/) (smh) is a Kubernetes-native management plane that enables configuration and operational management of multiple heterogeneous service meshes across multiple clusters through a unified API. The Service Mesh Hub API integrates with the leading service meshes and abstracts away differences between their disparate API's, allowing users to configure a set of different service meshes through a single API. Service Mesh Hub is engineered with a focus on its utility as an operational management tool, providing both graphical and command line UIs, observability features, and debugging tools.
 
 The goal of this workshop is to show several unique features of the Service Mesh Hub (smh) in action:
 
@@ -11,6 +11,8 @@ The goal of this workshop is to show several unique features of the Service Mesh
 - Failover
 
 ## Lab environment
+
+Service Mesh Hub can be run in its own cluster or co-located with an existing mesh.  In this exercise, SMH will run in its own dedicated Cluster 1, while the two managed Istio meshes will run in separate Clusters 2 and 3.
 
 ![Lab](images/lab.png)
 
@@ -253,7 +255,7 @@ Check the status on the second cluster using `kubectl --context kind-kind3 get p
 
 ## Lab 4 : Deploy the Bookinfo demo app
 
-Run the following commands to deploy the app on the first cluster:
+Run the following commands to deploy the bookinfo app on the first cluster:
 
 ```bash
 kubectl --context kind-kind2 label namespace default istio-injection=enabled
@@ -275,7 +277,7 @@ reviews-v2-7d79d5bd5d-mpsk2       2/2     Running   0          2m34s
 
 As you can see, it didn't deploy the `v3` version of the `reviews` micro service.
 
-Run the following commands to deploy the app on the first cluster:
+Now, run the following commands to deploy the bookinfo app on the second cluster:
 
 ```bash
 kubectl --context kind-kind3 label namespace default istio-injection=enabled

@@ -42,7 +42,13 @@ terraform apply -auto-approve
 
 When the deployment is finished, you need to run the ansible script to deploy the prerequisites.
 
-Load the lab ssh key:
+Load the `lab` ssh key:
+
+---
+**NOTE**  
+If you don't already have the `lab` private key available locally, retrieve it from the shared Google Drive that contains other workshop resources.
+
+---
 
 ```
 ssh-add lab
@@ -61,7 +67,7 @@ Remove the SSH known hosts (optional, but recommended as Google Cloud reuses the
 echo > $HOME/.ssh/known_hosts
 ```
 
-If you want the `LICENSE_KEY` environment variable to be set in the Virtual Machines, just set this variable on your laptop before running the `ansible-playbook` command.
+All solo.io enterprise products require a license key.  If you'd like to preset a limited-term key on the student Virtual Machines, then set the `LICENSE_KEY` environment variable on your workstation before running the `ansible-playbook` command.
 
 Run the ansible playbook to apply all the prerequisites to the Virtual Machines
 
