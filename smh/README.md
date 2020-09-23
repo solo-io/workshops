@@ -1475,426 +1475,44 @@ Let's deploy Gloo on the fist cluster:
 
 ```bash
 kubectl config use-context kind-kind2
-glooctl install gateway enterprise --version 1.5.0-beta9 --license-key $LICENSE_KEY
+glooctl upgrade --release=v1.5.0-beta25
+glooctl install gateway enterprise --version 1.5.0-beta10 --license-key $LICENSE_KEY
 ```
 
 Use the following commands to wait for the Gloo components to be deployed:
-
-```bash
-until [ $(kubectl --context kind-kind2 -n gloo-system get pods -o jsonpath='{range .items[*].status.containerStatuses[*]}{.ready}{"\n"}{end}' | grep false -c) -eq 0 ]; do
-  echo "Waiting for all the gloo-system pods to become ready on cluster kind-kind2"
-  sleep 1
-done
-```
 
 <!--bash
 until kubectl --context kind-kind2 get ns gloo-system
 do
   sleep 1
 done
+-->
 
+```bash
 until [ $(kubectl --context kind-kind2 -n gloo-system get pods -o jsonpath='{range .items[*].status.containerStatuses[*]}{.ready}{"\n"}{end}' | grep false -c) -eq 0 ]; do
   echo "Waiting for all the gloo-system pods to become ready on cluster kind-kind2"
   sleep 1
 done
--->
+```
 
 Serving as the Ingress for an Istio cluster – without compromising on security – means supporting mutual TLS (mTLS) communication between Gloo and the rest of the cluster. Mutual TLS means that the client proves its identity to the server (in addition to the server proving its identity to the client, which happens in regular TLS).
 
 For Gloo to successfully send requests to an Istio Upstream with mTLS enabled, we need to add the Istio mTLS secret to the gateway-proxy pod. The secret allows Gloo to authenticate with the Upstream service. We will also add an SDS server container to the pod, to handle cert rotation when Istio updates its certs.
 
-Use the following command to patch the `gateway-proxy-envoy-config` ConfigMap:
+Everything is done by simply running the following command:
 
 ```bash
-cat > configmap-patch.yaml <<'EOF'
-apiVersion: v1
-data:
-  envoy.yaml: |
-    layered_runtime:
-      layers:
-      - name: static_layer
-        static_layer:
-          overload:
-            global_downstream_max_connections: 250000
-      - name: admin_layer
-        admin_layer: {}
-    node:
-      cluster: gateway
-      id: "{{.PodName}}.{{.PodNamespace}}"
-      metadata:
-        # role's value is the key for the in-memory xds cache (projects/gloo/pkg/xds/envoy.go)
-        role: "{{.PodNamespace}}~gateway-proxy"
-    stats_sinks:
-      - name: envoy.stat_sinks.metrics_service
-        typed_config:
-          "@type": type.googleapis.com/envoy.config.metrics.v3.MetricsServiceConfig
-          grpc_service:
-            envoy_grpc: {cluster_name: gloo.gloo-system.svc.cluster.local:9966}
-    static_resources:
-      listeners: # if or $statsConfig.enabled (or $spec.readConfig $spec.extraListenersHelper) # $spec.extraListenersHelper
-        - name: prometheus_listener
-          address:
-            socket_address:
-              address: 0.0.0.0
-              port_value: 8081
-          filter_chains:
-            - filters:
-                - name: envoy.filters.network.http_connection_manager
-                  typed_config:
-                    "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
-                    codec_type: AUTO
-                    stat_prefix: prometheus
-                    route_config:
-                      name: prometheus_route
-                      virtual_hosts:
-                        - name: prometheus_host
-                          domains:
-                            - "*"
-                          routes:
-                            - match:
-                                path: "/ready"
-                                headers:
-                                - name: ":method"
-                                  exact_match: GET
-                              route:
-                                cluster: admin_port_cluster
-                            - match:
-                                prefix: "/metrics"
-                                headers:
-                                - name: ":method"
-                                  exact_match: GET
-                              route:
-                                prefix_rewrite: "/stats/prometheus"
-                                cluster: admin_port_cluster
-                    http_filters:
-                      - name: envoy.filters.http.router # if $spec.tracing # if $statsConfig.enabled # if $spec.readConfig
-      clusters:
-      - name: gloo.gloo-system.svc.cluster.local:9977
-        alt_stat_name: xds_cluster
-        connect_timeout: 5.000s
-        load_assignment:
-          cluster_name: gloo.gloo-system.svc.cluster.local:9977
-          endpoints:
-          - lb_endpoints:
-            - endpoint:
-                address:
-                  socket_address:
-                    address: gloo.gloo-system.svc.cluster.local
-                    port_value: 9977
-        http2_protocol_options: {}
-        upstream_connection_options:
-          tcp_keepalive: {}
-        type: STRICT_DNS
-        respect_dns_ttl: true
-      - name: rest_xds_cluster
-        alt_stat_name: rest_xds_cluster
-        connect_timeout: 5.000s
-        load_assignment:
-          cluster_name: rest_xds_cluster
-          endpoints:
-          - lb_endpoints:
-            - endpoint:
-                address:
-                  socket_address:
-                    address: gloo.gloo-system.svc.cluster.local
-                    port_value: 9976
-        upstream_connection_options:
-          tcp_keepalive: {}
-        type: STRICT_DNS
-        respect_dns_ttl: true
-      - name: wasm-cache
-        connect_timeout: 5.000s
-        load_assignment:
-          cluster_name: wasm-cache
-          endpoints:
-          - lb_endpoints:
-            - endpoint:
-                address:
-                  socket_address:
-                    address: gloo.gloo-system.svc.cluster.local
-                    port_value: 9979
-        upstream_connection_options:
-          tcp_keepalive: {}
-        type: STRICT_DNS
-        respect_dns_ttl: true
-      - name: gloo.gloo-system.svc.cluster.local:9966
-        alt_stat_name: metrics_cluster
-        connect_timeout: 5.000s
-        load_assignment:
-            cluster_name: gloo.gloo-system.svc.cluster.local:9966
-            endpoints:
-            - lb_endpoints:
-              - endpoint:
-                    address:
-                        socket_address:
-                            address: gloo.gloo-system.svc.cluster.local
-                            port_value: 9966
-        http2_protocol_options: {}
-        type: STRICT_DNS # if .Values.accessLogger.enabled # if $spec.tracing # if $.Values.settings.aws.enableServiceAccountCredentials
-      - name: admin_port_cluster
-        connect_timeout: 5.000s
-        type: STATIC
-        lb_policy: ROUND_ROBIN
-        load_assignment:
-          cluster_name: admin_port_cluster
-          endpoints:
-          - lb_endpoints:
-            - endpoint:
-                address:
-                  socket_address:
-                    address: 127.0.0.1
-                    port_value: 19000 # if or $statsConfig.enabled ($spec.readConfig)
-      - name: gateway_proxy_sds
-        connect_timeout: 0.25s
-        http2_protocol_options: {}
-        load_assignment:
-          cluster_name: gateway_proxy_sds
-          endpoints:
-          - lb_endpoints:
-            - endpoint:
-                address:
-                  socket_address:
-                    address: 127.0.0.1
-                    port_value: 8234
-    dynamic_resources:
-      ads_config:
-        api_type: GRPC
-        rate_limit_settings: {}
-        grpc_services:
-        - envoy_grpc: {cluster_name: gloo.gloo-system.svc.cluster.local:9977}
-      cds_config:
-        ads: {}
-      lds_config:
-        ads: {}
-    admin:
-      access_log_path: /dev/null
-      address:
-        socket_address:
-          address: 127.0.0.1
-          port_value: 19000 # if (empty $spec.configMap.data) ## allows full custom # range $name, $spec := .Values.gatewayProxies# if .Values.gateway.enabled
-EOF
-
-kubectl --context kind-kind2 -n gloo-system patch configmaps gateway-proxy-envoy-config --type=merge --patch "$(cat configmap-patch.yaml)"
+glooctl istio inject
 ```
 
-Then, update the `gateway-proxy` Deployment to add the 2 additional Pods:
+It will restart a few Pods, so you can use the following commands to wait for all the Pods to be ready:
 
 ```bash
-cat << 'EOF' | kubectl --context kind-kind2 apply -f -
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  labels:
-    app: gloo
-    gateway-proxy-id: gateway-proxy
-    gloo: gateway-proxy
-  name: gateway-proxy
-  namespace: gloo-system
-spec:
-  progressDeadlineSeconds: 600
-  replicas: 1
-  revisionHistoryLimit: 10
-  selector:
-    matchLabels:
-      gateway-proxy-id: gateway-proxy
-      gloo: gateway-proxy
-  strategy:
-    rollingUpdate:
-      maxSurge: 25%
-      maxUnavailable: 25%
-    type: RollingUpdate
-  template:
-    metadata:
-      annotations:
-        prometheus.io/path: /metrics
-        prometheus.io/port: "8081"
-        prometheus.io/scrape: "true"
-      creationTimestamp: null
-      labels:
-        gateway-proxy: live
-        gateway-proxy-id: gateway-proxy
-        gloo: gateway-proxy
-    spec:
-      containers:
-      - args:
-        - --disable-hot-restart
-        env:
-        - name: POD_NAMESPACE
-          valueFrom:
-            fieldRef:
-              apiVersion: v1
-              fieldPath: metadata.namespace
-        - name: POD_NAME
-          valueFrom:
-            fieldRef:
-              apiVersion: v1
-              fieldPath: metadata.name
-        image: quay.io/solo-io/gloo-ee-envoy-wrapper:1.5.0-beta9
-        imagePullPolicy: IfNotPresent
-        name: gateway-proxy
-        ports:
-        - containerPort: 8080
-          name: http
-          protocol: TCP
-        - containerPort: 8443
-          name: https
-          protocol: TCP
-        resources: {}
-        securityContext:
-          allowPrivilegeEscalation: false
-          capabilities:
-            drop:
-            - ALL
-          readOnlyRootFilesystem: true
-          runAsNonRoot: true
-          runAsUser: 10101
-        terminationMessagePath: /dev/termination-log
-        terminationMessagePolicy: File
-        volumeMounts:
-        - mountPath: /etc/envoy
-          name: envoy-config
-      - name: cert-rotator
-        image: quay.io/solo-io/sds:1.5.0-beta20
-        imagePullPolicy: IfNotPresent
-        ports:
-        - containerPort: 8234
-          name: sds
-          protocol: TCP
-        volumeMounts:
-        - mountPath: /etc/istio-certs/
-          name: istio-certs
-        - mountPath: /etc/envoy
-          name: envoy-config
-        env:
-          - name: POD_NAME
-            valueFrom:
-              fieldRef:
-                fieldPath: metadata.name
-          - name: POD_NAMESPACE
-            valueFrom:
-              fieldRef:
-                fieldPath: metadata.namespace
-          - name: ISTIO_MTLS_SDS_ENABLED
-            value: "true"
-      - name: istio-proxy
-        image: docker.io/istio/proxyv2:1.6.6
-        args:
-        - proxy
-        - sidecar
-        - --domain
-        - $(POD_NAMESPACE).svc.cluster.local
-        - --configPath
-        - /etc/istio/proxy
-        - --binaryPath
-        - /usr/local/bin/envoy
-        - --serviceCluster
-        - istio-proxy-prometheus
-        - --drainDuration
-        - 45s
-        - --parentShutdownDuration
-        - 1m0s
-        - --discoveryAddress
-        - istio-pilot.istio-system.svc:15012
-        - --proxyLogLevel=warning
-        - --proxyComponentLogLevel=misc:error
-        - --connectTimeout
-        - 10s
-        - --proxyAdminPort
-        - "15000"
-        - --controlPlaneAuthPolicy
-        - NONE
-        - --dnsRefreshRate
-        - 300s
-        - --statusPort
-        - "15021"
-        - --trust-domain=cluster.local
-        - --controlPlaneBootstrap=false
-        env:
-          - name: OUTPUT_CERTS
-            value: "/etc/istio-certs"
-          - name: JWT_POLICY
-            value: first-party-jwt
-          - name: PILOT_CERT_PROVIDER
-            value: istiod
-          - name: CA_ADDR
-            value: istiod.istio-system.svc:15012
-          - name: ISTIO_META_MESH_ID
-            value: cluster.local
-          - name: POD_NAME
-            valueFrom:
-              fieldRef:
-                fieldPath: metadata.name
-          - name: POD_NAMESPACE
-            valueFrom:
-              fieldRef:
-                fieldPath: metadata.namespace
-          - name: INSTANCE_IP
-            valueFrom:
-              fieldRef:
-                fieldPath: status.podIP
-          - name: SERVICE_ACCOUNT
-            valueFrom:
-              fieldRef:
-                fieldPath: spec.serviceAccountName
-          - name: HOST_IP
-            valueFrom:
-              fieldRef:
-                fieldPath: status.hostIP
-          - name: ISTIO_META_POD_NAME
-            valueFrom:
-              fieldRef:
-                apiVersion: v1
-                fieldPath: metadata.name
-          - name: ISTIO_META_CONFIG_NAMESPACE
-            valueFrom:
-              fieldRef:
-                apiVersion: v1
-                fieldPath: metadata.namespace
-        imagePullPolicy: IfNotPresent
-        readinessProbe:
-          failureThreshold: 30
-          httpGet:
-            path: /healthz/ready
-            port: 15021
-            scheme: HTTP
-          initialDelaySeconds: 1
-          periodSeconds: 2
-          successThreshold: 1
-          timeoutSeconds: 1
-        volumeMounts:
-        - mountPath: /var/run/secrets/istio
-          name: istiod-ca-cert
-        - mountPath: /etc/istio/proxy
-          name: istio-envoy
-        - mountPath: /etc/istio-certs/
-          name: istio-certs
-      dnsPolicy: ClusterFirst
-      restartPolicy: Always
-      schedulerName: default-scheduler
-      securityContext:
-        fsGroup: 10101
-        runAsUser: 10101
-      serviceAccount: gateway-proxy
-      serviceAccountName: gateway-proxy
-      terminationGracePeriodSeconds: 30
-      volumes:
-      - configMap:
-          defaultMode: 420
-          name: gateway-proxy-envoy-config
-        name: envoy-config
-      - name: istio-certs
-        emptyDir:
-          medium: Memory
-      - name: istiod-ca-cert
-        configMap:
-          defaultMode: 420
-          name: istio-ca-root-cert
-      - emptyDir:
-          medium: Memory
-        name: istio-envoy
-EOF
+until [ $(kubectl --context kind-kind2 get pods -A -o jsonpath='{range .items[*].status.containerStatuses[*]}{.ready}{"\n"}{end}' | grep false -c) -eq 0 ]; do
+  echo "Waiting for all the gloo-system pods to become ready on cluster kind-kind2"
+  sleep 1
+done
 ```
-
 Finally, you must disable function discovery before editing the Upstream to prevent your change from being overwritten by Gloo:
 
 ```bash
@@ -1904,8 +1522,12 @@ kubectl --context kind-kind2 label namespace default discovery.solo.io/function_
 To allow Gloo to access the `productpage` service, you need to add the SSL configuration needed in the corresponding Upstream.
 
 ```bash
-cat > upstream-patch.yaml <<'EOF'
-spec:
+glooctl istio enable-mtls --upstream default-productpage-9080
+````
+
+It will add the following information to the Upstream object:
+
+```
   sslConfig:
     alpn_protocols:
     - istio
@@ -1914,12 +1536,9 @@ spec:
       certificatesSecretName: istio_server_cert
       validationContextName: istio_validation_context
       clusterName: gateway_proxy_sds
-EOF
-
-kubectl --context kind-kind2 -n gloo-system patch upstream default-productpage-9080 --type=merge --patch "$(cat upstream-patch.yaml)"
 ```
 
-You can now make it accessible to the outside world using the following command:
+You can now make the productpage accessible to the outside world using the following command:
 
 ```bash
 glooctl add route --name prodpage --namespace gloo-system --path-prefix / --dest-name default-productpage-9080 --dest-namespace gloo-system

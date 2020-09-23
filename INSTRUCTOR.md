@@ -66,7 +66,8 @@ If you want the `LICENSE_KEY` environment variable to be set in the Virtual Mach
 Run the ansible playbook to apply all the prerequisites to the Virtual Machines
 
 ```
-ansible-playbook -i ./hosts ansible-playbook.yml
+export ANSIBLE_HOST_KEY_CHECKING=False
+ansible-playbook -i ./hosts -f 30 ansible-playbook.yml
 ```
 
 ## Deliver
