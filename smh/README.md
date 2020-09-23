@@ -641,17 +641,23 @@ do
 done
 -->
 
-<!--bash
-sleep 30
+Notice the `autoRestartPods: true` in the `mtlsConfig`. This instructs Service Mesh Hub to restart the Istio pods in the relevant clusters.
 
+This is due to a limitation of Istio. The Istio control plane picks up the CA for Citadel and does not rotate it often enough.
+
+But despite that, it happens that the Pods restart before `istiod` is using the new certificates, so let's restart them:
+
+```bash
 kubectl --context kind-kind2 -n istio-system delete pod -l app=istio-ingressgateway
 kubectl --context kind-kind3 -n istio-system delete pod -l app=istio-ingressgateway
 
 kubectl --context kind-kind2 delete pod --all
 kubectl --context kind-kind3 delete pod --all
--->
+```
 
-<!--bash
+And let's wait for all the Pods to be ready again:
+
+```bash
 until [ $(kubectl --context kind-kind2 get pods -o jsonpath='{range .items[*].status.containerStatuses[*]}{.ready}{"\n"}{end}' | grep false -c) -eq 0 ]; do
   echo "Waiting for all the pods of the default namespace to become ready"
   sleep 1
@@ -661,7 +667,7 @@ until [ $(kubectl --context kind-kind3 get pods -o jsonpath='{range .items[*].st
   echo "Waiting for all the pods of the default namespace to become ready"
   sleep 1
 done
--->
+```
 
 Now, let's check what certificates we get when we run the same commands we ran before we created the Virtual Mesh:
 
@@ -1422,7 +1428,7 @@ kubectl --context kind-kind2 patch deploy reviews-v1 --patch '{"spec": {"templat
 kubectl --context kind-kind2 patch deploy reviews-v2 --patch '{"spec": {"template": {"spec": {"containers": [{"name": "reviews","command": ["sleep", "20h"]}]}}}}'
 ```
 
-If you refresh the web page several times again, you should see only `v3` (red stars) as well, which means that all the requests are handled by the second cluster.
+If you refresh the web page several times again, you should see `v3` (red stars) as well, which means that all the requests are handled by the second cluster.
 
 ![After failover](images/after-failover.png)
 
@@ -1511,7 +1517,7 @@ It will restart a few Pods, so you can use the following commands to wait for al
 
 ```bash
 until [ $(kubectl --context kind-kind2 get pods -A -o jsonpath='{range .items[*].status.containerStatuses[*]}{.ready}{"\n"}{end}' | grep false -c) -eq 0 ]; do
-  echo "Waiting for all the gloo-system pods to become ready on cluster kind-kind2"
+  echo "Waiting for all the pods to become ready on cluster kind-kind2"
   sleep 1
 done
 ```
