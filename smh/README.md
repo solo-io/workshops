@@ -1428,7 +1428,7 @@ kubectl --context kind-kind2 patch deploy reviews-v1 --patch '{"spec": {"templat
 kubectl --context kind-kind2 patch deploy reviews-v2 --patch '{"spec": {"template": {"spec": {"containers": [{"name": "reviews","command": ["sleep", "20h"]}]}}}}'
 ```
 
-If you refresh the web page several times again, you should see only `v3` (red stars) as well, which means that all the requests are handled by the second cluster.
+If you refresh the web page several times again, you should see `v3` (red stars) as well, which means that all the requests are handled by the second cluster.
 
 ![After failover](images/after-failover.png)
 
