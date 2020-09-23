@@ -1362,7 +1362,7 @@ spec:
 EOF
 ```
 
-Then, we create a FailoverService to define a new hostname (`reviews-failover.default.global`) that we'll be backed by the `reviews` micro service runnings on both clusters. 
+Then, we create a FailoverService to define a new hostname (`reviews-failover.default.global`) that will be backed by the `reviews` micro service runnings on both clusters. 
 
 ```bash
 cat << EOF | kubectl --context kind-kind1 apply -f -
@@ -1473,7 +1473,7 @@ Gloo is a feature-rich next-generation API gateway which provides these features
 
 ![Gloo SMH](images/gloo-smh-1.png)
 
-Let's deploy Gloo on the fist cluster:
+Let's deploy Gloo on the first cluster:
 
 ```bash
 kubectl config use-context kind-kind2
