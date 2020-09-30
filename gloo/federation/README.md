@@ -76,7 +76,7 @@ kubectl config use-context kind-kind1
 Upgrade `glooctl` using the following command:
 
 ```bash
-glooctl upgrade --release=v1.5.0-beta18
+glooctl upgrade --release=v1.5.0-beta25
 ```
 
 Check if the `LICENSE_KEY` variable is already set.
@@ -99,38 +99,28 @@ Deploy Gloo:
 
 ```bash
 kubectl config use-context kind-kind1
-glooctl install federation --values values-federation.yaml --license-key $LICENSE_KEY
+glooctl install federation --values values-federation.yaml --license-key $LICENSE_KEY --version=v0.0.20
 ```
 
 ## Deploy Gloo on the two other clusters
-
-Create the following configuration file:
-
-```bash
-cat << EOF > values.yaml
-devPortal:
-  enabled: true
-EOF
-```
 
 Deploy Gloo on the second cluster:
 
 ```bash
 kubectl config use-context kind-kind2
-glooctl install gateway enterprise --version 1.5.0-beta7 --values values.yaml --license-key $LICENSE_KEY
+glooctl install gateway enterprise --version 1.5.0-beta11 --license-key $LICENSE_KEY
 ```
 
 Deploy Gloo on the third cluster:
 
 ```bash
 kubectl config use-context kind-kind3
-glooctl install gateway enterprise --version 1.5.0-beta7 --values values.yaml --license-key $LICENSE_KEY
+glooctl install gateway enterprise --version 1.5.0-beta11 --license-key $LICENSE_KEY
 ```
 
 Use the following commands to wait for the Gloo components to be deployed on all the clusters:
 
 ```bash
-
 kubectl --context kind-kind1 -n gloo-fed rollout status deployment gloo-fed
 
 until kubectl --context kind-kind2 get ns gloo-system
@@ -161,8 +151,8 @@ Register the 2 Gloo clusters:
 ```bash
 kubectl config use-context kind-kind1
 
-glooctl cluster register --cluster-name kind2 --remote-context kind-kind2
-glooctl cluster register --cluster-name kind3 --remote-context kind-kind3
+glooctl cluster register --cluster-name kind2 --remote-context kind-kind2 --remote-namespace gloo-system
+glooctl cluster register --cluster-name kind3 --remote-context kind-kind3 --remote-namespace gloo-system
 ```
 
 Once a cluster has been registered, Gloo Federation will automatically discover all instances of Gloo within the cluster. The discovered instances are stored in a Custom Resource of type `glooinstances.fed.solo.io` in the `gloo-fed` namespace.
@@ -400,7 +390,6 @@ EOF
 Use the following commands to wait for the blue and green Pods to be deployed on the Gloo clusters:
 
 ```bash
-
 kubectl --context kind-kind2 rollout status deployment echo-blue
 kubectl --context kind-kind3 rollout status deployment echo-green
 ```
