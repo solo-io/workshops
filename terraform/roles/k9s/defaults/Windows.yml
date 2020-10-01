@@ -1,0 +1,2 @@
+k9s_install_dir: '{{ lookup("env", "USERPROFILE") }}\AppData\Local\Microsoft\WindowsApps'
+k9s_temp_dir: "{{ lookup('env','TEMP') }}"

@@ -1,0 +1,56 @@
+---
+- name: Check for installation
+  become: yes
+  stat:
+    path: '{{ k9s_binary_path }}'
+  changed_when: false
+  register: k9s_binary
+
+- when: not k9s_binary.stat.exists or k9s_overwrite_existing
+  block:
+    - name: Resolve platform specific vars
+      include_vars: '{{ item }}'
+      with_first_found:
+        - files:
+          - '{{ ansible_distribution }}-{{ ansible_distribution_release }}.yml'
+          - '{{ ansible_distribution }}.yml'
+          - '{{ ansible_os_family }}.yml'
+          skip: true
+          paths:
+            - '{{ role_path }}/vars'
+            - '{{ role_path }}/defaults'
+
+    - name: Create target directory
+      become: '{{ k9s_privilege_escalate }}'
+      become_user: root
+      file:
+        path: '{{ k9s_install_dir }}'
+        state: directory
+        mode: '0755'
+
+    - name: Download k9s
+      become: '{{ k9s_privilege_escalate }}'
+      become_user: root
+      get_url:
+        url: '{{ k9s_url }}'
+        dest: '{{ k9s_temp_dir }}/{{ k9s_zip }}'
+        checksum: '{{ k9s_checksum }}'
+        mode: '0644'
+
+    - name: Unpack k9s
+      become: yes
+      become_user: root
+      unarchive:
+        remote_src: yes
+        src: '{{ k9s_temp_dir }}/{{ k9s_zip }}'
+        dest: '{{ k9s_install_dir }}'
+        creates: '{{ k9s_binary_path }}'
+        exclude: '{{ k9s_excluded_files }}'
+
+  always:
+    - name: Cleanup temp files
+      become: yes
+      become_user: root
+      file:
+        dest: '{{ k9s_temp_dir }}/{{ k9s_zip }}'
+        state: absent

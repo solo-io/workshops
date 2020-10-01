@@ -1,0 +1,40 @@
+---
+galaxy_info:
+  author: Janos Feher
+  description: Installs k9s Kubernetes tool to /usr/local/bin .
+  company: Polished Objects Limited
+  license:
+    - MIT
+  min_ansible_version: 2.0
+  platforms:
+    - name: EL
+      versions:
+        - all
+    - name: Fedora
+      versions:
+        - all
+    - name: Ubuntu
+      versions:
+        - all
+    - name: MacOSX
+      versions:
+        - all
+    - name: Alpine
+      versions:
+        - all
+    - name: Amazon
+      versions:
+          - all
+    - name: Windows
+      versions:
+          - all
+    - name: GenericLinux
+      versions:
+          - all
+  galaxy_tags:
+    - k8s
+    - kubernetes
+    - cloud
+  role_name: k9s
+
+dependencies: []

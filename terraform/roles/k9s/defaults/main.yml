@@ -1,0 +1,20 @@
+---
+k9s_ver: 0.20.5
+k9s_platform: x86_64
+k9s_mirror: https://github.com/derailed/k9s/releases/download
+
+k9s_checksums:
+  0.20.5:
+    Darwin:
+      x86_64: sha256:959fc6a021e41680b47cb13b2d5273869bc364334e16ab2fbf8dabd1184486dc
+    Linux:
+      x86_64: sha256:12c03e2b3a3dcceda01c4296e618f825d017263c0ee7af15bb203620fa5c61a1
+      arm64: sha256:cee17d8efbc498cd2e931241a698f4028617d40eaedfe7dc2f1590622f737733
+      arm:  sha256:234e7f388b0caa43fe2d244930c41af1a8956edb66d9b6ab35b33dfcc68a0db0
+    Windows:
+      x86_64:  sha256:1c3a722da42a156094ac647f6914d097d65a21c6a88273ed9867a95e7890e89e
+
+k9s_overwrite_existing: false
+k9s_privilege_escalate: true
+k9s_install_dir: /usr/local/bin
+k9s_temp_dir: /tmp
