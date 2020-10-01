@@ -27,17 +27,17 @@ cd /home/solo/workshops/smh
 Run the following commands to deploy 3 Kubernetes clusters:
 
 ```bash
-../scripts/deploy.sh 1
-../scripts/deploy.sh 2
-../scripts/deploy.sh 3
+../scripts/deploy.sh 1 mgmt
+../scripts/deploy.sh 2 cluster1
+../scripts/deploy.sh 3 cluster2
 ```
 
 Then run the following commands to wait for all the Pods to be ready:
 
 ```bash
-../scripts/check.sh 1
-../scripts/check.sh 2
-../scripts/check.sh 3
+../scripts/check.sh mgmt
+../scripts/check.sh cluster1
+../scripts/check.sh cluster2
 ```
 
 Now, if you execute the `kubectl get pods -A` command, you should obtain the following:
@@ -48,11 +48,11 @@ kube-system          calico-kube-controllers-59d85c5c84-sbk4k      1/1     Runni
 kube-system          calico-node-przxs                             1/1     Running   0          4h26m
 kube-system          coredns-6955765f44-ln8f5                      1/1     Running   0          4h26m
 kube-system          coredns-6955765f44-s7xxx                      1/1     Running   0          4h26m
-kube-system          etcd-kind2-control-plane                      1/1     Running   0          4h27m
-kube-system          kube-apiserver-kind2-control-plane            1/1     Running   0          4h27m
-kube-system          kube-controller-manager-kind2-control-plane   1/1     Running   0          4h27m
+kube-system          etcd-cluster1-control-plane                      1/1     Running   0          4h27m
+kube-system          kube-apiserver-cluster1-control-plane            1/1     Running   0          4h27m
+kube-system          kube-controller-manager-cluster1-control-plane   1/1     Running   0          4h27m
 kube-system          kube-proxy-ksvzw                              1/1     Running   0          4h26m
-kube-system          kube-scheduler-kind2-control-plane            1/1     Running   0          4h27m
+kube-system          kube-scheduler-cluster1-control-plane            1/1     Running   0          4h27m
 local-path-storage   local-path-provisioner-58f6947c7-lfmdx        1/1     Running   0          4h26m
 metallb-system       controller-5c9894b5cd-cn9x2                   1/1     Running   0          4h26m
 metallb-system       speaker-d7jkp                                 1/1     Running   0          4h26m
@@ -64,15 +64,15 @@ You can see that your currently connected to this cluster by executing the `kube
 
 ```
 CURRENT   NAME         CLUSTER      AUTHINFO     NAMESPACE
-          kind-kind1   kind-kind1   kind-kind1   
-          kind-kind2   kind-kind2   kind-kind2
-*         kind-kind3   kind-kind3   kind-kind3
+          mgmt   mgmt   mgmt   
+          cluster1   cluster1   cluster1
+*         cluster2   cluster2   cluster2
 ```
 
-Run the following command to make `kind-kind1` the current cluster.
+Run the following command to make `mgmt` the current cluster.
 
 ```bash
-kubectl config use-context kind-kind1
+kubectl config use-context mgmt
 ```
 
 ## Lab 2 : Deploy Service Mesh Hub and register the clusters
@@ -94,14 +94,14 @@ Then, you need to register the two other clusters:
 
 ```bash
 meshctl cluster register \
-  --cluster-name kind2 \
-  --mgmt-context kind-kind1 \
-  --remote-context kind-kind2
+  --cluster-name cluster1 \
+  --mgmt-context mgmt \
+  --remote-context cluster1
 
 meshctl cluster register \
-  --cluster-name kind3 \
-  --mgmt-context kind-kind1 \
-  --remote-context kind-kind3
+  --cluster-name cluster2 \
+  --mgmt-context mgmt \
+  --remote-context cluster2
 ```
 
 You can list the registered cluster using the following command:
@@ -114,8 +114,8 @@ You should get the following output:
 
 ```
 NAME    AGE
-kind2   27s
-kind3   23s
+cluster1   27s
+cluster2   23s
 ```
 
 ## Lab 3 : Deploy Istio on both clusters
@@ -129,11 +129,11 @@ curl -L https://istio.io/downloadIstio | ISTIO_VERSION=1.7.0 sh -
 Now let's deploy Istio on the first cluster:
 
 ```bash
-./istio-1.7.0/bin/istioctl --context kind-kind2 operator init
+./istio-1.7.0/bin/istioctl --context cluster1 operator init
 
-kubectl --context kind-kind2 create ns istio-system
+kubectl --context cluster1 create ns istio-system
 
-cat << EOF | kubectl --context kind-kind2 apply -f -
+cat << EOF | kubectl --context cluster1 apply -f -
 apiVersion: install.istio.io/v1alpha1
 kind: IstioOperator
 metadata:
@@ -155,10 +155,10 @@ spec:
   meshConfig:
     accessLogFile: /dev/stdout
     enableAutoMtls: true
-    trustDomain: kind2
+    trustDomain: cluster1
   values:
     global:
-      trustDomain: kind2
+      trustDomain: cluster1
   components:
     pilot:
       k8s:
@@ -171,11 +171,11 @@ EOF
 And deploy Istio on the second cluster:
 
 ```bash
-./istio-1.7.0/bin/istioctl --context kind-kind3 operator init
+./istio-1.7.0/bin/istioctl --context cluster2 operator init
 
-kubectl --context kind-kind3 create ns istio-system
+kubectl --context cluster2 create ns istio-system
 
-cat << EOF | kubectl --context kind-kind3 apply -f -
+cat << EOF | kubectl --context cluster2 apply -f -
 apiVersion: install.istio.io/v1alpha1
 kind: IstioOperator
 metadata:
@@ -197,10 +197,10 @@ spec:
   meshConfig:
     accessLogFile: /dev/stdout
     enableAutoMtls: true
-    trustDomain: kind3
+    trustDomain: cluster2
   values:
     global:
-      trustDomain: kind3
+      trustDomain: cluster2
   components:
     pilot:
       k8s:
@@ -211,22 +211,22 @@ EOF
 ```
 
 <!--bash
-until kubectl --context kind-kind2 get ns istio-system
+until kubectl --context cluster1 get ns istio-system
 do
   sleep 1
 done
 
-until [ $(kubectl --context kind-kind2 -n istio-system get pods -o jsonpath='{range .items[*].status.containerStatuses[*]}{.ready}{"\n"}{end}' | grep true -c) -eq 8 ]; do
+until [ $(kubectl --context cluster1 -n istio-system get pods -o jsonpath='{range .items[*].status.containerStatuses[*]}{.ready}{"\n"}{end}' | grep true -c) -eq 8 ]; do
   echo "Waiting for all the Istio pods to become ready"
   sleep 1
 done
 
-until kubectl --context kind-kind3 get ns istio-system
+until kubectl --context cluster2 get ns istio-system
 do
   sleep 1
 done
 
-until [ $(kubectl --context kind-kind3 -n istio-system get pods -o jsonpath='{range .items[*].status.containerStatuses[*]}{.ready}{"\n"}{end}' | grep true -c) -eq 8 ]; do
+until [ $(kubectl --context cluster2 -n istio-system get pods -o jsonpath='{range .items[*].status.containerStatuses[*]}{.ready}{"\n"}{end}' | grep true -c) -eq 8 ]; do
   echo "Waiting for all the Istio pods to become ready"
   sleep 1
 done
@@ -235,7 +235,7 @@ done
 Run the following command until all the Istio Pods are ready:
 
 ```
-kubectl --context kind-kind2 get pods -n istio-system
+kubectl --context cluster1 get pods -n istio-system
 ```
 
 When it's case, you should get this output:
@@ -251,20 +251,20 @@ kiali-64f76f6c9b-6zhp4                  1/1     Running   0          8m27s
 prometheus-5bcb77c949-mgmwp             1/1     Running   0          8m27s
 ```
 
-Check the status on the second cluster using `kubectl --context kind-kind3 get pods -n istio-system`
+Check the status on the second cluster using `kubectl --context cluster2 get pods -n istio-system`
 
 ## Lab 4 : Deploy the Bookinfo demo app
 
 Run the following commands to deploy the bookinfo app on the first cluster:
 
 ```bash
-kubectl --context kind-kind2 label namespace default istio-injection=enabled
-kubectl --context kind-kind2 apply -f https://raw.githubusercontent.com/istio/istio/1.7.0/samples/bookinfo/platform/kube/bookinfo.yaml -l 'app,version notin (v3)'
-kubectl --context kind-kind2 apply -f https://raw.githubusercontent.com/istio/istio/1.7.0/samples/bookinfo/platform/kube/bookinfo.yaml -l 'account'
-kubectl --context kind-kind2 apply -f https://raw.githubusercontent.com/istio/istio/1.7.0/samples/bookinfo/networking/bookinfo-gateway.yaml
+kubectl --context cluster1 label namespace default istio-injection=enabled
+kubectl --context cluster1 apply -f https://raw.githubusercontent.com/istio/istio/1.7.0/samples/bookinfo/platform/kube/bookinfo.yaml -l 'app,version notin (v3)'
+kubectl --context cluster1 apply -f https://raw.githubusercontent.com/istio/istio/1.7.0/samples/bookinfo/platform/kube/bookinfo.yaml -l 'account'
+kubectl --context cluster1 apply -f https://raw.githubusercontent.com/istio/istio/1.7.0/samples/bookinfo/networking/bookinfo-gateway.yaml
 ```
 
-You can check that the app is running using `kubectl --context kind-kind2 get pods`:
+You can check that the app is running using `kubectl --context cluster1 get pods`:
 
 ```
 NAME                              READY   STATUS    RESTARTS   AGE
@@ -280,12 +280,12 @@ As you can see, it didn't deploy the `v3` version of the `reviews` micro service
 Now, run the following commands to deploy the bookinfo app on the second cluster:
 
 ```bash
-kubectl --context kind-kind3 label namespace default istio-injection=enabled
-kubectl --context kind-kind3 apply -f https://raw.githubusercontent.com/istio/istio/1.7.0/samples/bookinfo/platform/kube/bookinfo.yaml
-kubectl --context kind-kind3 apply -f https://raw.githubusercontent.com/istio/istio/1.7.0/samples/bookinfo/networking/bookinfo-gateway.yaml
+kubectl --context cluster2 label namespace default istio-injection=enabled
+kubectl --context cluster2 apply -f https://raw.githubusercontent.com/istio/istio/1.7.0/samples/bookinfo/platform/kube/bookinfo.yaml
+kubectl --context cluster2 apply -f https://raw.githubusercontent.com/istio/istio/1.7.0/samples/bookinfo/networking/bookinfo-gateway.yaml
 ```
 
-You can check that the app is running using `kubectl --context kind-kind3 get pods`:
+You can check that the app is running using `kubectl --context cluster2 get pods`:
 
 ```
 NAME                              READY   STATUS    RESTARTS   AGE
@@ -301,14 +301,19 @@ As you can see, it deployed all the versions of the `reviews` micro service.
 
 ![Initial setup](images/initial-setup.png)
 
+Open http://172.18.0.220/productpage with the web browser.
+
+![Bookinfo working](images/bookinfo-working.png)
+
+As you can see, you can access the Bookinfo demo app.
 
 <!--bash
-until [ $(kubectl --context kind-kind2 get pods -o jsonpath='{range .items[*].status.containerStatuses[*]}{.ready}{"\n"}{end}' | grep false -c) -eq 0 ]; do
+until [ $(kubectl --context cluster1 get pods -o jsonpath='{range .items[*].status.containerStatuses[*]}{.ready}{"\n"}{end}' | grep false -c) -eq 0 ]; do
   echo "Waiting for all the pods of the default namespace to become ready"
   sleep 1
 done
 
-until [ $(kubectl --context kind-kind3 get pods -o jsonpath='{range .items[*].status.containerStatuses[*]}{.ready}{"\n"}{end}' | grep false -c) -eq 0 ]; do
+until [ $(kubectl --context cluster2 get pods -o jsonpath='{range .items[*].status.containerStatuses[*]}{.ready}{"\n"}{end}' | grep false -c) -eq 0 ]; do
   echo "Waiting for all the pods of the default namespace to become ready"
   sleep 1
 done
@@ -321,7 +326,7 @@ Service Mesh Hub can help unify the root identity between multiple service mesh 
 Run this command to see how the communication between micro services occur currently:
 
 ```bash
-kubectl --context kind-kind2 exec -t deploy/reviews-v1 -c istio-proxy \
+kubectl --context cluster1 exec -t deploy/reviews-v1 -c istio-proxy \
 -- openssl s_client -showcerts -connect ratings:9080
 ```
 
@@ -354,7 +359,7 @@ It means that the traffic is currently not encrypted.
 Enable TLS on both clusters:
 
 ```bash
-kubectl --context kind-kind2 apply -f - <<EOF
+kubectl --context cluster1 apply -f - <<EOF
 apiVersion: "security.istio.io/v1beta1"
 kind: "PeerAuthentication"
 metadata:
@@ -365,7 +370,7 @@ spec:
     mode: STRICT
 EOF
 
-kubectl --context kind-kind3 apply -f - <<EOF
+kubectl --context cluster2 apply -f - <<EOF
 apiVersion: "security.istio.io/v1beta1"
 kind: "PeerAuthentication"
 metadata:
@@ -380,7 +385,7 @@ EOF
 Run the command again:
 
 ```bash
-kubectl --context kind-kind2 exec -t deploy/reviews-v1 -c istio-proxy \
+kubectl --context cluster1 exec -t deploy/reviews-v1 -c istio-proxy \
 -- openssl s_client -showcerts -connect ratings:9080
 ```
 
@@ -390,14 +395,14 @@ Now, the output should be like that:
 ...
 Certificate chain
  0 s:
-   i:O = kind2
+   i:O = cluster1
 -----BEGIN CERTIFICATE-----
 MIIDFzCCAf+gAwIBAgIRALsoWlroVcCc1n+VROhATrcwDQYJKoZIhvcNAQELBQAw
 ...
 BPiAYRMH5j0gyBqiZZEwCfzfQe1e6aAgie9T
 -----END CERTIFICATE-----
- 1 s:O = kind2
-   i:O = kind2
+ 1 s:O = cluster1
+   i:O = cluster1
 -----BEGIN CERTIFICATE-----
 MIICzjCCAbagAwIBAgIRAKIx2hzMbAYzM74OC4Lj1FUwDQYJKoZIhvcNAQELBQAw
 ...
@@ -427,8 +432,8 @@ bEjPyTXr21Dg0gNdpbtQsJsiFzKPrW+Z6RihDzobXLYlNDVzDALVqOZfEcmeNGmh
 HvPHTwXBM8P/ySJTVK4mNLvDZQQTV+2qPB+o+iTvy1+GyDMUuK4iEXHus01Zr33K
 BPiAYRMH5j0gyBqiZZEwCfzfQe1e6aAgie9T
 -----END CERTIFICATE-----
- 1 s:O = kind2
-   i:O = kind2
+ 1 s:O = cluster1
+   i:O = cluster1
 -----BEGIN CERTIFICATE-----
 MIICzjCCAbagAwIBAgIRAKIx2hzMbAYzM74OC4Lj1FUwDQYJKoZIhvcNAQELBQAw
 EDEOMAwGA1UEChMFa2luZDIwHhcNMjAwOTE3MDgwMjEyWhcNMzAwOTE1MDgwMjEy
@@ -454,7 +459,7 @@ As you can see, mTLS is now enabled.
 Now, run the same command on the second cluster:
 
 ```bash
-kubectl --context kind-kind3 exec -t deploy/reviews-v1 -c istio-proxy \
+kubectl --context cluster2 exec -t deploy/reviews-v1 -c istio-proxy \
 -- openssl s_client -showcerts -connect ratings:9080
 ```
 
@@ -464,14 +469,14 @@ The output should be like that:
 ...
 Certificate chain
  0 s:
-   i:O = kind3
+   i:O = cluster2
 -----BEGIN CERTIFICATE-----
 MIIDFzCCAf+gAwIBAgIRALo1dmnbbP0hs1G82iBa2oAwDQYJKoZIhvcNAQELBQAw
 ...
 YvDrZfKNOKwFWKMKKhCSi2rmCvLKuXXQJGhy
 -----END CERTIFICATE-----
- 1 s:O = kind3
-   i:O = kind3
+ 1 s:O = cluster2
+   i:O = cluster2
 -----BEGIN CERTIFICATE-----
 MIICzjCCAbagAwIBAgIRAIjegnzq/hN/NbMm3dmllnYwDQYJKoZIhvcNAQELBQAw
 ...
@@ -501,8 +506,8 @@ vkMdO1Uo7m3jCLQjqW2rEFJnid/r1sFzlKsyueO3rTac56uYWZ3Jbyh9aebMhsK6
 N+kinIjTL2kb2YQmd6FErzki1TrG2QOxakaP1hWl/jxZzerSV8GsASTle3TowiOz
 YvDrZfKNOKwFWKMKKhCSi2rmCvLKuXXQJGhy
 -----END CERTIFICATE-----
- 1 s:O = kind3
-   i:O = kind3
+ 1 s:O = cluster2
+   i:O = cluster2
 -----BEGIN CERTIFICATE-----
 MIICzjCCAbagAwIBAgIRAIjegnzq/hN/NbMm3dmllnYwDQYJKoZIhvcNAQELBQAw
 EDEOMAwGA1UEChMFa2luZDMwHhcNMjAwOTE3MDgwMjIzWhcNMzAwOTE1MDgwMjIz
@@ -532,7 +537,7 @@ Creating a Virtual Mesh will unify the root identity.
 Run the following command to create the *Virtual Mesh*:
 
 ```bash
-cat << EOF | kubectl --context kind-kind1 apply -f -
+cat << EOF | kubectl --context mgmt apply -f -
 apiVersion: networking.smh.solo.io/v1alpha2
 kind: VirtualMesh
 metadata:
@@ -546,9 +551,9 @@ spec:
         generated: null
   federation: {}
   meshes:
-  - name: istiod-istio-system-kind2
+  - name: istiod-istio-system-cluster1
     namespace: service-mesh-hub
-  - name: istiod-istio-system-kind3
+  - name: istiod-istio-system-cluster2
     namespace: service-mesh-hub
 EOF
 ```
@@ -570,7 +575,7 @@ You can have a look at the Istio documentation [here](https://istio.io/latest/do
 Check that the new certificate has been created on the first cluster:
 
 ```bash
-kubectl --context kind-kind2 get secret -n istio-system cacerts -o yaml
+kubectl --context cluster1 get secret -n istio-system cacerts -o yaml
 ```
 
 Here is the expected output:
@@ -600,7 +605,7 @@ type: certificates.smh.solo.io/issued_certificate
 Check that the new certificate has been created on the second cluster:
 
 ```bash
-kubectl --context kind-kind3 get secret -n istio-system cacerts -o yaml
+kubectl --context cluster2 get secret -n istio-system cacerts -o yaml
 ```
 
 Here is the expected output:
@@ -630,12 +635,12 @@ type: certificates.smh.solo.io/issued_certificate
 As you can see, the secrets contain the same Root CA (base64 encoded), but different intermediate certs.
 
 <!--bash
-until kubectl --context kind-kind2 get secret -n istio-system cacerts
+until kubectl --context cluster1 get secret -n istio-system cacerts
 do
   sleep 1
 done
 
-until kubectl --context kind-kind3 get secret -n istio-system cacerts
+until kubectl --context cluster2 get secret -n istio-system cacerts
 do
   sleep 1
 done
@@ -648,22 +653,22 @@ This is due to a limitation of Istio. The Istio control plane picks up the CA fo
 But despite that, it happens that the Pods restart before `istiod` is using the new certificates, so let's restart them:
 
 ```bash
-kubectl --context kind-kind2 -n istio-system delete pod -l app=istio-ingressgateway
-kubectl --context kind-kind3 -n istio-system delete pod -l app=istio-ingressgateway
+kubectl --context cluster1 -n istio-system delete pod -l app=istio-ingressgateway
+kubectl --context cluster2 -n istio-system delete pod -l app=istio-ingressgateway
 
-kubectl --context kind-kind2 delete pod --all
-kubectl --context kind-kind3 delete pod --all
+kubectl --context cluster1 delete pod --all
+kubectl --context cluster2 delete pod --all
 ```
 
 And let's wait for all the Pods to be ready again:
 
 ```bash
-until [ $(kubectl --context kind-kind2 get pods -o jsonpath='{range .items[*].status.containerStatuses[*]}{.ready}{"\n"}{end}' | grep false -c) -eq 0 ]; do
+until [ $(kubectl --context cluster1 get pods -o jsonpath='{range .items[*].status.containerStatuses[*]}{.ready}{"\n"}{end}' | grep false -c) -eq 0 ]; do
   echo "Waiting for all the pods of the default namespace to become ready"
   sleep 1
 done
 
-until [ $(kubectl --context kind-kind3 get pods -o jsonpath='{range .items[*].status.containerStatuses[*]}{.ready}{"\n"}{end}' | grep false -c) -eq 0 ]; do
+until [ $(kubectl --context cluster2 get pods -o jsonpath='{range .items[*].status.containerStatuses[*]}{.ready}{"\n"}{end}' | grep false -c) -eq 0 ]; do
   echo "Waiting for all the pods of the default namespace to become ready"
   sleep 1
 done
@@ -672,7 +677,7 @@ done
 Now, let's check what certificates we get when we run the same commands we ran before we created the Virtual Mesh:
 
 ```bash
-kubectl --context kind-kind2 exec -t deploy/reviews-v1 -c istio-proxy \
+kubectl --context cluster1 exec -t deploy/reviews-v1 -c istio-proxy \
 -- openssl s_client -showcerts -connect ratings:9080
 ```
 
@@ -836,7 +841,7 @@ s4v2pEvaYg==
 And let's compare with what we get on the second cluster:
 
 ```bash
-kubectl --context kind-kind3 exec -t deploy/reviews-v1 -c istio-proxy \
+kubectl --context cluster2 exec -t deploy/reviews-v1 -c istio-proxy \
 -- openssl s_client -showcerts -connect ratings:9080
 ```
 
@@ -1035,7 +1040,7 @@ Certificate:
             X509v3 Basic Constraints: critical
                 CA:FALSE
             X509v3 Subject Alternative Name: critical
-                URI:spiffe://kind3/ns/default/sa/bookinfo-ratings
+                URI:spiffe://cluster2/ns/default/sa/bookinfo-ratings
     Signature Algorithm: sha256WithRSAEncryption
 ...
 -----BEGIN CERTIFICATE-----
@@ -1051,14 +1056,14 @@ The Subject Alternative Name (SAN) is the most interesting part. It allows the s
 
 In the previous guide, we federated multiple meshes and established a shared root CA for a shared identity domain. Now that we have a logical VirtualMesh, we need a way to establish access policies across the multiple meshes, without treating each of them individually. Service Mesh Hub helps by establishing a single, unified API that understands the logical VirtualMesh construct.
 
-First of all, open http://172.18.0.220/productpage with the web browser.
+Open http://172.18.0.220/productpage again with the web browser.
 
-The application should work correctly because RBAC isn't enforced.
+The application work correctly because RBAC isn't enforced.
 
 Let's update the VirtualMesh to enable it:
 
 ```bash
-cat << EOF | kubectl --context kind-kind1 apply -f -
+cat << EOF | kubectl --context mgmt apply -f -
 apiVersion: networking.smh.solo.io/v1alpha2
 kind: VirtualMesh
 metadata:
@@ -1073,9 +1078,9 @@ spec:
   federation: {}
   globalAccessPolicy: ENABLED
   meshes:
-  - name: istiod-istio-system-kind2
+  - name: istiod-istio-system-cluster1
     namespace: service-mesh-hub
-  - name: istiod-istio-system-kind3
+  - name: istiod-istio-system-cluster2
     namespace: service-mesh-hub
 EOF
 ```
@@ -1091,7 +1096,7 @@ RBAC: access denied
 You need to create a Service Mesh Hub Access Policy to allow the Istio Ingress Gateway to access the `productpage` microservice:
 
 ```bash
-cat << EOF | kubectl --context kind-kind1 apply -f -
+cat << EOF | kubectl --context mgmt apply -f -
 apiVersion: networking.smh.solo.io/v1alpha2
 kind: AccessPolicy
 metadata:
@@ -1103,7 +1108,7 @@ spec:
       serviceAccounts:
         - name: istio-ingressgateway-service-account
           namespace: istio-system
-          clusterName: kind2
+          clusterName: cluster1
   destinationSelector:
   - kubeServiceMatcher:
       namespaces:
@@ -1120,7 +1125,7 @@ Now, refresh the page again and you should be able to access the application, bu
 You can create another Service Mesh Hub Access Policy to allow the `productpage` micro service to talk to these 2 micro services:
 
 ```bash
-cat << EOF | kubectl --context kind-kind1 apply -f -
+cat << EOF | kubectl --context mgmt apply -f -
 apiVersion: networking.smh.solo.io/v1alpha2
 kind: AccessPolicy
 metadata:
@@ -1132,7 +1137,7 @@ spec:
       serviceAccounts:
         - name: bookinfo-productpage
           namespace: default
-          clusterName: kind2
+          clusterName: cluster1
   destinationSelector:
   - kubeServiceMatcher:
       namespaces:
@@ -1154,7 +1159,7 @@ If you refresh the page, you should be able to see the product `details` and the
 Create another AccessPolicy to fix the issue:
 
 ```bash
-cat << EOF | kubectl --context kind-kind1 apply -f -
+cat << EOF | kubectl --context mgmt apply -f -
 apiVersion: networking.smh.solo.io/v1alpha2
 kind: AccessPolicy
 metadata:
@@ -1166,7 +1171,7 @@ spec:
       serviceAccounts:
         - name: bookinfo-reviews
           namespace: default
-          clusterName: kind2
+          clusterName: cluster1
   destinationSelector:
   - kubeServiceMatcher:
       namespaces:
@@ -1180,6 +1185,8 @@ Refresh the page another time and all the services should now work:
 
 ![Bookinfo working](images/bookinfo-working.png)
 
+If you refresh the web page several times, you should see only the versions `v1` (no stars) and `v2` (black stars), which means that all the requests are still handled by the first cluster.
+
 ## Lab 7 : Multi-cluster Traffic
 
 On the first cluster, the `v3` version of the `reviews` micro service doesn't exist, so we're going to redirect some of the traffic to the second cluster to make it available.
@@ -1190,7 +1197,7 @@ Let's create the following TrafficPolicy:
 
 ```bash
 
-cat << EOF | kubectl --context kind-kind1 apply -f -
+cat << EOF | kubectl --context mgmt apply -f -
 apiVersion: networking.smh.solo.io/v1alpha2
 kind: TrafficPolicy
 metadata:
@@ -1200,27 +1207,27 @@ spec:
   destinationSelector:
   - kubeServiceRefs:
       services:
-        - clusterName: kind2
+        - clusterName: cluster1
           name: reviews
           namespace: default
   trafficShift:
     destinations:
       - kubeService:
-          clusterName: kind3
+          clusterName: cluster2
           name: reviews
           namespace: default
           subset:
             version: v3
         weight: 75
       - kubeService:
-          clusterName: kind2
+          clusterName: cluster1
           name: reviews
           namespace: default
           subset:
             version: v1
         weight: 15
       - kubeService:
-          clusterName: kind2
+          clusterName: cluster1
           name: reviews
           namespace: default
           subset:
@@ -1238,7 +1245,7 @@ But as you can see, the `ratings` aren't available. That's because we only allow
 Let's update the AccessPolicy to fix the issue:
 
 ```bash
-cat << EOF | kubectl --context kind-kind1 apply -f -
+cat << EOF | kubectl --context mgmt apply -f -
 apiVersion: networking.smh.solo.io/v1alpha2
 kind: AccessPolicy
 metadata:
@@ -1250,10 +1257,10 @@ spec:
       serviceAccounts:
         - name: bookinfo-reviews
           namespace: default
-          clusterName: kind2
+          clusterName: cluster1
         - name: bookinfo-reviews
           namespace: default
-          clusterName: kind3
+          clusterName: cluster2
   destinationSelector:
   - kubeServiceMatcher:
       namespaces:
@@ -1269,7 +1276,7 @@ If you refresh the page several times again, you'll see the `v3` version of the 
 
 <!--
 We shoudl allow that:
-cat << EOF | kubectl --context kind-kind1 apply -f -
+cat << EOF | kubectl --context mgmt apply -f -
 apiVersion: networking.smh.solo.io/v1alpha2
 kind: AccessPolicy
 metadata:
@@ -1291,7 +1298,7 @@ spec:
 EOF
 
 We shoudl allow that:
-cat << EOF | kubectl --context kind-kind1 apply -f -
+cat << EOF | kubectl --context mgmt apply -f -
 apiVersion: networking.smh.solo.io/v1alpha2
 kind: AccessPolicy
 metadata:
@@ -1316,17 +1323,17 @@ Now, let's understand what happened when we created this TrafficPolicy.
 
 On the first cluster:
 
-![Kind2 workflow](images/kind2-workflow.png)
+![cluster1 workflow](images/cluster1-workflow.png)
 
-- A VirtualService has been created to route 75% of the traffic to the subset `version-v3` of the host `reviews.default.svc.kind3.global`.
-- A DestinationRule has been created for this host and define the subset `version-v3` with the label `cluster: kind3`.
+- A VirtualService has been created to route 75% of the traffic to the subset `version-v3` of the host `reviews.default.svc.cluster2.global`.
+- A DestinationRule has been created for this host and define the subset `version-v3` with the label `cluster: cluster2`.
 - A ServiceEntry has been created for this host and associate this label with the endpoint corresponding to the Istio Ingress Gateway of the second cluster.
 
 On the second cluster:
 
-![Kind3 workflow](images/kind3-workflow.png)
+![cluster2 workflow](images/cluster2-workflow.png)
 
-- An EnvoyFilter has been created to replace the suffix `.kind3.global` by `cluster.local` when requests arrive in the Istio Ingress Gateway.
+- An EnvoyFilter has been created to replace the suffix `.cluster2.global` by `cluster.local` when requests arrive in the Istio Ingress Gateway.
 - A DestinationRule has been created for the same host (but with the `.cluster.local` suffix) and define the subset `version-v3` with the label `version: v3`.
 - The traffic is routed to the Pods of the corresponding service that have this label.
 
@@ -1335,7 +1342,7 @@ On the second cluster:
 First of all, let's delete the TrafficPolicy we've created in the previous lab:
 
 ```bash
-kubectl --context kind-kind1 -n service-mesh-hub delete trafficpolicy simple
+kubectl --context mgmt -n service-mesh-hub delete trafficpolicy simple
 ```
 
 If you refresh the web page several times, you should see only the versions `v1` (no stars) and `v2` (black stars), which means that all the requests are handled by the first cluster.
@@ -1345,7 +1352,7 @@ If you refresh the web page several times, you should see only the versions `v1`
 Now, let's create a TrafficPolicy to define outlier detection settings to detect and evict unhealthy hosts for the `reviews` micro service.
 
 ```bash
-cat << EOF | kubectl --context kind-kind1 apply -f -
+cat << EOF | kubectl --context mgmt apply -f -
 apiVersion: networking.smh.solo.io/v1alpha2
 kind: TrafficPolicy
 metadata:
@@ -1357,10 +1364,10 @@ spec:
       services:
       - name: reviews
         namespace: default
-        clusterName: kind2
+        clusterName: cluster1
       - name: reviews
         namespace: default
-        clusterName: kind3
+        clusterName: cluster2
   outlierDetection:
     consecutiveErrors: 1
     interval: 10s
@@ -1371,7 +1378,7 @@ EOF
 Then, we create a FailoverService to define a new hostname (`reviews-failover.default.global`) that will be backed by the `reviews` micro service runnings on both clusters. 
 
 ```bash
-cat << EOF | kubectl --context kind-kind1 apply -f -
+cat << EOF | kubectl --context mgmt apply -f -
 apiVersion: networking.smh.solo.io/v1alpha2
 kind: FailoverService
 metadata:
@@ -1383,24 +1390,24 @@ spec:
     number: 9080
     protocol: http
   meshes:
-    - name: istiod-istio-system-kind2
+    - name: istiod-istio-system-cluster1
       namespace: service-mesh-hub
   backingServices:
   - kubeService:
       name: reviews
       namespace: default
-      clusterName: kind2
+      clusterName: cluster1
   - kubeService:
       name: reviews
       namespace: default
-      clusterName: kind3
+      clusterName: cluster2
 EOF
 ```
 
 Finally, we can define another TrafficPolicy to make sure all the requests for the `reviews` micro service on the local cluster will be handled by the FailoverService we've just created.
 
 ```bash
-cat << EOF | kubectl --context kind-kind1 apply -f -
+cat << EOF | kubectl --context mgmt apply -f -
 apiVersion: networking.smh.solo.io/v1alpha2
 kind: TrafficPolicy
 metadata:
@@ -1410,7 +1417,7 @@ spec:
   destinationSelector:
   - kubeServiceRefs:
       services:
-      - clusterName: kind2
+      - clusterName: cluster1
         name: reviews
         namespace: default
   trafficShift:
@@ -1424,8 +1431,8 @@ EOF
 We're going to make the `reviews` services unavailable on the first cluster.
 
 ```bash
-kubectl --context kind-kind2 patch deploy reviews-v1 --patch '{"spec": {"template": {"spec": {"containers": [{"name": "reviews","command": ["sleep", "20h"]}]}}}}'
-kubectl --context kind-kind2 patch deploy reviews-v2 --patch '{"spec": {"template": {"spec": {"containers": [{"name": "reviews","command": ["sleep", "20h"]}]}}}}'
+kubectl --context cluster1 patch deploy reviews-v1 --patch '{"spec": {"template": {"spec": {"containers": [{"name": "reviews","command": ["sleep", "20h"]}]}}}}'
+kubectl --context cluster1 patch deploy reviews-v2 --patch '{"spec": {"template": {"spec": {"containers": [{"name": "reviews","command": ["sleep", "20h"]}]}}}}'
 ```
 
 If you refresh the web page several times again, you should see `v3` (red stars) as well, which means that all the requests are handled by the second cluster.
@@ -1448,7 +1455,7 @@ Service Mesh Hub updates the `reviews` DestinatioRule on both clusters to add th
 
 Service Mesh Hub creates an EnvoyFilter on the first Kubernetes cluster to spread to replace the `outbound|9080||reviews-failover.default.global` Envoy cluster by the following ones:
 - outbound|9080||reviews.default.svc.cluster.local
-- outbound|9080||reviews.default.svc.kind3.global
+- outbound|9080||reviews.default.svc.cluster2.global
 
 ![Service entry](images/service-entry.png)
 
@@ -1463,8 +1470,8 @@ Service Mesh Hub creates a VirtualService on the first Kubernetes cluster to tel
 We're going to make the `reviews` services available again on the first cluster.
 
 ```bash
-kubectl --context kind-kind2 patch deployment reviews-v1  --type json   -p '[{"op": "remove", "path": "/spec/template/spec/containers/0/command"}]'
-kubectl --context kind-kind2 patch deployment reviews-v2  --type json   -p '[{"op": "remove", "path": "/spec/template/spec/containers/0/command"}]'
+kubectl --context cluster1 patch deployment reviews-v1  --type json   -p '[{"op": "remove", "path": "/spec/template/spec/containers/0/command"}]'
+kubectl --context cluster1 patch deployment reviews-v2  --type json   -p '[{"op": "remove", "path": "/spec/template/spec/containers/0/command"}]'
 ```
 
 Afer 2 minutes, if you refresh the web page several times, you should see only the versions `v1` (no stars) and `v2` (black stars), which means that all the requests are handled by the first cluster.
@@ -1482,7 +1489,7 @@ Gloo is a feature-rich next-generation API gateway which provides these features
 Let's deploy Gloo on the first cluster:
 
 ```bash
-kubectl config use-context kind-kind2
+kubectl config use-context cluster1
 glooctl upgrade --release=v1.5.0-beta25
 glooctl install gateway enterprise --version 1.5.0-beta10 --license-key $LICENSE_KEY
 ```
@@ -1490,15 +1497,15 @@ glooctl install gateway enterprise --version 1.5.0-beta10 --license-key $LICENSE
 Use the following commands to wait for the Gloo components to be deployed:
 
 <!--bash
-until kubectl --context kind-kind2 get ns gloo-system
+until kubectl --context cluster1 get ns gloo-system
 do
   sleep 1
 done
 -->
 
 ```bash
-until [ $(kubectl --context kind-kind2 -n gloo-system get pods -o jsonpath='{range .items[*].status.containerStatuses[*]}{.ready}{"\n"}{end}' | grep false -c) -eq 0 ]; do
-  echo "Waiting for all the gloo-system pods to become ready on cluster kind-kind2"
+until [ $(kubectl --context cluster1 -n gloo-system get pods -o jsonpath='{range .items[*].status.containerStatuses[*]}{.ready}{"\n"}{end}' | grep false -c) -eq 0 ]; do
+  echo "Waiting for all the gloo-system pods to become ready on cluster cluster1"
   sleep 1
 done
 ```
@@ -1516,15 +1523,15 @@ glooctl istio inject
 It will restart a few Pods, so you can use the following commands to wait for all the Pods to be ready:
 
 ```bash
-until [ $(kubectl --context kind-kind2 get pods -A -o jsonpath='{range .items[*].status.containerStatuses[*]}{.ready}{"\n"}{end}' | grep false -c) -eq 0 ]; do
-  echo "Waiting for all the pods to become ready on cluster kind-kind2"
+until [ $(kubectl --context cluster1 get pods -A -o jsonpath='{range .items[*].status.containerStatuses[*]}{.ready}{"\n"}{end}' | grep false -c) -eq 0 ]; do
+  echo "Waiting for all the pods to become ready on cluster cluster1"
   sleep 1
 done
 ```
 Finally, you must disable function discovery before editing the Upstream to prevent your change from being overwritten by Gloo:
 
 ```bash
-kubectl --context kind-kind2 label namespace default discovery.solo.io/function_discovery=disabled
+kubectl --context cluster1 label namespace default discovery.solo.io/function_discovery=disabled
 ```
 
 To allow Gloo to access the `productpage` service, you need to add the SSL configuration needed in the corresponding Upstream.
@@ -1555,7 +1562,7 @@ glooctl add route --name prodpage --namespace gloo-system --path-prefix / --dest
 This command has created a Gloo VirtualService. You can also manage Gloo object using kubectl.
 
 ```bash
-kubectl --context kind-kind2 -n gloo-system get virtualservices.gateway.solo.io prodpage -o yaml
+kubectl --context cluster1 -n gloo-system get virtualservices.gateway.solo.io prodpage -o yaml
 ```
 
 You should get an output similar to the one below:
@@ -1596,7 +1603,7 @@ status:
 Check that all the Pods are running in the `default` namespace:
 
 ```bash
-kubectl --context kind-kind2 get pods
+kubectl --context cluster1 get pods
 ```
 
 When it's the case, the Gloo gateway is accessible using the `172.18.0.221` IP address.
@@ -1608,7 +1615,7 @@ As you could have guessed, Gloo isn't allowed to talk to the `productpage` micro
 Let's create an `AccessPolicy` to allow that:
 
 ```bash
-cat << EOF | kubectl --context kind-kind1 apply -f -
+cat << EOF | kubectl --context mgmt apply -f -
 apiVersion: networking.smh.solo.io/v1alpha2
 kind: AccessPolicy
 metadata:
@@ -1620,7 +1627,7 @@ spec:
       serviceAccounts:
         - name: gateway-proxy
           namespace: gloo-system
-          clusterName: kind2
+          clusterName: cluster1
   destinationSelector:
   - kubeServiceMatcher:
       namespaces:
@@ -1634,30 +1641,12 @@ Now let's see what we can do with Gloo that we couldn't do with the Istio Ingres
 
 Let's start with External Authentication. Gloo provides many options (OAuth, API keys, ...), but to keep it simple, we'll setup Basic Authentication.
 
-We will update the Virtual Service so that only requests by the user `user` with password `password` are allowed. Gloo expects password to be hashed and salted using the `APR1` format.
-
-Passwords in this format follow this pattern:
-
-```
-$apr1$SALT$HASHED_PASSWORD
-```
-
-To generate such a password you can use the htpasswd utility:
-
-```bash
-htpasswd -nbm user password
-```
-
-Running the above command returns a string like `user:$apr1$TYiryv0/$8BvzLUO9IfGPGGsPnAgSu1`, where:
-
-- `TYiryv0/` is the salt
-- `8BvzLUO9IfGPGGsPnAgSu1` is the hashed password.
-
+We will update the Virtual Service so that only requests by the user `user` with password `password` are allowed.
 
 We need to create the following AuthConfig:
 
 ```bash
-kubectl --context kind-kind2 apply -f - <<EOF
+kubectl --context cluster1 apply -f - <<EOF
 apiVersion: enterprise.gloo.solo.io/v1
 kind: AuthConfig
 metadata:
@@ -1674,6 +1663,27 @@ spec:
 EOF
 ```
 
+> Note:
+> 
+> Gloo expects password to be hashed and salted using the `APR1` format.
+>
+> Passwords in this format follow this pattern:
+>
+>```
+>$apr1$SALT$HASHED_PASSWORD
+>```
+>
+>To generate such a password you can use the htpasswd utility:
+>
+>```bash
+>htpasswd -nbm user password
+>```
+>
+>Running the above command returns a string like `user:$apr1$TYiryv0/$8BvzLUO9IfGPGGsPnAgSu1`, where:
+>
+>- `TYiryv0/` is the salt
+>- `8BvzLUO9IfGPGGsPnAgSu1` is the hashed password.
+
 And we can patch the Gloo VirtualService as follow:
 
 ```bash
@@ -1687,7 +1697,7 @@ spec:
           namespace: gloo-system
 EOF
 
-kubectl --context kind-kind2 -n gloo-system patch virtualservice prodpage --type=merge --patch "$(cat virtualservice-patch.yaml)"
+kubectl --context cluster1 -n gloo-system patch virtualservice prodpage --type=merge --patch "$(cat virtualservice-patch.yaml)"
 ```
 
 If you refresh the web page, it will ask you for the credentials.

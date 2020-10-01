@@ -93,3 +93,17 @@ cat README.md | ../../md-to-bash.sh | bash
 ```
 
 It allows you to test that all the instructions are still working after you modify the README.md
+
+## Cleanup
+
+Go to the terraform directory:
+
+```
+cd terraform
+```
+
+Run the following command to destroy all the VMs:
+
+```
+terraform destroy -force
+```
