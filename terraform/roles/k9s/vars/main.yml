@@ -1,0 +1,11 @@
+---
+k9s_bin: 'k9s{{ k9s_suffix|default("") }}'
+k9s_link: '{{ k9s_install_dir }}/k9s{{ k9s_suffix|default("") }}'
+k9s_checksum: '{{ k9s_checksums[k9s_ver][k9s_os][k9s_platform] }}'
+k9s_os: '{{ ansible_system }}'
+k9s_url: '{{ k9s_mirror }}/v{{ k9s_ver }}/{{ k9s_zip }}'
+k9s_zip: 'k9s_{{ k9s_os }}_{{ k9s_platform }}.tar.gz'
+k9s_binary_path: '{{ k9s_install_dir }}/{{ k9s_bin }}'
+k9s_excluded_files:
+  - README.md
+  - LICENCE

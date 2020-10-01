@@ -5,6 +5,9 @@
   become_user: root
   become_method: sudo
 
+  roles:
+    - k9s
+
   tasks:
 
   - name: Install jq
@@ -475,6 +478,11 @@
   - name: Install helm
     apt:
       name: helm
+      state: present
+
+  - name: Install emacs
+    apt:
+      name: emacs
       state: present
 
   - name: Reboot VM
