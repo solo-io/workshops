@@ -1,4 +1,5 @@
 number=$1
+clsname=$2
 
 if hostname -i; then
   myip=$(hostname -i)
@@ -6,7 +7,7 @@ else
   myip=$(ipconfig getifaddr en0)
 fi
 
-cat << EOF > kind${number}.yaml
+cat << EOF > kind-${clsname}.yaml
 kind: Cluster
 apiVersion: kind.x-k8s.io/v1alpha4
 nodes:
@@ -35,21 +36,21 @@ kubeadmConfigPatches:
       node-labels: "topology.kubernetes.io/region=us-east-1,topology.kubernetes.io/zone=us-east-1c"
 EOF
 
-kind create cluster --name kind${number} --config kind${number}.yaml
+kind create cluster --name ${clsname} --config kind-${clsname}.yaml
 
-ipkind=$(docker inspect kind${number}-control-plane | jq -r '.[0].NetworkSettings.Networks.kind.IPAddress')
+ipkind=$(docker inspect ${clsname}-control-plane | jq -r '.[0].NetworkSettings.Networks.kind.IPAddress')
 networkkind=$(echo ${ipkind} | sed 's/.$//')
 
-kubectl config set-cluster kind-kind${number} --server=https://${myip}:${number}000 --insecure-skip-tls-verify=true
+kubectl config set-cluster ${clsname} --server=https://${myip}:${number}000 --insecure-skip-tls-verify=true
 
-kubectl --context=kind-kind${number} apply -f https://docs.projectcalico.org/v3.15/manifests/calico.yaml
-kubectl --context=kind-kind${number} -n kube-system set env daemonset/calico-node FELIX_IGNORELOOSERPF=true
+kubectl --context=${clsname} apply -f https://docs.projectcalico.org/v3.15/manifests/calico.yaml
+kubectl --context=${clsname} -n kube-system set env daemonset/calico-node FELIX_IGNORELOOSERPF=true
 
-kubectl --context=kind-kind${number} apply -f https://raw.githubusercontent.com/metallb/metallb/v0.9.3/manifests/namespace.yaml
-kubectl --context=kind-kind${number} apply -f https://raw.githubusercontent.com/metallb/metallb/v0.9.3/manifests/metallb.yaml
-kubectl --context=kind-kind${number} create secret generic -n metallb-system memberlist --from-literal=secretkey="$(openssl rand -base64 128)"
+kubectl --context=${clsname} apply -f https://raw.githubusercontent.com/metallb/metallb/v0.9.3/manifests/namespace.yaml
+kubectl --context=${clsname} apply -f https://raw.githubusercontent.com/metallb/metallb/v0.9.3/manifests/metallb.yaml
+kubectl --context=${clsname} create secret generic -n metallb-system memberlist --from-literal=secretkey="$(openssl rand -base64 128)"
 
-cat << EOF > metallb${number}.yaml
+cat << EOF > metallb-${clsname}.yaml
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -64,6 +65,4 @@ data:
       - ${networkkind}2${number}0-${networkkind}2${number}9
 EOF
 
-kubectl --context=kind-kind${number} apply -f metallb${number}.yaml
-
-kubectl config rename-context kind-kind${number} $2
+kubectl --context=${clsname} apply -f metallb-${clsname}.yaml

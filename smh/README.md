@@ -12,7 +12,7 @@ The goal of this workshop is to show several unique features of the Service Mesh
 
 ## Lab environment
 
-Service Mesh Hub can be run in its own cluster or co-located with an existing mesh.  In this exercise, SMH will run in its own dedicated Cluster 1, while the two managed Istio meshes will run in separate Clusters 2 and 3.
+Service Mesh Hub can be run in its own cluster or co-located with an existing mesh.  In this exercise, SMH will run in its own dedicated management Cluster 1, while the two managed Istio meshes will run in separate workload Clusters 2 and 3.
 
 ![Lab](images/lab.png)
 
@@ -64,9 +64,9 @@ You can see that your currently connected to this cluster by executing the `kube
 
 ```
 CURRENT   NAME         CLUSTER      AUTHINFO     NAMESPACE
-          mgmt   mgmt   mgmt   
-          cluster1   cluster1   cluster1
-*         cluster2   cluster2   cluster2
+          mgmt         mgmt         mgmt   
+          cluster1     cluster1     cluster1
+*         cluster2     cluster2     cluster2
 ```
 
 Run the following command to make `mgmt` the current cluster.
@@ -113,7 +113,7 @@ kubectl get kubernetescluster -n service-mesh-hub
 You should get the following output:
 
 ```
-NAME    AGE
+NAME       AGE
 cluster1   27s
 cluster2   23s
 ```
@@ -238,7 +238,7 @@ Run the following command until all the Istio Pods are ready:
 kubectl --context cluster1 get pods -n istio-system
 ```
 
-When it's case, you should get this output:
+When they are ready, you should get this output:
 
 ```
 NAME                                    READY   STATUS    RESTARTS   AGE
@@ -255,12 +255,15 @@ Check the status on the second cluster using `kubectl --context cluster2 get pod
 
 ## Lab 4 : Deploy the Bookinfo demo app
 
-Run the following commands to deploy the bookinfo app on the first cluster:
+Run the following commands to deploy the bookinfo app on `cluster1`:
 
 ```bash
 kubectl --context cluster1 label namespace default istio-injection=enabled
+# deploy bookinfo application components for all versions less than v3
 kubectl --context cluster1 apply -f https://raw.githubusercontent.com/istio/istio/1.7.0/samples/bookinfo/platform/kube/bookinfo.yaml -l 'app,version notin (v3)'
+# deploy all bookinfo service accounts
 kubectl --context cluster1 apply -f https://raw.githubusercontent.com/istio/istio/1.7.0/samples/bookinfo/platform/kube/bookinfo.yaml -l 'account'
+# configure ingress gateway to access bookinfo
 kubectl --context cluster1 apply -f https://raw.githubusercontent.com/istio/istio/1.7.0/samples/bookinfo/networking/bookinfo-gateway.yaml
 ```
 
@@ -275,13 +278,15 @@ reviews-v1-7f99cc4496-lwtsr       2/2     Running   0          2m34s
 reviews-v2-7d79d5bd5d-mpsk2       2/2     Running   0          2m34s
 ```
 
-As you can see, it didn't deploy the `v3` version of the `reviews` micro service.
+As you can see, it deployed the `v1` and `v2` versions of the `reviews` microservice.  But as expected, it did not deploy `v3` of `reviews`.
 
-Now, run the following commands to deploy the bookinfo app on the second cluster:
+Now, run the following commands to deploy the bookinfo app on `cluster2`:
 
 ```bash
 kubectl --context cluster2 label namespace default istio-injection=enabled
+# deploy all bookinfo service accounts and application components for all versions
 kubectl --context cluster2 apply -f https://raw.githubusercontent.com/istio/istio/1.7.0/samples/bookinfo/platform/kube/bookinfo.yaml
+# configure ingress gateway to access bookinfo
 kubectl --context cluster2 apply -f https://raw.githubusercontent.com/istio/istio/1.7.0/samples/bookinfo/networking/bookinfo-gateway.yaml
 ```
 
@@ -297,11 +302,11 @@ reviews-v2-7d79d5bd5d-cx9lp       2/2     Running   0          2m22s
 reviews-v3-7dbcdcbc56-trjdx       2/2     Running   0          2m22s
 ```
 
-As you can see, it deployed all the versions of the `reviews` micro service.
+As you can see, it deployed all three versions of the `reviews` microservice.
 
 ![Initial setup](images/initial-setup.png)
 
-Open http://172.18.0.220/productpage with the web browser.
+Open the <a href="http://172.18.0.220/productpage" target="_blank">bookinfo app</a> with your web browser.
 
 ![Bookinfo working](images/bookinfo-working.png)
 
@@ -323,7 +328,7 @@ done
 
 Service Mesh Hub can help unify the root identity between multiple service mesh installations so any intermediates are signed by the same Root CA and end-to-end mTLS between clusters and services can be established correctly.
 
-Run this command to see how the communication between micro services occur currently:
+Run this command to see how the communication between microservices occur currently:
 
 ```bash
 kubectl --context cluster1 exec -t deploy/reviews-v1 -c istio-proxy \
@@ -1122,7 +1127,7 @@ Now, refresh the page again and you should be able to access the application, bu
 
 ![Bookinfo RBAC 1](images/bookinfo-rbac1.png)
 
-You can create another Service Mesh Hub Access Policy to allow the `productpage` micro service to talk to these 2 micro services:
+You can create another Service Mesh Hub Access Policy to allow the `productpage` microservice to talk to these 2 microservices:
 
 ```bash
 cat << EOF | kubectl --context mgmt apply -f -
@@ -1152,7 +1157,7 @@ spec:
 EOF
 ```
 
-If you refresh the page, you should be able to see the product `details` and the `reviews`, but the `reviews` micro service can't access the `ratings` micro service:
+If you refresh the page, you should be able to see the product `details` and the `reviews`, but the `reviews` microservice can't access the `ratings` microservice:
 
 ![Bookinfo RBAC 2](images/bookinfo-rbac2.png)
 
@@ -1189,7 +1194,7 @@ If you refresh the web page several times, you should see only the versions `v1`
 
 ## Lab 7 : Multi-cluster Traffic
 
-On the first cluster, the `v3` version of the `reviews` micro service doesn't exist, so we're going to redirect some of the traffic to the second cluster to make it available.
+On the first cluster, the `v3` version of the `reviews` microservice doesn't exist, so we're going to redirect some of the traffic to the second cluster to make it available.
 
 ![Multicluster traffic](images/multicluster-traffic.png)
 
@@ -1235,11 +1240,11 @@ spec:
 EOF
 ```
 
-If you refresh the page several times, you'll see the `v3` version of the `reviews` micro service::
+If you refresh the page several times, you'll see the `v3` version of the `reviews` microservice::
 
 ![Bookinfo v3](images/bookinfo-v3-no-ratings.png)
 
-But as you can see, the `ratings` aren't available. That's because we only allowed the `reviews` micro service of the first cluster to talk to the `ratings` micro service.
+But as you can see, the `ratings` aren't available. That's because we only allowed the `reviews` microservice of the first cluster to talk to the `ratings` microservice.
 
 Let's update the AccessPolicy to fix the issue:
 
@@ -1269,7 +1274,7 @@ spec:
 EOF
 ```
 
-If you refresh the page several times again, you'll see the `v3` version of the `reviews` micro service with the red stars:
+If you refresh the page several times again, you'll see the `v3` version of the `reviews` microservice with the red stars:
 
 ![Bookinfo v3](images/bookinfo-v3.png)
 
@@ -1348,7 +1353,7 @@ If you refresh the web page several times, you should see only the versions `v1`
 
 ![Before failover](images/before-failover.png)
 
-Now, let's create a TrafficPolicy to define outlier detection settings to detect and evict unhealthy hosts for the `reviews` micro service.
+Now, let's create a TrafficPolicy to define outlier detection settings to detect and evict unhealthy hosts for the `reviews` microservice.
 
 ```bash
 cat << EOF | kubectl --context mgmt apply -f -
@@ -1374,7 +1379,7 @@ spec:
 EOF
 ```
 
-Then, we create a FailoverService to define a new hostname (`reviews-failover.default.global`) that will be backed by the `reviews` micro service runnings on both clusters. 
+Then, we create a FailoverService to define a new hostname (`reviews-failover.default.global`) that will be backed by the `reviews` microservice runnings on both clusters. 
 
 ```bash
 cat << EOF | kubectl --context mgmt apply -f -
@@ -1403,7 +1408,7 @@ spec:
 EOF
 ```
 
-Finally, we can define another TrafficPolicy to make sure all the requests for the `reviews` micro service on the local cluster will be handled by the FailoverService we've just created.
+Finally, we can define another TrafficPolicy to make sure all the requests for the `reviews` microservice on the local cluster will be handled by the FailoverService we've just created.
 
 ```bash
 cat << EOF | kubectl --context mgmt apply -f -
@@ -1464,7 +1469,7 @@ Service Mesh Hub creates a ServiceEntry for the `reviews-failover.default.global
 
 ![Virtual service](images/virtual-service.png)
 
-Service Mesh Hub creates a VirtualService on the first Kubernetes cluster to tell Istio to send the requests for the `reviews` micro service to the `reviews-failover.default.global` host.
+Service Mesh Hub creates a VirtualService on the first Kubernetes cluster to tell Istio to send the requests for the `reviews` microservice to the `reviews-failover.default.global` host.
 
 We're going to make the `reviews` services available again on the first cluster.
 
@@ -1615,9 +1620,9 @@ kubectl --context cluster1 get pods
 
 When it's the case, the Gloo gateway is accessible using the `172.18.0.221` IP address.
 
-Go to the http://172.18.0.221/productpage URL to check that you can now access the `productpage` micro service using Gloo.
+Go to the http://172.18.0.221/productpage URL to check that you can now access the `productpage` microservice using Gloo.
 
-As you could have guessed, Gloo isn't allowed to talk to the `productpage` micro service.
+As you could have guessed, Gloo isn't allowed to talk to the `productpage` microservice.
 
 Let's create an `AccessPolicy` to allow that:
 
