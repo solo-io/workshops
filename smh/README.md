@@ -1675,7 +1675,7 @@ EOF
 >
 >To generate such a password you can use the htpasswd utility:
 >
->```bash
+>```
 >htpasswd -nbm user password
 >```
 >
