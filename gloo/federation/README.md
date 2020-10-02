@@ -658,7 +658,7 @@ If you click on `View Gloo Details` on the first one, and then on the `Upstreams
 Delete the Kubernetes clusters:
 
 ```
-kind delete cluster --name mgmt
-kind delete cluster --name cluster1
-kind delete cluster --name cluster2
+kind delete cluster --name kind1
+kind delete cluster --name kind2
+kind delete cluster --name kind3
 ```
