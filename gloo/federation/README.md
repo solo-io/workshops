@@ -44,11 +44,11 @@ kube-system          calico-kube-controllers-59d85c5c84-sbk4k      1/1     Runni
 kube-system          calico-node-przxs                             1/1     Running   0          4h26m
 kube-system          coredns-6955765f44-ln8f5                      1/1     Running   0          4h26m
 kube-system          coredns-6955765f44-s7xxx                      1/1     Running   0          4h26m
-kube-system          etcd-kind2-control-plane                      1/1     Running   0          4h27m
-kube-system          kube-apiserver-kind2-control-plane            1/1     Running   0          4h27m
-kube-system          kube-controller-manager-kind2-control-plane   1/1     Running   0          4h27m
+kube-system          etcd-cluster1-control-plane                      1/1     Running   0          4h27m
+kube-system          kube-apiserver-cluster1-control-plane            1/1     Running   0          4h27m
+kube-system          kube-controller-manager-cluster1-control-plane   1/1     Running   0          4h27m
 kube-system          kube-proxy-ksvzw                              1/1     Running   0          4h26m
-kube-system          kube-scheduler-kind2-control-plane            1/1     Running   0          4h27m
+kube-system          kube-scheduler-cluster1-control-plane            1/1     Running   0          4h27m
 local-path-storage   local-path-provisioner-58f6947c7-lfmdx        1/1     Running   0          4h26m
 metallb-system       controller-5c9894b5cd-cn9x2                   1/1     Running   0          4h26m
 metallb-system       speaker-d7jkp                                 1/1     Running   0          4h26m
@@ -60,15 +60,15 @@ You can see that your currently connected to this cluster by executing the `kube
 
 ```
 CURRENT   NAME         CLUSTER      AUTHINFO     NAMESPACE
-          kind-kind1   kind-kind1   kind-kind1   
-          kind-kind2   kind-kind2   kind-kind2
-*         kind-kind3   kind-kind3   kind-kind3
+          mgmt   mgmt   mgmt   
+          cluster1   cluster1   cluster1
+*         cluster2   cluster2   cluster2
 ````
 
-Run the following command to make `kind-kind1` the current cluster.
+Run the following command to make `mgmt` the current cluster.
 
 ```bash
-kubectl config use-context kind-kind1
+kubectl config use-context mgmt
 ```
 
 ## Deploy Gloo Federation on the first clusters
@@ -98,7 +98,7 @@ EOF
 Deploy Gloo:
 
 ```bash
-kubectl config use-context kind-kind1
+kubectl config use-context mgmt
 glooctl install federation --values values-federation.yaml --license-key $LICENSE_KEY --version=v0.0.20
 ```
 
@@ -107,39 +107,39 @@ glooctl install federation --values values-federation.yaml --license-key $LICENS
 Deploy Gloo on the second cluster:
 
 ```bash
-kubectl config use-context kind-kind2
+kubectl config use-context cluster1
 glooctl install gateway enterprise --version 1.5.0-beta11 --license-key $LICENSE_KEY
 ```
 
 Deploy Gloo on the third cluster:
 
 ```bash
-kubectl config use-context kind-kind3
+kubectl config use-context cluster2
 glooctl install gateway enterprise --version 1.5.0-beta11 --license-key $LICENSE_KEY
 ```
 
 Use the following commands to wait for the Gloo components to be deployed on all the clusters:
 
 ```bash
-kubectl --context kind-kind1 -n gloo-fed rollout status deployment gloo-fed
+kubectl --context mgmt -n gloo-fed rollout status deployment gloo-fed
 
-until kubectl --context kind-kind2 get ns gloo-system
+until kubectl --context cluster1 get ns gloo-system
 do
   sleep 1
 done
 
-until kubectl --context kind-kind3 get ns gloo-system
+until kubectl --context cluster2 get ns gloo-system
 do
   sleep 1
 done
 
-until [ $(kubectl --context kind-kind2 -n gloo-system get pods -o jsonpath='{range .items[*].status.containerStatuses[*]}{.ready}{"\n"}{end}' | grep false -c) -eq 0 ]; do
-  echo "Waiting for all the gloo-system pods to become ready on cluster kind-kind2"
+until [ $(kubectl --context cluster1 -n gloo-system get pods -o jsonpath='{range .items[*].status.containerStatuses[*]}{.ready}{"\n"}{end}' | grep false -c) -eq 0 ]; do
+  echo "Waiting for all the gloo-system pods to become ready on cluster cluster1"
   sleep 1
 done
 
-until [ $(kubectl --context kind-kind3 -n gloo-system get pods -o jsonpath='{range .items[*].status.containerStatuses[*]}{.ready}{"\n"}{end}' | grep false -c) -eq 0 ]; do
-  echo "Waiting for all the gloo-system pods to become ready on cluster kind-kind3"
+until [ $(kubectl --context cluster2 -n gloo-system get pods -o jsonpath='{range .items[*].status.containerStatuses[*]}{.ready}{"\n"}{end}' | grep false -c) -eq 0 ]; do
+  echo "Waiting for all the gloo-system pods to become ready on cluster cluster2"
   sleep 1
 done
 ```
@@ -149,10 +149,10 @@ done
 Register the 2 Gloo clusters:
 
 ```bash
-kubectl config use-context kind-kind1
+kubectl config use-context mgmt
 
-glooctl cluster register --cluster-name kind2 --remote-context kind-kind2 --remote-namespace gloo-system
-glooctl cluster register --cluster-name kind3 --remote-context kind-kind3 --remote-namespace gloo-system
+glooctl cluster register --cluster-name cluster1 --remote-context cluster1 --remote-namespace gloo-system
+glooctl cluster register --cluster-name cluster2 --remote-context cluster2 --remote-namespace gloo-system
 ```
 
 Once a cluster has been registered, Gloo Federation will automatically discover all instances of Gloo within the cluster. The discovered instances are stored in a Custom Resource of type `glooinstances.fed.solo.io` in the `gloo-fed` namespace.
@@ -160,15 +160,15 @@ Once a cluster has been registered, Gloo Federation will automatically discover 
 You can view the discovered instances by running the following command:
 
 ```bash
-kubectl --context kind-kind1 get glooinstances -n gloo-fed
+kubectl --context mgmt get glooinstances -n gloo-fed
 ```
 
 You should see something like that:
 
 ```
 NAME                AGE
-kind2-gloo-system   76s
-kind3-gloo-system   74s
+cluster1-gloo-system   76s
+cluster2-gloo-system   74s
 ```
 
 ## Access the Gloo Federation UI
@@ -176,7 +176,7 @@ kind3-gloo-system   74s
 Run the following command in a different tab:
 
 ```
-kubectl config use-context kind-kind1
+kubectl config use-context mgmt
 kubectl port-forward svc/gloo-fed-console -n gloo-fed 8090:8090
 ```
 
@@ -200,14 +200,14 @@ openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
   -keyout mtls.key -out mtls.crt -subj "/CN=solo.io"
 
 # Set context to second cluster
-kubectl config use-context kind-kind3
+kubectl config use-context cluster2
 
 # Create the secret
 glooctl create secret tls --name failover-downstream \
 --certchain tls.crt --privatekey tls.key --rootca mtls.crt
 
 # Set the context to the first cluster
-kubectl config use-context kind-kind2
+kubectl config use-context cluster1
 
 # Create the secret
 glooctl create secret tls --name failover-upstream \
@@ -220,10 +220,10 @@ Gloo Federation allows you to administer multiple instances of Gloo across multi
 
 The installation of Multicluster RBAC creates two `MultiClusterRole` Custom Resources and two `MultiClusterRoleBinding` Custom Resources.
 
-Run the following command to make `kind-kind1` the current cluster.
+Run the following command to make `mgmt` the current cluster.
 
 ```bash
-kubectl config use-context kind-kind1
+kubectl config use-context mgmt
 ```
 
 List the MultiClusterRole objects:
@@ -261,7 +261,7 @@ The `gloo-fed-console` MultiClusterRole and MultiClusterRoleBinding grant the sa
 Now let’s create a new MultiClusterRoleBinding for the `kubernetes-admin` account binding it to the `gloo-fed` MultiClusterRole.
 
 ```bash
-kubectl --context kind-kind1 apply -f - <<EOF
+kubectl --context mgmt apply -f - <<EOF
 apiVersion: multicluster.solo.io/v1alpha1
 kind: MultiClusterRoleBinding
 metadata:
@@ -284,7 +284,7 @@ Gloo Federation enables you to create consistent configurations across multiple 
 First of all, let's deploy workloads on the Gloo clusters:
 
 ```bash
-kubectl apply --context kind-kind2 -f - <<EOF
+kubectl apply --context cluster1 -f - <<EOF
 apiVersion: v1
 kind: Service
 metadata:
@@ -335,7 +335,7 @@ spec:
        - containerPort: 80
 EOF
 
-kubectl apply --context kind-kind3 -f - <<EOF
+kubectl apply --context cluster2 -f - <<EOF
 apiVersion: v1
 kind: Service
 metadata:
@@ -390,14 +390,14 @@ EOF
 Use the following commands to wait for the blue and green Pods to be deployed on the Gloo clusters:
 
 ```bash
-kubectl --context kind-kind2 rollout status deployment echo-blue
-kubectl --context kind-kind3 rollout status deployment echo-green
+kubectl --context cluster1 rollout status deployment echo-blue
+kubectl --context cluster2 rollout status deployment echo-green
 ```
 
 Now, let's create some federated objects:
 
 ```bash
-kubectl apply --context kind-kind1 -f - <<EOF
+kubectl apply --context mgmt -f - <<EOF
 apiVersion: fed.gloo.solo.io/v1
 kind: FederatedUpstream
 metadata:
@@ -406,8 +406,8 @@ metadata:
 spec:
   placement:
     clusters:
-      - kind2
-      - kind3
+      - cluster1
+      - cluster2
     namespaces:
       - gloo-system
   template:
@@ -436,8 +436,8 @@ metadata:
 spec:
   placement:
     clusters:
-      - kind2
-      - kind3
+      - cluster1
+      - cluster2
     namespaces:
       - gloo-system
   template:
@@ -463,7 +463,7 @@ The FederatedUpstream creates an Upstream in the target clusters and the Federat
 You can run execute the following command to validate tha the Upstream object has been correctly created in the first Gloo cluster:
 
 ```bash
-kubectl --context kind-kind2 -n gloo-system get upstream default-service-bluegreen-8080 -o yaml
+kubectl --context cluster1 -n gloo-system get upstream default-service-bluegreen-8080 -o yaml
 ```
 
 You should get something similar to that:
@@ -506,10 +506,10 @@ You can do the same for the VirtualService object.
 It means that you can now access the `service-bluegreen` from both Gloo clusters:
 
 ```bash
-kubectl config use-context kind-kind2
+kubectl config use-context cluster1
 curl $(glooctl proxy url)
 
-kubectl config use-context kind-kind3
+kubectl config use-context cluster2
 curl $(glooctl proxy url)
 ```
 
@@ -522,7 +522,7 @@ When an Upstream fails or becomes unhealthy, Gloo Federation can automatically f
 Let's create a FailoverScheme object to determine how we want the failover to happen:
 
 ```bash
-kubectl apply --context kind-kind1 -f - <<EOF
+kubectl apply --context mgmt -f - <<EOF
 apiVersion: fed.solo.io/v1
 kind: FailoverScheme
 metadata:
@@ -531,12 +531,12 @@ metadata:
 spec:
  failoverGroups:
  - priorityGroup:
-   - cluster: kind3
+   - cluster: cluster2
      upstreams:
      - name: default-service-bluegreen-8080
        namespace: gloo-system
  primary:
-   clusterName: kind2
+   clusterName: cluster1
    name: default-service-bluegreen-8080
    namespace: gloo-system
 EOF
@@ -548,7 +548,7 @@ The Gateway resource below sets up a TCP proxy which is configured to terminate 
 
 
 ```bash
-kubectl config use-context kind-kind3
+kubectl config use-context cluster2
 
 kubectl apply -f - <<EOF
 apiVersion: gateway.solo.io/v1
@@ -598,7 +598,7 @@ EOF
 Check that you can still access the application on the first Gloo cluster:
 
 ```bash
-kubectl config use-context kind-kind2
+kubectl config use-context cluster1
 curl $(glooctl proxy url)/
 ```
 
@@ -613,7 +613,7 @@ You should get this output:
 Run the following commands to scale down the `echo-blue` deployment to 0:
 
 ```bash
-kubectl config use-context kind-kind2
+kubectl config use-context cluster1
 kubectl scale deploy/echo-blue --replicas=0
 ```
  
@@ -658,7 +658,7 @@ If you click on `View Gloo Details` on the first one, and then on the `Upstreams
 Delete the Kubernetes clusters:
 
 ```
-kind delete cluster --name kind1
-kind delete cluster --name kind2
-kind delete cluster --name kind3
+kind delete cluster --name mgmt
+kind delete cluster --name cluster1
+kind delete cluster --name cluster2
 ```

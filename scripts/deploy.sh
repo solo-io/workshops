@@ -65,3 +65,5 @@ data:
 EOF
 
 kubectl --context=kind-kind${number} apply -f metallb${number}.yaml
+
+kubectl config rename-context kind-kind${number} $2
