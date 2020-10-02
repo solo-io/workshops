@@ -37,6 +37,7 @@ kubeadmConfigPatches:
 EOF
 
 kind create cluster --name ${clsname} --config kind-${clsname}.yaml
+kubectl config rename-context kind-${clsname} ${clsname}
 
 ipkind=$(docker inspect ${clsname}-control-plane | jq -r '.[0].NetworkSettings.Networks.kind.IPAddress')
 networkkind=$(echo ${ipkind} | sed 's/.$//')
