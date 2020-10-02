@@ -24,7 +24,7 @@ From the terminal go to the `/home/solo/workshops/smh` directory:
 cd /home/solo/workshops/smh
 ```
 
-Run the following commands to deploy 3 Kubernetes clusters:
+Run the following commands to deploy three Kubernetes clusters using [Kind](https://kind.sigs.k8s.io/):
 
 ```bash
 ../scripts/deploy.sh 1 mgmt
@@ -40,7 +40,9 @@ Then run the following commands to wait for all the Pods to be ready:
 ../scripts/check.sh cluster2
 ```
 
-Now, if you execute the `kubectl get pods -A` command, you should obtain the following:
+**Note:** If you run the `check.sh` script immediately after the `deploy.sh` script, you may see a jsonpath error. If that happens, simply wait a few seconds and try again.
+
+Once the `check.sh` script completes, when you execute the `kubectl get pods -A` command, you should see the following:
 
 ```
 NAMESPACE            NAME                                          READY   STATUS    RESTARTS   AGE
@@ -48,25 +50,25 @@ kube-system          calico-kube-controllers-59d85c5c84-sbk4k      1/1     Runni
 kube-system          calico-node-przxs                             1/1     Running   0          4h26m
 kube-system          coredns-6955765f44-ln8f5                      1/1     Running   0          4h26m
 kube-system          coredns-6955765f44-s7xxx                      1/1     Running   0          4h26m
-kube-system          etcd-cluster1-control-plane                      1/1     Running   0          4h27m
-kube-system          kube-apiserver-cluster1-control-plane            1/1     Running   0          4h27m
-kube-system          kube-controller-manager-cluster1-control-plane   1/1     Running   0          4h27m
+kube-system          etcd-cluster1-control-plane                   1/1     Running   0          4h27m
+kube-system          kube-apiserver-cluster1-control-plane         1/1     Running   0          4h27m
+kube-system          kube-controller-manager-cluster1-control-plane1/1     Running   0          4h27m
 kube-system          kube-proxy-ksvzw                              1/1     Running   0          4h26m
-kube-system          kube-scheduler-cluster1-control-plane            1/1     Running   0          4h27m
+kube-system          kube-scheduler-cluster1-control-plane         1/1     Running   0          4h27m
 local-path-storage   local-path-provisioner-58f6947c7-lfmdx        1/1     Running   0          4h26m
 metallb-system       controller-5c9894b5cd-cn9x2                   1/1     Running   0          4h26m
 metallb-system       speaker-d7jkp                                 1/1     Running   0          4h26m
 ```
 
-Note that this the output for the third cluster.
+Note that this represents the output just for `cluster2`, although the pod footprint for all three clusters should look similar at this point.
 
 You can see that your currently connected to this cluster by executing the `kubectl config get-contexts` command:
 
 ```
-CURRENT   NAME         CLUSTER      AUTHINFO     NAMESPACE
-          mgmt         mgmt         mgmt   
-          cluster1     cluster1     cluster1
-*         cluster2     cluster2     cluster2
+CURRENT   NAME         CLUSTER         AUTHINFO   NAMESPACE  
+          cluster1     kind-cluster1   cluster1
+*         cluster2     kind-cluster2   cluster2
+          mgmt         kind-mgmt       kind-mgmt 
 ```
 
 Run the following command to make `mgmt` the current cluster.
