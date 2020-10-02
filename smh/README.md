@@ -120,10 +120,10 @@ cluster2   23s
 
 ## Lab 3 : Deploy Istio on both clusters
 
-Download istio 1.7.0:
+Download istio 1.7.3:
 
 ```bash
-curl -L https://istio.io/downloadIstio | ISTIO_VERSION=1.7.0 sh -
+curl -L https://istio.io/downloadIstio | ISTIO_VERSION=1.7.3 sh -
 ```
 
 Now let's deploy Istio on the first cluster:
@@ -1196,7 +1196,6 @@ On the first cluster, the `v3` version of the `reviews` micro service doesn't ex
 Let's create the following TrafficPolicy:
 
 ```bash
-
 cat << EOF | kubectl --context mgmt apply -f -
 apiVersion: networking.smh.solo.io/v1alpha2
 kind: TrafficPolicy
@@ -1478,6 +1477,14 @@ Afer 2 minutes, if you refresh the web page several times, you should see only t
 
 ## Lab 9 : Securing the Edge
 
+First of all, let's delete the Objects we've created in the previous lab:
+
+```bash
+kubectl --context mgmt -n service-mesh-hub delete trafficpolicy mgmt-reviews-outlier
+kubectl --context mgmt -n service-mesh-hub delete failoverservice reviews-failover
+kubectl --context mgmt -n default delete trafficpolicy reviews-shift-failover
+```
+
 We've seen in the previous labs how the Istio Ingressgateway can be used for multi-cluster traffic and failover.
 
 While the Istio Ingressgateway can also be used to expose your applications to the outside world, it doesn't provide all the features most of the people need (external authenticaion, rate limiting, ...).
@@ -1490,8 +1497,8 @@ Let's deploy Gloo on the first cluster:
 
 ```bash
 kubectl config use-context cluster1
-glooctl upgrade --release=v1.5.0-beta25
-glooctl install gateway enterprise --version 1.5.0-beta10 --license-key $LICENSE_KEY
+glooctl upgrade --release=v1.5.0
+glooctl install gateway enterprise --version 1.5.0 --license-key $LICENSE_KEY
 ```
 
 Use the following commands to wait for the Gloo components to be deployed:
