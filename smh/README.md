@@ -1431,7 +1431,7 @@ spec:
         namespace: default
   trafficShift:
     destinations:
-    - failoverServiceRef:
+    - failoverService:
         name: reviews-failover
         namespace: service-mesh-hub
 EOF
