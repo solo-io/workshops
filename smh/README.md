@@ -82,7 +82,7 @@ kubectl config use-context mgmt
 First of all, you need to install the *meshctl* CLI:
 
 ```bash
-curl -sL https://run.solo.io/meshctl/install | SMH_VERSION=v0.7.4 sh -
+curl -sL https://run.solo.io/meshctl/install | SMH_VERSION=v0.8.1 sh -
 export PATH=$HOME/.service-mesh-hub/bin:$PATH
 ```
 
@@ -90,6 +90,9 @@ Now, you can install Service Mesh Hub on your admin cluster:
 
 ```bash
 meshctl install
+
+kubectl --context mgmt -n service-mesh-hub rollout status deploy/discovery 
+kubectl --context mgmt -n service-mesh-hub rollout status deploy/networking 
 ```
 
 Then, you need to register the two other clusters:
