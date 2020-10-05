@@ -1485,7 +1485,45 @@ kubectl --context cluster1 patch deployment reviews-v2  --type json   -p '[{"op"
 
 Afer 2 minutes, if you refresh the web page several times, you should see only the versions `v1` (no stars) and `v2` (black stars), which means that all the requests are handled by the first cluster.
 
-## Lab 9 : Securing the Edge
+## Lab 9 : Exploring the Service Mesh Hub UI
+
+Run the following command to make `mgmt` the current cluster.
+
+```bash
+kubectl config use-context mgmt
+```
+
+Deploy the Service Mesh Hub UI:
+
+```bash
+helm repo add service-mesh-hub-ui https://storage.googleapis.com/service-mesh-hub-enterprise/service-mesh-hub-ui
+helm repo update
+helm install smh-ui service-mesh-hub-ui/service-mesh-hub-ui -n service-mesh-hub --set license_key=${SMH_LICENSE_KEY}
+```
+
+To access the UI, run the following command:
+
+```
+kubectl port-forward -n service-mesh-hub svc/service-mesh-hub-console 8090
+```
+
+The UI is available at http://localhost:8090
+
+![Gloo SMH Overview](images/smh-ui-1.png)
+
+If you click on `Meshes`, you can the VirtualMesh we've configured previously:
+
+![Gloo SMH VirtualMesh](images/smh-ui-2.png)
+
+You can see that Global Access Policy is enabled and get more details when you click on `View Virtual Mesh Details`.
+
+For example, you can see the Failover we've configured in the previous lab:
+
+![Gloo SMH VirtualMesh](images/smh-ui-3.png)
+
+Take the time to explore the `Policies` and `Debug` tab to see what other information is available.
+
+## Lab 10 : Securing the Edge
 
 First of all, let's delete the Objects we've created in the previous lab:
 
