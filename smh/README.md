@@ -1245,7 +1245,7 @@ spec:
 EOF
 ```
 
-If you refresh the page several times, you'll see the `v3` version of the `reviews` microservice::
+If you refresh the page several times, you'll see the `v3` version of the `reviews` microservice:
 
 ![Bookinfo v3](images/bookinfo-v3-no-ratings.png)
 

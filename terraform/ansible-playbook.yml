@@ -451,8 +451,13 @@
     become_user: solo
     become_method: su
 
-  - name: Add glooctl to the path
+  - name: Add LICENSE_KEY environment variable
     shell: echo "export LICENSE_KEY={{ lookup('env','LICENSE_KEY') }}" >> /home/solo/.bashrc
+    become_user: solo
+    become_method: su
+
+  - name: Add SMH_LICENSE_KEY environment variable
+    shell: echo "export SMH_LICENSE_KEY={{ lookup('env','SMH_LICENSE_KEY') }}" >> /home/solo/.bashrc
     become_user: solo
     become_method: su
 
