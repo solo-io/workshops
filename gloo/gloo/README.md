@@ -57,7 +57,7 @@ Now we can create a virtual service that routes to the created upstream:
 
 ```bash
 glooctl add route  \                                                                                                                                                                      1
-    --name echo  \
+    --name demo  \
     --path-exact /request \
     --dest-name echo
 ```
@@ -71,7 +71,7 @@ glooctl get virtualservice
 A virtual service CRD has been added to your cluster:
 
 ```bash
-kubectl get virtualservice -n gloo-system echo -oyaml 
+kubectl get virtualservice -n gloo-system demo -oyaml 
 ```
 
 Finally to test that the gateway will route to the upstream destination, run the following command:
@@ -142,7 +142,7 @@ kubectl apply -f - <<EOF
 apiVersion: gateway.solo.io/v1
 kind: VirtualService
 metadata:
-  name: echo
+  name: demo
   namespace: gloo-system
 spec:
   virtualHost:
@@ -228,7 +228,7 @@ kubectl apply -f - <<EOF
 apiVersion: gateway.solo.io/v1
 kind: VirtualService
 metadata:
-  name: echo
+  name: demo
   namespace: gloo-system
 spec:
   virtualHost:
@@ -287,7 +287,7 @@ kubectl apply -f - <<EOF
 apiVersion: gateway.solo.io/v1
 kind: VirtualService
 metadata:
-  name: echo
+  name: demo
   namespace: gloo-system
 spec:
   # The SSL config below activate TLS on the Virtual Service
@@ -398,7 +398,7 @@ kubectl apply -f - <<EOF
 apiVersion: gateway.solo.io/v1
 kind: VirtualService
 metadata:
-  name: echo
+  name: demo
   namespace: gloo-system
 spec:
   sslConfig:
@@ -433,4 +433,220 @@ spec:
                         namespace: gloo-system
 EOF
 ```
+
+### Rate Limiting
+
+To enable rate limit on a Virtual Service we will first create a rate limit config CRD:
+
+```bash
+kubectl apply -f - <<EOF
+apiVersion: ratelimit.solo.io/v1alpha1
+kind: RateLimitConfig
+metadata:
+  name: my-rate-limit-policy
+  namespace: gloo-system
+spec:
+  raw:
+    descriptors:
+    - key: generic_key
+      value: counter
+      rateLimit:
+        requestsPerUnit: 10
+        unit: MINUTE
+    rateLimits:
+    - actions:
+      - genericKey:
+          descriptorValue: counters
+EOF
+```
+
+Now let update our Virual Service to include the rate limit config: 
+
+```bash
+kubectl apply -f - <<EOF
+apiVersion: gateway.solo.io/v1
+kind: VirtualService
+metadata:
+  name: demo
+  namespace: gloo-system
+spec:
+  sslConfig:
+    secretRef:
+      name: upstream-tls
+      namespace: gloo-system  
+  virtualHost:
+    options:
+      extauth:
+        configRef:
+          name: oidc-dex
+          namespace: gloo-system
+# ---------------- Rate limit config ------------------
+      rateLimitConfigs:
+        refs:
+        - name: my-rate-limit-policy
+          namespace: gloo-system
+#------------------------------------------------------
+    domains:
+      - '*'
+    routes:
+      - matchers:
+          - prefix: /
+        routeAction:
+            multi:
+                destinations:
+                - weight: 5
+                    destination:
+                        upstream:
+                            name: default-echo-v1-80
+                            namespace: gloo-system
+                - weight: 5
+                    destination:
+                        upstream:
+                            name: default-echo-v2-80
+                            namespace: gloo-system
+EOF
+```
+
+## LAB 3: Data transformation
+In this section we will explore the transfermations on Gloo
+
+### Response transformation 
+The following example demonstrate how to modify a request response status code based on a body field check: 
+
+
+Let's use echo postman again (created in LAB1), the goal of the demo application is to return a mock body, if the body contains a error message we will change the response to 400 (by default echo postman, always return 200):
+
+First lets create a virtual service that will allow us to send requests to postman-echo external service through the gateway:
+
+```bash
+kubectl apply -f - <<EOF
+apiVersion: gateway.solo.io/v1
+kind: VirtualService
+metadata:
+  name: demo
+  namespace: gloo-system
+spec:
+  virtualHost:
+    domains:
+    - '*'
+    routes:
+    - matchers:
+      - prefix: /
+      routeAction:
+        single:
+          upstream:
+            name: echo
+            namespace: gloo-system
+EOF
+```
+
+ Using the example below, create a mock response that return an error message in the body, the response code should be 200 (default postman-echo service response code).
+
+```bash
+curl -s -o /dev/null -w "%{http_code}" --location --request POST "$(glooctl proxy url)/post" --header 'Content-Type: application/json' \
+--data-raw '{
+    "error": {
+        "message": "This is an error"
+    }
+}'
+```
+Now we will apply a response transformation: 
+
+```bash
+kubectl apply -f - <<EOF
+apiVersion: gateway.solo.io/v1
+kind: VirtualService
+metadata:
+  name: demo
+  namespace: gloo-system
+spec:
+  virtualHost:
+    domains:
+    - '*'
+    options:
+# ---------------- Response Transformation -------------------      
+      transformations:
+        responseTransformation:
+          transformationTemplate:
+            headers:
+              :status:
+                text: '{% if default(data.error.message, "") != "" %}400{% else %}{{
+                  header(":status") }}{% endif %}'
+#-------------------------------------------------------------                  
+    routes:
+    - matchers:
+      - prefix: /
+      routeAction:
+        single:
+          upstream:
+            name: echo
+            namespace: gloo-system
+EOF
+```
+
+Now, making the same call should return 400, because an error message exists in the response body:
+
+```bash
+curl -s -o /dev/null -w "%{http_code}" --location --request POST "$(glooctl proxy url)/post" --header 'Content-Type: application/json' \
+--data-raw '{
+    "error": {
+        "message": "This is an error"
+    }
+}'
+```
+
+Making a call should return 200 when no error message exist in the response body:
+
+```bash
+curl -s -o /dev/null -w "%{http_code}" --location --request POST "$(glooctl proxy url)/post" --header 'Content-Type: application/json' \
+--data-raw '{
+    "error": {}
+}'
+```
+
+## LAB 4: Logging
+
+### Access Logs
+
+
+Lets first create a path file containing the config for activating the access logs on the gateway: 
+
+```bash
+cat > access_logs.yaml <<EOF
+  spec:
+    bindAddress: '::'
+    bindPort: 8080
+    httpGateway: {}
+    options:
+      accessLoggingService:
+        accessLog:
+        - fileSink:
+            jsonFormat:
+              # HTTP method name
+              httpMethod: '%REQ(:METHOD)%'
+              # Protocol. Currently either HTTP/1.1 or HTTP/2.
+              protocol: '%PROTOCOL%'
+              # HTTP response code. Note that a response code of ‘0’ means that the server never sent the
+              # beginning of a response. This generally means that the (downstream) client disconnected.
+              responseCode: '%RESPONSE_CODE%'
+              # Total duration in milliseconds of the request from the start time to the last byte out
+              clientDuration: '%DURATION%'
+              # Total duration in milliseconds of the request from the start time to the first byte read from the upstream host
+              targetDuration: '%RESPONSE_DURATION%'
+               # Value of the "x-envoy-original-path" header (falls back to "path" header if not present)
+              path: '%REQ(X-ENVOY-ORIGINAL-PATH?:PATH)%'
+              # Upstream cluster to which the upstream host belongs to
+              upstreamName: '%UPSTREAM_CLUSTER%'
+              # Request start time including milliseconds.
+              systemTime: '%START_TIME%'
+              # Unique tracking ID
+              requestId: '%REQ(X-REQUEST-ID)%'
+            path: /dev/stdout
+EOF
+```
+
+```bash
+kubectl patch settings default -n gloo-system --type merge --patch "$(cat access_logs.yaml)"
+```
+
 
