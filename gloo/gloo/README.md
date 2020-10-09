@@ -644,9 +644,18 @@ cat > access_logs.yaml <<EOF
             path: /dev/stdout
 EOF
 ```
+Then path the default settings of the gateway so that the access log config gets applied:
 
 ```bash
 kubectl patch settings default -n gloo-system --type merge --patch "$(cat access_logs.yaml)"
 ```
 
+Run the following curl the simulate some traffic:
+```bash
+curl -s -o /dev/null -w "%{http_code}" --location  "$(glooctl proxy url)/request"
+```
 
+Check the logs running the following command:
+```bash
+kubectl logs -n gloo-system deployment/gateway-proxy | grep '^{' | jq
+```
