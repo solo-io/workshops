@@ -1762,3 +1762,249 @@ If you refresh the web page, it will ask you for the credentials.
 It was just a simple example. You can learn more about the Gloo features in the [documentation](https://docs.solo.io/gloo/latest/guides/).
 
 This is the end of the workshop. We hope you enjoyed it !
+
+<!--bash
+kubectl config use-context cluster2
+
+kubectl --context cluster2 delete gateways.networking.istio.io bookinfo-gateway 
+
+cat << EOF | kubectl apply -f-
+apiVersion: networking.istio.io/v1beta1
+kind: Gateway
+metadata:
+  labels:
+    release: istio
+  name: istio-ingressgateway
+  namespace: istio-system
+spec:
+  selector:
+    app: istio-ingressgateway
+    istio: ingressgateway
+  servers:
+  - hosts:
+    - '*'
+    port:
+      name: http
+      number: 80
+      protocol: HTTP
+EOF
+
+# Add the Helm repository for the Developer Portal
+helm repo add dev-portal https://storage.googleapis.com/dev-portal-helm
+helm repo update
+
+# Create the namespace and install the Helm chart
+kubectl create namespace dev-portal
+helm install dev-portal dev-portal/dev-portal -n dev-portal --set licenseKey.value=${PORTAL_LICENSE_KEY} --set istio.enabled=true
+
+sleep 10
+
+until [ $(kubectl -n dev-portal get pods -o jsonpath='{range .items[*].status.containerStatuses[*]}{.ready}{"\n"}{end}' | grep true -c) -eq 7 ]; do
+  echo "Waiting for all the Dev portal pods to become ready"
+  sleep 1
+done
+
+cat <<EOF | kubectl apply -f -
+apiVersion: devportal.solo.io/v1alpha1
+kind: APIDoc
+metadata:
+  name: bookinfo-schema
+  namespace: default
+spec:
+  openApi:
+    content:
+      fetchUrl: https://raw.githubusercontent.com/istio/istio/1.7.3/samples/bookinfo/swagger.yaml
+EOF
+
+kubectl get apidoc -n default bookinfo-schema -oyaml
+
+cat << EOF | kubectl apply -f-
+apiVersion: devportal.solo.io/v1alpha1
+kind: APIProduct
+metadata:
+  name: bookinfo-product
+  namespace: default
+spec:
+  apis:
+  - apiDoc:
+      name: bookinfo-schema
+      namespace: default
+  defaultRoute:
+    inlineRoute:
+      backends:
+      - kube:
+          name: productpage
+          port: 9080
+  domains:
+  - api.example.com
+  displayInfo: 
+    description: Bookinfo Product
+    title: Bookinfo Product
+    image:
+      fetchUrl: https://github.com/solo-io/workshops/raw/master/smh/images/books.png
+EOF
+
+kubectl get apiproducts.devportal.solo.io -n default bookinfo-product -oyaml
+
+export INGRESS_HOST=$(kubectl -n istio-system get service istio-ingressgateway -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+export INGRESS_PORT=$(kubectl -n istio-system get service istio-ingressgateway -o jsonpath='{.spec.ports[?(@.name=="http2")].port}')
+
+curl "http://${INGRESS_HOST}:${INGRESS_PORT}/api/v1/products" -H "Host: api.example.com"
+
+cat << EOF | kubectl --context mgmt apply -f -
+apiVersion: networking.smh.solo.io/v1alpha2
+kind: AccessPolicy
+metadata:
+  namespace: service-mesh-hub
+  name: istio-ingressgateway
+spec:
+  sourceSelector:
+  - kubeServiceAccountRefs:
+      serviceAccounts:
+        - name: istio-ingressgateway-service-account
+          namespace: istio-system
+          clusterName: cluster1
+        - name: istio-ingressgateway-service-account
+          namespace: istio-system
+          clusterName: cluster2
+  destinationSelector:
+  - kubeServiceMatcher:
+      namespaces:
+      - default
+      labels:
+        service: productpage
+EOF
+
+curl "http://${INGRESS_HOST}:${INGRESS_PORT}/api/v1/products" -H "Host: bookinfo.example.com"
+
+cat <<EOF | kubectl apply -f -
+apiVersion: devportal.solo.io/v1alpha1
+kind: Portal
+metadata:
+  name: bookinfo-portal
+  namespace: default
+spec:
+  displayName: Bookinfo Portal
+  description: The Developer Portal for the Bookinfo API
+  banner:
+    fetchUrl: https://github.com/solo-io/workshops/raw/master/smh/images/books.png
+  favicon:
+    fetchUrl: https://github.com/solo-io/workshops/raw/master/smh/images/books.png
+  primaryLogo:
+    fetchUrl: https://github.com/solo-io/workshops/raw/master/smh/images/books.png
+  customStyling: {}
+  staticPages: []
+  domains:
+  - portal.example.com
+  publishApiProducts:
+    matchLabels:
+      portals.devportal.solo.io/default.bookinfo-portal: "true"
+EOF
+
+kubectl get portal -n default petstore-portal -oyaml
+
+cat <<EOF | sudo tee -a /etc/hosts
+${INGRESS_HOST} api.example.com
+${INGRESS_HOST} portal.example.com
+EOF
+
+pass=$(htpasswd -bnBC 10 "" password | tr -d ':\n')
+
+kubectl create secret generic dev1-password \
+  -n dev-portal --type=opaque \
+  --from-literal=password=$pass
+
+cat << EOF | kubectl apply -f-
+apiVersion: devportal.solo.io/v1alpha1
+kind: User
+metadata:
+  name: dev1
+  namespace: dev-portal
+spec:
+  accessLevel: {}
+  basicAuth:
+    passwordSecretKey: password
+    passwordSecretName: dev1-password
+    passwordSecretNamespace: dev-portal
+  username: dev1
+EOF
+
+kubectl get user dev1 -n dev-portal -oyaml
+
+cat << EOF | kubectl apply -f-
+apiVersion: devportal.solo.io/v1alpha1
+kind: Group
+metadata:
+  name: developers
+  namespace: dev-portal
+spec:
+  displayName: developers
+  userSelector:
+    matchLabels:
+      groups.devportal.solo.io/dev-portal.developers: "true"
+EOF
+
+kubectl label user dev1 -n dev-portal groups.devportal.solo.io/dev-portal.developers="true"
+
+cat << EOF | kubectl apply -f-
+apiVersion: devportal.solo.io/v1alpha1
+kind: APIProduct
+metadata:
+  name: bookinfo-product
+  namespace: default
+  labels: 
+    portals.devportal.solo.io/default.bookinfo-portal: "true"
+spec:
+  apis:
+  - apiDoc:
+      name: bookinfo-schema
+      namespace: default
+  defaultRoute:
+    inlineRoute:
+      backends:
+      - kube:
+          name: productpage
+          port: 9080
+  domains:
+  - api.example.com
+  displayInfo: 
+    description: Bookinfo Product
+    title: Bookinfo Product
+    image:
+      fetchUrl: https://github.com/solo-io/workshops/raw/master/smh/images/books.png
+  plans:
+  - authPolicy:
+      apiKey: {}
+    displayName: Basic
+    name: basic
+    rateLimit:
+      requestsPerUnit: 5
+      unit: MINUTE
+EOF
+
+cat << EOF | kubectl apply -f-
+apiVersion: devportal.solo.io/v1alpha1
+kind: Group
+metadata:
+  name: developers
+  namespace: dev-portal
+spec:
+  displayName: developers
+  accessLevel:
+    apiProducts:
+    - name: bookinfo-product
+      namespace: default
+      plans:
+      - basic
+    portals:
+    - name: bookinfo-portal
+      namespace: default
+  userSelector:
+    matchLabels:
+      groups.devportal.solo.io/dev-portal.developers: "true"
+EOF
+
+key=$(kubectl get secret -l apiproducts.devportal.solo.io=bookinfo-product.default -o jsonpath='{.items[0].data.api-key}' | base64 --decode)
+
+curl "http://${INGRESS_HOST}:${INGRESS_PORT}/api/v1/products" -H "Host: api.example.com" -H "api-key: ${key}" -v
+-->
