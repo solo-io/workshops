@@ -1577,6 +1577,10 @@ glooctl istio inject
 
 It will restart a few Pods, so you can use the following commands to wait for all the Pods to be ready:
 
+<!--bash
+kubectl --context cluster1 -n istio-system delete pod -l app=istio-ingressgateway
+-->
+
 ```bash
 until [ $(kubectl --context cluster1 get pods -A -o jsonpath='{range .items[*].status.containerStatuses[*]}{.ready}{"\n"}{end}' | grep false -c) -eq 0 ]; do
   echo "Waiting for all the pods to become ready on cluster cluster1"
