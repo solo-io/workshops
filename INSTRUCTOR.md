@@ -67,9 +67,14 @@ Remove the SSH known hosts (optional, but recommended as Google Cloud reuses the
 echo > $HOME/.ssh/known_hosts
 ```
 
-All solo.io enterprise products require a license key.  If you'd like to preset a limited-term key on the student Virtual Machines, then set the `LICENSE_KEY` environment variable on your workstation before running the `ansible-playbook` command.
+All solo.io enterprise products require a license key.  If you'd like to preset limited-term keys on the student Virtual Machines, then set the `LICENSE_KEY` and/or `SMH_LICENSE_KEY` environment variables on your workstation before running the `ansible-playbook` command.
 
-Run the ansible playbook to apply all the prerequisites to the Virtual Machines
+```
+export LICENSE_KEY=VeryLongKeyString
+export SMH_LICENSE_KEY=AnotherVeryLongKeyString
+```
+
+Run the ansible playbook to apply all the prerequisites to the Virtual Machines.
 
 ```
 export ANSIBLE_HOST_KEY_CHECKING=False

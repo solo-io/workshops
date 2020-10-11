@@ -1066,9 +1066,9 @@ The Subject Alternative Name (SAN) is the most interesting part. It allows the s
 
 In the previous guide, we federated multiple meshes and established a shared root CA for a shared identity domain. Now that we have a logical VirtualMesh, we need a way to establish access policies across the multiple meshes, without treating each of them individually. Service Mesh Hub helps by establishing a single, unified API that understands the logical VirtualMesh construct.
 
-Open http://172.18.0.220/productpage again with the web browser.
+Open the <a href="http://172.18.0.220/productpage" target="_blank">bookinfo app</a> again with a web browser.
 
-The application work correctly because RBAC isn't enforced.
+The application works correctly because RBAC isn't enforced.
 
 Let's update the VirtualMesh to enable it:
 
@@ -1245,7 +1245,7 @@ spec:
 EOF
 ```
 
-If you refresh the page several times, you'll see the `v3` version of the `reviews` microservice::
+If you refresh the page several times, you'll see the `v3` version of the `reviews` microservice:
 
 ![Bookinfo v3](images/bookinfo-v3-no-ratings.png)
 
@@ -1665,13 +1665,13 @@ Check that all the Pods are running in the `default` namespace:
 kubectl --context cluster1 get pods
 ```
 
-When it's the case, the Gloo gateway is accessible using the `172.18.0.221` IP address.
+When the pods are all running, the bookinfo app is accessible via the Gloo gateway using the `172.18.0.221` IP address.
 
-Go to the http://172.18.0.221/productpage URL to check that you can now access the `productpage` microservice using Gloo.
+Go to this new <a href="http://172.18.0.221/productpage" target="_blank">bookinfo app URL</a> to see if you can access the `productpage` microservice using Gloo.
 
-As you could have guessed, Gloo isn't allowed to talk to the `productpage` microservice.
+As you might have guessed, this operation fails.  While you can access the Gloo endpoint, Gloo isn't yet allowed to talk to the `productpage` microservice.
 
-Let's create an `AccessPolicy` to allow that:
+Let's create an `AccessPolicy` to remedy that:
 
 ```bash
 cat << EOF | kubectl --context mgmt apply -f -
@@ -1722,11 +1722,9 @@ spec:
 EOF
 ```
 
-> Note:
+> NOTE:  For inquisitive learners who wants to understand how the above `AuthConfig` establishes a username / password combination of `user` / `password`:  
 > 
-> Gloo expects password to be hashed and salted using the `APR1` format.
->
-> Passwords in this format follow this pattern:
+> Gloo expects password to be hashed and salted using the `APR1` format.  Passwords in that format follow this pattern:
 >
 >```
 >$apr1$SALT$HASHED_PASSWORD
