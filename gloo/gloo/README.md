@@ -2,16 +2,17 @@
 
 Gloo is a feature-rich, Kubernetes-native ingress controller, and next-generation API gateway. Gloo is exceptional in its function-level routing; its support for legacy apps, microservices and serverless; its discovery capabilities; its numerous features; and its tight integration with leading open-source projects. Gloo is uniquely designed to support hybrid applications, in which multiple technologies, architectures, protocols, and clouds can coexist.
 
-The goal of this workshop is to expose some key features of Gloo like traffic management, security, API management.
-
+The goal of this workshop is to expose some key features of Gloo API Gateway, like traffic management, security, and API management.
 
 ## Lab environment
 
-!!! Need chart
+The following Lab environment consists of a Kubernetes environment deployed locally using kind, during this workshop we are going to deploy a demo service and expose/protect it using Gloo.
+
+![Lab](images/env.png)
 
 ## Lab 0: Demo environment creation
 
-Go the the folder `/home/solo/workshops/gloo/gloo` directory using the terminal
+Go the folder `/home/solo/workshops/gloo/gloo` directory using the terminal
 
 ```
 cd /home/solo/workshops/gloo/gloo
@@ -41,7 +42,7 @@ Create an Upstream that points to the external service, this is used as a repres
 glooctl -n gloo-system create upstream static --name echo --static-hosts postman-echo.com:80
 ```
 
-To list the upstreams, run the following command:
+To list the Upstreams, run the following command:
 
 ```bash
 glooctl get upstream echo
@@ -83,7 +84,7 @@ curl -s -L $(glooctl proxy url)/request
 The result received in from the upstream postman-echo.com:80/request
 
 
-### Routing to a kubernetes service 
+### Routing to a Kubernetes service 
 
 In this step we will expose a demo service to the outside traffic using Gloo, first lets create a demo service: 
 
@@ -130,12 +131,12 @@ spec:
 EOF
 ```
 
-After few seconds, Gloo will discover the newly created service and create a corresponding Upstream called: **default-echo-v1-80**, to verify that the upstream got created run the following command: 
+After a few seconds, Gloo will discover the newly created service and create a corresponding Upstream called: **default-echo-v1-80**, to verify that the upstream got created run the following command: 
 ```bash
 glooctl get upstream default-echo-v1-80
 ```
 
-Now that the upstream CRD has been created we can create an virtual service that routes to it:
+Now that the upstream CRD has been created, we need to create a virtual service that routes to it:
 
 ```bash
 kubectl apply -f - <<EOF
@@ -167,9 +168,9 @@ curl -s -L $(glooctl proxy url)
 
 It should return **"my demo app version is v1"**, this is the response from the service echo-v1.
 
-### Routing to multiple upstreams
+### Routing to multiple Upstreams
 
-In this step we are going to create a virtual service that routes to two diffrent upstreams, the first step is to create a version 2 of our demo service: 
+In this step we are going to create a virtual service that routes to two different Upstreams, the first step is to create a version 2 of our demo service: 
 
 
 ```bash
@@ -221,7 +222,7 @@ Verify the upstream **default-echo-v2-80** got created running the following com
 glooctl get upstream default-echo-v2-80
 ```
 
-Now that can create a virtual service that routes to two diffrents upstreams but creating the following CRD: 
+Now we can route to multiple Upstreams by creating the following Virtual service CRD: 
 
 ```bash
 kubectl apply -f - <<EOF
@@ -254,15 +255,14 @@ spec:
 EOF
 ```
 
-To verfiy that Gloo is routing to the two diffrent Uptreams (50% taffic each), run the following command, you should be able to see v1 and v2 as a response from service echo-v1 and echo-v2 respectivly: 
+To check that Gloo is routing to the two different Upstreams (50% traffic each), run the following command, you should be able to see v1 and v2 as a response from service echo-v1 and echo-v2: 
 
 ```bash
 curl -s -L $(glooctl proxy url)
 ```
 
-
 ## Lab 2: Security
-In this chapter we will explore some Gloo features related to security. 
+In this chapter, we will explore some Gloo features related to security. 
 
 
 ### Network Encryption - Server TLS
@@ -360,7 +360,7 @@ helm repo add stable https://kubernetes-charts.storage.googleapis.com
 helm install dex --namespace gloo-system stable/dex -f dex-values.yaml
 ```
 
-Let save dex IP in an envirenment varialble for future use:
+Let save dex IP in an environment variable for future use:
 
 ```bash
 export DEX_IP=$(kubectl get service dex --namespace gloo-system  --output jsonpath='{.status.loadBalancer.ingress[0].ip}')
@@ -377,7 +377,7 @@ The next step is to setup the authentication in the Virtual Service, for this we
 glooctl create secret oauth --client-secret secretvalue oauth
 ```
 
-Then we will create an Authconfig which is a CRD that configure the authentication in Gloo: 
+Then we will create an AuthConfig which is a CRD that configure the authentication in Gloo: 
 
 ```bash
 kubectl apply -f - <<EOF
@@ -395,13 +395,13 @@ spec:
       client_secret_ref:
         name: oauth
         namespace: gloo-system
-      issuer_url: http://$DEX_IP:32000/
+      issuer_url: http://$DEX_IP:32000
       scopes:
       - email
 EOF
 ```
 
-Finally we activate the authentication on the virtualservice using the extauth config:
+Finally we activate the authentication on the Virtual service using the AuthConfig:
 
 ```bash
 kubectl apply -f - <<EOF
@@ -470,7 +470,7 @@ spec:
 EOF
 ```
 
-Now let update our Virual Service to include the rate limit config: 
+Now let update our Virtual Service to include the rate limit config: 
 
 ```bash
 kubectl apply -f - <<EOF
@@ -509,11 +509,18 @@ spec:
 EOF
 ```
 
+To test the rate limiting, run the following command to open the browser, then refresh the browser a couple of times, you should see a 429 message indicating that the rate limit got enforced: 
+
+```bash
+/opt/google/chrome/chrome $(glooctl proxy url --port https)
+```
+
+
 ## LAB 3: Data transformation
 In this section we will explore the request transformations using Gloo.
 
 ### Response transformation 
-The following example demonstrate how to modify a response status code based on a body field check. 
+The following example demonstrates how to modify a response status code if a field exists in the response body for example. 
 
 Let's use echo postman again (created in LAB1), the goal of the demo application is to return a mock body, if the body contains an error message we will change the response to 400 (by default echo postman, always return 200):
 
@@ -545,7 +552,7 @@ spec:
 EOF
 ```
 
- Using the example below, create a mock response that return an error message in the body, the response code should be 200 (default postman-echo service response code).
+ Using the example below, create a mock response that returns an error message in the body, the response code should be 200 (default postman-echo service response code).
 
 ```bash
 curl -s -o /dev/null -w "%{http_code}" --location --request POST "$(glooctl proxy url)/post" --header 'Content-Type: application/json' \
