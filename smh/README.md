@@ -2134,11 +2134,17 @@ You can also test the API and use the `Authorize` button to set your API key.
 
 ![User Developer Portal API](images/dev-portal-api.png)
 
-But we're going to try it using the following command:
+But we're going to try it using curl:
+
+So, we need to retrieve the API key first:
 
 ```
 key=$(kubectl get secret -l apiproducts.devportal.solo.io=bookinfo-product.default -o jsonpath='{.items[0].data.api-key}' | base64 --decode)
+```
 
+Then, we can run the following command:
+
+```
 curl -H "Host: api.example.com" -H "api-key: ${key}" http://172.18.0.230/api/v1/products -v
 ```
 
