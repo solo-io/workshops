@@ -2132,6 +2132,8 @@ You can click on the `Bookinfo Product` and explore the API.
 
 You can also test the API and use the `Authorize` button to set your API key.
 
+![User Developer Portal API](images/dev-portal-api.png)
+
 But we're going to try it using the following command:
 
 ```
