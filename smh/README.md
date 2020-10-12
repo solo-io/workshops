@@ -1444,9 +1444,19 @@ kubectl --context cluster1 patch deploy reviews-v1 --patch '{"spec": {"template"
 kubectl --context cluster1 patch deploy reviews-v2 --patch '{"spec": {"template": {"spec": {"containers": [{"name": "reviews","command": ["sleep", "20h"]}]}}}}'
 ```
 
-If you refresh the web page several times again, you should see `v3` (red stars) as well, which means that all the requests are handled by the second cluster.
+If you refresh the web page several times again, you should still see the `reviews` displayed while there's no `reviews` service available anymore on the first cluster.
 
-![After failover](images/after-failover.png)
+You can use the following command to validate that the requests are handled by the second cluster:
+
+```
+kubectl --context cluster2 logs -l app=reviews -c istio-proxy -f
+```
+
+You should see a line like below each time you refresh the web page:
+
+```
+[2020-10-12T14:19:35.996Z] "GET /reviews/0 HTTP/1.1" 200 - "-" "-" 0 295 6 6 "-" "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/86.0.4240.75 Safari/537.36" "d18da89b-8682-4e8d-9284-b3d5ff78f2f7" "reviews:9080" "127.0.0.1:9080" inbound|9080|http|reviews.default.svc.cluster.local 127.0.0.1:41542 192.168.163.201:9080 192.168.163.221:42110 outbound_.9080_.version-v1_.reviews.default.svc.cluster.local default
+```
 
 Now, let's understand what happened when we created the TrafficPolicies and the FailoverService.
 
@@ -1483,7 +1493,11 @@ kubectl --context cluster1 patch deployment reviews-v1  --type json   -p '[{"op"
 kubectl --context cluster1 patch deployment reviews-v2  --type json   -p '[{"op": "remove", "path": "/spec/template/spec/containers/0/command"}]'
 ```
 
-Afer 2 minutes, if you refresh the web page several times, you should see only the versions `v1` (no stars) and `v2` (black stars), which means that all the requests are handled by the first cluster.
+Afer 2 minutes, you can validate that the requests are now handled by the first cluster using the following command:
+
+```
+kubectl --context cluster1 logs -l app=reviews -c istio-proxy -f
+```
 
 ## Lab 9 : Exploring the Service Mesh Hub UI
 
