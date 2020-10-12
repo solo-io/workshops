@@ -1434,6 +1434,8 @@ spec:
     - failoverService:
         name: reviews-failover
         namespace: service-mesh-hub
+        subset:
+            version: v3
 EOF
 ```
 
