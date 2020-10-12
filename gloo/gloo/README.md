@@ -2,7 +2,7 @@
 
 Gloo is a feature-rich, Kubernetes-native ingress controller, and next-generation API gateway. Gloo is exceptional in its function-level routing; its support for legacy apps, microservices and serverless; its discovery capabilities; its numerous features; and its tight integration with leading open-source projects. Gloo is uniquely designed to support hybrid applications, in which multiple technologies, architectures, protocols, and clouds can coexist.
 
-The goal of this workshop is to explose some key features of Gloo like traffic management, security, api management.
+The goal of this workshop is to expose some key features of Gloo like traffic management, security, API management.
 
 
 ## Lab environment
@@ -56,7 +56,7 @@ kubectl get upstream echo -n gloo-system -oyaml
 Now we can create a virtual service that routes to the created upstream: 
 
 ```bash
-glooctl add route  \                                                                                                                                                                      1
+glooctl add route  \
     --name demo  \
     --path-exact /request \
     --dest-name echo
@@ -108,7 +108,7 @@ spec:
       containers:
         - image: hashicorp/http-echo
           args:
-            - "-text=version:v1"
+            - "-text=my demo app version is v1"
             - -listen=:8080
           imagePullPolicy: Always
           name: echo-v1
@@ -130,9 +130,9 @@ spec:
 EOF
 ```
 
-After few seconds, Gloo will discover the newly created service and create a corresponding Uptream called: default-echo-v1-80, to verify the the upstream got created run the following command: 
+After few seconds, Gloo will discover the newly created service and create a corresponding Upstream called: **default-echo-v1-80**, to verify that the upstream got created run the following command: 
 ```bash
-glooctl get upstream
+glooctl get upstream default-echo-v1-80
 ```
 
 Now that the upstream CRD has been created we can create an virtual service that routes to it:
@@ -165,7 +165,7 @@ The creation of the virtual service exposes the Kubernetes service through the g
 curl -s -L $(glooctl proxy url)
 ```
 
-It should return "v1", this is the response from the service echo-v1.
+It should return **"my demo app version is v1"**, this is the response from the service echo-v1.
 
 ### Routing to multiple upstreams
 
@@ -193,7 +193,7 @@ spec:
       containers:
         - image: hashicorp/http-echo
           args:
-            - "-text=version:v2"
+            - "-text=my demo app version is v2"
             - -listen=:8080
           imagePullPolicy: Always
           name: echo-v2
@@ -215,10 +215,10 @@ spec:
 EOF
 ```
 
-Verify the upstream default-echo-v1-80 got created running the following command: 
+Verify the upstream **default-echo-v2-80** got created running the following command: 
 
 ```bash
-glooctl get upstream
+glooctl get upstream default-echo-v2-80
 ```
 
 Now that can create a virtual service that routes to two diffrents upstreams but creating the following CRD: 
@@ -242,19 +242,19 @@ spec:
             multi:
                 destinations:
                 - weight: 5
-                    destination:
-                    upstream:
-                        name: default-echo-v1-80
-                        namespace: gloo-system
+                  destination:
+                      upstream:
+                          name: default-echo-v1-80
+                          namespace: gloo-system
                 - weight: 5
-                    destination:
-                    upstream:
-                        name: default-echo-v2-80
-                        namespace: gloo-system
+                  destination:
+                      upstream:
+                          name: default-echo-v2-80
+                          namespace: gloo-system
 EOF
 ```
 
-To verfiy that Gloo is routing to the two diffrent uptreams (50% taffic each), run the following command, you should be able to see v1 and v2 as a response from service echo-v1 and echo-v2 respectivly: 
+To verfiy that Gloo is routing to the two diffrent Uptreams (50% taffic each), run the following command, you should be able to see v1 and v2 as a response from service echo-v1 and echo-v2 respectivly: 
 
 ```bash
 curl -s -L $(glooctl proxy url)
@@ -304,19 +304,17 @@ spec:
       - matchers:
           - prefix: /
         routeAction:
-            multi:
-                destinations:
-                - weight: 5
-                    destination:
-                    upstream:
-                        name: default-echo-v1-80
-                        namespace: gloo-system
-                - weight: 5
-                    destination:
-                    upstream:
-                        name: default-echo-v2-80
-                        namespace: gloo-system
+          single:
+            upstream:
+              name: default-echo-v1-80
+              namespace: gloo-system
 EOF
+```
+
+Now the gateway is secured through TLS, to test the TLS configuration run the following command: 
+
+```bash
+curl -k $(glooctl proxy url --port https) -v
 ```
 
 
@@ -327,6 +325,8 @@ In the following chapter we will secure our API using an IDP, lets first start b
 ```bash
 
 cat > dex-values.yaml <<EOF
+service:
+    type: LoadBalancer
 config:
   # The base path of dex and the external name of the OpenID Connect service.
   # This is the canonical URL that all clients MUST use to refer to dex. If a
@@ -337,7 +337,7 @@ config:
   staticClients:
   - id: gloo
     redirectURIs:
-    - "$(glooctl proxy url)/callback"
+    - "$(glooctl proxy url --port https)/callback"
     name: 'GlooApp'
     secret: secretvalue
   
@@ -360,14 +360,24 @@ helm repo add stable https://kubernetes-charts.storage.googleapis.com
 helm install dex --namespace gloo-system stable/dex -f dex-values.yaml
 ```
 
-The final step is to setup the authentication in the Virtual Service, for this we will have to create a Kubernetes Secret that contains the OIDC secret:
+Let save dex IP in an envirenment varialble for future use:
+
+```bash
+export DEX_IP=$(kubectl get service dex --namespace gloo-system  --output jsonpath='{.status.loadBalancer.ingress[0].ip}')
+```
+Because we are using a local Kubernetes cluster In this example we need to configure the dex host to point to the Load balancer IP:
+
+```bash
+echo "$DEX_IP dex.gloo-system.svc.cluster.local" | sudo tee -a /etc/hosts
+```
+
+The next step is to setup the authentication in the Virtual Service, for this we will have to create a Kubernetes Secret that contains the OIDC secret:
 
 ```bash
 glooctl create secret oauth --client-secret secretvalue oauth
 ```
 
-Then we will create an authconfig, which is a CRD that configure the authentication in Gloo: 
-
+Then we will create an Authconfig which is a CRD that configure the authentication in Gloo: 
 
 ```bash
 kubectl apply -f - <<EOF
@@ -379,13 +389,13 @@ metadata:
 spec:
   configs:
   - oauth:
-      app_url: "$(glooctl proxy url)"
+      app_url: "$(glooctl proxy url --port https)"
       callback_path: /callback
       client_id: gloo
       client_secret_ref:
         name: oauth
         namespace: gloo-system
-      issuer_url: http://dex.gloo-system.svc.cluster.local:32000/
+      issuer_url: http://$DEX_IP:32000/
       scopes:
       - email
 EOF
@@ -419,44 +429,44 @@ spec:
       - matchers:
           - prefix: /
         routeAction:
-            multi:
-                destinations:
-                - weight: 5
-                    destination:
-                    upstream:
-                        name: default-echo-v1-80
-                        namespace: gloo-system
-                - weight: 5
-                    destination:
-                    upstream:
-                        name: default-echo-v2-80
-                        namespace: gloo-system
+          single:
+            upstream:
+              name: default-echo-v1-80
+              namespace: gloo-system
 EOF
 ```
+
+To test the authentication, run the following command to open the browser: 
+
+```bash
+/opt/google/chrome/chrome $(glooctl proxy url --port https)
+```
+
+If you login as the **admin@example.com** user with the password **password**, Gloo should redirect you to the sample application echo.
 
 ### Rate Limiting
 
 To enable rate limit on a Virtual Service we will first create a rate limit config CRD:
 
 ```bash
-kubectl apply -f - <<EOF
+kubectl apply -f - << EOF
 apiVersion: ratelimit.solo.io/v1alpha1
 kind: RateLimitConfig
 metadata:
-  name: my-rate-limit-policy
+  name: global-limit
   namespace: gloo-system
 spec:
   raw:
     descriptors:
     - key: generic_key
-      value: counter
+      value: count
       rateLimit:
         requestsPerUnit: 10
         unit: MINUTE
     rateLimits:
     - actions:
       - genericKey:
-          descriptorValue: counters
+          descriptorValue: count
 EOF
 ```
 
@@ -483,7 +493,7 @@ spec:
 # ---------------- Rate limit config ------------------
       rateLimitConfigs:
         refs:
-        - name: my-rate-limit-policy
+        - name: global-limit
           namespace: gloo-system
 #------------------------------------------------------
     domains:
@@ -492,29 +502,24 @@ spec:
       - matchers:
           - prefix: /
         routeAction:
-            multi:
-                destinations:
-                - weight: 5
-                    destination:
-                        upstream:
-                            name: default-echo-v1-80
-                            namespace: gloo-system
-                - weight: 5
-                    destination:
-                        upstream:
-                            name: default-echo-v2-80
-                            namespace: gloo-system
+          single:
+            upstream:
+              name: default-echo-v1-80
+              namespace: gloo-system
 EOF
 ```
 
 ## LAB 3: Data transformation
-In this section we will explore the transfermations on Gloo
+In this section we will explore the request transformations using Gloo.
 
 ### Response transformation 
-The following example demonstrate how to modify a request response status code based on a body field check: 
+The following example demonstrate how to modify a response status code based on a body field check. 
 
+Let's use echo postman again (created in LAB1), the goal of the demo application is to return a mock body, if the body contains an error message we will change the response to 400 (by default echo postman, always return 200):
 
-Let's use echo postman again (created in LAB1), the goal of the demo application is to return a mock body, if the body contains a error message we will change the response to 400 (by default echo postman, always return 200):
+```bash
+glooctl -n gloo-system create upstream static --name echo --static-hosts postman-echo.com:80 || true
+```
 
 First lets create a virtual service that will allow us to send requests to postman-echo external service through the gateway:
 
@@ -533,10 +538,10 @@ spec:
     - matchers:
       - prefix: /
       routeAction:
-        single:
-          upstream:
-            name: echo
-            namespace: gloo-system
+          single:
+            upstream:
+              name: echo
+              namespace: gloo-system
 EOF
 ```
 
@@ -609,45 +614,55 @@ curl -s -o /dev/null -w "%{http_code}" --location --request POST "$(glooctl prox
 ### Access Logs
 
 
-Lets first create a path file containing the config for activating the access logs on the gateway: 
+Lets first activate the access logs on the gateway: 
 
 ```bash
-cat > access_logs.yaml <<EOF
-  spec:
-    bindAddress: '::'
-    bindPort: 8080
-    httpGateway: {}
-    options:
-      accessLoggingService:
-        accessLog:
-        - fileSink:
-            jsonFormat:
-              # HTTP method name
-              httpMethod: '%REQ(:METHOD)%'
-              # Protocol. Currently either HTTP/1.1 or HTTP/2.
-              protocol: '%PROTOCOL%'
-              # HTTP response code. Note that a response code of ‘0’ means that the server never sent the
-              # beginning of a response. This generally means that the (downstream) client disconnected.
-              responseCode: '%RESPONSE_CODE%'
-              # Total duration in milliseconds of the request from the start time to the last byte out
-              clientDuration: '%DURATION%'
-              # Total duration in milliseconds of the request from the start time to the first byte read from the upstream host
-              targetDuration: '%RESPONSE_DURATION%'
-               # Value of the "x-envoy-original-path" header (falls back to "path" header if not present)
-              path: '%REQ(X-ENVOY-ORIGINAL-PATH?:PATH)%'
-              # Upstream cluster to which the upstream host belongs to
-              upstreamName: '%UPSTREAM_CLUSTER%'
-              # Request start time including milliseconds.
-              systemTime: '%START_TIME%'
-              # Unique tracking ID
-              requestId: '%REQ(X-REQUEST-ID)%'
-            path: /dev/stdout
+kubectl apply -f - <<EOF
+apiVersion: gateway.solo.io/v1
+kind: Gateway
+metadata:
+  labels:
+    app: gloo
+  name: gateway-proxy
+  namespace: gloo-system
+proxyNames:
+- gateway-proxy
+spec:
+  bindAddress: '::'
+  bindPort: 8080
+  httpGateway: {}
+  options:
+    accessLoggingService:
+      accessLog:
+      - fileSink:
+          jsonFormat:
+            # HTTP method name
+            httpMethod: '%REQ(:METHOD)%'
+            # Protocol. Currently either HTTP/1.1 or HTTP/2.
+            protocol: '%PROTOCOL%'
+            # HTTP response code. Note that a response code of ‘0’ means that the server never sent the
+            # beginning of a response. This generally means that the (downstream) client disconnected.
+            responseCode: '%RESPONSE_CODE%'
+            # Total duration in milliseconds of the request from the start time to the last byte out
+            clientDuration: '%DURATION%'
+            # Total duration in milliseconds of the request from the start time to the first byte read from the upstream host
+            targetDuration: '%RESPONSE_DURATION%'
+            # Value of the "x-envoy-original-path" header (falls back to "path" header if not present)
+            path: '%REQ(X-ENVOY-ORIGINAL-PATH?:PATH)%'
+            # Upstream cluster to which the upstream host belongs to
+            upstreamName: '%UPSTREAM_CLUSTER%'
+            # Request start time including milliseconds.
+            systemTime: '%START_TIME%'
+            # Unique tracking ID
+            requestId: '%REQ(X-REQUEST-ID)%'
+            # Response flags; will contain RL if the request was rate-limited
+            responseFlags: '%RESPONSE_FLAGS%'
+            # We rate-limit on the x-type header
+            messageType: '%REQ(x-type)%'
+            # We rate-limit on the x-number header
+            number: '%REQ(x-number)%'
+          path: /dev/stdout
 EOF
-```
-Then path the default settings of the gateway so that the access log config gets applied:
-
-```bash
-kubectl patch settings default -n gloo-system --type merge --patch "$(cat access_logs.yaml)"
 ```
 
 Run the following curl the simulate some traffic:
