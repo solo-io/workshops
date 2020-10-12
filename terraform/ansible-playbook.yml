@@ -461,6 +461,11 @@
     become_user: solo
     become_method: su
 
+  - name: Add PORTAL_LICENSE_KEY environment variable
+    shell: echo "export PORTAL_LICENSE_KEY={{ lookup('env','PORTAL_LICENSE_KEY') }}" >> /home/solo/.bashrc
+    become_user: solo
+    become_method: su
+
   - name: Install apache2-utils
     apt:
       name: apache2-utils
