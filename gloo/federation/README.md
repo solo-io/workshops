@@ -76,7 +76,7 @@ kubectl config use-context mgmt
 Upgrade `glooctl` using the following command:
 
 ```bash
-glooctl upgrade --release=v1.5.0-beta25
+glooctl upgrade --release=v1.5.0
 ```
 
 Check if the `LICENSE_KEY` variable is already set.
@@ -108,14 +108,14 @@ Deploy Gloo on the second cluster:
 
 ```bash
 kubectl config use-context cluster1
-glooctl install gateway enterprise --version 1.5.0-beta11 --license-key $LICENSE_KEY
+glooctl install gateway enterprise --version 1.5.0 --license-key $LICENSE_KEY
 ```
 
 Deploy Gloo on the third cluster:
 
 ```bash
 kubectl config use-context cluster2
-glooctl install gateway enterprise --version 1.5.0-beta11 --license-key $LICENSE_KEY
+glooctl install gateway enterprise --version 1.5.0 --license-key $LICENSE_KEY
 ```
 
 Use the following commands to wait for the Gloo components to be deployed on all the clusters:
