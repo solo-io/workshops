@@ -12,7 +12,7 @@ The goal of this workshop is to show several unique features of the Service Mesh
 
 ## Lab environment
 
-Service Mesh Hub can be run in its own cluster or co-located with an existing mesh.  In this exercise, SMH will run in its own dedicated management Cluster 1, while the two managed Istio meshes will run in separate workload Clusters 2 and 3.
+Service Mesh Hub can be run in its own cluster or co-located with an existing mesh.  In this exercise, SMH will run in its own dedicated management cluster, while the two managed Istio meshes will run in separate clusters.
 
 ![Lab](images/lab.png)
 
