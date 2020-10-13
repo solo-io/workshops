@@ -1911,7 +1911,7 @@ When targeting Istio Gateways, the Developer Portal manages a set of Istio Custo
 
 So, you can now access the API using the command below:
 
-``bash
+```bash
 curl -H "Host: api.example.com" http://172.18.0.230/api/v1/products
 ```
 
@@ -1951,7 +1951,7 @@ EOF
 
 Now, you should be able to access the API:
 
-``bash
+```bash
 curl -H "Host: api.example.com" http://172.18.0.230/api/v1/products
 ```
 
@@ -1988,7 +1988,7 @@ EOF
 You can then check the status of the API Product using the following command:
 
 ```bash
-kubectl get portal -n default petstore-portal -oyaml
+kubectl get portal -n default bookinfo-portal -oyaml
 ```
 
 We need to update the `/etc/hosts` file to be able to access the Portal:
