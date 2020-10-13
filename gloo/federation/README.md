@@ -23,9 +23,9 @@ cd /home/solo/workshops/gloo/federation
 Run the following commands to deploy 3 Kubernetes clusters:
 
 ```bash
-../../scripts/deploy.sh 1
-../../scripts/deploy.sh 2
-../../scripts/deploy.sh 3
+../../scripts/deploy.sh 1 mgmt
+../../scripts/deploy.sh 2 cluster1
+../../scripts/deploy.sh 3 cluster2
 ```
 
 Then run the following commands to wait for all the Pods to be ready:
