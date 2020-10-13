@@ -1,0 +1,5 @@
+license.env
+hosts
+*.tfstate
+*.tfstate.*
+.terraform
