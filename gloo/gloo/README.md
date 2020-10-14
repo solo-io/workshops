@@ -137,9 +137,15 @@ spec:
 EOF
 ```
 
+Gloo uses a discovery mechanism to create Upstreams automatically, Upstreams can be created manually too using CRDs.
 After a few seconds, Gloo will discover the newly created service and create a corresponding Upstream called: **default-echo-v1-80**, to verify that the upstream got created run the following command: 
+
 ```bash
-glooctl get upstream default-echo-v1-80
+until glooctl get upstream default-echo-v1-80 2> /dev/null
+do
+    echo waiting for upstream default-echo-v1-80 to be discovered
+    sleep 3
+done
 ```
 
 Now that the upstream CRD has been created, we need to create a virtual service that routes to it:
@@ -224,8 +230,13 @@ EOF
 
 Verify the upstream **default-echo-v2-80** got created running the following command: 
 
+
 ```bash
-glooctl get upstream default-echo-v2-80
+until glooctl get upstream default-echo-v1-80 2> /dev/null
+do
+    echo waiting for upstream default-echo-v2-80 to be discovered
+    sleep 3
+done
 ```
 
 Now we can route to multiple Upstreams by creating the following Virtual service CRD: 
