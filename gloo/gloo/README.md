@@ -20,8 +20,14 @@ cd /home/solo/workshops/gloo/gloo
 
 ### Create a Kubernetes cluster
 
+Deploy a local Kubernetes cluster using this command:
 ```bash
 ../../scripts/deploy.sh 1 gloo
+```
+
+Then verify that your Kubernetes cluster is ready to be used: 
+```bash
+../../scripts/check.sh gloo
 ```
 
 ### Install Gloo 
@@ -439,7 +445,7 @@ EOF
 To test the authentication, run the following command to open the browser: 
 
 ```bash
-/opt/google/chrome/chrome $(glooctl proxy url --port https)
+/opt/google/chrome/chrome $(glooctl proxy url --port https) > /dev/null
 ```
 
 If you login as the **admin@example.com** user with the password **password**, Gloo should redirect you to the sample application echo.
@@ -512,7 +518,7 @@ EOF
 To test the rate limiting, run the following command to open the browser, then refresh the browser a couple of times, you should see a 429 message indicating that the rate limit got enforced: 
 
 ```bash
-/opt/google/chrome/chrome $(glooctl proxy url --port https)
+/opt/google/chrome/chrome $(glooctl proxy url --port https) > /dev/null
 ```
 
 
