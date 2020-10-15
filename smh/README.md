@@ -1915,10 +1915,6 @@ So, you can now access the API using the command below:
 curl -H "Host: api.example.com" http://172.18.0.230/api/v1/products
 ```
 
-As you might have guessed, this operation fails.  While you can access the Istio endpoint, Gloo isn't yet allowed to talk to the `productpage` microservice.
-
-Let's create an `AccessPolicy` to remedy that:
-
 You should get an `RBAC: access denied` response. We have allowed the Istio Ingress Gateway of `cluster1` to access the `productpage` microservice, not the one of `cluster2`.
 
 Let's update the corresponding AccessPolicy:
@@ -2191,7 +2187,6 @@ Now, execute the curl command again several times.
 As soon as you reach the rate limit, you should get the following output:
 
 ```
-[{"id": 0, "title": "The Comedy of Errors", "descriptionHtml": "<a href=\"https://en.wikipedia.org/wiki/The_Comedy_of_Errors\">Wikipedia Summary</a>: The Comedy of Errors is one of <b>William Shakespeare's</b> early plays. It is his shortest and one of his most farcical comedies, with a major part of the humour coming from slapstick and mistaken identity, in addition to puns and word play."}]solo@workshop-1:~/workshops/smh$ curl -H "Host: api.example.com" -H "api-key: ${key}" http://172.18.0.230/api/v1/products -v
 *   Trying 172.18.0.230...
 * TCP_NODELAY set
 * Connected to 172.18.0.230 (172.18.0.230) port 80 (#0)
