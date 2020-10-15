@@ -37,6 +37,19 @@ glooctl upgrade --release=v1.5.0
 glooctl install gateway enterprise --version 1.5.0 --license-key $LICENSE_KEY
 ```
 
+Use the following commands to wait for the Gloo components to be deployed:
+
+```bash
+until kubectl get ns gloo-system
+do
+  sleep 1
+done
+
+until [ $(kubectl cluster1 -n gloo-system get pods -o jsonpath='{range .items[*].status.containerStatuses[*]}{.ready}{"\n"}{end}' | grep false -c) -eq 0 ]; do
+  echo "Waiting for all the gloo-system pods to become ready"
+  sleep 1
+done
+```
 
 ## Lab 1: Traffic management
 
