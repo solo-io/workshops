@@ -108,7 +108,7 @@ Gloo uses a discovery mechanism to create Upstreams automatically, Upstreams can
 After a few seconds, Gloo will discover the newly created service and create a corresponding Upstream called: **bookinfo-productpage-9080** (namespace-service-port), to verify that the upstream got created run the following command: 
 
 ```bash
-until glooctl get upstream bookinfo-productpage-9080 2> /dev/null
+until glooctl get upstream bookinfo-productpage-9080 &>/dev/null
 do
     echo waiting for upstream bookinfo-productpage-9080 to be discovered
     sleep 3
@@ -131,11 +131,11 @@ spec:
       - '*'
     routes:
       - matchers:
-          - prefix: /productpage
+          - prefix: /
         routeAction:
           single:
             upstream:
-              name: beta-productpage-9080
+              name: bookinfo-productpage-9080
               namespace: gloo-system
 EOF
 ```
@@ -143,20 +143,20 @@ EOF
 The creation of the virtual service exposes the Kubernetes service through the gateway, we can make a test using the following command to open the browser:
 
 ```bash
-/opt/google/chrome/chrome $(glooctl proxy url)/productpage > /dev/null
+/opt/google/chrome/chrome $(glooctl proxy url)/productpage &>/dev/null
 ```
 
 It should return the book info demo application webpage, note that the review stars are black. 
 
 ### Routing to multiple Upstreams
 
-In this step we are going to create a virtual service that routes to two different Upstreams, the first step is to create a version 2 of our demo service: 
+In this step we are going to create a virtual service that routes to two different Upstreams, the first step is to create a version 3 of our demo service: 
 
 
 ```bash
 kubectl create ns bookinfo-beta 
 kubectl -n bookinfo-beta  apply -f https://raw.githubusercontent.com/istio/istio/1.7.3/samples/bookinfo/platform/kube/bookinfo.yaml
-kubectl delete deployment reviews-v1 reviews-v2 -n bookinfo
+kubectl delete deployment reviews-v1 reviews-v2 -n bookinfo-beta
 EOF
 ```
 Book info app has 3 versions of a micro service called reviews, let's keep only the versions 3 of the reviews micro service for this application deployment.
@@ -188,7 +188,7 @@ spec:
       - '*'
     routes:
       - matchers:
-          - prefix: /productpage
+          - prefix: /
         routeAction:
         # ----------------------- Multi Destination ----------------------
             multi:
@@ -209,7 +209,7 @@ EOF
 To check that Gloo is routing to the two different Upstreams (50% traffic each), run the following command, you should be able to see v1 and v2 as a response from service echo-v1 and echo-v2: 
 
 ```bash
-/opt/google/chrome/chrome $(glooctl proxy url)/productpage > /dev/null
+/opt/google/chrome/chrome $(glooctl proxy url)/productpage &>/dev/null
 ```
 
 ## Lab 2: Security
@@ -354,7 +354,7 @@ spec:
       client_secret_ref:
         name: oauth
         namespace: gloo-system
-      issuer_url: http://$DEX_IP:32000
+      issuer_url: http://$DEX_IP:32000/.well-known/openid-configuration
       scopes:
       - email
 EOF
@@ -386,7 +386,7 @@ spec:
       - '*'
     routes:
       - matchers:
-          - prefix: /productpage
+          - prefix: /
         routeAction:
             multi:
                 destinations:
@@ -406,7 +406,7 @@ EOF
 To test the authentication, run the following command to open the browser: 
 
 ```bash
-/opt/google/chrome/chrome $(glooctl proxy url --port https)/productpage > /dev/null
+/opt/google/chrome/chrome $(glooctl proxy url --port https)/productpage &>/dev/null
 ```
 
 If you login as the **admin@example.com** user with the password **password**, Gloo should redirect you to the sample application echo.
@@ -466,7 +466,7 @@ spec:
       - '*'
     routes:
       - matchers:
-          - prefix: /productpage
+          - prefix: /
         routeAction:
             multi:
                 destinations:
@@ -486,7 +486,7 @@ EOF
 To test the rate limiting, run the following command to open the browser, then refresh the browser a couple of times, you should see a 429 message indicating that the rate limit got enforced: 
 
 ```bash
-/opt/google/chrome/chrome $(glooctl proxy url --port https)/productpage > /dev/null
+/opt/google/chrome/chrome $(glooctl proxy url --port https)/productpage &>/dev/null
 ```
 
 
@@ -496,14 +496,6 @@ In this section we will explore the request transformations using Gloo.
 ### Response transformation 
 The following example demonstrates how to modify a response status code if a field exists in the response body for example. 
 
-Let's use echo postman again (created in LAB1), the goal of the demo application is to return a mock body, if the body contains an error message we will change the response to 400 (by default echo postman, always return 200):
-
-```bash
-glooctl -n gloo-system create upstream static --name echo --static-hosts postman-echo.com:80 || true
-```
-
-First lets create a virtual service that will allow us to send requests to postman-echo external service through the gateway:
-
 ```bash
 kubectl apply -f - <<EOF
 apiVersion: gateway.solo.io/v1
@@ -512,82 +504,45 @@ metadata:
   name: demo
   namespace: gloo-system
 spec:
+  sslConfig:
+    secretRef:
+      name: upstream-tls
+      namespace: gloo-system  
   virtualHost:
-    domains:
-    - '*'
-    routes:
-    - matchers:
-      - prefix: /
-      routeAction:
-          single:
-            upstream:
-              name: echo
-              namespace: gloo-system
-EOF
-```
-
- Using the example below, create a mock response that returns an error message in the body, the response code should be 200 (default postman-echo service response code).
-
-```bash
-curl -s -o /dev/null -w "%{http_code}" --location --request POST "$(glooctl proxy url)/post" --header 'Content-Type: application/json' \
---data-raw '{
-    "error": {
-        "message": "This is an error"
-    }
-}'
-```
-Now we will apply a response transformation: 
-
-```bash
-kubectl apply -f - <<EOF
-apiVersion: gateway.solo.io/v1
-kind: VirtualService
-metadata:
-  name: demo
-  namespace: gloo-system
-spec:
-  virtualHost:
-    domains:
-    - '*'
     options:
-# ---------------- Response Transformation -------------------      
+      extauth:
+        configRef:
+          name: oidc-dex
+          namespace: gloo-system
+      rateLimitConfigs:
+        refs:
+        - name: global-limit
+          namespace: gloo-system
+# ---------------- Transformation ------------------          
       transformations:
         responseTransformation:
           transformationTemplate:
-            headers:
-              :status:
-                text: '{% if default(data.error.message, "") != "" %}400{% else %}{{
-                  header(":status") }}{% endif %}'
-#-------------------------------------------------------------                  
+            body: 
+              text: '{% if header(":status") == "429" %}{ "reason": "I am testing the Gloo transformations! - rate limit message transformed" }{% else %}{{ body() }}{% endif %}'    
+    domains:
+      - '*'
     routes:
-    - matchers:
-      - prefix: /
-      routeAction:
-        single:
-          upstream:
-            name: echo
-            namespace: gloo-system
+      - matchers:
+          - prefix: /
+        routeAction:
+            multi:
+                destinations:
+                - weight: 5
+                  destination:
+                      upstream:
+                          name: bookinfo-productpage-9080
+                          namespace: gloo-system
+                - weight: 5
+                  destination:
+                      upstream:
+                          name: bookinfo-beta-productpage-9080
+                          namespace: gloo-system
 EOF
-```
-
-Now, making the same call should return 400, because an error message exists in the response body:
-
-```bash
-curl -s -o /dev/null -w "%{http_code}" --location --request POST "$(glooctl proxy url)/post" --header 'Content-Type: application/json' \
---data-raw '{
-    "error": {
-        "message": "This is an error"
-    }
-}'
-```
-
-Making a call should return 200 when no error message exist in the response body:
-
-```bash
-curl -s -o /dev/null -w "%{http_code}" --location --request POST "$(glooctl proxy url)/post" --header 'Content-Type: application/json' \
---data-raw '{
-    "error": {}
-}'
 ```
 
 ## LAB 4: Logging
