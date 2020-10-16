@@ -354,7 +354,7 @@ spec:
       client_secret_ref:
         name: oauth
         namespace: gloo-system
-      issuer_url: http://$DEX_IP:32000/.well-known/openid-configuration
+      issuer_url: http://$DEX_IP:32000
       scopes:
       - email
 EOF
