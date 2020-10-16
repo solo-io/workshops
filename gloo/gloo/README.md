@@ -92,55 +92,29 @@ The result received in from the upstream postman-echo.com:80/request
 
 ### Routing to a Kubernetes service 
 
-In this step we will expose a demo service to the outside traffic using Gloo, first lets create a demo service: 
+In this step we will expose a demo service to the outside traffic using Gloo, first lets create a demo service, we will deploy an application called book info: 
+ 
 
 ```bash
-kubectl apply -f - <<EOF
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: echo-v1
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: echo
-      version: v1
-  template:
-    metadata:
-      labels:
-        app: echo
-        version: v1
-    spec:
-      containers:
-        - image: hashicorp/http-echo
-          args:
-            - "-text=my demo app version is v1"
-            - -listen=:8080
-          imagePullPolicy: Always
-          name: echo-v1
-          ports:
-            - containerPort: 8080
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: echo-v1
-spec:
-  ports:
-    - port: 80
-      targetPort: 8080
-      protocol: TCP
-  selector:
-    app: echo
-    version: v1
+kubectl create ns bookinfo 
+kubectl -n bookinfo  apply -f https://raw.githubusercontent.com/istio/istio/1.7.3/samples/bookinfo/platform/kube/bookinfo.yaml
+kubectl delete deployment reviews-v1 reviews-v3 -n bookinfo
 EOF
 ```
+Book info app has 3 versions of a micro service called reviews, let's keep only the versions 2 of the reviews micro service for this tutorial, we will add the other versions latter.
 
-After a few seconds, Gloo will discover the newly created service and create a corresponding Upstream called: **default-echo-v1-80**, to verify that the upstream got created run the following command: 
+
+Gloo uses a discovery mechanism to create Upstreams automatically, Upstreams can be created manually too using CRDs.
+After a few seconds, Gloo will discover the newly created service and create a corresponding Upstream called: **bookinfo-productpage-9080** (namespace-service-port), to verify that the upstream got created run the following command: 
+
 ```bash
-glooctl get upstream default-echo-v1-80
+until glooctl get bookinfo-productpage-9080 2> /dev/null
+do
+    echo waiting for upstream bookinfo-productpage-9080 to be discovered
+    sleep 3
+done
 ```
+
 
 Now that the upstream CRD has been created, we need to create a virtual service that routes to it:
 
@@ -157,22 +131,22 @@ spec:
       - '*'
     routes:
       - matchers:
-          - prefix: /
+          - prefix: /productpage
         routeAction:
           single:
             upstream:
-              name: default-echo-v1-80
+              name: beta-productpage-9080
               namespace: gloo-system
 EOF
 ```
 
-The creation of the virtual service exposes the Kubernetes service through the gateway, we can make a test using the following command:
+The creation of the virtual service exposes the Kubernetes service through the gateway, we can make a test using the following command to open the browser:
 
 ```bash
-curl -s -L $(glooctl proxy url)
+/opt/google/chrome/chrome $(glooctl proxy url)/productpage > /dev/null
 ```
 
-It should return **"my demo app version is v1"**, this is the response from the service echo-v1.
+It should return the book info demo application webpage, note that the review stars are black. 
 
 ### Routing to multiple Upstreams
 
@@ -180,52 +154,23 @@ In this step we are going to create a virtual service that routes to two differe
 
 
 ```bash
-kubectl apply -f - <<EOF
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: echo-v2
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: echo
-      version: v2
-  template:
-    metadata:
-      labels:
-        app: echo
-        version: v2
-    spec:
-      containers:
-        - image: hashicorp/http-echo
-          args:
-            - "-text=my demo app version is v2"
-            - -listen=:8080
-          imagePullPolicy: Always
-          name: echo-v2
-          ports:
-            - containerPort: 8080
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: echo-v2
-spec:
-  ports:
-    - port: 80
-      targetPort: 8080
-      protocol: TCP
-  selector:
-    app: echo
-    version: v2
+kubectl create ns bookinfo-beta 
+kubectl -n bookinfo-beta  apply -f https://raw.githubusercontent.com/istio/istio/1.7.3/samples/bookinfo/platform/kube/bookinfo.yaml
+kubectl delete deployment reviews-v1 reviews-v2 -n bookinfo
 EOF
 ```
+Book info app has 3 versions of a micro service called reviews, let's keep only the versions 3 of the reviews micro service for this application deployment.
 
-Verify the upstream **default-echo-v2-80** got created running the following command: 
+
+Gloo uses a discovery mechanism to create Upstreams automatically, Upstreams can be created manually too using CRDs.
+After a few seconds, Gloo will discover the newly created service and create a corresponding Upstream called: **bookinfo-beta-productpage-9080** (namespace-service-port), to verify that the upstream got created run the following command: 
 
 ```bash
-glooctl get upstream default-echo-v2-80
+until glooctl get bookinfo-beta-productpage-9080 2> /dev/null
+do
+    echo waiting for upstream bookinfo-beta-productpage-9080 to be discovered
+    sleep 3
+done
 ```
 
 Now we can route to multiple Upstreams by creating the following Virtual service CRD: 
@@ -243,7 +188,7 @@ spec:
       - '*'
     routes:
       - matchers:
-          - prefix: /
+          - prefix: /productpage
         routeAction:
         # ----------------------- Multi Destination ----------------------
             multi:
@@ -251,12 +196,12 @@ spec:
                 - weight: 5
                   destination:
                       upstream:
-                          name: default-echo-v1-80
+                          name: bookinfo-productpage-9080
                           namespace: gloo-system
                 - weight: 5
                   destination:
                       upstream:
-                          name: default-echo-v2-80
+                          name: bookinfo-beta-productpage-9080
                           namespace: gloo-system
 EOF
 ```
@@ -264,7 +209,7 @@ EOF
 To check that Gloo is routing to the two different Upstreams (50% traffic each), run the following command, you should be able to see v1 and v2 as a response from service echo-v1 and echo-v2: 
 
 ```bash
-curl -s -L $(glooctl proxy url)
+/opt/google/chrome/chrome $(glooctl proxy url)/productpage > /dev/null
 ```
 
 ## Lab 2: Security
@@ -308,12 +253,20 @@ spec:
       - '*'
     routes:
       - matchers:
-          - prefix: /
+          - prefix: /productpage
         routeAction:
-          single:
-            upstream:
-              name: default-echo-v1-80
-              namespace: gloo-system
+            multi:
+                destinations:
+                - weight: 5
+                  destination:
+                      upstream:
+                          name: bookinfo-productpage-9080
+                          namespace: gloo-system
+                - weight: 5
+                  destination:
+                      upstream:
+                          name: bookinfo-beta-productpage-9080
+                          namespace: gloo-system
 EOF
 ```
 
@@ -433,19 +386,27 @@ spec:
       - '*'
     routes:
       - matchers:
-          - prefix: /
+          - prefix: /productpage
         routeAction:
-          single:
-            upstream:
-              name: default-echo-v1-80
-              namespace: gloo-system
+            multi:
+                destinations:
+                - weight: 5
+                  destination:
+                      upstream:
+                          name: bookinfo-productpage-9080
+                          namespace: gloo-system
+                - weight: 5
+                  destination:
+                      upstream:
+                          name: bookinfo-beta-productpage-9080
+                          namespace: gloo-system
 EOF
 ```
 
 To test the authentication, run the following command to open the browser: 
 
 ```bash
-/opt/google/chrome/chrome $(glooctl proxy url --port https) > /dev/null
+/opt/google/chrome/chrome $(glooctl proxy url --port https)/productpage > /dev/null
 ```
 
 If you login as the **admin@example.com** user with the password **password**, Gloo should redirect you to the sample application echo.
@@ -501,24 +462,31 @@ spec:
         refs:
         - name: global-limit
           namespace: gloo-system
-#------------------------------------------------------
     domains:
       - '*'
     routes:
       - matchers:
-          - prefix: /
+          - prefix: /productpage
         routeAction:
-          single:
-            upstream:
-              name: default-echo-v1-80
-              namespace: gloo-system
+            multi:
+                destinations:
+                - weight: 5
+                  destination:
+                      upstream:
+                          name: bookinfo-productpage-9080
+                          namespace: gloo-system
+                - weight: 5
+                  destination:
+                      upstream:
+                          name: bookinfo-beta-productpage-9080
+                          namespace: gloo-system
 EOF
 ```
 
 To test the rate limiting, run the following command to open the browser, then refresh the browser a couple of times, you should see a 429 message indicating that the rate limit got enforced: 
 
 ```bash
-/opt/google/chrome/chrome $(glooctl proxy url --port https) > /dev/null
+/opt/google/chrome/chrome $(glooctl proxy url --port https)/productpage > /dev/null
 ```
 
 
