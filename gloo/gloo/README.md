@@ -99,7 +99,6 @@ In this step we will expose a demo service to the outside traffic using Gloo, fi
 kubectl create ns bookinfo 
 kubectl -n bookinfo  apply -f https://raw.githubusercontent.com/istio/istio/1.7.3/samples/bookinfo/platform/kube/bookinfo.yaml
 kubectl delete deployment reviews-v1 reviews-v3 -n bookinfo
-EOF
 ```
 Book info app has 3 versions of a micro service called reviews, let's keep only the versions 2 of the reviews micro service for this tutorial, we will add the other versions latter.
 
@@ -108,7 +107,7 @@ Gloo uses a discovery mechanism to create Upstreams automatically, Upstreams can
 After a few seconds, Gloo will discover the newly created service and create a corresponding Upstream called: **bookinfo-productpage-9080** (namespace-service-port), to verify that the upstream got created run the following command: 
 
 ```bash
-until glooctl get upstream bookinfo-productpage-9080 &>/dev/null
+until glooctl get upstream bookinfo-productpage-9080 
 do
     echo waiting for upstream bookinfo-productpage-9080 to be discovered
     sleep 3
@@ -143,7 +142,7 @@ EOF
 The creation of the virtual service exposes the Kubernetes service through the gateway, we can make a test using the following command to open the browser:
 
 ```bash
-/opt/google/chrome/chrome $(glooctl proxy url)/productpage &>/dev/null
+/opt/google/chrome/chrome $(glooctl proxy url)/productpage
 ```
 
 It should return the book info demo application webpage, note that the review stars are black. 
@@ -209,7 +208,7 @@ EOF
 To check that Gloo is routing to the two different Upstreams (50% traffic each), run the following command, you should be able to see v1 and v2 as a response from service echo-v1 and echo-v2: 
 
 ```bash
-/opt/google/chrome/chrome $(glooctl proxy url)/productpage &>/dev/null
+/opt/google/chrome/chrome $(glooctl proxy url)/productpage 
 ```
 
 ## Lab 2: Security
@@ -406,7 +405,7 @@ EOF
 To test the authentication, run the following command to open the browser: 
 
 ```bash
-/opt/google/chrome/chrome $(glooctl proxy url --port https)/productpage &>/dev/null
+/opt/google/chrome/chrome $(glooctl proxy url --port https)/productpage 
 ```
 
 If you login as the **admin@example.com** user with the password **password**, Gloo should redirect you to the sample application echo.
@@ -486,7 +485,7 @@ EOF
 To test the rate limiting, run the following command to open the browser, then refresh the browser a couple of times, you should see a 429 message indicating that the rate limit got enforced: 
 
 ```bash
-/opt/google/chrome/chrome $(glooctl proxy url --port https)/productpage &>/dev/null
+/opt/google/chrome/chrome $(glooctl proxy url --port https)/productpage 
 ```
 
 
