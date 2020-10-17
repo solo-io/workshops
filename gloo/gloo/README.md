@@ -292,7 +292,7 @@ EOF
 
 Now the gateway is secured through TLS, to test the TLS configuration run the following command to open the browser, note that now the traffic is served using https: 
 
-```bash
+```
 /opt/google/chrome/chrome $(glooctl proxy url --port https)/productpage 
 
 ```
@@ -669,4 +669,4 @@ Check the logs running the following command:
 ```bash
 kubectl logs -n gloo-system deployment/gateway-proxy | grep '^{' | jq
 ```
-These logs can now be collected by the by datadog agents for example. 
+These logs can now be collected by the datadog agents for example. 
