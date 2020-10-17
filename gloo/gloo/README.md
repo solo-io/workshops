@@ -46,6 +46,19 @@ glooctl upgrade --release=v1.5.0
 glooctl install gateway enterprise --version 1.5.0 --license-key $LICENSE_KEY
 ```
 
+Use the following commands to wait for the Gloo components to be deployed:
+
+```bash
+until kubectl get ns gloo-system
+do
+  sleep 1
+done
+
+until [ $(kubectl cluster1 -n gloo-system get pods -o jsonpath='{range .items[*].status.containerStatuses[*]}{.ready}{"\n"}{end}' | grep false -c) -eq 0 ]; do
+  echo "Waiting for all the gloo-system pods to become ready"
+  sleep 1
+done
+```
 
 ## Lab 1: Traffic management
 
@@ -184,6 +197,7 @@ Book info app has 3 versions of a micro service called reviews, let's keep only 
 ```
 
 Verify that the upstream for the beta application got created run the following command: 
+
 
 ```bash
 until glooctl get upstream bookinfo-beta-productpage-9080 2> /dev/null
@@ -679,3 +693,384 @@ Check the logs running the following command:
 kubectl logs -n gloo-system deployment/gateway-proxy | grep '^{' | jq
 ```
 These logs can now be collected by the datadog agents for example. 
+
+
+## Lab 5 : Solo.io Developer Portal
+
+The Solo.io Developer Portal provides a framework for managing the definitions of APIs, API client identity, and API policies on top of the Istio and Gloo Gateways. Vendors of API products can leverage the Developer Portal to secure, manage, and publish their APIs independent of the operations used to manage networking infrastructure.
+
+Deploy the `bookinfo` demo application:
+
+```bash
+kubectl apply -f https://raw.githubusercontent.com/istio/istio/release-1.7/samples/bookinfo/platform/kube/bookinfo.yaml
+```
+
+We'll use Helm to deploy the Developer portal:
+
+```bash
+helm repo add dev-portal https://storage.googleapis.com/dev-portal-helm
+helm repo update
+
+cat << EOF > gloo-values.yaml
+gloo:
+  enabled: true
+licenseKey:
+  secretRef:
+    name: license
+    namespace: gloo-system
+    key: license-key
+EOF
+
+kubectl create namespace dev-portal
+helm install dev-portal dev-portal/dev-portal -n dev-portal --values gloo-values.yaml
+```
+
+<!--bash
+until kubectl get ns dev-portal
+do
+  sleep 1
+done
+-->
+
+Use the following snippet to wait for the installation to finish:
+
+```bash
+until [ $(kubectl -n dev-portal get pods -o jsonpath='{range .items[*].status.containerStatuses[*]}{.ready}{"\n"}{end}' | grep true -c) -eq 4 ]; do
+  echo "Waiting for all the Dev portal pods to become ready"
+  sleep 1
+done
+```
+
+Managing APIs with the Developer Portal happens through the use of two resources: the API Doc and API Product.
+
+API Docs are Kubernetes Custom Resources which packages the API definitions maintained by the maintainers of an API. Each API Doc maps to a single Swagger Specification or set of gRPC descriptors. The APIs endpoints themselves are provided by backend services.
+
+Let's create an API Doc using the Swagger Specification of the bookinfo demo app:
+
+```bash
+cat <<EOF | kubectl apply -f -
+apiVersion: devportal.solo.io/v1alpha1
+kind: APIDoc
+metadata:
+  name: bookinfo-schema
+  namespace: default
+spec:
+  openApi:
+    content:
+      fetchUrl: https://raw.githubusercontent.com/istio/istio/1.7.3/samples/bookinfo/swagger.yaml
+EOF
+```
+
+You can then check the status of the API Doc using the following command:
+
+```bash
+kubectl get apidoc -n default bookinfo-schema -oyaml
+```
+
+API Products are Kubernetes Custom Resources which bundle the APIs defined in API Docs into a product which can be exposed to ingress traffic as well as published on a Portal UI. The Product defines what API operations are being exposed, and the routing information to reach the services.
+
+Let's create an API Product using the API Doc we've just created:
+
+```bash
+cat << EOF | kubectl apply -f-
+apiVersion: devportal.solo.io/v1alpha1
+kind: APIProduct
+metadata:
+  name: bookinfo-product
+  namespace: default
+spec:
+  apis:
+  - apiDoc:
+      name: bookinfo-schema
+      namespace: default
+  defaultRoute:
+    inlineRoute:
+      backends:
+      - kube:
+          name: productpage
+          namespace: default
+          port: 9080
+  domains:
+  - api.example.com
+  displayInfo: 
+    description: Bookinfo Product
+    title: Bookinfo Product
+    image:
+      fetchUrl: https://github.com/solo-io/workshops/raw/master/smh/images/books.png
+EOF
+```
+
+You can then check the status of the API Product using the following command:
+
+```bash
+kubectl get apiproducts.devportal.solo.io -n default bookinfo-product -oyaml
+```
+
+When targeting Gloo Gateways, the Developer Portal manages a set of Gloo Custom Resource Definitions (CRDs) on behalf of users:
+
+- VirtualServices: The Developer Portal generates a Gloo VirtualService for each API Product. The VirtualService contains a single HTTP route for each API operation exposed in the product. Routes are named and their matchers are derived from the OpenAPI definition.
+- Upstreams: The Developer Portal generates a Gloo Upstream for each unique destination references in an API Product route.
+
+So, you can now access the API using the command below:
+
+```bash
+curl -H "Host: api.example.com" http://172.18.0.210/api/v1/products
+```
+
+Once a set of APIs have been bundled together in an API Product, those products can be published in a user-friendly interface through which developers can discover, browse, request access to, and interact with APIs. This is done by defining Portals, a custom resource which tells the Developer Portal how to publish a customized website containing an interactive catalog of those products.
+
+Let's create a Portal:
+
+```bash
+cat <<EOF | kubectl apply -f -
+apiVersion: devportal.solo.io/v1alpha1
+kind: Portal
+metadata:
+  name: bookinfo-portal
+  namespace: default
+spec:
+  displayName: Bookinfo Portal
+  description: The Developer Portal for the Bookinfo API
+  banner:
+    fetchUrl: https://github.com/solo-io/workshops/raw/master/smh/images/books.png
+  favicon:
+    fetchUrl: https://github.com/solo-io/workshops/raw/master/smh/images/books.png
+  primaryLogo:
+    fetchUrl: https://github.com/solo-io/workshops/raw/master/smh/images/books.png
+  customStyling: {}
+  staticPages: []
+  domains:
+  - portal.example.com
+  publishApiProducts:
+    matchLabels:
+      portals.devportal.solo.io/default.bookinfo-portal: "true"
+EOF
+```
+
+You can then check the status of the API Product using the following command:
+
+```bash
+kubectl get portal -n default bookinfo-portal -oyaml
+```
+
+We need to update the `/etc/hosts` file to be able to access the Portal:
+
+```bash
+cat <<EOF | sudo tee -a /etc/hosts
+172.18.0.210 api.example.com
+172.18.0.210 portal.example.com
+EOF
+```
+
+We are now going to create a user (dev1) and then add him to a group (developers). Users and groups are both stored as Custom Resources (CRs) in Kubernetes. Note that the Portal Web Application can be configured to use OIDC to authenticate users who access the Portal.
+
+Here are the commands to create the user and the group:
+
+```bash
+pass=$(htpasswd -bnBC 10 "" password | tr -d ':\n')
+
+kubectl create secret generic dev1-password \
+  -n dev-portal --type=opaque \
+  --from-literal=password=$pass
+
+cat << EOF | kubectl apply -f-
+apiVersion: devportal.solo.io/v1alpha1
+kind: User
+metadata:
+  name: dev1
+  namespace: dev-portal
+spec:
+  accessLevel: {}
+  basicAuth:
+    passwordSecretKey: password
+    passwordSecretName: dev1-password
+    passwordSecretNamespace: dev-portal
+  username: dev1
+EOF
+
+kubectl get user dev1 -n dev-portal -oyaml
+
+cat << EOF | kubectl apply -f-
+apiVersion: devportal.solo.io/v1alpha1
+kind: Group
+metadata:
+  name: developers
+  namespace: dev-portal
+spec:
+  displayName: developers
+  userSelector:
+    matchLabels:
+      groups.devportal.solo.io/dev-portal.developers: "true"
+EOF
+
+kubectl label user dev1 -n dev-portal groups.devportal.solo.io/dev-portal.developers="true"
+```
+
+We can now update the API Product to secure it and to define a rate limit:
+
+```bash
+cat << EOF | kubectl apply -f-
+apiVersion: devportal.solo.io/v1alpha1
+kind: APIProduct
+metadata:
+  name: bookinfo-product
+  namespace: default
+  labels: 
+    portals.devportal.solo.io/default.bookinfo-portal: "true"
+spec:
+  apis:
+  - apiDoc:
+      name: bookinfo-schema
+      namespace: default
+  defaultRoute:
+    inlineRoute:
+      backends:
+      - kube:
+          name: productpage
+          namespace: default
+          port: 9080
+  domains:
+  - api.example.com
+  displayInfo: 
+    description: Bookinfo Product
+    title: Bookinfo Product
+    image:
+      fetchUrl: https://github.com/solo-io/workshops/raw/master/smh/images/books.png
+  plans:
+  - authPolicy:
+      apiKey: {}
+    displayName: Basic
+    name: basic
+    rateLimit:
+      requestsPerUnit: 5
+      unit: MINUTE
+EOF
+```
+
+And finally, we can allow the group we created previously to access the Portal:
+
+```bash
+cat << EOF | kubectl apply -f-
+apiVersion: devportal.solo.io/v1alpha1
+kind: Group
+metadata:
+  name: developers
+  namespace: dev-portal
+spec:
+  displayName: developers
+  accessLevel:
+    apiProducts:
+    - name: bookinfo-product
+      namespace: default
+      plans:
+      - basic
+    portals:
+    - name: bookinfo-portal
+      namespace: default
+  userSelector:
+    matchLabels:
+      groups.devportal.solo.io/dev-portal.developers: "true"
+EOF
+```
+
+Let's run the following command to allow access ot the admin UI of the Developer Portal:
+
+```
+kubectl port-forward -n dev-portal svc/admin-server 8000:8080
+```
+
+You can now access the admin UI at http://localhost:8000
+
+![Admin Developer Portal](images/dev-portal-admin.png)
+
+Take the time to explore the UI and see the different components we have created.
+
+The user Portal we have created is available at http://portal.example.com
+
+![User Developer Portal](images/dev-portal-user.png)
+
+Click on `Log In` and select `Log in using credentials`.
+
+Log in with the user `dev1` and the password `password` and define a new password.
+
+Click on `dev1` on the top right corner and select `API Keys`.
+
+Click on `API Keys` again and Add an API Key.
+
+![User Developer Portal API Key](images/dev-portal-api-key.png)
+
+Click on the key to copy the value to the clipboard.
+
+Click on the `APIs` tab.
+
+![User Developer Portal APIs](images/dev-portal-apis.png)
+
+You can click on the `Bookinfo Product` and explore the API.
+
+You can also test the API and use the `Authorize` button to set your API key.
+
+![User Developer Portal API](images/dev-portal-api.png)
+
+But we're going to try it using curl:
+
+So, we need to retrieve the API key first:
+
+```
+key=$(kubectl get secret -l apiproducts.devportal.solo.io=bookinfo-product.default -o jsonpath='{.items[0].data.api-key}' | base64 --decode)
+```
+
+Then, we can run the following command:
+
+```
+curl -H "Host: api.example.com" -H "api-key: ${key}" http://172.18.0.210/api/v1/products -v
+```
+
+You should get a result similar to:
+
+```
+*   Trying 172.18.0.210...
+* TCP_NODELAY set
+* Connected to 172.18.0.210 (172.18.0.210) port 80 (#0)
+> GET /api/v1/products HTTP/1.1
+> Host: api.example.com
+> User-Agent: curl/7.52.1
+> Accept: */*
+> api-key: OTA4OGMyYWMtNmE4Yi02OWRmLTJjZGUtYzQ2Zjc1NTE4OTFm
+> 
+< HTTP/1.1 200 OK
+< content-type: application/json
+< content-length: 395
+< server: envoy
+< date: Wed, 14 Oct 2020 12:25:26 GMT
+< x-envoy-upstream-service-time: 2
+< 
+* Curl_http_done: called premature == 0
+* Connection #0 to host 172.18.0.210 left intact
+[{"id": 0, "title": "The Comedy of Errors", "descriptionHtml": "<a href=\"https://en.wikipedia.org/wiki/The_Comedy_of_Errors\">Wikipedia Summary</a>: The Comedy of Errors is one of <b>William Shakespeare's</b> early plays. It is his shortest and one of his most farcical comedies, with a major part of the humour coming from slapstick and mistaken identity, in addition to puns and word play."}]
+```
+
+Now, execute the curl command again several times.
+
+As soon as you reach the rate limit, you should get the following output:
+
+```
+*   Trying 172.18.0.210...
+* TCP_NODELAY set
+* Connected to 172.18.0.210 (172.18.0.210) port 80 (#0)
+> GET /api/v1/products HTTP/1.1
+> Host: api.example.com
+> User-Agent: curl/7.52.1
+> Accept: */*
+> api-key: OTA4OGMyYWMtNmE4Yi02OWRmLTJjZGUtYzQ2Zjc1NTE4OTFm
+> 
+< HTTP/1.1 429 Too Many Requests
+< x-envoy-ratelimited: true
+< date: Wed, 14 Oct 2020 12:25:48 GMT
+< server: envoy
+< content-length: 0
+< 
+* Curl_http_done: called premature == 0
+* Connection #0 to host 172.18.0.210 left intact
+```
+
+This is the end of the workshop. We hope you enjoyed it !
