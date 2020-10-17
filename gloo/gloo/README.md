@@ -6,7 +6,16 @@ The goal of this workshop is to expose some key features of Gloo API Gateway, li
 
 ## Lab environment
 
-The following Lab environment consists of a Kubernetes environment deployed locally using kind, during this workshop we are going to deploy a demo service and expose/protect it using Gloo.
+The following Lab environment consists of a Kubernetes environment deployed locally using kind, during this workshop we are going to deploy a demo application and expose/protect it using Gloo.
+In this workshop we will:
+* Deploy a demo application (istio's book info demo app) on a k8s cluster and expose it through Gloo
+* Deploy a second version of the demo app, and route partial traffic to it
+* Secure the demo app using TLS
+* Secure the demo app using OIDC
+* Rate limit the traffic going to the demo app
+* Transform a response using Gloo transformations
+* Configure access logs
+
 
 ![Lab](images/env.png)
 
@@ -53,112 +62,66 @@ done
 
 ## Lab 1: Traffic management
 
-### Routing to an external service
-
-Create an Upstream that points to the external service, this is used as a representation of a destination: 
-
-```bash
-glooctl -n gloo-system create upstream static --name echo --static-hosts postman-echo.com:80
-```
-
-To list the Upstreams, run the following command:
-
-```bash
-glooctl get upstream echo
-```
-
-An upstream CRD has been added to your cluster: 
-
-```bash
-kubectl get upstream echo -n gloo-system -oyaml
-```
-
-Now we can create a virtual service that routes to the created upstream: 
-
-```bash
-glooctl add route  \
-    --name demo  \
-    --path-exact /request \
-    --dest-name echo
-```
-
-To list the virtual services created, run the following command:
-
-```bash
-glooctl get virtualservice
-```
-
-A virtual service CRD has been added to your cluster:
-
-```bash
-kubectl get virtualservice -n gloo-system demo -oyaml 
-```
-
-Finally to test that the gateway will route to the upstream destination, run the following command:
-
-```bash
-curl -s -L $(glooctl proxy url)/request
-```
-
-The result received in from the upstream postman-echo.com:80/request
-
-
 ### Routing to a Kubernetes service 
 
-In this step we will expose a demo service to the outside traffic using Gloo, first lets create a demo service: 
+In this step we will expose a demo service to the outside traffic using Gloo, first let's create a demo service, we will deploy an application called book info: 
+ 
+```
+                 +----------------------------------------------------------------------------+
+                 |                                                                            |
+                 |                                         +---------------+                  |
+                 |                                         |-------+       |                  |
+                 +-------+                                 ||Product       |                  |
++-Client-------->+  Envoy+-------------------------------->-|Page  |       |                  |
+                 +---+---+                                 +-------+       |                  |
+                 |   |                                     |Book info      |                  |
+                 |   |                                     +v2             |                  |
+                 |   |                                     +---------------+                  |
+                 |   |                                                                        |
+                 |   |                                                                        |
+                 |   |                                                                        |
+                 | +-v-------+                                                                |
+                 | |  Gloo   |                                                                |
+                 | |         |                                                                |
+                 | +---------+                                                                |
+                 |                                                                            |
+                 |Kubernetes                                                                  |
+                 +----------------------------------------------------------------------------+
 
-```bash
-kubectl apply -f - <<EOF
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: echo-v1
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: echo
-      version: v1
-  template:
-    metadata:
-      labels:
-        app: echo
-        version: v1
-    spec:
-      containers:
-        - image: hashicorp/http-echo
-          args:
-            - "-text=my demo app version is v1"
-            - -listen=:8080
-          imagePullPolicy: Always
-          name: echo-v1
-          ports:
-            - containerPort: 8080
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: echo-v1
-spec:
-  ports:
-    - port: 80
-      targetPort: 8080
-      protocol: TCP
-  selector:
-    app: echo
-    version: v1
-EOF
+
 ```
 
+```bash
+kubectl create ns bookinfo 
+kubectl -n bookinfo  apply -f https://raw.githubusercontent.com/istio/istio/1.7.3/samples/bookinfo/platform/kube/bookinfo.yaml
+kubectl delete deployment reviews-v1 reviews-v3 -n bookinfo
+```
+Book info app has 3 versions of a micro-service called reviews, let's keep only the versions 2 of the reviews micro-service for this tutorial, we will add the other versions later.
+
+
 Gloo uses a discovery mechanism to create Upstreams automatically, Upstreams can be created manually too using CRDs.
-After a few seconds, Gloo will discover the newly created service and create a corresponding Upstream called: **default-echo-v1-80**, to verify that the upstream got created run the following command: 
+After a few seconds, Gloo will discover the newly created service and create a corresponding Upstream called: **bookinfo-productpage-9080** (namespace-service-port), to verify that the upstream got created run the following command: 
 
 ```bash
-until glooctl get upstream default-echo-v1-80 2> /dev/null
+until glooctl get upstream bookinfo-productpage-9080 2> /dev/null
 do
-    echo waiting for upstream default-echo-v1-80 to be discovered
+    echo waiting for upstream bookinfo-productpage-9080 to be discovered
     sleep 3
 done
+```
+
+It should return the discovered upstream: 
+
+```
+solo@adam-test-1:~$ glooctl get upstream bookinfo-productpage-9080
++---------------------------+------------+----------+----------------------------+
+|         UPSTREAM          |    TYPE    |  STATUS  |          DETAILS           |
++---------------------------+------------+----------+----------------------------+
+| bookinfo-productpage-9080 | Kubernetes | Accepted | svc name:      productpage |
+|                           |            |          | svc namespace: bookinfo    |
+|                           |            |          | port:          9080        |
+|                           |            |          |                            |
++---------------------------+------------+----------+----------------------------+
 ```
 
 Now that the upstream CRD has been created, we need to create a virtual service that routes to it:
@@ -180,74 +143,66 @@ spec:
         routeAction:
           single:
             upstream:
-              name: default-echo-v1-80
+              name: bookinfo-productpage-9080
               namespace: gloo-system
 EOF
 ```
 
-The creation of the virtual service exposes the Kubernetes service through the gateway, we can make a test using the following command:
+The creation of the virtual service exposes the Kubernetes service through the gateway, we can make a test using the following command to open the browser:
 
-```bash
-curl -s -L $(glooctl proxy url)
+```
+/opt/google/chrome/chrome $(glooctl proxy url)/productpage
 ```
 
-It should return **"my demo app version is v1"**, this is the response from the service echo-v1.
+It should return the book info demo application webpage, note that the review stars are black. 
+![Lab](images/1.png)
+
 
 ### Routing to multiple Upstreams
 
-In this step we are going to create a virtual service that routes to two different Upstreams, the first step is to create a version 2 of our demo service: 
+In many use case we need to route traffic to two different versions of the application for testing a new feature for example, in this step we are going to create a virtual service that routes to two different Upstreams:
 
+The first step is to create a version 3 of our demo service: 
 
 ```bash
-kubectl apply -f - <<EOF
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: echo-v2
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: echo
-      version: v2
-  template:
-    metadata:
-      labels:
-        app: echo
-        version: v2
-    spec:
-      containers:
-        - image: hashicorp/http-echo
-          args:
-            - "-text=my demo app version is v2"
-            - -listen=:8080
-          imagePullPolicy: Always
-          name: echo-v2
-          ports:
-            - containerPort: 8080
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: echo-v2
-spec:
-  ports:
-    - port: 80
-      targetPort: 8080
-      protocol: TCP
-  selector:
-    app: echo
-    version: v2
+kubectl create ns bookinfo-beta 
+kubectl -n bookinfo-beta  apply -f https://raw.githubusercontent.com/istio/istio/1.7.3/samples/bookinfo/platform/kube/bookinfo.yaml
+kubectl delete deployment reviews-v1 reviews-v2 -n bookinfo-beta
 EOF
 ```
+Book info app has 3 versions of a micro service called reviews, let's keep only the versions 3 of the reviews micro service for this application deployment.
 
-Verify the upstream **default-echo-v2-80** got created running the following command: 
+```
+                 +----------------------------------------------------------------------------+
+                 |                                                                            |
+                 |                                         +---------------+                  |
+                 |                                         |-------+       |                  |
+                 +-------+            50%                  ||Product       |                  |
++-Client-------->+  Envoy+-------------------------------->-|Page  |       |                  |
+                 |       |            50%                  +-------+       |                  |
+                 |       +----------------------------+    |Book info      |                  |
+                 +---+---+                            |    +v2             |                  |
+                 |   |                                |    +---------------+                  |
+                 |   |                                |                                       |
+                 |   |                                |    +---------------+                  |
+                 |   |                                |    |-------+       |                  |
+                 | +-v-------+                        +--->-|Product       |                  |
+                 | |  Gloo   |                             ||Page  |       |                  |
+                 | |         |                             +-------+       |                  |
+                 | +---------+                             |Book info beta |                  |
+                 |                                         +v3             |                  |
+                 |Kubernetes                               |---------------+                  |
+                 +----------------------------------------------------------------------------+
+
+```
+
+Verify that the upstream for the beta application got created run the following command: 
 
 
 ```bash
-until glooctl get upstream default-echo-v1-80 2> /dev/null
+until glooctl get upstream bookinfo-beta-productpage-9080 2> /dev/null
 do
-    echo waiting for upstream default-echo-v2-80 to be discovered
+    echo waiting for upstream bookinfo-beta-productpage-9080 to be discovered
     sleep 3
 done
 ```
@@ -275,27 +230,30 @@ spec:
                 - weight: 5
                   destination:
                       upstream:
-                          name: default-echo-v1-80
+                          name: bookinfo-productpage-9080
                           namespace: gloo-system
                 - weight: 5
                   destination:
                       upstream:
-                          name: default-echo-v2-80
+                          name: bookinfo-beta-productpage-9080
                           namespace: gloo-system
 EOF
 ```
 
-To check that Gloo is routing to the two different Upstreams (50% traffic each), run the following command, you should be able to see v1 and v2 as a response from service echo-v1 and echo-v2: 
+To check that Gloo is routing to the two different Upstreams (50% traffic each), we are going to use the browser verify that we can see the black star (v2) reviews, and the new red star reviews (v3) after refreshing the page:  
 
-```bash
-curl -s -L $(glooctl proxy url)
 ```
+/opt/google/chrome/chrome $(glooctl proxy url)/productpage 
+```
+![Lab](images/2.png)
+
 
 ## Lab 2: Security
 In this chapter, we will explore some Gloo features related to security. 
 
-
 ### Network Encryption - Server TLS
+
+In this step we are going to secure our demo application using TLS.
 Let's first create a private key and a self-signed certificate to use in our echo Virtual Service:
 
 ```bash
@@ -332,26 +290,37 @@ spec:
       - '*'
     routes:
       - matchers:
-          - prefix: /
+          - prefix: /productpage
         routeAction:
-          single:
-            upstream:
-              name: default-echo-v1-80
-              namespace: gloo-system
+            multi:
+                destinations:
+                - weight: 5
+                  destination:
+                      upstream:
+                          name: bookinfo-productpage-9080
+                          namespace: gloo-system
+                - weight: 5
+                  destination:
+                      upstream:
+                          name: bookinfo-beta-productpage-9080
+                          namespace: gloo-system
 EOF
 ```
 
-Now the gateway is secured through TLS, to test the TLS configuration run the following command: 
+Now the gateway is secured through TLS, to test the TLS configuration run the following command to open the browser, note that now the traffic is served using https: 
 
-```bash
-curl -k $(glooctl proxy url --port https) -v
+```
+/opt/google/chrome/chrome $(glooctl proxy url --port https)/productpage 
+
 ```
 
-
 ### OIDC Support
-In the following chapter we will secure our API using an IDP, lets first start by installing dex (IDP) on our cluster:
- 
 
+In many use cases, we need to restrict the access to our applications to authenticated users, in the following chapter we will secure our API using an OIDC and an Identity Provider, 
+
+
+lets first start by installing dex (IDP) on our cluster:
+ 
 ```bash
 
 cat > dex-values.yaml <<EOF
@@ -389,6 +358,34 @@ Then we can install dex:
 helm repo add stable https://kubernetes-charts.storage.googleapis.com
 helm install dex --namespace gloo-system stable/dex -f dex-values.yaml
 ```
+
+The architecture looks like that now:
+
+```
+                 +----------------------------------------------------------------------------+
+                 |                                                                            |
+                 |                                         +---------------+                  |
+                 |                                         |-------+       |                  |
+                 +-------+            50%                  ||Product       |                  |
++-Client-------->+  Envoy+-------------------------------->-|Page  |       |                  |
+                 |       |            50%                  +-------+       |                  |
+                 |       +----------------------------+    |Book info      |                  |
+                 +---+---------------------+          |    +v2             |                  |
+                 |   |                     |          |    +---------------+                  |
+                 |   |                    Auth        |                                       |
+                 |   |                     |          |    +---------------+                  |
+                 |   |                     |          |    |-------+       |                  |
+                 | +-v-------+             |          +--->-|Product       |                  |
+                 | |  Gloo   |        +----v-----+         ||Page  |       |                  |
+                 | |         |        |          |         +-------+       |                  |
+                 | +---------+        |   IDP    |         |Book info beta |                  |
+                 |                    +----------+         +v3             |                  |
+                 |Kubernetes                               |---------------+                  |
+                 +----------------------------------------------------------------------------+
+
+
+```
+
 
 Let save dex IP in an environment variable for future use:
 
@@ -459,23 +456,34 @@ spec:
       - matchers:
           - prefix: /
         routeAction:
-          single:
-            upstream:
-              name: default-echo-v1-80
-              namespace: gloo-system
+            multi:
+                destinations:
+                - weight: 5
+                  destination:
+                      upstream:
+                          name: bookinfo-productpage-9080
+                          namespace: gloo-system
+                - weight: 5
+                  destination:
+                      upstream:
+                          name: bookinfo-beta-productpage-9080
+                          namespace: gloo-system
 EOF
 ```
 
 To test the authentication, run the following command to open the browser: 
 
-```bash
-/opt/google/chrome/chrome $(glooctl proxy url --port https) > /dev/null
+```
+/opt/google/chrome/chrome $(glooctl proxy url --port https)/productpage 
 ```
 
 If you login as the **admin@example.com** user with the password **password**, Gloo should redirect you to the sample application echo.
 
-### Rate Limiting
+![Lab](images/3.png)
 
+
+### Rate Limiting
+It is frequent for an application to be attached using DOS attacks for example, in the example we are going to use rate limiting to protect our demo application:
 To enable rate limit on a Virtual Service we will first create a rate limit config CRD:
 
 ```bash
@@ -525,40 +533,41 @@ spec:
         refs:
         - name: global-limit
           namespace: gloo-system
-#------------------------------------------------------
     domains:
       - '*'
     routes:
       - matchers:
           - prefix: /
         routeAction:
-          single:
-            upstream:
-              name: default-echo-v1-80
-              namespace: gloo-system
+            multi:
+                destinations:
+                - weight: 5
+                  destination:
+                      upstream:
+                          name: bookinfo-productpage-9080
+                          namespace: gloo-system
+                - weight: 5
+                  destination:
+                      upstream:
+                          name: bookinfo-beta-productpage-9080
+                          namespace: gloo-system
 EOF
 ```
 
 To test the rate limiting, run the following command to open the browser, then refresh the browser a couple of times, you should see a 429 message indicating that the rate limit got enforced: 
 
-```bash
-/opt/google/chrome/chrome $(glooctl proxy url --port https) > /dev/null
 ```
+/opt/google/chrome/chrome $(glooctl proxy url --port https)/productpage 
+```
+![Lab](images/4.png)
 
 
 ## LAB 3: Data transformation
 In this section we will explore the request transformations using Gloo.
 
 ### Response transformation 
-The following example demonstrates how to modify a response status code if a field exists in the response body for example. 
 
-Let's use echo postman again (created in LAB1), the goal of the demo application is to return a mock body, if the body contains an error message we will change the response to 400 (by default echo postman, always return 200):
-
-```bash
-glooctl -n gloo-system create upstream static --name echo --static-hosts postman-echo.com:80 || true
-```
-
-First lets create a virtual service that will allow us to send requests to postman-echo external service through the gateway:
+The following example demonstrates how to modify a response using Gloo, we are going to return a basic html page in case the response code is 429 (rate limited).  
 
 ```bash
 kubectl apply -f - <<EOF
@@ -568,88 +577,60 @@ metadata:
   name: demo
   namespace: gloo-system
 spec:
+  sslConfig:
+    secretRef:
+      name: upstream-tls
+      namespace: gloo-system  
   virtualHost:
-    domains:
-    - '*'
-    routes:
-    - matchers:
-      - prefix: /
-      routeAction:
-          single:
-            upstream:
-              name: echo
-              namespace: gloo-system
-EOF
-```
-
- Using the example below, create a mock response that returns an error message in the body, the response code should be 200 (default postman-echo service response code).
-
-```bash
-curl -s -o /dev/null -w "%{http_code}" --location --request POST "$(glooctl proxy url)/post" --header 'Content-Type: application/json' \
---data-raw '{
-    "error": {
-        "message": "This is an error"
-    }
-}'
-```
-Now we will apply a response transformation: 
-
-```bash
-kubectl apply -f - <<EOF
-apiVersion: gateway.solo.io/v1
-kind: VirtualService
-metadata:
-  name: demo
-  namespace: gloo-system
-spec:
-  virtualHost:
-    domains:
-    - '*'
     options:
-# ---------------- Response Transformation -------------------      
+      extauth:
+        configRef:
+          name: oidc-dex
+          namespace: gloo-system
+      rateLimitConfigs:
+        refs:
+        - name: global-limit
+          namespace: gloo-system
+# ---------------- Transformation ------------------          
       transformations:
         responseTransformation:
           transformationTemplate:
-            headers:
-              :status:
-                text: '{% if default(data.error.message, "") != "" %}400{% else %}{{
-                  header(":status") }}{% endif %}'
-#-------------------------------------------------------------                  
+            parseBodyBehavior: DontParse
+            body: 
+              text: '{% if header(":status") == "429" %}<html><body style="background-color:powderblue;"><h1>Too many Requests!</h1><p>Try again after 10 seconds</p></body></html>{% else %}{{ body() }}{% endif %}'    
+    domains:
+      - '*'
     routes:
-    - matchers:
-      - prefix: /
-      routeAction:
-        single:
-          upstream:
-            name: echo
-            namespace: gloo-system
+      - matchers:
+          - prefix: /
+        routeAction:
+            multi:
+                destinations:
+                - weight: 5
+                  destination:
+                      upstream:
+                          name: bookinfo-productpage-9080
+                          namespace: gloo-system
+                - weight: 5
+                  destination:
+                      upstream:
+                          name: bookinfo-beta-productpage-9080
+                          namespace: gloo-system
 EOF
 ```
+Refreshing your browser a couple times, you should be able to see a beautiful html page indicating that you reached the limit of calls. 
 
-Now, making the same call should return 400, because an error message exists in the response body:
-
-```bash
-curl -s -o /dev/null -w "%{http_code}" --location --request POST "$(glooctl proxy url)/post" --header 'Content-Type: application/json' \
---data-raw '{
-    "error": {
-        "message": "This is an error"
-    }
-}'
 ```
-
-Making a call should return 200 when no error message exist in the response body:
-
-```bash
-curl -s -o /dev/null -w "%{http_code}" --location --request POST "$(glooctl proxy url)/post" --header 'Content-Type: application/json' \
---data-raw '{
-    "error": {}
-}'
+/opt/google/chrome/chrome $(glooctl proxy url --port https)/productpage 
 ```
+![Lab](images/5.png)
+
 
 ## LAB 4: Logging
 
 ### Access Logs
 
+Logs are important to check if a system is behaving correctly and for debugging, logs aggregators (datadog, splunk..etc) use agents deployed on the Kubernetes clusters to collect logs.  
 
 Lets first activate the access logs on the gateway: 
 
@@ -702,15 +683,16 @@ spec:
 EOF
 ```
 
-Run the following curl the simulate some traffic:
-```bash
-curl -s -o /dev/null -w "%{http_code}" --location  "$(glooctl proxy url)/request"
+Refresh your browser a couple times to generate some traffic:
+```
+/opt/google/chrome/chrome $(glooctl proxy url --port https)/productpage 
 ```
 
 Check the logs running the following command:
 ```bash
 kubectl logs -n gloo-system deployment/gateway-proxy | grep '^{' | jq
 ```
+These logs can now be collected by the datadog agents for example. 
 
 
 ## Lab 5 : Solo.io Developer Portal
