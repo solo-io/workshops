@@ -142,6 +142,8 @@ The creation of the virtual service exposes the Kubernetes service through the g
 ```
 
 It should return the book info demo application webpage, note that the review stars are black. 
+![Lab](images/1.png)
+
 
 ### Routing to multiple Upstreams
 
@@ -229,6 +231,7 @@ To check that Gloo is routing to the two different Upstreams (50% traffic each),
 ```
 /opt/google/chrome/chrome $(glooctl proxy url)/productpage 
 ```
+![Lab](images/2.png)
 
 
 ## Lab 2: Security
@@ -462,6 +465,9 @@ To test the authentication, run the following command to open the browser:
 
 If you login as the **admin@example.com** user with the password **password**, Gloo should redirect you to the sample application echo.
 
+![Lab](images/3.png)
+
+
 ### Rate Limiting
 It is frequent for an application to be attached using DOS attacks for example, in the example we are going to use rate limiting to protect our demo application:
 To enable rate limit on a Virtual Service we will first create a rate limit config CRD:
@@ -539,6 +545,7 @@ To test the rate limiting, run the following command to open the browser, then r
 ```
 /opt/google/chrome/chrome $(glooctl proxy url --port https)/productpage 
 ```
+![Lab](images/4.png)
 
 
 ## LAB 3: Data transformation
@@ -602,6 +609,8 @@ Refreshing your browser a couple times, you should be able to see a beautiful ht
 ```
 /opt/google/chrome/chrome $(glooctl proxy url --port https)/productpage 
 ```
+![Lab](images/5.png)
+
 
 ## LAB 4: Logging
 
