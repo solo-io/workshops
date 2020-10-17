@@ -6,7 +6,16 @@ The goal of this workshop is to expose some key features of Gloo API Gateway, li
 
 ## Lab environment
 
-The following Lab environment consists of a Kubernetes environment deployed locally using kind, during this workshop we are going to deploy a demo service and expose/protect it using Gloo.
+The following Lab environment consists of a Kubernetes environment deployed locally using kind, during this workshop we are going to deploy a demo application and expose/protect it using Gloo.
+In this workshop we will:
+* Deploy a demo application (istio's book info demo app) on a k8s cluster and expose it through Gloo
+* Deploy a second version of the demo app, and route partial traffic to it
+* Secure the demo app using TLS
+* Secure the demo app using OIDC
+* Rate limit the traffic going to the demo app
+* Transform a response using Gloo transformations
+* Configure access logs
+
 
 ![Lab](images/env.png)
 
@@ -40,60 +49,34 @@ glooctl install gateway enterprise --version 1.5.0 --license-key $LICENSE_KEY
 
 ## Lab 1: Traffic management
 
-### Routing to an external service
-
-Create an Upstream that points to the external service, this is used as a representation of a destination: 
-
-```bash
-glooctl -n gloo-system create upstream static --name echo --static-hosts postman-echo.com:80
-```
-
-To list the Upstreams, run the following command:
-
-```bash
-glooctl get upstream echo
-```
-
-An upstream CRD has been added to your cluster: 
-
-```bash
-kubectl get upstream echo -n gloo-system -oyaml
-```
-
-Now we can create a virtual service that routes to the created upstream: 
-
-```bash
-glooctl add route  \
-    --name demo  \
-    --path-exact /request \
-    --dest-name echo
-```
-
-To list the virtual services created, run the following command:
-
-```bash
-glooctl get virtualservice
-```
-
-A virtual service CRD has been added to your cluster:
-
-```bash
-kubectl get virtualservice -n gloo-system demo -oyaml 
-```
-
-Finally to test that the gateway will route to the upstream destination, run the following command:
-
-```bash
-curl -s -L $(glooctl proxy url)/request
-```
-
-The result received in from the upstream postman-echo.com:80/request
-
-
 ### Routing to a Kubernetes service 
 
 In this step we will expose a demo service to the outside traffic using Gloo, first lets create a demo service, we will deploy an application called book info: 
  
+```
+                 +----------------------------------------------------------------------------+
+                 |                                                                            |
+                 |                                         +---------------+                  |
+                 |                                         |-------+       |                  |
+                 +-------+                                 ||Product       |                  |
++-Client-------->+  Envoy+-------------------------------->-|Page  |       |                  |
+                 +---+---+                                 +-------+       |                  |
+                 |   |                                     |Book info      |                  |
+                 |   |                                     +v2             |                  |
+                 |   |                                     +---------------+                  |
+                 |   |                                                                        |
+                 |   |                                                                        |
+                 |   |                                                                        |
+                 | +-v-------+                                                                |
+                 | |  Gloo   |                                                                |
+                 | |         |                                                                |
+                 | +---------+                                                                |
+                 |                                                                            |
+                 |Kubernetes                                                                  |
+                 +----------------------------------------------------------------------------+
+
+
+```
 
 ```bash
 kubectl create ns bookinfo 
@@ -141,7 +124,7 @@ EOF
 
 The creation of the virtual service exposes the Kubernetes service through the gateway, we can make a test using the following command to open the browser:
 
-```bash
+```
 /opt/google/chrome/chrome $(glooctl proxy url)/productpage
 ```
 
@@ -207,7 +190,7 @@ EOF
 
 To check that Gloo is routing to the two different Upstreams (50% traffic each), run the following command, you should be able to see v1 and v2 as a response from service echo-v1 and echo-v2: 
 
-```bash
+```
 /opt/google/chrome/chrome $(glooctl proxy url)/productpage 
 ```
 
@@ -404,7 +387,7 @@ EOF
 
 To test the authentication, run the following command to open the browser: 
 
-```bash
+```
 /opt/google/chrome/chrome $(glooctl proxy url --port https)/productpage 
 ```
 
@@ -484,7 +467,7 @@ EOF
 
 To test the rate limiting, run the following command to open the browser, then refresh the browser a couple of times, you should see a 429 message indicating that the rate limit got enforced: 
 
-```bash
+```
 /opt/google/chrome/chrome $(glooctl proxy url --port https)/productpage 
 ```
 
@@ -521,8 +504,9 @@ spec:
       transformations:
         responseTransformation:
           transformationTemplate:
+            parseBodyBehavior: DontParse
             body: 
-              text: '{% if header(":status") == "429" %}{ "reason": "I am testing the Gloo transformations! - rate limit message transformed" }{% else %}{{ body() }}{% endif %}'    
+              text: '{% if header(":status") == "429" %}<html><body style="background-color:powderblue;"><h1>Too many Requests!</h1><p>Try again after 10 seconds</p></body></html>{% else %}{{ body() }}{% endif %}'    
     domains:
       - '*'
     routes:
