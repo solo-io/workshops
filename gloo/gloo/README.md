@@ -90,7 +90,7 @@ Gloo uses a discovery mechanism to create Upstreams automatically, Upstreams can
 After a few seconds, Gloo will discover the newly created service and create a corresponding Upstream called: **bookinfo-productpage-9080** (namespace-service-port), to verify that the upstream got created run the following command: 
 
 ```bash
-until glooctl get upstream bookinfo-productpage-9080 
+until glooctl get upstream bookinfo-productpage-9080 2> /dev/null
 do
     echo waiting for upstream bookinfo-productpage-9080 to be discovered
     sleep 3
