@@ -168,7 +168,6 @@ The first step is to create a version 3 of our demo service:
 kubectl create ns bookinfo-beta 
 kubectl -n bookinfo-beta  apply -f https://raw.githubusercontent.com/istio/istio/1.7.3/samples/bookinfo/platform/kube/bookinfo.yaml
 kubectl delete deployment reviews-v1 reviews-v2 -n bookinfo-beta
-EOF
 ```
 Book info app has 3 versions of a micro service called reviews, let's keep only the versions 3 of the reviews micro service for this application deployment.
 
