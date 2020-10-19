@@ -82,7 +82,7 @@ kubectl config use-context mgmt
 First of all, you need to install the *meshctl* CLI:
 
 ```bash
-curl -sL https://run.solo.io/meshctl/install | SMH_VERSION=v0.8.1 sh -
+curl -sL https://run.solo.io/meshctl/install | SMH_VERSION=v0.9.0 sh -
 export PATH=$HOME/.service-mesh-hub/bin:$PATH
 ```
 
@@ -558,7 +558,7 @@ spec:
     autoRestartPods: true
     shared:
       rootCertificateAuthority:
-        generated: null
+        generated: {}
   federation: {}
   meshes:
   - name: istiod-istio-system-cluster1
@@ -1084,7 +1084,7 @@ spec:
     autoRestartPods: true
     shared:
       rootCertificateAuthority:
-        generated: null
+        generated: {}
   federation: {}
   globalAccessPolicy: ENABLED
   meshes:
@@ -1282,51 +1282,6 @@ EOF
 If you refresh the page several times again, you'll see the `v3` version of the `reviews` microservice with the red stars:
 
 ![Bookinfo v3](images/bookinfo-v3.png)
-
-<!--
-We shoudl allow that:
-cat << EOF | kubectl --context mgmt apply -f -
-apiVersion: networking.smh.solo.io/v1alpha2
-kind: AccessPolicy
-metadata:
-  namespace: service-mesh-hub
-  name: reviews
-spec:
-  sourceSelector:
-  - kubeServiceMatcher:
-      namespaces:
-      - default
-      labels:
-        service: reviews
-  destinationSelector:
-  - kubeServiceMatcher:
-      namespaces:
-      - default
-      labels:
-        service: ratings
-EOF
-
-We shoudl allow that:
-cat << EOF | kubectl --context mgmt apply -f -
-apiVersion: networking.smh.solo.io/v1alpha2
-kind: AccessPolicy
-metadata:
-  namespace: service-mesh-hub
-  name: reviews
-spec:
-  sourceSelector:
-  - kubeServiceAccountRefs:
-      serviceAccounts:
-        - name: bookinfo-reviews
-          namespace: default
-  destinationSelector:
-  - kubeServiceMatcher:
-      namespaces:
-      - default
-      labels:
-        service: ratings
-EOF
--->
 
 Now, let's understand what happened when we created this TrafficPolicy.
 
@@ -1559,8 +1514,8 @@ Let's deploy Gloo on the first cluster:
 
 ```bash
 kubectl config use-context cluster1
-glooctl upgrade --release=v1.5.0
-glooctl install gateway enterprise --version 1.5.0 --license-key $LICENSE_KEY
+glooctl upgrade --release=v1.5.1
+glooctl install gateway enterprise --version 1.5.1 --license-key $LICENSE_KEY
 ```
 
 Use the following commands to wait for the Gloo components to be deployed:
