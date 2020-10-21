@@ -9,6 +9,8 @@ fi
 cat << EOF > kind${number}.yaml
 kind: Cluster
 apiVersion: kind.x-k8s.io/v1alpha4
+featureGates:
+  TokenRequest: true
 nodes:
 - role: control-plane
   extraPortMappings:
@@ -23,6 +25,12 @@ kubeadmConfigPatches:
 - |
   apiVersion: kubeadm.k8s.io/v1beta2
   kind: ClusterConfiguration
+  apiServer:
+    extraArgs:
+      service-account-signing-key-file: /etc/kubernetes/pki/sa.key
+      service-account-key-file: /etc/kubernetes/pki/sa.pub
+      service-account-issuer: api
+      service-account-api-audiences: api,vault,factors
   metadata:
     name: config
   networking:
