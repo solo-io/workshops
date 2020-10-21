@@ -54,7 +54,7 @@ do
   sleep 1
 done
 
-until [ $(kubectl cluster1 -n gloo-system get pods -o jsonpath='{range .items[*].status.containerStatuses[*]}{.ready}{"\n"}{end}' | grep false -c) -eq 0 ]; do
+until [ $(kubectl -n gloo-system get pods -o jsonpath='{range .items[*].status.containerStatuses[*]}{.ready}{"\n"}{end}' | grep false -c) -eq 0 ]; do
   echo "Waiting for all the gloo-system pods to become ready"
   sleep 1
 done
@@ -64,7 +64,8 @@ done
 
 ### Routing to a Kubernetes service 
 
-In this step we will expose a demo service to the outside traffic using Gloo, first let's create a demo service, we will deploy an application called book info: 
+In this step we will expose a demo service to the outside world using Gloo.
+First let's create a demo applications called book info: 
  
 ```
                  +----------------------------------------------------------------------------+
@@ -96,11 +97,13 @@ kubectl create ns bookinfo
 kubectl -n bookinfo  apply -f https://raw.githubusercontent.com/istio/istio/1.7.3/samples/bookinfo/platform/kube/bookinfo.yaml
 kubectl delete deployment reviews-v1 reviews-v3 -n bookinfo
 ```
-Book info app has 3 versions of a micro-service called reviews, let's keep only the versions 2 of the reviews micro-service for this tutorial, we will add the other versions later.
+Book info app has 3 versions of a micro-service called reviews, let's keep only the version 2 of the reviews micro-service for this tutorial, we will add the other versions later.
 
 
-Gloo uses a discovery mechanism to create Upstreams automatically, Upstreams can be created manually too using CRDs.
-After a few seconds, Gloo will discover the newly created service and create a corresponding Upstream called: **bookinfo-productpage-9080** (namespace-service-port), to verify that the upstream got created run the following command: 
+Gloo uses a discovery mechanism to create Upstreams automatically, but Upstreams can be created manually too using CRDs.
+After a few seconds, Gloo will discover the newly created service and create a corresponding Upstream called  **bookinfo-productpage-9080** (namespace-service-port).
+
+To verify that the upstream got created run the following command: 
 
 ```bash
 until glooctl get upstream bookinfo-productpage-9080 2> /dev/null
@@ -113,7 +116,6 @@ done
 It should return the discovered upstream: 
 
 ```
-solo@adam-test-1:~$ glooctl get upstream bookinfo-productpage-9080
 +---------------------------+------------+----------+----------------------------+
 |         UPSTREAM          |    TYPE    |  STATUS  |          DETAILS           |
 +---------------------------+------------+----------+----------------------------+
@@ -124,7 +126,7 @@ solo@adam-test-1:~$ glooctl get upstream bookinfo-productpage-9080
 +---------------------------+------------+----------+----------------------------+
 ```
 
-Now that the upstream CRD has been created, we need to create a virtual service that routes to it:
+Now that the upstream CRD has been created, we need to create a virtual service that routes traffic to it:
 
 ```bash
 kubectl apply -f - <<EOF
@@ -148,19 +150,21 @@ spec:
 EOF
 ```
 
-The creation of the virtual service exposes the Kubernetes service through the gateway, we can make a test using the following command to open the browser:
+The creation of the virtual service exposes the Kubernetes service through the gateway.
+
+We can make access the application using the web browser by running the following command:
 
 ```
 /opt/google/chrome/chrome $(glooctl proxy url)/productpage
 ```
 
-It should return the book info demo application webpage, note that the review stars are black. 
+It should return the book info demo application webpage. Note that the review stars are black. 
 ![Lab](images/1.png)
 
 
 ### Routing to multiple Upstreams
 
-In many use case we need to route traffic to two different versions of the application for testing a new feature for example, in this step we are going to create a virtual service that routes to two different Upstreams:
+In many use cases we need to route traffic to two different versions of the application to test a new feature. For example, in this step, we are going to create a virtual service that routes to two different Upstreams:
 
 The first step is to create a version 3 of our demo service: 
 
@@ -239,7 +243,8 @@ spec:
 EOF
 ```
 
-To check that Gloo is routing to the two different Upstreams (50% traffic each), we are going to use the browser verify that we can see the black star (v2) reviews, and the new red star reviews (v3) after refreshing the page:  
+To check that Gloo is routing to the two different Upstreams (50% traffic each), we are going to use the browser.
+We should see the black star (v2) reviews, and the new red star reviews (v3) after refreshing the page:  
 
 ```
 /opt/google/chrome/chrome $(glooctl proxy url)/productpage 
@@ -253,7 +258,7 @@ In this chapter, we will explore some Gloo features related to security.
 ### Network Encryption - Server TLS
 
 In this step we are going to secure our demo application using TLS.
-Let's first create a private key and a self-signed certificate to use in our echo Virtual Service:
+Let's first create a private key and a self-signed certificate to use in our demo Virtual Service:
 
 ```bash
 openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
@@ -266,8 +271,7 @@ kubectl create secret tls upstream-tls --key tls.key \
    --cert tls.crt --namespace gloo-system
 ```
 
-To setup Server Tls we have to add the SSL config to the Virtual Service:
-```bash
+To setup Server TLS we have to add the SSL config to the Virtual Service:
 
 ```bash
 kubectl apply -f - <<EOF
@@ -289,7 +293,7 @@ spec:
       - '*'
     routes:
       - matchers:
-          - prefix: /productpage
+          - prefix: /
         routeAction:
             multi:
                 destinations:
@@ -306,7 +310,7 @@ spec:
 EOF
 ```
 
-Now the gateway is secured through TLS, to test the TLS configuration run the following command to open the browser, note that now the traffic is served using https: 
+Now the gateway is secured through TLS. To test the TLS configuration, run the following command to open the browser (note that now the traffic is served using https): 
 
 ```
 /opt/google/chrome/chrome $(glooctl proxy url --port https)/productpage 
@@ -315,13 +319,11 @@ Now the gateway is secured through TLS, to test the TLS configuration run the fo
 
 ### OIDC Support
 
-In many use cases, we need to restrict the access to our applications to authenticated users, in the following chapter we will secure our API using an OIDC and an Identity Provider, 
+In many use cases, we need to restrict the access to our applications to authenticated users. In the following chapter we will secure our application using an OIDC Identity Provider.
 
-
-lets first start by installing dex (IDP) on our cluster:
+Lets first start by installing dex (IDP) on our cluster:
  
 ```bash
-
 cat > dex-values.yaml <<EOF
 service:
     type: LoadBalancer
@@ -348,10 +350,7 @@ config:
     username: "admin"
     userID: "08a8684b-db88-4b73-90a9-3cd1661f5466"
 EOF
-
 ```
-
-Then we can install dex: 
 
 ```bash
 helm repo add stable https://kubernetes-charts.storage.googleapis.com
@@ -386,24 +385,24 @@ The architecture looks like that now:
 ```
 
 
-Let save dex IP in an environment variable for future use:
+Let save the dex IP in an environment variable for future use:
 
 ```bash
 export DEX_IP=$(kubectl get service dex --namespace gloo-system  --output jsonpath='{.status.loadBalancer.ingress[0].ip}')
 ```
-Because we are using a local Kubernetes cluster In this example we need to configure the dex host to point to the Load balancer IP:
+Because we are using a local Kubernetes cluster, we need to configure the dex host to point to the Load balancer IP:
 
 ```bash
 echo "$DEX_IP dex.gloo-system.svc.cluster.local" | sudo tee -a /etc/hosts
 ```
 
-The next step is to setup the authentication in the Virtual Service, for this we will have to create a Kubernetes Secret that contains the OIDC secret:
+The next step is to setup the authentication in the Virtual Service. For this we will have to create a Kubernetes Secret that contains the OIDC secret:
 
 ```bash
 glooctl create secret oauth --client-secret secretvalue oauth
 ```
 
-Then we will create an AuthConfig which is a CRD that configure the authentication in Gloo: 
+Then we will create an AuthConfig which is a CRD that configures the authentication in Gloo: 
 
 ```bash
 kubectl apply -f - <<EOF
@@ -476,14 +475,15 @@ To test the authentication, run the following command to open the browser:
 /opt/google/chrome/chrome $(glooctl proxy url --port https)/productpage 
 ```
 
-If you login as the **admin@example.com** user with the password **password**, Gloo should redirect you to the sample application echo.
+If you login as the **admin@example.com** user with the password **password**, Gloo should redirect you to the application.
 
 ![Lab](images/3.png)
 
 
 ### Rate Limiting
-It is frequent for an application to be attached using DOS attacks for example, in the example we are going to use rate limiting to protect our demo application:
-To enable rate limit on a Virtual Service we will first create a rate limit config CRD:
+It is frequent for an application to suffer DDoS attacks. In this example, we are going to use rate limiting to protect our demo application.
+
+To enable rate limit on a Virtual Service we will first create a RateLimitConfig CRD:
 
 ```bash
 kubectl apply -f - << EOF
@@ -532,6 +532,7 @@ spec:
         refs:
         - name: global-limit
           namespace: gloo-system
+#------------------------------------------------------
     domains:
       - '*'
     routes:
@@ -553,7 +554,7 @@ spec:
 EOF
 ```
 
-To test the rate limiting, run the following command to open the browser, then refresh the browser a couple of times, you should see a 429 message indicating that the rate limit got enforced: 
+To test the rate limiting, run the following command to open the browser, then refresh the browser until you see a 429 message indicating that the rate limit got enforced: 
 
 ```
 /opt/google/chrome/chrome $(glooctl proxy url --port https)/productpage 
@@ -597,6 +598,7 @@ spec:
             parseBodyBehavior: DontParse
             body: 
               text: '{% if header(":status") == "429" %}<html><body style="background-color:powderblue;"><h1>Too many Requests!</h1><p>Try again after 10 seconds</p></body></html>{% else %}{{ body() }}{% endif %}'    
+#---------------------------------------------------
     domains:
       - '*'
     routes:
@@ -629,7 +631,7 @@ Refreshing your browser a couple times, you should be able to see a beautiful ht
 
 ### Access Logs
 
-Logs are important to check if a system is behaving correctly and for debugging, logs aggregators (datadog, splunk..etc) use agents deployed on the Kubernetes clusters to collect logs.  
+Logs are important to check if a system is behaving correctly and for debugging. Logs aggregators (datadog, splunk..etc) use agents deployed on the Kubernetes clusters to collect logs.  
 
 Lets first activate the access logs on the gateway: 
 
@@ -640,14 +642,16 @@ kind: Gateway
 metadata:
   labels:
     app: gloo
-  name: gateway-proxy
+  name: gateway-proxy-ssl
   namespace: gloo-system
-proxyNames:
-- gateway-proxy
 spec:
   bindAddress: '::'
-  bindPort: 8080
+  bindPort: 8443
   httpGateway: {}
+  proxyNames:
+  - gateway-proxy
+  ssl: true
+  useProxyProto: false
   options:
     accessLoggingService:
       accessLog:
@@ -691,18 +695,12 @@ Check the logs running the following command:
 ```bash
 kubectl logs -n gloo-system deployment/gateway-proxy | grep '^{' | jq
 ```
-These logs can now be collected by the datadog agents for example. 
+These logs can now be collected by the Log aggregator agents. 
 
 
 ## Lab 5 : Solo.io Developer Portal
 
 The Solo.io Developer Portal provides a framework for managing the definitions of APIs, API client identity, and API policies on top of the Istio and Gloo Gateways. Vendors of API products can leverage the Developer Portal to secure, manage, and publish their APIs independent of the operations used to manage networking infrastructure.
-
-Deploy the `bookinfo` demo application:
-
-```bash
-kubectl apply -f https://raw.githubusercontent.com/istio/istio/release-1.7/samples/bookinfo/platform/kube/bookinfo.yaml
-```
 
 We'll use Helm to deploy the Developer portal:
 
@@ -752,7 +750,7 @@ apiVersion: devportal.solo.io/v1alpha1
 kind: APIDoc
 metadata:
   name: bookinfo-schema
-  namespace: default
+  namespace: bookinfo
 spec:
   openApi:
     content:
@@ -763,7 +761,7 @@ EOF
 You can then check the status of the API Doc using the following command:
 
 ```bash
-kubectl get apidoc -n default bookinfo-schema -oyaml
+kubectl get apidoc -n bookinfo bookinfo-schema -oyaml
 ```
 
 API Products are Kubernetes Custom Resources which bundle the APIs defined in API Docs into a product which can be exposed to ingress traffic as well as published on a Portal UI. The Product defines what API operations are being exposed, and the routing information to reach the services.
@@ -776,18 +774,18 @@ apiVersion: devportal.solo.io/v1alpha1
 kind: APIProduct
 metadata:
   name: bookinfo-product
-  namespace: default
+  namespace: bookinfo
 spec:
   apis:
   - apiDoc:
       name: bookinfo-schema
-      namespace: default
+      namespace: bookinfo
   defaultRoute:
     inlineRoute:
       backends:
       - kube:
           name: productpage
-          namespace: default
+          namespace: bookinfo
           port: 9080
   domains:
   - api.example.com
@@ -802,7 +800,7 @@ EOF
 You can then check the status of the API Product using the following command:
 
 ```bash
-kubectl get apiproducts.devportal.solo.io -n default bookinfo-product -oyaml
+kubectl get apiproducts.devportal.solo.io -n bookinfo bookinfo-product -oyaml
 ```
 
 When targeting Gloo Gateways, the Developer Portal manages a set of Gloo Custom Resource Definitions (CRDs) on behalf of users:
@@ -826,7 +824,7 @@ apiVersion: devportal.solo.io/v1alpha1
 kind: Portal
 metadata:
   name: bookinfo-portal
-  namespace: default
+  namespace: bookinfo
 spec:
   displayName: Bookinfo Portal
   description: The Developer Portal for the Bookinfo API
@@ -849,7 +847,7 @@ EOF
 You can then check the status of the API Product using the following command:
 
 ```bash
-kubectl get portal -n default bookinfo-portal -oyaml
+kubectl get portal -n bookinfo bookinfo-portal -oyaml
 ```
 
 We need to update the `/etc/hosts` file to be able to access the Portal:
@@ -913,20 +911,20 @@ apiVersion: devportal.solo.io/v1alpha1
 kind: APIProduct
 metadata:
   name: bookinfo-product
-  namespace: default
+  namespace: bookinfo
   labels: 
     portals.devportal.solo.io/default.bookinfo-portal: "true"
 spec:
   apis:
   - apiDoc:
       name: bookinfo-schema
-      namespace: default
+      namespace: bookinfo
   defaultRoute:
     inlineRoute:
       backends:
       - kube:
           name: productpage
-          namespace: default
+          namespace: bookinfo
           port: 9080
   domains:
   - api.example.com
@@ -960,12 +958,12 @@ spec:
   accessLevel:
     apiProducts:
     - name: bookinfo-product
-      namespace: default
+      namespace: bookinfo
       plans:
       - basic
     portals:
     - name: bookinfo-portal
-      namespace: default
+      namespace: bookinfo
   userSelector:
     matchLabels:
       groups.devportal.solo.io/dev-portal.developers: "true"
@@ -1015,7 +1013,7 @@ But we're going to try it using curl:
 So, we need to retrieve the API key first:
 
 ```
-key=$(kubectl get secret -l apiproducts.devportal.solo.io=bookinfo-product.default -o jsonpath='{.items[0].data.api-key}' | base64 --decode)
+key=$(kubectl get secret -l apiproducts.devportal.solo.io=bookinfo-product.bookinfo -n bookinfo -o jsonpath='{.items[0].data.api-key}' | base64 --decode)
 ```
 
 Then, we can run the following command:
