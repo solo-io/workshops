@@ -45,7 +45,7 @@ EOF
 
 kind create cluster --name kind${number} --config kind${number}.yaml
 
-ipkind=$(docker inspect kind${number}-control-plane | jq -r '.[0].NetworkSettings.Networks.kind.IPAddress')
+ipkind=$(docker inspect kind${number}-control-plane | jq -r '.[0].NetworkSettings.Networks[].IPAddress')
 networkkind=$(echo ${ipkind} | sed 's/.$//')
 
 kubectl config set-cluster kind-kind${number} --server=https://${myip}:${number}000 --insecure-skip-tls-verify=true

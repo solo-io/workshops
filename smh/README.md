@@ -82,7 +82,7 @@ kubectl config use-context mgmt
 First of all, you need to install the *meshctl* CLI:
 
 ```bash
-curl -sL https://run.solo.io/meshctl/install | SMH_VERSION=v0.9.0 sh -
+curl -sL https://run.solo.io/meshctl/install | SMH_VERSION=v0.9.1 sh -
 export PATH=$HOME/.service-mesh-hub/bin:$PATH
 ```
 
@@ -164,6 +164,18 @@ spec:
   values:
     global:
       trustDomain: cluster1
+      meshExpansion:
+        enabled: true
+      multiCluster:
+        clusterName: cluster1
+      network: main-network
+      meshNetworks:
+        main-network:
+          endpoints:
+          - fromRegistry: cluster1
+          gateways:
+          - registryServiceName: istio-ingressgateway.istio-system.svc.cluster.local
+            port: 443
   components:
     pilot:
       k8s:
@@ -206,6 +218,18 @@ spec:
   values:
     global:
       trustDomain: cluster2
+      meshExpansion:
+        enabled: true
+      multiCluster:
+        clusterName: cluster2
+      network: main-network
+      meshNetworks:
+        main-network:
+          endpoints:
+          - fromRegistry: cluster2
+          gateways:
+          - registryServiceName: istio-ingressgateway.istio-system.svc.cluster.local
+            port: 443
   components:
     pilot:
       k8s:

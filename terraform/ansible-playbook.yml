@@ -375,7 +375,7 @@
 
                 # Clean any existing files in /tmp/.X11-unix environment
                 ExecStartPre=/bin/sh -c '/usr/bin/pkill socat > /dev/null 2>&1 || :'
-                ExecStart=/usr/bin/socat tcp-listen:80,reuseaddr,fork tcp:localhost:8080
+                ExecStart=/usr/bin/socat tcp-listen:80,reuseaddr,fork tcp:localhost:8888
                 ExecStop=/usr/bin/pkill socat
 
                 [Install]
@@ -399,6 +399,14 @@
     service:
       name: tomcat8
       enabled: yes
+  
+  - name: Stop the tomcat8 service
+    systemd:
+      name: tomcat8
+      state: stopped
+
+  - name: Update the tomcat8 configuration to use port 8888
+    shell: sed -i 's/8080/8888/g' /etc/tomcat8/server.xml
 
   - name: Enable the socat service
     service:
