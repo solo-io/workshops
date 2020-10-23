@@ -8,7 +8,7 @@ The goal of this workshop is to expose some key features of Gloo API Gateway, li
 
 The following Lab environment consists of a Kubernetes environment deployed locally using kind, during this workshop we are going to deploy a demo application and expose/protect it using Gloo.
 In this workshop we will:
-* Deploy a demo application (istio's book info demo app) on a k8s cluster and expose it through Gloo
+* Deploy a demo application (Istio's [bookinfo](https://istio.io/latest/docs/examples/bookinfo/) demo app) on a k8s cluster and expose it through Gloo
 * Deploy a second version of the demo app, and route partial traffic to it
 * Secure the demo app using TLS
 * Secure the demo app using OIDC
@@ -65,7 +65,7 @@ done
 ### Routing to a Kubernetes service 
 
 In this step we will expose a demo service to the outside world using Gloo.
-First let's create a demo applications called book info: 
+First let's create a demo applications called bookinfo: 
  
 ```
                  +----------------------------------------------------------------------------+
@@ -75,7 +75,7 @@ First let's create a demo applications called book info:
                  +-------+                                 ||Product       |                  |
 +-Client-------->+  Envoy+-------------------------------->-|Page  |       |                  |
                  +---+---+                                 +-------+       |                  |
-                 |   |                                     |Book info      |                  |
+                 |   |                                     |Bookinfo       |                  |
                  |   |                                     +v2             |                  |
                  |   |                                     +---------------+                  |
                  |   |                                                                        |
@@ -97,13 +97,13 @@ kubectl create ns bookinfo
 kubectl -n bookinfo  apply -f https://raw.githubusercontent.com/istio/istio/1.7.3/samples/bookinfo/platform/kube/bookinfo.yaml
 kubectl delete deployment reviews-v1 reviews-v3 -n bookinfo
 ```
-Book info app has 3 versions of a micro-service called reviews, let's keep only the version 2 of the reviews micro-service for this tutorial, we will add the other versions later.
+The bookinfo app has 3 versions of a microservice called reviews.  We will keep only version 2 of the reviews microservice for this tutorial, and we will add the other versions later.  An easy way to distinguish among the different versions in the web interface is that v1 shows no stars with its reviews, v2 shows black stars, and v3 shows red stars.
 
 
 Gloo uses a discovery mechanism to create Upstreams automatically, but Upstreams can be created manually too using CRDs.
-After a few seconds, Gloo will discover the newly created service and create a corresponding Upstream called  **bookinfo-productpage-9080** (namespace-service-port).
+After a few seconds, Gloo will discover the newly created service and create a corresponding Upstream called  **bookinfo-productpage-9080** (Gloo uses the convention `namespace-service-port` for naming automatically discovered Upstreams).
 
-To verify that the upstream got created run the following command: 
+To verify that the Upstream was created properly, run the following command: 
 
 ```bash
 until glooctl get upstream bookinfo-productpage-9080 2> /dev/null
@@ -113,7 +113,7 @@ do
 done
 ```
 
-It should return the discovered upstream: 
+It should return the discovered upstream with an `Accepted` status: 
 
 ```
 +---------------------------+------------+----------+----------------------------+
@@ -126,7 +126,7 @@ It should return the discovered upstream:
 +---------------------------+------------+----------+----------------------------+
 ```
 
-Now that the upstream CRD has been created, we need to create a virtual service that routes traffic to it:
+Now that the upstream CRD has been created, we need to create a Gloo virtual service that routes traffic to the upstream:
 
 ```bash
 kubectl apply -f - <<EOF
@@ -155,10 +155,10 @@ The creation of the virtual service exposes the Kubernetes service through the g
 We can make access the application using the web browser by running the following command:
 
 ```
-/opt/google/chrome/chrome $(glooctl proxy url)/productpage
+chrome $(glooctl proxy url)/productpage
 ```
 
-It should return the book info demo application webpage. Note that the review stars are black. 
+It should return the bookinfo demo application webpage. Note that the review stars are black. 
 ![Lab](images/1.png)
 
 
@@ -170,10 +170,10 @@ The first step is to create a version 3 of our demo service:
 
 ```bash
 kubectl create ns bookinfo-beta 
-kubectl -n bookinfo-beta  apply -f https://raw.githubusercontent.com/istio/istio/1.7.3/samples/bookinfo/platform/kube/bookinfo.yaml
+kubectl -n bookinfo-beta apply -f https://raw.githubusercontent.com/istio/istio/1.7.3/samples/bookinfo/platform/kube/bookinfo.yaml
 kubectl delete deployment reviews-v1 reviews-v2 -n bookinfo-beta
 ```
-Book info app has 3 versions of a micro service called reviews, let's keep only the versions 3 of the reviews micro service for this application deployment.
+The bookinfo app has 3 versions of a microservice called reviews.  We will keep only version 3 of the reviews microservice for this application deployment.
 
 ```
                  +----------------------------------------------------------------------------+
@@ -183,7 +183,7 @@ Book info app has 3 versions of a micro service called reviews, let's keep only 
                  +-------+            50%                  ||Product       |                  |
 +-Client-------->+  Envoy+-------------------------------->-|Page  |       |                  |
                  |       |            50%                  +-------+       |                  |
-                 |       +----------------------------+    |Book info      |                  |
+                 |       +----------------------------+    |Bookinfo       |                  |
                  +---+---+                            |    +v2             |                  |
                  |   |                                |    +---------------+                  |
                  |   |                                |                                       |
@@ -192,14 +192,14 @@ Book info app has 3 versions of a micro service called reviews, let's keep only 
                  | +-v-------+                        +--->-|Product       |                  |
                  | |  Gloo   |                             ||Page  |       |                  |
                  | |         |                             +-------+       |                  |
-                 | +---------+                             |Book info beta |                  |
+                 | +---------+                             |Bookinfo beta  |                  |
                  |                                         +v3             |                  |
                  |Kubernetes                               |---------------+                  |
                  +----------------------------------------------------------------------------+
 
 ```
 
-Verify that the upstream for the beta application got created run the following command: 
+Verify that the Upstream for the beta application was created, using the following command: 
 
 
 ```bash
@@ -210,7 +210,7 @@ do
 done
 ```
 
-Now we can route to multiple Upstreams by creating the following Virtual service CRD: 
+Now we can route to multiple Upstreams by creating the following Virtual Service CRD: 
 
 ```bash
 kubectl apply -f - <<EOF
@@ -247,7 +247,7 @@ To check that Gloo is routing to the two different Upstreams (50% traffic each),
 We should see the black star (v2) reviews, and the new red star reviews (v3) after refreshing the page:  
 
 ```
-/opt/google/chrome/chrome $(glooctl proxy url)/productpage 
+chrome $(glooctl proxy url)/productpage 
 ```
 ![Lab](images/2.png)
 
@@ -313,7 +313,7 @@ EOF
 Now the gateway is secured through TLS. To test the TLS configuration, run the following command to open the browser (note that now the traffic is served using https): 
 
 ```
-/opt/google/chrome/chrome $(glooctl proxy url --port https)/productpage 
+chrome $(glooctl proxy url --port https)/productpage 
 
 ```
 
@@ -321,7 +321,7 @@ Now the gateway is secured through TLS. To test the TLS configuration, run the f
 
 In many use cases, we need to restrict the access to our applications to authenticated users. In the following chapter we will secure our application using an OIDC Identity Provider.
 
-Lets first start by installing dex (IDP) on our cluster:
+Let's start by installing the open-source [Dex](https://landscape.cncf.io/selected=dex) IdP on our cluster:
  
 ```bash
 cat > dex-values.yaml <<EOF
@@ -357,7 +357,7 @@ helm repo add stable https://kubernetes-charts.storage.googleapis.com
 helm install dex --namespace gloo-system stable/dex -f dex-values.yaml
 ```
 
-The architecture looks like that now:
+The architecture looks like this now:
 
 ```
                  +----------------------------------------------------------------------------+
@@ -367,7 +367,7 @@ The architecture looks like that now:
                  +-------+            50%                  ||Product       |                  |
 +-Client-------->+  Envoy+-------------------------------->-|Page  |       |                  |
                  |       |            50%                  +-------+       |                  |
-                 |       +----------------------------+    |Book info      |                  |
+                 |       +----------------------------+    |Bookinfo       |                  |
                  +---+---------------------+          |    +v2             |                  |
                  |   |                     |          |    +---------------+                  |
                  |   |                    Auth        |                                       |
@@ -376,7 +376,7 @@ The architecture looks like that now:
                  | +-v-------+             |          +--->-|Product       |                  |
                  | |  Gloo   |        +----v-----+         ||Page  |       |                  |
                  | |         |        |          |         +-------+       |                  |
-                 | +---------+        |   IDP    |         |Book info beta |                  |
+                 | +---------+        |   IDP    |         |Bookinfo beta  |                  |
                  |                    +----------+         +v3             |                  |
                  |Kubernetes                               |---------------+                  |
                  +----------------------------------------------------------------------------+
@@ -385,12 +385,12 @@ The architecture looks like that now:
 ```
 
 
-Let save the dex IP in an environment variable for future use:
+Let's save the Dex IP in an environment variable for future use:
 
 ```bash
 export DEX_IP=$(kubectl get service dex --namespace gloo-system  --output jsonpath='{.status.loadBalancer.ingress[0].ip}')
 ```
-Because we are using a local Kubernetes cluster, we need to configure the dex host to point to the Load balancer IP:
+Because we are using a local Kubernetes cluster, we need to configure the Dex host to point to the Load balancer IP:
 
 ```bash
 echo "$DEX_IP dex.gloo-system.svc.cluster.local" | sudo tee -a /etc/hosts
@@ -402,7 +402,7 @@ The next step is to setup the authentication in the Virtual Service. For this we
 glooctl create secret oauth --client-secret secretvalue oauth
 ```
 
-Then we will create an AuthConfig which is a CRD that configures the authentication in Gloo: 
+Then we will create an AuthConfig, which is a Gloo custom resource that configures authentication: 
 
 ```bash
 kubectl apply -f - <<EOF
@@ -472,7 +472,7 @@ EOF
 To test the authentication, run the following command to open the browser: 
 
 ```
-/opt/google/chrome/chrome $(glooctl proxy url --port https)/productpage 
+chrome $(glooctl proxy url --port https)/productpage 
 ```
 
 If you login as the **admin@example.com** user with the password **password**, Gloo should redirect you to the application.
@@ -481,9 +481,9 @@ If you login as the **admin@example.com** user with the password **password**, G
 
 
 ### Rate Limiting
-It is frequent for an application to suffer DDoS attacks. In this example, we are going to use rate limiting to protect our demo application.
+Modern enterprises must protect their applications from DDoS attacks. In this example, we are going to use rate limiting to protect our demo application.
 
-To enable rate limit on a Virtual Service we will first create a RateLimitConfig CRD:
+To enable rate limiting on a Virtual Service, we will first create a RateLimitConfig custom resource:
 
 ```bash
 kubectl apply -f - << EOF
@@ -507,7 +507,7 @@ spec:
 EOF
 ```
 
-Now let update our Virtual Service to include the rate limit config: 
+Now let's update our Virtual Service to refer to the new RateLimitConfig: 
 
 ```bash
 kubectl apply -f - <<EOF
@@ -554,15 +554,15 @@ spec:
 EOF
 ```
 
-To test the rate limiting, run the following command to open the browser, then refresh the browser until you see a 429 message indicating that the rate limit got enforced: 
+To test the rate limiting, run the following command to open the browser, then refresh the browser until you see a 429 message indicating that the rate limit was exceeded: 
 
 ```
-/opt/google/chrome/chrome $(glooctl proxy url --port https)/productpage 
+chrome $(glooctl proxy url --port https)/productpage 
 ```
 ![Lab](images/4.png)
 
 
-## LAB 3: Data transformation
+## Lab 3: Data transformation
 In this section we will explore the request transformations using Gloo.
 
 ### Response transformation 
@@ -619,15 +619,15 @@ spec:
                           namespace: gloo-system
 EOF
 ```
-Refreshing your browser a couple times, you should be able to see a beautiful html page indicating that you reached the limit of calls. 
+Refreshing your browser a couple times, you should be able to see a styled HTML page indicating that you reached the limit of calls. 
 
 ```
-/opt/google/chrome/chrome $(glooctl proxy url --port https)/productpage 
+chrome $(glooctl proxy url --port https)/productpage 
 ```
 ![Lab](images/5.png)
 
 
-## LAB 4: Logging
+## Lab 4: Logging
 
 ### Access Logs
 
@@ -686,16 +686,56 @@ spec:
 EOF
 ```
 
+{{% notice note %}}
+You can safely ignore this warning when you run the above command:
+```
+Warning: kubectl apply should be used on resource created by either kubectl create --save-config or kubectl apply
+```
+{{% /notice %}}
+
 Refresh your browser a couple times to generate some traffic:
 ```
-/opt/google/chrome/chrome $(glooctl proxy url --port https)/productpage 
+chrome $(glooctl proxy url --port https)/productpage 
 ```
 
 Check the logs running the following command:
 ```bash
 kubectl logs -n gloo-system deployment/gateway-proxy | grep '^{' | jq
 ```
-These logs can now be collected by the Log aggregator agents. 
+
+If you refresh the browser to send additional requests until the rate limiting threshold is exceeded, then you will see both `200 OK` and `429 Too Many Requests` responses in the access logs, as in the example log snippet below.
+```
+{
+  "messageType": null,
+  "requestId": "06c54299-de6b-463e-8035-aebd3e530cb5",
+  "httpMethod": "GET",
+  "systemTime": "2020-10-22T21:38:18.316Z",
+  "path": "/productpage",
+  "targetDuration": 31,
+  "protocol": "HTTP/2",
+  "responseFlags": "-",
+  "number": null,
+  "clientDuration": 31,
+  "upstreamName": "bookinfo-beta-productpage-9080_gloo-system",
+  "responseCode": 200
+}
+{
+  "httpMethod": "GET",
+  "systemTime": "2020-10-22T21:38:19.168Z",
+  "targetDuration": null,
+  "path": "/productpage",
+  "protocol": "HTTP/2",
+  "responseFlags": "-",
+  "clientDuration": 3,
+  "number": null,
+  "responseCode": 429,
+  "upstreamName": null,
+  "messageType": null,
+  "requestId": "494c3cc7-e476-4414-8c50-499f3619f84c"
+}
+```
+
+These logs can now be collected by the Log aggregator agents and potentially forwarded to your favorite enterprise logging service. 
 
 
 ## Lab 5 : Solo.io Developer Portal
@@ -812,6 +852,16 @@ So, you can now access the API using the command below:
 
 ```bash
 curl -H "Host: api.example.com" http://172.18.0.210/api/v1/products
+```
+
+```
+[
+  {
+    "id": 0,
+    "title": "The Comedy of Errors",
+    "descriptionHtml": "<a href=\"https://en.wikipedia.org/wiki/The_Comedy_of_Errors\">Wikipedia Summary</a>: The Comedy of Errors is one of <b>William Shakespeare's</b> early plays. It is his shortest and one of his most farcical comedies, with a major part of the humour coming from slapstick and mistaken identity, in addition to puns and word play."
+  }
+]
 ```
 
 Once a set of APIs have been bundled together in an API Product, those products can be published in a user-friendly interface through which developers can discover, browse, request access to, and interact with APIs. This is done by defining Portals, a custom resource which tells the Developer Portal how to publish a customized website containing an interactive catalog of those products.
