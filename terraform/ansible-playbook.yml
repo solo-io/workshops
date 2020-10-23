@@ -136,6 +136,11 @@
   - name: Install Google Chrome
     apt: deb="/tmp/google-chrome-stable_current_amd64.deb"
 
+  - name: Add Chrome to the path
+    shell: echo 'export PATH=$PATH:/opt/google/chrome' >> /home/solo/.bashrc
+    become_user: solo
+    become_method: su
+
   - name: Download the Solo background image
     get_url:
       url: https://github.com/solo-io/workshops/raw/master/terraform/solo-white.png
