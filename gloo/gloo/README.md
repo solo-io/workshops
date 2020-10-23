@@ -4,7 +4,7 @@ Gloo is a feature-rich, Kubernetes-native ingress controller, and next-generatio
 
 The goal of this workshop is to expose some key features of Gloo API Gateway, like traffic management, security, and API management.
 
-## Lab environment
+## Lab Environment
 
 The following Lab environment consists of a Kubernetes environment deployed locally using kind, during this workshop we are going to deploy a demo application and expose/protect it using Gloo.
 In this workshop we will:
@@ -19,7 +19,7 @@ In this workshop we will:
 
 ![Lab](images/env.png)
 
-## Lab 0: Demo environment creation
+## Lab 0: Demo Environment Creation
 
 Go the folder `/home/solo/workshops/gloo/gloo` directory using the terminal
 
@@ -27,7 +27,7 @@ Go the folder `/home/solo/workshops/gloo/gloo` directory using the terminal
 cd /home/solo/workshops/gloo/gloo
 ```
 
-### Create a Kubernetes cluster
+### Create a Kubernetes Cluster
 
 Deploy a local Kubernetes cluster using this command:
 ```bash
@@ -60,9 +60,9 @@ until [ $(kubectl -n gloo-system get pods -o jsonpath='{range .items[*].status.c
 done
 ```
 
-## Lab 1: Traffic management
+## Lab 1: Traffic Management
 
-### Routing to a Kubernetes service 
+### Routing to a Kubernetes Service 
 
 In this step we will expose a demo service to the outside world using Gloo.
 First let's create a demo applications called bookinfo: 
@@ -162,7 +162,7 @@ It should return the bookinfo demo application webpage. Note that the review sta
 ![Lab](images/1.png)
 
 
-### Routing to multiple Upstreams
+### Routing to Multiple Upstreams
 
 In many use cases we need to route traffic to two different versions of the application to test a new feature. For example, in this step, we are going to create a virtual service that routes to two different Upstreams:
 
@@ -426,7 +426,7 @@ spec:
 EOF
 ```
 
-Finally we activate the authentication on the Virtual service using the AuthConfig:
+Finally we activate the authentication on the Virtual Service using the AuthConfig:
 
 ```bash
 kubectl apply -f - <<EOF
@@ -562,10 +562,10 @@ chrome $(glooctl proxy url --port https)/productpage
 ![Lab](images/4.png)
 
 
-## Lab 3: Data transformation
+## Lab 3: Data Transformation
 In this section we will explore the request transformations using Gloo.
 
-### Response transformation 
+### Response Transformation 
 
 The following example demonstrates how to modify a response using Gloo, we are going to return a basic html page in case the response code is 429 (rate limited).  
 
@@ -686,12 +686,10 @@ spec:
 EOF
 ```
 
-{{% notice note %}}
-You can safely ignore this warning when you run the above command:
+NOTE:  You can safely ignore the following warning when you run the above command:
 ```
 Warning: kubectl apply should be used on resource created by either kubectl create --save-config or kubectl apply
 ```
-{{% /notice %}}
 
 Refresh your browser a couple times to generate some traffic:
 ```
@@ -742,6 +740,8 @@ These logs can now be collected by the Log aggregator agents and potentially for
 
 The Solo.io Developer Portal provides a framework for managing the definitions of APIs, API client identity, and API policies on top of the Istio and Gloo Gateways. Vendors of API products can leverage the Developer Portal to secure, manage, and publish their APIs independent of the operations used to manage networking infrastructure.
 
+### Install Developer Portal
+
 We'll use Helm to deploy the Developer portal:
 
 ```bash
@@ -778,6 +778,8 @@ until [ $(kubectl -n dev-portal get pods -o jsonpath='{range .items[*].status.co
 done
 ```
 
+### Create an API Doc
+
 Managing APIs with the Developer Portal happens through the use of two resources: the API Doc and API Product.
 
 API Docs are Kubernetes Custom Resources which packages the API definitions maintained by the maintainers of an API. Each API Doc maps to a single Swagger Specification or set of gRPC descriptors. The APIs endpoints themselves are provided by backend services.
@@ -803,6 +805,8 @@ You can then check the status of the API Doc using the following command:
 ```bash
 kubectl get apidoc -n bookinfo bookinfo-schema -oyaml
 ```
+
+### Create an API Product
 
 API Products are Kubernetes Custom Resources which bundle the APIs defined in API Docs into a product which can be exposed to ingress traffic as well as published on a Portal UI. The Product defines what API operations are being exposed, and the routing information to reach the services.
 
@@ -843,6 +847,8 @@ You can then check the status of the API Product using the following command:
 kubectl get apiproducts.devportal.solo.io -n bookinfo bookinfo-product -oyaml
 ```
 
+### Test the Service
+
 When targeting Gloo Gateways, the Developer Portal manages a set of Gloo Custom Resource Definitions (CRDs) on behalf of users:
 
 - VirtualServices: The Developer Portal generates a Gloo VirtualService for each API Product. The VirtualService contains a single HTTP route for each API operation exposed in the product. Routes are named and their matchers are derived from the OpenAPI definition.
@@ -864,7 +870,9 @@ curl -H "Host: api.example.com" http://172.18.0.210/api/v1/products
 ]
 ```
 
-Once a set of APIs have been bundled together in an API Product, those products can be published in a user-friendly interface through which developers can discover, browse, request access to, and interact with APIs. This is done by defining Portals, a custom resource which tells the Developer Portal how to publish a customized website containing an interactive catalog of those products.
+### Configure a Portal
+
+Once a set of APIs have been bundled together in an API Product, those products can be published in a user-friendly interface through which outside developers can discover, browse, request access to, and interact with APIs. This is done by defining Portals, a custom resource which tells the Developer Portal how to publish a customized website containing an interactive catalog of those products.
 
 Let's create a Portal:
 
@@ -909,6 +917,8 @@ cat <<EOF | sudo tee -a /etc/hosts
 EOF
 ```
 
+### Establish User Access Control
+
 We are now going to create a user (dev1) and then add him to a group (developers). Users and groups are both stored as Custom Resources (CRs) in Kubernetes. Note that the Portal Web Application can be configured to use OIDC to authenticate users who access the Portal.
 
 Here are the commands to create the user and the group:
@@ -952,6 +962,8 @@ EOF
 
 kubectl label user dev1 -n dev-portal groups.devportal.solo.io/dev-portal.developers="true"
 ```
+
+### Configure a Rate Limiting Policy
 
 We can now update the API Product to secure it and to define a rate limit:
 
@@ -1020,6 +1032,8 @@ spec:
 EOF
 ```
 
+### Explore the Administrative Interface
+
 Let's run the following command to allow access ot the admin UI of the Developer Portal:
 
 ```
@@ -1031,6 +1045,8 @@ You can now access the admin UI at http://localhost:8000
 ![Admin Developer Portal](images/dev-portal-admin.png)
 
 Take the time to explore the UI and see the different components we have created.
+
+### Explore the Portal Interface
 
 The user Portal we have created is available at http://portal.example.com
 
@@ -1058,7 +1074,9 @@ You can also test the API and use the `Authorize` button to set your API key.
 
 ![User Developer Portal API](images/dev-portal-api.png)
 
-But we're going to try it using curl:
+### Verify the Rate Limiting Policy
+
+Now we're going to exercise the service using `curl`:
 
 So, we need to retrieve the API key first:
 
