@@ -594,6 +594,9 @@ spec:
                 headers:
                   jwt:
                     text: '{{ token }}'
+      headerManipulation:
+        requestHeadersToRemove:
+        - cookie                           
 #-----------------------------------------------------------------------------------                              
       jwt:
         providers:
@@ -751,7 +754,10 @@ spec:
                     subgroup: 1
                 headers:
                   jwt:
-                    text: '{{ token }}'                  
+                    text: '{{ token }}'   
+      headerManipulation:
+        requestHeadersToRemove:
+        - cookie                                          
 # ---------------- Rate limit config ------------------
       rateLimitConfigs:
         refs:
@@ -862,7 +868,10 @@ spec:
                     subgroup: 1
                 headers:
                   jwt:
-                    text: '{{ token }}'          
+                    text: '{{ token }}'     
+      headerManipulation:
+        requestHeadersToRemove:
+        - cookie                         
 # ---------------- Transformation ------------------          
       transformations:
         responseTransformation:
