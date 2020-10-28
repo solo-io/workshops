@@ -349,6 +349,19 @@ config:
     hash: "\$2a\$10\$2b2cU8CPhOTaGrs1HRQuAueS7JTT5ZHsHSzYiFPm1leZck7Mc8T4W"
     username: "admin"
     userID: "08a8684b-db88-4b73-90a9-3cd1661f5466"
+    
+  - email: "admin@beta.com"
+    # bcrypt hash of the string "password"
+    hash: "\$2a\$10\$2b2cU8CPhOTaGrs1HRQuAueS7JTT5ZHsHSzYiFPm1leZck7Mc8T4W"
+    username: "guest"
+    userID: "28a8684b-db88-4b73-90a9-3cd1661f5466"
+
+  - email: "guest@other.com"
+    # bcrypt hash of the string "password"
+    hash: "\$2a\$10\$2b2cU8CPhOTaGrs1HRQuAueS7JTT5ZHsHSzYiFPm1leZck7Mc8T4W"
+    username: "external"
+    userID: "18a8684b-db88-4b73-90a9-3cd1661f5466"
+
 EOF
 ```
 
@@ -480,6 +493,160 @@ If you login as the **admin@example.com** user with the password **password**, G
 ![Lab](images/3.png)
 
 
+### Claims to headers
+Claims received after the authentication are useful to set a behavior on a request, for example routing traffic to a different upstream for a specific group of users for testing purposes, in the following example we will update to route the user form beta.com domain to the beta version of the app (red stars), and the rest will go the the main version (black stars).
+
+Update the virtual service to transform claims to headers:
+```bash
+kubectl apply -f - <<EOF
+apiVersion: gateway.solo.io/v1
+kind: VirtualService
+metadata:
+  name: demo
+  namespace: gloo-system
+spec:
+  sslConfig:
+    secretRef:
+      name: upstream-tls
+      namespace: gloo-system  
+  virtualHost:
+    options:
+      extauth:
+        configRef:
+          name: oidc-dex
+          namespace: gloo-system
+#------------------- claims to headers -------------------------- 
+      jwt:
+        providers:
+          dex:
+            claimsToHeaders:
+            - claim: email
+              header: x-solo-claim-email
+            issuer: http://dex.gloo-system.svc.cluster.local:32000
+#-----------------------------------------------------------------            
+    domains:
+      - '*'
+    routes:
+      - matchers:
+#-------------------- route only users with email containing @beta.com ---------       
+         - headers:
+            - name: x-solo-claim-email
+              regex: true
+              value: ".*beta.com"
+#-----------------------------------------------------------------------------------           
+           prefix: /
+        routeAction:
+          single:
+            upstream:
+              name: bookinfo-beta-productpage-9080
+              namespace: gloo-system
+      - matchers:
+           prefix: /
+        routeAction:
+          single:
+            upstream:
+              name: bookinfo-productpage-9080
+              namespace: gloo-system                        
+EOF
+```
+
+Test the following configuration by login in as admin@beta.com, you should see only the red stars indicating that all the traffic for this user is going the the beta app, and the the traffic for the other users should directed to the main app (black stars) the password is **password**.
+
+```
+chrome $(glooctl proxy url --port https)/productpage 
+
+```
+
+### JWT validation and RBAC
+
+It is common to authorize only certain users to access an API, in the flowing example we will demonstrate how to validate a JWT and restrict access to an API using a claim form a verified JWT.
+We will restrict access to the app, only admin@beta.com and admin@example.com will be able to access the backend:
+
+```bash
+kubectl apply -f - <<EOF
+apiVersion: gateway.solo.io/v1
+kind: VirtualService
+metadata:
+  name: demo
+  namespace: gloo-system
+spec:
+  sslConfig:
+    secretRef:
+      name: upstream-tls
+      namespace: gloo-system  
+  virtualHost:
+    options:
+      extauth:
+        configRef:
+          name: oidc-dex
+          namespace: gloo-system
+      jwt:
+        providers:
+          dex:
+            claimsToHeaders:
+            - claim: email
+              header: x-solo-claim-email
+            issuer: http://dex.gloo-system.svc.cluster.local:32000 
+#--------------------------------- JWKS --------------------------------------------- 
+#------------------------- validate the JWT signature -------------------------------            
+            jwks:
+              remote:
+                upstreamRef:
+                  name: gloo-system-dex-32000
+                  namespace: gloo-system
+                url: http://dex.gloo-system.svc.cluster.local:32000/keys
+            tokenSource:
+              headers:
+              - header: Jwt                       
+#------------------------------------------------------------------------------------    
+#----------------------------------  RBAC -------------------------------------------
+#------------------- restricting access only to admins-------------------------------
+      rbac:
+        policies:
+          viewer:
+            permissions:
+              methods:
+              - GET
+              pathPrefix: /
+            principals:
+            - jwtPrincipal:
+                claims:
+                  email: admin@example.com   
+            - jwtPrincipal:
+                claims:
+                  email: admin@beta.com                             
+#------------------------------------------------------------------------------------                  
+    domains:
+      - '*'
+    routes:
+      - matchers:
+         - headers:
+            - name: x-solo-claim-email
+              regex: true
+              value: ".*beta.com"           
+           prefix: /
+        routeAction:
+          single:
+            upstream:
+              name: bookinfo-beta-productpage-9080
+              namespace: gloo-system
+      - matchers:
+           prefix: /
+        routeAction:
+          single:
+            upstream:
+              name: bookinfo-productpage-9080
+              namespace: gloo-system                        
+EOF
+```
+
+To test this configuration, log in using the admin users(admin@example.com or admin@beta.com), you should be able to access the backend, the user guest@other.com will not be able to access the backend, the password is **password**.
+
+```
+chrome $(glooctl proxy url --port https)/productpage 
+
+```
+
 ### Rate Limiting
 Modern enterprises must protect their applications from DDoS attacks. In this example, we are going to use rate limiting to protect our demo application.
 
@@ -527,32 +694,66 @@ spec:
         configRef:
           name: oidc-dex
           namespace: gloo-system
+      jwt:
+        providers:
+          dex:
+            claimsToHeaders:
+            - claim: email
+              header: x-solo-claim-email
+            issuer: http://dex.gloo-system.svc.cluster.local:32000          
+            jwks:
+              remote:
+                upstreamRef:
+                  name: gloo-system-dex-32000
+                  namespace: gloo-system
+                url: http://dex.gloo-system.svc.cluster.local:32000/keys
+            tokenSource:
+              headers:
+              - header: Jwt                       
+      rbac:
+        policies:
+          viewer:
+            permissions:
+              methods:
+              - GET
+              pathPrefix: /
+            principals:
+            - jwtPrincipal:
+                claims:
+                  email: admin@example.com   
+            - jwtPrincipal:
+                claims:
+                  email: admin@beta.com
 # ---------------- Rate limit config ------------------
       rateLimitConfigs:
         refs:
         - name: global-limit
           namespace: gloo-system
-#------------------------------------------------------
+#------------------------------------------------------                                                          
     domains:
       - '*'
     routes:
       - matchers:
-          - prefix: /
+         - headers:
+            - name: x-solo-claim-email
+              regex: true
+              value: ".*beta.com"           
+           prefix: /
         routeAction:
-            multi:
-                destinations:
-                - weight: 5
-                  destination:
-                      upstream:
-                          name: bookinfo-productpage-9080
-                          namespace: gloo-system
-                - weight: 5
-                  destination:
-                      upstream:
-                          name: bookinfo-beta-productpage-9080
-                          namespace: gloo-system
+          single:
+            upstream:
+              name: bookinfo-beta-productpage-9080
+              namespace: gloo-system
+      - matchers:
+           prefix: /
+        routeAction:
+          single:
+            upstream:
+              name: bookinfo-productpage-9080
+              namespace: gloo-system                        
 EOF
 ```
+
 
 To test the rate limiting, run the following command to open the browser, then refresh the browser until you see a 429 message indicating that the rate limit was exceeded: 
 
@@ -587,6 +788,36 @@ spec:
         configRef:
           name: oidc-dex
           namespace: gloo-system
+      jwt:
+        providers:
+          dex:
+            claimsToHeaders:
+            - claim: email
+              header: x-solo-claim-email
+            issuer: http://dex.gloo-system.svc.cluster.local:32000          
+            jwks:
+              remote:
+                upstreamRef:
+                  name: gloo-system-dex-32000
+                  namespace: gloo-system
+                url: http://dex.gloo-system.svc.cluster.local:32000/keys
+            tokenSource:
+              headers:
+              - header: Jwt                       
+      rbac:
+        policies:
+          viewer:
+            permissions:
+              methods:
+              - GET
+              pathPrefix: /
+            principals:
+            - jwtPrincipal:
+                claims:
+                  email: admin@example.com   
+            - jwtPrincipal:
+                claims:
+                  email: admin@beta.com
       rateLimitConfigs:
         refs:
         - name: global-limit
@@ -598,25 +829,28 @@ spec:
             parseBodyBehavior: DontParse
             body: 
               text: '{% if header(":status") == "429" %}<html><body style="background-color:powderblue;"><h1>Too many Requests!</h1><p>Try again after 10 seconds</p></body></html>{% else %}{{ body() }}{% endif %}'    
-#---------------------------------------------------
+#---------------------------------------------------                                                       
     domains:
       - '*'
     routes:
       - matchers:
-          - prefix: /
+         - headers:
+            - name: x-solo-claim-email
+              regex: true
+              value: ".*beta.com"           
+           prefix: /
         routeAction:
-            multi:
-                destinations:
-                - weight: 5
-                  destination:
-                      upstream:
-                          name: bookinfo-productpage-9080
-                          namespace: gloo-system
-                - weight: 5
-                  destination:
-                      upstream:
-                          name: bookinfo-beta-productpage-9080
-                          namespace: gloo-system
+          single:
+            upstream:
+              name: bookinfo-beta-productpage-9080
+              namespace: gloo-system
+      - matchers:
+           prefix: /
+        routeAction:
+          single:
+            upstream:
+              name: bookinfo-productpage-9080
+              namespace: gloo-system                        
 EOF
 ```
 Refreshing your browser a couple times, you should be able to see a styled HTML page indicating that you reached the limit of calls. 
@@ -678,10 +912,8 @@ spec:
             requestId: '%REQ(X-REQUEST-ID)%'
             # Response flags; will contain RL if the request was rate-limited
             responseFlags: '%RESPONSE_FLAGS%'
-            # We rate-limit on the x-type header
-            messageType: '%REQ(x-type)%'
-            # We rate-limit on the x-number header
-            number: '%REQ(x-number)%'
+            # The user email extracted from the claim and transformed to a header
+            email: '%REQ(x-solo-claim-email)%'
           path: /dev/stdout
 EOF
 ```
@@ -715,7 +947,9 @@ If you refresh the browser to send additional requests until the rate limiting t
   "number": null,
   "clientDuration": 31,
   "upstreamName": "bookinfo-beta-productpage-9080_gloo-system",
-  "responseCode": 200
+  "responseCode": 200,
+  "email": "admin@example.com" 
+
 }
 {
   "httpMethod": "GET",
@@ -729,7 +963,8 @@ If you refresh the browser to send additional requests until the rate limiting t
   "responseCode": 429,
   "upstreamName": null,
   "messageType": null,
-  "requestId": "494c3cc7-e476-4414-8c50-499f3619f84c"
+  "requestId": "494c3cc7-e476-4414-8c50-499f3619f84c",
+  "email": "admin@beta.com"
 }
 ```
 
