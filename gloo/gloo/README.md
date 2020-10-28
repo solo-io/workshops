@@ -493,7 +493,7 @@ If you login as the **admin@example.com** user with the password **password**, G
 ![Lab](images/3.png)
 
 
-### Claims to headers
+### Claims based routing
 Claims received after the authentication are useful to set a behavior on a request, for example routing traffic to a different upstream for a specific group of users for testing purposes, in the following example we will update to route the user form beta.com domain to the beta version of the app (red stars), and the rest will go the the main version (black stars).
 
 Update the virtual service to transform claims to headers:
@@ -528,25 +528,25 @@ spec:
       - '*'
     routes:
       - matchers:
-#-------------------- route only users with email containing @beta.com ---------       
-         - headers:
+#------------------------ Header based routing-------------------      
+        - headers:
             - name: x-solo-claim-email
               regex: true
-              value: ".*beta.com"
-#-----------------------------------------------------------------------------------           
-           prefix: /
+              value: ".*beta.com"           
+          prefix: /
+#----------------------------------------------------------------          
         routeAction:
           single:
             upstream:
               name: bookinfo-beta-productpage-9080
               namespace: gloo-system
       - matchers:
-           prefix: /
+        - prefix: /
         routeAction:
           single:
             upstream:
               name: bookinfo-productpage-9080
-              namespace: gloo-system                        
+              namespace: gloo-system                             
 EOF
 ```
 
@@ -580,6 +580,21 @@ spec:
         configRef:
           name: oidc-dex
           namespace: gloo-system
+#--------------------- extracting JWT form the cookie--------------------------------
+      stagedTransformations:
+        early:
+          requestTransforms:
+          - requestTransformation:
+              transformationTemplate:
+                extractors:
+                  token:
+                    header: cookie
+                    regex: id_token=(.*); .*
+                    subgroup: 1
+                headers:
+                  jwt:
+                    text: '{{ token }}'
+#-----------------------------------------------------------------------------------                              
       jwt:
         providers:
           dex:
@@ -620,23 +635,23 @@ spec:
       - '*'
     routes:
       - matchers:
-         - headers:
+        - headers:
             - name: x-solo-claim-email
               regex: true
               value: ".*beta.com"           
-           prefix: /
+          prefix: /
         routeAction:
           single:
             upstream:
               name: bookinfo-beta-productpage-9080
               namespace: gloo-system
       - matchers:
-           prefix: /
+        - prefix: /
         routeAction:
           single:
             upstream:
               name: bookinfo-productpage-9080
-              namespace: gloo-system                        
+              namespace: gloo-system         
 EOF
 ```
 
@@ -724,6 +739,19 @@ spec:
             - jwtPrincipal:
                 claims:
                   email: admin@beta.com
+      stagedTransformations:
+        early:
+          requestTransforms:
+          - requestTransformation:
+              transformationTemplate:
+                extractors:
+                  token:
+                    header: cookie
+                    regex: id_token=(.*); .*
+                    subgroup: 1
+                headers:
+                  jwt:
+                    text: '{{ token }}'                  
 # ---------------- Rate limit config ------------------
       rateLimitConfigs:
         refs:
@@ -734,23 +762,23 @@ spec:
       - '*'
     routes:
       - matchers:
-         - headers:
+        - headers:
             - name: x-solo-claim-email
               regex: true
               value: ".*beta.com"           
-           prefix: /
+          prefix: /
         routeAction:
           single:
             upstream:
               name: bookinfo-beta-productpage-9080
               namespace: gloo-system
       - matchers:
-           prefix: /
+        - prefix: /
         routeAction:
           single:
             upstream:
               name: bookinfo-productpage-9080
-              namespace: gloo-system                        
+              namespace: gloo-system                                 
 EOF
 ```
 
@@ -822,6 +850,19 @@ spec:
         refs:
         - name: global-limit
           namespace: gloo-system
+      stagedTransformations:
+        early:
+          requestTransforms:
+          - requestTransformation:
+              transformationTemplate:
+                extractors:
+                  token:
+                    header: cookie
+                    regex: id_token=(.*); .*
+                    subgroup: 1
+                headers:
+                  jwt:
+                    text: '{{ token }}'          
 # ---------------- Transformation ------------------          
       transformations:
         responseTransformation:
@@ -834,18 +875,18 @@ spec:
       - '*'
     routes:
       - matchers:
-         - headers:
+        - headers:
             - name: x-solo-claim-email
               regex: true
               value: ".*beta.com"           
-           prefix: /
+          prefix: /
         routeAction:
           single:
             upstream:
               name: bookinfo-beta-productpage-9080
               namespace: gloo-system
       - matchers:
-           prefix: /
+        - prefix: /
         routeAction:
           single:
             upstream:
