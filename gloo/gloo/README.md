@@ -42,8 +42,8 @@ Then verify that your Kubernetes cluster is ready to be used:
 ### Install Gloo 
 ```bash
 kubectl config use-context gloo
-glooctl upgrade --release=v1.5.0
-glooctl install gateway enterprise --version 1.5.0 --license-key $LICENSE_KEY
+glooctl upgrade --release=v1.5.3
+glooctl install gateway enterprise --version 1.5.3 --license-key $LICENSE_KEY
 ```
 
 Use the following commands to wait for the Gloo components to be deployed:
@@ -155,7 +155,7 @@ The creation of the virtual service exposes the Kubernetes service through the g
 We can make access the application using the web browser by running the following command:
 
 ```
-chrome $(glooctl proxy url)/productpage
+/opt/google/chrome/chrome $(glooctl proxy url)/productpage
 ```
 
 It should return the bookinfo demo application webpage. Note that the review stars are black. 
@@ -247,7 +247,7 @@ To check that Gloo is routing to the two different Upstreams (50% traffic each),
 We should see the black star (v2) reviews, and the new red star reviews (v3) after refreshing the page:  
 
 ```
-chrome $(glooctl proxy url)/productpage 
+/opt/google/chrome/chrome $(glooctl proxy url)/productpage 
 ```
 ![Lab](images/2.png)
 
@@ -313,8 +313,7 @@ EOF
 Now the gateway is secured through TLS. To test the TLS configuration, run the following command to open the browser (note that now the traffic is served using https): 
 
 ```
-chrome $(glooctl proxy url --port https)/productpage 
-
+/opt/google/chrome/chrome $(glooctl proxy url --port https)/productpage 
 ```
 
 ### OIDC Support
@@ -472,13 +471,425 @@ EOF
 To test the authentication, run the following command to open the browser: 
 
 ```
-chrome $(glooctl proxy url --port https)/productpage 
+/opt/google/chrome/chrome $(glooctl proxy url --port https)/productpage 
 ```
 
 If you login as the **admin@example.com** user with the password **password**, Gloo should redirect you to the application.
 
 ![Lab](images/3.png)
 
+### Advanced Authentication Workflows
+
+As you've seen in the previous lab, Gloo supports authentication via OpenID Connect (OIDC). OIDC is an identity layer on top of the OAuth 2.0 protocol. In OAuth 2.0 flows, authentication is performed by an external Identity Provider (IdP) which, in case of success, returns an Access Token representing the user identity. The protocol does not define the contents and structure of the Access Token, which greatly reduces the portability of OAuth 2.0 implementations.
+
+The goal of OIDC is to address this ambiguity by additionally requiring Identity Providers to return a well-defined ID Token. OIDC ID tokens follow the JSON Web Token standard and contain specific fields that your applications can expect and handle. This standardization allows you to switch between Identity Providers – or support multiple ones at the same time – with minimal, if any, changes to your downstream services; it also allows you to consistently apply additional security measures like Role-based Access Control (RBAC) based on the identity of your users, i.e. the contents of their ID token.
+
+As explained above, Google OIDC will return a JWT token, so we’ll use Gloo to extract some claims from this token and to create new headers corresponding to these claims.
+
+Finally, we’ll see how Gloo RBAC rules can be created to leverage the claims contained in the JWT token.
+
+First of all, let's deploy a new application that returns information about the requests it receives:
+
+```bash
+kubectl apply -f - <<EOF
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: httpbin
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: httpbin
+  labels:
+    app: httpbin
+spec:
+  ports:
+  - name: http
+    port: 8000
+    targetPort: 80
+  selector:
+    app: httpbin
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: httpbin
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: httpbin
+      version: v1
+  template:
+    metadata:
+      labels:
+        app: httpbin
+        version: v1
+    spec:
+      serviceAccountName: httpbin
+      containers:
+      - image: docker.io/kennethreitz/httpbin
+        imagePullPolicy: IfNotPresent
+        name: httpbin
+        ports:
+        - containerPort: 80
+EOF
+```
+
+Let’s modify the Virtual Service using the yaml below:
+
+```bash
+kubectl apply -f - <<EOF
+apiVersion: gateway.solo.io/v1
+kind: VirtualService
+metadata:
+  name: demo
+  namespace: gloo-system
+spec:
+  sslConfig:
+    secretRef:
+      name: upstream-tls
+      namespace: gloo-system  
+  virtualHost:
+    options:
+      extauth:
+        configRef:
+          name: oidc-dex
+          namespace: gloo-system
+    domains:
+      - '*'
+    routes:
+      - matchers:
+          - prefix: /
+        routeAction:
+            single:
+              upstream:
+                name: default-httpbin-8000
+                namespace: gloo-system
+EOF
+```
+
+Let's take a look at what the application returns:
+
+```
+/opt/google/chrome/chrome $(glooctl proxy url --port https)/get 
+```
+
+You should get the following output:
+
+```
+{
+  "args": {}, 
+  "headers": {
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9", 
+    "Accept-Encoding": "gzip, deflate, br", 
+    "Accept-Language": "en-US,en;q=0.9", 
+    "Cache-Control": "max-age=0", 
+    "Content-Length": "0", 
+    "Cookie": "id_token=eyJhbGciOiJSUzI1NiIsImtpZCI6Ijg1ZGQwMDNlN2M5NjRiNmE4OWU1ZDRhMjUxOGQ0ZGYzYzI3NTI1NDMifQ.eyJpc3MiOiJodHRwOi8vZGV4Lmdsb28tc3lzdGVtLnN2Yy5jbHVzdGVyLmxvY2FsOjMyMDAwIiwic3ViIjoiQ2lReU9HRTROamcwWWkxa1lqZzRMVFJpTnpNdE9UQmhPUzB6WTJReE5qWXhaalUwTmpZU0JXeHZZMkZzIiwiYXVkIjoiZ2xvbyIsImV4cCI6MTYwMzk3MjU1MCwiaWF0IjoxNjAzODg2MTUwLCJhdF9oYXNoIjoiVFZ1WXlSSE9Ib2VRdDc1bC1jdmtpdyIsImVtYWlsIjoiYWRtaW5AYmV0YS5jb20iLCJlbWFpbF92ZXJpZmllZCI6dHJ1ZX0.pLqEh0dI3rQN3laedSbAcCbyiYovNGZJ1HAKKtBqCqKwBQct8kxmEj9K5UilemV6Li6e7-6AsHhxylMw9xsryFWE-rXpwZMbhzrHevuxeQBc2N5Ub9kUBH8te54Ki_j9AIQ8C1uRwUsZGjulVdPggw79gPgBwnhnLF7ihjwgoNgacfPT3TjTmTO8nsct58jiUc8nINrVBvv89HRktPVbHAbVDfci5IGafB3d-qScgNq0_l87u4KoM94O_4SyVjlaqY9whDOp74DBbCjRvQS1TvPsUACOKlG4XM6ANMBrQQSokYveSCnjAEfTWUd8V-roqPZ4hZZKeZKtayNvjWVskw; access_token=eyJhbGciOiJSUzI1NiIsImtpZCI6Ijg1ZGQwMDNlN2M5NjRiNmE4OWU1ZDRhMjUxOGQ0ZGYzYzI3NTI1NDMifQ.eyJpc3MiOiJodHRwOi8vZGV4Lmdsb28tc3lzdGVtLnN2Yy5jbHVzdGVyLmxvY2FsOjMyMDAwIiwic3ViIjoiQ2lReU9HRTROamcwWWkxa1lqZzRMVFJpTnpNdE9UQmhPUzB6WTJReE5qWXhaalUwTmpZU0JXeHZZMkZzIiwiYXVkIjoiZ2xvbyIsImV4cCI6MTYwMzk3MjU1MCwiaWF0IjoxNjAzODg2MTUwLCJhdF9oYXNoIjoiMEtMQ3RBVUpYTFc4eE1xWldwbFBoQSIsImVtYWlsIjoiYWRtaW5AYmV0YS5jb20iLCJlbWFpbF92ZXJpZmllZCI6dHJ1ZX0.lgoyHq8Y3P50DrnDciN84WLtNCwUnsTl-g4pMtMUT3ue3xWbKRZgPJjWRyhz6dqiFBPbDaNimEZOikvZSfzmgYC7Q1EKNmgK2Kd5vm_ByBZ7xaYxKopQo4QKcp32sL_-orHXq4ORQvo35n8eaDngvw-G7121zIFCBWx7LCOp269hZHIwcbz9jKiaaJufJkXr7A29x2QHOSWKe0qXqaGzDXN_1QxrRa7h9_ojivzAOnbHHp2gM-BW2ncKYSHK7bq9xEhJp6W9uy4_bFGi71QoWewp5G4ilkyoUGsxDoYhZ2TbHX5TWTaa7WldUiOEoC0YygVfw9PtLjHm1euMKjFbuQ", 
+    "Host": "172.18.0.210", 
+    "Sec-Fetch-Dest": "document", 
+    "Sec-Fetch-Mode": "navigate", 
+    "Sec-Fetch-Site": "none", 
+    "Sec-Fetch-User": "?1", 
+    "Upgrade-Insecure-Requests": "1", 
+    "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/86.0.4240.111 Safari/537.36", 
+    "X-Envoy-Expected-Rq-Timeout-Ms": "15000", 
+    "X-User-Id": "http://dex.gloo-system.svc.cluster.local:32000;CiQyOGE4Njg0Yi1kYjg4LTRiNzMtOTBhOS0zY2QxNjYxZjU0NjYSBWxvY2Fs"
+  }, 
+  "origin": "192.168.149.8", 
+  "url": "https://172.18.0.210/get"
+}
+```
+
+As you can see, the browser has sent the cookie as a header in the HTTP request.
+
+#### Request transformation
+
+Gloo is able to perform advanced transformations of the request and response.
+
+Let’s modify the Virtual Service using the yaml below:
+
+```bash
+kubectl apply -f - <<EOF
+apiVersion: gateway.solo.io/v1
+kind: VirtualService
+metadata:
+  name: demo
+  namespace: gloo-system
+spec:
+  sslConfig:
+    secretRef:
+      name: upstream-tls
+      namespace: gloo-system  
+  virtualHost:
+    options:
+      extauth:
+        configRef:
+          name: oidc-dex
+          namespace: gloo-system
+# -------------Extract Token------------------
+      stagedTransformations:
+        early:
+          requestTransforms:
+            - requestTransformation:
+                transformationTemplate:
+                  extractors:
+                    token:
+                      header: 'cookie'
+                      regex: 'id_token=(.*); .*'
+                      subgroup: 1
+                  headers:
+                    jwt:
+                      text: '{{ token }}'
+#--------------------------------------------- 
+#--------------Remove Header------------------ 
+      headerManipulation:
+        requestHeadersToRemove:
+        - "cookie"
+#--------------------------------------------- 
+    domains:
+      - '*'
+    routes:
+      - matchers:
+          - prefix: /
+        routeAction:
+            single:
+              upstream:
+                name: default-httpbin-8000
+                namespace: gloo-system
+EOF
+```
+
+This transformation is using a regular expression to extract the JWT token from the `cookie` header, creates a new `jwt` header that contains the token and removes the `cookie` header.
+
+Here is the output you should get if you refresh the web page:
+
+```
+{
+  "args": {}, 
+  "headers": {
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9", 
+    "Accept-Encoding": "gzip, deflate, br", 
+    "Accept-Language": "en-US,en;q=0.9", 
+    "Cache-Control": "max-age=0", 
+    "Content-Length": "0", 
+    "Host": "172.18.0.210", 
+    "Jwt": "eyJhbGciOiJSUzI1NiIsImtpZCI6Ijg1ZGQwMDNlN2M5NjRiNmE4OWU1ZDRhMjUxOGQ0ZGYzYzI3NTI1NDMifQ.eyJpc3MiOiJodHRwOi8vZGV4Lmdsb28tc3lzdGVtLnN2Yy5jbHVzdGVyLmxvY2FsOjMyMDAwIiwic3ViIjoiQ2lReU9HRTROamcwWWkxa1lqZzRMVFJpTnpNdE9UQmhPUzB6WTJReE5qWXhaalUwTmpZU0JXeHZZMkZzIiwiYXVkIjoiZ2xvbyIsImV4cCI6MTYwMzk3MjU1MCwiaWF0IjoxNjAzODg2MTUwLCJhdF9oYXNoIjoiVFZ1WXlSSE9Ib2VRdDc1bC1jdmtpdyIsImVtYWlsIjoiYWRtaW5AYmV0YS5jb20iLCJlbWFpbF92ZXJpZmllZCI6dHJ1ZX0.pLqEh0dI3rQN3laedSbAcCbyiYovNGZJ1HAKKtBqCqKwBQct8kxmEj9K5UilemV6Li6e7-6AsHhxylMw9xsryFWE-rXpwZMbhzrHevuxeQBc2N5Ub9kUBH8te54Ki_j9AIQ8C1uRwUsZGjulVdPggw79gPgBwnhnLF7ihjwgoNgacfPT3TjTmTO8nsct58jiUc8nINrVBvv89HRktPVbHAbVDfci5IGafB3d-qScgNq0_l87u4KoM94O_4SyVjlaqY9whDOp74DBbCjRvQS1TvPsUACOKlG4XM6ANMBrQQSokYveSCnjAEfTWUd8V-roqPZ4hZZKeZKtayNvjWVskw", 
+    "Sec-Fetch-Dest": "document", 
+    "Sec-Fetch-Mode": "navigate", 
+    "Sec-Fetch-Site": "none", 
+    "Sec-Fetch-User": "?1", 
+    "Upgrade-Insecure-Requests": "1", 
+    "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/86.0.4240.111 Safari/537.36", 
+    "X-Envoy-Expected-Rq-Timeout-Ms": "15000", 
+    "X-User-Id": "http://dex.gloo-system.svc.cluster.local:32000;CiQyOGE4Njg0Yi1kYjg4LTRiNzMtOTBhOS0zY2QxNjYxZjU0NjYSBWxvY2Fs"
+  }, 
+  "origin": "192.168.149.8", 
+  "url": "https://172.18.0.210/get"
+}
+```
+
+You can see that the `jwt` header has been added to the request while the cookie header has been removed.
+
+#### Extract information from the JWT token
+
+JWKS is a set of public keys that can be used to verify the JWT tokens.
+
+Now, we can update the Virtual Service to validate the token, extract claims from the token and create new headers based on these claims.
+
+```bash
+kubectl apply -f - <<EOF
+apiVersion: gateway.solo.io/v1
+kind: VirtualService
+metadata:
+  name: demo
+  namespace: gloo-system
+spec:
+  sslConfig:
+    secretRef:
+      name: upstream-tls
+      namespace: gloo-system  
+  virtualHost:
+    options:
+      extauth:
+        configRef:
+          name: oidc-dex
+          namespace: gloo-system
+      stagedTransformations:
+        early:
+          requestTransforms:
+            - requestTransformation:
+                transformationTemplate:
+                  extractors:
+                    token:
+                      header: 'cookie'
+                      regex: 'id_token=(.*); .*'
+                      subgroup: 1
+                  headers:
+                    jwt:
+                      text: '{{ token }}'
+      headerManipulation:
+        requestHeadersToRemove:
+        - "cookie"
+#--------------Extract claims-----------------
+      jwt:
+        providers:
+          dex:
+            issuer: http://dex.gloo-system.svc.cluster.local:32000
+            tokenSource:
+              headers:
+              - header: Jwt
+            claimsToHeaders:
+            - claim: email
+              header: x-solo-claim-email
+            - claim: email_verified
+              header: x-solo-claim-email-verified
+            jwks:
+              remote:
+                url: http://dex.gloo-system.svc.cluster.local:32000/keys
+                upstreamRef:
+                  name: gloo-system-dex-32000 
+                  namespace: gloo-system
+#--------------------------------------------- 
+    domains:
+      - '*'
+    routes:
+      - matchers:
+          - prefix: /
+        routeAction:
+            single:
+              upstream:
+                name: default-httpbin-8000
+                namespace: gloo-system
+EOF
+```
+
+Here is the output you should get if you refresh the web page:
+
+```
+{
+  "args": {}, 
+  "headers": {
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9", 
+    "Accept-Encoding": "gzip, deflate, br", 
+    "Accept-Language": "en-US,en;q=0.9", 
+    "Cache-Control": "max-age=0", 
+    "Content-Length": "0", 
+    "Host": "172.18.0.210", 
+    "Referer": "http://dex.gloo-system.svc.cluster.local:32000/auth/local?req=vx6qn6ba2dk3zeku2p52g4vxm", 
+    "Sec-Fetch-Dest": "document", 
+    "Sec-Fetch-Mode": "navigate", 
+    "Sec-Fetch-Site": "cross-site", 
+    "Sec-Fetch-User": "?1", 
+    "Upgrade-Insecure-Requests": "1", 
+    "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/86.0.4240.111 Safari/537.36", 
+    "X-Envoy-Expected-Rq-Timeout-Ms": "15000", 
+    "X-Solo-Claim-Email": "admin@example.com", 
+    "X-Solo-Claim-Email-Verified": "true", 
+    "X-User-Id": "http://dex.gloo-system.svc.cluster.local:32000;CiQwOGE4Njg0Yi1kYjg4LTRiNzMtOTBhOS0zY2QxNjYxZjU0NjYSBWxvY2Fs"
+  }, 
+  "origin": "192.168.149.8", 
+  "url": "https://172.18.0.210/get"
+}
+```
+
+As you can see, Gloo has added the x-solo-claim-email and x-solo-claime-email-verified headers using the information it has extracted from the JWT token.
+
+It will allow the application to know who the user is and if his email has been verified.
+
+#### RBAC using the claims of the JWT token
+
+Gloo can also be used to set RBAC rules based on the claims of the JWT token returned by the identity provider.
+
+Let’s update the Virtual Service as follow:
+
+```bash
+kubectl apply -f - <<EOF
+apiVersion: gateway.solo.io/v1
+kind: VirtualService
+metadata:
+  name: demo
+  namespace: gloo-system
+spec:
+  sslConfig:
+    secretRef:
+      name: upstream-tls
+      namespace: gloo-system  
+  virtualHost:
+    options:
+      extauth:
+        configRef:
+          name: oidc-dex
+          namespace: gloo-system
+      stagedTransformations:
+        early:
+          requestTransforms:
+            - requestTransformation:
+                transformationTemplate:
+                  extractors:
+                    token:
+                      header: 'cookie'
+                      regex: 'id_token=(.*); .*'
+                      subgroup: 1
+                  headers:
+                    jwt:
+                      text: '{{ token }}'
+      headerManipulation:
+        requestHeadersToRemove:
+        - "cookie"
+      jwt:
+        providers:
+          dex:
+            issuer: http://dex.gloo-system.svc.cluster.local:32000
+            tokenSource:
+              headers:
+              - header: Jwt
+            claimsToHeaders:
+            - claim: email
+              header: x-solo-claim-email
+            - claim: email_verified
+              header: x-solo-claim-email-verified
+            jwks:
+              remote:
+                url: http://dex.gloo-system.svc.cluster.local:32000/keys
+                upstreamRef:
+                  name: gloo-system-dex-32000 
+                  namespace: gloo-system
+#--------------Add RBAC rule------------------
+      rbac:
+        policies:
+          viewer:
+            permissions:
+              methods:
+              - GET
+              pathPrefix: /get
+            principals:
+            - jwtPrincipal:
+                claims:
+                  email: admin@example.com
+#--------------------------------------------- 
+    domains:
+      - '*'
+    routes:
+      - matchers:
+          - prefix: /
+        routeAction:
+            single:
+              upstream:
+                name: default-httpbin-8000
+                namespace: gloo-system
+EOF
+```
+
+If you refresh the web page, you should still get the same response you got before.
+
+But if you change the path to anything that doesn't start with `/get`, you should get the following response:
+
+```
+RBAC: access denied
+```
 
 ### Rate Limiting
 Modern enterprises must protect their applications from DDoS attacks. In this example, we are going to use rate limiting to protect our demo application.
@@ -507,7 +918,7 @@ spec:
 EOF
 ```
 
-Now let's update our Virtual Service to refer to the new RateLimitConfig: 
+Now let's update our Virtual Service to use the bookinfo application with the new rate limit enforced: 
 
 ```bash
 kubectl apply -f - <<EOF
@@ -557,7 +968,7 @@ EOF
 To test the rate limiting, run the following command to open the browser, then refresh the browser until you see a 429 message indicating that the rate limit was exceeded: 
 
 ```
-chrome $(glooctl proxy url --port https)/productpage 
+/opt/google/chrome/chrome $(glooctl proxy url --port https)/productpage 
 ```
 ![Lab](images/4.png)
 
@@ -622,7 +1033,7 @@ EOF
 Refreshing your browser a couple times, you should be able to see a styled HTML page indicating that you reached the limit of calls. 
 
 ```
-chrome $(glooctl proxy url --port https)/productpage 
+/opt/google/chrome/chrome $(glooctl proxy url --port https)/productpage 
 ```
 ![Lab](images/5.png)
 
@@ -693,7 +1104,7 @@ Warning: kubectl apply should be used on resource created by either kubectl crea
 
 Refresh your browser a couple times to generate some traffic:
 ```
-chrome $(glooctl proxy url --port https)/productpage 
+/opt/google/chrome/chrome $(glooctl proxy url --port https)/productpage 
 ```
 
 Check the logs running the following command:
