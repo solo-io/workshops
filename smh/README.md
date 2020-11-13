@@ -82,8 +82,8 @@ kubectl config use-context mgmt
 First of all, you need to install the *meshctl* CLI:
 
 ```bash
-curl -sL https://run.solo.io/meshctl/install | SMH_VERSION=v0.9.1 sh -
-export PATH=$HOME/.service-mesh-hub/bin:$PATH
+curl -sL https://run.solo.io/meshctl/install | GLOO_MESH_VERSION=v0.9.1 sh -
+export PATH=$HOME/.gloo-mesh/bin:$PATH
 ```
 
 Now, you can install Service Mesh Hub on your admin cluster:
