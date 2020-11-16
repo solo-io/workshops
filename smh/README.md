@@ -1491,7 +1491,7 @@ Deploy the Service Mesh Hub UI:
 ```bash
 helm repo add service-mesh-hub-ui https://storage.googleapis.com/service-mesh-hub-enterprise/service-mesh-hub-ui
 helm repo update
-helm install smh-ui service-mesh-hub-ui/service-mesh-hub-ui -n service-mesh-hub --set license_key=${SMH_LICENSE_KEY}
+helm install smh-ui service-mesh-hub-ui/service-mesh-hub-ui -n service-mesh-hub --set license_key=${SMH_LICENSE_KEY} --version=0.5.7
 ```
 
 To access the UI, run the following command:
