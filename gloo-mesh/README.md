@@ -86,13 +86,22 @@ curl -sL https://run.solo.io/meshctl/install | GLOO_MESH_VERSION=v0.10.2 sh -
 export PATH=$HOME/.gloo-mesh/bin:$PATH
 ```
 
-Now, you can install Gloo Mesh on your admin cluster:
+Gloo Mesh Enterprise is adding unique features on top of Gloo Mesh Open Source (RBAC, UI, WASM, ...).
+
+Run the following commands to deploy Gloo Mesh Enterprise:
 
 ```bash
-meshctl install
+helm repo add gloo-mesh-enterprise https://storage.googleapis.com/gloo-mesh-enterprise/gloo-mesh-enterprise
+helm repo update
+kubectl create namespace gloo-mesh
+kubectl apply -f gloo-mesh-wasm-crd.yaml # temporary
+helm install gloo-mesh-enterprise gloo-mesh-enterprise/gloo-mesh-enterprise -n gloo-mesh --set license=${GLOO_MESH_LICENSE_KEY} --version=0.1.0
+kubectl apply -f admin.yaml # temporary
 
 kubectl --context mgmt -n gloo-mesh rollout status deploy/discovery 
 kubectl --context mgmt -n gloo-mesh rollout status deploy/networking 
+kubectl --context mgmt -n gloo-mesh rollout status rbac-webhook
+kubectl --context mgmt -n gloo-mesh rollout status deploy/gloo-mesh-apiserver
 ```
 
 Then, you need to register the two other clusters:
@@ -1484,25 +1493,7 @@ Afer 2 minutes, you can validate that the requests are now handled by the first 
 kubectl --context cluster1 logs -l app=reviews -c istio-proxy -f
 ```
 
-## Lab 9 : Gloo Mesh Enteprise
-
-Gloo Mesh Enterprise is adding unique features on top of Gloo Mesh Open Source (RBAC, UI, WASM, ...).
-
-Run the following command to make `mgmt` the current cluster.
-
-```bash
-kubectl config use-context mgmt
-```
-
-Run the following commands to deploy Gloo Mesh Enterprise:
-
-```bash
-helm repo add gloo-mesh-enterprise https://storage.googleapis.com/gloo-mesh-enterprise/gloo-mesh-enterprise
-helm repo update
-helm install gloo-mesh-enterprise gloo-mesh-enterprise/gloo-mesh-enterprise -n gloo-mesh --set license=${GLOO_MESH_LICENSE_KEY} --version=0.1.0
-```
-
-## Lab 10 : Gloo Mesh RBAC
+## Lab 9 : Gloo Mesh RBAC
 
 In large organizations, several teams are using the same Kubernetes cluster. They use Kubernetes RBAC to define who can do what and where.
 
@@ -1720,7 +1711,7 @@ Let's delete the TrafficPolicy we've created in the previous lab:
 kubectl --context mgmt -n gloo-mesh delete trafficpolicy simple
 ```
 
-## Lab 11 : Exploring the Gloo Mesh UI
+## Lab 10 : Exploring the Gloo Mesh UI
 
 To access the UI, run the following command:
 
