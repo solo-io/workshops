@@ -1,8 +1,8 @@
-# Service Mesh Hub workshop
+# Gloo Mesh workshop
 
-[Service Mesh Hub](https://docs.solo.io/service-mesh-hub/latest/) (smh) is a Kubernetes-native management plane that enables configuration and operational management of multiple heterogeneous service meshes across multiple clusters through a unified API. The Service Mesh Hub API integrates with the leading service meshes and abstracts away differences between their disparate API's, allowing users to configure a set of different service meshes through a single API. Service Mesh Hub is engineered with a focus on its utility as an operational management tool, providing both graphical and command line UIs, observability features, and debugging tools.
+[Gloo Mesh](https://docs.solo.io/gloo-mesh/latest/) is a Kubernetes-native management plane that enables configuration and operational management of multiple heterogeneous service meshes across multiple clusters through a unified API. The Gloo Mesh API integrates with the leading service meshes and abstracts away differences between their disparate API's, allowing users to configure a set of different service meshes through a single API. Gloo Mesh is engineered with a focus on its utility as an operational management tool, providing both graphical and command line UIs, observability features, and debugging tools.
 
-The goal of this workshop is to show several unique features of the Service Mesh Hub (smh) in action:
+The goal of this workshop is to show several unique features of the Gloo Mesh in action:
 
 - Mesh Discovery
 - Unified Identity / Trust domain
@@ -12,16 +12,16 @@ The goal of this workshop is to show several unique features of the Service Mesh
 
 ## Lab environment
 
-Service Mesh Hub can be run in its own cluster or co-located with an existing mesh.  In this exercise, SMH will run in its own dedicated management cluster, while the two managed Istio meshes will run in separate clusters.
+Gloo Mesh can be run in its own cluster or co-located with an existing mesh.  In this exercise, SMH will run in its own dedicated management cluster, while the two managed Istio meshes will run in separate clusters.
 
 ![Lab](images/lab.png)
 
 ## Lab 1 : Deploy your Kubernetes clusters
 
-From the terminal go to the `/home/solo/workshops/smh` directory:
+From the terminal go to the `/home/solo/workshops/gloo-mesh` directory:
 
 ```
-cd /home/solo/workshops/smh
+cd /home/solo/workshops/gloo-mesh
 ```
 
 Run the following commands to deploy three Kubernetes clusters using [Kind](https://kind.sigs.k8s.io/):
@@ -77,22 +77,22 @@ Run the following command to make `mgmt` the current cluster.
 kubectl config use-context mgmt
 ```
 
-## Lab 2 : Deploy Service Mesh Hub and register the clusters
+## Lab 2 : Deploy Gloo Mesh and register the clusters
 
 First of all, you need to install the *meshctl* CLI:
 
 ```bash
-curl -sL https://run.solo.io/meshctl/install | SMH_VERSION=v0.9.1 sh -
-export PATH=$HOME/.service-mesh-hub/bin:$PATH
+curl -sL https://run.solo.io/meshctl/install | GLOO_MESH_VERSION=v0.10.2 sh -
+export PATH=$HOME/.gloo-mesh/bin:$PATH
 ```
 
-Now, you can install Service Mesh Hub on your admin cluster:
+Now, you can install Gloo Mesh on your admin cluster:
 
 ```bash
 meshctl install
 
-kubectl --context mgmt -n service-mesh-hub rollout status deploy/discovery 
-kubectl --context mgmt -n service-mesh-hub rollout status deploy/networking 
+kubectl --context mgmt -n gloo-mesh rollout status deploy/discovery 
+kubectl --context mgmt -n gloo-mesh rollout status deploy/networking 
 ```
 
 Then, you need to register the two other clusters:
@@ -112,7 +112,7 @@ meshctl cluster register \
 You can list the registered cluster using the following command:
 
 ```bash
-kubectl get kubernetescluster -n service-mesh-hub
+kubectl get kubernetescluster -n gloo-mesh
 ```
 
 You should get the following output:
@@ -125,16 +125,16 @@ cluster2   23s
 
 ## Lab 3 : Deploy Istio on both clusters
 
-Download istio 1.7.3:
+Download istio 1.7.4:
 
 ```bash
-curl -L https://istio.io/downloadIstio | ISTIO_VERSION=1.7.3 sh -
+curl -L https://istio.io/downloadIstio | ISTIO_VERSION=1.7.4 sh -
 ```
 
 Now let's deploy Istio on the first cluster:
 
 ```bash
-./istio-1.7.3/bin/istioctl --context cluster1 operator init
+./istio-1.7.4/bin/istioctl --context cluster1 operator init
 
 kubectl --context cluster1 create ns istio-system
 
@@ -176,6 +176,7 @@ spec:
           gateways:
           - registryServiceName: istio-ingressgateway.istio-system.svc.cluster.local
             port: 443
+        vm-network:
   components:
     pilot:
       k8s:
@@ -188,7 +189,7 @@ EOF
 And deploy Istio on the second cluster:
 
 ```bash
-./istio-1.7.3/bin/istioctl --context cluster2 operator init
+./istio-1.7.4/bin/istioctl --context cluster2 operator init
 
 kubectl --context cluster2 create ns istio-system
 
@@ -230,6 +231,7 @@ spec:
           gateways:
           - registryServiceName: istio-ingressgateway.istio-system.svc.cluster.local
             port: 443
+        vm-network:
   components:
     pilot:
       k8s:
@@ -289,11 +291,11 @@ Run the following commands to deploy the bookinfo app on `cluster1`:
 ```bash
 kubectl --context cluster1 label namespace default istio-injection=enabled
 # deploy bookinfo application components for all versions less than v3
-kubectl --context cluster1 apply -f https://raw.githubusercontent.com/istio/istio/1.7.3/samples/bookinfo/platform/kube/bookinfo.yaml -l 'app,version notin (v3)'
+kubectl --context cluster1 apply -f https://raw.githubusercontent.com/istio/istio/1.7.4/samples/bookinfo/platform/kube/bookinfo.yaml -l 'app,version notin (v3)'
 # deploy all bookinfo service accounts
-kubectl --context cluster1 apply -f https://raw.githubusercontent.com/istio/istio/1.7.3/samples/bookinfo/platform/kube/bookinfo.yaml -l 'account'
+kubectl --context cluster1 apply -f https://raw.githubusercontent.com/istio/istio/1.7.4/samples/bookinfo/platform/kube/bookinfo.yaml -l 'account'
 # configure ingress gateway to access bookinfo
-kubectl --context cluster1 apply -f https://raw.githubusercontent.com/istio/istio/1.7.3/samples/bookinfo/networking/bookinfo-gateway.yaml
+kubectl --context cluster1 apply -f https://raw.githubusercontent.com/istio/istio/1.7.4/samples/bookinfo/networking/bookinfo-gateway.yaml
 ```
 
 You can check that the app is running using `kubectl --context cluster1 get pods`:
@@ -314,7 +316,7 @@ Now, run the following commands to deploy the bookinfo app on `cluster2`:
 ```bash
 kubectl --context cluster2 label namespace default istio-injection=enabled
 # deploy all bookinfo service accounts and application components for all versions
-kubectl --context cluster2 apply -f https://raw.githubusercontent.com/istio/istio/1.7.3/samples/bookinfo/platform/kube/bookinfo.yaml
+kubectl --context cluster2 apply -f https://raw.githubusercontent.com/istio/istio/1.7.4/samples/bookinfo/platform/kube/bookinfo.yaml
 # configure ingress gateway to access bookinfo
 kubectl --context cluster2 apply -f https://raw.githubusercontent.com/istio/istio/1.7.3/samples/bookinfo/networking/bookinfo-gateway.yaml
 ```
@@ -355,7 +357,7 @@ done
 
 ## Lab 5 : Create the Virtual Mesh
 
-Service Mesh Hub can help unify the root identity between multiple service mesh installations so any intermediates are signed by the same Root CA and end-to-end mTLS between clusters and services can be established correctly.
+Gloo Mesh can help unify the root identity between multiple service mesh installations so any intermediates are signed by the same Root CA and end-to-end mTLS between clusters and services can be established correctly.
 
 Run this command to see how the communication between microservices occur currently:
 
@@ -572,11 +574,11 @@ Run the following command to create the *Virtual Mesh*:
 
 ```bash
 cat << EOF | kubectl --context mgmt apply -f -
-apiVersion: networking.smh.solo.io/v1alpha2
+apiVersion: networking.mesh.gloo.solo.io/v1alpha2
 kind: VirtualMesh
 metadata:
   name: virtual-mesh
-  namespace: service-mesh-hub
+  namespace: gloo-mesh
 spec:
   mtlsConfig:
     autoRestartPods: true
@@ -586,23 +588,23 @@ spec:
   federation: {}
   meshes:
   - name: istiod-istio-system-cluster1
-    namespace: service-mesh-hub
+    namespace: gloo-mesh
   - name: istiod-istio-system-cluster2
-    namespace: service-mesh-hub
+    namespace: gloo-mesh
 EOF
 ```
 
-When we create the VirtualMesh and set the trust model to shared, Service Mesh Hub will kick off the process to unify the identity to a shared root.
+When we create the VirtualMesh and set the trust model to shared, Gloo Mesh will kick off the process to unify the identity to a shared root.
 
-First, Service Mesh Hub will create the Root CA.
+First, Gloo Mesh will create the Root CA.
 
-Then, Service Mesh Hub will use a Certificate Request (CR) agent on each of the clusters to create a new key/cert pair that will form an intermediate CA used by the mesh on that cluster. It will then create a Certificate Request.
+Then, Gloo Mesh will use a Certificate Request (CR) agent on each of the clusters to create a new key/cert pair that will form an intermediate CA used by the mesh on that cluster. It will then create a Certificate Request.
 
 ![Virtual Mesh Creation](images/virtualmesh-creation.png)
 
-Service Mesh Hub will sign the certificate with the Root CA. At that point, we want Istio to pick up the new intermediate CA and start using that for its workloads.
+Gloo Mesh will sign the certificate with the Root CA. At that point, we want Istio to pick up the new intermediate CA and start using that for its workloads.
 
-To do that Service Mesh Hub creates a Kubernetes secret called `cacerts` in the `istio-system` namespace.
+To do that Gloo Mesh creates a Kubernetes secret called `cacerts` in the `istio-system` namespace.
 
 You can have a look at the Istio documentation [here](https://istio.io/latest/docs/tasks/security/cert-management/plugin-ca-cert/#plugging-in-existing-certificates-and-key) if you want to get more information about this process.
 
@@ -629,11 +631,11 @@ data:
 kind: Secret
 metadata:
   labels:
-    agent.certificates.smh.solo.io: service-mesh-hub
+    agent.certificates.mesh.gloo.solo.io: gloo-mesh
     cluster.multicluster.solo.io: ""
   name: cacerts
   namespace: istio-system
-type: certificates.smh.solo.io/issued_certificate
+type: certificates.mesh.gloo.solo.io/issued_certificate
 ```
 
 Check that the new certificate has been created on the second cluster:
@@ -659,11 +661,11 @@ data:
 kind: Secret
 metadata:
   labels:
-    agent.certificates.smh.solo.io: service-mesh-hub
+    agent.certificates.mesh.gloo.solo.io: gloo-mesh
     cluster.multicluster.solo.io: ""
   name: cacerts
   namespace: istio-system
-type: certificates.smh.solo.io/issued_certificate
+type: certificates.mesh.gloo.solo.io/issued_certificate
 ```
 
 As you can see, the secrets contain the same Root CA (base64 encoded), but different intermediate certs.
@@ -680,7 +682,7 @@ do
 done
 -->
 
-Notice the `autoRestartPods: true` in the `mtlsConfig`. This instructs Service Mesh Hub to restart the Istio pods in the relevant clusters.
+Notice the `autoRestartPods: true` in the `mtlsConfig`. This instructs Gloo Mesh to restart the Istio pods in the relevant clusters.
 
 This is due to a limitation of Istio. The Istio control plane picks up the CA for Citadel and does not rotate it often enough.
 
@@ -728,21 +730,21 @@ MIIEBzCCAe+gAwIBAgIRAK1yjsFkisSjNqm5tzmKQS8wDQYJKoZIhvcNAQELBQAw
 T77lFKXx0eGtDNtWm/1IPiOutIMlFz/olVuN
 -----END CERTIFICATE-----
  1 s:
-   i:O = service-mesh-hub
+   i:O = gloo-mesh
 -----BEGIN CERTIFICATE-----
 MIIFEDCCAvigAwIBAgIQPndD90z3xw+Xy0sc3fr4fzANBgkqhkiG9w0BAQsFADAb
 ...
 hkZt8w==
 -----END CERTIFICATE-----
- 2 s:O = service-mesh-hub
-   i:O = service-mesh-hub
+ 2 s:O = gloo-mesh
+   i:O = gloo-mesh
 -----BEGIN CERTIFICATE-----
 MIIE4zCCAsugAwIBAgIQOiYmqFu1zCssGDECrNvpLjANBgkqhkiG9w0BAQsFADAb
 ...
 s4v2pEvaYg==
 -----END CERTIFICATE-----
- 3 s:O = service-mesh-hub
-   i:O = service-mesh-hub
+ 3 s:O = gloo-mesh
+   i:O = gloo-mesh
 -----BEGIN CERTIFICATE-----
 MIIE4zCCAsugAwIBAgIQOiYmqFu1zCssGDECrNvpLjANBgkqhkiG9w0BAQsFADAb
 ...
@@ -777,7 +779,7 @@ zkOHosvRE0r+CIx+t2IbDdMV7/cICMtAO2w0mMvBdYD2KD1uw9rzEn0q7cSqjAcG
 T77lFKXx0eGtDNtWm/1IPiOutIMlFz/olVuN
 -----END CERTIFICATE-----
  1 s:
-   i:O = service-mesh-hub
+   i:O = gloo-mesh
 -----BEGIN CERTIFICATE-----
 MIIFEDCCAvigAwIBAgIQPndD90z3xw+Xy0sc3fr4fzANBgkqhkiG9w0BAQsFADAb
 MRkwFwYDVQQKExBzZXJ2aWNlLW1lc2gtaHViMB4XDTIwMDkxNzA4MjA0N1oXDTIx
@@ -808,8 +810,8 @@ qB7qHCxfjCLRQSK74bu9EpY+CApWhFVyw2szHCLy2CMlnrz1vg9t50OU7S/exn2N
 uV1cUv/Qtsnu8uP+WDyzcfvAc+mOJ1VVVmIiwJ//kCg4esY9/ewqHiS0PrX2fH5C
 hkZt8w==
 -----END CERTIFICATE-----
- 2 s:O = service-mesh-hub
-   i:O = service-mesh-hub
+ 2 s:O = gloo-mesh
+   i:O = gloo-mesh
 -----BEGIN CERTIFICATE-----
 MIIE4zCCAsugAwIBAgIQOiYmqFu1zCssGDECrNvpLjANBgkqhkiG9w0BAQsFADAb
 MRkwFwYDVQQKExBzZXJ2aWNlLW1lc2gtaHViMB4XDTIwMDkxNzA4MjA0NFoXDTIx
@@ -839,8 +841,8 @@ ieB3W24btO9ZhmVe/AN/9PEORoYplCTlzZSr4GjOmfg+W641a0qOgtqEKWgD5W6n
 JYn3Wkj35Y7kta4CDE/UtqDALzsAJvg1KEDxOd0ORGdXEmOBd0UP94+2B7Kc3kd7
 s4v2pEvaYg==
 -----END CERTIFICATE-----
- 3 s:O = service-mesh-hub
-   i:O = service-mesh-hub
+ 3 s:O = gloo-mesh
+   i:O = gloo-mesh
 -----BEGIN CERTIFICATE-----
 MIIE4zCCAsugAwIBAgIQOiYmqFu1zCssGDECrNvpLjANBgkqhkiG9w0BAQsFADAb
 MRkwFwYDVQQKExBzZXJ2aWNlLW1lc2gtaHViMB4XDTIwMDkxNzA4MjA0NFoXDTIx
@@ -892,21 +894,21 @@ MIIEBjCCAe6gAwIBAgIQfSeujXiz3KsbG01+zEcXGjANBgkqhkiG9w0BAQsFADAA
 EtTlhPLbyf2GwkUgzXhdcu2G8uf6o16b0qU=
 -----END CERTIFICATE-----
  1 s:
-   i:O = service-mesh-hub
+   i:O = gloo-mesh
 -----BEGIN CERTIFICATE-----
 MIIFEDCCAvigAwIBAgIQYq5WobXXF3X0N9M/pXbCJzANBgkqhkiG9w0BAQsFADAb
 ...
 FHzHUw==
 -----END CERTIFICATE-----
- 2 s:O = service-mesh-hub
-   i:O = service-mesh-hub
+ 2 s:O = gloo-mesh
+   i:O = gloo-mesh
 -----BEGIN CERTIFICATE-----
 MIIE4zCCAsugAwIBAgIQOiYmqFu1zCssGDECrNvpLjANBgkqhkiG9w0BAQsFADAb
 ...
 s4v2pEvaYg==
 -----END CERTIFICATE-----
- 3 s:O = service-mesh-hub
-   i:O = service-mesh-hub
+ 3 s:O = gloo-mesh
+   i:O = gloo-mesh
 -----BEGIN CERTIFICATE-----
 MIIE4zCCAsugAwIBAgIQOiYmqFu1zCssGDECrNvpLjANBgkqhkiG9w0BAQsFADAb
 ...
@@ -941,7 +943,7 @@ pXtwLFGwPOZzrTlA1f2U1AyHsDh6bj+ytAFJHTHZaWi+MWHnqtT7WXiHxe9hiy49
 EtTlhPLbyf2GwkUgzXhdcu2G8uf6o16b0qU=
 -----END CERTIFICATE-----
  1 s:
-   i:O = service-mesh-hub
+   i:O = gloo-mesh
 -----BEGIN CERTIFICATE-----
 MIIFEDCCAvigAwIBAgIQYq5WobXXF3X0N9M/pXbCJzANBgkqhkiG9w0BAQsFADAb
 MRkwFwYDVQQKExBzZXJ2aWNlLW1lc2gtaHViMB4XDTIwMDkxNzA4MjA0N1oXDTIx
@@ -972,8 +974,8 @@ ZASlV6vzTNpeEdvh1j7NZH56EO6gEeqUfe+fkMtxh4GYkWQWVduDGM9XP+9o1TZc
 HSHk3V4kKnhgvyecl/TVWbk2OVu4yzjCTm+d06oXh26wROJ7PNSI99+GoJPq+iym
 FHzHUw==
 -----END CERTIFICATE-----
- 2 s:O = service-mesh-hub
-   i:O = service-mesh-hub
+ 2 s:O = gloo-mesh
+   i:O = gloo-mesh
 -----BEGIN CERTIFICATE-----
 MIIE4zCCAsugAwIBAgIQOiYmqFu1zCssGDECrNvpLjANBgkqhkiG9w0BAQsFADAb
 MRkwFwYDVQQKExBzZXJ2aWNlLW1lc2gtaHViMB4XDTIwMDkxNzA4MjA0NFoXDTIx
@@ -1003,8 +1005,8 @@ ieB3W24btO9ZhmVe/AN/9PEORoYplCTlzZSr4GjOmfg+W641a0qOgtqEKWgD5W6n
 JYn3Wkj35Y7kta4CDE/UtqDALzsAJvg1KEDxOd0ORGdXEmOBd0UP94+2B7Kc3kd7
 s4v2pEvaYg==
 -----END CERTIFICATE-----
- 3 s:O = service-mesh-hub
-   i:O = service-mesh-hub
+ 3 s:O = gloo-mesh
+   i:O = gloo-mesh
 -----BEGIN CERTIFICATE-----
 MIIE4zCCAsugAwIBAgIQOiYmqFu1zCssGDECrNvpLjANBgkqhkiG9w0BAQsFADAb
 MRkwFwYDVQQKExBzZXJ2aWNlLW1lc2gtaHViMB4XDTIwMDkxNzA4MjA0NFoXDTIx
@@ -1088,7 +1090,7 @@ The Subject Alternative Name (SAN) is the most interesting part. It allows the s
 
 ## Lab 6 : Access Control
 
-In the previous guide, we federated multiple meshes and established a shared root CA for a shared identity domain. Now that we have a logical VirtualMesh, we need a way to establish access policies across the multiple meshes, without treating each of them individually. Service Mesh Hub helps by establishing a single, unified API that understands the logical VirtualMesh construct.
+In the previous guide, we federated multiple meshes and established a shared root CA for a shared identity domain. Now that we have a logical VirtualMesh, we need a way to establish access policies across the multiple meshes, without treating each of them individually. Gloo Mesh helps by establishing a single, unified API that understands the logical VirtualMesh construct.
 
 Open the <a href="http://172.18.0.220/productpage" target="_blank">bookinfo app</a> again with a web browser.
 
@@ -1098,11 +1100,11 @@ Let's update the VirtualMesh to enable it:
 
 ```bash
 cat << EOF | kubectl --context mgmt apply -f -
-apiVersion: networking.smh.solo.io/v1alpha2
+apiVersion: networking.mesh.gloo.solo.io/v1alpha2
 kind: VirtualMesh
 metadata:
   name: virtual-mesh
-  namespace: service-mesh-hub
+  namespace: gloo-mesh
 spec:
   mtlsConfig:
     autoRestartPods: true
@@ -1113,9 +1115,9 @@ spec:
   globalAccessPolicy: ENABLED
   meshes:
   - name: istiod-istio-system-cluster1
-    namespace: service-mesh-hub
+    namespace: gloo-mesh
   - name: istiod-istio-system-cluster2
-    namespace: service-mesh-hub
+    namespace: gloo-mesh
 EOF
 ```
 
@@ -1127,14 +1129,14 @@ You should get the following error message:
 RBAC: access denied
 ```
 
-You need to create a Service Mesh Hub Access Policy to allow the Istio Ingress Gateway to access the `productpage` microservice:
+You need to create a Gloo Mesh Access Policy to allow the Istio Ingress Gateway to access the `productpage` microservice:
 
 ```bash
 cat << EOF | kubectl --context mgmt apply -f -
-apiVersion: networking.smh.solo.io/v1alpha2
+apiVersion: networking.mesh.gloo.solo.io/v1alpha2
 kind: AccessPolicy
 metadata:
-  namespace: service-mesh-hub
+  namespace: gloo-mesh
   name: istio-ingressgateway
 spec:
   sourceSelector:
@@ -1156,14 +1158,14 @@ Now, refresh the page again and you should be able to access the application, bu
 
 ![Bookinfo RBAC 1](images/bookinfo-rbac1.png)
 
-You can create another Service Mesh Hub Access Policy to allow the `productpage` microservice to talk to these 2 microservices:
+You can create another Gloo Mesh Access Policy to allow the `productpage` microservice to talk to these 2 microservices:
 
 ```bash
 cat << EOF | kubectl --context mgmt apply -f -
-apiVersion: networking.smh.solo.io/v1alpha2
+apiVersion: networking.mesh.gloo.solo.io/v1alpha2
 kind: AccessPolicy
 metadata:
-  namespace: service-mesh-hub
+  namespace: gloo-mesh
   name: productpage
 spec:
   sourceSelector:
@@ -1194,10 +1196,10 @@ Create another AccessPolicy to fix the issue:
 
 ```bash
 cat << EOF | kubectl --context mgmt apply -f -
-apiVersion: networking.smh.solo.io/v1alpha2
+apiVersion: networking.mesh.gloo.solo.io/v1alpha2
 kind: AccessPolicy
 metadata:
-  namespace: service-mesh-hub
+  namespace: gloo-mesh
   name: reviews
 spec:
   sourceSelector:
@@ -1231,10 +1233,10 @@ Let's create the following TrafficPolicy:
 
 ```bash
 cat << EOF | kubectl --context mgmt apply -f -
-apiVersion: networking.smh.solo.io/v1alpha2
+apiVersion: networking.mesh.gloo.solo.io/v1alpha2
 kind: TrafficPolicy
 metadata:
-  namespace: service-mesh-hub
+  namespace: gloo-mesh
   name: simple
 spec:
   destinationSelector:
@@ -1279,10 +1281,10 @@ Let's update the AccessPolicy to fix the issue:
 
 ```bash
 cat << EOF | kubectl --context mgmt apply -f -
-apiVersion: networking.smh.solo.io/v1alpha2
+apiVersion: networking.mesh.gloo.solo.io/v1alpha2
 kind: AccessPolicy
 metadata:
-  namespace: service-mesh-hub
+  namespace: gloo-mesh
   name: reviews
 spec:
   sourceSelector:
@@ -1330,21 +1332,25 @@ On the second cluster:
 First of all, let's delete the TrafficPolicy we've created in the previous lab:
 
 ```bash
-kubectl --context mgmt -n service-mesh-hub delete trafficpolicy simple
+kubectl --context mgmt -n gloo-mesh delete trafficpolicy simple
 ```
 
 If you refresh the web page several times, you should see only the versions `v1` (no stars) and `v2` (black stars), which means that all the requests are handled by the first cluster.
 
-![Before failover](images/before-failover.png)
+Another interesting feature of Gloo Mesh is its ability to manage failover between clusters.
+
+In this lab, we're going to configure a failover for the `reviews` service:
+
+![After failover](images/after-failover.png)
 
 Now, let's create a TrafficPolicy to define outlier detection settings to detect and evict unhealthy hosts for the `reviews` microservice.
 
 ```bash
 cat << EOF | kubectl --context mgmt apply -f -
-apiVersion: networking.smh.solo.io/v1alpha2
+apiVersion: networking.mesh.gloo.solo.io/v1alpha2
 kind: TrafficPolicy
 metadata:
-  namespace: service-mesh-hub
+  namespace: gloo-mesh
   name: mgmt-reviews-outlier
 spec:
   destinationSelector:
@@ -1367,11 +1373,11 @@ Then, we create a FailoverService to define a new hostname (`reviews-failover.de
 
 ```bash
 cat << EOF | kubectl --context mgmt apply -f -
-apiVersion: networking.smh.solo.io/v1alpha2
+apiVersion: networking.mesh.gloo.solo.io/v1alpha2
 kind: FailoverService
 metadata:
   name: reviews-failover
-  namespace: service-mesh-hub
+  namespace: gloo-mesh
 spec:
   hostname: reviews-failover.default.global
   port:
@@ -1379,7 +1385,7 @@ spec:
     protocol: http
   meshes:
     - name: istiod-istio-system-cluster1
-      namespace: service-mesh-hub
+      namespace: gloo-mesh
   backingServices:
   - kubeService:
       name: reviews
@@ -1396,7 +1402,7 @@ Finally, we can define another TrafficPolicy to make sure all the requests for t
 
 ```bash
 cat << EOF | kubectl --context mgmt apply -f -
-apiVersion: networking.smh.solo.io/v1alpha2
+apiVersion: networking.mesh.gloo.solo.io/v1alpha2
 kind: TrafficPolicy
 metadata:
   name: reviews-shift-failover
@@ -1412,7 +1418,7 @@ spec:
     destinations:
     - failoverService:
         name: reviews-failover
-        namespace: service-mesh-hub
+        namespace: gloo-mesh
 EOF
 ```
 
@@ -1443,27 +1449,27 @@ Now, let's understand what happened when we created the TrafficPolicies and the 
 
 ![Outlier detection](images/outlier-detection.png)
 
-Service Mesh Hub updates the `reviews` DestinatioRule on both clusters to add the outlier detection specified in the TrafficPolicy.
+Gloo Mesh updates the `reviews` DestinatioRule on both clusters to add the outlier detection specified in the TrafficPolicy.
 
-> Note that `maxEjectionPercent` default value is `10%` in Istio ! That's why Service Mesh Hub set it to `100%` if there's no value specified in the TrafficPolicy.
+> Note that `maxEjectionPercent` default value is `10%` in Istio ! That's why Gloo Mesh set it to `100%` if there's no value specified in the TrafficPolicy.
 
 - `reviews-failover` FailoverService:
 
 ![Envoy filter](images/envoy-filter.png)
 
-Service Mesh Hub creates an EnvoyFilter on the first Kubernetes cluster to spread to replace the `outbound|9080||reviews-failover.default.global` Envoy cluster by the following ones:
+Gloo Mesh creates an EnvoyFilter on the first Kubernetes cluster to spread to replace the `outbound|9080||reviews-failover.default.global` Envoy cluster by the following ones:
 - outbound|9080||reviews.default.svc.cluster.local
 - outbound|9080||reviews.default.svc.cluster2.global
 
 ![Service entry](images/service-entry.png)
 
-Service Mesh Hub creates a ServiceEntry for the `reviews-failover.default.global` hosts.
+Gloo Mesh creates a ServiceEntry for the `reviews-failover.default.global` hosts.
 
 - `reviews-shift-failover` TrafficPolicy:
 
 ![Virtual service](images/virtual-service.png)
 
-Service Mesh Hub creates a VirtualService on the first Kubernetes cluster to tell Istio to send the requests for the `reviews` microservice to the `reviews-failover.default.global` host.
+Gloo Mesh creates a VirtualService on the first Kubernetes cluster to tell Istio to send the requests for the `reviews` microservice to the `reviews-failover.default.global` host.
 
 We're going to make the `reviews` services available again on the first cluster.
 
@@ -1478,7 +1484,19 @@ Afer 2 minutes, you can validate that the requests are now handled by the first 
 kubectl --context cluster1 logs -l app=reviews -c istio-proxy -f
 ```
 
-## Lab 9 : Exploring the Service Mesh Hub UI
+## Lab 9 : Gloo Mesh RBAC
+
+In large organizations, several teams are using the same Kubernetes cluster. They use Kubernetes RBAC to define who can do what and where.
+
+When using a Service Mesh like Istio, users need to create different kind of objects (VirtualServices, DestinationRules, ...) and Kubernetes RBAC doesn't allow to restrict what specs they define in these objects.
+
+Gloo Mesh abstracts the complexity with AccessPolicies and TrafficPolicies, but the problem remains the same.
+
+The good news is that Gloo Mesh comes with an RBAC capability that is filling this gap.
+
+With Gloo Mesh RBAC, you can define Roles and RoleBindings to determine what users can do in a very fine grained manner.
+
+Let's deploy Gloo Mesh RBAC.
 
 Run the following command to make `mgmt` the current cluster.
 
@@ -1486,43 +1504,275 @@ Run the following command to make `mgmt` the current cluster.
 kubectl config use-context mgmt
 ```
 
-Deploy the Service Mesh Hub UI:
+Run the following commands to deploy it:
 
 ```bash
-helm repo add service-mesh-hub-ui https://storage.googleapis.com/service-mesh-hub-enterprise/service-mesh-hub-ui
+helm repo add rbac-webhook https://storage.googleapis.com/gloo-mesh-enterprise/rbac-webhook
 helm repo update
-helm install smh-ui service-mesh-hub-ui/service-mesh-hub-ui -n service-mesh-hub --set license_key=${SMH_LICENSE_KEY}
+helm install rbac-webhook rbac-webhook/rbac-webhook -n gloo-mesh --set license_key=${GLOO_MESH_LICENSE_KEY} --version=0.1.2
+```
+
+Now, if you try to create the multi cluster Traffic Policy we used before, you shouldn't be allowed to do it.
+
+Let's try:
+
+```bash
+cat << EOF | kubectl --context mgmt apply -f -
+apiVersion: networking.mesh.gloo.solo.io/v1alpha2
+kind: TrafficPolicy
+metadata:
+  namespace: gloo-mesh
+  name: simple
+spec:
+  destinationSelector:
+  - kubeServiceRefs:
+      services:
+        - clusterName: cluster1
+          name: reviews
+          namespace: default
+  trafficShift:
+    destinations:
+      - kubeService:
+          clusterName: cluster2
+          name: reviews
+          namespace: default
+          subset:
+            version: v3
+        weight: 75
+      - kubeService:
+          clusterName: cluster1
+          name: reviews
+          namespace: default
+          subset:
+            version: v1
+        weight: 15
+      - kubeService:
+          clusterName: cluster1
+          name: reviews
+          namespace: default
+          subset:
+            version: v2
+        weight: 10
+EOF
+```
+
+Here is the expected output:
+
+```
+Error from server (User kubernetes-admin does not have the permissions necessary to perform this action.): error when creating "STDIN": admission webhook "rbac-webhook.gloo-mesh.svc" denied the request: User kubernetes-admin does not have the permissions necessary to perform this action.
+```
+
+Let's create an admin Role:
+
+```bash
+cat << EOF | kubectl --context mgmt apply -f -
+apiVersion: rbac.mesh.gloo.solo.io/v1alpha1
+kind: Role
+metadata:
+  name: admin-role
+  namespace: gloo-mesh
+spec:
+  trafficPolicyScopes:
+    - trafficPolicyActions:
+        - ALL
+      trafficTargetSelectors:
+        - kubeServiceMatcher:
+            labels:
+              "*": "*"
+            namespaces:
+              - "*"
+            clusters:
+              - "*"
+        - kubeServiceRefs:
+            services:
+              - name: "*"
+                namespace: "*"
+                clusterName: "*"
+      workloadSelectors:
+        - labels:
+            "*": "*"
+          namespaces:
+            - "*"
+          clusters:
+            - "*"
+  virtualMeshScopes:
+    - virtualMeshActions:
+        - ALL
+      meshRefs:
+        - name: "*"
+          namespace: "*"
+  accessPolicyScopes:
+    - identitySelectors:
+        - kubeIdentityMatcher:
+            namespaces:
+              - "*"
+            clusters:
+              - "*"
+          kubeServiceAccountRefs:
+            serviceAccounts:
+              - name: "*"
+                namespace: "*"
+                clusterName: "*"
+      trafficTargetSelectors:
+        - kubeServiceMatcher:
+            labels:
+              "*": "*"
+            namespaces:
+              - "*"
+            clusters:
+              - "*"
+          kubeServiceRefs:
+            services:
+              - name: "*"
+                namespace: "*"
+                clusterName: "*"
+  failoverServiceScopes:
+    - meshRefs:
+        - name: "*"
+          namespace: "*"
+      backingServices:
+        - kubeService:
+            name: "*"
+            namespace: "*"
+            clusterName: "*"
+EOF
+```
+
+Then, you can create a Role Binding to grant this Role to the current user:
+
+```bash
+cat << EOF | kubectl --context mgmt apply -f -
+apiVersion: rbac.mesh.gloo.solo.io/v1alpha1
+kind: RoleBinding
+metadata:
+  labels:
+    app: gloo-mesh
+  name: admin-role-binding
+  namespace: gloo-mesh
+spec:
+  roleRef:
+    name: admin-role
+    namespace: gloo-mesh
+  subjects:
+    - kind: User
+      name: kubernetes-admin
+EOF
+```
+
+You can try to create the Traffic Policy again:
+
+```bash
+cat << EOF | kubectl --context mgmt apply -f -
+apiVersion: networking.mesh.gloo.solo.io/v1alpha2
+kind: TrafficPolicy
+metadata:
+  namespace: gloo-mesh
+  name: simple
+spec:
+  destinationSelector:
+  - kubeServiceRefs:
+      services:
+        - clusterName: cluster1
+          name: reviews
+          namespace: default
+  trafficShift:
+    destinations:
+      - kubeService:
+          clusterName: cluster2
+          name: reviews
+          namespace: default
+          subset:
+            version: v3
+        weight: 75
+      - kubeService:
+          clusterName: cluster1
+          name: reviews
+          namespace: default
+          subset:
+            version: v1
+        weight: 15
+      - kubeService:
+          clusterName: cluster1
+          name: reviews
+          namespace: default
+          subset:
+            version: v2
+        weight: 10
+EOF
+```
+
+And this time it should work.
+
+We’ve covered a simple (but very common) use case, but as you can see in the Role definition, we can do much more, for example:
+
+- Create a role to allow a user to use a specific Virtual Mesh
+- Create a role to allow a user to use a specific cluster in a Virtual Mesh
+- Create a role to allow a user to only define Access Policies
+- Create a role to allow a user to only define Traffic Policies
+- Create a role to allow a user to only define Failover Services
+- Create a role to allow a user to only create policies that target the services running in his namespace (but coming from services in any namespace)
+
+Let's delete the TrafficPolicy we've created in the previous lab:
+
+```bash
+kubectl --context mgmt -n gloo-mesh delete trafficpolicy simple
+```
+
+## Lab 10 : Exploring the Gloo Mesh UI
+
+Run the following command to make `mgmt` the current cluster.
+
+```bash
+kubectl config use-context mgmt
+```
+
+Create the following CRD:
+
+```bash
+kubectl --context mgmt apply -f gloo-mesh-wasm-crd.yaml
+```
+
+Deploy the Gloo Mesh UI:
+
+```bash
+helm repo add gloo-mesh-ui https://storage.googleapis.com/gloo-mesh-enterprise/gloo-mesh-ui
+helm repo update
+helm install smh-ui gloo-mesh-ui/gloo-mesh-ui -n gloo-mesh --version=0.6.0
 ```
 
 To access the UI, run the following command:
 
 ```
-kubectl port-forward -n service-mesh-hub svc/service-mesh-hub-console 8090
+kubectl port-forward -n gloo-mesh svc/gloo-mesh-console 8090
 ```
 
 The UI is available at http://localhost:8090
 
-![Gloo SMH Overview](images/smh-ui-1.png)
+![Gloo Mesh Overview](images/smh-ui-1.png)
 
 If you click on `Meshes`, you can the VirtualMesh we've configured previously:
 
-![Gloo SMH VirtualMesh](images/smh-ui-2.png)
+![Gloo Mesh VirtualMesh](images/smh-ui-2.png)
 
 You can see that Global Access Policy is enabled and get more details when you click on `View Virtual Mesh Details`.
 
 For example, you can see the Failover we've configured in the previous lab:
 
-![Gloo SMH VirtualMesh](images/smh-ui-3.png)
+![Gloo Mesh VirtualMesh](images/smh-ui-3.png)
+
+If you click on the Settings icon on the top right corner, you can see the clusters and the RBAC policies:
+
+![Gloo Mesh VirtualMesh](images/smh-ui-4.png)
 
 Take the time to explore the `Policies` and `Debug` tab to see what other information is available.
 
-## Lab 10 : Securing the Edge
+## Lab 11 : Securing the Edge
 
-First of all, let's delete the Objects we've created in the previous lab:
+First of all, let's delete the Objects we've created in the failover lab:
 
 ```bash
-kubectl --context mgmt -n service-mesh-hub delete trafficpolicy mgmt-reviews-outlier
-kubectl --context mgmt -n service-mesh-hub delete failoverservice reviews-failover
+kubectl --context mgmt -n gloo-mesh delete trafficpolicy mgmt-reviews-outlier
+kubectl --context mgmt -n gloo-mesh delete failoverservice reviews-failover
 kubectl --context mgmt -n default delete trafficpolicy reviews-shift-failover
 ```
 
@@ -1532,14 +1782,14 @@ While the Istio Ingressgateway can also be used to expose your applications to t
 
 Gloo is a feature-rich next-generation API gateway which provides these features. Gloo is exceptional in its function-level routing; its support for legacy apps, microservices and serverless; its discovery capabilities; its numerous features; and its tight integration with leading open-source projects. Gloo is uniquely designed to support hybrid applications, in which multiple technologies, architectures, protocols, and clouds can coexist.
 
-![Gloo SMH](images/gloo-smh-1.png)
+![Gloo Mesh](images/gloo-smh-1.png)
 
 Let's deploy Gloo on the first cluster:
 
 ```bash
 kubectl config use-context cluster1
-glooctl upgrade --release=v1.5.1
-glooctl install gateway enterprise --version 1.5.1 --license-key $LICENSE_KEY
+glooctl upgrade --release=v1.5.8
+glooctl install gateway enterprise --version 1.5.8 --license-key $LICENSE_KEY
 ```
 
 Use the following commands to wait for the Gloo components to be deployed:
@@ -1668,10 +1918,10 @@ Let's create an `AccessPolicy` to remedy that:
 
 ```bash
 cat << EOF | kubectl --context mgmt apply -f -
-apiVersion: networking.smh.solo.io/v1alpha2
+apiVersion: networking.mesh.gloo.solo.io/v1alpha2
 kind: AccessPolicy
 metadata:
-  namespace: service-mesh-hub
+  namespace: gloo-mesh
   name: gloo
 spec:
   sourceSelector:

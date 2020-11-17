@@ -469,8 +469,8 @@
     become_user: solo
     become_method: su
 
-  - name: Add SMH_LICENSE_KEY environment variable
-    shell: echo "export SMH_LICENSE_KEY={{ lookup('env','SMH_LICENSE_KEY') }}" >> /home/solo/.bashrc
+  - name: Add GLOO_MESH_LICENSE_KEY environment variable
+    shell: echo "export GLOO_MESH_LICENSE_KEY={{ lookup('env','GLOO_MESH_LICENSE_KEY') }}" >> /home/solo/.bashrc
     become_user: solo
     become_method: su
 

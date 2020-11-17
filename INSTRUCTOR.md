@@ -71,7 +71,7 @@ All solo.io enterprise products require a license key.  If you'd like to preset 
 
 ```
 export LICENSE_KEY=VeryLongKeyString
-export SMH_LICENSE_KEY=AnotherVeryLongKeyString
+export GLOO_MESH_LICENSE_KEY=AnotherVeryLongKeyString
 export PORTAL_LICENSE_KEY=AnotherVeryLongKeyString
 ```
 
