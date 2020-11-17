@@ -1493,7 +1493,7 @@ Afer 2 minutes, you can validate that the requests are now handled by the first 
 kubectl --context cluster1 logs -l app=reviews -c istio-proxy -f
 ```
 
-## Lab 9 : Gloo Mesh RBAC
+## Lab 9 : Gloo Mesh Enterprise RBAC
 
 In large organizations, several teams are using the same Kubernetes cluster. They use Kubernetes RBAC to define who can do what and where.
 
@@ -1505,11 +1505,17 @@ The good news is that Gloo Mesh comes with an RBAC capability that is filling th
 
 With Gloo Mesh RBAC, you can define Roles and RoleBindings to determine what users can do in a very fine grained manner.
 
-Now, if you try to create the multi cluster Traffic Policy we used before, you shouldn't be allowed to do it.
+When we deployed Gloo Mesh, we applied an `admin.yaml` file that has granted the Gloo Mesh admin Role to the current user.
 
-Let's try:
+Let's delete the corresponding `RoleBinding`:
 
 ```bash
+kubectl --context mgmt -n gloo-mesh delete rolebindings.rbac.mesh.gloo.solo.io admin-role-binding
+```
+
+Now, if you try to create the multi cluster Traffic Policy we used before, you shouldn't be allowed to do it.
+
+```
 cat << EOF | kubectl --context mgmt apply -f -
 apiVersion: networking.mesh.gloo.solo.io/v1alpha2
 kind: TrafficPolicy
@@ -1555,14 +1561,14 @@ Here is the expected output:
 Error from server (User kubernetes-admin does not have the permissions necessary to perform this action.): error when creating "STDIN": admission webhook "rbac-webhook.gloo-mesh.svc" denied the request: User kubernetes-admin does not have the permissions necessary to perform this action.
 ```
 
-Let's create an admin Role:
+Let's create a namespace admin Role:
 
 ```bash
 cat << EOF | kubectl --context mgmt apply -f -
 apiVersion: rbac.mesh.gloo.solo.io/v1alpha1
 kind: Role
 metadata:
-  name: admin-role
+  name: default-namespace-admin-role
   namespace: gloo-mesh
 spec:
   trafficPolicyScopes:
@@ -1573,13 +1579,13 @@ spec:
             labels:
               "*": "*"
             namespaces:
-              - "*"
+              - "default"
             clusters:
               - "*"
         - kubeServiceRefs:
             services:
               - name: "*"
-                namespace: "*"
+                namespace: "default"
                 clusterName: "*"
       workloadSelectors:
         - labels:
@@ -1598,40 +1604,42 @@ spec:
     - identitySelectors:
         - kubeIdentityMatcher:
             namespaces:
-              - "*"
+              - "default"
             clusters:
               - "*"
           kubeServiceAccountRefs:
             serviceAccounts:
               - name: "*"
-                namespace: "*"
+                namespace: "default"
                 clusterName: "*"
       trafficTargetSelectors:
         - kubeServiceMatcher:
             labels:
               "*": "*"
             namespaces:
-              - "*"
+              - "default"
             clusters:
               - "*"
           kubeServiceRefs:
             services:
               - name: "*"
-                namespace: "*"
+                namespace: "default"
                 clusterName: "*"
   failoverServiceScopes:
     - meshRefs:
         - name: "*"
-          namespace: "*"
+          namespace: "default"
       backingServices:
         - kubeService:
             name: "*"
-            namespace: "*"
+            namespace: "default"
             clusterName: "*"
 EOF
 ```
 
-Then, you can create a Role Binding to grant this Role to the current user:
+With this role, a user can create policies on the `default` namespace (globally).
+
+Then, you need to create a Role Binding to grant this Role to the current user:
 
 ```bash
 cat << EOF | kubectl --context mgmt apply -f -
@@ -1640,11 +1648,11 @@ kind: RoleBinding
 metadata:
   labels:
     app: gloo-mesh
-  name: admin-role-binding
+  name: default-namespace-admin-role-binding
   namespace: gloo-mesh
 spec:
   roleRef:
-    name: admin-role
+    name: default-namespace-admin-role
     namespace: gloo-mesh
   subjects:
     - kind: User
@@ -1711,7 +1719,14 @@ Let's delete the TrafficPolicy we've created in the previous lab:
 kubectl --context mgmt -n gloo-mesh delete trafficpolicy simple
 ```
 
-## Lab 10 : Exploring the Gloo Mesh UI
+We also need to grant the admin role back to the current user:
+
+```bash
+kubectl --context mgmt -n gloo-mesh delete rolebindings.rbac.mesh.gloo.solo.io default-namespace-admin-role-binding
+kubectl --context mgmt apply -f admin.yaml
+```
+
+## Lab 10 : Exploring the Gloo Mesh Enterprise UI
 
 To access the UI, run the following command:
 
