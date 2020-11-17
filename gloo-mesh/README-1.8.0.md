@@ -284,7 +284,7 @@ do
   sleep 1
 done
 
-until [ $(kubectl --context cluster1 -n istio-system get pods -o jsonpath='{range .items[*].status.containerStatuses[*]}{.ready}{"\n"}{end}' | grep true -c) -eq 8 ]; do
+until [ $(kubectl --context cluster1 -n istio-system get pods -o jsonpath='{range .items[*].status.containerStatuses[*]}{.ready}{"\n"}{end}' | grep true -c) -eq 4 ]; do
   echo "Waiting for all the Istio pods to become ready"
   sleep 1
 done
@@ -294,7 +294,7 @@ do
   sleep 1
 done
 
-until [ $(kubectl --context cluster2 -n istio-system get pods -o jsonpath='{range .items[*].status.containerStatuses[*]}{.ready}{"\n"}{end}' | grep true -c) -eq 8 ]; do
+until [ $(kubectl --context cluster2 -n istio-system get pods -o jsonpath='{range .items[*].status.containerStatuses[*]}{.ready}{"\n"}{end}' | grep true -c) -eq 4 ]; do
   echo "Waiting for all the Istio pods to become ready"
   sleep 1
 done
