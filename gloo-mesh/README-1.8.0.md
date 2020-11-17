@@ -137,13 +137,13 @@ cluster2   23s
 Download istio 1.7.4:
 
 ```bash
-curl -L https://istio.io/downloadIstio | ISTIO_VERSION=1.7.4 sh -
+#curl -L https://istio.io/downloadIstio | ISTIO_VERSION=1.8.0 sh -
 ```
 
 Now let's deploy Istio on the first cluster:
 
 ```bash
-./istio-1.7.4/bin/istioctl --context cluster1 operator init
+./istio-1.8.0/bin/istioctl --context cluster1 operator init
 
 kubectl --context cluster1 create ns istio-system
 
@@ -212,7 +212,7 @@ EOF
 And deploy Istio on the second cluster:
 
 ```bash
-./istio-1.7.4/bin/istioctl --context cluster2 operator init
+./istio-1.8.0/bin/istioctl --context cluster2 operator init
 
 kubectl --context cluster2 create ns istio-system
 
@@ -248,6 +248,28 @@ spec:
             port: 443
         vm-network:
   components:
+    ingressGateways:
+    - name: istio-ingressgateway
+      enabled: true
+      k8s:
+        service:
+          ports:
+            - port: 15021
+              targetPort: 15021
+              name: status-port
+            - port: 80
+              targetPort: 8080
+              name: http2
+            - port: 443
+              targetPort: 8443
+              name: https
+            - port: 31400
+              targetPort: 31400
+              name: tcp
+              # This is the port where sni routing happens
+            - port: 15443
+              targetPort: 15443
+              name: tls
     pilot:
       k8s:
         env:
