@@ -165,8 +165,6 @@ spec:
   values:
     global:
       trustDomain: cluster1
-      meshExpansion:
-        enabled: true
       multiCluster:
         clusterName: cluster1
       network: main-network
@@ -234,8 +232,6 @@ spec:
   values:
     global:
       trustDomain: cluster2
-      meshExpansion:
-        enabled: true
       multiCluster:
         clusterName: cluster2
       network: main-network
