@@ -82,11 +82,7 @@ kubectl config use-context mgmt
 First of all, you need to install the *meshctl* CLI:
 
 ```bash
-<<<<<<< HEAD:gloo-mesh/README.md
 curl -sL https://run.solo.io/meshctl/install | GLOO_MESH_VERSION=v0.10.2 sh -
-=======
-curl -sL https://run.solo.io/meshctl/install | GLOO_MESH_VERSION=v0.9.1 sh -
->>>>>>> aec138916939b3e603f93d1e08b324a30341769e:smh/README.md
 export PATH=$HOME/.gloo-mesh/bin:$PATH
 ```
 
@@ -1488,7 +1484,25 @@ Afer 2 minutes, you can validate that the requests are now handled by the first 
 kubectl --context cluster1 logs -l app=reviews -c istio-proxy -f
 ```
 
-## Lab 9 : Gloo Mesh RBAC
+## Lab 9 : Gloo Mesh Enteprise
+
+Gloo Mesh Enterprise is adding unique features on top of Gloo Mesh Open Source (RBAC, UI, WASM, ...).
+
+Run the following command to make `mgmt` the current cluster.
+
+```bash
+kubectl config use-context mgmt
+```
+
+Run the following commands to deploy Gloo Mesh Enterprise:
+
+```bash
+helm repo add gloo-mesh-enterprise https://storage.googleapis.com/gloo-mesh-enterprise/gloo-mesh-enterprise
+helm repo update
+helm install gloo-mesh-enterprise gloo-mesh-enterprise/gloo-mesh-enterprise -n gloo-mesh --set license=${GLOO_MESH_LICENSE_KEY} --version=0.1.0
+```
+
+## Lab 10 : Gloo Mesh RBAC
 
 In large organizations, several teams are using the same Kubernetes cluster. They use Kubernetes RBAC to define who can do what and where.
 
@@ -1499,22 +1513,6 @@ Gloo Mesh abstracts the complexity with AccessPolicies and TrafficPolicies, but 
 The good news is that Gloo Mesh comes with an RBAC capability that is filling this gap.
 
 With Gloo Mesh RBAC, you can define Roles and RoleBindings to determine what users can do in a very fine grained manner.
-
-Let's deploy Gloo Mesh RBAC.
-
-Run the following command to make `mgmt` the current cluster.
-
-```bash
-kubectl config use-context mgmt
-```
-
-Run the following commands to deploy it:
-
-```bash
-helm repo add rbac-webhook https://storage.googleapis.com/gloo-mesh-enterprise/rbac-webhook
-helm repo update
-helm install rbac-webhook rbac-webhook/rbac-webhook -n gloo-mesh --set license_key=${GLOO_MESH_LICENSE_KEY} --version=0.1.2
-```
 
 Now, if you try to create the multi cluster Traffic Policy we used before, you shouldn't be allowed to do it.
 
@@ -1722,36 +1720,12 @@ Let's delete the TrafficPolicy we've created in the previous lab:
 kubectl --context mgmt -n gloo-mesh delete trafficpolicy simple
 ```
 
-## Lab 10 : Exploring the Gloo Mesh UI
-
-Run the following command to make `mgmt` the current cluster.
-
-```bash
-kubectl config use-context mgmt
-```
-
-Create the following CRD:
-
-```bash
-kubectl --context mgmt apply -f gloo-mesh-wasm-crd.yaml
-```
-
-Deploy the Gloo Mesh UI:
-
-```bash
-helm repo add gloo-mesh-ui https://storage.googleapis.com/gloo-mesh-enterprise/gloo-mesh-ui
-helm repo update
-<<<<<<< HEAD:gloo-mesh/README.md
-helm install smh-ui gloo-mesh-ui/gloo-mesh-ui -n gloo-mesh --version=0.6.0
-=======
-helm install smh-ui service-mesh-hub-ui/service-mesh-hub-ui -n service-mesh-hub --set license_key=${SMH_LICENSE_KEY} --version=0.5.7
->>>>>>> aec138916939b3e603f93d1e08b324a30341769e:smh/README.md
-```
+## Lab 11 : Exploring the Gloo Mesh UI
 
 To access the UI, run the following command:
 
 ```
-kubectl port-forward -n gloo-mesh svc/gloo-mesh-console 8090
+kubectl --context mgmt port-forward -n gloo-mesh svc/gloo-mesh-console 8090
 ```
 
 The UI is available at http://localhost:8090
