@@ -82,7 +82,11 @@ kubectl config use-context mgmt
 First of all, you need to install the *meshctl* CLI:
 
 ```bash
+<<<<<<< HEAD:gloo-mesh/README.md
 curl -sL https://run.solo.io/meshctl/install | GLOO_MESH_VERSION=v0.10.2 sh -
+=======
+curl -sL https://run.solo.io/meshctl/install | GLOO_MESH_VERSION=v0.9.1 sh -
+>>>>>>> aec138916939b3e603f93d1e08b324a30341769e:smh/README.md
 export PATH=$HOME/.gloo-mesh/bin:$PATH
 ```
 
@@ -1737,7 +1741,11 @@ Deploy the Gloo Mesh UI:
 ```bash
 helm repo add gloo-mesh-ui https://storage.googleapis.com/gloo-mesh-enterprise/gloo-mesh-ui
 helm repo update
+<<<<<<< HEAD:gloo-mesh/README.md
 helm install smh-ui gloo-mesh-ui/gloo-mesh-ui -n gloo-mesh --version=0.6.0
+=======
+helm install smh-ui service-mesh-hub-ui/service-mesh-hub-ui -n service-mesh-hub --set license_key=${SMH_LICENSE_KEY} --version=0.5.7
+>>>>>>> aec138916939b3e603f93d1e08b324a30341769e:smh/README.md
 ```
 
 To access the UI, run the following command:
