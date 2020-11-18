@@ -194,7 +194,7 @@ spec:
             - name: status-port
               port: 15021
               targetPort: 15021
-            - name: mtls
+            - name: tls
               port: 15443
               targetPort: 15443
             - name: tcp-istiod
@@ -265,7 +265,7 @@ spec:
             - name: status-port
               port: 15021
               targetPort: 15021
-            - name: mtls
+            - name: tls
               port: 15443
               targetPort: 15443
             - name: tcp-istiod
@@ -284,7 +284,7 @@ EOF
 
 # kubectl -n istio-system exec -it $(kubectl -n istio-system get pods -l app=istio-ingressgateway -o jsonpath='{.items[0].metadata.name}') -- curl -X POST http://localhost:15000/logging?filter=trace
 
-# kubectl exec -it $(kubectl get pods -l app=productpage -o jsonpath='{.items[0].metadata.name}') -- python -c "import requests; r = requests.post('http://localhost:15000/logging?filter=trace'); print(r.text)"
+# kubectl exec -it $(kubectl get pods -l app=productpage -o jsonpath='{.items[0].metadata.name}') -- python -c "import requests; r = requests.post('http://localhost:15000/logging?filter=rbac'); print(r.text)"
 
 
 <!--bash
