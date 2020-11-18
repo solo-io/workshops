@@ -169,6 +169,14 @@ spec:
       multiCluster:
         clusterName: cluster1
       network: network1
+      meshNetworks:
+        network1:
+          endpoints:
+          - fromRegistry: cluster1
+          gateways:
+          - registryServiceName: istio-ingressgateway.istio-system.svc.cluster.local
+            port: 443
+        vm-network:
   components:
     ingressGateways:
     - name: istio-ingressgateway
@@ -240,6 +248,14 @@ spec:
       multiCluster:
         clusterName: cluster2
       network: network2
+      meshNetworks:
+        network2:
+          endpoints:
+          - fromRegistry: cluster2
+          gateways:
+          - registryServiceName: istio-ingressgateway.istio-system.svc.cluster.local
+            port: 443
+        vm-network:
   components:
     ingressGateways:
     - name: istio-ingressgateway
