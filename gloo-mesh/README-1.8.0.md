@@ -100,7 +100,7 @@ kubectl apply -f admin.yaml # temporary
 
 kubectl --context mgmt -n gloo-mesh rollout status deploy/discovery 
 kubectl --context mgmt -n gloo-mesh rollout status deploy/networking 
-kubectl --context mgmt -n gloo-mesh rollout status rbac-webhook
+kubectl --context mgmt -n gloo-mesh rollout status deploy/rbac-webhook
 kubectl --context mgmt -n gloo-mesh rollout status deploy/gloo-mesh-apiserver
 ```
 
@@ -164,41 +164,45 @@ spec:
     trustDomain: cluster1
   values:
     global:
+      meshID: mesh1
       trustDomain: cluster1
       multiCluster:
         clusterName: cluster1
-      network: main-network
-      meshNetworks:
-        main-network:
-          endpoints:
-          - fromRegistry: cluster1
-          gateways:
-          - registryServiceName: istio-ingressgateway.istio-system.svc.cluster.local
-            port: 443
-        vm-network:
+      network: network1
   components:
     ingressGateways:
     - name: istio-ingressgateway
+      label:
+        topology.istio.io/network: network1
       enabled: true
       k8s:
+        env:
+          # sni-dnat adds the clusters required for AUTO_PASSTHROUGH mode
+          - name: ISTIO_META_ROUTER_MODE
+            value: "sni-dnat"
+          # traffic through this gateway should be routed inside the network
+          - name: ISTIO_META_REQUESTED_NETWORK_VIEW
+            value: network1
         service:
           ports:
-            - port: 15021
-              targetPort: 15021
-              name: status-port
-            - port: 80
+            - name: http2
+              port: 80
               targetPort: 8080
-              name: http2
-            - port: 443
+            - name: https
+              port: 443
               targetPort: 8443
-              name: https
-            - port: 31400
-              targetPort: 31400
-              name: tcp
-              # This is the port where sni routing happens
-            - port: 15443
+            - name: status-port
+              port: 15021
+              targetPort: 15021
+            - name: mtls
+              port: 15443
               targetPort: 15443
-              name: tls
+            - name: tcp-istiod
+              port: 15012
+              targetPort: 15012
+            - name: tcp-webhook
+              port: 15017
+              targetPort: 15017
     pilot:
       k8s:
         env:
@@ -228,44 +232,48 @@ spec:
   meshConfig:
     accessLogFile: /dev/stdout
     enableAutoMtls: true
-    trustDomain: cluster2
+    trustDomain: cluster1
   values:
     global:
+      meshID: mesh1
       trustDomain: cluster2
       multiCluster:
         clusterName: cluster2
-      network: main-network
-      meshNetworks:
-        main-network:
-          endpoints:
-          - fromRegistry: cluster2
-          gateways:
-          - registryServiceName: istio-ingressgateway.istio-system.svc.cluster.local
-            port: 443
-        vm-network:
+      network: network2
   components:
     ingressGateways:
     - name: istio-ingressgateway
+      label:
+        topology.istio.io/network: network2
       enabled: true
       k8s:
+        env:
+          # sni-dnat adds the clusters required for AUTO_PASSTHROUGH mode
+          - name: ISTIO_META_ROUTER_MODE
+            value: "sni-dnat"
+          # traffic through this gateway should be routed inside the network
+          - name: ISTIO_META_REQUESTED_NETWORK_VIEW
+            value: network2
         service:
           ports:
-            - port: 15021
-              targetPort: 15021
-              name: status-port
-            - port: 80
+            - name: http2
+              port: 80
               targetPort: 8080
-              name: http2
-            - port: 443
+            - name: https
+              port: 443
               targetPort: 8443
-              name: https
-            - port: 31400
-              targetPort: 31400
-              name: tcp
-              # This is the port where sni routing happens
-            - port: 15443
+            - name: status-port
+              port: 15021
+              targetPort: 15021
+            - name: mtls
+              port: 15443
               targetPort: 15443
-              name: tls
+            - name: tcp-istiod
+              port: 15012
+              targetPort: 15012
+            - name: tcp-webhook
+              port: 15017
+              targetPort: 15017
     pilot:
       k8s:
         env:
@@ -273,6 +281,11 @@ spec:
             value: "true"
 EOF
 ```
+
+# kubectl -n istio-system exec -it $(kubectl -n istio-system get pods -l app=istio-ingressgateway -o jsonpath='{.items[0].metadata.name}') -- curl -X POST http://localhost:15000/logging?filter=trace
+
+# kubectl exec -it $(kubectl get pods -l app=productpage -o jsonpath='{.items[0].metadata.name}') -- python -c "import requests; r = requests.post('http://localhost:15000/logging?filter=trace'); print(r.text)"
+
 
 <!--bash
 until kubectl --context cluster1 get ns istio-system
