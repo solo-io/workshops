@@ -134,10 +134,10 @@ cluster2   23s
 
 ## Lab 3 : Deploy Istio on both clusters
 
-Download istio 1.7.4:
+Download istio 1.8.0:
 
 ```bash
-#curl -L https://istio.io/downloadIstio | ISTIO_VERSION=1.8.0 sh -
+curl -L https://istio.io/downloadIstio | ISTIO_VERSION=1.8.0 sh -
 ```
 
 Now let's deploy Istio on the first cluster:
@@ -297,11 +297,6 @@ spec:
             value: "true"
 EOF
 ```
-
-# kubectl -n istio-system exec -it $(kubectl -n istio-system get pods -l app=istio-ingressgateway -o jsonpath='{.items[0].metadata.name}') -- curl -X POST http://localhost:15000/logging?filter=trace
-
-# kubectl exec -it $(kubectl get pods -l app=productpage -o jsonpath='{.items[0].metadata.name}') -- python -c "import requests; r = requests.post('http://localhost:15000/logging?filter=rbac'); print(r.text)"
-
 
 <!--bash
 until kubectl --context cluster1 get ns istio-system
