@@ -49,7 +49,7 @@ We'll use Helm to deploy the Developer portal:
 helm repo add dev-portal https://storage.googleapis.com/dev-portal-helm
 helm repo update
 kubectl create namespace dev-portal
-helm install dev-portal dev-portal/dev-portal -n dev-portal --set licenseKey.value=${PORTAL_LICENSE_KEY} --set istio.enabled=true
+helm install dev-portal dev-portal/dev-portal -n dev-portal --set licenseKey.value=${PORTAL_LICENSE_KEY} --set istio.enabled=true --version=0.4.14
 ```
 
 <!--bash
@@ -501,78 +501,6 @@ ISTIO_SERVICE_CIDR=$(echo '{"apiVersion":"v1","kind":"Service","metadata":{"name
 touch "${WORK_DIR}"/cluster.env
 echo ISTIO_SERVICE_CIDR=$ISTIO_SERVICE_CIDR > "${WORK_DIR}"/cluster.env
 echo "ISTIO_INBOUND_PORTS=9999" >> "${WORK_DIR}"/cluster.env
-```
-
-Expose the port 15012 of istiod through the Istio Ingress Gateway:
-
-```bash
-kubectl apply -f - <<EOF
-apiVersion: networking.istio.io/v1beta1
-kind: Gateway
-metadata:
-  name: istiod
-  namespace: istio-system
-spec:
-  selector:
-    istio: ingressgateway
-  servers:
-  - port:
-      number: 15012
-      name: tcp
-      protocol: TCP
-    hosts:
-    - "*"
----
-apiVersion: networking.istio.io/v1beta1
-kind: VirtualService
-metadata:
-  name: istiod
-  namespace: istio-system
-spec:
-  hosts:
-  - "*"
-  gateways:
-  - istiod
-  tcp:
-  - match:
-    - port: 15012
-    route:
-    - destination:
-        host: istiod.istio-system.svc.cluster.local
-        port:
-          number: 15012
-EOF
-
-cat > service-patch.yaml <<'EOF'
-spec:
-  ports:
-  - name: status-port
-    nodePort: 30364
-    port: 15021
-    protocol: TCP
-    targetPort: 15021
-  - name: http2
-    nodePort: 31709
-    port: 80
-    protocol: TCP
-    targetPort: 8080
-  - name: https
-    nodePort: 32056
-    port: 443
-    protocol: TCP
-    targetPort: 8443
-  - name: tls
-    nodePort: 31769
-    port: 15443
-    protocol: TCP
-    targetPort: 15443
-  - name: istiod
-    port: 15012
-    protocol: TCP
-    targetPort: 15012
-EOF
-
-kubectl -n istio-system patch Service istio-ingressgateway --type=merge --patch "$(cat service-patch.yaml)"
 ```
 
 Add an entry in the hosts file to resolve the address of istiod by the IP address of the Istio Ingress Gateway:

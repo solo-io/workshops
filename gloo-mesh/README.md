@@ -82,22 +82,23 @@ kubectl config use-context mgmt
 First of all, you need to install the *meshctl* CLI:
 
 ```bash
-curl -sL https://run.solo.io/meshctl/install | GLOO_MESH_VERSION=v0.10.2 sh -
+curl -sL https://run.solo.io/meshctl/install | GLOO_MESH_VERSION=v0.10.3 sh -
 export PATH=$HOME/.gloo-mesh/bin:$PATH
 ```
 
 Gloo Mesh Enterprise is adding unique features on top of Gloo Mesh Open Source (RBAC, UI, WASM, ...).
 
-Run the following commands to deploy Gloo Mesh Enterprise:
+Run the following commands to deploy Gloo Mesh Enterprise and grant yourself the admin role:
 
 ```bash
-helm repo add gloo-mesh-enterprise https://storage.googleapis.com/gloo-mesh-enterprise/gloo-mesh-enterprise
-helm repo update
-kubectl create namespace gloo-mesh
-kubectl apply -f gloo-mesh-wasm-crd.yaml # temporary
-helm install gloo-mesh-enterprise gloo-mesh-enterprise/gloo-mesh-enterprise -n gloo-mesh --set license=${GLOO_MESH_LICENSE_KEY} --version=0.1.0
-kubectl apply -f admin.yaml # temporary
+kubectl apply -f gloo-mesh-wasm-crd.yaml
+meshctl install enterprise --license=${GLOO_MESH_LICENSE_KEY} --version=0.1.1
+kubectl apply -f admin.yaml
+```
 
+Run the following commands to wait for the deployments to be ready:
+
+```bash
 kubectl --context mgmt -n gloo-mesh rollout status deploy/discovery 
 kubectl --context mgmt -n gloo-mesh rollout status deploy/networking 
 kubectl --context mgmt -n gloo-mesh rollout status rbac-webhook
@@ -121,6 +122,7 @@ meshctl cluster register \
 You can list the registered cluster using the following command:
 
 ```bash
+kubectl get kubernetescluster -n gloo-mesh
 kubectl get kubernetescluster -n gloo-mesh
 ```
 
@@ -677,7 +679,7 @@ metadata:
 type: certificates.mesh.gloo.solo.io/issued_certificate
 ```
 
-As you can see, the secrets contain the same Root CA (base64 encoded), but different intermediate certs.
+As you can see, the secrets contain the same Root cert (base64 encoded), but different intermediate (ca-cert) certs.
 
 <!--bash
 until kubectl --context cluster1 get secret -n istio-system cacerts
@@ -1806,7 +1808,7 @@ Everything is done by simply running the following command:
 glooctl istio inject
 ```
 
-It will restart a few Pods, so you can use the following commands to wait for all the Pods to be ready:
+It will restart the `gateway-proxy` (Envoy) Pod, so you can use the following commands to wait for all the Pods to be ready:
 
 <!--bash
 kubectl --context cluster1 -n istio-system delete pod -l app=istio-ingressgateway
@@ -1890,13 +1892,7 @@ status:
       state: 1
 ```
 
-Check that all the Pods are running in the `default` namespace:
-
-```bash
-kubectl --context cluster1 get pods
-```
-
-When the pods are all running, the bookinfo app is accessible via the Gloo gateway using the `172.18.0.221` IP address.
+The bookinfo app is accessible via the Gloo gateway using the `172.18.0.221` IP address.
 
 Go to this new <a href="http://172.18.0.221/productpage" target="_blank">bookinfo app URL</a> to see if you can access the `productpage` microservice using Gloo.
 
