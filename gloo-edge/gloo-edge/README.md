@@ -1,52 +1,61 @@
-# Gloo Workshop
+# Gloo Edge Workshop
 
-Gloo is a feature-rich, Kubernetes-native ingress controller, and next-generation API gateway. Gloo is exceptional in its function-level routing; its support for legacy apps, microservices and serverless; its discovery capabilities; its numerous features; and its tight integration with leading open-source projects. Gloo is uniquely designed to support hybrid applications, in which multiple technologies, architectures, protocols, and clouds can coexist.
+Gloo Edge is a feature-rich, Kubernetes-native ingress controller, and next-generation API gateway. Gloo is exceptional in its function-level routing; its support for legacy apps, microservices and serverless; its discovery capabilities; its numerous features; and its tight integration with leading open-source projects. Gloo is uniquely designed to support hybrid applications, in which multiple technologies, architectures, protocols, and clouds can coexist.
 
 The goal of this workshop is to expose some key features of Gloo API Gateway, like traffic management, security, and API management.
 
 ## Lab Environment
 
-The following Lab environment consists of a Kubernetes environment deployed locally using kind, during this workshop we are going to deploy a demo application and expose/protect it using Gloo.
+The following Lab environment consists of a Kubernetes environment deployed locally using kind, during this workshop we are going to deploy a demo application and expose/protect it using Gloo Edge.
+
 In this workshop we will:
-* Deploy a demo application (Istio's [bookinfo](https://istio.io/latest/docs/examples/bookinfo/) demo app) on a k8s cluster and expose it through Gloo
-* Deploy a second version of the demo app, and route partial traffic to it
+* Deploy a demo application (Istio's [bookinfo](https://istio.io/latest/docs/examples/bookinfo/) demo app) on a k8s cluster and expose it through Gloo Edge
+* Deploy a second version of the demo app and route traffic to both versions
 * Secure the demo app using TLS
 * Secure the demo app using OIDC
 * Rate limit the traffic going to the demo app
 * Transform a response using Gloo transformations
 * Configure access logs
+* Use several of these features together to configure an advanced OIDC workflow
 
 
 ![Lab](images/env.png)
 
 ## Lab 0: Demo Environment Creation
 
-Go the folder `/home/solo/workshops/gloo/gloo` directory using the terminal
+Go to the `/home/solo/workshops/gloo-edge/gloo-edge` directory:
 
 ```
-cd /home/solo/workshops/gloo/gloo
+cd /home/solo/workshops/gloo-edge/gloo-edge
 ```
 
 ### Create a Kubernetes Cluster
 
 Deploy a local Kubernetes cluster using this command:
+
 ```bash
-../../scripts/deploy.sh 1 gloo
+../../scripts/deploy.sh 1 gloo-edge
 ```
 
-Then verify that your Kubernetes cluster is ready to be used: 
+Then verify that your Kubernetes cluster is ready: 
+
 ```bash
-../../scripts/check.sh gloo
+../../scripts/check.sh gloo-edge
 ```
 
 ### Install Gloo 
+
+Run the commands below to deploy Gloo Edge Enterprise:
+
 ```bash
-kubectl config use-context gloo
-glooctl upgrade --release=v1.5.3
-glooctl install gateway enterprise --version 1.5.3 --license-key $LICENSE_KEY
+kubectl config use-context gloo-edge
+glooctl upgrade --release=v1.5.11
+glooctl install gateway enterprise --version 1.5.11 --license-key $LICENSE_KEY
 ```
 
-Use the following commands to wait for the Gloo components to be deployed:
+Gloo Edge can also be deployed using a Helm chart.
+
+Use the following commands to wait for the Gloo Edge components to be deployed:
 
 ```bash
 until kubectl get ns gloo-system
@@ -64,8 +73,15 @@ done
 
 ### Routing to a Kubernetes Service 
 
-In this step we will expose a demo service to the outside world using Gloo.
-First let's create a demo applications called bookinfo: 
+In this step we will expose a demo service to the outside world using Gloo Edge.
+
+First let's deploy a demo application called bookinfo:
+
+```bash
+kubectl create ns bookinfo 
+kubectl -n bookinfo  apply -f https://raw.githubusercontent.com/istio/istio/1.7.3/samples/bookinfo/platform/kube/bookinfo.yaml
+kubectl delete deployment reviews-v1 reviews-v3 -n bookinfo
+```
  
 ```
                  +----------------------------------------------------------------------------+
@@ -81,27 +97,21 @@ First let's create a demo applications called bookinfo:
                  |   |                                                                        |
                  |   |                                                                        |
                  |   |                                                                        |
-                 | +-v-------+                                                                |
-                 | |  Gloo   |                                                                |
-                 | |         |                                                                |
-                 | +---------+                                                                |
+                 | +-v------------+                                                           |
+                 | |  Gloo Edge   |                                                           |
+                 | |              |                                                           |
+                 | +--------------+                                                           |
                  |                                                                            |
                  |Kubernetes                                                                  |
                  +----------------------------------------------------------------------------+
-
-
 ```
 
-```bash
-kubectl create ns bookinfo 
-kubectl -n bookinfo  apply -f https://raw.githubusercontent.com/istio/istio/1.7.3/samples/bookinfo/platform/kube/bookinfo.yaml
-kubectl delete deployment reviews-v1 reviews-v3 -n bookinfo
-```
-The bookinfo app has 3 versions of a microservice called reviews.  We will keep only version 2 of the reviews microservice for this tutorial, and we will add the other versions later.  An easy way to distinguish among the different versions in the web interface is that v1 shows no stars with its reviews, v2 shows black stars, and v3 shows red stars.
+The bookinfo app has 3 versions of a microservice called reviews.  We will keep only the version 2 of the reviews microservice for this step and will add the other versions later.  An easy way to distinguish among the different versions in the web interface is to look at the stars: v1 displays no stars in the reviews, v2 displays black stars, and v3 displays red stars.
 
 
-Gloo uses a discovery mechanism to create Upstreams automatically, but Upstreams can be created manually too using CRDs.
-After a few seconds, Gloo will discover the newly created service and create a corresponding Upstream called  **bookinfo-productpage-9080** (Gloo uses the convention `namespace-service-port` for naming automatically discovered Upstreams).
+Gloo Edge uses a discovery mechanism to create Upstreams automatically, but Upstreams can be also created manually using Kubernetes CRDs.
+
+After a few seconds, Gloo Edge will discover the newly created service and create an Upstream called  **bookinfo-productpage-9080** (Gloo Edge uses the convention `namespace-service-port` for the discovered Upstreams).
 
 To verify that the Upstream was created properly, run the following command: 
 
@@ -126,7 +136,7 @@ It should return the discovered upstream with an `Accepted` status:
 +---------------------------+------------+----------+----------------------------+
 ```
 
-Now that the upstream CRD has been created, we need to create a Gloo virtual service that routes traffic to the upstream:
+Now that the Upstream CRD has been created, we need to create a Gloo Edge Virtual Service that routes traffic to it:
 
 ```bash
 kubectl apply -f - <<EOF
@@ -150,30 +160,30 @@ spec:
 EOF
 ```
 
-The creation of the virtual service exposes the Kubernetes service through the gateway.
+The creation of the Virtual Service exposes the Kubernetes service through the gateway.
 
-We can make access the application using the web browser by running the following command:
+We can access the application using the web browser by running the following command:
 
 ```
 /opt/google/chrome/chrome $(glooctl proxy url)/productpage
 ```
 
-It should return the bookinfo demo application webpage. Note that the review stars are black. 
+It should return the bookinfo application webpage. Note that the review stars are black (v2).
+
 ![Lab](images/1.png)
 
 
 ### Routing to Multiple Upstreams
 
-In many use cases we need to route traffic to two different versions of the application to test a new feature. For example, in this step, we are going to create a virtual service that routes to two different Upstreams:
+In many cases, we need to route traffic to two different versions of an application to test a new feature. In this step, we are going to update the Virtual Service to route traffic to two different Upstreams:
 
-The first step is to create a version 3 of our demo service: 
+The first step is to create a new deployment of the demo application, this time with the version 3 of the reviews microservice: 
 
 ```bash
 kubectl create ns bookinfo-beta 
 kubectl -n bookinfo-beta apply -f https://raw.githubusercontent.com/istio/istio/1.7.3/samples/bookinfo/platform/kube/bookinfo.yaml
 kubectl delete deployment reviews-v1 reviews-v2 -n bookinfo-beta
 ```
-The bookinfo app has 3 versions of a microservice called reviews.  We will keep only version 3 of the reviews microservice for this application deployment.
 
 ```
                  +----------------------------------------------------------------------------+
@@ -189,14 +199,13 @@ The bookinfo app has 3 versions of a microservice called reviews.  We will keep 
                  |   |                                |                                       |
                  |   |                                |    +---------------+                  |
                  |   |                                |    |-------+       |                  |
-                 | +-v-------+                        +--->-|Product       |                  |
-                 | |  Gloo   |                             ||Page  |       |                  |
-                 | |         |                             +-------+       |                  |
-                 | +---------+                             |Bookinfo beta  |                  |
+                 | +-v------------+                   +--->-|Product       |                  |
+                 | |  Gloo Edge   |                        ||Page  |       |                  |
+                 | |              |                        +-------+       |                  |
+                 | +--------------+                        |Bookinfo beta  |                  |
                  |                                         +v3             |                  |
                  |Kubernetes                               |---------------+                  |
                  +----------------------------------------------------------------------------+
-
 ```
 
 Verify that the Upstream for the beta application was created, using the following command: 
@@ -210,7 +219,7 @@ do
 done
 ```
 
-Now we can route to multiple Upstreams by creating the following Virtual Service CRD: 
+Now we can route to multiple Upstreams by updating the Virtual Service as follow: 
 
 ```bash
 kubectl apply -f - <<EOF
@@ -243,21 +252,19 @@ spec:
 EOF
 ```
 
-To check that Gloo is routing to the two different Upstreams (50% traffic each), we are going to use the browser.
-We should see the black star (v2) reviews, and the new red star reviews (v3) after refreshing the page:  
+We should see either the black star reviews (v2) or the new red star reviews (v3) when refreshing the page.
 
-```
-/opt/google/chrome/chrome $(glooctl proxy url)/productpage 
-```
 ![Lab](images/2.png)
 
 
 ## Lab 2: Security
-In this chapter, we will explore some Gloo features related to security. 
+
+In this lab, we will explore some Gloo Edge features related to security. 
 
 ### Network Encryption - Server TLS
 
 In this step we are going to secure our demo application using TLS.
+
 Let's first create a private key and a self-signed certificate to use in our demo Virtual Service:
 
 ```bash
@@ -265,13 +272,14 @@ openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
    -keyout tls.key -out tls.crt -subj "/CN=*"
 ```
 
-Then we have store them as a secret in Kubernetes running the following command:
+Then we have store them in a Kubernetes secret running the following command:
+
 ```bash
 kubectl create secret tls upstream-tls --key tls.key \
    --cert tls.crt --namespace gloo-system
 ```
 
-To setup Server TLS we have to add the SSL config to the Virtual Service:
+To setup TLS we have to add the SSL config to the Virtual Service:
 
 ```bash
 kubectl apply -f - <<EOF
@@ -310,7 +318,7 @@ spec:
 EOF
 ```
 
-Now the gateway is secured through TLS. To test the TLS configuration, run the following command to open the browser (note that now the traffic is served using https): 
+Now the application is securely exposed through TLS. To test the TLS configuration, run the following command to open the browser (note that now the traffic is served using https): 
 
 ```
 /opt/google/chrome/chrome $(glooctl proxy url --port https)/productpage 
@@ -318,7 +326,7 @@ Now the gateway is secured through TLS. To test the TLS configuration, run the f
 
 ### OIDC Support
 
-In many use cases, we need to restrict the access to our applications to authenticated users. In the following chapter we will secure our application using an OIDC Identity Provider.
+In many use cases, we need to restrict the access to our applications to authenticated users. In this step, we will secure our application using an OIDC Identity Provider.
 
 Let's start by installing the open-source [Dex](https://landscape.cncf.io/selected=dex) IdP on our cluster:
  
@@ -372,15 +380,13 @@ The architecture looks like this now:
                  |   |                    Auth        |                                       |
                  |   |                     |          |    +---------------+                  |
                  |   |                     |          |    |-------+       |                  |
-                 | +-v-------+             |          +--->-|Product       |                  |
-                 | |  Gloo   |        +----v-----+         ||Page  |       |                  |
-                 | |         |        |          |         +-------+       |                  |
-                 | +---------+        |   IDP    |         |Bookinfo beta  |                  |
+                 | +-v------------+        |          +--->-|Product       |                  |
+                 | |  Gloo Edge   |   +----v-----+         ||Page  |       |                  |
+                 | |              |   |          |         +-------+       |                  |
+                 | +--------------+   |   IDP    |         |Bookinfo beta  |                  |
                  |                    +----------+         +v3             |                  |
                  |Kubernetes                               |---------------+                  |
                  +----------------------------------------------------------------------------+
-
-
 ```
 
 
@@ -389,19 +395,20 @@ Let's save the Dex IP in an environment variable for future use:
 ```bash
 export DEX_IP=$(kubectl get service dex --namespace gloo-system  --output jsonpath='{.status.loadBalancer.ingress[0].ip}')
 ```
-Because we are using a local Kubernetes cluster, we need to configure the Dex host to point to the Load balancer IP:
+
+Because we are using a local Kubernetes cluster, we need to configure the Dex FQDN to point to the Load balancer IP:
 
 ```bash
 echo "$DEX_IP dex.gloo-system.svc.cluster.local" | sudo tee -a /etc/hosts
 ```
 
-The next step is to setup the authentication in the Virtual Service. For this we will have to create a Kubernetes Secret that contains the OIDC secret:
+The next step is to configure the authentication in the Virtual Service. For this we will have to create a Kubernetes Secret that contains the OIDC secret:
 
 ```bash
 glooctl create secret oauth --client-secret secretvalue oauth
 ```
 
-Then we will create an AuthConfig, which is a Gloo custom resource that configures authentication: 
+Then we will create an AuthConfig, which is a Gloo Edge CRD that contains authentication information: 
 
 ```bash
 kubectl apply -f - <<EOF
@@ -425,7 +432,7 @@ spec:
 EOF
 ```
 
-Finally we activate the authentication on the Virtual Service using the AuthConfig:
+Finally we activate the authentication on the Virtual Service by referencing the AuthConfig:
 
 ```bash
 kubectl apply -f - <<EOF
@@ -468,20 +475,17 @@ spec:
 EOF
 ```
 
-To test the authentication, run the following command to open the browser: 
-
-```
-/opt/google/chrome/chrome $(glooctl proxy url --port https)/productpage 
-```
+To test the authentication, refresh the web browser.
 
 If you login as the **admin@example.com** user with the password **password**, Gloo should redirect you to the application.
 
 ![Lab](images/3.png)
 
 ### Rate Limiting
-Modern enterprises must protect their applications from DDoS attacks. In this example, we are going to use rate limiting to protect our demo application.
 
-To enable rate limiting on a Virtual Service, we will first create a RateLimitConfig custom resource:
+In this step, we are going to use rate limiting to protect our demo application.
+
+To enable rate limiting on our Virtual Service, we will first create a RateLimitConfig CRD:
 
 ```bash
 kubectl apply -f - << EOF
@@ -552,20 +556,17 @@ spec:
 EOF
 ```
 
-To test the rate limiting, run the following command to open the browser, then refresh the browser until you see a 429 message indicating that the rate limit was exceeded: 
+To test rate limiting, refresh the browser until you see a 429 message. 
 
-```
-/opt/google/chrome/chrome $(glooctl proxy url --port https)/productpage 
-```
 ![Lab](images/4.png)
 
-
 ## Lab 3: Data Transformation
-In this section we will explore the request transformations using Gloo.
 
-### Response Transformation 
+In this section we will explore how to transform requests using Gloo Edge.
 
-The following example demonstrates how to modify a response using Gloo, we are going to return a basic html page in case the response code is 429 (rate limited).  
+### Response Transformation
+
+The following example demonstrates how to modify a response using Gloo Edge. We are going to return a basic html page when the response code is 429 (rate limited).  
 
 ```bash
 kubectl apply -f - <<EOF
@@ -617,21 +618,16 @@ spec:
                           namespace: gloo-system
 EOF
 ```
-Refreshing your browser a couple times, you should be able to see a styled HTML page indicating that you reached the limit of calls. 
 
-```
-/opt/google/chrome/chrome $(glooctl proxy url --port https)/productpage 
-```
-![Lab](images/5.png)
-
+Refreshing your browser a couple times, you should be able to see a styled HTML page indicating that you reached the limit. 
 
 ## Lab 4: Logging
 
 ### Access Logs
 
-Logs are important to check if a system is behaving correctly and for debugging. Logs aggregators (datadog, splunk..etc) use agents deployed on the Kubernetes clusters to collect logs.  
+Access logs are important to check if a system is behaving correctly and for debugging purposes. Logs aggregators (datadog, splunk..etc) use agents deployed on the Kubernetes clusters to collect logs.  
 
-Lets first activate the access logs on the gateway: 
+Lets first enable access logging on the gateway: 
 
 ```bash
 kubectl apply -f - <<EOF
@@ -685,21 +681,21 @@ EOF
 ```
 
 NOTE:  You can safely ignore the following warning when you run the above command:
+
 ```
 Warning: kubectl apply should be used on resource created by either kubectl create --save-config or kubectl apply
 ```
 
-Refresh your browser a couple times to generate some traffic:
-```
-/opt/google/chrome/chrome $(glooctl proxy url --port https)/productpage 
-```
+Refresh your browser a couple times to generate some traffic.
 
-Check the logs running the following command:
+Check the access logs running the following command:
+
 ```bash
 kubectl logs -n gloo-system deployment/gateway-proxy | grep '^{' | jq
 ```
 
-If you refresh the browser to send additional requests until the rate limiting threshold is exceeded, then you will see both `200 OK` and `429 Too Many Requests` responses in the access logs, as in the example log snippet below.
+If you refresh the browser to send additional requests until the rate limiting threshold is exceeded, then you will see both `200 OK` and `429 Too Many Requests` responses in the access logs, as in the example below.
+
 ```
 {
   "messageType": null,
@@ -737,13 +733,13 @@ The following labs are optional. The instructor will go through them.
 
 ## Lab 5: Advanced Authentication Workflows
 
-As you've seen in the previous lab, Gloo supports authentication via OpenID Connect (OIDC). OIDC is an identity layer on top of the OAuth 2.0 protocol. In OAuth 2.0 flows, authentication is performed by an external Identity Provider (IdP) which, in case of success, returns an Access Token representing the user identity. The protocol does not define the contents and structure of the Access Token, which greatly reduces the portability of OAuth 2.0 implementations.
+As you've seen in the previous lab, Gloo Edge supports authentication via OpenID Connect (OIDC). OIDC is an identity layer on top of the OAuth 2.0 protocol. In OAuth 2.0 flows, authentication is performed by an external Identity Provider (IdP) which, in case of success, returns an Access Token representing the user identity. The protocol does not define the contents and structure of the Access Token, which greatly reduces the portability of OAuth 2.0 implementations.
 
 The goal of OIDC is to address this ambiguity by additionally requiring Identity Providers to return a well-defined ID Token. OIDC ID tokens follow the JSON Web Token standard and contain specific fields that your applications can expect and handle. This standardization allows you to switch between Identity Providers – or support multiple ones at the same time – with minimal, if any, changes to your downstream services; it also allows you to consistently apply additional security measures like Role-based Access Control (RBAC) based on the identity of your users, i.e. the contents of their ID token.
 
 As explained above, Google OIDC will return a JWT token, so we’ll use Gloo to extract some claims from this token and to create new headers corresponding to these claims.
 
-Finally, we’ll see how Gloo RBAC rules can be created to leverage the claims contained in the JWT token.
+Finally, we’ll see how Gloo Edge RBAC rules can be created to leverage the claims contained in the JWT token.
 
 First of all, let's deploy a new application that returns information about the requests it receives:
 
@@ -1052,13 +1048,13 @@ Here is the output you should get if you refresh the web page:
 }
 ```
 
-As you can see, Gloo has added the x-solo-claim-email and x-solo-claime-email-verified headers using the information it has extracted from the JWT token.
+As you can see, Gloo Edge has added the x-solo-claim-email and x-solo-claime-email-verified headers using the information it has extracted from the JWT token.
 
 It will allow the application to know who the user is and if his email has been verified.
 
 ### RBAC using the claims of the JWT token
 
-Gloo can also be used to set RBAC rules based on the claims of the JWT token returned by the identity provider.
+Gloo Edge can also be used to set RBAC rules based on the claims of the JWT token returned by the identity provider.
 
 Let’s update the Virtual Service as follow:
 
@@ -1148,9 +1144,9 @@ But if you change the path to anything that doesn't start with `/get`, you shoul
 RBAC: access denied
 ```
 
-## Lab 6 : Solo.io Developer Portal
+## Lab 6 : Gloo Portal
 
-The Solo.io Developer Portal provides a framework for managing the definitions of APIs, API client identity, and API policies on top of the Istio and Gloo Gateways. Vendors of API products can leverage the Developer Portal to secure, manage, and publish their APIs independent of the operations used to manage networking infrastructure.
+Gloo Portal provides a framework for managing the definitions of APIs, API client identity, and API policies on top of Gloo Edge or of the Istio Ingress Gateway. Vendors of API products can leverage Gloo Portal to secure, manage, and publish their APIs independent of the operations used to manage networking infrastructure.
 
 ### Install Developer Portal
 
@@ -1171,7 +1167,7 @@ licenseKey:
 EOF
 
 kubectl create namespace dev-portal
-helm install dev-portal dev-portal/dev-portal -n dev-portal --values gloo-values.yaml
+helm install dev-portal dev-portal/dev-portal -n dev-portal --values gloo-values.yaml  --version=0.4.14
 ```
 
 <!--bash
@@ -1261,10 +1257,10 @@ kubectl get apiproducts.devportal.solo.io -n bookinfo bookinfo-product -oyaml
 
 ### Test the Service
 
-When targeting Gloo Gateways, the Developer Portal manages a set of Gloo Custom Resource Definitions (CRDs) on behalf of users:
+When targeting Gloo Edge, Gloo Portal manages a set of Gloo Edge Custom Resource Definitions (CRDs) on behalf of users:
 
-- VirtualServices: The Developer Portal generates a Gloo VirtualService for each API Product. The VirtualService contains a single HTTP route for each API operation exposed in the product. Routes are named and their matchers are derived from the OpenAPI definition.
-- Upstreams: The Developer Portal generates a Gloo Upstream for each unique destination references in an API Product route.
+- VirtualServices: Gloo Portal generates a Gloo Edge VirtualService for each API Product. The VirtualService contains a single HTTP route for each API operation exposed in the product. Routes are named and their matchers are derived from the OpenAPI definition.
+- Upstreams: Gloo Portal generates a Gloo Upstream for each unique destination references in an API Product route.
 
 So, you can now access the API using the command below:
 
@@ -1284,7 +1280,7 @@ curl -H "Host: api.example.com" http://172.18.0.210/api/v1/products
 
 ### Configure a Portal
 
-Once a set of APIs have been bundled together in an API Product, those products can be published in a user-friendly interface through which outside developers can discover, browse, request access to, and interact with APIs. This is done by defining Portals, a custom resource which tells the Developer Portal how to publish a customized website containing an interactive catalog of those products.
+Once a set of APIs have been bundled together in an API Product, those products can be published in a user-friendly interface through which outside developers can discover, browse, request access to, and interact with APIs. This is done by defining Portals, a custom resource which tells Gloo Portal how to publish a customized website containing an interactive catalog of those products.
 
 Let's create a Portal:
 
@@ -1331,7 +1327,7 @@ EOF
 
 ### Establish User Access Control
 
-We are now going to create a user (dev1) and then add him to a group (developers). Users and groups are both stored as Custom Resources (CRs) in Kubernetes. Note that the Portal Web Application can be configured to use OIDC to authenticate users who access the Portal.
+We are now going to create a user (dev1) and then add him to a group (developers). Users and groups are both stored as CRDs in Kubernetes. Note that the Portal Web Application can be configured to use OIDC to authenticate users who access the Portal.
 
 Here are the commands to create the user and the group:
 
@@ -1446,7 +1442,7 @@ EOF
 
 ### Explore the Administrative Interface
 
-Let's run the following command to allow access ot the admin UI of the Developer Portal:
+Let's run the following command to allow access ot the admin UI of Gloo Portal:
 
 ```
 kubectl port-forward -n dev-portal svc/admin-server 8000:8080
