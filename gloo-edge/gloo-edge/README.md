@@ -18,9 +18,6 @@ In this workshop we will:
 * Configure access logs
 * Use several of these features together to configure an advanced OIDC workflow
 
-
-![Lab](images/env.png)
-
 ## Lab 0: Demo Environment Creation
 
 Go to the `/home/solo/workshops/gloo-edge/gloo-edge` directory:
@@ -1245,7 +1242,7 @@ spec:
     description: Bookinfo Product
     title: Bookinfo Product
     image:
-      fetchUrl: https://github.com/solo-io/workshops/raw/master/smh/images/books.png
+      fetchUrl: https://github.com/solo-io/workshops/raw/master/gloo-edge/gloo-edge/images/books.png
 EOF
 ```
 
@@ -1295,11 +1292,11 @@ spec:
   displayName: Bookinfo Portal
   description: The Developer Portal for the Bookinfo API
   banner:
-    fetchUrl: https://github.com/solo-io/workshops/raw/master/smh/images/books.png
+    fetchUrl: https://github.com/solo-io/workshops/raw/master/gloo-edge/gloo-edge/images/books.png
   favicon:
-    fetchUrl: https://github.com/solo-io/workshops/raw/master/smh/images/books.png
+    fetchUrl: https://github.com/solo-io/workshops/raw/master/gloo-edge/gloo-edge/images/books.png
   primaryLogo:
-    fetchUrl: https://github.com/solo-io/workshops/raw/master/smh/images/books.png
+    fetchUrl: https://github.com/solo-io/workshops/raw/master/gloo-edge/gloo-edge/images/books.png
   customStyling: {}
   staticPages: []
   domains:
@@ -1402,7 +1399,7 @@ spec:
     description: Bookinfo Product
     title: Bookinfo Product
     image:
-      fetchUrl: https://github.com/solo-io/workshops/raw/master/smh/images/books.png
+      fetchUrl: https://github.com/solo-io/workshops/raw/master/gloo-edge/gloo-edge/images/books.png
   plans:
   - authPolicy:
       apiKey: {}
