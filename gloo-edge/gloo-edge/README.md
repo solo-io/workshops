@@ -253,7 +253,6 @@ We should see either the black star reviews (v2) or the new red star reviews (v3
 
 ![Lab](images/2.png)
 
-
 ## Lab 2: Security
 
 In this lab, we will explore some Gloo Edge features related to security. 
@@ -557,6 +556,76 @@ To test rate limiting, refresh the browser until you see a 429 message.
 
 ![Lab](images/4.png)
 
+### Web Application Firewall (WAF)
+
+A web application firewall (WAF) protects web applications by monitoring, filtering and blocking potentially harmful traffic and attacks that can overtake or exploit them.
+
+Gloo Edge Enterprise includes the ability to enable the ModSecurity Web Application Firewall for any incoming and outgoing HTTP connections. 
+
+Let's update our Virtual Service to determine the characters allowed for usernames.
+
+```bash
+kubectl apply -f - <<EOF
+apiVersion: gateway.solo.io/v1
+kind: VirtualService
+metadata:
+  name: demo
+  namespace: gloo-system
+spec:
+  sslConfig:
+    secretRef:
+      name: upstream-tls
+      namespace: gloo-system  
+  virtualHost:
+    options:
+      extauth:
+        configRef:
+          name: oidc-dex
+          namespace: gloo-system
+      rateLimitConfigs:
+        refs:
+        - name: global-limit
+          namespace: gloo-system
+# ---------------- Web Application Firewall -----------
+      waf:
+        customInterventionMessage: 'Username should only contain letters'
+        ruleSets:
+        - ruleStr: |
+            # Turn rule engine on
+            SecRuleEngine On
+            SecRule ARGS:/username/ "[^a-zA-Z]" "t:none,phase:2,deny,id:6,log,msg:'allow only letters in username'"
+#------------------------------------------------------
+    domains:
+      - '*'
+    routes:
+      - matchers:
+          - prefix: /
+        routeAction:
+            multi:
+                destinations:
+                - weight: 5
+                  destination:
+                      upstream:
+                          name: bookinfo-productpage-9080
+                          namespace: gloo-system
+                - weight: 5
+                  destination:
+                      upstream:
+                          name: bookinfo-beta-productpage-9080
+                          namespace: gloo-system
+EOF
+```
+
+The rule means that a username can only contains letters.
+
+Click on the `Sign in` button and try to login with a user called `user1` (the password doesn't matter).
+
+You should get the following error message:
+
+```
+Username should only contain letters
+```
+
 ## Lab 3: Data Transformation
 
 In this section we will explore how to transform requests using Gloo Edge.
@@ -587,6 +656,13 @@ spec:
         refs:
         - name: global-limit
           namespace: gloo-system
+      waf:
+        customInterventionMessage: 'Username should only contain letters'
+        ruleSets:
+        - ruleStr: |
+            # Turn rule engine on
+            SecRuleEngine On
+            SecRule ARGS:/username/ "[^a-zA-Z]" "t:none,phase:2,deny,id:6,log,msg:'allow only letters in username'"
 # ---------------- Transformation ------------------          
       transformations:
         responseTransformation:
@@ -618,9 +694,123 @@ EOF
 
 Refreshing your browser a couple times, you should be able to see a styled HTML page indicating that you reached the limit. 
 
-## Lab 4: Logging
+## Lab 4: Delegation
 
-### Access Logs
+Gloo Edge provides a feature referred to as delegation. Delegation allows a complete routing configuration to be assembled from separate config objects. The root config object delegates responsibility to other objects, forming a tree of config objects. The tree always has a Virtual Service as its root, which delegates to any number of Route Tables. Route Tables can further delegate to other Route Tables.
+
+Use cases for delegation include:
+
+- Allowing multiple tenants to own add, remove, and update routes without requiring shared access to the root-level Virtual Service
+- Sharing route configuration between Virtual Services
+- Simplifying blue-green routing configurations by swapping the target Route Table for a delegated route.
+- Simplifying very large routing configurations for a single Virtual Service
+- Restricting ownership of routing configuration for a tenant to a subset of the whole Virtual Service.
+
+Let's rewrite our Virtual Service to use delegate the routing information to a Route Table:
+
+```bash
+kubectl apply -f - <<EOF
+apiVersion: gateway.solo.io/v1
+kind: RouteTable
+metadata:
+  name: demo
+  namespace: gloo-system
+spec:
+  routes:
+    - matchers:
+        - prefix: /
+      routeAction:
+          multi:
+              destinations:
+              - weight: 5
+                destination:
+                    upstream:
+                        name: bookinfo-productpage-9080
+                        namespace: gloo-system
+              - weight: 5
+                destination:
+                    upstream:
+                        name: bookinfo-beta-productpage-9080
+                        namespace: gloo-system
+---
+apiVersion: gateway.solo.io/v1
+kind: VirtualService
+metadata:
+  name: demo
+  namespace: gloo-system
+spec:
+  sslConfig:
+    secretRef:
+      name: upstream-tls
+      namespace: gloo-system  
+  virtualHost:
+    options:
+      extauth:
+        configRef:
+          name: oidc-dex
+          namespace: gloo-system
+      rateLimitConfigs:
+        refs:
+        - name: global-limit
+          namespace: gloo-system
+      waf:
+        customInterventionMessage: 'Username should only contain letters'
+        ruleSets:
+        - ruleStr: |
+            # Turn rule engine on
+            SecRuleEngine On
+            SecRule ARGS:/username/ "[^a-zA-Z]" "t:none,phase:2,deny,id:6,log,msg:'allow only letters in username'"
+      transformations:
+        responseTransformation:
+          transformationTemplate:
+            parseBodyBehavior: DontParse
+            body: 
+              text: '{% if header(":status") == "429" %}<html><body style="background-color:powderblue;"><h1>Too many Requests!</h1><p>Try again after 10 seconds</p></body></html>{% else %}{{ body() }}{% endif %}'    
+    domains:
+      - '*'
+    routes:
+      - matchers:
+          - prefix: /
+        delegateAction:
+          ref:
+            name: 'demo'
+            namespace: 'gloo-system'
+EOF
+```
+
+As you can see, in this case the security options remains in the `VirtualService` (and can be managed by the infrastructure team) whil the routing options are now in the `RouteTable` (and can be managed by the application team).
+
+## Lab 5: Observability
+
+### Metrics
+
+Gloo Edge automatically generates a Grafana dashboard for whole-cluster stats (overall request timing, aggregated response codes, etc.), and dynamically generates a more-specific dashboard for each upstream that is tracked.
+
+Let's run the following command to allow access ot the Grafana UI:
+
+```
+kubectl port-forward -n gloo-system svc/glooe-grafana 8001:80
+```
+
+You can now access the Grafana UI at http://localhost:8001 and login with `admin/admin`.
+
+You can take a look at the `Gloo -> Envoy Statistics` Dashboard that provides global statistics:
+
+![Grafana Envoy Statistics](images/grafana1.png)
+
+You can also see that Gloo is dynamically generating a Dashboard for each Upstream:
+
+![Grafana Upstream](images/grafana2.png)
+
+You can run the following command to see the default template used to generate these templates:
+
+```
+kubectl -n gloo-system get cm gloo-observability-config -o yaml
+```
+
+If you want to customize how these per-upstream dashboards look, you can provide your own template to use by writing a Grafana dashboard JSON representation to that config map key. 
+
+### Access Logging
 
 Access logs are important to check if a system is behaving correctly and for debugging purposes. Logs aggregators (datadog, splunk..etc) use agents deployed on the Kubernetes clusters to collect logs.  
 
@@ -728,7 +918,7 @@ These logs can now be collected by the Log aggregator agents and potentially for
 
 The following labs are optional. The instructor will go through them.
 
-## Lab 5: Advanced Authentication Workflows
+## Lab 6: Advanced Authentication Workflows
 
 As you've seen in the previous lab, Gloo Edge supports authentication via OpenID Connect (OIDC). OIDC is an identity layer on top of the OAuth 2.0 protocol. In OAuth 2.0 flows, authentication is performed by an external Identity Provider (IdP) which, in case of success, returns an Access Token representing the user identity. The protocol does not define the contents and structure of the Access Token, which greatly reduces the portability of OAuth 2.0 implementations.
 
@@ -1141,7 +1331,7 @@ But if you change the path to anything that doesn't start with `/get`, you shoul
 RBAC: access denied
 ```
 
-## Lab 6 : Gloo Portal
+## Lab 7 : Gloo Portal
 
 Gloo Portal provides a framework for managing the definitions of APIs, API client identity, and API policies on top of Gloo Edge or of the Istio Ingress Gateway. Vendors of API products can leverage Gloo Portal to secure, manage, and publish their APIs independent of the operations used to manage networking infrastructure.
 
