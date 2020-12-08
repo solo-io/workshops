@@ -91,8 +91,8 @@ Gloo Mesh Enterprise is adding unique features on top of Gloo Mesh Open Source (
 Run the following commands to deploy Gloo Mesh Enterprise:
 
 ```bash
-kubectl apply -f gloo-mesh-wasm-crd.yaml
-meshctl install enterprise --license=${GLOO_MESH_LICENSE_KEY} --version=0.1.1
+# kubectl apply -f gloo-mesh-wasm-crd.yaml
+meshctl install enterprise --license=${GLOO_MESH_LICENSE_KEY} --version=0.2.0
 kubectl apply -f admin.yaml
 
 kubectl --context mgmt -n gloo-mesh rollout status deploy/discovery 

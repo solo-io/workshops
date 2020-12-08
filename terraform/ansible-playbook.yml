@@ -123,23 +123,15 @@
       name: task-xfce-desktop
       state: present
 
+  - name: Install chromium
+    apt:
+      name: chromium
+      state: present
+
   - name: Disable the lightdm service
     service:
       name: lightdm
       enabled: no
-
-  - name: Download Google Chrome
-    get_url:
-      url: https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
-      dest: /tmp/google-chrome-stable_current_amd64.deb
-
-  - name: Install Google Chrome
-    apt: deb="/tmp/google-chrome-stable_current_amd64.deb"
-
-  - name: Add Chrome to the path
-    shell: echo 'export PATH=$PATH:/opt/google/chrome' >> /home/solo/.bashrc
-    become_user: solo
-    become_method: su
 
   - name: Download the Solo background image
     get_url:
@@ -425,10 +417,10 @@
     become_user: solo
     become_method: su
 
-  - name: Unarchive the default xfce4 config
+  - name: Unarchive the default config
     unarchive:
-      src: https://github.com/solo-io/workshops/raw/master/terraform/config.tgz
-      dest: /home/solo
+      src: https://github.com/solo-io/workshops/raw/master/terraform/chromium.tgz
+      dest: /home/solo/.config
       remote_src: yes
 
   - name: Enable clipboard when launching the terminal
