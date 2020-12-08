@@ -162,7 +162,7 @@ The creation of the Virtual Service exposes the Kubernetes service through the g
 We can access the application using the web browser by running the following command:
 
 ```
-/opt/google/chrome/chrome $(glooctl proxy url)/productpage
+chromium $(glooctl proxy url)/productpage
 ```
 
 It should return the bookinfo application webpage. Note that the review stars are black (v2).
@@ -317,7 +317,7 @@ EOF
 Now the application is securely exposed through TLS. To test the TLS configuration, run the following command to open the browser (note that now the traffic is served using https): 
 
 ```
-/opt/google/chrome/chrome $(glooctl proxy url --port https)/productpage 
+chromium $(glooctl proxy url --port https)/productpage 
 ```
 
 ### OIDC Support
@@ -751,12 +751,13 @@ spec:
           transformationTemplate:
             parseBodyBehavior: DontParse
             body: 
-              text: '{% if header(":status") == "429" %}<html><body style="background-color:powderblue;"><h1>Too many Requests!</h1><p>Try again after 10 seconds</p></body></html>{% else %}{{ body() }}{% endif %}'    
+              text: '{% if header(":status") == "429" %}<html><body style="background-color:powderblue;"><h1>Too many Requests!</h1><p>Try again after 10 seconds</p></body></html>{% else %}{{ body() }}{% endif %}'
     domains:
       - '*'
     routes:
       - matchers:
           - prefix: /
+            caseSensitive: false
         delegateAction:
           ref:
             name: 'demo'
@@ -999,7 +1000,7 @@ EOF
 Let's take a look at what the application returns:
 
 ```
-/opt/google/chrome/chrome $(glooctl proxy url --port https)/get 
+chromium $(glooctl proxy url --port https)/get 
 ```
 
 You should get the following output:

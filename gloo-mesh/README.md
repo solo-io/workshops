@@ -82,7 +82,7 @@ kubectl config use-context mgmt
 First of all, you need to install the *meshctl* CLI:
 
 ```bash
-curl -sL https://run.solo.io/meshctl/install | GLOO_MESH_VERSION=v0.10.3 sh -
+curl -sL https://run.solo.io/meshctl/install | GLOO_MESH_VERSION=v0.10.6 sh -
 export PATH=$HOME/.gloo-mesh/bin:$PATH
 ```
 
