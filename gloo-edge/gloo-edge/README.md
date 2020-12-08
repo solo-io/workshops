@@ -108,7 +108,7 @@ The bookinfo app has 3 versions of a microservice called reviews.  We will keep 
 
 Gloo Edge uses a discovery mechanism to create Upstreams automatically, but Upstreams can be also created manually using Kubernetes CRDs.
 
-After a few seconds, Gloo Edge will discover the newly created service and create an Upstream called  **bookinfo-productpage-9080** (Gloo Edge uses the convention `namespace-service-port` for the discovered Upstreams).
+After a few seconds, Gloo Edge will discover the newly created service and create an Upstream called  `bookinfo-productpage-9080` (Gloo Edge uses the convention `namespace-service-port` for the discovered Upstreams).
 
 To verify that the Upstream was created properly, run the following command: 
 
@@ -324,40 +324,38 @@ Now the application is securely exposed through TLS. To test the TLS configurati
 
 In many use cases, we need to restrict the access to our applications to authenticated users. In this step, we will secure our application using an OIDC Identity Provider.
 
-Let's start by installing the open-source [Dex](https://landscape.cncf.io/selected=dex) IdP on our cluster:
- 
-```bash
-cat > dex-values.yaml <<EOF
-service:
-    type: LoadBalancer
-config:
-  # The base path of dex and the external name of the OpenID Connect service.
-  # This is the canonical URL that all clients MUST use to refer to dex. If a
-  # path is provided, dex's HTTP service will listen at a non-root URL.
-  issuer: http://dex.gloo-system.svc.cluster.local:32000
+Let's start by installing Keycloak:
 
-  # Instead of reading from an external storage, use this list of clients.
-  staticClients:
-  - id: gloo
-    redirectURIs:
-    - "$(glooctl proxy url --port https)/callback"
-    name: 'GlooApp'
-    secret: secretvalue
-  
-  # A static list of passwords to login the end user. By identifying here, dex
-  # won't look in its underlying storage for passwords.
-  staticPasswords:
-  - email: "admin@example.com"
-    # bcrypt hash of the string "password"
-    hash: "\$2a\$10\$2b2cU8CPhOTaGrs1HRQuAueS7JTT5ZHsHSzYiFPm1leZck7Mc8T4W"
-    username: "admin"
-    userID: "08a8684b-db88-4b73-90a9-3cd1661f5466"
-EOF
+```bash
+kubectl create -f https://raw.githubusercontent.com/keycloak/keycloak-quickstarts/latest/kubernetes-examples/keycloak.yaml
+kubectl rollout status deploy/keycloak
 ```
 
+<!--bash
+sleep 30
+-->
+
+Then, we need to configure it and create a user with the credentials `user1/password`:
+
 ```bash
-helm repo add stable https://charts.helm.sh/stable
-helm install dex --namespace gloo-system stable/dex -f dex-values.yaml
+# Get Keycloak URL and token
+KEYCLOAK_URL=http://$(kubectl get service keycloak -o jsonpath='{.status.loadBalancer.ingress[0].ip}'):8080/auth
+KEYCLOAK_TOKEN=$(curl -d "client_id=admin-cli" -d "username=admin" -d "password=admin" -d "grant_type=password" "$KEYCLOAK_URL/realms/master/protocol/openid-connect/token" | jq -r .access_token)
+
+# Create initial token to register the client
+read -r client token <<<$(curl -H "Authorization: Bearer ${KEYCLOAK_TOKEN}" -X POST -H "Content-Type: application/json" -d '{"expiration": 0, "count": 1}' $KEYCLOAK_URL/admin/realms/master/clients-initial-access | jq -r '[.id, .token] | @tsv')
+
+# Register the client
+read -r id secret <<<$(curl -X POST -d "{ \"clientId\": \"${client}\" }" -H "Content-Type:application/json" -H "Authorization: bearer ${token}" ${KEYCLOAK_URL}/realms/master/clients-registrations/default| jq -r '[.id, .secret] | @tsv')
+
+# Add allowed redirect URIs
+curl -H "Authorization: Bearer ${KEYCLOAK_TOKEN}" -X PUT -H "Content-Type: application/json" -d '{"serviceAccountsEnabled": true, "authorizationServicesEnabled": true, "redirectUris": ["https://172.18.0.210/callback", "http://portal.example.com/callback"]}' $KEYCLOAK_URL/admin/realms/master/clients/${id}
+
+# Add the group attribute in the JWT token returned by Keycloak
+curl -H "Authorization: Bearer ${KEYCLOAK_TOKEN}" -X POST -H "Content-Type: application/json" -d '{"name": "group", "protocol": "openid-connect", "protocolMapper": "oidc-usermodel-attribute-mapper", "config": {"claim.name": "group", "jsonType.label": "String", "user.attribute": "group", "id.token.claim": "true", "access.token.claim": "true"}}' $KEYCLOAK_URL/admin/realms/master/clients/${id}/protocol-mappers/models
+
+# Create a user
+curl -H "Authorization: Bearer ${KEYCLOAK_TOKEN}" -X POST -H "Content-Type: application/json" -d '{"username": "user1", "email": "user1@solo.io", "enabled": true, "attributes": {"group": "users"}, "credentials": [{"type": "password", "value": "password", "temporary": false}]}' $KEYCLOAK_URL/admin/realms/master/users
 ```
 
 The architecture looks like this now:
@@ -385,23 +383,10 @@ The architecture looks like this now:
                  +----------------------------------------------------------------------------+
 ```
 
-
-Let's save the Dex IP in an environment variable for future use:
-
-```bash
-export DEX_IP=$(kubectl get service dex --namespace gloo-system  --output jsonpath='{.status.loadBalancer.ingress[0].ip}')
-```
-
-Because we are using a local Kubernetes cluster, we need to configure the Dex FQDN to point to the Load balancer IP:
-
-```bash
-echo "$DEX_IP dex.gloo-system.svc.cluster.local" | sudo tee -a /etc/hosts
-```
-
 The next step is to configure the authentication in the Virtual Service. For this we will have to create a Kubernetes Secret that contains the OIDC secret:
 
 ```bash
-glooctl create secret oauth --client-secret secretvalue oauth
+glooctl create secret oauth --namespace gloo-system --name keycloak-oauth --client-secret ${secret}
 ```
 
 Then we will create an AuthConfig, which is a Gloo Edge CRD that contains authentication information: 
@@ -411,20 +396,21 @@ kubectl apply -f - <<EOF
 apiVersion: enterprise.gloo.solo.io/v1
 kind: AuthConfig
 metadata:
-  name: oidc-dex
+  name: keycloak-oauth
   namespace: gloo-system
 spec:
   configs:
-  - oauth:
-      app_url: "$(glooctl proxy url --port https)"
-      callback_path: /callback
-      client_id: gloo
-      client_secret_ref:
-        name: oauth
-        namespace: gloo-system
-      issuer_url: http://$DEX_IP:32000
-      scopes:
-      - email
+  - oauth2:
+      oidcAuthorizationCode:
+        appUrl: https://172.18.0.210
+        callbackPath: /callback
+        clientId: ${client}
+        clientSecretRef:
+          name: keycloak-oauth
+          namespace: gloo-system
+        issuerUrl: "${KEYCLOAK_URL}/realms/master/"
+        scopes:
+        - email
 EOF
 ```
 
@@ -447,7 +433,7 @@ spec:
     options:
       extauth:
         configRef:
-          name: oidc-dex
+          name: keycloak-oauth
           namespace: gloo-system
 #---------------------------------------------          
     domains:
@@ -473,7 +459,7 @@ EOF
 
 To test the authentication, refresh the web browser.
 
-If you login as the **admin@example.com** user with the password **password**, Gloo should redirect you to the application.
+If you login as the `user1` user with the password `password`, Gloo should redirect you to the application.
 
 ![Lab](images/3.png)
 
@@ -523,7 +509,7 @@ spec:
     options:
       extauth:
         configRef:
-          name: oidc-dex
+          name: keycloak-oauth
           namespace: gloo-system
 # ---------------- Rate limit config ------------------
       rateLimitConfigs:
@@ -562,7 +548,7 @@ A web application firewall (WAF) protects web applications by monitoring, filter
 
 Gloo Edge Enterprise includes the ability to enable the ModSecurity Web Application Firewall for any incoming and outgoing HTTP connections. 
 
-Let's update our Virtual Service to determine the characters allowed for usernames.
+Let's update our Virtual Service to restrict the characters allowed for usernames.
 
 ```bash
 kubectl apply -f - <<EOF
@@ -580,7 +566,7 @@ spec:
     options:
       extauth:
         configRef:
-          name: oidc-dex
+          name: keycloak-oauth
           namespace: gloo-system
       rateLimitConfigs:
         refs:
@@ -650,7 +636,7 @@ spec:
     options:
       extauth:
         configRef:
-          name: oidc-dex
+          name: keycloak-oauth
           namespace: gloo-system
       rateLimitConfigs:
         refs:
@@ -747,7 +733,7 @@ spec:
     options:
       extauth:
         configRef:
-          name: oidc-dex
+          name: keycloak-oauth
           namespace: gloo-system
       rateLimitConfigs:
         refs:
@@ -924,7 +910,7 @@ As you've seen in the previous lab, Gloo Edge supports authentication via OpenID
 
 The goal of OIDC is to address this ambiguity by additionally requiring Identity Providers to return a well-defined ID Token. OIDC ID tokens follow the JSON Web Token standard and contain specific fields that your applications can expect and handle. This standardization allows you to switch between Identity Providers – or support multiple ones at the same time – with minimal, if any, changes to your downstream services; it also allows you to consistently apply additional security measures like Role-based Access Control (RBAC) based on the identity of your users, i.e. the contents of their ID token.
 
-As explained above, Google OIDC will return a JWT token, so we’ll use Gloo to extract some claims from this token and to create new headers corresponding to these claims.
+As explained above, Keycloak will return a JWT token, so we’ll use Gloo to extract some claims from this token and to create new headers corresponding to these claims.
 
 Finally, we’ll see how Gloo Edge RBAC rules can be created to leverage the claims contained in the JWT token.
 
@@ -995,7 +981,7 @@ spec:
     options:
       extauth:
         configRef:
-          name: oidc-dex
+          name: keycloak-oauth
           namespace: gloo-system
     domains:
       - '*'
@@ -1025,20 +1011,19 @@ You should get the following output:
     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9", 
     "Accept-Encoding": "gzip, deflate, br", 
     "Accept-Language": "en-US,en;q=0.9", 
-    "Cache-Control": "max-age=0", 
     "Content-Length": "0", 
-    "Cookie": "id_token=eyJhbGciOiJSUzI1NiIsImtpZCI6Ijg1ZGQwMDNlN2M5NjRiNmE4OWU1ZDRhMjUxOGQ0ZGYzYzI3NTI1NDMifQ.eyJpc3MiOiJodHRwOi8vZGV4Lmdsb28tc3lzdGVtLnN2Yy5jbHVzdGVyLmxvY2FsOjMyMDAwIiwic3ViIjoiQ2lReU9HRTROamcwWWkxa1lqZzRMVFJpTnpNdE9UQmhPUzB6WTJReE5qWXhaalUwTmpZU0JXeHZZMkZzIiwiYXVkIjoiZ2xvbyIsImV4cCI6MTYwMzk3MjU1MCwiaWF0IjoxNjAzODg2MTUwLCJhdF9oYXNoIjoiVFZ1WXlSSE9Ib2VRdDc1bC1jdmtpdyIsImVtYWlsIjoiYWRtaW5AYmV0YS5jb20iLCJlbWFpbF92ZXJpZmllZCI6dHJ1ZX0.pLqEh0dI3rQN3laedSbAcCbyiYovNGZJ1HAKKtBqCqKwBQct8kxmEj9K5UilemV6Li6e7-6AsHhxylMw9xsryFWE-rXpwZMbhzrHevuxeQBc2N5Ub9kUBH8te54Ki_j9AIQ8C1uRwUsZGjulVdPggw79gPgBwnhnLF7ihjwgoNgacfPT3TjTmTO8nsct58jiUc8nINrVBvv89HRktPVbHAbVDfci5IGafB3d-qScgNq0_l87u4KoM94O_4SyVjlaqY9whDOp74DBbCjRvQS1TvPsUACOKlG4XM6ANMBrQQSokYveSCnjAEfTWUd8V-roqPZ4hZZKeZKtayNvjWVskw; access_token=eyJhbGciOiJSUzI1NiIsImtpZCI6Ijg1ZGQwMDNlN2M5NjRiNmE4OWU1ZDRhMjUxOGQ0ZGYzYzI3NTI1NDMifQ.eyJpc3MiOiJodHRwOi8vZGV4Lmdsb28tc3lzdGVtLnN2Yy5jbHVzdGVyLmxvY2FsOjMyMDAwIiwic3ViIjoiQ2lReU9HRTROamcwWWkxa1lqZzRMVFJpTnpNdE9UQmhPUzB6WTJReE5qWXhaalUwTmpZU0JXeHZZMkZzIiwiYXVkIjoiZ2xvbyIsImV4cCI6MTYwMzk3MjU1MCwiaWF0IjoxNjAzODg2MTUwLCJhdF9oYXNoIjoiMEtMQ3RBVUpYTFc4eE1xWldwbFBoQSIsImVtYWlsIjoiYWRtaW5AYmV0YS5jb20iLCJlbWFpbF92ZXJpZmllZCI6dHJ1ZX0.lgoyHq8Y3P50DrnDciN84WLtNCwUnsTl-g4pMtMUT3ue3xWbKRZgPJjWRyhz6dqiFBPbDaNimEZOikvZSfzmgYC7Q1EKNmgK2Kd5vm_ByBZ7xaYxKopQo4QKcp32sL_-orHXq4ORQvo35n8eaDngvw-G7121zIFCBWx7LCOp269hZHIwcbz9jKiaaJufJkXr7A29x2QHOSWKe0qXqaGzDXN_1QxrRa7h9_ojivzAOnbHHp2gM-BW2ncKYSHK7bq9xEhJp6W9uy4_bFGi71QoWewp5G4ilkyoUGsxDoYhZ2TbHX5TWTaa7WldUiOEoC0YygVfw9PtLjHm1euMKjFbuQ", 
+    "Cookie": "id_token=eyJhbGciOiJSUzI1NiIsInR5cCIgOiAiSldUIiwia2lkIiA6ICJZd18zVTBoOFFkbGpsODBiSkQxUDhzbUtud0ZYYkVJZE0xZjlMU3R1N2E0In0.eyJleHAiOjE2MDc0MTkxNjksImlhdCI6MTYwNzQxOTEwOSwiYXV0aF90aW1lIjoxNjA3NDE4NzQ5LCJqdGkiOiI0NzMyNjU5Mi0xY2Q0LTQzNjItODA5ZS01NzA2YzU5MTU2MzYiLCJpc3MiOiJodHRwOi8vMTcyLjE4LjAuMjExOjgwODAvYXV0aC9yZWFsbXMvbWFzdGVyIiwiYXVkIjoiZjg3YzAzOWQtNTdiZi00NTQzLWExZjAtOGIyMmZjNmY5ZTYwIiwic3ViIjoiN2Q0N2I2YmYtOTcyYi00OGRjLWI3YjctM2U5N2NlZGM4NjM1IiwidHlwIjoiSUQiLCJhenAiOiJmODdjMDM5ZC01N2JmLTQ1NDMtYTFmMC04YjIyZmM2ZjllNjAiLCJzZXNzaW9uX3N0YXRlIjoiOGJmNjAzMTYtY2NmYi00ZWZkLWFiNDgtOTc5MmQzNTkzNzBhIiwiYXRfaGFzaCI6InJxZHVfVEVucHZaUElDSm1SblMwM0EiLCJhY3IiOiIwIiwiZW1haWxfdmVyaWZpZWQiOmZhbHNlLCJwcmVmZXJyZWRfdXNlcm5hbWUiOiJ1c2VyMSIsImVtYWlsIjoidXNlcjFAc29sby5pbyIsImdyb3VwIjoidXNlcnMifQ.FnuiURxT6Y8NZGKcFxlud0jgz9QieZiYx5zB0VXeIMeTrKvcmWxkFEViIF22MvaGh2jYRSoSCCqiR3JwMgmMTtDU2NPuAL6FyLbeeOOxOw6h7zc4XRKHzzwPH4p8l6Np4GLgHEPzlP_ZGochgieeYGA5kKzV2r6BrFFoKAbHTio5waJlnyDQQ6_EbBfHngrgiW8ngrMD5RiryhJ-idaNae_bM0KrXTow0xVFpOlo59E03N_QamJeegAPZnwpm5meEMN1w8uHm2WRe3NtUxb2sLBoQoJIKZj-7AsRNPzfJ5kbUQ250Sdbeeo4t6mmO5Vf472DkxzyPho3gf-avLINLg; access_token=eyJhbGciOiJSUzI1NiIsInR5cCIgOiAiSldUIiwia2lkIiA6ICJZd18zVTBoOFFkbGpsODBiSkQxUDhzbUtud0ZYYkVJZE0xZjlMU3R1N2E0In0.eyJleHAiOjE2MDc0MTkxNjksImlhdCI6MTYwNzQxOTEwOSwiYXV0aF90aW1lIjoxNjA3NDE4NzQ5LCJqdGkiOiJhNmI5MDk5MC0zYjBhLTQwZjItYmI0Yy0yMTc0NTlmZjUyMjQiLCJpc3MiOiJodHRwOi8vMTcyLjE4LjAuMjExOjgwODAvYXV0aC9yZWFsbXMvbWFzdGVyIiwiYXVkIjoiYWNjb3VudCIsInN1YiI6IjdkNDdiNmJmLTk3MmItNDhkYy1iN2I3LTNlOTdjZWRjODYzNSIsInR5cCI6IkJlYXJlciIsImF6cCI6ImY4N2MwMzlkLTU3YmYtNDU0My1hMWYwLThiMjJmYzZmOWU2MCIsInNlc3Npb25fc3RhdGUiOiI4YmY2MDMxNi1jY2ZiLTRlZmQtYWI0OC05NzkyZDM1OTM3MGEiLCJhY3IiOiIwIiwicmVhbG1fYWNjZXNzIjp7InJvbGVzIjpbIm9mZmxpbmVfYWNjZXNzIiwidW1hX2F1dGhvcml6YXRpb24iXX0sInJlc291cmNlX2FjY2VzcyI6eyJhY2NvdW50Ijp7InJvbGVzIjpbIm1hbmFnZS1hY2NvdW50IiwibWFuYWdlLWFjY291bnQtbGlua3MiLCJ2aWV3LXByb2ZpbGUiXX19LCJzY29wZSI6Im9wZW5pZCBlbWFpbCBwcm9maWxlIiwiZW1haWxfdmVyaWZpZWQiOmZhbHNlLCJwcmVmZXJyZWRfdXNlcm5hbWUiOiJ1c2VyMSIsImVtYWlsIjoidXNlcjFAc29sby5pbyIsImdyb3VwIjoidXNlcnMifQ.NT4_BFfaDvngCKkg2X1_8eIiyA76sCwIbNo0nFdnelg9wr1PBCW1mFLh8PvD4NQjy26KuYZswMoGtwP5y-6PAuHzoH9Pxe2peeLEGuWhhDfhjE9RknG9qFxVS1jV3-i3rTewoPMJKHFP29Ocmkl9CB31zShOyhsj19YTYWy7wB9Da_GMH7kRjmvYaiZOsNdZ8LVNBeFTp0QYz1xTss-KABBXJNbC164aokWGDwe2wDPyNPf9ZYoEQ4zwjX4Qt5-hBaBnMIH6Je4hei05pjZikiuDcW4KvGOEAfFR6xPWLW0pfxfmuKghAigYhpq5BmLIisgByN0jsfVGRcKkD1_gXQ", 
     "Host": "172.18.0.210", 
     "Sec-Fetch-Dest": "document", 
     "Sec-Fetch-Mode": "navigate", 
     "Sec-Fetch-Site": "none", 
     "Sec-Fetch-User": "?1", 
     "Upgrade-Insecure-Requests": "1", 
-    "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/86.0.4240.111 Safari/537.36", 
+    "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.88 Safari/537.36", 
     "X-Envoy-Expected-Rq-Timeout-Ms": "15000", 
-    "X-User-Id": "http://dex.gloo-system.svc.cluster.local:32000;CiQyOGE4Njg0Yi1kYjg4LTRiNzMtOTBhOS0zY2QxNjYxZjU0NjYSBWxvY2Fs"
+    "X-User-Id": "http://172.18.0.211:8080/auth/realms/master;7d47b6bf-972b-48dc-b7b7-3e97cedc8635"
   }, 
-  "origin": "192.168.149.8", 
+  "origin": "192.168.149.15", 
   "url": "https://172.18.0.210/get"
 }
 ```
@@ -1067,7 +1052,7 @@ spec:
     options:
       extauth:
         configRef:
-          name: oidc-dex
+          name: keycloak-oauth
           namespace: gloo-system
 # -------------Extract Token------------------
       stagedTransformations:
@@ -1116,17 +1101,17 @@ Here is the output you should get if you refresh the web page:
     "Cache-Control": "max-age=0", 
     "Content-Length": "0", 
     "Host": "172.18.0.210", 
-    "Jwt": "eyJhbGciOiJSUzI1NiIsImtpZCI6Ijg1ZGQwMDNlN2M5NjRiNmE4OWU1ZDRhMjUxOGQ0ZGYzYzI3NTI1NDMifQ.eyJpc3MiOiJodHRwOi8vZGV4Lmdsb28tc3lzdGVtLnN2Yy5jbHVzdGVyLmxvY2FsOjMyMDAwIiwic3ViIjoiQ2lReU9HRTROamcwWWkxa1lqZzRMVFJpTnpNdE9UQmhPUzB6WTJReE5qWXhaalUwTmpZU0JXeHZZMkZzIiwiYXVkIjoiZ2xvbyIsImV4cCI6MTYwMzk3MjU1MCwiaWF0IjoxNjAzODg2MTUwLCJhdF9oYXNoIjoiVFZ1WXlSSE9Ib2VRdDc1bC1jdmtpdyIsImVtYWlsIjoiYWRtaW5AYmV0YS5jb20iLCJlbWFpbF92ZXJpZmllZCI6dHJ1ZX0.pLqEh0dI3rQN3laedSbAcCbyiYovNGZJ1HAKKtBqCqKwBQct8kxmEj9K5UilemV6Li6e7-6AsHhxylMw9xsryFWE-rXpwZMbhzrHevuxeQBc2N5Ub9kUBH8te54Ki_j9AIQ8C1uRwUsZGjulVdPggw79gPgBwnhnLF7ihjwgoNgacfPT3TjTmTO8nsct58jiUc8nINrVBvv89HRktPVbHAbVDfci5IGafB3d-qScgNq0_l87u4KoM94O_4SyVjlaqY9whDOp74DBbCjRvQS1TvPsUACOKlG4XM6ANMBrQQSokYveSCnjAEfTWUd8V-roqPZ4hZZKeZKtayNvjWVskw", 
+    "Jwt": "eyJhbGciOiJSUzI1NiIsInR5cCIgOiAiSldUIiwia2lkIiA6ICJZd18zVTBoOFFkbGpsODBiSkQxUDhzbUtud0ZYYkVJZE0xZjlMU3R1N2E0In0.eyJleHAiOjE2MDc0MTkyOTMsImlhdCI6MTYwNzQxOTIzMywiYXV0aF90aW1lIjoxNjA3NDE4NzQ5LCJqdGkiOiI2NWExYzM0Ni0wNTY5LTQwNWUtYTNmZi0wOTVjZGE3MGRiYmMiLCJpc3MiOiJodHRwOi8vMTcyLjE4LjAuMjExOjgwODAvYXV0aC9yZWFsbXMvbWFzdGVyIiwiYXVkIjoiZjg3YzAzOWQtNTdiZi00NTQzLWExZjAtOGIyMmZjNmY5ZTYwIiwic3ViIjoiN2Q0N2I2YmYtOTcyYi00OGRjLWI3YjctM2U5N2NlZGM4NjM1IiwidHlwIjoiSUQiLCJhenAiOiJmODdjMDM5ZC01N2JmLTQ1NDMtYTFmMC04YjIyZmM2ZjllNjAiLCJzZXNzaW9uX3N0YXRlIjoiOGJmNjAzMTYtY2NmYi00ZWZkLWFiNDgtOTc5MmQzNTkzNzBhIiwiYXRfaGFzaCI6IkV5ZUtXbjhELWdZQlIxOWhpaEg2YXciLCJhY3IiOiIwIiwiZW1haWxfdmVyaWZpZWQiOmZhbHNlLCJwcmVmZXJyZWRfdXNlcm5hbWUiOiJ1c2VyMSIsImVtYWlsIjoidXNlcjFAc29sby5pbyIsImdyb3VwIjoidXNlcnMifQ.nrwvo8F1jKjyQCED95gLYAvYi9TxRRDW6_Z8WC8c61WU1hHUMsHJG77G-CG0T8NwORG2cB7dlP3iu_M_e9BaONCsCZsUZUCpwV5w7ZsFxbbMy4jWSuQyd38kTnoFyMHQGxCXGI0VS02TqsAaO6oQIjwoC6Ib_6MKxsgYNrIGhp7FihO7D1rfBW-Ggvqx88INFSMCKWOft6xzYvBS6JQcDjLXMAkc4TOmTBFZkfXpepsKlDjFxW5DreaDZXv1zIUM-dG-1MRk_N5CPg_OWgnjiF4gKWTqCG8hJd__QPwo4RO7FqM5BM8o0u_lugNbgHlB-09GjO7NTZiZHiQB3HxWVw", 
     "Sec-Fetch-Dest": "document", 
     "Sec-Fetch-Mode": "navigate", 
     "Sec-Fetch-Site": "none", 
     "Sec-Fetch-User": "?1", 
     "Upgrade-Insecure-Requests": "1", 
-    "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/86.0.4240.111 Safari/537.36", 
+    "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.88 Safari/537.36", 
     "X-Envoy-Expected-Rq-Timeout-Ms": "15000", 
-    "X-User-Id": "http://dex.gloo-system.svc.cluster.local:32000;CiQyOGE4Njg0Yi1kYjg4LTRiNzMtOTBhOS0zY2QxNjYxZjU0NjYSBWxvY2Fs"
+    "X-User-Id": "http://172.18.0.211:8080/auth/realms/master;7d47b6bf-972b-48dc-b7b7-3e97cedc8635"
   }, 
-  "origin": "192.168.149.8", 
+  "origin": "192.168.149.15", 
   "url": "https://172.18.0.210/get"
 }
 ```
@@ -1155,7 +1140,7 @@ spec:
     options:
       extauth:
         configRef:
-          name: oidc-dex
+          name: keycloak-oauth
           namespace: gloo-system
       stagedTransformations:
         early:
@@ -1177,7 +1162,7 @@ spec:
       jwt:
         providers:
           dex:
-            issuer: http://dex.gloo-system.svc.cluster.local:32000
+            issuer: http://172.18.0.211:8080/auth/realms/master
             tokenSource:
               headers:
               - header: Jwt
@@ -1188,9 +1173,9 @@ spec:
               header: x-solo-claim-email-verified
             jwks:
               remote:
-                url: http://dex.gloo-system.svc.cluster.local:32000/keys
+                url: http://keycloak.default.svc:8080/auth/realms/master/protocol/openid-connect/certs
                 upstreamRef:
-                  name: gloo-system-dex-32000 
+                  name: default-keycloak-8080
                   namespace: gloo-system
 #--------------------------------------------- 
     domains:
@@ -1218,19 +1203,18 @@ Here is the output you should get if you refresh the web page:
     "Cache-Control": "max-age=0", 
     "Content-Length": "0", 
     "Host": "172.18.0.210", 
-    "Referer": "http://dex.gloo-system.svc.cluster.local:32000/auth/local?req=vx6qn6ba2dk3zeku2p52g4vxm", 
     "Sec-Fetch-Dest": "document", 
     "Sec-Fetch-Mode": "navigate", 
     "Sec-Fetch-Site": "cross-site", 
     "Sec-Fetch-User": "?1", 
     "Upgrade-Insecure-Requests": "1", 
-    "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/86.0.4240.111 Safari/537.36", 
+    "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.88 Safari/537.36", 
     "X-Envoy-Expected-Rq-Timeout-Ms": "15000", 
-    "X-Solo-Claim-Email": "admin@example.com", 
-    "X-Solo-Claim-Email-Verified": "true", 
-    "X-User-Id": "http://dex.gloo-system.svc.cluster.local:32000;CiQwOGE4Njg0Yi1kYjg4LTRiNzMtOTBhOS0zY2QxNjYxZjU0NjYSBWxvY2Fs"
+    "X-Solo-Claim-Email": "user1@solo.io", 
+    "X-Solo-Claim-Email-Verified": "false", 
+    "X-User-Id": "http://172.18.0.211:8080/auth/realms/master;7d47b6bf-972b-48dc-b7b7-3e97cedc8635"
   }, 
-  "origin": "192.168.149.8", 
+  "origin": "192.168.149.15", 
   "url": "https://172.18.0.210/get"
 }
 ```
@@ -1261,7 +1245,7 @@ spec:
     options:
       extauth:
         configRef:
-          name: oidc-dex
+          name: keycloak-oauth
           namespace: gloo-system
       stagedTransformations:
         early:
@@ -1282,7 +1266,7 @@ spec:
       jwt:
         providers:
           dex:
-            issuer: http://dex.gloo-system.svc.cluster.local:32000
+            issuer: http://172.18.0.211:8080/auth/realms/master
             tokenSource:
               headers:
               - header: Jwt
@@ -1293,9 +1277,9 @@ spec:
               header: x-solo-claim-email-verified
             jwks:
               remote:
-                url: http://dex.gloo-system.svc.cluster.local:32000/keys
+                url: http://keycloak.default.svc:8080/auth/realms/master/protocol/openid-connect/certs
                 upstreamRef:
-                  name: gloo-system-dex-32000 
+                  name: default-keycloak-8080
                   namespace: gloo-system
 #--------------Add RBAC rule------------------
       rbac:
@@ -1308,7 +1292,7 @@ spec:
             principals:
             - jwtPrincipal:
                 claims:
-                  email: admin@example.com
+                  email: user1@solo.io
 #--------------------------------------------- 
     domains:
       - '*'
@@ -1469,7 +1453,24 @@ curl -H "Host: api.example.com" http://172.18.0.210/api/v1/products
 
 Once a set of APIs have been bundled together in an API Product, those products can be published in a user-friendly interface through which outside developers can discover, browse, request access to, and interact with APIs. This is done by defining Portals, a custom resource which tells Gloo Portal how to publish a customized website containing an interactive catalog of those products.
 
-Let's create a Portal:
+We'll integrate the Portal with Keycloak, so we need to define a couple of variables and create a secret:
+
+```bash
+KEYCLOAK_URL=http://$(kubectl get service keycloak -o jsonpath='{.status.loadBalancer.ingress[0].ip}'):8080/auth
+KEYCLOAK_CLIENT=$(kubectl -n gloo-system get authconfigs.enterprise.gloo.solo.io keycloak-oauth -o jsonpath='{.spec.configs[0].oauth2.oidcAuthorizationCode.clientId}')
+
+cat <<EOF | kubectl apply -f -
+apiVersion: v1
+kind: Secret
+metadata:
+  name: bookinfo-portal-oidc-secret
+  namespace: bookinfo
+data:
+  client_secret: $(kubectl -n gloo-system get secret keycloak-oauth -o jsonpath='{.data.oauth}' | base64 --decode | awk '{ print $2 }' | base64)
+EOF
+```
+
+Let's create the Portal:
 
 ```bash
 cat <<EOF | kubectl apply -f -
@@ -1491,13 +1492,25 @@ spec:
   staticPages: []
   domains:
   - portal.example.com
+
+  oidcAuth:
+    callbackUrlPrefix: http://portal.example.com/
+    clientId: ${KEYCLOAK_CLIENT}
+    clientSecret:
+      name: bookinfo-portal-oidc-secret
+      namespace: bookinfo
+      key: client_secret
+    groupClaimKey: group
+    issuer: ${KEYCLOAK_URL}/realms/master
+
+  # API Products matching these labels will be made visible on this Portal
   publishApiProducts:
     matchLabels:
       portals.devportal.solo.io/default.bookinfo-portal: "true"
 EOF
-```
+````
 
-You can then check the status of the API Product using the following command:
+You can now check the status of the API Product using the following command:
 
 ```bash
 kubectl get portal -n bookinfo bookinfo-portal -oyaml
@@ -1512,55 +1525,9 @@ cat <<EOF | sudo tee -a /etc/hosts
 EOF
 ```
 
-### Establish User Access Control
-
-We are now going to create a user (dev1) and then add him to a group (developers). Users and groups are both stored as CRDs in Kubernetes. Note that the Portal Web Application can be configured to use OIDC to authenticate users who access the Portal.
-
-Here are the commands to create the user and the group:
-
-```bash
-pass=$(htpasswd -bnBC 10 "" password | tr -d ':\n')
-
-kubectl create secret generic dev1-password \
-  -n dev-portal --type=opaque \
-  --from-literal=password=$pass
-
-cat << EOF | kubectl apply -f-
-apiVersion: devportal.solo.io/v1alpha1
-kind: User
-metadata:
-  name: dev1
-  namespace: dev-portal
-spec:
-  accessLevel: {}
-  basicAuth:
-    passwordSecretKey: password
-    passwordSecretName: dev1-password
-    passwordSecretNamespace: dev-portal
-  username: dev1
-EOF
-
-kubectl get user dev1 -n dev-portal -oyaml
-
-cat << EOF | kubectl apply -f-
-apiVersion: devportal.solo.io/v1alpha1
-kind: Group
-metadata:
-  name: developers
-  namespace: dev-portal
-spec:
-  displayName: developers
-  userSelector:
-    matchLabels:
-      groups.devportal.solo.io/dev-portal.developers: "true"
-EOF
-
-kubectl label user dev1 -n dev-portal groups.devportal.solo.io/dev-portal.developers="true"
-```
-
 ### Configure a Rate Limiting Policy
 
-We can now update the API Product to secure it and to define a rate limit:
+We can now update the API Product to secure it and to define a plan:
 
 ```bash
 cat << EOF | kubectl apply -f-
@@ -1598,6 +1565,30 @@ spec:
     rateLimit:
       requestsPerUnit: 5
       unit: MINUTE
+EOF
+```
+
+And finally, we need to let the users of the `users` group to access the Portal and use this plan:
+
+```bash
+cat << EOF | kubectl apply -f -
+apiVersion: devportal.solo.io/v1alpha1
+kind: Group
+metadata:
+  name: oidc-group
+  namespace: bookinfo
+spec:
+  accessLevel:
+    apiProducts:
+    - name: bookinfo-product
+      namespace: bookinfo
+      plans:
+      - basic
+    portals:
+    - name: bookinfo-portal
+      namespace: bookinfo
+  oidcGroup:
+    groupName: users
 EOF
 ```
 
