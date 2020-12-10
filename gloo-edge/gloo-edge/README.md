@@ -757,7 +757,6 @@ spec:
     routes:
       - matchers:
           - prefix: /
-            caseSensitive: false
         delegateAction:
           ref:
             name: 'demo'
