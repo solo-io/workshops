@@ -419,6 +419,12 @@
 
   - name: Unarchive the default config
     unarchive:
+      src: https://github.com/solo-io/workshops/raw/master/terraform/config.tgz
+      dest: /home/solo
+      remote_src: yes
+
+  - name: Unarchive the default chromium config
+    unarchive:
       src: https://github.com/solo-io/workshops/raw/master/terraform/chromium.tgz
       dest: /home/solo/.config
       remote_src: yes

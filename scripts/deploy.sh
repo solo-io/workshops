@@ -11,6 +11,7 @@ kind: Cluster
 apiVersion: kind.x-k8s.io/v1alpha4
 featureGates:
   TokenRequest: true
+  EphemeralContainers: true
 nodes:
 - role: control-plane
   extraPortMappings:
