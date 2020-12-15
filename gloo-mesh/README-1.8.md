@@ -97,7 +97,7 @@ licenseKey: ${GLOO_MESH_LICENSE_KEY}
 EOF
 
 
-meshctl install enterprise --license=${GLOO_MESH_LICENSE_KEY} --version=0.3.1 --chart-values-file=license.yaml
+meshctl install enterprise --license=${GLOO_MESH_LICENSE_KEY} --version=0.3.2 --chart-values-file=license.yaml
 
 kubectl --context mgmt -n gloo-mesh rollout status deploy/discovery 
 kubectl --context mgmt -n gloo-mesh rollout status deploy/networking 
@@ -2158,7 +2158,7 @@ EOF
 
 Let's send a request from the `productpage` service to the `reviews` service:
 
-```bash
+```
 kubectl exec -it $(kubectl get pods -l app=productpage -o jsonpath='{.items[0].metadata.name}') -- python -c "import requests; r = requests.get('http://reviews:9080/reviews/0'); print(r.headers)"
 ```
 
