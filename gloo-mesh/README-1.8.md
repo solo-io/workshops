@@ -2153,6 +2153,7 @@ spec:
       version: v1
     namespaces:
     - default
+EOF
 ```
 
 Let's send a request from the `productpage` service to the `reviews` service:
