@@ -82,7 +82,7 @@ kubectl config use-context mgmt
 First of all, you need to install the *meshctl* CLI:
 
 ```bash
-curl -sL https://run.solo.io/meshctl/install | GLOO_MESH_VERSION=v0.10.10 sh -
+curl -sL https://run.solo.io/meshctl/install | GLOO_MESH_VERSION=v0.11.2 sh -
 export PATH=$HOME/.gloo-mesh/bin:$PATH
 ```
 
@@ -91,30 +91,12 @@ Gloo Mesh Enterprise is adding unique features on top of Gloo Mesh Open Source (
 Run the following commands to deploy Gloo Mesh Enterprise:
 
 ```bash
-# kubectl apply -f gloo-mesh-wasm-crd.yaml
-cat <<EOF > license.yaml
-licenseKey: ${GLOO_MESH_LICENSE_KEY}
-EOF
-
-
-meshctl install enterprise --license=${GLOO_MESH_LICENSE_KEY} --version=0.3.2 --chart-values-file=license.yaml
+meshctl install enterprise --license=${GLOO_MESH_LICENSE_KEY} --version=0.4.1
 
 kubectl --context mgmt -n gloo-mesh rollout status deploy/discovery 
 kubectl --context mgmt -n gloo-mesh rollout status deploy/networking 
 kubectl --context mgmt -n gloo-mesh rollout status deploy/rbac-webhook
 kubectl --context mgmt -n gloo-mesh rollout status deploy/gloo-mesh-apiserver
-```
-
-```bash
-cat > settings-patch.yaml <<'EOF'
-spec:
-  networkingExtensionServers:
-    - address: enterprise-extender:9900
-      insecure: true
-      reconnectOnNetworkFailures: true
-EOF
-
-kubectl --context mgmt -n gloo-mesh patch settings.settings.mesh.gloo.solo.io settings --type=merge --patch "$(cat settings-patch.yaml)"
 ```
 
 Then, you need to register the two other clusters:
