@@ -49,7 +49,7 @@ We'll use Helm to deploy the Developer portal:
 helm repo add dev-portal https://storage.googleapis.com/dev-portal-helm
 helm repo update
 kubectl create namespace dev-portal
-helm install dev-portal dev-portal/dev-portal -n dev-portal --set licenseKey.value=${PORTAL_LICENSE_KEY} --set istio.enabled=true --version=0.4.14
+helm install dev-portal dev-portal/dev-portal -n dev-portal --set licenseKey.value=${PORTAL_LICENSE_KEY} --set istio.enabled=true --version=0.5.0
 ```
 
 <!--bash
@@ -106,23 +106,25 @@ metadata:
   name: bookinfo-product
   namespace: default
 spec:
-  apis:
-  - apiDoc:
-      name: bookinfo-schema
-      namespace: default
-  defaultRoute:
-    inlineRoute:
-      backends:
-      - kube:
-          name: productpage
-          port: 9080
-  domains:
-  - api.example.com
   displayInfo: 
     description: Bookinfo Product
     title: Bookinfo Product
     image:
       fetchUrl: https://github.com/solo-io/workshops/raw/master/gloo-mesh/images/books.png
+  versions:
+  - name: v1
+    apis:
+    - apiDoc:
+        name: bookinfo-schema
+        namespace: default
+    tags:
+      stable: {}
+    defaultRoute:
+      inlineRoute:
+        backends:
+        - kube:
+            name: productpage
+            port: 9080
 EOF
 ```
 
@@ -130,6 +132,35 @@ You can then check the status of the API Product using the following command:
 
 ```bash
 kubectl get apiproducts.devportal.solo.io -n default bookinfo-product -oyaml
+```
+
+Now, we are going to create an Environment named dev using the domain api.example.com and expose v1 of our Bookinfo API Product.
+
+```bash
+cat << EOF | kubectl apply -f-
+apiVersion: devportal.solo.io/v1alpha1
+kind: Environment
+metadata:
+  name: dev
+  namespace: default
+spec:
+  domains:
+  - api.example.com
+  displayInfo:
+    description: This environment is meant for developers to deploy and test their APIs.
+    displayName: Development
+  apiProducts:
+  - name: bookinfo-product
+    namespace: default
+    publishedVersions:
+    - name: v1
+EOF
+```
+
+You can then check the status of the Environment using the following command:
+
+```bash
+kubectl get environment.devportal.solo.io -n default dev -oyaml
 ```
 
 When targeting Istio Gateways, the Developer Portal manages a set of Istio Custom Resource Definitions (CRDs) for you:
@@ -204,9 +235,9 @@ spec:
   staticPages: []
   domains:
   - portal.example.com
-  publishApiProducts:
-    matchLabels:
-      portals.devportal.solo.io/default.bookinfo-portal: "true"
+  publishedEnvironments:
+  - name: dev
+    namespace: default
 EOF
 ```
 
@@ -269,43 +300,34 @@ EOF
 kubectl label user dev1 -n dev-portal groups.devportal.solo.io/dev-portal.developers="true"
 ```
 
-We can now update the API Product to secure it and to define a rate limit:
+We can now update the Environment to secure it and to define a rate limit:
 
 ```bash
 cat << EOF | kubectl apply -f-
 apiVersion: devportal.solo.io/v1alpha1
-kind: APIProduct
+kind: Environment
 metadata:
-  name: bookinfo-product
+  name: dev
   namespace: default
-  labels: 
-    portals.devportal.solo.io/default.bookinfo-portal: "true"
 spec:
-  apis:
-  - apiDoc:
-      name: bookinfo-schema
-      namespace: default
-  defaultRoute:
-    inlineRoute:
-      backends:
-      - kube:
-          name: productpage
-          port: 9080
   domains:
   - api.example.com
-  displayInfo: 
-    description: Bookinfo Product
-    title: Bookinfo Product
-    image:
-      fetchUrl: https://github.com/solo-io/workshops/raw/master/gloo-mesh/images/books.png
-  plans:
-  - authPolicy:
-      apiKey: {}
-    displayName: Basic
-    name: basic
-    rateLimit:
-      requestsPerUnit: 5
-      unit: MINUTE
+  displayInfo:
+    description: This environment is meant for developers to deploy and test their APIs.
+    displayName: Development
+  apiProducts:
+  - name: bookinfo-product
+    namespace: default
+    plans:
+    - authPolicy:
+        apiKey: {}
+      displayName: Basic
+      name: basic
+      rateLimit:
+        requestsPerUnit: 5
+        unit: MINUTE
+    publishedVersions:
+    - name: v1
 EOF
 ```
 
@@ -324,8 +346,11 @@ spec:
     apiProducts:
     - name: bookinfo-product
       namespace: default
-      plans:
-      - basic
+      environments:
+      - name: dev
+        namespace: default
+        plans:
+        - basic
     portals:
     - name: bookinfo-portal
       namespace: default
@@ -378,7 +403,7 @@ But we're going to try it using curl:
 So, we need to retrieve the API key first:
 
 ```
-key=$(kubectl get secret -l apiproducts.devportal.solo.io=bookinfo-product.default -o jsonpath='{.items[0].data.api-key}' | base64 --decode)
+key=$(kubectl get secret -l environments.devportal.solo.io=dev.default -n default -o jsonpath='{.items[0].data.api-key}' | base64 --decode)
 ```
 
 Then, we can run the following command:
@@ -437,14 +462,13 @@ As soon as you reach the rate limit, you should get the following output:
 
 ## Lab 2 : VM support
 
-In Istio 1.7, support for running workloads in the Service Mesh on VMs has been improved.
+In Istio 1.8, support for running workloads in the Service Mesh on VMs has been improved.
 
 So, let's see how we can configure our VM to be part of the Mesh.
 
 We are going to use a mix of the instructions provided on these 2 pages:
 - [Virtual Machine Installation](https://istio.io/latest/docs/setup/install/virtual-machine/)
 - [Virtual Machines in Multi-Network Meshes](https://istio.io/latest/docs/setup/install/virtual-machine/)
-
 
 Run the following command to make `cluster1` the current cluster.
 
@@ -455,7 +479,7 @@ kubectl config use-context cluster1
 First of all, we need to define a few environment variables:
 
 ```bash
-VM_NAME=$(hostname)
+VM_APP=$(hostname)
 VM_NAMESPACE=virtualmachines
 WORK_DIR=vm
 SERVICE_ACCOUNT=$(hostname)
@@ -467,6 +491,78 @@ Then, we need to create a directory where we'll store all the files that need to
 cd /home/solo/workshops/gloo-mesh
 rm -rf ${WORK_DIR}
 mkdir -p ${WORK_DIR}
+```
+
+Expose the port 15012 and 15017 of istiod through the Istio Ingress Gateway:
+
+```bash
+kubectl apply -f - <<EOF
+apiVersion: networking.istio.io/v1alpha3
+kind: Gateway
+metadata:
+  name: istiod-gateway
+  namespace: istio-system
+spec:
+  selector:
+    istio: ingressgateway
+  servers:
+    - port:
+        name: tcp-istiod
+        number: 15012
+        protocol: TCP
+      hosts:
+        - "*"
+    - port:
+        name: tcp-istiodwebhook
+        number: 15017
+        protocol: TCP
+      hosts:
+        - "*"
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: istiod-vs
+  namespace: istio-system
+spec:
+  hosts:
+  - istiod.istio-system.svc.cluster.local
+  gateways:
+  - istiod-gateway
+  tcp:
+  - match:
+    - port: 15012
+    route:
+    - destination:
+        host: istiod.istio-system.svc.cluster.local
+        port:
+          number: 15012
+  - match:
+    - port: 15017
+    route:
+    - destination:
+        host: istiod.istio-system.svc.cluster.local
+        port:
+          number: 443
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: DestinationRule
+metadata:
+  name: istiod-dr
+  namespace: istio-system
+spec:
+  host: istiod.istio-system.svc.cluster.local
+  trafficPolicy:
+    portLevelSettings:
+    - port:
+        number: 15012
+      tls:
+        mode: DISABLE
+    - port:
+        number: 15017
+      tls:
+        mode: DISABLE
+EOF
 ```
 
 Create the namespace that will host the virtual machine:
@@ -481,65 +577,43 @@ Create a serviceaccount for the virtual machine:
 kubectl create serviceaccount "${SERVICE_ACCOUNT}" -n "${VM_NAMESPACE}"
 ```
 
-Create a Kubernetes token. This example sets the token expire time to 1 hour:
+Create a template WorkloadGroup for the VM:
 
 ```bash
-tokenexpiretime=3600
-echo '{"kind":"TokenRequest","apiVersion":"authentication.k8s.io/v1","spec":{"audiences":["istio-ca"],"expirationSeconds":'$tokenexpiretime'}}' | kubectl create --raw /api/v1/namespaces/$VM_NAMESPACE/serviceaccounts/$SERVICE_ACCOUNT/token -f - | jq -j '.status.token' > "${WORK_DIR}"/istio-token
+./istio-1.8.1/bin/istioctl x workload group create --name "${VM_APP}" --namespace "${VM_NAMESPACE}" --labels app="${VM_APP}" --serviceAccount "${SERVICE_ACCOUNT}" -p http=9999 > workloadgroup.yaml
+./istio-1.8.1/bin/istioctl x workload group create --name "${VM_APP}" --namespace "${VM_NAMESPACE}" --labels app="${VM_APP}" --serviceAccount "${SERVICE_ACCOUNT}" > workloadgroup.yaml
 ```
 
-Get the root certificate:
+Use the istioctl x workload entry command to generate:
+
+- cluster.env: Contains metadata that identifies what namespace, service account, network CIDR and (optionally) what inbound ports to capture.
+- istio-token: A Kubernetes token used to get certs from the CA.
+- mesh.yaml: Provides additional Istio metadata including, network name, trust domain and other values.
+- root-cert.pem: The root certificate used to authenticate.
+- hosts: An addendum to /etc/hosts that the proxy will use to reach istiod for xDS.*
 
 ```bash
-kubectl -n "${VM_NAMESPACE}" get configmaps istio-ca-root-cert -o json | jq -j '."data"."root-cert.pem"' > "${WORK_DIR}"/root-cert.pem
-```
-
-Generate a cluster.env configuration file that informs the virtual machine deployment which network CIDR to capture and redirect to the Kubernetes cluster:
-
-```bash
-ISTIO_SERVICE_CIDR=$(echo '{"apiVersion":"v1","kind":"Service","metadata":{"name":"tst"},"spec":{"clusterIP":"1.1.1.1","ports":[{"port":443}]}}' | kubectl apply -f - 2>&1 | sed 's/.*valid IPs is //')
-touch "${WORK_DIR}"/cluster.env
-echo ISTIO_SERVICE_CIDR=$ISTIO_SERVICE_CIDR > "${WORK_DIR}"/cluster.env
-echo "ISTIO_INBOUND_PORTS=9999" >> "${WORK_DIR}"/cluster.env
+./istio-1.8.1/bin/istioctl x workload entry configure -f workloadgroup.yaml -o "${WORK_DIR}"
 ```
 
 Add an entry in the hosts file to resolve the address of istiod by the IP address of the Istio Ingress Gateway:
 
 ```bash
-touch "${WORK_DIR}"/hosts-addendum
-echo "172.18.0.220 istiod.istio-system.svc" > "${WORK_DIR}"/hosts-addendum
+echo "172.18.0.220 istiod.istio-system.svc" > "${WORK_DIR}"/hosts
 ```
 
-Create sidecar.env file to import the required environment variables:
+Run the following command to make sure addresses with the `.local` suffix won't be used by the Avahi daemon:
 
 ```bash
-touch "${WORK_DIR}"/sidecar.env
-echo "PROV_CERT=/var/run/secrets/istio" >>"${WORK_DIR}"/sidecar.env
-echo "OUTPUT_CERTS=/var/run/secrets/istio" >> "${WORK_DIR}"/sidecar.env
-echo "ISTIO_META_NETWORK=vm-network" >> "${WORK_DIR}"/sidecar.env
-echo "ISTIO_AGENT_FLAGS=\"--trust-domain=cluster1 --domain=virtualmachines.svc.cluster.local --serviceCluster=cloud-vm.virtualmachines --proxyLogLevel debug\"" >> "${WORK_DIR}"/sidecar.env
-echo "ISTIO_NAMESPACE=virtualmachines" >> "${WORK_DIR}"/sidecar.env
+sudo sed -i 's/#domain-name=local/domain-name=.alocal/' /etc/avahi/avahi-daemon.conf
+sudo service avahi-daemon restart
 ```
-
-<!--
-Update the cache of package updates for your deb packaged distro.
-
-```
-sudo apt -y update
-```
-
-Upgrade the deb packaged distro to ensure all latest security packages are applied.
-
-```
-sudo apt -y upgrade
-```
--->
 
 Install the root certificate at /var/run/secrets/istio:
 
 ```bash
-sudo mkdir -p /var/run/secrets/istio
-sudo cp "${WORK_DIR}"/root-cert.pem /var/run/secrets/istio/root-cert.pem
+sudo mkdir -p /etc/certs
+sudo cp "${WORK_DIR}"/root-cert.pem /etc/certs/root-cert.pem
 ```
 
 Install the token at /var/run/secrets/tokens:
@@ -552,7 +626,7 @@ sudo cp "${WORK_DIR}"/istio-token /var/run/secrets/tokens/istio-token
 Install the deb package containing the Istio virtual machine integration runtime:
 
 ```bash
-curl -LO https://storage.googleapis.com/istio-release/releases/1.7.4/deb/istio-sidecar.deb
+curl -LO https://storage.googleapis.com/istio-release/releases/1.8.1/deb/istio-sidecar.deb
 sudo dpkg -i istio-sidecar.deb
 ```
 
@@ -562,23 +636,23 @@ Install cluster.env within the directory /var/lib/istio/envoy/:
 sudo cp "${WORK_DIR}"/cluster.env /var/lib/istio/envoy/cluster.env
 ```
 
-Install sidecar.env within the directory /var/lib/istio/envoy/:
+Install the Mesh Config to /etc/istio/config/mesh:
 
 ```bash
-sudo cp "${WORK_DIR}"/sidecar.env /var/lib/istio/envoy/sidecar.env
+sudo cp "${WORK_DIR}"/mesh.yaml /etc/istio/config/mesh
 ```
 
 Add the istiod host to /etc/hosts:
 
 ```bash
-sudo sh -c "cat "${WORK_DIR}"/hosts-addendum >> /etc/hosts"
+sudo sh -c "cat "${WORK_DIR}"/hosts >> /etc/hosts"
 ```
 
 Transfer ownership to the Istio proxy:
 
 ```bash
 sudo mkdir -p /etc/istio/proxy
-sudo chown -R istio-proxy /var/lib/istio /etc/certs /etc/istio/proxy /var/run/secrets
+sudo chown -R istio-proxy /var/lib/istio /etc/certs /etc/istio/proxy /etc/istio/config /var/run/secrets /etc/certs/root-cert.pem
 ```
 
 Create a Gateway resource that allows application traffic from the VMs to route correctly:
@@ -588,14 +662,14 @@ kubectl apply -f - <<EOF
 apiVersion: networking.istio.io/v1alpha3
 kind: Gateway
 metadata:
-  name: cluster-aware-gateway
+  name: cross-network-gateway
   namespace: istio-system
 spec:
   selector:
     istio: ingressgateway
   servers:
   - port:
-      number: 443
+      number: 15443
       name: tls
       protocol: TLS
     tls:
@@ -611,16 +685,6 @@ Start the Istio agent:
 sudo systemctl start istio
 ```
 
-Add entries in the DNS with IP addresses from the Istio Service CIDR:
-
-```bash
-prefix=$(echo $ISTIO_SERVICE_CIDR | cut -d. -f1-3)
-
-cat <<EOF | sudo tee -a /etc/hosts
-${prefix}.100 productpage.default.svc.cluster.local
-${prefix}.101 reviews.default.svc.cluster.local
-EOF
-```
 
 Create a Gloo Mesh Access Policy:
 
@@ -691,30 +755,30 @@ cat <<EOF | kubectl apply -f -
 apiVersion: v1
 kind: Service
 metadata:
-  name: cloud-vm
+  name: ${VM_APP}
   namespace: virtualmachines
   labels:
-    app: cloud-vm
+    app: ${VM_APP}
 spec:
   ports:
   - port: 9999
     name: http-vm
     targetPort: 9999
   selector:
-    app: cloud-vm
+    app: ${VM_APP}
 EOF
 
 cat <<EOF | kubectl apply -f -
 apiVersion: networking.istio.io/v1beta1
 kind: WorkloadEntry
 metadata:
-  name: cloud-vm
+  name: ${VM_APP}
   namespace: virtualmachines
 spec:
   network: vm-network
   address: $(hostname -i)
   labels:
-    app: cloud-vm
+    app: ${VM_APP}
   serviceAccount: ${SERVICE_ACCOUNT}
 EOF
 
@@ -722,11 +786,11 @@ cat <<EOF | kubectl apply -f -
 apiVersion: networking.istio.io/v1beta1
 kind: ServiceEntry
 metadata:
-  name: cloud-vm
+  name: ${VM_APP}
   namespace: virtualmachines
 spec:
   hosts:
-  - cloud-vm.virtualmachines.svc.cluster.local
+  - ${VM_APP}.virtualmachines.svc.cluster.local
   location: MESH_INTERNAL
   ports:
   - number: 9999
@@ -736,7 +800,7 @@ spec:
   resolution: STATIC
   workloadSelector:
     labels:
-      app: cloud-vm
+      app: ${VM_APP}
 EOF
 ```
 
@@ -747,22 +811,22 @@ cat << EOF | kubectl --context mgmt apply -f -
 apiVersion: discovery.mesh.gloo.solo.io/v1alpha2
 kind: TrafficTarget
 metadata:
-  name: cloud-vm-virtualmachines-cluster1
+  name: ${VM_APP}-virtualmachines-cluster1
   namespace: gloo-mesh
 spec:
   kubeService:
     labels:
-      app: cloud-vm
+      app: ${VM_APP}
     ports:
     - name: http-vm
       port: 9999
       protocol: TCP
     ref:
       clusterName: cluster1
-      name: cloud-vm
+      name: ${VM_APP}
       namespace: virtualmachines
     workloadSelectorLabels:
-      app: cloud-vm
+      app: ${VM_APP}
   mesh:
     name: istiod-istio-system-cluster1
     namespace: gloo-mesh
@@ -786,7 +850,7 @@ spec:
   destinationSelector:
   - kubeServiceRefs:
       services:
-        - name: cloud-vm
+        - name: ${VM_APP}
           namespace: virtualmachines
           clusterName: cluster1
 EOF
@@ -795,5 +859,5 @@ EOF
 Try to access the app from the `productpage` Pod:
 
 ```bash
-kubectl exec -it $(kubectl get pods -l app=productpage -o jsonpath='{.items[0].metadata.name}') -- python -c "import requests; r = requests.get('http://cloud-vm.virtualmachines.svc.cluster.local:9999'); print(r.text)"
+kubectl exec -it $(kubectl get pods -l app=productpage -o jsonpath='{.items[0].metadata.name}') -- python -c "import requests; r = requests.get('http://${VM_APP}.virtualmachines.svc.cluster.local:9999'); print(r.text)"
 ```

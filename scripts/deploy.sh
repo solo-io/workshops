@@ -35,8 +35,8 @@ kubeadmConfigPatches:
   metadata:
     name: config
   networking:
-    serviceSubnet: "10.96.0.1/12"
-    podSubnet: "192.168.128.0/17"
+    serviceSubnet: "10.96.$1.0/24"
+    podSubnet: "192.168.$1.0/24"
 - |
   kind: InitConfiguration
   nodeRegistration:

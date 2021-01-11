@@ -46,8 +46,8 @@ Run the commands below to deploy Gloo Edge Enterprise:
 
 ```bash
 kubectl config use-context gloo-edge
-glooctl upgrade --release=v1.5.11
-glooctl install gateway enterprise --version 1.5.11 --license-key $LICENSE_KEY
+glooctl upgrade --release=v1.6.1
+glooctl install gateway enterprise --version 1.6.1 --license-key $LICENSE_KEY
 ```
 
 Gloo Edge can also be deployed using a Helm chart.
@@ -1338,7 +1338,7 @@ licenseKey:
 EOF
 
 kubectl create namespace dev-portal
-helm install dev-portal dev-portal/dev-portal -n dev-portal --values gloo-values.yaml  --version=0.4.14
+helm install dev-portal dev-portal/dev-portal -n dev-portal --values gloo-values.yaml  --version=0.5.0
 ```
 
 <!--bash
@@ -1371,7 +1371,7 @@ apiVersion: devportal.solo.io/v1alpha1
 kind: APIDoc
 metadata:
   name: bookinfo-schema
-  namespace: bookinfo
+  namespace: default
 spec:
   openApi:
     content:
@@ -1382,14 +1382,14 @@ EOF
 You can then check the status of the API Doc using the following command:
 
 ```bash
-kubectl get apidoc -n bookinfo bookinfo-schema -oyaml
+kubectl get apidoc -n default bookinfo-schema -oyaml
 ```
 
 ### Create an API Product
 
 API Products are Kubernetes Custom Resources which bundle the APIs defined in API Docs into a product which can be exposed to ingress traffic as well as published on a Portal UI. The Product defines what API operations are being exposed, and the routing information to reach the services.
 
-Let's create an API Product using the API Doc we've just created:
+Let's create an API Product using the API Doc we've just created and pointing to the 2 versions of our Bookinfo application:
 
 ```bash
 cat << EOF | kubectl apply -f-
@@ -1397,33 +1397,79 @@ apiVersion: devportal.solo.io/v1alpha1
 kind: APIProduct
 metadata:
   name: bookinfo-product
-  namespace: bookinfo
+  namespace: default
 spec:
-  apis:
-  - apiDoc:
-      name: bookinfo-schema
-      namespace: bookinfo
-  defaultRoute:
-    inlineRoute:
-      backends:
-      - kube:
-          name: productpage
-          namespace: bookinfo
-          port: 9080
-  domains:
-  - api.example.com
   displayInfo: 
     description: Bookinfo Product
     title: Bookinfo Product
     image:
       fetchUrl: https://github.com/solo-io/workshops/raw/master/gloo-edge/gloo-edge/images/books.png
+  versions:
+  - name: v1
+    apis:
+    - apiDoc:
+        name: bookinfo-schema
+        namespace: default
+    tags:
+      stable: {}
+    defaultRoute:
+      inlineRoute:
+        backends:
+        - kube:
+            name: productpage
+            namespace: bookinfo
+            port: 9080
+  - name: v2
+    apis:
+    - apiDoc:
+        name: bookinfo-schema
+        namespace: default
+    tags:
+      stable: {}
+    defaultRoute:
+      inlineRoute:
+        backends:
+        - kube:
+            name: productpage
+            namespace: bookinfo-beta
+            port: 9080
 EOF
 ```
 
 You can then check the status of the API Product using the following command:
 
 ```bash
-kubectl get apiproducts.devportal.solo.io -n bookinfo bookinfo-product -oyaml
+kubectl get apiproducts.devportal.solo.io -n default bookinfo-product -oyaml
+```
+
+Now, we are going to create an Environment named dev using the domain api.example.com and expose v1 and v2 of our Bookinfo API Product.
+
+```bash
+cat << EOF | kubectl apply -f-
+apiVersion: devportal.solo.io/v1alpha1
+kind: Environment
+metadata:
+  name: dev
+  namespace: default
+spec:
+  domains:
+  - api.example.com
+  displayInfo:
+    description: This environment is meant for developers to deploy and test their APIs.
+    displayName: Development
+  apiProducts:
+  - name: bookinfo-product
+    namespace: default
+    publishedVersions:
+    - name: v1
+    - name: v2
+EOF
+```
+
+You can then check the status of the Environment using the following command:
+
+```bash
+kubectl get environment.devportal.solo.io -n default dev -oyaml
 ```
 
 ### Test the Service
@@ -1464,7 +1510,7 @@ apiVersion: v1
 kind: Secret
 metadata:
   name: bookinfo-portal-oidc-secret
-  namespace: bookinfo
+  namespace: default
 data:
   client_secret: $(kubectl -n gloo-system get secret keycloak-oauth -o jsonpath='{.data.oauth}' | base64 --decode | awk '{ print $2 }' | base64)
 EOF
@@ -1478,7 +1524,7 @@ apiVersion: devportal.solo.io/v1alpha1
 kind: Portal
 metadata:
   name: bookinfo-portal
-  namespace: bookinfo
+  namespace: default
 spec:
   displayName: Bookinfo Portal
   description: The Developer Portal for the Bookinfo API
@@ -1498,22 +1544,21 @@ spec:
     clientId: ${KEYCLOAK_CLIENT}
     clientSecret:
       name: bookinfo-portal-oidc-secret
-      namespace: bookinfo
+      namespace: default
       key: client_secret
     groupClaimKey: group
     issuer: ${KEYCLOAK_URL}/realms/master
 
-  # API Products matching these labels will be made visible on this Portal
-  publishApiProducts:
-    matchLabels:
-      portals.devportal.solo.io/default.bookinfo-portal: "true"
+  publishedEnvironments:
+  - name: dev
+    namespace: default
 EOF
 ````
 
 You can now check the status of the API Product using the following command:
 
 ```bash
-kubectl get portal -n bookinfo bookinfo-portal -oyaml
+kubectl get portal -n default bookinfo-portal -oyaml
 ```
 
 We need to update the `/etc/hosts` file to be able to access the Portal:
@@ -1527,44 +1572,35 @@ EOF
 
 ### Configure a Rate Limiting Policy
 
-We can now update the API Product to secure it and to define a plan:
+We can now update the Environment to secure it and to define a rate limit:
 
 ```bash
 cat << EOF | kubectl apply -f-
 apiVersion: devportal.solo.io/v1alpha1
-kind: APIProduct
+kind: Environment
 metadata:
-  name: bookinfo-product
-  namespace: bookinfo
-  labels: 
-    portals.devportal.solo.io/default.bookinfo-portal: "true"
+  name: dev
+  namespace: default
 spec:
-  apis:
-  - apiDoc:
-      name: bookinfo-schema
-      namespace: bookinfo
-  defaultRoute:
-    inlineRoute:
-      backends:
-      - kube:
-          name: productpage
-          namespace: bookinfo
-          port: 9080
   domains:
   - api.example.com
-  displayInfo: 
-    description: Bookinfo Product
-    title: Bookinfo Product
-    image:
-      fetchUrl: https://github.com/solo-io/workshops/raw/master/gloo-edge/gloo-edge/images/books.png
-  plans:
-  - authPolicy:
-      apiKey: {}
-    displayName: Basic
-    name: basic
-    rateLimit:
-      requestsPerUnit: 5
-      unit: MINUTE
+  displayInfo:
+    description: This environment is meant for developers to deploy and test their APIs.
+    displayName: Development
+  apiProducts:
+  - name: bookinfo-product
+    namespace: default
+    plans:
+    - authPolicy:
+        apiKey: {}
+      displayName: Basic
+      name: basic
+      rateLimit:
+        requestsPerUnit: 5
+        unit: MINUTE
+    publishedVersions:
+    - name: v1
+    - name: v2
 EOF
 ```
 
@@ -1576,45 +1612,22 @@ apiVersion: devportal.solo.io/v1alpha1
 kind: Group
 metadata:
   name: oidc-group
-  namespace: bookinfo
+  namespace: default
 spec:
   accessLevel:
     apiProducts:
     - name: bookinfo-product
-      namespace: bookinfo
-      plans:
-      - basic
+      namespace: default
+      environments:
+      - name: dev
+        namespace: default
+        plans:
+        - basic
     portals:
     - name: bookinfo-portal
-      namespace: bookinfo
+      namespace: default
   oidcGroup:
     groupName: users
-EOF
-```
-
-And finally, we can allow the group we created previously to access the Portal:
-
-```bash
-cat << EOF | kubectl apply -f-
-apiVersion: devportal.solo.io/v1alpha1
-kind: Group
-metadata:
-  name: developers
-  namespace: dev-portal
-spec:
-  displayName: developers
-  accessLevel:
-    apiProducts:
-    - name: bookinfo-product
-      namespace: bookinfo
-      plans:
-      - basic
-    portals:
-    - name: bookinfo-portal
-      namespace: bookinfo
-  userSelector:
-    matchLabels:
-      groups.devportal.solo.io/dev-portal.developers: "true"
 EOF
 ```
 
@@ -1654,7 +1667,7 @@ Click on the `APIs` tab.
 
 ![User Developer Portal APIs](images/dev-portal-apis.png)
 
-You can click on the `Bookinfo Product` and explore the API.
+You can click on on of the versions of the `Bookinfo Product` and explore the API.
 
 You can also test the API and use the `Authorize` button to set your API key.
 
@@ -1667,7 +1680,7 @@ Now we're going to exercise the service using `curl`:
 So, we need to retrieve the API key first:
 
 ```
-key=$(kubectl get secret -l apiproducts.devportal.solo.io=bookinfo-product.bookinfo -n bookinfo -o jsonpath='{.items[0].data.api-key}' | base64 --decode)
+key=$(kubectl get secret -l environments.devportal.solo.io=dev.default -n default -o jsonpath='{.items[0].data.api-key}' | base64 --decode)
 ```
 
 Then, we can run the following command:

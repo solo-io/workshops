@@ -82,27 +82,22 @@ kubectl config use-context mgmt
 First of all, you need to install the *meshctl* CLI:
 
 ```bash
-curl -sL https://run.solo.io/meshctl/install | GLOO_MESH_VERSION=v0.10.6 sh -
+curl -sL https://run.solo.io/meshctl/install | GLOO_MESH_VERSION=v0.11.3 sh -
 export PATH=$HOME/.gloo-mesh/bin:$PATH
 ```
 
 Gloo Mesh Enterprise is adding unique features on top of Gloo Mesh Open Source (RBAC, UI, WASM, ...).
 
-Run the following commands to deploy Gloo Mesh Enterprise and grant yourself the admin role:
+Run the following commands to deploy Gloo Mesh Enterprise:
 
 ```bash
-kubectl apply -f gloo-mesh-wasm-crd.yaml
-meshctl install enterprise --license=${GLOO_MESH_LICENSE_KEY} --version=0.1.1
-kubectl apply -f admin.yaml
-```
+meshctl install enterprise --license=${GLOO_MESH_LICENSE_KEY} --version=0.4.2
 
-Run the following commands to wait for the deployments to be ready:
-
-```bash
-kubectl --context mgmt -n gloo-mesh rollout status deploy/discovery 
-kubectl --context mgmt -n gloo-mesh rollout status deploy/networking 
-kubectl --context mgmt -n gloo-mesh rollout status rbac-webhook
+kubectl --context mgmt -n gloo-mesh rollout status deploy/discovery
+kubectl --context mgmt -n gloo-mesh rollout status deploy/enterprise-extender
 kubectl --context mgmt -n gloo-mesh rollout status deploy/gloo-mesh-apiserver
+kubectl --context mgmt -n gloo-mesh rollout status deploy/networking
+kubectl --context mgmt -n gloo-mesh rollout status deploy/rbac-webhook
 ```
 
 Then, you need to register the two other clusters:
@@ -111,18 +106,19 @@ Then, you need to register the two other clusters:
 meshctl cluster register \
   --cluster-name cluster1 \
   --mgmt-context mgmt \
-  --remote-context cluster1
+  --remote-context cluster1 \
+  --install-wasm-agent --wasm-agent-chart-file https://storage.googleapis.com/gloo-mesh-enterprise/wasm-agent/wasm-agent-0.3.6.tgz
 
 meshctl cluster register \
   --cluster-name cluster2 \
   --mgmt-context mgmt \
-  --remote-context cluster2
+  --remote-context cluster2 \
+  --install-wasm-agent --wasm-agent-chart-file https://storage.googleapis.com/gloo-mesh-enterprise/wasm-agent/wasm-agent-0.3.6.tgz
 ```
 
 You can list the registered cluster using the following command:
 
 ```bash
-kubectl get kubernetescluster -n gloo-mesh
 kubectl get kubernetescluster -n gloo-mesh
 ```
 
@@ -136,16 +132,16 @@ cluster2   23s
 
 ## Lab 3 : Deploy Istio on both clusters
 
-Download istio 1.7.4:
+Download istio 1.8.1:
 
 ```bash
-curl -L https://istio.io/downloadIstio | ISTIO_VERSION=1.7.4 sh -
+curl -L https://istio.io/downloadIstio | ISTIO_VERSION=1.8.1 sh -
 ```
 
 Now let's deploy Istio on the first cluster:
 
 ```bash
-./istio-1.7.4/bin/istioctl --context cluster1 operator init
+./istio-1.8.1/bin/istioctl --context cluster1 operator init
 
 kubectl --context cluster1 create ns istio-system
 
@@ -160,28 +156,16 @@ spec:
   addonComponents:
     istiocoredns:
       enabled: true
-    grafana:
-      enabled: true
-    kiali:
-      enabled: true
-    prometheus:
-      enabled: true
-    tracing:
-      enabled: true
   meshConfig:
     accessLogFile: /dev/stdout
     enableAutoMtls: true
-    trustDomain: cluster1
   values:
     global:
+      meshID: mesh1
       trustDomain: cluster1
-      meshExpansion:
-        enabled: true
-      multiCluster:
-        clusterName: cluster1
-      network: main-network
+      network: network1
       meshNetworks:
-        main-network:
+        network1:
           endpoints:
           - fromRegistry: cluster1
           gateways:
@@ -189,6 +173,39 @@ spec:
             port: 443
         vm-network:
   components:
+    ingressGateways:
+    - name: istio-ingressgateway
+      label:
+        topology.istio.io/network: network1
+      enabled: true
+      k8s:
+        env:
+          # sni-dnat adds the clusters required for AUTO_PASSTHROUGH mode
+          - name: ISTIO_META_ROUTER_MODE
+            value: "sni-dnat"
+          # traffic through this gateway should be routed inside the network
+          - name: ISTIO_META_REQUESTED_NETWORK_VIEW
+            value: network1
+        service:
+          ports:
+            - name: http2
+              port: 80
+              targetPort: 8080
+            - name: https
+              port: 443
+              targetPort: 8443
+            - name: tcp-status-port
+              port: 15021
+              targetPort: 15021
+            - name: tls
+              port: 15443
+              targetPort: 15443
+            - name: tcp-istiod
+              port: 15012
+              targetPort: 15012
+            - name: tcp-webhook
+              port: 15017
+              targetPort: 15017
     pilot:
       k8s:
         env:
@@ -200,7 +217,7 @@ EOF
 And deploy Istio on the second cluster:
 
 ```bash
-./istio-1.7.4/bin/istioctl --context cluster2 operator init
+./istio-1.8.1/bin/istioctl --context cluster2 operator init
 
 kubectl --context cluster2 create ns istio-system
 
@@ -215,28 +232,16 @@ spec:
   addonComponents:
     istiocoredns:
       enabled: true
-    grafana:
-      enabled: true
-    kiali:
-      enabled: true
-    prometheus:
-      enabled: true
-    tracing:
-      enabled: true
   meshConfig:
     accessLogFile: /dev/stdout
     enableAutoMtls: true
-    trustDomain: cluster2
   values:
     global:
+      meshID: mesh1
       trustDomain: cluster2
-      meshExpansion:
-        enabled: true
-      multiCluster:
-        clusterName: cluster2
-      network: main-network
+      network: network2
       meshNetworks:
-        main-network:
+        network2:
           endpoints:
           - fromRegistry: cluster2
           gateways:
@@ -244,6 +249,39 @@ spec:
             port: 443
         vm-network:
   components:
+    ingressGateways:
+    - name: istio-ingressgateway
+      label:
+        topology.istio.io/network: network2
+      enabled: true
+      k8s:
+        env:
+          # sni-dnat adds the clusters required for AUTO_PASSTHROUGH mode
+          - name: ISTIO_META_ROUTER_MODE
+            value: "sni-dnat"
+          # traffic through this gateway should be routed inside the network
+          - name: ISTIO_META_REQUESTED_NETWORK_VIEW
+            value: network2
+        service:
+          ports:
+            - name: http2
+              port: 80
+              targetPort: 8080
+            - name: https
+              port: 443
+              targetPort: 8443
+            - name: tcp-status-port
+              port: 15021
+              targetPort: 15021
+            - name: tls
+              port: 15443
+              targetPort: 15443
+            - name: tcp-istiod
+              port: 15012
+              targetPort: 15012
+            - name: tcp-webhook
+              port: 15017
+              targetPort: 15017
     pilot:
       k8s:
         env:
@@ -258,7 +296,7 @@ do
   sleep 1
 done
 
-until [ $(kubectl --context cluster1 -n istio-system get pods -o jsonpath='{range .items[*].status.containerStatuses[*]}{.ready}{"\n"}{end}' | grep true -c) -eq 8 ]; do
+until [ $(kubectl --context cluster1 -n istio-system get pods -o jsonpath='{range .items[*].status.containerStatuses[*]}{.ready}{"\n"}{end}' | grep true -c) -eq 4 ]; do
   echo "Waiting for all the Istio pods to become ready"
   sleep 1
 done
@@ -268,7 +306,7 @@ do
   sleep 1
 done
 
-until [ $(kubectl --context cluster2 -n istio-system get pods -o jsonpath='{range .items[*].status.containerStatuses[*]}{.ready}{"\n"}{end}' | grep true -c) -eq 8 ]; do
+until [ $(kubectl --context cluster2 -n istio-system get pods -o jsonpath='{range .items[*].status.containerStatuses[*]}{.ready}{"\n"}{end}' | grep true -c) -eq 4 ]; do
   echo "Waiting for all the Istio pods to become ready"
   sleep 1
 done
@@ -284,13 +322,9 @@ When they are ready, you should get this output:
 
 ```
 NAME                                    READY   STATUS    RESTARTS   AGE
-grafana-7d7f48894b-vlpjs                1/1     Running   0          8m27s
-istio-ingressgateway-658c5c4489-z7srh   1/1     Running   0          8m32s
-istio-tracing-68b5cc6685-x4sph          1/1     Running   0          8m27s
-istiocoredns-685b5c449f-qmnzs           2/2     Running   0          8m27s
-istiod-6f5fd7cb8f-qxszf                 1/1     Running   0          8m43s
-kiali-64f76f6c9b-6zhp4                  1/1     Running   0          8m27s
-prometheus-5bcb77c949-mgmwp             1/1     Running   0          8m27s
+istio-ingressgateway-5c7759c8cb-52r2j   1/1     Running   0          22s
+istiocoredns-685b5c449f-77psm           2/2     Running   0          22s
+istiod-7884b57b4c-rvr2c                 1/1     Running   0          30s
 ```
 
 Check the status on the second cluster using `kubectl --context cluster2 get pods -n istio-system`
@@ -302,11 +336,11 @@ Run the following commands to deploy the bookinfo app on `cluster1`:
 ```bash
 kubectl --context cluster1 label namespace default istio-injection=enabled
 # deploy bookinfo application components for all versions less than v3
-kubectl --context cluster1 apply -f https://raw.githubusercontent.com/istio/istio/1.7.4/samples/bookinfo/platform/kube/bookinfo.yaml -l 'app,version notin (v3)'
+kubectl --context cluster1 apply -f https://raw.githubusercontent.com/istio/istio/1.8.1/samples/bookinfo/platform/kube/bookinfo.yaml -l 'app,version notin (v3)'
 # deploy all bookinfo service accounts
-kubectl --context cluster1 apply -f https://raw.githubusercontent.com/istio/istio/1.7.4/samples/bookinfo/platform/kube/bookinfo.yaml -l 'account'
+kubectl --context cluster1 apply -f https://raw.githubusercontent.com/istio/istio/1.8.1/samples/bookinfo/platform/kube/bookinfo.yaml -l 'account'
 # configure ingress gateway to access bookinfo
-kubectl --context cluster1 apply -f https://raw.githubusercontent.com/istio/istio/1.7.4/samples/bookinfo/networking/bookinfo-gateway.yaml
+kubectl --context cluster1 apply -f https://raw.githubusercontent.com/istio/istio/1.8.1/samples/bookinfo/networking/bookinfo-gateway.yaml
 ```
 
 You can check that the app is running using `kubectl --context cluster1 get pods`:
@@ -327,9 +361,9 @@ Now, run the following commands to deploy the bookinfo app on `cluster2`:
 ```bash
 kubectl --context cluster2 label namespace default istio-injection=enabled
 # deploy all bookinfo service accounts and application components for all versions
-kubectl --context cluster2 apply -f https://raw.githubusercontent.com/istio/istio/1.7.4/samples/bookinfo/platform/kube/bookinfo.yaml
+kubectl --context cluster2 apply -f https://raw.githubusercontent.com/istio/istio/1.8.1/samples/bookinfo/platform/kube/bookinfo.yaml
 # configure ingress gateway to access bookinfo
-kubectl --context cluster2 apply -f https://raw.githubusercontent.com/istio/istio/1.7.3/samples/bookinfo/networking/bookinfo-gateway.yaml
+kubectl --context cluster2 apply -f https://raw.githubusercontent.com/istio/istio/1.8.1/samples/bookinfo/networking/bookinfo-gateway.yaml
 ```
 
 You can check that the app is running using `kubectl --context cluster2 get pods`:
@@ -679,7 +713,7 @@ metadata:
 type: certificates.mesh.gloo.solo.io/issued_certificate
 ```
 
-As you can see, the secrets contain the same Root cert (base64 encoded), but different intermediate (ca-cert) certs.
+As you can see, the secrets contain the same Root CA (base64 encoded), but different intermediate certs.
 
 <!--bash
 until kubectl --context cluster1 get secret -n istio-system cacerts
@@ -1250,6 +1284,9 @@ metadata:
   namespace: gloo-mesh
   name: simple
 spec:
+  sourceSelector:
+  - namespaces: 
+    - default
   destinationSelector:
   - kubeServiceRefs:
       services:
@@ -1364,6 +1401,9 @@ metadata:
   namespace: gloo-mesh
   name: mgmt-reviews-outlier
 spec:
+  sourceSelector:
+  - namespaces: 
+    - default
   destinationSelector:
   - kubeServiceRefs:
       services:
@@ -1419,6 +1459,9 @@ metadata:
   name: reviews-shift-failover
   namespace: default
 spec:
+  sourceSelector:
+  - namespaces: 
+    - default
   destinationSelector:
   - kubeServiceRefs:
       services:
@@ -1512,7 +1555,7 @@ When we deployed Gloo Mesh, we applied an `admin.yaml` file that has granted the
 Let's delete the corresponding `RoleBinding`:
 
 ```bash
-kubectl --context mgmt -n gloo-mesh delete rolebindings.rbac.mesh.gloo.solo.io admin-role-binding
+kubectl --context mgmt -n gloo-mesh delete rolebindings.rbac.enterprise.mesh.gloo.solo.io admin-role-binding
 ```
 
 Now, if you try to create the multi cluster Traffic Policy we used before, you shouldn't be allowed to do it.
@@ -1525,6 +1568,9 @@ metadata:
   namespace: gloo-mesh
   name: simple
 spec:
+  sourceSelector:
+  - namespaces: 
+    - default
   destinationSelector:
   - kubeServiceRefs:
       services:
@@ -1567,75 +1613,83 @@ Let's create a namespace admin Role:
 
 ```bash
 cat << EOF | kubectl --context mgmt apply -f -
-apiVersion: rbac.mesh.gloo.solo.io/v1alpha1
+apiVersion: rbac.enterprise.mesh.gloo.solo.io/v1alpha1
 kind: Role
 metadata:
   name: default-namespace-admin-role
   namespace: gloo-mesh
 spec:
-  trafficPolicyScopes:
-    - trafficPolicyActions:
-        - ALL
-      trafficTargetSelectors:
-        - kubeServiceMatcher:
-            labels:
-              "*": "*"
-            namespaces:
-              - "default"
-            clusters:
-              - "*"
-        - kubeServiceRefs:
-            services:
-              - name: "*"
-                namespace: "default"
-                clusterName: "*"
-      workloadSelectors:
-        - labels:
-            "*": "*"
-          namespaces:
-            - "*"
-          clusters:
-            - "*"
-  virtualMeshScopes:
-    - virtualMeshActions:
-        - ALL
-      meshRefs:
-        - name: "*"
-          namespace: "*"
   accessPolicyScopes:
-    - identitySelectors:
-        - kubeIdentityMatcher:
-            namespaces:
-              - "default"
-            clusters:
-              - "*"
-          kubeServiceAccountRefs:
-            serviceAccounts:
-              - name: "*"
-                namespace: "default"
-                clusterName: "*"
-      trafficTargetSelectors:
-        - kubeServiceMatcher:
-            labels:
-              "*": "*"
-            namespaces:
-              - "default"
-            clusters:
-              - "*"
-          kubeServiceRefs:
-            services:
-              - name: "*"
-                namespace: "default"
-                clusterName: "*"
+  - identitySelectors:
+    - kubeIdentityMatcher:
+        clusters:
+        - '*'
+        namespaces:
+        - 'default'
+      kubeServiceAccountRefs:
+        serviceAccounts:
+        - clusterName: '*'
+          name: '*'
+          namespace: 'default'
+    trafficTargetSelectors:
+    - kubeServiceMatcher:
+        clusters:
+        - '*'
+        labels:
+          '*': '*'
+        namespaces:
+        - 'default'
+      kubeServiceRefs:
+        services:
+        - clusterName: '*'
+          name: '*'
+          namespace: 'default'
   failoverServiceScopes:
-    - meshRefs:
-        - name: "*"
-          namespace: "default"
-      backingServices:
-        - kubeService:
-            name: "*"
-            namespace: "default"
-            clusterName: "*"
+  - backingServices:
+    - kubeService:
+        clusterName: '*'
+        name: '*'
+        namespace: 'default'
+    meshRefs:
+    - name: '*'
+      namespace: 'default'
+  trafficPolicyScopes:
+  - trafficPolicyActions:
+    - ALL
+    trafficTargetSelectors:
+    - kubeServiceMatcher:
+        clusters:
+        - '*'
+        labels:
+          '*': '*'
+        namespaces:
+        - 'default'
+    - kubeServiceRefs:
+        services:
+        - clusterName: '*'
+          name: '*'
+          namespace: 'default'
+    workloadSelectors:
+    - clusters:
+      - '*'
+      labels:
+        '*': '*'
+      namespaces:
+      - 'default'
+  virtualMeshScopes:
+  - meshRefs:
+    - name: '*'
+      namespace: '*'
+    virtualMeshActions:
+    - ALL
+  wasmDeploymentScopes:
+  - workloadSelectors:
+    - clusters:
+      - '*'
+      labels:
+        '*': '*'
+      namespaces:
+      - 'default'
 EOF
 ```
 
@@ -1645,7 +1699,7 @@ Then, you need to create a Role Binding to grant this Role to the current user:
 
 ```bash
 cat << EOF | kubectl --context mgmt apply -f -
-apiVersion: rbac.mesh.gloo.solo.io/v1alpha1
+apiVersion: rbac.enterprise.mesh.gloo.solo.io/v1alpha1
 kind: RoleBinding
 metadata:
   labels:
@@ -1672,6 +1726,9 @@ metadata:
   namespace: gloo-mesh
   name: simple
 spec:
+  sourceSelector:
+  - namespaces: 
+    - default
   destinationSelector:
   - kubeServiceRefs:
       services:
@@ -1724,11 +1781,401 @@ kubectl --context mgmt -n gloo-mesh delete trafficpolicy simple
 We also need to grant the admin role back to the current user:
 
 ```bash
-kubectl --context mgmt -n gloo-mesh delete rolebindings.rbac.mesh.gloo.solo.io default-namespace-admin-role-binding
-kubectl --context mgmt apply -f admin.yaml
+kubectl --context mgmt -n gloo-mesh delete rolebindings.rbac.enterprise.mesh.gloo.solo.io default-namespace-admin-role-binding
+
+cat << EOF | kubectl --context mgmt apply -f -
+apiVersion: rbac.enterprise.mesh.gloo.solo.io/v1alpha1
+kind: RoleBinding
+metadata:
+  labels:
+    app: gloo-mesh
+  name: admin-role-binding
+  namespace: gloo-mesh
+spec:
+  roleRef:
+    name: admin-role
+    namespace: gloo-mesh
+  subjects:
+    - kind: User
+      name: kubernetes-admin
+EOF
 ```
 
-## Lab 10 : Exploring the Gloo Mesh Enterprise UI
+## Lab 10 : Extend Envoy with WebAssembly
+
+WebAssembly (WASM) is the future of cloud-native infrastructure extensibility.
+
+WASM is a safe, secure, and dynamic way of extending infrastructure with the language of your choice. WASM tool chains compile your code from any of the supported languages into a type-safe, binary format that can be loaded dynamically in a WASM sandbox/VM.
+
+The Envoy Wasm filter is already available, but it's not ready for production use yet. More info available in [this Blog Post](https://www.solo.io/blog/the-state-of-webassembly-in-envoy-proxy/).
+
+Both Gloo and Istio are based on Envoy, so the can take advantage of WebAssembly.
+
+One of the projects for working with WASM and Envoy proxy is [WebAssembly Hub](https://webassemblyhub.io/).
+
+WebAssembly Hub is a meeting place for the community to share and consume WebAssembly Envoy extensions. You can easily search and find extensions that meet the functionality you want to add and give them a try.
+
+Gloo Mesh Enterprise CLI comes with all the features you neeed to develop, build, push and deploy your Wasm filters on Istio.
+
+You just need to add the Wasm extension to it:
+
+```bash
+wget https://github.com/solo-io/workshops/raw/master/gloo-mesh/meshctl-wasm-linux-amd64
+mv meshctl-wasm-linux-amd64 $HOME/.gloo-mesh/bin/meshctl-wasm
+chmod +x $HOME/.gloo-mesh/bin/meshctl-wasm
+```
+
+The main advantage of building a Wasm Envoy filter is that you can manipulate requests (and responses) exactly the way it makes sense for your specific use cases.
+
+Perhaps you want to gather some metrics only when the request contain specific headers, or you want to enrich the request by getting information from another API, it doesn't matter, you're now free to do exactly what you want.
+
+The first decision you need to take is to decide which SDK (so which language) you want to use. SDKs are currently available for C++, AssemblyScript, RUST and TinyGo.
+
+Not all the languages can be compiled to WebAssembly and don't expect that you'll be able to import any external packages (like the Amazon SDK).
+
+There are 2 main reasons why you won't be able to do that:
+
+- The first one is that you'll need to tell Envoy to send HTTP requests for you (if you need to get information from an API, for example).
+- The second one is that most of these languages are not supporting all the standard packages you expect. For example, TinyGo doesn't have a JSON package and AssemblyScript doesn't have a Regexp package.
+
+So, you need to etermine what you want your filter to do, look at what kind of packages you'll need (Regexp, ...) and check which one of the language you already know is matching your requirements.
+
+For example, if you want to manipulate the response headers with a regular expression and you have some experience with Golang, then you'll probably chose TinyGo.
+
+In this lab, we won't focus on developing a filter, but on how to build, push and deploy filters.
+
+### Prepare
+
+Our Envoy instances will fetch their wasm filters from an envoy cluster that must be defined in the static bootstrap config. We must therefore perform a one-time operation to add the wasm-agent as a cluster in the Envoy bootstrap:
+
+```bash
+cat <<EOF | kubectl apply --context cluster1 -f -
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: gloo-mesh-custom-envoy-bootstrap
+  namespace: default
+data:
+  custom_bootstrap.json: |
+    {
+      "static_resources": {
+        "clusters": [{
+          "name": "wasm_agent_cluster",
+          "type" : "STRICT_DNS",
+          "connect_timeout": "1s",
+          "lb_policy": "ROUND_ROBIN",
+          "load_assignment": {
+            "cluster_name": "wasm_agent_cluster",
+            "endpoints": [{
+              "lb_endpoints": [{
+                "endpoint": {
+                  "address":{
+                    "socket_address": {
+                      "address": "wasm-agent.gloo-mesh.svc.cluster.local",
+                      "port_value": 9977
+                    }
+                  }
+                }
+              }]
+            }]
+          },
+          "circuit_breakers": {
+            "thresholds": [
+              {
+                "priority": "DEFAULT",
+                "max_connections": 100000,
+                "max_pending_requests": 100000,
+                "max_requests": 100000
+              },
+              {
+                "priority": "HIGH",
+                "max_connections": 100000,
+                "max_pending_requests": 100000,
+                "max_requests": 100000
+              }
+            ]
+          },
+          "upstream_connection_options": {
+            "tcp_keepalive": {
+              "keepalive_time": 300
+            }
+          },
+          "max_requests_per_connection": 1,
+          "http2_protocol_options": { }
+        }]
+      }
+    }
+EOF
+
+cat <<EOF | kubectl apply --context cluster2 -f -
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: gloo-mesh-custom-envoy-bootstrap
+  namespace: default
+data:
+  custom_bootstrap.json: |
+    {
+      "static_resources": {
+        "clusters": [{
+          "name": "wasm_agent_cluster",
+          "type" : "STRICT_DNS",
+          "connect_timeout": "1s",
+          "lb_policy": "ROUND_ROBIN",
+          "load_assignment": {
+            "cluster_name": "wasm_agent_cluster",
+            "endpoints": [{
+              "lb_endpoints": [{
+                "endpoint": {
+                  "address":{
+                    "socket_address": {
+                      "address": "wasm-agent.gloo-mesh.svc.cluster.local",
+                      "port_value": 9977
+                    }
+                  }
+                }
+              }]
+            }]
+          },
+          "circuit_breakers": {
+            "thresholds": [
+              {
+                "priority": "DEFAULT",
+                "max_connections": 100000,
+                "max_pending_requests": 100000,
+                "max_requests": 100000
+              },
+              {
+                "priority": "HIGH",
+                "max_connections": 100000,
+                "max_pending_requests": 100000,
+                "max_requests": 100000
+              }
+            ]
+          },
+          "upstream_connection_options": {
+            "tcp_keepalive": {
+              "keepalive_time": 300
+            }
+          },
+          "max_requests_per_connection": 1,
+          "http2_protocol_options": { }
+        }]
+      }
+    }
+EOF
+```
+
+### Develop
+
+The Gloo Mesh CLI, meshctl can be used to create the skeleton for you.
+
+Let's take a look at the help of the meshctl wasme option:
+
+```
+meshctl wasm
+
+The interface for managing Gloo Mesh WASM filters
+
+Usage:
+  wasm [command]
+
+Available Commands:
+  build       Build a wasm image from the filter source directory.
+  deploy      Deploy an Envoy WASM Filter to Istio Sidecar Proxies (Envoy).
+  help        Help about any command
+  init        Initialize a project directory for a new Envoy WASM Filter.
+  list        List Envoy WASM Filters stored locally or published to webassemblyhub.io.
+  login       Log in so you can push images to the remote server.
+  pull        Pull wasm filters from remote registry
+  push        Push a wasm filter to remote registry
+```
+
+The following command will create the skeleton to build a Wasm filter using AssemblyScript:
+
+```
+meshctl wasm init myfilter --language=assemblyscript
+```
+
+It will ask what platform you will run your filter on (because the SDK version can be different based on the ABI corresponding to the version of Envoy used by this Platform).
+
+And it will create the following file structure under the directory you have indicated:
+
+```
+./package-lock.json
+./.gitignore
+./assembly
+./assembly/index.ts
+./assembly/tsconfig.json
+./package.json
+./runtime-config.json
+```
+
+The most interesting file is the index.ts one, where you'll write the code corresponding to your filter:
+
+```
+export * from "@solo-io/proxy-runtime/proxy";
+import { RootContext, Context, RootContextHelper, ContextHelper, registerRootContext, FilterHeadersStatusValues, stream_context } from "@solo-io/proxy-runtime";
+
+class AddHeaderRoot extends RootContext {
+  configuration : string;
+
+  onConfigure(): bool {
+    let conf_buffer = super.getConfiguration();
+    let result = String.UTF8.decode(conf_buffer);
+    this.configuration = result;
+    return true;
+  }
+
+  createContext(): Context {
+    return ContextHelper.wrap(new AddHeader(this));
+  }
+}
+
+class AddHeader extends Context {
+  root_context : AddHeaderRoot;
+  constructor(root_context:AddHeaderRoot){
+    super();
+    this.root_context = root_context;
+  }
+  onResponseHeaders(a: u32): FilterHeadersStatusValues {
+    const root_context = this.root_context;
+    if (root_context.configuration == "") {
+      stream_context.headers.response.add("hello", "world!");
+    } else {
+      stream_context.headers.response.add("hello", root_context.configuration);
+    }
+    return FilterHeadersStatusValues.Continue;
+  }
+}
+
+registerRootContext(() => { return RootContextHelper.wrap(new AddHeaderRoot()); }, "add_header");
+```
+
+We'll keep the default content, so the filter will add a new Header in all the Responses with the key hello and the value passed to the filter (or world! if no value is passed to it).
+
+### Build
+
+We're ready to compile the code into WebAssembly.
+
+The Gloo Mesh Enterprise CLI will make your life easier again.
+
+You simply need to run the following command:
+
+```
+meshctl wasm build assemblyscript -t webassemblyhub.io/djannot/myfilter:0.1 .
+```
+
+You can see that I've indicated that I wanted to use `webassemblyhub.io/djannot/myfilter:0.1` for the Image reference.
+
+`meshctl` will create an OCI compliant image with this tag. It's exactly the same as when you use the Docker CLI and the Docker Hub.
+
+### Push
+
+The image has been built, so we can now push it to the Web Assembly Hub.
+
+But you would need to create a free account and to run `meshctl login` to authenticate.
+
+To simplify the lab, we will use the image that has already been pushed.
+
+![Gloo Mesh Overview](images/web-assembly-hub.png)
+
+But note that the command to push the Image is the following one:
+
+```
+meshctl wasm push webassemblyhub.io/djannot/myfilter:0.2
+```
+
+Then, if you go to the Web Assembly Hub, you'll be able to see the Image of your Wasm filter
+
+### Deploy
+
+It's now time to deploy your Wasm filter on Istio !
+
+Note that you can also deploy it on Gloo Edge.
+
+Run the following command to make `cluster1` the current cluster.
+
+```bash
+kubectl config use-context cluster1
+```
+
+You can deploy it using `meshctl wasm deploy`, but we now live in a Declarative world, so let's do it the proper way.
+
+Gloo Mesh Enteprise creates a `WasmDeployment` CRD (Custom Resource Definition).
+
+To deploy your Wasm filter on all the Pods corresponding to the version v1 of the reviews service and running in the default namespace of the cluster1 cluster, you use the following commands:
+
+```bash
+kubectl patch deployment reviews-v1 --context cluster1 --patch='{"spec":{"template": {"metadata": {"annotations": {"sidecar.istio.io/bootstrapOverride": "gloo-mesh-custom-envoy-bootstrap"}}}}}' --type=merge
+
+cat << EOF | kubectl --context mgmt apply -f-
+apiVersion: networking.enterprise.mesh.gloo.solo.io/v1alpha1
+kind: WasmDeployment
+metadata:
+  name: reviews-wasm
+  namespace: gloo-mesh
+spec:
+  filters:
+  - filterContext: SIDECAR_INBOUND
+    wasmImageSource:
+      wasmImageTag: webassemblyhub.io/djannot/myfilter:0.2
+    staticFilterConfig:
+      '@type': type.googleapis.com/google.protobuf.StringValue
+      value: "Gloo Mesh Enterprise"
+  workloadSelector:
+  - clusters:
+    - cluster1
+    labels:
+      app: reviews
+      version: v1
+    namespaces:
+    - default
+EOF
+```
+
+Let's send a request from the `productpage` service to the `reviews` service:
+
+```
+kubectl exec -it $(kubectl get pods -l app=productpage -o jsonpath='{.items[0].metadata.name}') -- python -c "import requests; r = requests.get('http://reviews:9080/reviews/0'); print(r.headers)"
+```
+
+You should get either:
+
+```
+{'x-powered-by': 'Servlet/3.1', 'content-type': 'application/json', 'date': 'Tue, 15 Dec 2020 08:23:24 GMT', 'content-language': 'en-US', 'content-length': '295', 'x-envoy-upstream-service-time': '10', 'server': 'envoy'}
+```
+
+or:
+
+```
+{'x-powered-by': 'Servlet/3.1', 'content-type': 'application/json', 'date': 'Tue, 15 Dec 2020 08:23:25 GMT', 'content-language': 'en-US', 'content-length': '295', 'x-envoy-upstream-service-time': '17', 'hello': 'Gloo Mesh Enterprise Beta', 'server': 'envoy'}
+```
+
+We have deployed the Istio Bookinfo application with the versions `v1` and `v2` of the `reviews` service, so the new header is added half of the time.
+
+### Observe
+
+Gloo Mesh Enterprise has processed the `WasmDeployment` object and has added status information on it:
+
+```
+status:
+  observedGeneration: 1
+  workloadStates:
+    reviews-v1-default-cluster1-deployment.gloo-mesh.: FILTERS_DEPLOYED
+```
+
+Very useful, no ?
+
+You can also use the Gloo Mesh Enterprise UI to see the different Wasm filters that have been deployed globally:
+
+![Gloo Mesh Overview](images/gloo-mesh-wasm.png)
+
+And you can even see the workloads were a Wasm filter has been deployed on:
+
+![Gloo Mesh Overview](images/gloo-mesh-wasm-filter.png)
+
+## Lab 11 : Exploring the Gloo Mesh Enterprise UI
 
 To access the UI, run the following command:
 
@@ -1778,8 +2225,8 @@ Let's deploy Gloo on the first cluster:
 
 ```bash
 kubectl config use-context cluster1
-glooctl upgrade --release=v1.5.8
-glooctl install gateway enterprise --version 1.5.8 --license-key $LICENSE_KEY
+glooctl upgrade --release=v1.6.1
+glooctl install gateway enterprise --version 1.6.1 --license-key $LICENSE_KEY
 ```
 
 Use the following commands to wait for the Gloo components to be deployed:
@@ -1808,7 +2255,7 @@ Everything is done by simply running the following command:
 glooctl istio inject
 ```
 
-It will restart the `gateway-proxy` (Envoy) Pod, so you can use the following commands to wait for all the Pods to be ready:
+It will restart a few Pods, so you can use the following commands to wait for all the Pods to be ready:
 
 <!--bash
 kubectl --context cluster1 -n istio-system delete pod -l app=istio-ingressgateway
@@ -1892,7 +2339,13 @@ status:
       state: 1
 ```
 
-The bookinfo app is accessible via the Gloo gateway using the `172.18.0.221` IP address.
+Check that all the Pods are running in the `default` namespace:
+
+```bash
+kubectl --context cluster1 get pods
+```
+
+When the pods are all running, the bookinfo app is accessible via the Gloo gateway using the `172.18.0.221` IP address.
 
 Go to this new <a href="http://172.18.0.221/productpage" target="_blank">bookinfo app URL</a> to see if you can access the `productpage` microservice using Gloo.
 
