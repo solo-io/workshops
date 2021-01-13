@@ -404,7 +404,7 @@ done
 
 Gloo Mesh can help unify the root identity between multiple service mesh installations so any intermediates are signed by the same Root CA and end-to-end mTLS between clusters and services can be established correctly.
 
-Run this command to see how the communication between microservices occur currently:
+Run this command to see how the communication between microservices occurs currently:
 
 ```bash
 kubectl --context cluster1 exec -t deploy/reviews-v1 -c istio-proxy \
@@ -613,7 +613,7 @@ The first certificate in the chain is the certificate of the workload and the se
 
 As you can see, the Istio CA’s signing (CA) certificates are different in the 2 clusters, so one cluster can't validate certificates issued by the other cluster.
 
-Creating a Virtual Mesh will unify the root identity.
+Creating a Virtual Mesh will unify these two CAs with a common root identity.
 
 Run the following command to create the *Virtual Mesh*:
 
@@ -639,21 +639,21 @@ spec:
 EOF
 ```
 
-When we create the VirtualMesh and set the trust model to shared, Gloo Mesh will kick off the process to unify the identity to a shared root.
+When we create the VirtualMesh and set the trust model to shared, Gloo Mesh will kick off the process of unifying identities under a shared root.
 
 First, Gloo Mesh will create the Root CA.
 
-Then, Gloo Mesh will use a Certificate Request (CR) agent on each of the clusters to create a new key/cert pair that will form an intermediate CA used by the mesh on that cluster. It will then create a Certificate Request.
+Then, Gloo Mesh will use the Certificate Request Agent on each of the clusters to create a new key/cert pair that will form an intermediate CA used by the mesh on that cluster. It will then create a Certificate Request (CR).
 
 ![Virtual Mesh Creation](images/virtualmesh-creation.png)
 
-Gloo Mesh will sign the certificate with the Root CA. At that point, we want Istio to pick up the new intermediate CA and start using that for its workloads.
+Gloo Mesh will then sign the intermediate certificates with the Root CA. 
 
-To do that Gloo Mesh creates a Kubernetes secret called `cacerts` in the `istio-system` namespace.
+At that point, we want Istio to pick up the new intermediate CA and start using that for its workloads. To do that Gloo Mesh creates a Kubernetes secret called `cacerts` in the `istio-system` namespace.
 
 You can have a look at the Istio documentation [here](https://istio.io/latest/docs/tasks/security/cert-management/plugin-ca-cert/#plugging-in-existing-certificates-and-key) if you want to get more information about this process.
 
-Check that the new certificate has been created on the first cluster:
+Check that the secret containing the new Istio CA has been created in the istio namespace, on the first cluster:
 
 ```bash
 kubectl --context cluster1 get secret -n istio-system cacerts -o yaml
@@ -683,7 +683,7 @@ metadata:
 type: certificates.mesh.gloo.solo.io/issued_certificate
 ```
 
-Check that the new certificate has been created on the second cluster:
+Same operation on the second cluster:
 
 ```bash
 kubectl --context cluster2 get secret -n istio-system cacerts -o yaml
@@ -715,19 +715,7 @@ type: certificates.mesh.gloo.solo.io/issued_certificate
 
 As you can see, the secrets contain the same Root CA (base64 encoded), but different intermediate certs.
 
-<!--bash
-until kubectl --context cluster1 get secret -n istio-system cacerts
-do
-  sleep 1
-done
-
-until kubectl --context cluster2 get secret -n istio-system cacerts
-do
-  sleep 1
-done
--->
-
-Notice the `autoRestartPods: true` in the `mtlsConfig`. This instructs Gloo Mesh to restart the Istio pods in the relevant clusters.
+Have a look at the `VirtualMesh` object we've just created and notice the `autoRestartPods: true` in the `mtlsConfig`. This instructs Gloo Mesh to restart the Istio pods in the relevant clusters.
 
 This is due to a limitation of Istio. The Istio control plane picks up the CA for Citadel and does not rotate it often enough.
 
@@ -1087,7 +1075,7 @@ You can see that the last certificate in the chain is now identical on both clus
 
 The first certificate is the certificate of the service. Let's decrypt it.
 
-Copy and Paste the content of the certificate (including the BEGIN and END CERTIFICATE lines) in a new file called `/tmp/cert` and run the following command:
+Copy and paste the content of the certificate (including the BEGIN and END CERTIFICATE lines) in a new file called `/tmp/cert` and run the following command:
 
 ```
 openssl x509 -in /tmp/cert -text
@@ -1511,7 +1499,7 @@ Gloo Mesh updates the `reviews` DestinatioRule on both clusters to add the outli
 
 ![Envoy filter](images/envoy-filter.png)
 
-Gloo Mesh creates an EnvoyFilter on the first Kubernetes cluster to spread to replace the `outbound|9080||reviews-failover.default.global` Envoy cluster by the following ones:
+Gloo Mesh creates an EnvoyFilter on the first Kubernetes cluster to replace the `outbound|9080||reviews-failover.default.global` Envoy cluster by the following ones:
 - outbound|9080||reviews.default.svc.cluster.local
 - outbound|9080||reviews.default.svc.cluster2.global
 
@@ -1568,7 +1556,7 @@ kubectl --context mgmt -n gloo-mesh delete rolebindings.rbac.enterprise.mesh.glo
 
 Now, if you try to create the multi cluster Traffic Policy we used before, you shouldn't be allowed to do it.
 
-```
+```bash
 cat << EOF | kubectl --context mgmt apply -f -
 apiVersion: networking.mesh.gloo.solo.io/v1alpha2
 kind: TrafficPolicy
@@ -1817,13 +1805,13 @@ WASM is a safe, secure, and dynamic way of extending infrastructure with the lan
 
 The Envoy Wasm filter is already available, but it's not ready for production use yet. More info available in [this Blog Post](https://www.solo.io/blog/the-state-of-webassembly-in-envoy-proxy/).
 
-Both Gloo and Istio are based on Envoy, so the can take advantage of WebAssembly.
+Both Gloo and Istio are based on Envoy, so they can take advantage of WebAssembly.
 
 One of the projects for working with WASM and Envoy proxy is [WebAssembly Hub](https://webassemblyhub.io/).
 
 WebAssembly Hub is a meeting place for the community to share and consume WebAssembly Envoy extensions. You can easily search and find extensions that meet the functionality you want to add and give them a try.
 
-Gloo Mesh Enterprise CLI comes with all the features you neeed to develop, build, push and deploy your Wasm filters on Istio.
+Gloo Mesh Enterprise CLI comes with all the features you need to develop, build, push and deploy your Wasm filters on Istio.
 
 You just need to add the Wasm extension to it:
 
@@ -1846,9 +1834,9 @@ There are 2 main reasons why you won't be able to do that:
 - The first one is that you'll need to tell Envoy to send HTTP requests for you (if you need to get information from an API, for example).
 - The second one is that most of these languages are not supporting all the standard packages you expect. For example, TinyGo doesn't have a JSON package and AssemblyScript doesn't have a Regexp package.
 
-So, you need to etermine what you want your filter to do, look at what kind of packages you'll need (Regexp, ...) and check which one of the language you already know is matching your requirements.
+So, you need to determine what you want your filter to do, look at what kind of packages you'll need (Regexp, ...) and check which one of the language you already know is matching your requirements.
 
-For example, if you want to manipulate the response headers with a regular expression and you have some experience with Golang, then you'll probably chose TinyGo.
+For example, if you want to manipulate the response headers with a regular expression and you have some experience with Golang, then you'll probably choose TinyGo.
 
 In this lab, we won't focus on developing a filter, but on how to build, push and deploy filters.
 
