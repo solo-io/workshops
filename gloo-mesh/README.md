@@ -1540,6 +1540,14 @@ kubectl --context cluster1 logs -l app=reviews -c istio-proxy -f
 
 ## Lab 9 : Gloo Mesh Enterprise RBAC
 
+First of all, let's delete the Objects we've created in the failover lab:
+
+```bash
+kubectl --context mgmt -n gloo-mesh delete trafficpolicy mgmt-reviews-outlier
+kubectl --context mgmt -n gloo-mesh delete failoverservice reviews-failover
+kubectl --context mgmt -n default delete trafficpolicy reviews-shift-failover
+```
+
 In large organizations, several teams are using the same Kubernetes cluster. They use Kubernetes RBAC to define who can do what and where.
 
 When using a Service Mesh like Istio, users need to create different kind of objects (VirtualServices, DestinationRules, ...) and Kubernetes RBAC doesn't allow to restrict what specs they define in these objects.
@@ -2193,7 +2201,7 @@ If you click on `Meshes`, you can the VirtualMesh we've configured previously:
 
 You can see that Global Access Policy is enabled and get more details when you click on `View Virtual Mesh Details`.
 
-For example, you can see the Failover we've configured in the previous lab:
+For example, you can see the `reviews` AccessPolicy we've configured in the previous lab:
 
 ![Gloo Mesh VirtualMesh](images/smh-ui-3.png)
 
@@ -2204,14 +2212,6 @@ If you click on the Settings icon on the top right corner, you can see the clust
 Take the time to explore the `Policies` and `Debug` tab to see what other information is available.
 
 ## Lab 11 : Securing the Edge
-
-First of all, let's delete the Objects we've created in the failover lab:
-
-```bash
-kubectl --context mgmt -n gloo-mesh delete trafficpolicy mgmt-reviews-outlier
-kubectl --context mgmt -n gloo-mesh delete failoverservice reviews-failover
-kubectl --context mgmt -n default delete trafficpolicy reviews-shift-failover
-```
 
 We've seen in the previous labs how the Istio Ingressgateway can be used for multi-cluster traffic and failover.
 
