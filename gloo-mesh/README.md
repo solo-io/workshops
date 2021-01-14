@@ -719,29 +719,16 @@ Have a look at the `VirtualMesh` object we've just created and notice the `autoR
 
 This is due to a limitation of Istio. The Istio control plane picks up the CA for Citadel and does not rotate it often enough.
 
-But despite that, it happens that the Pods restart before `istiod` is using the new certificates, so let's restart them:
-
-```bash
-kubectl --context cluster1 -n istio-system delete pod -l app=istio-ingressgateway
-kubectl --context cluster2 -n istio-system delete pod -l app=istio-ingressgateway
-
-kubectl --context cluster1 delete pod --all
-kubectl --context cluster2 delete pod --all
-```
-
-And let's wait for all the Pods to be ready again:
-
-```bash
-until [ $(kubectl --context cluster1 get pods -o jsonpath='{range .items[*].status.containerStatuses[*]}{.ready}{"\n"}{end}' | grep false -c) -eq 0 ]; do
-  echo "Waiting for all the pods of the default namespace to become ready"
+<!--bash
+until kubectl --context cluster1 get secret -n istio-system cacerts
+do
   sleep 1
 done
-
-until [ $(kubectl --context cluster2 get pods -o jsonpath='{range .items[*].status.containerStatuses[*]}{.ready}{"\n"}{end}' | grep false -c) -eq 0 ]; do
-  echo "Waiting for all the pods of the default namespace to become ready"
+until kubectl --context cluster2 get secret -n istio-system cacerts
+do
   sleep 1
 done
-```
+-->
 
 Now, let's check what certificates we get when we run the same commands we ran before we created the Virtual Mesh:
 
