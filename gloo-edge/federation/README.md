@@ -1,6 +1,6 @@
 # Gloo Federation workshop
 
-Gloo Federation allows users to manage the configuration for all of their Gloo instances from one place, no matter what platform they run on. In addition Gloo Federation elevates Gloo’s powerful routing features beyond the environment they live in, allowing users to create all new global routing features between different Gloo instances. Gloo Federation enables consistent configuration, service failover, unified debugging, and automated Gloo discovery across all of your Gloo instances.
+Gloo Federation allows users to manage the configuration for all of their Gloo instances from one place, no matter what platform they run on. In addition Gloo Federation elevates Gloo Edge’s powerful routing features beyond the environment they live in, allowing users to create all new global routing features between different Gloo Edge instances. Gloo Federation enables consistent configuration, service failover, unified debugging, and automated Gloo Edge discovery across all of your Gloo instances.
 
 The goal of this workshop is to show several unique features of the Gloo Federation in action:
 
@@ -14,10 +14,10 @@ The goal of this workshop is to show several unique features of the Gloo Federat
 
 ## Lab 1 : Deploy your Kubernetes clusters
 
-From the terminal go to the `/home/solo/workshops/gloo/federation` directory:
+From the terminal go to the `/home/solo/workshops/gloo-edge/federation` directory:
 
 ```
-cd /home/solo/workshops/gloo/federation
+cd /home/solo/workshops/gloo-edge/federation
 ```
 
 Run the following commands to deploy 3 Kubernetes clusters:
@@ -31,9 +31,9 @@ Run the following commands to deploy 3 Kubernetes clusters:
 Then run the following commands to wait for all the Pods to be ready:
 
 ```bash
-../../scripts/check.sh 1
-../../scripts/check.sh 2
-../../scripts/check.sh 3
+../../scripts/check.sh mgmt
+../../scripts/check.sh cluster1
+../../scripts/check.sh cluster2
 ```
 
 Now, if you execute the `kubectl get pods -A` command, you should obtain the following:
@@ -76,7 +76,7 @@ kubectl config use-context mgmt
 Upgrade `glooctl` using the following command:
 
 ```bash
-glooctl upgrade --release=v1.5.0
+glooctl upgrade --release=v1.6.1
 ```
 
 Check if the `LICENSE_KEY` variable is already set.
@@ -95,11 +95,11 @@ enableMultiClusterRbac: true
 EOF
 ```
 
-Deploy Gloo:
+Deploy Gloo Edge:
 
 ```bash
 kubectl config use-context mgmt
-glooctl install federation --values values-federation.yaml --license-key $LICENSE_KEY --version=v0.0.20
+glooctl install federation --values values-federation.yaml --license-key $LICENSE_KEY --version=v0.0.23
 ```
 
 ## Deploy Gloo on the two other clusters
@@ -108,17 +108,33 @@ Deploy Gloo on the second cluster:
 
 ```bash
 kubectl config use-context cluster1
-glooctl install gateway enterprise --version 1.5.0 --license-key $LICENSE_KEY
+glooctl install gateway enterprise  --version 1.6.0-beta12 --license-key $LICENSE_KEY
 ```
 
-Deploy Gloo on the third cluster:
+Deploy Gloo Edge on the third cluster:
+
+In order to use a Gloo Edge Instance as a failover target it first needs to be configured with an additional listener to route incoming failover requests.
+
+The yaml below sets up a TCP proxy which is configured to terminate mTLS traffic from the primary Gloo Edge instance, and forward the traffic based on the SNI name. The SNI name and routing are automatically handled by Gloo Federation, but the certificates are the ones created in the previous step.
 
 ```bash
 kubectl config use-context cluster2
-glooctl install gateway enterprise --version 1.5.0 --license-key $LICENSE_KEY
+
+cat << EOF > values.yaml
+gloo:
+  gatewayProxies:
+    gatewayProxy:
+      failover:
+        enabled: true
+        secretName: failover-downstream
+      service:
+        type: LoadBalancer
+EOF
+
+glooctl install gateway enterprise --values values.yaml --version 1.6.0-beta12 --license-key $LICENSE_KEY
 ```
 
-Use the following commands to wait for the Gloo components to be deployed on all the clusters:
+Use the following commands to wait for the Gloo Edge components to be deployed on all the clusters:
 
 ```bash
 kubectl --context mgmt -n gloo-fed rollout status deployment gloo-fed
@@ -143,46 +159,6 @@ until [ $(kubectl --context cluster2 -n gloo-system get pods -o jsonpath='{range
   sleep 1
 done
 ```
-
-## Register the Gloo clusters
-
-Register the 2 Gloo clusters:
-
-```bash
-kubectl config use-context mgmt
-
-glooctl cluster register --cluster-name cluster1 --remote-context cluster1 --remote-namespace gloo-system
-glooctl cluster register --cluster-name cluster2 --remote-context cluster2 --remote-namespace gloo-system
-```
-
-Once a cluster has been registered, Gloo Federation will automatically discover all instances of Gloo within the cluster. The discovered instances are stored in a Custom Resource of type `glooinstances.fed.solo.io` in the `gloo-fed` namespace.
-
-You can view the discovered instances by running the following command:
-
-```bash
-kubectl --context mgmt get glooinstances -n gloo-fed
-```
-
-You should see something like that:
-
-```
-NAME                AGE
-cluster1-gloo-system   76s
-cluster2-gloo-system   74s
-```
-
-## Access the Gloo Federation UI
-
-Run the following command in a different tab:
-
-```
-kubectl config use-context mgmt
-kubectl port-forward svc/gloo-fed-console -n gloo-fed 8090:8090
-```
-
-Access the UI at http://localhost:8090 and have a look at the different tabs.
-
-![UI](images/ui.png)
 
 ## Secure the communications between the Gloo clusters
 
@@ -214,9 +190,51 @@ glooctl create secret tls --name failover-upstream \
 --certchain mtls.crt --privatekey mtls.key
 ```
 
+## Register the Gloo clusters
+
+Register the 2 Gloo Edge clusters:
+
+```bash
+kubectl config use-context mgmt
+
+glooctl cluster register --cluster-name cluster1 --remote-context cluster1 --remote-namespace gloo-system
+glooctl cluster register --cluster-name cluster2 --remote-context cluster2 --remote-namespace gloo-system
+```
+
+Once a cluster has been registered, Gloo Federation will automatically discover all instances of Gloo Edge within the cluster. The discovered instances are stored in a Custom Resource of type `glooinstances.fed.solo.io` in the `gloo-fed` namespace.
+
+You can view the discovered instances by running the following command:
+
+```bash
+kubectl --context mgmt get glooinstances -n gloo-fed
+
+exit
+```
+
+You should see something like that:
+
+```
+NAME                AGE
+cluster1-gloo-system   76s
+cluster2-gloo-system   74s
+```
+
+## Access the Gloo Federation UI
+
+Run the following command in a different tab:
+
+```
+kubectl config use-context mgmt
+kubectl port-forward svc/gloo-fed-console -n gloo-fed 8090:8090
+```
+
+Access the UI at http://localhost:8090 and have a look at the different tabs.
+
+![UI](images/ui.png)
+
 ## Multicluster RBAC
 
-Gloo Federation allows you to administer multiple instances of Gloo across multiple Kubernetes clusters. One Gloo Federation object might modify configuration across many instances of Gloo across many Kubernetes clusters. Multicluster role-based access control is a feature of Gloo Federation that controls access and actions on Gloo Federation APIs that might reconfigure many Gloo instances. The feature ensures that users are only allowed to modify Gloo Federation resources that configure Gloo resources in clusters and namespaces that they have explicitly been granted access to in order to facilitate multitenancy in the Gloo Federation control plane.
+Gloo Federation allows you to administer multiple instances of Gloo Edge across multiple Kubernetes clusters. One Gloo Edge Federation object might modify configuration across many instances of Gloo Edge across many Kubernetes clusters. Multicluster role-based access control is a feature of Gloo Federation that controls access and actions on Gloo Federation APIs that might reconfigure many Gloo instances. The feature ensures that users are only allowed to modify Gloo Federation resources that configure Gloo Edge resources in clusters and namespaces that they have explicitly been granted access to in order to facilitate multitenancy in the Gloo Federation control plane.
 
 The installation of Multicluster RBAC creates two `MultiClusterRole` Custom Resources and two `MultiClusterRoleBinding` Custom Resources.
 
@@ -279,7 +297,7 @@ EOF
 
 ## Federated configuration
 
-Gloo Federation enables you to create consistent configurations across multiple Gloo instances. The resources being configured could be resources such as Upstreams, UpstreamGroups, and Virtual Services.
+Gloo Federation enables you to create consistent configurations across multiple Gloo Edge instances. The resources being configured could be resources such as Upstreams, UpstreamGroups, and Virtual Services.
 
 First of all, let's deploy workloads on the Gloo clusters:
 
@@ -387,7 +405,7 @@ spec:
 EOF
 ```
 
-Use the following commands to wait for the blue and green Pods to be deployed on the Gloo clusters:
+Use the following commands to wait for the blue and green Pods to be deployed on the Gloo Edge clusters:
 
 ```bash
 kubectl --context cluster1 rollout status deployment echo-blue
@@ -460,7 +478,7 @@ EOF
 
 The FederatedUpstream creates an Upstream in the target clusters and the FederatedVirtualService does the same with VirtualServices.
 
-You can run execute the following command to validate tha the Upstream object has been correctly created in the first Gloo cluster:
+You can run execute the following command to validate tha the Upstream object has been correctly created in the first Gloo Edge cluster:
 
 ```bash
 kubectl --context cluster1 -n gloo-system get upstream default-service-bluegreen-8080 -o yaml
@@ -503,7 +521,7 @@ status:
 
 You can do the same for the VirtualService object.
 
-It means that you can now access the `service-bluegreen` from both Gloo clusters:
+It means that you can now access the `service-bluegreen` from both Gloo Edge clusters:
 
 ```bash
 kubectl config use-context cluster1
@@ -517,7 +535,7 @@ One will return `blue-pod` while the other one will return `green-pod`.
 
 ## Failover configuration
 
-When an Upstream fails or becomes unhealthy, Gloo Federation can automatically fail traffic over to a different Gloo instance and Upstream.
+When an Upstream fails or becomes unhealthy, Gloo Federation can automatically fail traffic over to a different Gloo Edge instance and Upstream.
 
 Let's create a FailoverScheme object to determine how we want the failover to happen:
 
@@ -542,60 +560,7 @@ spec:
 EOF
 ```
 
-In order to use a Gloo Instance as a failover target it first needs to be configured with an additional listener to route incoming failover requests.
-
-The Gateway resource below sets up a TCP proxy which is configured to terminate mTLS traffic from the primary gloo instance, and forward the traffic based on the SNI name. The SNI name and routing are automatically handled by Gloo Federation, but the certificates are the ones created in the previous step.
-
-
-```bash
-kubectl config use-context cluster2
-
-kubectl apply -f - <<EOF
-apiVersion: gateway.solo.io/v1
-kind: Gateway
-metadata:
- name: failover-gateway
- namespace: gloo-system
- labels:
-   app: gloo
-spec:
- bindAddress: "::"
- bindPort: 15443
- tcpGateway:
-   tcpHosts:
-   - name: failover
-     sslConfig:
-       secretRef:
-         name: failover-downstream
-         namespace: gloo-system
-     destination:
-       forwardSniClusterName: {}
----
-apiVersion: v1
-kind: Service
-metadata:
- labels:
-   app: gloo
-   gateway-proxy-id: gateway-proxy
-   gloo: gateway-proxy
- name: failover
- namespace: gloo-system
-spec:
- ports:
- - name: failover
-   nodePort: 32000
-   port: 15443
-   protocol: TCP
-   targetPort: 15443
- selector:
-   gateway-proxy: live
-   gateway-proxy-id: gateway-proxy
- sessionAffinity: None
- type: LoadBalancer
-EOF
-```
-
-Check that you can still access the application on the first Gloo cluster:
+Check that you can still access the application on the first Gloo Edge cluster:
 
 ```bash
 kubectl config use-context cluster1
@@ -628,7 +593,7 @@ until [ $(kubectl get pods -l text=blue -o json | jq '.items | length') -eq 0 ];
 done
 ```
 
-Check that you can still access the application on the first Gloo cluster:
+Check that you can still access the application on the first Gloo Edge cluster:
 
 ```bash
 curl $(glooctl proxy url)/
@@ -640,13 +605,11 @@ You should now get this output:
 "green-pod"
 ```
 
-It means that the Gloo gateway has sent the request to the second Gloo cluster because the service wasn't available locally.
+It means that the Gloo gateway has sent the request to the second Gloo Edge cluster because the service wasn't available locally.
 
 ## Monitoring
 
-If you go back to the Admin UI and click on the `Gloo Instances tab`, you can see the 2 Gloo clusters:
-
-![Instances](images/instances.png)
+If you go back to the Admin UI and click on the `Gloo Instances tab`, you can see the 2 Gloo Edge clusters.
 
 If you click on `View Gloo Details` on the first one, and then on the `Upstreams` tab, you can see that the Upstream has been failing over:
 
