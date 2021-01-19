@@ -82,7 +82,7 @@ kubectl config use-context mgmt
 First of all, you need to install the *meshctl* CLI:
 
 ```bash
-curl -sL https://run.solo.io/meshctl/install | GLOO_MESH_VERSION=v0.11.3 sh -
+curl -sL https://run.solo.io/meshctl/install | GLOO_MESH_VERSION=v0.12.0 sh -
 export PATH=$HOME/.gloo-mesh/bin:$PATH
 ```
 
@@ -91,7 +91,7 @@ Gloo Mesh Enterprise is adding unique features on top of Gloo Mesh Open Source (
 Run the following commands to deploy Gloo Mesh Enterprise:
 
 ```bash
-meshctl install enterprise --license=${GLOO_MESH_LICENSE_KEY} --version=0.4.2
+meshctl install enterprise --license=${GLOO_MESH_LICENSE_KEY} --version=0.5.0
 
 kubectl --context mgmt -n gloo-mesh rollout status deploy/discovery
 kubectl --context mgmt -n gloo-mesh rollout status deploy/enterprise-extender
@@ -107,13 +107,13 @@ meshctl cluster register \
   --cluster-name cluster1 \
   --mgmt-context mgmt \
   --remote-context cluster1 \
-  --install-wasm-agent --wasm-agent-chart-file https://storage.googleapis.com/gloo-mesh-enterprise/wasm-agent/wasm-agent-0.3.6.tgz
+  --install-wasm-agent --wasm-agent-chart-file https://storage.googleapis.com/gloo-mesh-enterprise/wasm-agent/wasm-agent-0.4.0.tgz
 
 meshctl cluster register \
   --cluster-name cluster2 \
   --mgmt-context mgmt \
   --remote-context cluster2 \
-  --install-wasm-agent --wasm-agent-chart-file https://storage.googleapis.com/gloo-mesh-enterprise/wasm-agent/wasm-agent-0.3.6.tgz
+  --install-wasm-agent --wasm-agent-chart-file https://storage.googleapis.com/gloo-mesh-enterprise/wasm-agent/wasm-agent-0.4.0.tgz
 ```
 
 You can list the registered cluster using the following command:
@@ -132,16 +132,16 @@ cluster2   23s
 
 ## Lab 3 : Deploy Istio on both clusters
 
-Download istio 1.8.1:
+Download istio 1.8.2:
 
 ```bash
-curl -L https://istio.io/downloadIstio | ISTIO_VERSION=1.8.1 sh -
+curl -L https://istio.io/downloadIstio | ISTIO_VERSION=1.8.2 sh -
 ```
 
 Now let's deploy Istio on the first cluster:
 
 ```bash
-./istio-1.8.1/bin/istioctl --context cluster1 operator init
+./istio-1.8.2/bin/istioctl --context cluster1 operator init
 
 kubectl --context cluster1 create ns istio-system
 
@@ -217,7 +217,7 @@ EOF
 And deploy Istio on the second cluster:
 
 ```bash
-./istio-1.8.1/bin/istioctl --context cluster2 operator init
+./istio-1.8.2/bin/istioctl --context cluster2 operator init
 
 kubectl --context cluster2 create ns istio-system
 
@@ -336,11 +336,11 @@ Run the following commands to deploy the bookinfo app on `cluster1`:
 ```bash
 kubectl --context cluster1 label namespace default istio-injection=enabled
 # deploy bookinfo application components for all versions less than v3
-kubectl --context cluster1 apply -f https://raw.githubusercontent.com/istio/istio/1.8.1/samples/bookinfo/platform/kube/bookinfo.yaml -l 'app,version notin (v3)'
+kubectl --context cluster1 apply -f https://raw.githubusercontent.com/istio/istio/1.8.2/samples/bookinfo/platform/kube/bookinfo.yaml -l 'app,version notin (v3)'
 # deploy all bookinfo service accounts
-kubectl --context cluster1 apply -f https://raw.githubusercontent.com/istio/istio/1.8.1/samples/bookinfo/platform/kube/bookinfo.yaml -l 'account'
+kubectl --context cluster1 apply -f https://raw.githubusercontent.com/istio/istio/1.8.2/samples/bookinfo/platform/kube/bookinfo.yaml -l 'account'
 # configure ingress gateway to access bookinfo
-kubectl --context cluster1 apply -f https://raw.githubusercontent.com/istio/istio/1.8.1/samples/bookinfo/networking/bookinfo-gateway.yaml
+kubectl --context cluster1 apply -f https://raw.githubusercontent.com/istio/istio/1.8.2/samples/bookinfo/networking/bookinfo-gateway.yaml
 ```
 
 You can check that the app is running using `kubectl --context cluster1 get pods`:
@@ -361,9 +361,9 @@ Now, run the following commands to deploy the bookinfo app on `cluster2`:
 ```bash
 kubectl --context cluster2 label namespace default istio-injection=enabled
 # deploy all bookinfo service accounts and application components for all versions
-kubectl --context cluster2 apply -f https://raw.githubusercontent.com/istio/istio/1.8.1/samples/bookinfo/platform/kube/bookinfo.yaml
+kubectl --context cluster2 apply -f https://raw.githubusercontent.com/istio/istio/1.8.2/samples/bookinfo/platform/kube/bookinfo.yaml
 # configure ingress gateway to access bookinfo
-kubectl --context cluster2 apply -f https://raw.githubusercontent.com/istio/istio/1.8.1/samples/bookinfo/networking/bookinfo-gateway.yaml
+kubectl --context cluster2 apply -f https://raw.githubusercontent.com/istio/istio/1.8.2/samples/bookinfo/networking/bookinfo-gateway.yaml
 ```
 
 You can check that the app is running using `kubectl --context cluster2 get pods`:
@@ -2120,7 +2120,7 @@ EOF
 Let's send a request from the `productpage` service to the `reviews` service:
 
 ```
-kubectl exec -it $(kubectl get pods -l app=productpage -o jsonpath='{.items[0].metadata.name}') -- python -c "import requests; r = requests.get('http://reviews:9080/reviews/0'); print(r.headers)"
+kubectl exec -it $(kubectl  get pods -l app=productpage -o jsonpath='{.items[0].metadata.name}') -- python -c "import requests; r = requests.get('http://reviews:9080/reviews/0'); print(r.headers)"
 ```
 
 You should get either:
@@ -2150,14 +2150,6 @@ status:
 
 Very useful, no ?
 
-You can also use the Gloo Mesh Enterprise UI to see the different Wasm filters that have been deployed globally:
-
-![Gloo Mesh Overview](images/gloo-mesh-wasm.png)
-
-And you can even see the workloads were a Wasm filter has been deployed on:
-
-![Gloo Mesh Overview](images/gloo-mesh-wasm-filter.png)
-
 ## Lab 11 : Exploring the Gloo Mesh Enterprise UI
 
 To access the UI, run the following command:
@@ -2183,6 +2175,14 @@ For example, you can see the `reviews` AccessPolicy we've configured in the prev
 If you click on the Settings icon on the top right corner, you can see the clusters and the RBAC policies:
 
 ![Gloo Mesh VirtualMesh](images/smh-ui-4.png)
+
+You can also use the Gloo Mesh Enterprise UI to see the different Wasm filters that have been deployed globally:
+
+![Gloo Mesh Overview](images/gloo-mesh-wasm.png)
+
+And you can even see the workloads were a Wasm filter has been deployed on:
+
+![Gloo Mesh Overview](images/gloo-mesh-wasm-filter.png)
 
 Take the time to explore the `Policies` and `Debug` tab to see what other information is available.
 
