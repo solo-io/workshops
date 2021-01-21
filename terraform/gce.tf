@@ -4,9 +4,9 @@ locals {
 
 resource "google_compute_instance" "default" {
   count         = "2"
-  name         = "workshop-${count.index + 1}"
+  name         = "ceposta-workshop-${count.index + 1}"
   machine_type = "n1-standard-8"
-  zone         = "europe-west1-b"
+  zone         = "us-west1-a"
 
   tags = ["http-server", "https-server"]
 
