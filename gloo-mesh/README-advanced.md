@@ -580,8 +580,7 @@ kubectl create serviceaccount "${SERVICE_ACCOUNT}" -n "${VM_NAMESPACE}"
 Create a template WorkloadGroup for the VM:
 
 ```bash
-./istio-1.8.1/bin/istioctl x workload group create --name "${VM_APP}" --namespace "${VM_NAMESPACE}" --labels app="${VM_APP}" --serviceAccount "${SERVICE_ACCOUNT}" -p http=9999 > workloadgroup.yaml
-./istio-1.8.1/bin/istioctl x workload group create --name "${VM_APP}" --namespace "${VM_NAMESPACE}" --labels app="${VM_APP}" --serviceAccount "${SERVICE_ACCOUNT}" > workloadgroup.yaml
+./istio-1.8.2/bin/istioctl x workload group create --name "${VM_APP}" --namespace "${VM_NAMESPACE}" --labels app="${VM_APP}" --serviceAccount "${SERVICE_ACCOUNT}" > workloadgroup.yaml
 ```
 
 Use the istioctl x workload entry command to generate:
@@ -593,7 +592,7 @@ Use the istioctl x workload entry command to generate:
 - hosts: An addendum to /etc/hosts that the proxy will use to reach istiod for xDS.*
 
 ```bash
-./istio-1.8.1/bin/istioctl x workload entry configure -f workloadgroup.yaml -o "${WORK_DIR}"
+./istio-1.8.2/bin/istioctl x workload entry configure -f workloadgroup.yaml -o "${WORK_DIR}"
 ```
 
 Add an entry in the hosts file to resolve the address of istiod by the IP address of the Istio Ingress Gateway:
@@ -626,7 +625,7 @@ sudo cp "${WORK_DIR}"/istio-token /var/run/secrets/tokens/istio-token
 Install the deb package containing the Istio virtual machine integration runtime:
 
 ```bash
-curl -LO https://storage.googleapis.com/istio-release/releases/1.8.1/deb/istio-sidecar.deb
+curl -LO https://storage.googleapis.com/istio-release/releases/1.8.2/deb/istio-sidecar.deb
 sudo dpkg -i istio-sidecar.deb
 ```
 

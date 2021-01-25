@@ -82,7 +82,7 @@ kubectl config use-context mgmt
 First of all, you need to install the *meshctl* CLI:
 
 ```bash
-curl -sL https://run.solo.io/meshctl/install | GLOO_MESH_VERSION=v0.12.0 sh -
+curl -sL https://run.solo.io/meshctl/install | GLOO_MESH_VERSION=v0.12.2 sh -
 export PATH=$HOME/.gloo-mesh/bin:$PATH
 ```
 
@@ -91,7 +91,7 @@ Gloo Mesh Enterprise is adding unique features on top of Gloo Mesh Open Source (
 Run the following commands to deploy Gloo Mesh Enterprise:
 
 ```bash
-meshctl install enterprise --license=${GLOO_MESH_LICENSE_KEY} --version=0.5.0
+meshctl install enterprise --license=${GLOO_MESH_LICENSE_KEY} --version=0.5.1
 
 kubectl --context mgmt -n gloo-mesh rollout status deploy/discovery
 kubectl --context mgmt -n gloo-mesh rollout status deploy/enterprise-extender

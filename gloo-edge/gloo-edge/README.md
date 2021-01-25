@@ -46,8 +46,8 @@ Run the commands below to deploy Gloo Edge Enterprise:
 
 ```bash
 kubectl config use-context gloo-edge
-glooctl upgrade --release=v1.6.1
-glooctl install gateway enterprise --version 1.6.1 --license-key $LICENSE_KEY
+glooctl upgrade --release=v1.6.3
+glooctl install gateway enterprise --version 1.6.3 --license-key $LICENSE_KEY
 ```
 
 Gloo Edge can also be deployed using a Helm chart.
