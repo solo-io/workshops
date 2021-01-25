@@ -3,3 +3,5 @@ hosts
 *.tfstate
 *.tfstate.*
 .terraform
+.env.sh
+env.sh
