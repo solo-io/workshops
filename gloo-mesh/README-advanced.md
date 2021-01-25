@@ -595,6 +595,15 @@ Use the istioctl x workload entry command to generate:
 ./istio-1.8.2/bin/istioctl x workload entry configure -f workloadgroup.yaml -o "${WORK_DIR}"
 ```
 
+Update the `cluster.env` file to handle the incoming traffic on port 9999:
+
+```bash
+cat << EOF >> "${WORK_DIR}"/cluster.env
+ISTIO_INBOUND_PORTS='9999'
+ISTIO_META_POD_PORTS='[{"name":"http","containerPort":9999,"protocol":"http"}]'
+EOF
+```
+
 Add an entry in the hosts file to resolve the address of istiod by the IP address of the Istio Ingress Gateway:
 
 ```bash
