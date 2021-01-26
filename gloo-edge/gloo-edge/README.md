@@ -1737,4 +1737,253 @@ As soon as you reach the rate limit, you should get the following output:
 * Connection #0 to host 172.18.0.210 left intact
 ```
 
+## Lab 8 : Extend Envoy with WebAssembly
+
+WebAssembly (WASM) is the future of cloud-native infrastructure extensibility.
+
+WASM is a safe, secure, and dynamic way of extending infrastructure with the language of your choice. WASM tool chains compile your code from any of the supported languages into a type-safe, binary format that can be loaded dynamically in a WASM sandbox/VM.
+
+The Envoy Wasm filter is already available, but it's not ready for production use yet. More info available in [this Blog Post](https://www.solo.io/blog/the-state-of-webassembly-in-envoy-proxy/).
+
+Both Gloo Edge and Istio are based on Envoy, so they can take advantage of WebAssembly.
+
+One of the projects for working with WASM and Envoy proxy is [WebAssembly Hub](https://webassemblyhub.io/).
+
+WebAssembly Hub is a meeting place for the community to share and consume WebAssembly Envoy extensions. You can easily search and find extensions that meet the functionality you want to add and give them a try.
+
+`wasme` is a CLI for working with WebAssembly Hub and WASM filters.
+
+Let's install `wasme`:
+
+```bash
+curl -sL https://run.solo.io/wasme/install | WASME_VERSION=v0.0.32 sh
+export PATH=$HOME/.wasme/bin:$PATH
+```
+
+Note tha we are currently developing in plugin for `glooctl` to allow you to do the same with `glooctl wasm` commands.
+
+The main advantage of building a Wasm Envoy filter is that you can manipulate requests (and responses) exactly the way it makes sense for your specific use cases.
+
+Perhaps you want to gather some metrics only when the request contain specific headers, or you want to enrich the request by getting information from another API, it doesn't matter, you're now free to do exactly what you want.
+
+The first decision you need to take is to decide which SDK (so which language) you want to use. SDKs are currently available for C++, AssemblyScript, RUST and TinyGo.
+
+Not all the languages can be compiled to WebAssembly and don't expect that you'll be able to import any external packages (like the Amazon SDK).
+
+There are 2 main reasons why you won't be able to do that:
+
+- The first one is that you'll need to tell Envoy to send HTTP requests for you (if you need to get information from an API, for example).
+- The second one is that most of these languages are not supporting all the standard packages you expect. For example, TinyGo doesn't have a JSON package and AssemblyScript doesn't have a Regexp package.
+
+So, you need to determine what you want your filter to do, look at what kind of packages you'll need (Regexp, ...) and check which one of the language you already know is matching your requirements.
+
+For example, if you want to manipulate the response headers with a regular expression and you have some experience with Golang, then you'll probably choose TinyGo.
+
+In this lab, we won't focus on developing a filter, but on how to build, push and deploy filters.
+
+### Develop
+
+The `wasme` CLI can be used to create the skeleton for you.
+
+Let's take a look at the help of the meshctl wasme option:
+
+```
+wasme
+
+The tool for building, pushing, and deploying Envoy WebAssembly Filters
+
+Usage:
+  wasme [command]
+
+Available Commands:
+  build       Build a wasm image from the filter source directory.
+  deploy      Deploy an Envoy WASM Filter to the data plane (Envoy proxies).
+  help        Help about any command
+  init        Initialize a project directory for a new Envoy WASM Filter.
+  list        List Envoy WASM Filters stored locally or published to webassemblyhub.io.
+  login       Log in so you can push images to the remote server.
+  pull        Pull wasm filters from remote registry
+  push        Push a wasm filter to remote registry
+  tag         Create a tag TARGET_IMAGE that refers to SOURCE_IMAGE
+  undeploy    Remove a deployed Envoy WASM Filter from the data plane (Envoy proxies).
+
+Flags:
+  -h, --help      help for wasme
+  -v, --verbose   verbose output
+      --version   version for wasme
+
+Use "wasme [command] --help" for more information about a command.
+```
+
+The following command will create the skeleton to build a Wasm filter using AssemblyScript:
+
+```
+wasme init helloworld --language=assemblyscript
+```
+
+It will ask what platform you will run your filter on (because the SDK version can be different based on the ABI corresponding to the version of Envoy used by this Platform).
+
+And it will create the following file structure under the directory you have indicated:
+
+```
+./package-lock.json
+./.gitignore
+./assembly
+./assembly/index.ts
+./assembly/tsconfig.json
+./package.json
+./runtime-config.json
+```
+
+The most interesting file is the index.ts one, where you'll write the code corresponding to your filter:
+
+```
+export * from "@solo-io/proxy-runtime/proxy";
+import { RootContext, Context, RootContextHelper, ContextHelper, registerRootContext, FilterHeadersStatusValues, stream_context } from "@solo-io/proxy-runtime";
+
+class AddHeaderRoot extends RootContext {
+  configuration : string;
+
+  onConfigure(): bool {
+    let conf_buffer = super.getConfiguration();
+    let result = String.UTF8.decode(conf_buffer);
+    this.configuration = result;
+    return true;
+  }
+
+  createContext(): Context {
+    return ContextHelper.wrap(new AddHeader(this));
+  }
+}
+
+class AddHeader extends Context {
+  root_context : AddHeaderRoot;
+  constructor(root_context:AddHeaderRoot){
+    super();
+    this.root_context = root_context;
+  }
+  onResponseHeaders(a: u32): FilterHeadersStatusValues {
+    const root_context = this.root_context;
+    if (root_context.configuration == "") {
+      stream_context.headers.response.add("hello", "world!");
+    } else {
+      stream_context.headers.response.add("hello", root_context.configuration);
+    }
+    return FilterHeadersStatusValues.Continue;
+  }
+}
+
+registerRootContext(() => { return RootContextHelper.wrap(new AddHeaderRoot()); }, "add_header");
+```
+
+We'll keep the default content, so the filter will add a new Header in all the Responses with the key hello and the value passed to the filter (or world! if no value is passed to it).
+
+### Build
+
+We're ready to compile the code into WebAssembly.
+
+The `wasme` CLI will make your life easier again.
+
+You simply need to run the following command:
+
+```
+wasme build assemblyscript -t webassemblyhub.io/djannot/helloworld-gloo-ee:1.6 .
+```
+
+You can see that I've indicated that I wanted to use `webassemblyhub.io/djannot/helloworld-gloo-ee:1.6` for the Image reference.
+
+`wasme` will create an OCI compliant image with this tag. It's exactly the same as when you use the Docker CLI and the Docker Hub.
+
+### Push
+
+The image has been built, so we can now push it to the Web Assembly Hub.
+
+But you would need to create a free account and to run `wasme login` to authenticate.
+
+To simplify the lab, we will use the image that has already been pushed.
+
+![Gloo Mesh Overview](images/web-assembly-hub.png)
+
+But note that the command to push the Image is the following one:
+
+```
+wasme push webassemblyhub.io/djannot/helloworld-gloo-ee:1.6
+```
+
+Then, if you go to the Web Assembly Hub, you'll be able to see the Image of your Wasm filter
+
+### Deploy
+
+It's now time to deploy your Wasm filter on Gloo Edge !
+
+Note that you can also deploy it on Istio using Gloo Mesh.
+
+You can deploy it using `wasme deploy`, but we now live in a Declarative world, so let's do it the proper way.
+
+You can deploy your filter by updating the `Gateway` CRD (Custom Resource Definition).
+
+To deploy your Wasm filter, use the following commands:
+
+```bash
+cat > gateway-patch.yaml <<EOF
+spec:
+  httpGateway:
+    options:
+      wasm:
+        filters:
+        - config:
+            '@type': type.googleapis.com/google.protobuf.StringValue
+            value: "Gloo Edge Enterprise"
+          image: webassemblyhub.io/djannot/helloworld-gloo-ee:1.6
+          name: myfilter
+          root_id: add_header
+EOF
+
+kubectl -n gloo-system patch gateway gateway-proxy --type=merge --patch "$(cat gateway-patch.yaml)"
+```
+
+Modify the Virtual Service using the yaml below:
+
+```bash
+kubectl apply -f - <<EOF
+apiVersion: gateway.solo.io/v1
+kind: VirtualService
+metadata:
+  name: demo
+  namespace: gloo-system
+spec: 
+  virtualHost:
+    domains:
+      - '*'
+    routes:
+      - matchers:
+          - prefix: /
+        routeAction:
+            single:
+              upstream:
+                name: default-httpbin-8000
+                namespace: gloo-system
+EOF
+```
+
+And run the following command:
+
+```
+curl $(glooctl proxy url)/get  -I
+```
+
+You should get the following output:
+
+```
+HTTP/1.1 200 OK
+server: envoy
+date: Tue, 26 Jan 2021 08:38:54 GMT
+content-type: application/json
+content-length: 1254
+access-control-allow-origin: *
+access-control-allow-credentials: true
+x-envoy-upstream-service-time: 3
+hello: Gloo Edge Enterprise
+```
+
 This is the end of the workshop. We hope you enjoyed it !

@@ -1792,7 +1792,7 @@ WASM is a safe, secure, and dynamic way of extending infrastructure with the lan
 
 The Envoy Wasm filter is already available, but it's not ready for production use yet. More info available in [this Blog Post](https://www.solo.io/blog/the-state-of-webassembly-in-envoy-proxy/).
 
-Both Gloo and Istio are based on Envoy, so they can take advantage of WebAssembly.
+Both Gloo Edge and Istio are based on Envoy, so they can take advantage of WebAssembly.
 
 One of the projects for working with WASM and Envoy proxy is [WebAssembly Hub](https://webassemblyhub.io/).
 
@@ -2085,9 +2085,9 @@ kubectl config use-context cluster1
 
 You can deploy it using `meshctl wasm deploy`, but we now live in a Declarative world, so let's do it the proper way.
 
-Gloo Mesh Enteprise creates a `WasmDeployment` CRD (Custom Resource Definition).
+Gloo Mesh Enteprise has a `WasmDeployment` CRD (Custom Resource Definition) for that purpose.
 
-To deploy your Wasm filter on all the Pods corresponding to the version v1 of the reviews service and running in the default namespace of the cluster1 cluster, you use the following commands:
+To deploy your Wasm filter on all the Pods corresponding to the version v1 of the reviews service and running in the default namespace of the cluster1 cluster, use the following commands:
 
 ```bash
 kubectl patch deployment reviews-v1 --context cluster1 --patch='{"spec":{"template": {"metadata": {"annotations": {"sidecar.istio.io/bootstrapOverride": "gloo-mesh-custom-envoy-bootstrap"}}}}}' --type=merge

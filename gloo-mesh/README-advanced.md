@@ -403,7 +403,7 @@ But we're going to try it using curl:
 So, we need to retrieve the API key first:
 
 ```
-key=$(kubectl get secret -l environments.devportal.solo.io=dev.default -n default -o jsonpath='{.items[0].data.api-key}' | base64 --decode)
+key=$(kubectl --context cluster2 get secret -l environments.devportal.solo.io=dev.default -n default -o jsonpath='{.items[0].data.api-key}' | base64 --decode)
 ```
 
 Then, we can run the following command:
