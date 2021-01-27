@@ -1651,11 +1651,9 @@ The user Portal we have created is available at http://portal.example.com
 
 ![User Developer Portal](images/dev-portal-user.png)
 
-Click on `Log In` and select `Log in using credentials`.
+Log in with the user `user1` and the password `password`.
 
-Log in with the user `dev1` and the password `password` and define a new password.
-
-Click on `dev1` on the top right corner and select `API Keys`.
+Click on `user1@solo.io` on the top right corner and select `API Keys`.
 
 Click on `API Keys` again and Add an API Key.
 
