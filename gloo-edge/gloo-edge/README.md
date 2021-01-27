@@ -1749,13 +1749,14 @@ One of the projects for working with WASM and Envoy proxy is [WebAssembly Hub](h
 
 WebAssembly Hub is a meeting place for the community to share and consume WebAssembly Envoy extensions. You can easily search and find extensions that meet the functionality you want to add and give them a try.
 
-`wasme` is a CLI for working with WebAssembly Hub and WASM filters.
+Gloo Edge Enterprise CLI comes with all the features you need to develop, build, push and deploy your Wasm filters.
 
-Let's install `wasme`:
+You just need to add the Wasm extension to it:
 
 ```bash
-curl -sL https://run.solo.io/wasme/install | WASME_VERSION=v0.0.32 sh
-export PATH=$HOME/.wasme/bin:$PATH
+wget https://github.com/solo-io/workshops/raw/master/gloo-edge/gloo-edge/glooctl-wasm-linux-amd64
+mv glooctl-wasm-linux-amd64 /home/solo/.gloo/bin/glooctl-wasm
+chmod +x /home/solo/.gloo/bin/glooctl-wasm
 ```
 
 Note tha we are currently developing in plugin for `glooctl` to allow you to do the same with `glooctl wasm` commands.
@@ -1781,21 +1782,21 @@ In this lab, we won't focus on developing a filter, but on how to build, push an
 
 ### Develop
 
-The `wasme` CLI can be used to create the skeleton for you.
+The Gloo Edge Enterprise CLI can be used to create the skeleton for you.
 
-Let's take a look at the help of the meshctl wasme option:
+Let's take a look at the help of the `glooctl wasm` option:
 
 ```
-wasme
+glooctl wasm
 
-The tool for building, pushing, and deploying Envoy WebAssembly Filters
+The interface for managing Gloo Edge WASM filters
 
 Usage:
-  wasme [command]
+  wasm [command]
 
 Available Commands:
   build       Build a wasm image from the filter source directory.
-  deploy      Deploy an Envoy WASM Filter to the data plane (Envoy proxies).
+  deploy      Deploy an Envoy WASM Filter to the Gloo Gateway Proxies (Envoy).
   help        Help about any command
   init        Initialize a project directory for a new Envoy WASM Filter.
   list        List Envoy WASM Filters stored locally or published to webassemblyhub.io.
@@ -1803,20 +1804,19 @@ Available Commands:
   pull        Pull wasm filters from remote registry
   push        Push a wasm filter to remote registry
   tag         Create a tag TARGET_IMAGE that refers to SOURCE_IMAGE
-  undeploy    Remove a deployed Envoy WASM Filter from the data plane (Envoy proxies).
+  undeploy    Remove an Envoy WASM Filter from the Gloo Gateway Proxies (Envoy).
+  version     Display the version of glooctl wasm
 
 Flags:
-  -h, --help      help for wasme
-  -v, --verbose   verbose output
-      --version   version for wasme
+  -h, --help   help for wasm
 
-Use "wasme [command] --help" for more information about a command.
+Use "wasm [command] --help" for more information about a command.
 ```
 
 The following command will create the skeleton to build a Wasm filter using AssemblyScript:
 
 ```
-wasme init helloworld --language=assemblyscript
+glooctl wasm init helloworld --language=assemblyscript
 ```
 
 It will ask what platform you will run your filter on (because the SDK version can be different based on the ABI corresponding to the version of Envoy used by this Platform).
@@ -1880,32 +1880,33 @@ We'll keep the default content, so the filter will add a new Header in all the R
 
 We're ready to compile the code into WebAssembly.
 
-The `wasme` CLI will make your life easier again.
+The Gloo Edge Enterprise CLI will make your life easier again.
 
-You simply need to run the following command:
+You simply need to run the following commands:
 
 ```
-wasme build assemblyscript -t webassemblyhub.io/djannot/helloworld-gloo-ee:1.6 .
+cd /home/solo/workshops/gloo-edge/gloo-edge/helloworld
+glooctl wasm build assemblyscript -t webassemblyhub.io/djannot/helloworld-gloo-ee:1.6 .
 ```
 
 You can see that I've indicated that I wanted to use `webassemblyhub.io/djannot/helloworld-gloo-ee:1.6` for the Image reference.
 
-`wasme` will create an OCI compliant image with this tag. It's exactly the same as when you use the Docker CLI and the Docker Hub.
+The Gloo Edge Enterprise CLI will create an OCI compliant image with this tag. It's exactly the same as when you use the Docker CLI and the Docker Hub.
 
 ### Push
 
 The image has been built, so we can now push it to the Web Assembly Hub.
 
-But you would need to create a free account and to run `wasme login` to authenticate.
+But you would need to create a free account and to run `glooctl wasm login` to authenticate.
 
 To simplify the lab, we will use the image that has already been pushed.
 
-![Gloo Mesh Overview](images/web-assembly-hub.png)
+![Web Assembly Hub](images/web-assembly-hub.png)
 
 But note that the command to push the Image is the following one:
 
 ```
-wasme push webassemblyhub.io/djannot/helloworld-gloo-ee:1.6
+glooctl wasm push webassemblyhub.io/djannot/helloworld-gloo-ee:1.6
 ```
 
 Then, if you go to the Web Assembly Hub, you'll be able to see the Image of your Wasm filter
@@ -1916,7 +1917,7 @@ It's now time to deploy your Wasm filter on Gloo Edge !
 
 Note that you can also deploy it on Istio using Gloo Mesh.
 
-You can deploy it using `wasme deploy`, but we now live in a Declarative world, so let's do it the proper way.
+You can deploy it using `glooctl wasm deploy`, but we now live in a Declarative world, so let's do it the proper way.
 
 You can deploy your filter by updating the `Gateway` CRD (Custom Resource Definition).
 
