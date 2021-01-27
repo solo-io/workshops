@@ -1754,8 +1754,7 @@ Gloo Edge Enterprise CLI comes with all the features you need to develop, build,
 You just need to add the Wasm extension to it:
 
 ```bash
-wget https://github.com/solo-io/workshops/raw/master/gloo-edge/gloo-edge/glooctl-wasm-linux-amd64
-mv glooctl-wasm-linux-amd64 /home/solo/.gloo/bin/glooctl-wasm
+cp /home/solo/workshops/gloo-edge/gloo-edge/glooctl-wasm-linux-amd64 /home/solo/.gloo/bin/glooctl-wasm
 chmod +x /home/solo/.gloo/bin/glooctl-wasm
 ```
 
