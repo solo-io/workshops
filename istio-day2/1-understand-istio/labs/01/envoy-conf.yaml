@@ -1,0 +1,50 @@
+admin:
+  accessLogPath: /dev/stdout
+  address:
+    socketAddress:
+      address: 0.0.0.0
+      portValue: 15000
+staticResources:
+  listeners:
+  - name: httpbin-listener
+    address:
+      socketAddress:
+        address: 0.0.0.0
+        portValue: 15001
+    filterChains:
+    - filters:
+      - name: envoy.filters.network.http_connection_manager
+        typedConfig:
+          '@type': type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
+          httpFilters:
+          - name: envoy.filters.http.router
+          routeConfig:
+            name: simple_httpbin_route
+            virtualHosts:
+            - domains:
+              - '*'
+              name: httpbin_host
+              routes:
+              - match:
+                  prefix: /
+                route:
+                  cluster: httpbin_service
+          statPrefix: httpbin
+  clusters:
+  - connectTimeout: 5s
+    loadAssignment:
+      clusterName: httpbin_service
+      endpoints:
+      - lbEndpoints:
+        - endpoint:
+            address:
+              socketAddress:
+                address: httpbin
+                portValue: 8000
+    name: httpbin_service
+    respectDnsTtl: true
+    dnsLookupFamily: V4_ONLY
+    type: STRICT_DNS
+    upstreamConnectionOptions:
+      tcpKeepalive: {}
+    
