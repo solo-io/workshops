@@ -6,50 +6,357 @@ Gloo Portal provides a framework for managing the definitions of APIs, API clien
 
 The goal of this workshop is to expose some key features of the Gloo Portal like API lifecycle, Authentication, Rebranding, ...
 
+## OpenAPI vs Swagger
+
+OpenAPI is a specification, while Swagger are tools for implementing the OpenAPI specification.
+
+The OpenAPI Specification (OAS) defines a standard, language-agnostic interface to RESTful APIs which allows both humans and computers to discover and understand the capabilities of the service without access to source code, documentation, or through network traffic inspection. When properly defined, a consumer can understand and interact with the remote service with a minimal amount of implementation logic.
+
+Swagger is the name associated with some of the most well-known, and widely used tools for implementing the OpenAPI specification. The Swagger toolset includes a mix of open source, free, and commercial tools, which can be used at different stages of the API lifecycle.
+
 ## Lab Environment
 
-The following Lab environment consists of a Kubernetes environment deployed locally using kind, during this workshop we are going to deploy several versions of a demo application and expose/protect it using Gloo Portal.
+The Lab environment consists of a Virtual Machine where you will deploy a Kubernetes cluster using kind.
+You will then deploy Gloo Edge and Gloo Portal on this Kubernetes cluster.
 
-In this workshop we will:
-* Deploy a demo application (Istio's [bookinfo](https://istio.io/latest/docs/examples/bookinfo/) demo app) on a k8s cluster and expose it through Gloo Edge
-* Deploy a second version of the demo app and route traffic to both versions
-* Secure the demo app using TLS
-* Secure the demo app using OIDC
-* Rate limit the traffic going to the demo app
-* Transform a response using Gloo transformations
-* Configure access logs
-* Use several of these features together to configure an advanced OIDC workflow
+## Lab 0: Deploy a Kubernetes Cluster and Keycloak
 
-## Lab 0: Demo Environment Creation
-
-Go to the `/home/solo/workshops/gloo-edge/gloo-edge` directory:
+Go to the `/home/solo/workshops/gloo-portal` directory:
 
 ```
-cd /home/solo/workshops/gloo-edge/gloo-edge
+cd /home/solo/workshops/gloo-portal
 ```
-
-### Create a Kubernetes Cluster
 
 Deploy a local Kubernetes cluster using this command:
 
 ```bash
-../../scripts/deploy.sh 1 gloo-edge
+../scripts/deploy.sh 1 gloo-portal
 ```
 
 Then verify that your Kubernetes cluster is ready: 
 
 ```bash
-../../scripts/check.sh gloo-edge
+../scripts/check.sh gloo-portal
 ```
 
-### Install Gloo 
+We will use Keycloak to secure the access to the Gloo Portal.
+
+Let's deploy it:
+
+```bash
+kubectl create -f https://raw.githubusercontent.com/keycloak/keycloak-quickstarts/latest/kubernetes-examples/keycloak.yaml
+kubectl rollout status deploy/keycloak
+```
+
+<!--bash
+sleep 30
+-->
+
+Then, we need to configure it and create a user with the credentials `user1/password`:
+
+```bash
+# Get Keycloak URL and token
+KEYCLOAK_URL=http://$(kubectl get service keycloak -o jsonpath='{.status.loadBalancer.ingress[0].ip}'):8080/auth
+KEYCLOAK_TOKEN=$(curl -d "client_id=admin-cli" -d "username=admin" -d "password=admin" -d "grant_type=password" "$KEYCLOAK_URL/realms/master/protocol/openid-connect/token" | jq -r .access_token)
+
+# Create initial token to register the client
+read -r client token <<<$(curl -H "Authorization: Bearer ${KEYCLOAK_TOKEN}" -X POST -H "Content-Type: application/json" -d '{"expiration": 0, "count": 1}' $KEYCLOAK_URL/admin/realms/master/clients-initial-access | jq -r '[.id, .token] | @tsv')
+
+# Register the client
+read -r id secret <<<$(curl -X POST -d "{ \"clientId\": \"${client}\" }" -H "Content-Type:application/json" -H "Authorization: bearer ${token}" ${KEYCLOAK_URL}/realms/master/clients-registrations/default| jq -r '[.id, .secret] | @tsv')
+
+# Add allowed redirect URIs
+curl -H "Authorization: Bearer ${KEYCLOAK_TOKEN}" -X PUT -H "Content-Type: application/json" -d '{"serviceAccountsEnabled": true, "authorizationServicesEnabled": true, "redirectUris": ["http://portal.petstore.com/callback"]}' $KEYCLOAK_URL/admin/realms/master/clients/${id}
+
+# Add the group attribute in the JWT token returned by Keycloak
+curl -H "Authorization: Bearer ${KEYCLOAK_TOKEN}" -X POST -H "Content-Type: application/json" -d '{"name": "group", "protocol": "openid-connect", "protocolMapper": "oidc-usermodel-attribute-mapper", "config": {"claim.name": "group", "jsonType.label": "String", "user.attribute": "group", "id.token.claim": "true", "access.token.claim": "true"}}' $KEYCLOAK_URL/admin/realms/master/clients/${id}/protocol-mappers/models
+
+# Create a user
+curl -H "Authorization: Bearer ${KEYCLOAK_TOKEN}" -X POST -H "Content-Type: application/json" -d '{"username": "user1", "email": "user1@solo.io", "enabled": true, "attributes": {"group": "users"}, "credentials": [{"type": "password", "value": "password", "temporary": false}]}' $KEYCLOAK_URL/admin/realms/master/users
+```
+
+## Lab 1: Build an application from an OpenAPI document
+
+As explained above, Swagger is a set of tools and one of the Swagger tools is called [Swagger Codegen](https://github.com/swagger-api/swagger-codegen).
+
+It allows generation of API client libraries (SDK generation), server stubs and documentation automatically given an OpenAPI Spec.
+
+In this lab, we'll use it to create a demo application from an OpenAPI document. But we won't even need to deploy `Swagger Codegen` because it's available online on a service called  [Swagger Generator](https://generator.swagger.io/).
+
+![Swagger Generator](images/swagger-generator.png)
+
+And the demo application we will build is called the [Swagger Petstore](https://github.com/swagger-api/swagger-petstore).
+
+The OpenAPI document of the `Petstore` application is available [here](https://petstore.swagger.io/v2/swagger.json)
+
+Run the following command to see the beginning of the document formatted using `jq`:
+
+```
+curl https://petstore.swagger.io/v2/swagger.json | jq . | head -25
+```
+
+The output should be similar to this:
+
+```
+{
+  "swagger": "2.0",
+  "info": {
+    "description": "This is a sample server Petstore server.  You can find out more about Swagger at [http://swagger.io](http://swagger.io) or on [irc.freenode.net, #swagger](http://swagger.io/irc/).  For this sample, you can use the api key `special-key` to test the authorization filters.",
+    "version": "1.0.5",
+    "title": "Swagger Petstore",
+    "termsOfService": "http://swagger.io/terms/",
+    "contact": {
+      "email": "apiteam@swagger.io"
+    },
+    "license": {
+      "name": "Apache 2.0",
+      "url": "http://www.apache.org/licenses/LICENSE-2.0.html"
+    }
+  },
+  "host": "petstore.swagger.io",
+  "basePath": "/v2",
+  "tags": [
+    {
+      "name": "pet",
+      "description": "Everything about your Pets",
+      "externalDocs": {
+        "description": "Find out more",
+        "url": "http://swagger.io"
+      }
+```
+
+You can see a key called `basePath` with a value `v2`.
+
+Including the version of an API in the `basePath` is a common way to manage the lifecycle of an application, even of there is no standard. Other approaches exist (like using a header, a different host, ...).
+
+There are 2 OpenAPI documents in the current directory:
+
+- swagger-petstore-v1.json
+- swagger-petstore-v2.json
+
+Run the following command to see the different between the 2 files:
+
+```
+diff swagger-petstore-v1.json swagger-petstore-v2.json
+```
+
+Here is the expected output:
+
+```
+17c17
+<   "basePath": "/v1",
+---
+>   "basePath": "/v2",
+910c910,911
+<         "name"
+---
+>         "name",
+>         "photoUrls"
+922a924,935
+>         },
+>         "photoUrls": {
+>           "type": "array",
+>           "xml": {
+>             "wrapped": true
+>           },
+>           "items": {
+>             "type": "string",
+>             "xml": {
+>               "name": "photoUrl"
+>             }
+>           }
+```
+
+You can see that we've changed the base path to `/v1` and removed the `photoUrls` key in the first document. The second document is the original OpenAPI document of the `Petstore` application.
+
+### Build the version v1
+
+Run the command bellow to generate the application code using the `swagger-petstore-v1.json`:
+
+```bash
+wget -O petstore-v1.zip $(curl -X POST --header 'Content-Type: application/json' --header 'Accept: application/json' -d '{
+  "swaggerUrl": "https://github.com/solo-io/workshops/raw/master/gloo-portal/swagger-petstore-v1.json"
+}' 'https://generator.swagger.io/api/gen/servers/go-server' | jq -r .link)
+```
+
+Uncompress the archive:
+
+```bash
+unzip petstore-v1.zip -d petstore-v1
+```
+
+Go to the `petstore-v1/go-server-server` directory:
+
+```bash
+cd petstore-v1/go-server-server
+```
+
+Take a look at the content of the `go/api_pet.go` file:
+
+```
+/*
+ * Swagger Petstore
+ *
+ * This is a sample server Petstore server.  You can find out more about Swagger at [http://swagger.io](http://swagger.io) or on [irc.freenode.net, #swagger](http://swagger.io/irc/).  For this sample, you can use the api key `special-key` to test the authorization filters.
+ *
+ * API version: 1.0.5
+ * Contact: apiteam@swagger.io
+ * Generated by: Swagger Codegen (https://github.com/swagger-api/swagger-codegen.git)
+ */
+
+package swagger
+
+import (
+	"net/http"
+)
+
+func AddPet(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+	w.WriteHeader(http.StatusOK)
+}
+
+func DeletePet(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+	w.WriteHeader(http.StatusOK)
+}
+
+func FindPetsByStatus(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+	w.WriteHeader(http.StatusOK)
+}
+
+func FindPetsByTags(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+	w.WriteHeader(http.StatusOK)
+}
+
+func GetPetById(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+	w.WriteHeader(http.StatusOK)
+}
+
+func UpdatePet(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+	w.WriteHeader(http.StatusOK)
+}
+
+func UpdatePetWithForm(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+	w.WriteHeader(http.StatusOK)
+}
+
+func UploadFile(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+	w.WriteHeader(http.StatusOK)
+}
+```
+
+As you can see, `Swagger Generator` has created the skeleton for our application, but we would still need to write all the logic around creating objects, updating objects, ...
+
+We won't implement this logic here. Instead we're going to use the `swaggerapi/petstore` Docker image. Luckily, an environment variable called `SWAGGER_BASE_PATH` can be set to define the base path we want to use. We'll use it to simulate the deployment of 2 versions of the `Petstore` application.
+
+### Deploy the 2 versions
+
+Use the following snippet to deploy the 2 versions of the application:
+
+```bash
+kubectl apply -f - <<EOF
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: petstore-v1
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: petstore
+      version: v1
+  template:
+    metadata:
+      labels:
+        app: petstore
+        version: v1
+    spec:
+      containers:
+        - name: petstore
+          image: swaggerapi/petstore
+          env:
+          - name: SWAGGER_BASE_PATH
+            value: /v1
+          imagePullPolicy: Always
+          ports:
+            - name: http
+              containerPort: 8080
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: petstore-v1
+spec:
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http
+      protocol: TCP
+  selector:
+    app: petstore
+    version: v1
+EOF
+
+kubectl apply -f - <<EOF
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: petstore-v2
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: petstore
+      version: v2
+  template:
+    metadata:
+      labels:
+        app: petstore
+        version: v2
+    spec:
+      containers:
+        - name: petstore
+          image: swaggerapi/petstore
+          env:
+          - name: SWAGGER_BASE_PATH
+            value: /v2
+          imagePullPolicy: Always
+          ports:
+            - name: http
+              containerPort: 8080
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: petstore-v2
+spec:
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http
+      protocol: TCP
+  selector:
+    app: petstore
+    version: v2
+EOF
+```
+
+## Lab 2: Deploy Gloo Edge and Gloo Portal
+
+### Install Gloo Edge
 
 Run the commands below to deploy Gloo Edge Enterprise:
 
 ```bash
 kubectl config use-context gloo-edge
-glooctl upgrade --release=v1.6.3
-glooctl install gateway enterprise --version 1.6.3 --license-key $LICENSE_KEY
+glooctl upgrade --release=v1.6.6
+glooctl install gateway enterprise --version 1.6.6 --license-key $LICENSE_KEY
 ```
 
 Gloo Edge can also be deployed using a Helm chart.
@@ -68,13 +375,9 @@ until [ $(kubectl -n gloo-system get pods -o jsonpath='{range .items[*].status.c
 done
 ```
 
-## Lab 7 : Gloo Portal
+### Install Gloo Portal
 
-Gloo Portal provides a framework for managing the definitions of APIs, API client identity, and API policies on top of Gloo Edge or of the Istio Ingress Gateway. Vendors of API products can leverage Gloo Portal to secure, manage, and publish their APIs independent of the operations used to manage networking infrastructure.
-
-### Install Developer Portal
-
-We'll use Helm to deploy the Developer portal:
+We'll use Helm to deploy Gloo Portal:
 
 ```bash
 helm repo add dev-portal https://storage.googleapis.com/dev-portal-helm
@@ -105,63 +408,81 @@ Use the following snippet to wait for the installation to finish:
 
 ```bash
 until [ $(kubectl -n dev-portal get pods -o jsonpath='{range .items[*].status.containerStatuses[*]}{.ready}{"\n"}{end}' | grep true -c) -eq 4 ]; do
-  echo "Waiting for all the Dev portal pods to become ready"
+  echo "Waiting for all the Gloo Portal pods to become ready"
   sleep 1
 done
 ```
 
-### Create an API Doc
+## Lab 3: Expose the API
 
-Managing APIs with the Developer Portal happens through the use of two resources: the API Doc and API Product.
+### Create the API Docs
 
-API Docs are Kubernetes Custom Resources which packages the API definitions maintained by the maintainers of an API. Each API Doc maps to a single Swagger Specification or set of gRPC descriptors. The APIs endpoints themselves are provided by backend services.
+Managing APIs with Gloo Portal happens through the use of three resources: the API Doc, the API Product and the Environment.
 
-Let's create an API Doc using the Swagger Specification of the bookinfo demo app:
+API Docs are Kubernetes Custom Resources which packages the API definitions created by the maintainers of an API. Each API Doc maps to a single OpenAPI document. The APIs endpoints themselves are provided by backend services.
+
+Let's create an API Doc using the OpenAPI document of the `v1` version of the `Petstore` demo application:
 
 ```bash
 cat <<EOF | kubectl apply -f -
 apiVersion: devportal.solo.io/v1alpha1
 kind: APIDoc
 metadata:
-  name: bookinfo-schema
+  name: petstore-v1
   namespace: default
 spec:
   openApi:
     content:
-      fetchUrl: https://raw.githubusercontent.com/istio/istio/1.7.3/samples/bookinfo/swagger.yaml
+      fetchUrl: https://github.com/solo-io/workshops/raw/master/gloo-portal/swagger-petstore-v1.json
 EOF
 ```
 
 You can then check the status of the API Doc using the following command:
 
 ```bash
-kubectl get apidoc -n default bookinfo-schema -oyaml
+kubectl get apidocs.devportal.solo.io petstore-v1 -o yaml
+```
+
+Let's do the same for the second version:
+
+```bash
+cat <<EOF | kubectl apply -f -
+apiVersion: devportal.solo.io/v1alpha1
+kind: APIDoc
+metadata:
+  name: petstore-v2
+  namespace: default
+spec:
+  openApi:
+    content:
+      fetchUrl: https://github.com/solo-io/workshops/raw/master/gloo-portal/swagger-petstore-v2.json
+EOF
 ```
 
 ### Create an API Product
 
-API Products are Kubernetes Custom Resources which bundle the APIs defined in API Docs into a product which can be exposed to ingress traffic as well as published on a Portal UI. The Product defines what API operations are being exposed, and the routing information to reach the services.
+API Products are Kubernetes Custom Resources which bundle the APIs defined in API Docs into a product which can be exposed to ingress traffic as well as published on a Portal UI. An API Product defines what API operations are being exposed, and the routing information to reach the services.
 
-Let's create an API Product using the API Doc we've just created and pointing to the 2 versions of our Bookinfo application:
+Let's create an API Product using the API Docs we've just created and pointing to the 2 versions of the `Petstore` application:
 
 ```bash
 cat << EOF | kubectl apply -f-
 apiVersion: devportal.solo.io/v1alpha1
 kind: APIProduct
 metadata:
-  name: bookinfo-product
+  name: petstore
   namespace: default
 spec:
   displayInfo: 
-    description: Bookinfo Product
-    title: Bookinfo Product
+    description: Petstore Product
+    title: Petstore Product
     image:
-      fetchUrl: https://github.com/solo-io/workshops/raw/master/gloo-edge/gloo-edge/images/books.png
+      fetchUrl: https://i.imgur.com/EXbBN1a.jpg
   versions:
   - name: v1
     apis:
     - apiDoc:
-        name: bookinfo-schema
+        name: petstore-v1
         namespace: default
     tags:
       stable: {}
@@ -169,13 +490,13 @@ spec:
       inlineRoute:
         backends:
         - kube:
-            name: productpage
-            namespace: bookinfo
-            port: 9080
+            name: petstore-v1
+            namespace: default
+            port: 8080
   - name: v2
     apis:
     - apiDoc:
-        name: bookinfo-schema
+        name: petstore-v2
         namespace: default
     tags:
       stable: {}
@@ -183,19 +504,21 @@ spec:
       inlineRoute:
         backends:
         - kube:
-            name: productpage
-            namespace: bookinfo-beta
-            port: 9080
+            name: petstore-v2
+            namespace: default
+            port: 8080
 EOF
 ```
 
 You can then check the status of the API Product using the following command:
 
 ```bash
-kubectl get apiproducts.devportal.solo.io -n default bookinfo-product -oyaml
+kubectl get apiproducts.devportal.solo.io petstore -o yaml
 ```
 
-Now, we are going to create an Environment named dev using the domain api.example.com and expose v1 and v2 of our Bookinfo API Product.
+### Create an Environment
+
+Now, we are going to create an Environment named `dev` using the domain `dev.petstore.com` to expose the `v1` and `v2` versions of the `Petstore` application.
 
 ```bash
 cat << EOF | kubectl apply -f-
@@ -206,12 +529,12 @@ metadata:
   namespace: default
 spec:
   domains:
-  - api.example.com
+  - dev.petstore.com
   displayInfo:
     description: This environment is meant for developers to deploy and test their APIs.
     displayName: Development
   apiProducts:
-  - name: bookinfo-product
+  - name: petstore
     namespace: default
     publishedVersions:
     - name: v1
@@ -222,50 +545,79 @@ EOF
 You can then check the status of the Environment using the following command:
 
 ```bash
-kubectl get environment.devportal.solo.io -n default dev -oyaml
+kubectl get environments.devportal.solo.io dev -o yaml
 ```
 
-### Test the Service
+### Consume the API
 
 When targeting Gloo Edge, Gloo Portal manages a set of Gloo Edge Custom Resource Definitions (CRDs) on behalf of users:
 
-- VirtualServices: Gloo Portal generates a Gloo Edge VirtualService for each API Product. The VirtualService contains a single HTTP route for each API operation exposed in the product. Routes are named and their matchers are derived from the OpenAPI definition.
-- Upstreams: Gloo Portal generates a Gloo Upstream for each unique destination references in an API Product route.
+- VirtualServices: Gloo Portal generates a Gloo Edge VirtualService for each API Product. The VirtualService contains a single HTTP route for each API operation exposed in the product. Routes are named and their matchers are derived from the OpenAPI document.
+- Upstreams: Gloo Portal generates a Gloo Upstream for each unique destination referenced in an API Product route.
 
-So, you can now access the API using the command below:
+We need to update the `/etc/hosts` file to be able to access our API (and later the Portal):
 
 ```bash
-curl -H "Host: api.example.com" http://172.18.0.210/api/v1/products
+cat <<EOF | sudo tee -a /etc/hosts
+172.18.0.210 dev.petstore.com
+172.18.0.210 portal.petstore.com
+EOF
 ```
 
-```
-[
-  {
-    "id": 0,
-    "title": "The Comedy of Errors",
-    "descriptionHtml": "<a href=\"https://en.wikipedia.org/wiki/The_Comedy_of_Errors\">Wikipedia Summary</a>: The Comedy of Errors is one of <b>William Shakespeare's</b> early plays. It is his shortest and one of his most farcical comedies, with a major part of the humour coming from slapstick and mistaken identity, in addition to puns and word play."
-  }
-]
+You can now access the version `v1` of the API using the command below:
+
+```bash
+curl http://dev.petstore.com/v1/store/inventory | jq .
 ```
 
-### Configure a Portal
+The output should be similar to below:
 
-Once a set of APIs have been bundled together in an API Product, those products can be published in a user-friendly interface through which outside developers can discover, browse, request access to, and interact with APIs. This is done by defining Portals, a custom resource which tells Gloo Portal how to publish a customized website containing an interactive catalog of those products.
+```
+{
+  "sold": 1,
+  "pending": 2,
+  "available": 7
+}
+```
+
+You can also check that you can access the version `v2`:
+
+```bash
+curl http://dev.petstore.com/v2/store/inventory | jq .
+```
+
+The output should be the same:
+
+```
+{
+  "sold": 1,
+  "pending": 2,
+  "available": 7
+}
+```
+
+## Lab 4: Create a Portal
+
+Once a set of APIs have been bundled together in an API Product, those products can be published in a user-friendly interface through which outside developers can discover, browse and interact with APIs. This is done by defining Portals, a custom resource which tells Gloo Portal how to publish a customized website containing an interactive catalog of those products.
 
 We'll integrate the Portal with Keycloak, so we need to define a couple of variables and create a secret:
 
 ```bash
 KEYCLOAK_URL=http://$(kubectl get service keycloak -o jsonpath='{.status.loadBalancer.ingress[0].ip}'):8080/auth
-KEYCLOAK_CLIENT=$(kubectl -n gloo-system get authconfigs.enterprise.gloo.solo.io keycloak-oauth -o jsonpath='{.spec.configs[0].oauth2.oidcAuthorizationCode.clientId}')
+KEYCLOAK_TOKEN=$(curl -d "client_id=admin-cli" -d "username=admin" -d "password=admin" -d "grant_type=password" "$KEYCLOAK_URL/realms/master/protocol/openid-connect/token" | jq -r .access_token)
+
+KEYCLOAK_ID=$(curl -H "Authorization: bearer ${KEYCLOAK_TOKEN}" -H "Content-Type: application/json"  $KEYCLOAK_URL/admin/realms/master/clients  | jq -r '.[0].id')
+KEYCLOAK_CLIENT=$(curl -H "Authorization: bearer ${KEYCLOAK_TOKEN}" -H "Content-Type: application/json"  $KEYCLOAK_URL/admin/realms/master/clients  | jq -r '.[0].clientId')
+KEYCLOAK_SECRET=$(curl -H "Authorization: bearer ${KEYCLOAK_TOKEN}" -H "Content-Type: application/json"  $KEYCLOAK_URL/admin/realms/master/clients/$KEYCLOAK_ID/client-secret | jq -r .value)
 
 cat <<EOF | kubectl apply -f -
 apiVersion: v1
 kind: Secret
 metadata:
-  name: bookinfo-portal-oidc-secret
+  name: petstore-portal-oidc-secret
   namespace: default
 data:
-  client_secret: $(kubectl -n gloo-system get secret keycloak-oauth -o jsonpath='{.data.oauth}' | base64 --decode | awk '{ print $2 }' | base64)
+  client_secret: $(echo $KEYCLOAK_SECRET | base64)
 EOF
 ```
 
@@ -276,27 +628,27 @@ cat <<EOF | kubectl apply -f -
 apiVersion: devportal.solo.io/v1alpha1
 kind: Portal
 metadata:
-  name: bookinfo-portal
+  name: petstore-portal
   namespace: default
 spec:
-  displayName: Bookinfo Portal
-  description: The Developer Portal for the Bookinfo API
+  displayName: Petstore Portal
+  description: The Developer Portal for the Petstore API
   banner:
-    fetchUrl: https://github.com/solo-io/workshops/raw/master/gloo-edge/gloo-edge/images/books.png
+    fetchUrl: https://i.imgur.com/EXbBN1a.jpg
   favicon:
-    fetchUrl: https://github.com/solo-io/workshops/raw/master/gloo-edge/gloo-edge/images/books.png
+    fetchUrl: https://i.imgur.com/QQwlQG3.png
   primaryLogo:
-    fetchUrl: https://github.com/solo-io/workshops/raw/master/gloo-edge/gloo-edge/images/books.png
+    fetchUrl: https://i.imgur.com/hjgPMNP.png
   customStyling: {}
   staticPages: []
   domains:
-  - portal.example.com
+  - portal.petstore.com
 
   oidcAuth:
-    callbackUrlPrefix: http://portal.example.com/
+    callbackUrlPrefix: http://portal.petstore.com/
     clientId: ${KEYCLOAK_CLIENT}
     clientSecret:
-      name: bookinfo-portal-oidc-secret
+      name: petstore-portal-oidc-secret
       namespace: default
       key: client_secret
     groupClaimKey: group
@@ -308,24 +660,80 @@ spec:
 EOF
 ````
 
-You can now check the status of the API Product using the following command:
+You can now check the status of the Portal using the following command:
 
 ```bash
-kubectl get portal -n default bookinfo-portal -oyaml
+kubectl get portal -n default petstore-portal -oyaml
 ```
 
-We need to update the `/etc/hosts` file to be able to access the Portal:
+Create a Group CRD to allow the users of the `users` group to access the portal, the product and the environment:
 
 ```bash
-cat <<EOF | sudo tee -a /etc/hosts
-172.18.0.210 api.example.com
-172.18.0.210 portal.example.com
+cat << EOF | kubectl apply -f -
+apiVersion: devportal.solo.io/v1alpha1
+kind: Group
+metadata:
+  name: oidc-group
+  namespace: default
+spec:
+  accessLevel:
+    apiProducts:
+    - name: petstore
+      namespace: default
+      environments:
+      - name: dev
+        namespace: default
+    portals:
+    - name: petstore-portal
+      namespace: default
+  oidcGroup:
+    groupName: users
 EOF
 ```
 
-### Configure a Rate Limiting Policy
+You can now check the status of the Group using the following command:
 
-We can now update the Environment to secure it and to define a rate limit:
+```bash
+kubectl get group -n default oidc-group -oyaml
+```
+
+## Lab 5: Explore the Administrative Interface
+
+Let's run the following command to allow access ot the admin UI of Gloo Portal:
+
+```
+kubectl port-forward -n dev-portal svc/admin-server 8000:8080
+```
+
+You can now access the admin UI at http://localhost:8000
+
+![Admin Developer Portal](images/dev-portal-admin.png)
+
+Take the time to explore the UI and see the different components we have created using `kubectl`.
+
+## Lab 6: Explore the Portal Interface
+
+The user Portal we have created is available at http://portal.petstore.com
+
+![User Developer Portal](images/dev-portal-user.png)
+
+Log in with the user `user1` and the password `password`.
+
+Click on the version `v1`, scroll down and click on the `GET /v1/store/inventory` API call.
+
+Click on `Try it out` and then on the `Execute` button.
+
+You should get a 200 response:
+
+![User Developer Portal API call OK](images/dev-portal-api-call-ok.png)
+
+Take the time to explore the UI and see the difference between the 2 versions for the `POST /v2/pet` API call. Only v2 has the `photoUrls` key.
+
+## Lab 7: Secure the access to the API
+
+We've already secured the access to the Portal UI, but we didn't secure the API itself yet.
+
+We can update the Environment to create a plan (called `Basic`) with its associated rate limit:
 
 ```bash
 cat << EOF | kubectl apply -f-
@@ -336,12 +744,12 @@ metadata:
   namespace: default
 spec:
   domains:
-  - api.example.com
+  - dev.petstore.com
   displayInfo:
     description: This environment is meant for developers to deploy and test their APIs.
     displayName: Development
   apiProducts:
-  - name: bookinfo-product
+  - name: petstore
     namespace: default
     plans:
     - authPolicy:
@@ -357,7 +765,7 @@ spec:
 EOF
 ```
 
-And finally, we need to let the users of the `users` group to access the Portal and use this plan:
+And finally, we need to let the users of the `users` group to use this plan:
 
 ```bash
 cat << EOF | kubectl apply -f -
@@ -369,7 +777,7 @@ metadata:
 spec:
   accessLevel:
     apiProducts:
-    - name: bookinfo-product
+    - name: petstore
       namespace: default
       environments:
       - name: dev
@@ -377,58 +785,24 @@ spec:
         plans:
         - basic
     portals:
-    - name: bookinfo-portal
+    - name: petstore-portal
       namespace: default
   oidcGroup:
     groupName: users
 EOF
 ```
 
-### Explore the Administrative Interface
+Go back to the Portal UI and try to execute the `GET /v1/store/inventory` API call again.
 
-Let's run the following command to allow access ot the admin UI of Gloo Portal:
+This time, you should get a 403 response.
 
-```
-kubectl port-forward -n dev-portal svc/admin-server 8000:8080
-```
-
-You can now access the admin UI at http://localhost:8000
-
-![Admin Developer Portal](images/dev-portal-admin.png)
-
-Take the time to explore the UI and see the different components we have created.
-
-### Explore the Portal Interface
-
-The user Portal we have created is available at http://portal.example.com
-
-![User Developer Portal](images/dev-portal-user.png)
-
-Click on `Log In` and select `Log in using credentials`.
-
-Log in with the user `dev1` and the password `password` and define a new password.
-
-Click on `dev1` on the top right corner and select `API Keys`.
+Click on `user1@solo.io` on the top right corner and select `API Keys`.
 
 Click on `API Keys` again and Add an API Key.
 
 ![User Developer Portal API Key](images/dev-portal-api-key.png)
 
-Click on the key to copy the value to the clipboard.
-
-Click on the `APIs` tab.
-
-![User Developer Portal APIs](images/dev-portal-apis.png)
-
-You can click on on of the versions of the `Bookinfo Product` and explore the API.
-
-You can also test the API and use the `Authorize` button to set your API key.
-
-![User Developer Portal API](images/dev-portal-api.png)
-
-### Verify the Rate Limiting Policy
-
-Now we're going to exercise the service using `curl`:
+You can click on the key to copy the value to the clipboard and `Authorize` the call through the UI, but this time we are going to use curl.
 
 So, we need to retrieve the API key first:
 
@@ -439,7 +813,7 @@ key=$(kubectl get secret -l environments.devportal.solo.io=dev.default -n defaul
 Then, we can run the following command:
 
 ```
-curl -H "Host: api.example.com" -H "api-key: ${key}" http://172.18.0.210/api/v1/products -v
+curl -H "api-key: ${key}" http://dev.petstore.com/v1/store/inventory -vvv
 ```
 
 You should get a result similar to:
@@ -447,23 +821,26 @@ You should get a result similar to:
 ```
 *   Trying 172.18.0.210...
 * TCP_NODELAY set
-* Connected to 172.18.0.210 (172.18.0.210) port 80 (#0)
-> GET /api/v1/products HTTP/1.1
-> Host: api.example.com
+* Connected to dev.petstore.com (172.18.0.210) port 80 (#0)
+> GET /v1/store/inventory HTTP/1.1
+> Host: dev.petstore.com
 > User-Agent: curl/7.52.1
 > Accept: */*
-> api-key: OTA4OGMyYWMtNmE4Yi02OWRmLTJjZGUtYzQ2Zjc1NTE4OTFm
+> api-key: YmMwYTE4OTEtOTA0Ni00OWY4LWQ0OTgtZDBjNDQ3YjUwM2Rm
 > 
 < HTTP/1.1 200 OK
+< date: Wed, 03 Feb 2021 08:10:04 GMT
+< access-control-allow-origin: *
+< access-control-allow-methods: GET, POST, DELETE, PUT
+< access-control-allow-headers: Content-Type, api_key, Authorization
 < content-type: application/json
-< content-length: 395
 < server: envoy
-< date: Wed, 14 Oct 2020 12:25:26 GMT
 < x-envoy-upstream-service-time: 2
+< transfer-encoding: chunked
 < 
 * Curl_http_done: called premature == 0
-* Connection #0 to host 172.18.0.210 left intact
-[{"id": 0, "title": "The Comedy of Errors", "descriptionHtml": "<a href=\"https://en.wikipedia.org/wiki/The_Comedy_of_Errors\">Wikipedia Summary</a>: The Comedy of Errors is one of <b>William Shakespeare's</b> early plays. It is his shortest and one of his most farcical comedies, with a major part of the humour coming from slapstick and mistaken identity, in addition to puns and word play."}]
+* Connection #0 to host dev.petstore.com left intact
+{"sold":1,"pending":2,"available":7}
 ```
 
 Now, execute the curl command again several times.
@@ -473,21 +850,238 @@ As soon as you reach the rate limit, you should get the following output:
 ```
 *   Trying 172.18.0.210...
 * TCP_NODELAY set
-* Connected to 172.18.0.210 (172.18.0.210) port 80 (#0)
-> GET /api/v1/products HTTP/1.1
-> Host: api.example.com
+* Connected to dev.petstore.com (172.18.0.210) port 80 (#0)
+> GET /v1/store/inventory HTTP/1.1
+> Host: dev.petstore.com
 > User-Agent: curl/7.52.1
 > Accept: */*
-> api-key: OTA4OGMyYWMtNmE4Yi02OWRmLTJjZGUtYzQ2Zjc1NTE4OTFm
+> api-key: YmMwYTE4OTEtOTA0Ni00OWY4LWQ0OTgtZDBjNDQ3YjUwM2Rm
 > 
 < HTTP/1.1 429 Too Many Requests
 < x-envoy-ratelimited: true
-< date: Wed, 14 Oct 2020 12:25:48 GMT
+< date: Wed, 03 Feb 2021 08:10:35 GMT
 < server: envoy
 < content-length: 0
 < 
 * Curl_http_done: called premature == 0
-* Connection #0 to host 172.18.0.210 left intact
+* Connection #0 to host dev.petstore.com left intact
 ```
 
-This is the end of the workshop. We hope you enjoyed it !
+## Lab 8: Portal rebranding
+
+As you've seen in the previous lab, we've been able to provide a few pictures (banner, logo, ...).
+
+But you can completely change the look and feel of the Portal by providing your own CSS sylesheet.
+
+Let's use this feature to change the color of the title.
+
+First of all, go to the main page of the Portal (http://portal.petstore.com) and click on the top right corner to open the menu of the web browser. Then, click on `More tools` and select `Developer tools`.
+
+In the developer tools, click on the arrow on the top left corner and then on the title:
+
+![User Developer Portal Select HTML](images/dev-portal-select-html.png)
+
+You can see the CSS below displayed on the right:
+
+```
+.home-page-portal-title {
+    font-size: 48px;
+    line-height: 58px;
+    margin-top: 80px;
+}
+```
+
+Go to the admin Portal (http://localhost:8000), click on `Portals` and then on the `Pestore Portal`.
+
+Click on the `Advanced Portal Customization` link and provide the CSS below:
+
+```
+.home-page-portal-title {
+    font-size: 48px;
+    line-height: 58px;
+    margin-top: 80px;
+    color: gold
+}
+```
+
+![User Developer Portal Admin CSS](images/dev-portal-admin-css.png)
+
+Save the change and go back to the main page of the Portal:
+
+![User Developer Portal After CSS](images/dev-portal-after-css.png)
+
+Run the command below to see how the yaml of the Portal has been updated:
+
+```bash
+kubectl get portals.devportal.solo.io petstore-portal -o yaml
+```
+
+You'll see the new section below:
+
+```
+  customStyling:
+    cssStylesheet:
+      configMap:
+        key: custom-stylesheet
+        name: default-petstore-portal-custom-stylesheet
+        namespace: default
+```
+
+Now, execute the following command to see the content of the config map:
+
+```bash
+kubectl get cm default-petstore-portal-custom-stylesheet -o yaml
+```
+
+Here is the expected output:
+
+```
+apiVersion: v1
+binaryData:
+  custom-stylesheet: LmhvbWUtcGFnZS1wb3J0YWwtdGl0bGUgewogICAgZm9udC1zaXplOiA0OHB4OwogICAgbGluZS1oZWlnaHQ6IDU4cHg7CiAgICBtYXJnaW4tdG9wOiA4MHB4OwogICAgY29sb3I6IGdvbGQ7Cn0=
+kind: ConfigMap
+metadata:
+  creationTimestamp: "2021-02-03T08:16:05Z"
+  managedFields:
+  - apiVersion: v1
+    fieldsType: FieldsV1
+    fieldsV1:
+      f:binaryData:
+        .: {}
+        f:custom-stylesheet: {}
+    manager: adminserver
+    operation: Update
+    time: "2021-02-03T08:47:50Z"
+  name: default-petstore-portal-custom-stylesheet
+  namespace: default
+  resourceVersion: "419685"
+  selfLink: /api/v1/namespaces/default/configmaps/default-petstore-portal-custom-stylesheet
+  uid: 90148a56-519f-4953-a9fd-e7cb15411379
+```
+
+The `binaryData.custom-stylesheet` value is the CSS we provided encoded in base64.
+
+You can use the CSS below to further rebrand it:
+
+```
+.home-page-portal-title {
+    font-size: 48px;
+    line-height: 58px;
+    margin-top: 80px;
+    color: gold;
+}
+
+.main-container-header {
+    background: black;
+}
+
+.links-list a {
+    color: white;
+}
+
+.links-list a.active {
+    color: white;
+}
+
+.header-user-control-button {
+    color: white;
+}
+
+.header-user-control-button[class~=is-open] {
+    color: white;
+}
+```
+
+## Lab 9: Extending the Portal
+
+You can add static or dynamic pages.
+
+It's very useful to provide additional information about your APIs, or even to load some billing information.
+
+### Static pages
+
+Static pages are very simple to add. You simply need to provide the content using the Markdown syntax.
+
+Go to the admin Portal (http://localhost:8000), click on `Portals` and then on the `Pestore Portal`.
+
+Click on the `Pages` tab and then on the `Add a Page` link.
+
+Create a new `Static Page`:
+
+![Developer Portal Static Page Create](images/dev-portal-static-page-create.png)
+
+Then edit it to provide the Markdown content:
+
+![Developer Portal Static Page Create](images/dev-portal-static-page-edit.png)
+
+Publish the change, go back to the main page of the Portal and click on the `FAQ` button:
+
+![User Developer Portal Static Page](images/dev-portal-static-page.png)
+
+Again, run the command below to see how the yaml of the Portal has been updated:
+
+```bash
+kubectl get portals.devportal.solo.io petstore-portal -o yaml
+```
+
+You'll see the new section below:
+
+```
+  staticPages:
+  - content:
+      configMap:
+        key: faq
+        name: default-petstore-portal-faq
+        namespace: default
+    description: Frequently Asked Questions
+    displayOnHomepage: true
+    name: faq
+    navigationLinkName: FAQ
+    path: /faq
+```
+
+Now, execute the following command to see the content of the config map:
+
+```bash
+kubectl get cm default-petstore-portal-faq -o yaml
+```
+
+Here is the expected output:
+
+```
+apiVersion: v1
+binaryData:
+  faq: KipROiBDYW4gSSB1c2UgeW91ciBBUEkgdG8gc2VlIGhvdyBtYW55IHBldHMgYXJlIGF2YWlsYWJsZSA/KioKClI6IFllcywgeW91IGNhbg==
+kind: ConfigMap
+metadata:
+  creationTimestamp: "2021-02-03T09:07:02Z"
+  managedFields:
+  - apiVersion: v1
+    fieldsType: FieldsV1
+    fieldsV1:
+      f:binaryData:
+        .: {}
+        f:faq: {}
+    manager: adminserver
+    operation: Update
+    time: "2021-02-03T09:07:02Z"
+  name: default-petstore-portal-faq
+  namespace: default
+  resourceVersion: "422806"
+  selfLink: /api/v1/namespaces/default/configmaps/default-petstore-portal-faq
+  uid: 5554f58e-807c-4238-97fb-7d6cb1f59533
+```
+
+The `binaryData.faq` value is the Markdown we provided encoded in base64.
+
+### Dynamic pages
+
+You can embed your own custom page in the Portal either by specifying a URL or by uploading your own file. In this example we will be uploading our own custom file that contains html and javascript.
+
+It's very interesting because the Portal will pass to this page some information about the user and the API product.
+
+Click on the `Pages` tab and then on the `Add a Page` link.
+
+Create a new `Dynamic Page`:
+
+![Developer Portal Dynamic Page Create](images/dev-portal-dynamic-page-create.png)

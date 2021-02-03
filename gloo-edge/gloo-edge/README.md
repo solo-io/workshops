@@ -6,7 +6,7 @@ The goal of this workshop is to expose some key features of Gloo API Gateway, li
 
 ## Lab Environment
 
-The following Lab environment consists of a Kubernetes environment deployed locally using kind, during this workshop we are going to deploy a demo application and expose/protect it using Gloo Edge.
+The lab environment consists of a Kubernetes environment deployed locally using kind.
 
 In this workshop we will:
 * Deploy a demo application (Istio's [bookinfo](https://istio.io/latest/docs/examples/bookinfo/) demo app) on a k8s cluster and expose it through Gloo Edge
@@ -1319,9 +1319,9 @@ RBAC: access denied
 
 Gloo Portal provides a framework for managing the definitions of APIs, API client identity, and API policies on top of Gloo Edge or of the Istio Ingress Gateway. Vendors of API products can leverage Gloo Portal to secure, manage, and publish their APIs independent of the operations used to manage networking infrastructure.
 
-### Install Developer Portal
+### Install Gloo Portal
 
-We'll use Helm to deploy the Developer portal:
+We'll use Helm to deploy Gloo Portal:
 
 ```bash
 helm repo add dev-portal https://storage.googleapis.com/dev-portal-helm
@@ -1352,16 +1352,16 @@ Use the following snippet to wait for the installation to finish:
 
 ```bash
 until [ $(kubectl -n dev-portal get pods -o jsonpath='{range .items[*].status.containerStatuses[*]}{.ready}{"\n"}{end}' | grep true -c) -eq 4 ]; do
-  echo "Waiting for all the Dev portal pods to become ready"
+  echo "Waiting for all the Gloo Portal pods to become ready"
   sleep 1
 done
 ```
 
 ### Create an API Doc
 
-Managing APIs with the Developer Portal happens through the use of two resources: the API Doc and API Product.
+Managing APIs with the Developer Portal happens through the use of three resources: the API Doc, the API Product and the Environment.
 
-API Docs are Kubernetes Custom Resources which packages the API definitions maintained by the maintainers of an API. Each API Doc maps to a single Swagger Specification or set of gRPC descriptors. The APIs endpoints themselves are provided by backend services.
+API Docs are Kubernetes Custom Resources which packages the API definitions created by the maintainers of an API. Each API Doc maps to a single Swagger Specification. The APIs endpoints themselves are provided by backend services.
 
 Let's create an API Doc using the Swagger Specification of the bookinfo demo app:
 
@@ -1555,7 +1555,7 @@ spec:
 EOF
 ````
 
-You can now check the status of the API Product using the following command:
+You can now check the status of the Portal using the following command:
 
 ```bash
 kubectl get portal -n default bookinfo-portal -oyaml
