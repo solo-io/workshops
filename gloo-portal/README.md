@@ -1,5 +1,3 @@
-# Work in progress
-
 # Gloo Portal Workshop
 
 Gloo Portal provides a framework for managing the definitions of APIs, API client identity, and API policies on top of Gloo Edge or of the Istio Ingress Gateway. Vendors of API products can leverage Gloo Portal to secure, manage, and publish their APIs independent of the operations used to manage networking infrastructure.
@@ -548,6 +546,75 @@ You can then check the status of the Environment using the following command:
 kubectl get environments.devportal.solo.io dev -o yaml
 ```
 
+### Gloo Edge Virtual Service
+
+You can see the Gloo Edge Virtual Service created by Gloo Portal to expose the API using the command below:
+
+```bash
+kubectl get environments.devportal.solo.io dev -o yaml
+```
+
+Here is the output:
+```
+apiVersion: gateway.solo.io/v1
+kind: VirtualService
+metadata:
+  annotations:
+    kubectl.kubernetes.io/last-applied-configuration: |
+      {"apiVersion":"devportal.solo.io/v1alpha1","kind":"Environment","metadata":{"annotations":{},"name":"dev","namespace":"default"},"spec":{"apiProducts":[{"name":"petstore","namespace":"default","publishedVersions":[{"name":"v1"},{"name":"v2"}]}],"displayInfo":{"description":"This environment is meant for developers to deploy and test their APIs.","displayName":"Development"},"domains":["dev.petstore.com"]}}
+  creationTimestamp: "2021-02-01T16:14:40Z"
+  generation: 41
+  labels:
+    cluster.multicluster.solo.io: ""
+    environments.devportal.solo.io: dev.default
+...
+    manager: gateway
+    operation: Update
+    time: "2021-02-03T10:37:57Z"
+  name: dev
+  namespace: default
+  ownerReferences:
+  - apiVersion: devportal.solo.io/v1alpha1
+    blockOwnerDeletion: true
+    controller: true
+    kind: Environment
+    name: dev
+    uid: 13c7a1e4-afcc-4ad9-896e-d62d4ac9194d
+  resourceVersion: "437517"
+  selfLink: /apis/gateway.solo.io/v1/namespaces/default/virtualservices/dev
+  uid: 1862d8f2-93b2-46c6-91aa-56bd60b33ba3
+spec:
+  displayName: Development
+  virtualHost:
+    domains:
+    - dev.petstore.com
+    options:
+      cors:
+        allowHeaders:
+        - api-key
+        allowOrigin:
+        - http://portal.petstore.com
+        - https://portal.petstore.com
+    routes:
+    - matchers:
+      - exact: /v1/pet
+        methods:
+        - POST
+        - OPTIONS
+      name: dev.default.petstore.default.petstore-v1.default.addPet
+      options: {}
+      routeAction:
+        multi:
+          destinations:
+          - destination:
+              upstream:
+                name: petstore-v1-8080-default
+                namespace: dev-portal
+            weight: 1
+
+...
+```
+
 ### Consume the API
 
 When targeting Gloo Edge, Gloo Portal manages a set of Gloo Edge Custom Resource Definitions (CRDs) on behalf of users:
@@ -559,8 +626,8 @@ We need to update the `/etc/hosts` file to be able to access our API (and later 
 
 ```bash
 cat <<EOF | sudo tee -a /etc/hosts
-172.18.0.210 dev.petstore.com
-172.18.0.210 portal.petstore.com
+$(kubectl -n gloo-system get service gateway-proxy -o jsonpath='{.status.loadBalancer.ingress[0].ip}') dev.petstore.com
+$(kubectl -n gloo-system get service gateway-proxy -o jsonpath='{.status.loadBalancer.ingress[0].ip}') portal.petstore.com
 EOF
 ```
 
@@ -606,8 +673,8 @@ We'll integrate the Portal with Keycloak, so we need to define a couple of varia
 KEYCLOAK_URL=http://$(kubectl get service keycloak -o jsonpath='{.status.loadBalancer.ingress[0].ip}'):8080/auth
 KEYCLOAK_TOKEN=$(curl -d "client_id=admin-cli" -d "username=admin" -d "password=admin" -d "grant_type=password" "$KEYCLOAK_URL/realms/master/protocol/openid-connect/token" | jq -r .access_token)
 
-KEYCLOAK_ID=$(curl -H "Authorization: bearer ${KEYCLOAK_TOKEN}" -H "Content-Type: application/json"  $KEYCLOAK_URL/admin/realms/master/clients  | jq -r '.[0].id')
-KEYCLOAK_CLIENT=$(curl -H "Authorization: bearer ${KEYCLOAK_TOKEN}" -H "Content-Type: application/json"  $KEYCLOAK_URL/admin/realms/master/clients  | jq -r '.[0].clientId')
+KEYCLOAK_ID=$(curl -H "Authorization: bearer ${KEYCLOAK_TOKEN}" -H "Content-Type: application/json"  $KEYCLOAK_URL/admin/realms/master/clients  | jq -r '.[] | select(.redirectUris[0] == "http://portal.petstore.com/callback") | .id')
+KEYCLOAK_CLIENT=$(curl -H "Authorization: bearer ${KEYCLOAK_TOKEN}" -H "Content-Type: application/json"  $KEYCLOAK_URL/admin/realms/master/clients  | jq -r '.[] | select(.redirectUris[0] == "http://portal.petstore.com/callback") | .clientId')
 KEYCLOAK_SECRET=$(curl -H "Authorization: bearer ${KEYCLOAK_TOKEN}" -H "Content-Type: application/json"  $KEYCLOAK_URL/admin/realms/master/clients/$KEYCLOAK_ID/client-secret | jq -r .value)
 
 cat <<EOF | kubectl apply -f -
@@ -819,9 +886,9 @@ curl -H "api-key: ${key}" http://dev.petstore.com/v1/store/inventory -vvv
 You should get a result similar to:
 
 ```
-*   Trying 172.18.0.210...
+*   Trying 172.18.0.211...
 * TCP_NODELAY set
-* Connected to dev.petstore.com (172.18.0.210) port 80 (#0)
+* Connected to dev.petstore.com (172.18.0.211) port 80 (#0)
 > GET /v1/store/inventory HTTP/1.1
 > Host: dev.petstore.com
 > User-Agent: curl/7.52.1
@@ -848,9 +915,9 @@ Now, execute the curl command again several times.
 As soon as you reach the rate limit, you should get the following output:
 
 ```
-*   Trying 172.18.0.210...
+*   Trying 172.18.0.211...
 * TCP_NODELAY set
-* Connected to dev.petstore.com (172.18.0.210) port 80 (#0)
+* Connected to dev.petstore.com (172.18.0.211) port 80 (#0)
 > GET /v1/store/inventory HTTP/1.1
 > Host: dev.petstore.com
 > User-Agent: curl/7.52.1
@@ -866,6 +933,82 @@ As soon as you reach the rate limit, you should get the following output:
 * Curl_http_done: called premature == 0
 * Connection #0 to host dev.petstore.com left intact
 ```
+
+### Gloo Edge Virtual Service
+
+You can see the Gloo Edge Virtual Service updated by Gloo Portal using the command below:
+
+```bash
+kubectl get environments.devportal.solo.io dev -o yaml
+```
+
+Here is the output:
+
+```
+apiVersion: gateway.solo.io/v1
+kind: VirtualService
+metadata:
+  annotations:
+    kubectl.kubernetes.io/last-applied-configuration: |
+      {"apiVersion":"devportal.solo.io/v1alpha1","kind":"Environment","metadata":{"annotations":{},"name":"dev","namespace":"default"},"spec":{"apiProducts":[{"name":"petstore","namespace":"default","plans":[{"authPolicy":{"apiKey":{}},"displayName":"Basic","name":"basic","rateLimit":{"requestsPerUnit":5,"unit":"MINUTE"}}],"publishedVersions":[{"name":"v1"},{"name":"v2"}]}],"displayInfo":{"description":"This environment is meant for developers to deploy and test their APIs.","displayName":"Development"},"domains":["dev.petstore.com"]}}
+  creationTimestamp: "2021-02-01T16:14:40Z"
+  generation: 37
+  labels:
+    cluster.multicluster.solo.io: ""
+    environments.devportal.solo.io: dev.default
+...
+  name: dev
+  namespace: default
+  ownerReferences:
+  - apiVersion: devportal.solo.io/v1alpha1
+    blockOwnerDeletion: true
+    controller: true
+    kind: Environment
+    name: dev
+    uid: 13c7a1e4-afcc-4ad9-896e-d62d4ac9194d
+  resourceVersion: "414495"
+  selfLink: /apis/gateway.solo.io/v1/namespaces/default/virtualservices/dev
+  uid: 1862d8f2-93b2-46c6-91aa-56bd60b33ba3
+spec:
+  displayName: Development
+  virtualHost:
+    domains:
+    - dev.petstore.com
+    options:
+      cors:
+        allowHeaders:
+        - api-key
+        allowOrigin:
+        - http://portal.petstore.com
+        - https://portal.petstore.com
+    routes:
+    - matchers:
+      - exact: /v1/pet
+        methods:
+        - POST
+        - OPTIONS
+      name: dev.default.petstore.default.petstore-v1.default.addPet
+      options:
+        extauth:
+          configRef:
+            name: dev
+            namespace: default
+        rateLimitConfigs:
+          refs:
+          - name: dev-default-petstore
+            namespace: default
+      routeAction:
+        multi:
+          destinations:
+          - destination:
+              upstream:
+                name: petstore-v1-8080-default
+                namespace: dev-portal
+            weight: 1
+...
+```
+
+The `extauth` and `rateLimitConfigs` options have been added on each route to secure the API.
 
 ## Lab 8: Portal rebranding
 
@@ -1080,8 +1223,114 @@ You can embed your own custom page in the Portal either by specifying a URL or b
 
 It's very interesting because the Portal will pass to this page some information about the user and the API product.
 
+Take a look at the content of the `dynamic.html` file that is located under `/home/solo/workshops/gloo-portal`.
+
+The interesting part is the one below:
+
+```
+    <script>
+      // the embedded page listens for a message event to receive data from the Portal
+      window.addEventListener("message", function onMsg(msg) {
+        // we must check the origin of the message to protect against XSS attacks
+        if (msg.origin === "http://portal.petstore.com" && msg && msg.data) {
+          let header = document.getElementById("user");
+          let headerText = document.createTextNode(
+            "the current user is: " + msg.data.currentUser
+          );
+          console.log("msg.data");
+          console.log(msg.data);
+          header.replaceWith(headerText);
+
+          
+          let apiProductInfo = document.getElementById("api-products");
+          const apiProducts = document.createDocumentFragment();
+          if (msg.data.apiProductsList.length > 0) {
+            msg.data.apiProductsList.forEach((apiProduct) => {
+              let apiProductEl = document.createElement("div");
+              let apiProductText = document.createTextNode(
+                "API Product: " +
+                  apiProduct.displayName +
+                  " with " +
+                  apiProduct.versionsList.length +
+                  " versions"
+              );
+              apiProductEl.appendChild(apiProductText);
+              apiProducts.appendChild(apiProductEl);
+            });
+          }
+          apiProductInfo.replaceWith(apiProducts);
+        }
+      });
+    </script>
+```
+
+As you can see, Gloo Portal is passing information about the user and the API products to the dynamic page.
+
 Click on the `Pages` tab and then on the `Add a Page` link.
 
 Create a new `Dynamic Page`:
 
 ![Developer Portal Dynamic Page Create](images/dev-portal-dynamic-page-create.png)
+
+You need to upload the `dynamic.html` file.
+
+Go back to the main page of the Portal and click on the `Dynamic` button:
+
+![User Developer Portal Dynamic Page](images/dev-portal-dynamic-page.png)
+
+Again, run the command below to see how the yaml of the Portal has been updated:
+
+```bash
+kubectl get portals.devportal.solo.io petstore-portal -o yaml
+```
+
+You'll see the new section below:
+
+```
+  dynamicPages:
+  - content:
+      configMap:
+        key: dynamic
+        name: default-petstore-portal-dynamic
+        namespace: default
+    description: This is a dynamic page
+    name: dynamic
+    navigationLinkName: Dynamic
+    path: /dynamic
+```
+
+Now, execute the following command to see the content of the config map:
+
+```bash
+kubectl get cm default-petstore-portal-dynamic -o yaml
+```
+
+Here is the expected output:
+
+```
+apiVersion: v1
+binaryData:
+  dynamic: PCFET0NUWVBFIGh0bWw+CjxodG1sIGxhbmc9ImVuIj4KICA8aGVhZD4KICAgIDxtZXRhIGNoYXJzZXQ9IlVURi04IiAvPgogICAgPG1ldGEgbmFtZT0idmlld3BvcnQiIGNvbnRlbnQ9IndpZHRoPWRldmljZS13aWR0aCwgaW5pdGlhbC1zY2FsZT0xLjAiIC8+CiAgICA8dGl0bGU+RGVtbyBQYWdlPC90aXRsZT4KICAgIDxzY3JpcHQ+CiAgICAgIC8vIHRoZSBlbWJlZGRlZCBwYWdlIGxpc3RlbnMgZm9yIGEgbWVzc2FnZSBldmVudCB0byByZWNlaXZlIGRhdGEgZnJvbSB0aGUgUG9ydGFsCiAgICAgIHdpbmRvdy5hZGRFdmVudExpc3RlbmVyKCJtZXNzYWdlIiwgZnVuY3Rpb24gb25Nc2cobXNnKSB7CiAgICAgICAgLy8gd2UgbXVzdCBjaGVjayB0aGUgb3JpZ2luIG9mIHRoZSBtZXNzYWdlIHRvIHByb3RlY3QgYWdhaW5zdCBYU1MgYXR0YWNrcwogICAgICAgIGlmIChtc2cub3JpZ2luID09PSAiaHR0cDovL3BvcnRhbC5wZXRzdG9yZS5jb20iICYmIG1zZyAmJiBtc2cuZGF0YSkgewogICAgICAgICAgbGV0IGhlYWRlciA9IGRvY3VtZW50LmdldEVsZW1lbnRCeUlkKCJ1c2VyIik7CiAgICAgICAgICBsZXQgaGVhZGVyVGV4dCA9IGRvY3VtZW50LmNyZWF0ZVRleHROb2RlKAogICAgICAgICAgICAidGhlIGN1cnJlbnQgdXNlciBpczogIiArIG1zZy5kYXRhLmN1cnJlbnRVc2VyCiAgICAgICAgICApOwogICAgICAgICAgY29uc29sZS5sb2coIm1zZy5kYXRhIik7CiAgICAgICAgICBjb25zb2xlLmxvZyhtc2cuZGF0YSk7CiAgICAgICAgICBoZWFkZXIucmVwbGFjZVdpdGgoaGVhZGVyVGV4dCk7CgogICAgICAgICAgCiAgICAgICAgICBsZXQgYXBpUHJvZHVjdEluZm8gPSBkb2N1bWVudC5nZXRFbGVtZW50QnlJZCgiYXBpLXByb2R1Y3RzIik7CiAgICAgICAgICBjb25zdCBhcGlQcm9kdWN0cyA9IGRvY3VtZW50LmNyZWF0ZURvY3VtZW50RnJhZ21lbnQoKTsKICAgICAgICAgIGlmIChtc2cuZGF0YS5hcGlQcm9kdWN0c0xpc3QubGVuZ3RoID4gMCkgewogICAgICAgICAgICBtc2cuZGF0YS5hcGlQcm9kdWN0c0xpc3QuZm9yRWFjaCgoYXBpUHJvZHVjdCkgPT4gewogICAgICAgICAgICAgIGxldCBhcGlQcm9kdWN0RWwgPSBkb2N1bWVudC5jcmVhdGVFbGVtZW50KCJkaXYiKTsKICAgICAgICAgICAgICBsZXQgYXBpUHJvZHVjdFRleHQgPSBkb2N1bWVudC5jcmVhdGVUZXh0Tm9kZSgKICAgICAgICAgICAgICAgICJBUEkgUHJvZHVjdDogIiArCiAgICAgICAgICAgICAgICAgIGFwaVByb2R1Y3QuZGlzcGxheU5hbWUgKwogICAgICAgICAgICAgICAgICAiIHdpdGggIiArCiAgICAgICAgICAgICAgICAgIGFwaVByb2R1Y3QudmVyc2lvbnNMaXN0Lmxlbmd0aCArCiAgICAgICAgICAgICAgICAgICIgdmVyc2lvbnMiCiAgICAgICAgICAgICAgKTsKICAgICAgICAgICAgICBhcGlQcm9kdWN0RWwuYXBwZW5kQ2hpbGQoYXBpUHJvZHVjdFRleHQpOwogICAgICAgICAgICAgIGFwaVByb2R1Y3RzLmFwcGVuZENoaWxkKGFwaVByb2R1Y3RFbCk7CiAgICAgICAgICAgIH0pOwogICAgICAgICAgfQogICAgICAgICAgYXBpUHJvZHVjdEluZm8ucmVwbGFjZVdpdGgoYXBpUHJvZHVjdHMpOwogICAgICAgIH0KICAgICAgfSk7CiAgICA8L3NjcmlwdD4KICA8L2hlYWQ+CgogIDxib2R5PgogICAgPGgxIGlkPSJ1c2VyIj48L2gxPgogICAgPGJyIC8+CiAgICA8aDEgaWQ9ImFwaS1wcm9kdWN0cyI+PC9oMT4KICA8L2JvZHk+CjwvaHRtbD4=
+kind: ConfigMap
+metadata:
+  creationTimestamp: "2021-02-04T15:34:24Z"
+  managedFields:
+  - apiVersion: v1
+    fieldsType: FieldsV1
+    fieldsV1:
+      f:binaryData:
+        .: {}
+        f:dynamic: {}
+    manager: adminserver
+    operation: Update
+    time: "2021-02-04T15:34:24Z"
+  name: default-petstore-portal-dynamic
+  namespace: default
+  resourceVersion: "11387"
+  selfLink: /api/v1/namespaces/default/configmaps/default-petstore-portal-dynamic
+  uid: d33b3c96-2325-476d-9c29-ce93f9c1e769
+```
+
+The `binaryData.dynamic` value is the content of the content of the `dynamic.html` file encoded in base64.
+
+This is the end of the workshop. We hope you enjoyed it !

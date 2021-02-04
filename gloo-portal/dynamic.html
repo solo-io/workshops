@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Demo Page</title>
+    <script>
+      // the embedded page listens for a message event to receive data from the Portal
+      window.addEventListener("message", function onMsg(msg) {
+        // we must check the origin of the message to protect against XSS attacks
+        if (msg.origin === "http://portal.petstore.com" && msg && msg.data) {
+          let header = document.getElementById("user");
+          let headerText = document.createTextNode(
+            "the current user is: " + msg.data.currentUser
+          );
+          console.log("msg.data");
+          console.log(msg.data);
+          header.replaceWith(headerText);
+
+          
+          let apiProductInfo = document.getElementById("api-products");
+          const apiProducts = document.createDocumentFragment();
+          if (msg.data.apiProductsList.length > 0) {
+            msg.data.apiProductsList.forEach((apiProduct) => {
+              let apiProductEl = document.createElement("div");
+              let apiProductText = document.createTextNode(
+                "API Product: " +
+                  apiProduct.displayName +
+                  " with " +
+                  apiProduct.versionsList.length +
+                  " versions"
+              );
+              apiProductsEl.appendChild(apiProductText);
+              apiProducts.appendChild(apiProductEl);
+            });
+          }
+          apiProductInfo.replaceWith(apiProducts);
+        }
+      });
+    </script>
+  </head>
+
+  <body>
+    <h1 id="user"></h1>
+    <br />
+    <h1 id="api-products"></h1>
+  </body>
+</html>
