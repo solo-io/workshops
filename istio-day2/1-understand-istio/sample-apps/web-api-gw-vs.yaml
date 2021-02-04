@@ -1,0 +1,16 @@
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: web-api-gw-vs
+spec:
+  hosts:
+  - "istioinaction.io"
+  gateways:
+  - web-api-gateway
+  http:
+  - route:
+    - destination:
+        host: web-api
+        port:
+          number: 8080
+  

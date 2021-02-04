@@ -1,0 +1,50 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: purchase-history-v1
+  labels:
+    app: purchase-history-v1
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+        app: purchase-history
+        version: v1
+  template:
+    metadata:
+      labels:
+        app: purchase-history
+        version: v1
+      annotations:
+    spec:
+      containers:
+      - name: purchase-history
+        image: nicholasjackson/fake-service:v0.7.8
+        ports:
+        - containerPort: 8080
+        env:
+        - name: "LISTEN_ADDR"
+          value: "0.0.0.0:8080"
+        - name: "NAME"
+          value: "purchase-history-v1"
+        - name: "SERVER_TYPE"
+          value: "http"
+        - name: "MESSAGE"
+          value: "Hello From Purchase History (v1)!"
+
+---
+# Service to expose purchase-history-v1 frontend
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: purchase-history
+spec:
+  selector:
+    app: purchase-history
+  ports:
+  - name: http
+    protocol: TCP
+    port: 8080
+    targetPort: 8080

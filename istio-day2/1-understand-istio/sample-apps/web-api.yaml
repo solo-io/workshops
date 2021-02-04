@@ -1,0 +1,47 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web-api
+  labels:
+    app: web-api
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: web-api
+  template:
+    metadata:
+      labels:
+        app: web-api
+      annotations:
+    spec:
+      containers:
+      - name: web-api
+        image: nicholasjackson/fake-service:v0.7.8
+        ports:
+        - containerPort: 8080
+        env:
+        - name: "LISTEN_ADDR"
+          value: "0.0.0.0:8080"
+        - name: "UPSTREAM_URIS"
+          value: "http://recommendation:8080"
+        - name: "NAME"
+          value: "web-api"
+        - name: "MESSAGE"
+          value: "Hello From Web API"
+
+---
+# Service to expose web frontend
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: web-api
+spec:
+  selector:
+    app: web-api
+  ports:
+  - name: http
+    protocol: TCP
+    port: 8080
+    targetPort: 8080

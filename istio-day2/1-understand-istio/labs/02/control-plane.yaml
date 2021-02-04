@@ -4,3 +4,4 @@ metadata:
   name: control-plane
 spec:
   profile: minimal
+  

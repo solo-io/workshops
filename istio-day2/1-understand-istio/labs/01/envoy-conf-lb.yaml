@@ -43,6 +43,17 @@ staticResources:
                 address: httpbin
                 portValue: 8000
     name: httpbin_service
+    circuitBreakers:
+      thresholds:
+      - maxConnections: 1
+        maxPendingRequests: 1
+        maxRequests: 1
+        maxRetries: 1
+    outlierDetection:
+      consecutive_5xx: 5
+      maxEjectionPercent: 100
+      interval: 3000ms
+    lbPolicy: LEAST_REQUEST
     respectDnsTtl: true
     dnsLookupFamily: V4_ONLY
     type: STRICT_DNS

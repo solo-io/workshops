@@ -143,17 +143,12 @@ vhost.httpbin_host.vcluster.other.upstream_rq_retry_success: 0
 ### Additional config: circuit breaking
 
 ```
-- name: httpbin_service
-    dns_lookup_family: V4_ONLY
-    connect_timeout: 5s
-    type: STATIC
-    lb_policy: ROUND_ROBIN
-    hosts: [{ socket_address: { address: 172.17.0.4, port_value: 8080 }}]
-    circuit_breakers:
-    thresholds:
-        max_connections: 1
-        max_pending_requests: 1
-        max_retries: 3
+    circuitBreakers:
+      thresholds:
+      - maxConnections: 1
+        maxPendingRequests: 1
+        maxRequests: 1
+        maxRetries: 1
 ```
 
 
@@ -161,16 +156,10 @@ vhost.httpbin_host.vcluster.other.upstream_rq_retry_success: 0
 ### Additional config: outlier detection
 
 ```
-- name: httpbin_service
-    circuit_breakers:
-    thresholds:
-        max_connections: 1
-        max_pending_requests: 1
-        max_retries: 3
-    outlier_detection:
-        consecutive_5xx: 5
-        max_ejection_percent: 100
-        interval: 3000ms                                    
+    outlierDetection:
+      consecutive_5xx: 5
+      maxEjectionPercent: 100
+      interval: 3000ms                                    
 ```
 
 ### SPECIAL NOTE for outlier detection
@@ -178,18 +167,13 @@ vhost.httpbin_host.vcluster.other.upstream_rq_retry_success: 0
 Understanding `healthy_panic_threshold`
 
 ```
-- name: httpbin_service
-    circuit_breakers:
-    thresholds:
-        max_connections: 1
-        max_pending_requests: 1
-        max_retries: 3
-    outlier_detection:
-        consecutive_5xx: 5
-        max_ejection_percent: 100
-        interval: 3000ms   
-    common_lb_config:
-    healthy_panic_threshold: 100.0
+    outlierDetection:
+      consecutive_5xx: 5
+      maxEjectionPercent: 100
+      interval: 3000ms    
+    commonLbConfig:
+        healthyPanicThreshold: 100.0
+      
 ```
                       
 
@@ -207,10 +191,7 @@ Understanding `healthy_panic_threshold`
 * MAGLEV
 
 ```
-- name: httpbin_service                                    
-    connect_timeout: 5s
-    type: STATIC
-    lb_policy: {LB_TYPE}
+    lbPolicy: LEAST_REQUEST
 ```
 
 
@@ -250,24 +231,6 @@ routes:
             weight: 33
             - name: httpbin_service.v3
             weight: 33                                            
-
-```
-
-
-
-
-### Envoy resource usage
-
-```
-$  docker top proxy
-
-PID      USER         COMMAND
-4997     root         envoy -c /etc/simple.json
-
-$  docker stats proxy
-
-CONTAINER    CPU %    MEM USAGE / LIMIT       MEM %
-proxy        0.59%    11.16 MiB / 3.858 GiB   0.28%
 
 ```
 
