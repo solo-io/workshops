@@ -392,7 +392,7 @@ licenseKey:
 EOF
 
 kubectl create namespace dev-portal
-helm install dev-portal dev-portal/dev-portal -n dev-portal --values gloo-values.yaml  --version=0.5.0
+helm install dev-portal dev-portal/dev-portal -n dev-portal --values gloo-values.yaml  --version=0.5.2
 ```
 
 <!--bash
