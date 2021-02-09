@@ -37,11 +37,13 @@ check the iptables
 
 ^^ may need to enable priv
 
-use some of the same URLs in previous lab to inspect config, stats, clusters
+use some of the same URLs in previous lab (lab 0) to inspect config, stats, clusters
 use istioctl proxy-config to dig in also
+proxy-status to see what CP the DP is connected
 
 
-istioctl install -n istio-system -f labs/02/ingress-gateways.yaml --revision 1-8-2
+what about istioctl analyze?
 
-# ns needs to be properly labled
+more here: http://blog.christianposta.com/istio-workshop/slides/#/13/4
+
 

@@ -140,6 +140,10 @@ vhost.httpbin_host.vcluster.other.upstream_rq_retry_overflow: 0
 vhost.httpbin_host.vcluster.other.upstream_rq_retry_success: 0
 
 
+## TODO: We still need to run this and verify it works
+cat labs/01/envoy-conf-lb.yaml
+
+
 ### Additional config: circuit breaking
 
 ```
