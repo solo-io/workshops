@@ -159,6 +159,9 @@ spec:
   meshConfig:
     accessLogFile: /dev/stdout
     enableAutoMtls: true
+    defaultConfig:
+      proxyMetadata:
+        ISTIO_META_DNS_CAPTURE: "true"
   values:
     global:
       meshID: mesh1
@@ -235,6 +238,9 @@ spec:
   meshConfig:
     accessLogFile: /dev/stdout
     enableAutoMtls: true
+    defaultConfig:
+      proxyMetadata:
+        ISTIO_META_DNS_CAPTURE: "true"
   values:
     global:
       meshID: mesh1
