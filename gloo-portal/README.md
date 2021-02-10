@@ -36,19 +36,16 @@ Then verify that your Kubernetes cluster is ready:
 ```bash
 ../scripts/check.sh gloo-portal
 ```
+The `check.sh` script will return immediately with no output if the cluster is ready.  Otherwise, it will output a series of periodic "waiting" messages until the cluster is up.
 
-We will use Keycloak to secure the access to the Gloo Portal.
+[Keycloak](https://keycloak.org) is an open-source identity management platform that we will use to secure access to the Gloo Portal.
 
-Let's deploy it:
+First, let's deploy a Keycloak instance to our Kubernetes cluster:
 
 ```bash
 kubectl create -f https://raw.githubusercontent.com/keycloak/keycloak-quickstarts/latest/kubernetes-examples/keycloak.yaml
 kubectl rollout status deploy/keycloak
 ```
-
-<!--bash
-sleep 30
--->
 
 Then, we need to configure it and create a user with the credentials `user1/password`:
 
@@ -85,7 +82,7 @@ In this lab, we'll use it to create a demo application from an OpenAPI document.
 
 And the demo application we will build is called the [Swagger Petstore](https://github.com/swagger-api/swagger-petstore).
 
-The OpenAPI document of the `Petstore` application is available [here](https://petstore.swagger.io/v2/swagger.json)
+The OpenAPI document of the `Petstore` application is available [here](https://petstore.swagger.io/v2/swagger.json).
 
 Run the following command to see the beginning of the document formatted using `jq`:
 
@@ -169,7 +166,7 @@ You can see that we've changed the base path to `/v1` and removed the `photoUrls
 
 ### Build the version v1
 
-Run the command bellow to generate the application code using the `swagger-petstore-v1.json`:
+Run the command below to generate the application code using the `swagger-petstore-v1.json`:
 
 ```bash
 wget -O petstore-v1.zip $(curl -X POST --header 'Content-Type: application/json' --header 'Accept: application/json' -d '{
