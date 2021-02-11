@@ -349,7 +349,6 @@ EOF
 Run the commands below to deploy Gloo Edge Enterprise:
 
 ```bash
-kubectl config use-context gloo-edge
 glooctl upgrade --release=v1.6.6
 glooctl install gateway enterprise --version 1.6.6 --license-key $LICENSE_KEY
 ```
@@ -392,13 +391,6 @@ kubectl create namespace dev-portal
 helm install dev-portal dev-portal/dev-portal -n dev-portal --values gloo-values.yaml  --version=0.5.2
 ```
 
-<!--bash
-until kubectl get ns dev-portal
-do
-  sleep 1
-done
--->
-
 Use the following snippet to wait for the installation to finish:
 
 ```bash
@@ -414,7 +406,7 @@ done
 
 Managing APIs with Gloo Portal happens through the use of three resources: the API Doc, the API Product and the Environment.
 
-API Docs are Kubernetes Custom Resources which packages the API definitions created by the maintainers of an API. Each API Doc maps to a single OpenAPI document. The APIs endpoints themselves are provided by backend services.
+API Docs are Kubernetes Custom Resources that package the API definitions created by the maintainers of an API. Each API Doc maps to a single OpenAPI document. The APIs endpoints themselves are provided by backend services.
 
 Let's create an API Doc using the OpenAPI document of the `v1` version of the `Petstore` demo application:
 
@@ -453,6 +445,50 @@ spec:
       fetchUrl: https://github.com/solo-io/workshops/raw/master/gloo-portal/swagger-petstore-v2.json
 EOF
 ```
+
+Note that the API Doc's OpenAPI document has been parsed and now reflects all the operations published by the Petstore interface.
+
+```bash
+kubectl get apidocs.devportal.solo.io petstore-v1 -o yaml
+```
+
+The YAML output is abridged to highlight the discovered operations.
+
+```
+apiVersion: devportal.solo.io/v1alpha1
+kind: APIDoc
+metadata:
+  ...
+  name: petstore-v2
+  namespace: default
+  ...
+spec:
+  openApi:
+    content:
+      fetchUrl: https://github.com/solo-io/workshops/raw/master/gloo-portal/swagger-petstore-v2.json
+status:
+  description: 'This is a sample server Petstore server. ...'
+  displayName: Swagger Petstore
+  observedGeneration: 1
+  openApi:
+    operations:
+    - operationId: addPet
+      path: /v2/pet
+      summary: Add a new pet to the store
+      verb: POST
+    - operationId: createUser
+      path: /v2/user
+      summary: Create user
+      verb: POST
+    ...
+    - operationId: uploadFile
+      path: /v2/pet/{petId}/uploadImage
+      summary: uploads an image
+      verb: POST
+  state: Succeeded
+  version: 1.0.5
+```
+
 
 ### Create an API Product
 
@@ -513,7 +549,7 @@ kubectl get apiproducts.devportal.solo.io petstore -o yaml
 
 ### Create an Environment
 
-Now, we are going to create an Environment named `dev` using the domain `dev.petstore.com` to expose the `v1` and `v2` versions of the `Petstore` application.
+In Gloo Portal, an Environment corresponds to a collection of compute resources where applications are deployed.  This mirrors the practices of many organizations with development and production environments, often with multiple intermediate environments, such as those for shared testing and staging.  We begin by creating an Environment named `dev` using the domain `dev.petstore.com` to expose the `v1` and `v2` versions of the `Petstore` application.
 
 ```bash
 cat << EOF | kubectl apply -f-
@@ -548,7 +584,7 @@ kubectl get environments.devportal.solo.io dev -o yaml
 You can see the Gloo Edge Virtual Service created by Gloo Portal to expose the API using the command below:
 
 ```bash
-kubectl get environments.devportal.solo.io dev -o yaml
+kubectl get virtualservice dev -o yaml
 ```
 
 Here is the output:
