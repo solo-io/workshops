@@ -7,7 +7,7 @@ Explore helm?
 
 istioctl operator init
 
-create istio-system ns?
+istio-system ns
 
 kubectl apply -f labs/02/istiod-service.yaml
 istioctl install -n istio-system -f labs/02/control-plane.yaml --revision 1-8-2
@@ -17,10 +17,13 @@ understand configmap
 can we call pilot xds?
 install a single sample service (purchase histry)
 manually inject
-delete it and auto inject with the rev=canary label
+delete it and auto inject with the rev=1-8-2 label
 kubectl label namespace istioinaction istio-injection- istio.io/rev=1-8-2
 
+now need to restart services / kill pods
+
 check pilot xds?
+evernote:///view/21631000/s180/bf438755-28c9-4685-b832-5689b7db6a5e/60c6abd5-9e91-420d-b6d4-303a991351df
 Call the service and see the sidecar
 
 Dig into the istio proxy

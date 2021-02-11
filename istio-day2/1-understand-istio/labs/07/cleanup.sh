@@ -1,0 +1,1 @@
+kubectl delete istiooperators installed-state-istio-ingress-gw-install-1-8-2 -n istio-system
