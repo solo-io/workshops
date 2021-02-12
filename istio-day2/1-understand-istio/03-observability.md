@@ -1,4 +1,4 @@
-# Lab 3 :: Installing observability components for Istio
+# Lab 3 :: Connecting to observability systems
 
 Prometheus federation https://prometheus.io/docs/prometheus/latest/federation/#hierarchical-federation
 

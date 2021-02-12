@@ -1,4 +1,4 @@
-# Lab 2 :: Install Istio
+# Lab 2 :: Installing Istio
 
 In the previous lab we saw how Envoy works. We also saw that Envoy needs a control plane to configure it in a dynamic environment like a cloud platform built on containers or Kubernetes. 
 

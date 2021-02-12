@@ -44,3 +44,10 @@ cd /home/solo/workshops/istio-day2/1-understand-istio/
 ```
 
 * [Lab 1 - Run Envoy Proxy](./01-run-envoy.md)
+* [Lab 2 - Installing Istio](./02-install-istio.md)
+* [Lab 3 - Connecting to observability systems](./03-observability.md)
+* [Lab 4 - Onboarding services to the mesh]()
+* [Lab 5 - Rolling out mTLS for services in a controlled manner]()
+* [Lab 6 - Controlling configuration]()
+* [Lab 7 - Using gateways across teams]()
+* [Lab 8 - Debugging networking configurations]()
