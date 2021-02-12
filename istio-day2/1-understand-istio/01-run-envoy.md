@@ -549,4 +549,6 @@ clusters:
 
 Configuring Envoy through this API is exactly what Istio's control plane does. With Istio we specify configurations in a more user-friendly format and Istio _translates_ that configuration into something Envoy can understand and delivers this configuration through Envoy's _xDS_ API. 
 
+## Next Lab
+
 In the next lab, we will dig into Istio's control plane a bit more. We'll also see how we can leverage all of these Envoy capabilities (resilience features, routing, observability, security, etc) to implement a secure, observable microservices architecture.                    
