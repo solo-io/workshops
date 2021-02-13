@@ -1,4 +1,4 @@
-# Lab 3 :: Ingress Gateway
+# Lab 4 :: Ingress Gateway
 
 istioctl install -n istio-system -f labs/07/ingress-gateways.yaml --revision 1-8-2
 

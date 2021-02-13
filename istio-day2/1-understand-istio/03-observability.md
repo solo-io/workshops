@@ -1,45 +1,282 @@
 # Lab 3 :: Connecting to observability systems
 
-Prometheus federation https://prometheus.io/docs/prometheus/latest/federation/#hierarchical-federation
+One of the most powerful parts of Istio is using the mesh to quickly troubleshoot and diagnose issues that inevitably come up in microservices networking. Where are requests slowing down? Where are they failing? Where are things becoming overloaded? Having something like Envoy proxy in the request path on both sides of a transport between services acts like a flood light to help uncover these issues.
 
-Helm: kube-prometheus-stack:
-https://github.com/prometheus-community/helm-charts/tree/main/charts/kube-prometheus-stack
-https://github.com/prometheus-operator/kube-prometheus
+We saw in Lab 01 that Envoy surfaces a large set of stats, metrics, guages, and histograms. In this lab we look at connecting that source of information to an observability system. In many ways the mesh makes these systems more valuable.
 
-Prometheus operator:
-https://github.com/prometheus-operator/prometheus-operator
-doc: https://github.com/prometheus-operator/prometheus-operator/blob/master/Documentation/user-guides/getting-started.md
+Istio comes with a few [sample addons](https://istio.io/latest/docs/ops/integrations/prometheus/#option-1-quick-start) for adding observability components like Prometheus, Grafana, and Kiali. In this lab **we will assume you are not going to use these components** as they are intended for very simple deployments and **not intended for a realistic production setup**. We will install something that looks more realistic and use that.
 
-design doc with CRD description:
-https://github.com/prometheus-operator/prometheus-operator/blob/master/Documentation/design.md
+## Prequisites
 
+Verify you're in the correct folder for this lab: `/home/solo/workshops/istio-day2/1-understand-istio/`. 
 
-Install prometheus:
+We will be using a realistic observability system that uses Prometheus and many other components out of the box called [kube-prometheus](https://github.com/prometheus-operator/kube-prometheus). This project tries to curate and pre-integrate a realistic deployment, highly available deployment of Prometheus with the Prometheus operator, Grafana, and a lot of ancillary pieces like alertmanager, node-exporters, adapters for the Kube API, and others. Please see the [kube-prometheus](https://github.com/prometheus-operator/kube-prometheus) docs for more.
+
+We will be using the [helm](https://github.com/prometheus-community/helm-charts/tree/main/charts/kube-prometheus-stack) charts to install `kube-prometheus`. Just note, for this lab we will slightly trim down the number of components installed to stay within some of our VM resource limits (specifically for the instructor-led labs.. on your own cluster, carry on :) ). 
+
+## Install kube-prometheus and highly-available Prometheus
+
+To get started, let's create the namespace into which we'll deploy our observability components:
+
+```bash
 kubectl create ns prometheus
-helm install prom prometheus-community/kube-prometheus-stack -n prometheus
+```
 
-# Consider using prom-values.yaml to exclude some parts of the dployment
+Next, let's run the helm installer. We are disabling some components of `kube-prometheus` while still keeping the overall spirit of the realistic deployment. To do this, we'll pass in a `values.yaml` file that explicitly controls what gets installed. Feel free to review this file to understand it a bit more.
 
+```bash
 helm install prom prometheus-community/kube-prometheus-stack -n prometheus -f labs/03/prom-values.yaml
+```
 
-# un/pw for grafana is 
+At this point, we should have a successfully installed prometheus. To verify the components that were installed to support observability for us, let's check the pods:
+
+```bash
+kubectl get po -n prometheus
+```
+
+```
+NAME                                                   READY   STATUS    RESTARTS   AGE
+prom-grafana-5ff645dfcc-qp57d                          2/2     Running   0          21s
+prom-kube-prometheus-stack-operator-5498b9f476-j6hjc   1/1     Running   0          21s
+prom-kube-state-metrics-5f8c8f78bc-hf5m6               1/1     Running   0          21s
+prom-prometheus-node-exporter-7rs7d                    1/1     Running   0          21s
+prometheus-prom-kube-prometheus-stack-prometheus-0     2/2     Running   1          17s
+```
+
+Let's quickly port-forward the Prometheus deployment and verify we can connect to it:
+
+```bash
+kubectl -n prometheus port-forward statefulset/prometheus-prom-kube-prometheus-stack-prometheus 9090
+```
+
+Now go to [http://localhost:9090/](http://localhost:9090) to verify you can get to the Prometheus dashboard:
+
+![Prom dashboard](./images/prom-graph.png)
+
+Press `ctrl+C` to end the port forwarding and let's try the same thing for the Grafana dashboard:
+
+```bash
 kubectl -n prometheus port-forward svc/prom-grafana 3000:80
-admin/prom-operator
+```
 
-# installing istio grafana dashboards
-kubectl -n prometheus create cm istio-dashboards --from-file=pilot-dashboard.json=labs/03/dashboards/pilot-dashboard.json --from-file=istio-workload-dashboard.json=labs/03/dashboards/istio-workload-dashboard.json --from-file=istio-service-dashboard.json=labs/03/dashboards/istio-service-dashboard.json --from-file=istio-performance-dashboard.json=labs/03/dashboards/istio-performance-dashboard.json --from-file=istio-mesh-dashboard.json=labs/03/dashboards/istio-mesh-dashboard.json --from-file=istio-extension-dashboard.json=labs/03/dashboards/istio-extension-dashboard.json
+Now go to [http://localhost:3000/](http://localhost:3000) to verify you can get to the Grafana dashboard. You should be greeted with the Grafana login screen. 
+
+Login with the following credentials:
+
+* Username: `admin`
+* Password: `prom-operator`
+
+Now you should see the main dashboard like this:
+
+![Prom dashboard](./images/grafana-main.png)
+
+Feel free to poke around and see what dashboards are available with this default set up (note some dashboards we have disabled in the original deployment when we cut down some of the components -- at least in the instructor-led workshop).
 
 
-k label -n prometheus cm istio-dashboards grafana_dashboard=1
+## Add Istio Dashboards to Grafana
 
-# can check prom values directly with:
-kubectl get secret -n prometheus prometheus-prom-kube-prometheus-stack-prometheus -o jsonpath="{.data['prometheus\.yaml\.gz']}" | base64 -D > /tmp/prometheus.yaml.gz
-gunzip /tmp/prometheus.yaml.gz
+There are out of the box Grafana dashboards that Istio includes with its [sample version of the Grafana installation](https://istio.io/latest/docs/ops/integrations/grafana/#option-1-quick-start). As mentioned earlier in the lab, this is intended for demonstration purposes only not for production.
 
-# create the right pod and service monitors
-kubectl apply -f monitor-control-plane.yaml
-kubectl apply -f monitor-data-plane.yaml
+As we've installed Grafana in a more realistic scenario, we should figure out how to get the Istio Grafana dashboards into our deployment of Grafana. The first step is to [get the dashboards from the Istio source repo]
+(https://github.com/istio/istio/tree/master/manifests/addons/dashboards).
 
+In this lab, we have them pre-downloaded into `labs/03/dashboards`. To get them to work with our-installed Grafana, we need to import them as `configmaps`. Run the following, kinda-long, command to do this:
+
+```bash
+kubectl -n prometheus create cm istio-dashboards \
+--from-file=pilot-dashboard.json=labs/03/dashboards/pilot-dashboard.json \
+--from-file=istio-workload-dashboard.json=labs/03/dashboards/istio-workload-dashboard.json \
+--from-file=istio-service-dashboard.json=labs/03/dashboards/istio-service-dashboard.json \
+--from-file=istio-performance-dashboard.json=labs/03/dashboards/istio-performance-dashboard.json \
+--from-file=istio-mesh-dashboard.json=labs/03/dashboards/istio-mesh-dashboard.json \
+--from-file=istio-extension-dashboard.json=labs/03/dashboards/istio-extension-dashboard.json
+```
+
+Lastly, we need to label this `configmap` so that our Grafana picks it up:
+
+```bash
+kubectl label -n prometheus cm istio-dashboards grafana_dashboard=1
+```
+
+If we port-forward our Grafana dashboard again, we can go find our new Istio dashboards:
+
+```bash
+kubectl -n prometheus port-forward svc/prom-grafana 3000:80
+```
+
+Login to [http://localhost:3000](http://localhost:3000) with `admin`/`prom-operator` and on the main screen click the "Home" link on the top left part of the dashboard:
+
+![](./images/grafana-click-home.png)
+
+From here, you should see the new Istio dashboards that have been added:
+
+![](./images/grafana-istio-dashboard-list.png)
+
+Click the "Control Plane" dashboard. You should be taken to a dashboard with some interesting graphs:
+
+![](./images/grafana-empty-cp-dashboard.png)
+
+Actually, the graphs are all empty!! This is not of much value to us, so let's figure out how to populate these graphs.
+
+## Scraping the Istio service mesh: Control Plane
+
+The reason we don't see any information in the Control Plane dashboard (or any of the Istio dashboards really) is because we don't have any configuration for scraping information from the Istio service mesh. 
+
+To configure Prometheus to do this, we will use the Prometheus Operator CRs `ServiceMonitor` and `PodMonitor`. These Customer Resources are described in good detail in the [design doc on the Prometheus Operator repo](https://github.com/prometheus-operator/prometheus-operator/blob/master/Documentation/design.md).
+
+Here's how we can set up a `ServiceMonitor` to scrape the Istio control-plane components:
+
+```yaml
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: istio-component-monitor
+  namespace: prometheus
+  labels:
+    monitoring: istio-components
+    release: prom
+spec:
+  jobLabel: istio
+  targetLabels: [app]
+  selector:
+    matchExpressions:
+    - {key: istio, operator: In, values: [pilot]}
+  namespaceSelector:
+    any: true
+  endpoints:
+  - port: http-monitoring
+    interval: 15s
+```
+
+Let's apply it:
+
+```bash
+kubectl apply -f labs/03/monitor-control-plane.yaml
+```
+
+At this point we will start to see important telemetry signals about the control plane such as the number of sidecars attached to the control plane, whether there are configuration conflicts, the amount of churn in the mesh, as well as basic memory/CPU usage of the control plane. Just note, it may take a few moments for these signals to start to make it into the Grafana dashboards, so be patient :)
+
+You can also force some activity in the control plane by deleting all of the services we installed in the previous labs and letting them recreate themselves. This will cause xDS push activity as well as sidecar injection:
+
+```bash
+kubectl delete po --all -n istioinaction
+```
+
+Ultimately you should being seeing telemetry graphs:
+
+![](./images/grafana-cp-dashboard.png)
+
+One section of the graph is empty still, though. That's the "Envoy information" section with subsections of "XDS Active Connection" or "XDS Requests Size". Those signals come directly from data planes connecting to the control plane. Let's enable scraping for the data planes.
+
+
+## Scraping the Istio service mesh: Data Plane
+
+If we go check a different dashboard like "Istio Service Dashboard", we will see it's empty as there aren't any rules set up to scrape the data plane yet.
+
+Just like we did in the previous section, we need to enable scraping for the data plane. To do that, we'll use a `PodMonitor` that looks like this:
+
+```yaml
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: envoy-stats-monitor
+  namespace: prometheus
+  labels:
+    monitoring: istio-proxies
+    release: prom
+spec:
+  selector:
+    matchExpressions:
+    - {key: istio-prometheus-ignore, operator: DoesNotExist}
+  namespaceSelector:
+    any: true
+  jobLabel: envoy-stats
+  podMetricsEndpoints:
+  - path: /stats/prometheus
+    interval: 15s
+    relabelings:
+    - action: keep
+      sourceLabels: [__meta_kubernetes_pod_container_name]
+      regex: "istio-proxy"
+    - action: keep
+      sourceLabels: [__meta_kubernetes_pod_annotationpresent_prometheus_io_scrape]
+    - sourceLabels: [__address__, __meta_kubernetes_pod_annotation_prometheus_io_port]
+      action: replace
+      regex: ([^:]+)(?::\d+)?;(\d+)
+      replacement: $1:$2
+      targetLabel: __address__
+    - action: labeldrop
+      regex: "__meta_kubernetes_pod_label_(.+)"
+    - sourceLabels: [__meta_kubernetes_namespace]
+      action: replace
+      targetLabel: namespace
+    - sourceLabels: [__meta_kubernetes_pod_name]
+      action: replace
+      targetLabel: pod_name
+```
+
+Let's create it:
+
+```bash
+kubectl apply -f labs/03/monitor-data-plane.yaml
+```
+
+Let's also generate some load to the data plane so telemetry will show up:
+
+```bash
+for i in {1..10}; do kubectl exec -it deploy/sleep -n default -- curl http://web-api.istioinaction:8080/; done
+```
+
+We could also use a load generator tool to put more load on the system over a period of time. {TODO -- add fortio deployment here for load testing?}
+
+Now we should be scraping the data-plane workloads. If we check the Istio Service Dashboard, specifically the "Service Workload" section, we should start to see load. 
+
+![](./images/grafana-service-workloads.png)
+
+
+If we go back and look at the Control Plane dashboard, we should see those XDS graphs now populated:
+
+![](./images/grafana-xds.png)
+
+## Quick tips and tricks
+
+If you're familiar with Prometheus, you know that Prometheus gets configured by updating its rules in a `configmap` following the configuration options from [the Prometheus doc](https://prometheus.io/docs/introduction/overview/). Since we're using the operator here, [and specifically the Custom Resources that drive the Prometheus Operator](https://github.com/prometheus-operator/prometheus-operator/blob/master/Documentation/design.md), there is a level of indirection that can be difficult to translate back to the Prometheus rules, but here's a simple trick to get the underlying Prometheus rules.
+
+The Prometheus rule `configmap` is actually stored as a secret and is updated through the operator configurations. 
+
+```bash
+kubectl get secret -n prometheus prometheus-prom-kube-prometheus-stack-prometheus -o jsonpath="{.data['prometheus\.yaml\.gz']}" | base64 -D | gunzip
+```
+
+You would see something like this (truncated for brevity):
+
+```
+global:                                   
+  evaluation_interval: 30s                                                               
+  scrape_interval: 30s
+  external_labels:                                                                       
+    prometheus: prometheus/prom-kube-prometheus-stack-prometheus                         
+    prometheus_replica: $(POD_NAME)       
+rule_files:               
+- /etc/prometheus/rules/prometheus-prom-kube-prometheus-stack-prometheus-rulefiles-0/*.yaml
+scrape_configs:                                                                          
+- job_name: prometheus/istio-component-monitor/0                                         
+  honor_labels: false            
+  kubernetes_sd_configs:                                                                 
+  - role: endpoints                                                                      
+  scrape_interval: 15s                                                                   
+  relabel_configs:              
+  - action: keep                                                                         
+    source_labels:                                                                       
+    - __meta_kubernetes_service_label_istio                                              
+    regex: pilot                                                                         
+  - action: keep                                                                         
+    source_labels:                                                                       
+    - __meta_kubernetes_endpoint_port_name
+    regex: http-monitoring    
+```
+
+Now that we have Prometheus and Grafana installed, we can continue to layer observability tools on top. In the next section we install Kiali using the Kiali operator.
 
 ## Installing Kiali
 
@@ -88,3 +325,24 @@ https://istio.io/latest/docs/ops/integrations/prometheus/#option-1-metrics-mergi
 
 setting up with TLS requires injecting a sidecar with no redirect rules:
 https://istio.io/latest/docs/ops/integrations/prometheus/#tls-settings
+
+
+
+
+Potentially useful info for debugging:
+
+
+
+
+
+
+
+
+left over links:
+Prometheus federation https://prometheus.io/docs/prometheus/latest/federation/#hierarchical-federation
+
+Prometheus operator:
+https://github.com/prometheus-operator/prometheus-operator
+doc: https://github.com/prometheus-operator/prometheus-operator/blob/master/Documentation/user-guides/getting-started.md
+
+

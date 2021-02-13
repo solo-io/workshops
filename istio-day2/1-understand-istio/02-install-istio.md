@@ -2,6 +2,14 @@
 
 In the previous lab we saw how Envoy works. We also saw that Envoy needs a control plane to configure it in a dynamic environment like a cloud platform built on containers or Kubernetes. 
 
+Istio provides that control plane to drive the behavior of the network. Istio provides mechanisms for getting the Envoy proxy (also known as Istio service proxy, sidecar proxy, or data plane) integrated with workloads deployed to a system and for them to automatically connect to the control plane securely. Users can then use the control plane's API to drive the behavior of the network. Let's start installing and configuring Istio in this lab.
+
+## Prequisites
+
+You will need access to a Kubernetes cluster. If you're doing this via the Solo.io Workshop format, you should have everything ready to go.
+
+Verify you're in the correct folder for this lab: `/home/solo/workshops/istio-day2/1-understand-istio/`. 
+
 In the workshop material, you should already have Istio 1.8.3 installed and ready to go. Although at the time of this writing Istio 1.9 is the latest, we will start on Istio 1.8.x and show how to do upgrades in the second part of this workshop. 
 
 To verify, run 
