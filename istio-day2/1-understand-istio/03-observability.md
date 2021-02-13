@@ -118,7 +118,7 @@ Click the "Control Plane" dashboard. You should be taken to a dashboard with som
 
 Actually, the graphs are all empty!! This is not of much value to us, so let's figure out how to populate these graphs.
 
-## Scraping the Istio service mesh: Control Plane
+## Scraping the Istio service mesh: control plane
 
 The reason we don't see any information in the Control Plane dashboard (or any of the Istio dashboards really) is because we don't have any configuration for scraping information from the Istio service mesh. 
 
@@ -169,7 +169,7 @@ Ultimately you should being seeing telemetry graphs:
 One section of the graph is empty still, though. That's the "Envoy information" section with subsections of "XDS Active Connection" or "XDS Requests Size". Those signals come directly from data planes connecting to the control plane. Let's enable scraping for the data planes.
 
 
-## Scraping the Istio service mesh: Data Plane
+## Scraping the Istio service mesh: data plane
 
 If we go check a different dashboard like "Istio Service Dashboard", we will see it's empty as there aren't any rules set up to scrape the data plane yet.
 
@@ -280,10 +280,19 @@ Now that we have Prometheus and Grafana installed, we can continue to layer obse
 
 ## Installing Kiali
 
-Links here:
-https://kiali.io/documentation/latest/installation-guide/
+Kiali is a networking graph dashboard that shows connectivity paths between services. This is different than a Grafana graph that shows line charts, bar graphs, etc. Kiali gives a visual representation of the services and how the connect to each other. More [can be found on the Kiali website](https://kiali.io). 
 
+Again, Istio ships with a [sample version of Kiali out of the box](https://istio.io/latest/docs/ops/integrations/kiali/#option-1-quick-start) but for realistic deployments, the Istio and Kiali teams recommend using the [Kiali Operator](https://github.com/kiali/kiali-operator)
+
+For more details on installing Kiali, please see the [official install guide](https://kiali.io/documentation/latest/installation-guide/).
+
+Let's install the `kiali-operator` here:
+
+```bash
 kubectl create ns kiali-operator
+```
+
+```bash
 helm install \
     --set cr.create=true \
     --set cr.namespace=istio-system \
@@ -292,57 +301,109 @@ helm install \
     --version 1.29.1 \
     kiali-operator \
     kiali-operator
+```
 
+At this point we have the Kiali operator installed. Let's check that it's up and running:
+
+```bash
+kubectl get po -n kiali-operator
+```
+
+```
+NAME                              READY   STATUS    RESTARTS   AGE
+kiali-operator-67f4977465-rq2b8   1/1     Running   0          42s
+```
+
+Now that the operator is installed, we need to declare an instance of Kiali to install and run. We will do that with the `Kiali` CR:
+
+```yaml
+apiVersion: kiali.io/v1alpha1
+kind: Kiali
+metadata:
+  namespace: istio-system
+  name: kiali
+spec:
+  istio_namespace: "istio-system"  
+  istio_component_namespaces:
+    prometheus: prometheus
+  auth:    
+    strategy: token
+  deployment:
+    accessible_namespaces:
+    - '**'
+    image_version: operator_version
+  external_services:    
+    prometheus:
+      cache_duration: 10
+      cache_enabled: true
+      cache_expiration: 300
+      url: "http://prom-kube-prometheus-stack-prometheus.prometheus:9090"   
+```
+
+Kiali leverages the telemetry signals that Prometheus scrapes from the Istio control plane and data plane. In the previous sections we installed Prometheus, but for Kiali, we need to configure it to use our specific Prometheus. In the configuration above you should see we configure Kiali to use Prometheus at `http://prom-kube-prometheus-stack-prometheus.prometheus:9090`. You may be wondering how to secure the connection between Kiali and Prometheus? Actually Prometheus doesn't come with any out of the box security strategies. They recommend running a reverse proxy (Envoy?!) in front of it. From Kiali we can use TLS and basic auth to connect to Prometheus. This is left as an exercise for the workshop attendee.
+
+Note, we are installing this Kiali dashboard with Token Auth but there are various ways to configure Kiali. [In this blog post](https://www.solo.io/blog/securing-kiali-in-istio-1-7/), we dig deeply into using OIDC, but we definitely recommend checking the official documentation for [Kiali installations and auth strategies](https://kiali.io/documentation/latest/configuration/authentication/). 
+
+Let's create the Kiali instance:
+
+```bash
 kubectl apply -f labs/03/kiali.yaml 
+```
 
-https://kiali.io/documentation/latest/configuration/authentication/
-set up SA and binding:
+Let's check that it got created:
+
+```
+NAME                            READY   STATUS    RESTARTS   AGE
+istiod-1-8-3-78b88c997d-rpnck   1/1     Running   0          39h
+kiali-67cd5cf9fc-lnwc9          1/1     Running   0          29s
+```
+
+Now let's port-forward the Kiali dashboard:
+
+```bash
+kubectl -n istio-system port-forward deploy/kiali 20001
+```
+
+And now you can navigate to [http://localhost:20001](http://localhost:20001).
+
+You are greeted with a login page when you get there:
+
+![](./images/kiali-login.png)
+
+How do we login here? We configured Kiali to use the [token auth](https://kiali.io/documentation/latest/configuration/authentication/token/) strategy which is similar to securing the default Kubernetes dashboard. Let's create the service-account token and RBAC so we can login:
+
+```bash
 kubectl create serviceaccount kiali-dashboard -n istio-system
-kubectl create clusterrolebinding kiali-dashboard-admin --clusterrole=cluster-admin --serviceaccount=istio-system:kiali-dashboard
+```
 
-get token:
-k get secret -n istio-system -o jsonpath="{.data.token}" $(k get secret -n istio-system | grep kiali-dashboard | awk '{print $1}' ) | base64 --decode
+```bash
+kubectl create clusterrolebinding kiali-dashboard-admin --clusterrole=cluster-admin --serviceaccount=istio-system:kiali-dashboard
+```
+
+Getting the token:
+
+```bash
+kubectl get secret -n istio-system -o jsonpath="{.data.token}" $(k get secret -n istio-system | grep kiali-dashboard | awk '{print $1}' ) | base64 --decode
+```
+
+Copy and paste that token into the Kiali login screen. Once you login, you should be greeted with the Kiali dashboard:
+
+![](./images/kiali-dashboard.png)
+
+Congrats! You've installed and secured the Kiali dashboard and connected it to the Prometheus instance collecting Istio telemetry.
+
 
 
 # TODO
+
+Should describe metrics merging
+
 Should we add a section to configure TLS for the app scraping when merging is turned off?
 https://github.com/istio/istio/issues/27940#issuecomment-759305377
-
-Should we add a section on securing the communication between Kiali and Prometheus?
-
-
-# clean up
-helm uninstall prom -n prometheus
-kubectl delete ns prometheus
-cleancrd coreos
-
-useful notes:
-https://github.com/istio/istio/issues/30063
-https://github.com/istio/istio/blob/4461a6b2324bceabd6f0ef3896ca1ca338180c45/samples/addons/extras/prometheus-operator.yaml
 
 by default, istio does metric merging:
 https://istio.io/latest/docs/ops/integrations/prometheus/#option-1-metrics-merging
 
 setting up with TLS requires injecting a sidecar with no redirect rules:
 https://istio.io/latest/docs/ops/integrations/prometheus/#tls-settings
-
-
-
-
-Potentially useful info for debugging:
-
-
-
-
-
-
-
-
-left over links:
-Prometheus federation https://prometheus.io/docs/prometheus/latest/federation/#hierarchical-federation
-
-Prometheus operator:
-https://github.com/prometheus-operator/prometheus-operator
-doc: https://github.com/prometheus-operator/prometheus-operator/blob/master/Documentation/user-guides/getting-started.md
-
 
