@@ -406,10 +406,7 @@ done
 Use the following snippet to wait for the installation to finish:
 
 ```bash
-until [ $(kubectl -n dev-portal get pods -o jsonpath='{range .items[*].status.containerStatuses[*]}{.ready}{"\n"}{end}' | grep true -c) -eq 4 ]; do
-  echo "Waiting for all the Gloo Portal pods to become ready"
-  sleep 1
-done
+kubectl -n dev-portal wait pod --all --for condition=Ready --timeout -1s
 ```
 
 ## Lab 3: Expose the API
@@ -418,9 +415,9 @@ done
 
 Managing APIs with Gloo Portal happens through the use of three resources: the API Doc, the API Product and the Environment.
 
-API Docs are Kubernetes Custom Resources that package the API definitions created by the maintainers of an API. Each API Doc maps to a single OpenAPI document. The APIs endpoints themselves are provided by backend services.
+**API Docs** are Kubernetes Custom Resources that package the API definitions created by the maintainers of an API. Each **API Doc** maps to a _single_ OpenAPI document. The APIs endpoints themselves are provided by backend services.
 
-Let's create an API Doc using the OpenAPI document of the `v1` version of the `Petstore` demo application:
+Let's create an **API Doc** using the OpenAPI document of the `v1` version of the `Petstore` demo application:
 
 ```bash
 cat <<EOF | kubectl apply -f -
@@ -461,12 +458,12 @@ EOF
 Note that the API Doc's OpenAPI document has been parsed and now reflects all the operations published by the Petstore interface.
 
 ```bash
-kubectl get apidocs.devportal.solo.io petstore-v1 -o yaml
+kubectl get apidocs.devportal.solo.io petstore-v2 -o yaml
 ```
 
 The YAML output is abridged to highlight the discovered operations.
 
-```
+```yaml
 apiVersion: devportal.solo.io/v1alpha1
 kind: APIDoc
 metadata:
@@ -504,9 +501,9 @@ status:
 
 ### Create an API Product
 
-API Products are Kubernetes Custom Resources which bundle the APIs defined in API Docs into a product which can be exposed to ingress traffic as well as published on a Portal UI. An API Product defines what API operations are being exposed, and the routing information to reach the services.
+**API Products** are Kubernetes Custom Resources which bundle the APIs defined in **API Docs** into a product that can be exposed to ingress traffic as well as published on a Portal UI. An **API Product** defines what API operations are being exposed, and the routing information to reach the services.
 
-Let's create an API Product using the API Docs we've just created and pointing to the 2 versions of the `Petstore` application:
+Let's create an **API Product** using the **API Docs** we've just created and pointing to the 2 versions of the `Petstore` application:
 
 ```bash
 cat << EOF | kubectl apply -f-
@@ -561,7 +558,8 @@ kubectl get apiproducts.devportal.solo.io petstore -o yaml
 
 ### Create an Environment
 
-In Gloo Portal, an Environment corresponds to a collection of compute resources where applications are deployed.  This mirrors the practices of many organizations with development and production environments, often with multiple intermediate environments, such as those for shared testing and staging.  We begin by creating an Environment named `dev` using the domain `dev.petstore.com` to expose the `v1` and `v2` versions of the `Petstore` application.
+In Gloo Portal, an **Environment** corresponds to a collection of compute resources where applications are deployed. This mirrors the practices of many organizations with development and production environments, often with multiple intermediate environments, such as those for shared testing and staging. 
+We begin by creating an **Environment** named `dev`, using the domain `dev.petstore.com` to expose the `v1` and `v2` versions of the `Petstore` application.
 
 ```bash
 cat << EOF | kubectl apply -f-
@@ -600,7 +598,7 @@ kubectl get virtualservice dev -o yaml
 ```
 
 Here is the output:
-```
+```yaml
 apiVersion: gateway.solo.io/v1
 kind: VirtualService
 metadata:
@@ -633,13 +631,7 @@ spec:
   virtualHost:
     domains:
     - dev.petstore.com
-    options:
-      cors:
-        allowHeaders:
-        - api-key
-        allowOrigin:
-        - http://portal.petstore.com
-        - https://portal.petstore.com
+    options: {}
     routes:
     - matchers:
       - exact: /v1/pet
@@ -664,8 +656,8 @@ spec:
 
 When targeting Gloo Edge, Gloo Portal manages a set of Gloo Edge Custom Resource Definitions (CRDs) on behalf of users:
 
-- VirtualServices: Gloo Portal generates a Gloo Edge VirtualService for each API Product. The VirtualService contains a single HTTP route for each API operation exposed in the product. Routes are named and their matchers are derived from the OpenAPI document.
-- Upstreams: Gloo Portal generates a Gloo Upstream for each unique destination referenced in an API Product route.
+- **VirtualServices**: Gloo Portal generates a Gloo Edge **VirtualService** for each **API Product**. The **VirtualService** contains a single HTTP route for each API operation exposed in the product. Routes are named and their matchers are derived from the OpenAPI document.
+- **Upstreams**: Gloo Portal generates a Gloo **Upstream** for each unique destination referenced in an **API Product** route.
 
 We need to update the `/etc/hosts` file to be able to access our API (and later the Portal):
 
@@ -679,7 +671,7 @@ EOF
 You can now access the version `v1` of the API using the command below:
 
 ```bash
-curl http://dev.petstore.com/v1/store/inventory | jq .
+curl -s http://dev.petstore.com/v1/store/inventory | jq .
 ```
 
 The output should be similar to below:
@@ -710,9 +702,9 @@ The output should be the same:
 
 ## Lab 4: Create a Portal
 
-Once a set of APIs have been bundled together in an API Product, those products can be published in a user-friendly interface through which outside developers can discover, browse and interact with APIs. This is done by defining Portals, a custom resource which tells Gloo Portal how to publish a customized website containing an interactive catalog of those products.
+Once a set of APIs have been bundled together in an **API Product**, those products can be published in a user-friendly web interface through which outside developers can discover, browse and interact with APIs. This is done by defining **Portals**, a Custom Resource which tells Gloo Portal how to publish a customized website containing an interactive catalog of those products.
 
-We'll integrate the Portal with Keycloak, so we need to define a couple of variables and create a secret:
+We'll integrate the Portal with Keycloak. So we need to fetch the client id and client secret that we have created earlier:
 
 ```bash
 KEYCLOAK_URL=http://$(kubectl get service keycloak -o jsonpath='{.status.loadBalancer.ingress[0].ip}'):8080/auth
@@ -733,7 +725,7 @@ data:
 EOF
 ```
 
-Let's create the Portal:
+Let's create the **Portal**:
 
 ```bash
 cat <<EOF | kubectl apply -f -
@@ -788,6 +780,7 @@ metadata:
   name: oidc-group
   namespace: default
 spec:
+  displayName: my-oidc-users-group
   accessLevel:
     apiProducts:
     - name: petstore
@@ -803,7 +796,7 @@ spec:
 EOF
 ```
 
-You can now check the status of the Group using the following command:
+You can now check the status of the **Group** using the following command:
 
 ```bash
 kubectl get group -n default oidc-group -oyaml
@@ -811,7 +804,7 @@ kubectl get group -n default oidc-group -oyaml
 
 ## Lab 5: Explore the Administrative Interface
 
-Let's run the following command to allow access ot the admin UI of Gloo Portal:
+Let's run the following command to allow access of the admin UI of Gloo Portal:
 
 ```
 kubectl port-forward -n dev-portal svc/admin-server 8000:8080
@@ -831,7 +824,7 @@ The user Portal we have created is available at http://portal.petstore.com
 
 Log in with the user `user1` and the password `password`.
 
-Click on the version `v1`, scroll down and click on the `GET /v1/store/inventory` API call.
+Click "View APIs", then click on the version `v1`, scroll down and click on the `GET /v1/store/inventory` API call.
 
 Click on `Try it out` and then on the `Execute` button.
 
@@ -845,7 +838,7 @@ Take the time to explore the UI and see the difference between the 2 versions fo
 
 We've already secured the access to the Portal UI, but we didn't secure the API itself yet.
 
-We can update the Environment to create a plan (called `Basic`) with its associated rate limit:
+We can update the Environment to create a plan (called `Basic`) with its associated rate limit. Consumers will authenticate themselvles thanks to an API key:
 
 ```bash
 cat << EOF | kubectl apply -f-
@@ -984,7 +977,7 @@ As soon as you reach the rate limit, you should get the following output:
 You can see the Gloo Edge Virtual Service updated by Gloo Portal using the command below:
 
 ```bash
-kubectl get environments.devportal.solo.io dev -o yaml
+kubectl get virtualservices.gateway.solo.io dev -o yaml
 ```
 
 Here is the output:
@@ -1029,6 +1022,7 @@ spec:
     routes:
     - matchers:
       - exact: /v1/pet
+
         methods:
         - POST
         - OPTIONS
@@ -1057,9 +1051,9 @@ The `extauth` and `rateLimitConfigs` options have been added on each route to se
 
 ## Lab 8: Portal rebranding
 
-As you've seen in the previous lab, we've been able to provide a few pictures (banner, logo, ...).
+As you've seen in the previous lab, we've been able to provide a few pictures (banner, logo, etc.).
 
-But you can completely change the look and feel of the Portal by providing your own CSS sylesheet.
+But you can completely change the look & feel of the **Portal** by providing your own CSS.
 
 Let's use this feature to change the color of the title.
 
