@@ -1,20 +1,20 @@
 # Gloo Portal Workshop
 
-Gloo Portal provides a framework for managing the definitions of APIs, API client identity, and API policies on top of Gloo Edge or of the Istio Ingress Gateway. Vendors of API products can leverage Gloo Portal to secure, manage, and publish their APIs independent of the operations used to manage networking infrastructure.
+Gloo Portal provides a framework for managing APIs' definitions, API client identity, and API policies on top of Gloo Edge or of the Istio Ingress Gateway. Vendors of API products can leverage Gloo Portal to secure, manage, and publish their APIs independently of the operations used to manage networking infrastructure.
 
-The goal of this workshop is to expose some key features of the Gloo Portal like API lifecycle, Authentication, Rebranding, ...
+This workshop aims to expose some key features of the Gloo Portal like API lifecycle, Authentication, Rebranding, ...
 
 ## OpenAPI vs Swagger
 
-OpenAPI is a specification, while Swagger are tools for implementing the OpenAPI specification.
+OpenAPI is a specification, while Swagger is a toolset for implementing the OpenAPI specification.
 
-The OpenAPI Specification (OAS) defines a standard, language-agnostic interface to RESTful APIs which allows both humans and computers to discover and understand the capabilities of the service without access to source code, documentation, or through network traffic inspection. When properly defined, a consumer can understand and interact with the remote service with a minimal amount of implementation logic.
+The OpenAPI Specification (OAS) defines a standard, language-agnostic interface to RESTful APIs, which allows both humans and computers to discover and understand the service's capabilities without access to source code, documentation, or through network traffic inspection. When properly defined, a consumer can understand and interact with the remote service with minimal implementation logic.
 
-Swagger is the name associated with some of the most well-known, and widely used tools for implementing the OpenAPI specification. The Swagger toolset includes a mix of open source, free, and commercial tools, which can be used at different stages of the API lifecycle.
+Swagger is the name associated with some of the most well-known and widely used tools for implementing the OpenAPI specification. The Swagger toolset includes a mix of open-source, free, and commercial tools, which can be used at different stages of the API lifecycle.
 
 ## Lab Environment
 
-The Lab environment consists of a Virtual Machine where you will deploy a Kubernetes cluster using kind.
+The Lab environment consists of a Virtual Machine where you will deploy a Kubernetes cluster using [kind](https://kind.sigs.k8s.io/). \
 You will then deploy Gloo Edge and Gloo Portal on this Kubernetes cluster.
 
 ## Lab 0: Deploy a Kubernetes Cluster and Keycloak
@@ -47,7 +47,11 @@ kubectl create -f https://raw.githubusercontent.com/keycloak/keycloak-quickstart
 kubectl rollout status deploy/keycloak
 ```
 
-Then, we need to configure it and create a user with the credentials `user1/password`:
+<!--bash
+sleep 30
+-->
+
+Then, we need to configure it and to create a new user with these credentials: `user1/password`:
 
 ```bash
 # Get Keycloak URL and token
@@ -84,10 +88,10 @@ And the demo application we will build is called the [Swagger Petstore](https://
 
 The OpenAPI document of the `Petstore` application is available [here](https://petstore.swagger.io/v2/swagger.json).
 
-Run the following command to see the beginning of the document formatted using `jq`:
+Run the following command to see the beginning of the document, formatted using `jq`:
 
 ```
-curl https://petstore.swagger.io/v2/swagger.json | jq . | head -25
+curl -s https://petstore.swagger.io/v2/swagger.json | jq . | head -25
 ```
 
 The output should be similar to this:
@@ -122,7 +126,7 @@ The output should be similar to this:
 
 You can see a key called `basePath` with a value `v2`.
 
-Including the version of an API in the `basePath` is a common way to manage the lifecycle of an application, even of there is no standard. Other approaches exist (like using a header, a different host, ...).
+Including the version of an API in the `basePath` is a common way to manage the lifecycle of an application, even of there is no standard. Other approaches exist (like using a header, a different host, etc.).
 
 There are 2 OpenAPI documents in the current directory:
 
@@ -162,9 +166,10 @@ Here is the expected output:
 >           }
 ```
 
-You can see that we've changed the base path to `/v1` and removed the `photoUrls` key in the first document. The second document is the original OpenAPI document of the `Petstore` application.
+The v1 is just missing an attribute, named `photoUrls`, on the `Pet` object.
 
-### Build the version v1
+
+### Generate a Go skeleton from the v1
 
 Run the command below to generate the application code using the `swagger-petstore-v1.json`:
 
@@ -349,8 +354,8 @@ EOF
 Run the commands below to deploy Gloo Edge Enterprise:
 
 ```bash
-glooctl upgrade --release=v1.6.6
-glooctl install gateway enterprise --version 1.6.6 --license-key $LICENSE_KEY
+glooctl upgrade --release=v1.6.7
+glooctl install gateway enterprise --version 1.6.10 --license-key $LICENSE_KEY
 ```
 
 Gloo Edge can also be deployed using a Helm chart.
@@ -390,6 +395,13 @@ EOF
 kubectl create namespace dev-portal
 helm install dev-portal dev-portal/dev-portal -n dev-portal --values gloo-values.yaml  --version=0.5.2
 ```
+
+<!--bash
+until kubectl get ns dev-portal
+do
+  sleep 1
+done
+-->
 
 Use the following snippet to wait for the installation to finish:
 
