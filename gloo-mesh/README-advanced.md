@@ -886,7 +886,9 @@ Let's deploy Gloo on the first cluster:
 ```bash
 kubectl config use-context cluster1
 glooctl upgrade --release=v1.6.8
-glooctl install gateway enterprise --version 1.6.12 --license-key $LICENSE_KEY
+helm repo add glooe http://storage.googleapis.com/gloo-ee-helm
+helm install gloo glooe/gloo-ee --namespace gloo-system --version 1.6.12 \
+  --create-namespace --set global.istioSDS.enabled=true --set-string license_key=$LICENSE_KEY
 ```
 
 Use the following commands to wait for the Gloo components to be deployed:
@@ -909,10 +911,10 @@ Serving as the Ingress for an Istio cluster – without compromising on security
 
 For Gloo to successfully send requests to an Istio Upstream with mTLS enabled, we need to add the Istio mTLS secret to the gateway-proxy pod. The secret allows Gloo to authenticate with the Upstream service. We will also add an SDS server container to the pod, to handle cert rotation when Istio updates its certs.
 
-Everything is done by simply running the following command:
+Everything is done automatically when we use the `--set global.istioSDS.enabled=true` option during the Gloo Edge installation, but we still need to update 2 environment variables to match the values we used when we deployed Istio.
 
 ```bash
-glooctl istio inject
+kubectl set env deployments/gateway-proxy -n gloo-system --containers=istio-proxy ISTIO_META_MESH_ID=mesh1 ISTIO_META_CLUSTER_ID=cluster1
 ```
 
 It will restart a few Pods, so you can use the following commands to wait for all the Pods to be ready:
