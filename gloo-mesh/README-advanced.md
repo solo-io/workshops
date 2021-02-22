@@ -870,3 +870,233 @@ Try to access the app from the `productpage` Pod:
 ```bash
 kubectl exec -it $(kubectl get pods -l app=productpage -o jsonpath='{.items[0].metadata.name}') -- python -c "import requests; r = requests.get('http://${VM_APP}.virtualmachines.svc.cluster.local:9999'); print(r.text)"
 ```
+
+## Lab 3 : Securing the Edge
+
+We've seen in the previous labs how the Istio Ingressgateway can be used for multi-cluster traffic and failover.
+
+While the Istio Ingressgateway can also be used to expose your applications to the outside world, it doesn't provide all the features most of the people need (external authenticaion, rate limiting, ...).
+
+Gloo is a feature-rich next-generation API gateway which provides these features. Gloo is exceptional in its function-level routing; its support for legacy apps, microservices and serverless; its discovery capabilities; its numerous features; and its tight integration with leading open-source projects. Gloo is uniquely designed to support hybrid applications, in which multiple technologies, architectures, protocols, and clouds can coexist.
+
+![Gloo Mesh](images/gloo-smh-1.png)
+
+Let's deploy Gloo on the first cluster:
+
+```bash
+kubectl config use-context cluster1
+glooctl upgrade --release=v1.6.8
+glooctl install gateway enterprise --version 1.6.12 --license-key $LICENSE_KEY
+```
+
+Use the following commands to wait for the Gloo components to be deployed:
+
+<!--bash
+until kubectl --context cluster1 get ns gloo-system
+do
+  sleep 1
+done
+-->
+
+```bash
+until [ $(kubectl --context cluster1 -n gloo-system get pods -o jsonpath='{range .items[*].status.containerStatuses[*]}{.ready}{"\n"}{end}' | grep false -c) -eq 0 ]; do
+  echo "Waiting for all the gloo-system pods to become ready on cluster cluster1"
+  sleep 1
+done
+```
+
+Serving as the Ingress for an Istio cluster – without compromising on security – means supporting mutual TLS (mTLS) communication between Gloo and the rest of the cluster. Mutual TLS means that the client proves its identity to the server (in addition to the server proving its identity to the client, which happens in regular TLS).
+
+For Gloo to successfully send requests to an Istio Upstream with mTLS enabled, we need to add the Istio mTLS secret to the gateway-proxy pod. The secret allows Gloo to authenticate with the Upstream service. We will also add an SDS server container to the pod, to handle cert rotation when Istio updates its certs.
+
+Everything is done by simply running the following command:
+
+```bash
+glooctl istio inject
+```
+
+It will restart a few Pods, so you can use the following commands to wait for all the Pods to be ready:
+
+<!--bash
+kubectl --context cluster1 -n istio-system delete pod -l app=istio-ingressgateway
+-->
+
+```bash
+until [ $(kubectl --context cluster1 get pods -A -o jsonpath='{range .items[*].status.containerStatuses[*]}{.ready}{"\n"}{end}' | grep false -c) -eq 0 ]; do
+  echo "Waiting for all the pods to become ready on cluster cluster1"
+  sleep 1
+done
+```
+Finally, you must disable function discovery before editing the Upstream to prevent your change from being overwritten by Gloo:
+
+```bash
+kubectl --context cluster1 label namespace default discovery.solo.io/function_discovery=disabled
+```
+
+To allow Gloo to access the `productpage` service, you need to add the SSL configuration needed in the corresponding Upstream.
+
+```bash
+glooctl istio enable-mtls --upstream default-productpage-9080
+````
+
+It will add the following information to the Upstream object:
+
+```
+  sslConfig:
+    alpn_protocols:
+    - istio
+    sds:
+      targetUri: 127.0.0.1:8234
+      certificatesSecretName: istio_server_cert
+      validationContextName: istio_validation_context
+      clusterName: gateway_proxy_sds
+```
+
+You can now make the productpage accessible to the outside world using the following command:
+
+```bash
+glooctl add route --name prodpage --namespace gloo-system --path-prefix / --dest-name default-productpage-9080 --dest-namespace gloo-system
+```
+
+This command has created a Gloo VirtualService. You can also manage Gloo object using kubectl.
+
+```bash
+kubectl --context cluster1 -n gloo-system get virtualservices.gateway.solo.io prodpage -o yaml
+```
+
+You should get an output similar to the one below:
+
+```
+apiVersion: gateway.solo.io/v1
+kind: VirtualService
+metadata:
+  creationTimestamp: "2020-09-09T09:50:16Z"
+  generation: 3
+...
+  name: prodpage
+  namespace: gloo-system
+  resourceVersion: "167507"
+  selfLink: /apis/gateway.solo.io/v1/namespaces/gloo-system/virtualservices/prodpage
+  uid: 3ddc77d7-048b-4d9e-a8d0-51713ebe5ac6
+spec:
+  virtualHost:
+    domains:
+    - '*'
+    routes:
+    - matchers:
+      - prefix: /
+      routeAction:
+        single:
+          upstream:
+            name: default-productpage-9080
+            namespace: gloo-system
+status:
+  reportedBy: gateway
+  state: 1
+  subresourceStatuses:
+    '*v1.Proxy.gloo-system.gateway-proxy':
+      reportedBy: gloo
+      state: 1
+```
+
+Check that all the Pods are running in the `default` namespace:
+
+```bash
+kubectl --context cluster1 get pods
+```
+
+When the pods are all running, the bookinfo app is accessible via the Gloo gateway using the `172.18.0.221` IP address.
+
+Go to this new <a href="http://172.18.0.221/productpage" target="_blank">bookinfo app URL</a> to see if you can access the `productpage` microservice using Gloo.
+
+As you might have guessed, this operation fails.  While you can access the Gloo endpoint, Gloo isn't yet allowed to talk to the `productpage` microservice.
+
+Let's create an `AccessPolicy` to remedy that:
+
+```bash
+cat << EOF | kubectl --context mgmt apply -f -
+apiVersion: networking.mesh.gloo.solo.io/v1alpha2
+kind: AccessPolicy
+metadata:
+  namespace: gloo-mesh
+  name: gloo
+spec:
+  sourceSelector:
+  - kubeServiceAccountRefs:
+      serviceAccounts:
+        - name: gateway-proxy
+          namespace: gloo-system
+          clusterName: cluster1
+  destinationSelector:
+  - kubeServiceMatcher:
+      namespaces:
+      - default
+      labels:
+        service: productpage
+EOF
+```
+
+Now let's see what we can do with Gloo that we couldn't do with the Istio Ingressgateway.
+
+Let's start with External Authentication. Gloo provides many options (OAuth, API keys, ...), but to keep it simple, we'll setup Basic Authentication.
+
+We will update the Virtual Service so that only requests by the user `user` with password `password` are allowed.
+
+We need to create the following AuthConfig:
+
+```bash
+kubectl --context cluster1 apply -f - <<EOF
+apiVersion: enterprise.gloo.solo.io/v1
+kind: AuthConfig
+metadata:
+  name: basic-auth
+  namespace: gloo-system
+spec:
+  configs:
+  - basicAuth:
+      apr:
+        users:
+          user:
+            salt: "TYiryv0/"
+            hashedPassword: "8BvzLUO9IfGPGGsPnAgSu1"
+EOF
+```
+
+> NOTE:  For inquisitive learners who wants to understand how the above `AuthConfig` establishes a username / password combination of `user` / `password`:  
+> 
+> Gloo expects password to be hashed and salted using the `APR1` format.  Passwords in that format follow this pattern:
+>
+>```
+>$apr1$SALT$HASHED_PASSWORD
+>```
+>
+>To generate such a password you can use the htpasswd utility:
+>
+>```
+>htpasswd -nbm user password
+>```
+>
+>Running the above command returns a string like `user:$apr1$TYiryv0/$8BvzLUO9IfGPGGsPnAgSu1`, where:
+>
+>- `TYiryv0/` is the salt
+>- `8BvzLUO9IfGPGGsPnAgSu1` is the hashed password.
+
+And we can patch the Gloo VirtualService as follow:
+
+```bash
+cat > virtualservice-patch.yaml <<'EOF'
+spec:
+  virtualHost:   
+    options:
+      extauth:
+        configRef:
+          name: basic-auth
+          namespace: gloo-system
+EOF
+
+kubectl --context cluster1 -n gloo-system patch virtualservice prodpage --type=merge --patch "$(cat virtualservice-patch.yaml)"
+```
+
+If you refresh the web page, it will ask you for the credentials.
+
+It was just a simple example. You can learn more about the Gloo features in the [documentation](https://docs.solo.io/gloo/latest/guides/).

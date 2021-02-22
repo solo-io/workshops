@@ -12,7 +12,7 @@ resource "google_compute_instance" "default" {
 
   boot_disk {
     initialize_params {
-      image = "debian-9-stretch-v20200714"
+      image = "ubuntu-2004-focal-v20210211"
       size = "100"
     }
   }

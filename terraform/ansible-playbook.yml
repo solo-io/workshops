@@ -14,6 +14,7 @@
     apt:
       name: jq
       state: present
+      update_cache: yes
 
   - name: Install curl
     apt:
@@ -42,11 +43,11 @@
 
   - name: Add Docker apt key
     apt_key:
-      url: https://download.docker.com/linux/debian/gpg
+      url: https://download.docker.com/linux/ubuntu/gpg
       state: present
 
   - apt_repository:
-      repo: deb [arch=amd64] https://download.docker.com/linux/debian {{ ansible_distribution_release }} stable
+      repo: deb [arch=amd64] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable
       state: present
 
   - name: Install docker-ce
@@ -103,49 +104,14 @@
   - name: Enable kubectl autocompletion
     shell: kubectl completion bash > /etc/bash_completion.d/kubectl
 
-  - name: Install xfce4
-    apt:
-      name: xfce4
-      state: present
-
-  - name: Install desktop-base
-    apt:
-      name: desktop-base
-      state: present
-
-  - name: Install xscreensaver
-    apt:
-      name: xscreensaver
-      state: present
-
-  - name: Install task-xfce-desktop
-    apt:
-      name: task-xfce-desktop
-      state: present
-
-  - name: Install chromium
-    apt:
-      name: chromium
-      state: present
-
-  - name: Disable the lightdm service
-    service:
-      name: lightdm
-      enabled: no
-
-  - name: Download the Solo background image
-    get_url:
-      url: https://github.com/solo-io/workshops/raw/master/terraform/solo-white.png
-      dest: /home/solo/solo-white.png
-
   - name: Install libcairo2-dev
     apt:
       name: libcairo2-dev
       state: present
 
-  - name: Install libjpeg62-turbo-dev
+  - name: Install libjpeg-turbo8-dev
     apt:
-      name: libjpeg62-turbo-dev
+      name: libjpeg-turbo8-dev
       state: present
 
   - name: Install libpng-dev
@@ -242,21 +208,26 @@
   - name: Configure guacamole
     shell: cd /guacamole-server-1.2.0 && ./configure --with-init-dir=/etc/init.d
 
+  - name: Install build-essential
+    apt:
+      name: build-essential
+      state: present
+
   - name: Make guacamole
     shell: cd /guacamole-server-1.2.0 && make
 
   - name: Make install guacamole
     shell: cd /guacamole-server-1.2.0 && make install
 
-  - name: Install tomcat8
+  - name: Install tomcat9
     apt:
-      name: tomcat8
+      name: tomcat9
       state: present
 
   - name: Download guacamole war
     get_url:
       url: http://apache.org/dyn/closer.cgi?action=download&filename=guacamole/1.2.0/binary/guacamole-1.2.0.war
-      dest: /var/lib/tomcat8/webapps/guacamole.war
+      dest: /var/lib/tomcat9/webapps/guacamole.war
 
   - name: Install autocutsel
     apt:
@@ -298,11 +269,108 @@
       group: solo
       mode: '0600'
 
+  - name: Install dbus-x11
+    apt:
+      name: dbus-x11
+      state: present
+
+  - name: Install gnome-session
+    apt:
+      name: gnome-session
+      state: present
+
+  - name: Install ubuntu-gnome-desktop
+    apt:
+      name: ubuntu-gnome-desktop
+      state: present
+
+  - name: Install gnome-panel
+    apt:
+      name: gnome-panel
+      state: present
+
+  - name: Install gdm3
+    apt:
+      name: gdm3
+      state: present
+
+  - name: Download the Solo background image
+    get_url:
+      url: https://github.com/solo-io/workshops/raw/master/terraform/solo-white.png
+      dest: /home/solo/solo-white.png
+
+  - name: Start firefox
+    shell: firefox -headless www.google.fr &
+    become_user: solo
+    become_method: su
+
+  - name: Pause for 30 seconds
+    pause:
+      seconds: 30
+    
+  - name: Kill firefox
+    shell: pkill firefox
+    ignore_errors: True
+
+  - name: Create the /home/solo/.config directory if it does not exist
+    file:
+      path: /home/solo/.config
+      state: directory
+      owner: solo
+      group: solo
+      mode: '0700'
+
+  - name: Escape initial setup
+    shell: touch /home/solo/.config/gnome-initial-setup-done
+
+  - name: Set homepage
+    shell: bash -c 'echo '"'"'user_pref("browser.startup.homepage", "https://github.com/solo-io/workshops");'"'"' >> /home/solo/.mozilla/firefox/*.default-release/prefs.js'
+
+  - name: Download the codecopy Firefox addon
+    get_url:
+      url: https://addons.mozilla.org/firefox/downloads/file/631137/codecopy-0.4.0-fx.xpi
+      dest: /home/solo/codecopy@clipboardjs.com.xpi
+
+  - name: Install the codecopy Firefox addon
+    shell: bash -c 'cp "codecopy@clipboardjs.com.xpi" /home/solo/.mozilla/firefox/*.default-release/extensions/'
+
+  - name: Create the /home/solo/Desktop directory if it does not exist
+    file:
+      path: /home/solo/Desktop
+      state: directory
+      owner: solo
+      group: solo
+      mode: '0700'
+
+  - name: Copy the Terminal shortcut
+    shell: cp /usr/share/applications/org.gnome.Terminal.desktop /home/solo/Desktop/
+
+  - name: Copy the Firefox shortcut
+    shell: cp /usr/share/applications/firefox.desktop /home/solo/Desktop/
+
   - name: Set the /home/solo/.vnc/xstartup content
     copy:
       content: |
                 #!/bin/sh
-                /etc/X11/Xsession /usr/bin/xfce4-session
+
+                export XKL_XMODMAP_DISABLE=1
+                unset SESSION_MANAGER
+                unset DBUS_SESSION_BUS_ADDRESS
+
+                export XKL_XMODMAP_DISABLE=1
+                export XDG_CURRENT_DESKTOP="GNOME-Flashback:Unity"
+                export XDG_MENU_PREFIX="gnome-flashback-"
+
+                [ -x /etc/vnc/xstartup ] && exec /etc/vnc/xstartup
+                [ -r $HOME/.Xresources ] && xrdb $HOME/.Xresources
+                xsetroot -solid grey
+                vncconfig -iconic &
+
+                gnome-session --session=gnome-flashback-metacity --disable-acceleration-check &
+                gsettings set org.gnome.desktop.background picture-uri file:////home/solo/solo-white.png
+
+                gnome-panel &
+                metacity &
       dest: /home/solo/.vnc/xstartup
 
   - name: Set the permissions of the /home/solo/.vnc/xstartup file
@@ -364,7 +432,7 @@
       content: |
                 [Unit]
                 Description=Socat service
-                After=tomcat8.target
+                After=tomcat9.target
 
                 [Service]
                 Type=simple
@@ -392,18 +460,18 @@
       name: guacd
       enabled: yes
 
-  - name: Enable the tomcat8 service
+  - name: Enable the tomcat9 service
     service:
-      name: tomcat8
+      name: tomcat9
       enabled: yes
   
-  - name: Stop the tomcat8 service
+  - name: Stop the tomcat9 service
     systemd:
-      name: tomcat8
+      name: tomcat9
       state: stopped
 
-  - name: Update the tomcat8 configuration to use port 8888
-    shell: sed -i 's/8080/8888/g' /etc/tomcat8/server.xml
+  - name: Update the tomcat9 configuration to use port 8888
+    shell: sed -i 's/8080/8888/g' /etc/tomcat9/server.xml
 
   - name: Enable the socat service
     service:
@@ -416,18 +484,6 @@
       dest: /home/solo/workshops
     become_user: solo
     become_method: su
-
-  - name: Unarchive the default config
-    unarchive:
-      src: https://github.com/solo-io/workshops/raw/master/terraform/config.tgz
-      dest: /home/solo
-      remote_src: yes
-
-  - name: Unarchive the default chromium config
-    unarchive:
-      src: https://github.com/solo-io/workshops/raw/master/terraform/chromium.tgz
-      dest: /home/solo/.config
-      remote_src: yes
 
   - name: Enable clipboard when launching the terminal
     shell: echo '/usr/bin/autocutsel -s CLIPBOARD -fork' >> /home/solo/.bashrc
@@ -451,6 +507,11 @@
 
   - name: Fix a known issue with VSCode
     shell: sed -i 's/BIG-REQUESTS/_IG-REQUESTS/' /usr/lib/x86_64-linux-gnu/libxcb.so.1.1.0
+
+  - name: Install python
+    apt:
+      name: python
+      state: present
 
   - name: Install glooctl
     shell: curl -sL https://run.solo.io/gloo/install | sh
@@ -505,6 +566,6 @@
     apt:
       name: emacs
       state: present
-
+      
   - name: Reboot VM
     reboot:
