@@ -13,5 +13,5 @@ kubectl apply -n istioinaction -f purchase-history-v1.yaml
 kubectl apply -n istioinaction -f sleep.yaml
 
 # Install Istio resources
-kubectl apply -n istioinaction -f web-api-gw.yaml
-kubectl apply -n istioinaction -f web-api-gw-vs.yaml
+kubectl apply -n istioinaction -f ./ingress
+

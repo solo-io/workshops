@@ -1,0 +1,19 @@
+apiVersion: install.istio.io/v1alpha1
+kind: IstioOperator
+metadata:
+  name: public-ingress-gw-install
+spec:
+  profile: empty
+  values:
+    gateways:
+      istio-ingressgateway:
+        autoscaleEnabled: false
+  components:
+    ingressGateways:
+    - name: istio-ingressgateway
+      enabled: false    
+    - name: public-ingressgateway
+      namespace: istioinaction
+      enabled: true
+      label:
+        istio: public-ingressgateway

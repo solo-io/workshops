@@ -352,6 +352,10 @@ kubectl apply -f labs/03/kiali.yaml
 
 Let's check that it got created:
 
+```bash
+kubectl get po -n istio-system
+```
+
 ```
 NAME                            READY   STATUS    RESTARTS   AGE
 istiod-1-8-3-78b88c997d-rpnck   1/1     Running   0          39h
@@ -407,3 +411,5 @@ https://istio.io/latest/docs/ops/integrations/prometheus/#option-1-metrics-mergi
 setting up with TLS requires injecting a sidecar with no redirect rules:
 https://istio.io/latest/docs/ops/integrations/prometheus/#tls-settings
 
+# TODO
+Need to debug Kiali graph issues?

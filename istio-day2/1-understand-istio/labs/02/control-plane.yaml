@@ -4,4 +4,9 @@ metadata:
   name: control-plane
 spec:
   profile: minimal
+  meshConfig:              
+    defaultConfig:       
+      proxyMetadata:      
+        ISTIO_META_DNS_CAPTURE: "true"
+    enablePrometheusMerge: true  
   
