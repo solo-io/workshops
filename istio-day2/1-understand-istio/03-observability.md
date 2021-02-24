@@ -156,17 +156,7 @@ kubectl apply -f labs/03/monitor-control-plane.yaml
 
 At this point we will start to see important telemetry signals about the control plane such as the number of sidecars attached to the control plane, whether there are configuration conflicts, the amount of churn in the mesh, as well as basic memory/CPU usage of the control plane. Just note, it may take a few moments for these signals to start to make it into the Grafana dashboards, so be patient :)
 
-You can also force some activity in the control plane by deleting all of the services we installed in the previous labs and letting them recreate themselves. This will cause xDS push activity as well as sidecar injection:
-
-```bash
-kubectl delete po --all -n istioinaction
-```
-
-Ultimately you should being seeing telemetry graphs:
-
-![](./images/grafana-cp-dashboard.png)
-
-One section of the graph is empty still, though. That's the "Envoy information" section with subsections of "XDS Active Connection" or "XDS Requests Size". Those signals come directly from data planes connecting to the control plane. Let's enable scraping for the data planes.
+Since there aren't very many workloads (just our `httpbin` service we installed for testing), we won't see too much data.
 
 
 ## Scraping the Istio service mesh: data plane
@@ -221,18 +211,17 @@ Let's create it:
 kubectl apply -f labs/03/monitor-data-plane.yaml
 ```
 
-Let's also generate some load to the data plane so telemetry will show up:
+Let's also generate some load to the data plane (by calling our `httpbin` service) so telemetry will show up:
 
 ```bash
-for i in {1..10}; do kubectl exec -it deploy/sleep -n default -- curl http://web-api.istioinaction:8080/; done
+for i in {1..10}; do kubectl exec -it deploy/sleep -n default -- curl http://httpbin.default:8000/headers; done
 ```
 
-We could also use a load generator tool to put more load on the system over a period of time. {TODO -- add fortio deployment here for load testing?}
+We could also use a load generator tool to put more load on the system over a period of time.
 
 Now we should be scraping the data-plane workloads. If we check the Istio Service Dashboard, specifically the "Service Workload" section, we should start to see load. 
 
 ![](./images/grafana-service-workloads.png)
-
 
 If we go back and look at the Control Plane dashboard, we should see those XDS graphs now populated:
 
