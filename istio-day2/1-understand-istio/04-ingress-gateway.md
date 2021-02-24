@@ -1,6 +1,8 @@
 # Lab 4 :: Ingress Gateway
 
-istioctl install -n istio-system -f labs/04/ingress-gateways.yaml --revision 1-8-3
+Typically, people start by adopting the ingress gateway.. if you need something more capable, check out gloo edge
+
+istioctl install -y -n istio-system -f labs/04/ingress-gateways.yaml --revision 1-8-3
 
 # expose our sample apps
 kubectl -n istioinaction apply -f sample-apps/ingress/
@@ -77,6 +79,7 @@ Output:
 ```
 
 # https on gateway 
+securing the traffic coming into the cluster
 secrets need to be in the same namespace as the gateway (ie, in istio-system as needed)
 
 ```bash
@@ -96,6 +99,7 @@ Example calling it:
 curl -k -H "Host: istioinaction.io" https://istioinaction.io --resolve istioinaction.io:443:35.202.132.20
 ```
 
+TODO: we don't want to use -k, we should use a cert signed by a CA
 Problem is, this is self signed... we should just get a CA going and sign it from there so we can get it to work correctly
 
 
