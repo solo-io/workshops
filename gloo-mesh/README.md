@@ -1994,7 +1994,7 @@ meshctl wasm init myfilter --language=assemblyscript
 
 It will ask what platform you will run your filter on (because the SDK version can be different based on the ABI corresponding to the version of Envoy used by this Platform).
 
-And it will create the following file structure under the directory (e.g. myfilter) you have indicated:
+And it will create the following file structure under the Wasm filter directory (e.g. myfilter) you have indicated:
 
 ```
 ./package-lock.json
