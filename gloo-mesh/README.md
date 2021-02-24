@@ -1965,7 +1965,7 @@ EOF
 
 The Gloo Mesh CLI, meshctl can be used to create the skeleton for you.
 
-Let's take a look at the help of the meshctl wasme option:
+Let's take a look at the help of the meshctl wasm option:
 
 ```
 meshctl wasm
@@ -1994,7 +1994,7 @@ meshctl wasm init myfilter --language=assemblyscript
 
 It will ask what platform you will run your filter on (because the SDK version can be different based on the ABI corresponding to the version of Envoy used by this Platform).
 
-And it will create the following file structure under the directory you have indicated:
+And it will create the following file structure under the directory (e.g. myfilter) you have indicated:
 
 ```
 ./package-lock.json
@@ -2069,7 +2069,7 @@ You can see that I've indicated that I wanted to use `webassemblyhub.io/djannot/
 
 The image has been built, so we can now push it to the Web Assembly Hub.
 
-But you would need to create a free account and to run `meshctl login` to authenticate.
+But you would need to create a free account and to run `meshctl wasm login` to authenticate.
 
 To simplify the lab, we will use the image that has already been pushed.
 
@@ -2078,10 +2078,10 @@ To simplify the lab, we will use the image that has already been pushed.
 But note that the command to push the Image is the following one:
 
 ```
-meshctl wasm push webassemblyhub.io/djannot/myfilter:0.2
+meshctl wasm push webassemblyhub.io/djannot/myfilter:0.1
 ```
 
-Then, if you go to the Web Assembly Hub, you'll be able to see the Image of your Wasm filter
+Then, if you go to the Web Assembly Hub, you'll be able to see the Image of your Wasm filter.
 
 ### Deploy
 
@@ -2144,7 +2144,7 @@ You should get either:
 or:
 
 ```
-{'x-powered-by': 'Servlet/3.1', 'content-type': 'application/json', 'date': 'Tue, 15 Dec 2020 08:23:25 GMT', 'content-language': 'en-US', 'content-length': '295', 'x-envoy-upstream-service-time': '17', 'hello': 'Gloo Mesh Enterprise Beta', 'server': 'envoy'}
+{'x-powered-by': 'Servlet/3.1', 'content-type': 'application/json', 'date': 'Tue, 15 Dec 2020 08:23:25 GMT', 'content-language': 'en-US', 'content-length': '295', 'x-envoy-upstream-service-time': '17', 'hello': 'Gloo Mesh Enterprise', 'server': 'envoy'}
 ```
 
 We have deployed the Istio Bookinfo application with the versions `v1` and `v2` of the `reviews` service, so the new header is added half of the time.
