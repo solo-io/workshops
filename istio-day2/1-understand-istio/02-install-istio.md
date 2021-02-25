@@ -6,7 +6,7 @@ Istio provides that control plane to drive the behavior of the network. Istio pr
 
 ## Prequisites
 
-You will need access to a Kubernetes cluster. If you're doing this via the Solo.io Workshop format, you should have everything ready to go.
+You will need access to a Kubernetes cluster. If you're doing this via the Solo.io Workshop format, you should have everything ready to go. If you are using Docker Desktop or kind, validate that you have 16.0 GB of memory and 8 CPUs.
 
 Verify you're in the correct folder for this lab: `/home/solo/workshops/istio-day2/1-understand-istio/`. 
 
