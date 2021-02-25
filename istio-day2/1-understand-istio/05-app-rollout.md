@@ -1,6 +1,10 @@
+* canary introduction of sidecars
+* suggestions for rollout of sidecar using revisions/sidecar injection
 * pre hook configurations
-* set access logs
-* configuring injection
+* enable access logs for certain services
+* tips avoid 503s on virtual service
+
+== should use existing sample-apps/ dir
 
 There are a couple ways to add a service to the mesh. What's meant by "adding the service to the mesh" is we install the Envoy proxy alongside the workload. We can do a manual injection of the sidecar or automatically do it. Let's start to deploy some workloads.
 
@@ -133,4 +137,3 @@ Note this is just a snippet, there are other configurations there specific to Is
 
 
 
-* avoid 503s on virtual service
