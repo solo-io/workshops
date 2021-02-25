@@ -2,7 +2,7 @@
 
 In this lab, we dig into one of the foundational pieces of Istio. The "data plane", or the service proxy that lives with each service/application instance is on the request path on both origination of a service call as well as usually on the destination side of the service call. We will see in later labs that being on the origination side may not always be the case.
 
-The service proxy that Istio uses is [Envoy Proxy](). Envoy is an incredibly powerful and well-suited proxy for this use case. It's impossible to understate how important Envoy is to Istio, which is why we start the labs with it.
+The service proxy that Istio uses is [Envoy Proxy](https://www.envoyproxy.io). Envoy is an incredibly powerful and well-suited proxy for this use case. It's impossible to understate how important Envoy is to Istio, which is why we start the labs with it.
 
 ## Prequisites
 
@@ -106,7 +106,7 @@ We will discuss these sections in more detail during the instructor-led lab.
 Let's now deploy this configuration to Envoy and deploy our Envoy Proxy:
 
 ```bash
-kubectl create cm envoy --from-file=envoy.yaml=./labs/01/envoy-conf.yaml -o yaml --dry-run=client | k apply -f -
+kubectl create cm envoy --from-file=envoy.yaml=./labs/01/envoy-conf.yaml -o yaml --dry-run=client | kubectl apply -f -
 
 kubectl apply -f labs/01/envoy-proxy.yaml
 ```
@@ -159,7 +159,7 @@ To change the call timeout, let's take a look at the routing configuration and f
 Here, we can see we set the timeout to 1s. Let's try call the `httpbin` service again through the Envoy proxy. First, let's update the configuration:
 
 ```bash
-kubectl create cm envoy --from-file=envoy.yaml=./labs/01/envoy-conf-timeout.yaml -o yaml --dry-run=client | k apply -f -
+kubectl create cm envoy --from-file=envoy.yaml=./labs/01/envoy-conf-timeout.yaml -o yaml --dry-run=client | kubectl apply -f -
 ```
 We will also need to _restart_ Envoy to pick up the new configuration:
 
@@ -272,7 +272,7 @@ Let's see how to configure to retry on HTTP `5xx` requests:
 Let's apply this new configuration:
 
 ```bash
-kubectl create cm envoy --from-file=envoy.yaml=./labs/01/envoy-conf-retry.yaml -o yaml --dry-run=client | k apply -f -
+kubectl create cm envoy --from-file=envoy.yaml=./labs/01/envoy-conf-retry.yaml -o yaml --dry-run=client | kubectl apply -f -
 
 kubectl rollout restart deploy/envoy
 ```
@@ -491,7 +491,7 @@ staticResources:
       tcpKeepalive: {}
 ```
 
-In the next sections we take a brief look at these configurations and then dig into how Istio actually leverages Envoy. Istio doesn't write files to disk and do a _restart_ or even "hot" restart of the proxy. Istio controls Envoy via a dynamic API and can change values on the fly. Istio provides the "control plane" for Envoy as the "data plane" Let's dig into this a bit more.
+In the next sections we take a brief look at these configurations and then dig into how Istio actually leverages Envoy. Istio doesn't write files to disk and do a _restart_ or even "hot" restart of the proxy. Istio controls Envoy via a dynamic API and can change values on the fly. Istio provides the "control plane" for Envoy as the "data plane". Let's dig into this a bit more.
 
 
 ## Envoy Discovery (XDS)
