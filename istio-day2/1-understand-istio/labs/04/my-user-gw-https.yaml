@@ -1,0 +1,24 @@
+apiVersion: networking.istio.io/v1alpha3
+kind: Gateway
+metadata:
+  name: web-api-gateway
+  namespace: istioinaction
+spec:
+  selector:
+    istio: my-user-gateway  
+  servers:
+  - port:
+      number: 80
+      name: http
+      protocol: HTTP
+    hosts:
+    - "istioinaction.io"
+  - port:
+      number: 443
+      name: https
+      protocol: HTTPS
+    hosts:
+    - "istioinaction.io"    
+    tls:
+      mode: SIMPLE
+      credentialName: my-user-gw-istioinaction-cert

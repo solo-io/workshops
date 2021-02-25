@@ -113,15 +113,12 @@ curl --cacert ./labs/04/certs/ca/root-ca.crt  -H "Host: istioinaction.io" https:
 From here we should suggest one of two ways to mitigate the cross-NS cert/config issue:
 
 1) user gateways + secrets in own NS
-
 2) copy secrets over to istio-system with kubed
-https://appscode.com/products/kubed/v0.11.0/guides/config-syncer/intra-cluster/
-
 3) another workflow automated around vault/cert-manager?
 
 
 
-# With cert manager
+# With cert manager with resources in own namesapces, deploy certificate to istio-system
 
 kubectl create namespace cert-manager
 helm repo add jetstack https://charts.jetstack.io
@@ -145,7 +142,60 @@ kubectl apply -f labs/04/cert-manager/istioinaction-io-cert.yaml
 check certificate
 kubectl get secret -n istio-system example-istioinaction-cert -o jsonpath="{.data['tls\.crt']}" | base64 -D | step certificate inspect -
 
+# deploy config and secret in own namespace, copy over to istio-system
+https://appscode.com/products/kubed/v0.11.0/guides/config-syncer/intra-cluster/
 
+
+install kubed
+helm repo add appscode https://charts.appscode.com/stable/
+helm repo update
+helm install kubed appscode/kubed --version v0.12.0 --namespace kube-system
+
+clean up previous step
+kubectl delete -f ./labs/04/cert-manager/istioinaction-io-cert.yaml
+kubectl -n istio-system delete secret istioinaction-cert
+kubectl rollout restart deploy/istio-ingressgateway -n istio-system
+try curl to make sure it fails
+
+create cert in own namespace
+
+kubectl create -n istioinaction secret tls istioinaction-cert --key labs/04/certs/istioinaction.io.key --cert labs/04/certs/istioinaction.io.crt
+
+label istio-system
+kubectl label namespace istio-system secrets-sync=true
+
+label the secret locally:
+kubectl -n istioinaction annotate secret istioinaction-cert kubed.appscode.com/sync="secrets-sync=true"
+
+cleanup:
+remove annotation
+kubectl -n istioinaction annotate secret istioinaction-cert kubed.appscode.com/sync-
+kubectl -n istio-system delete secret istioinaction-cert
+kubectl -n istioinaction delete secret istioinaction-cert
+kubectl rollout restart deploy/istio-ingressgateway -n istio-system
+curl to make sure it fails
+
+# resource + cert in own namespace
+istioctl install -y -n istioinaction -f labs/04/my-user-gateway.yaml --revision 1-8-3
+
+$ k get po -n istioinaction
+NAME                                  READY   STATUS    RESTARTS   AGE
+my-user-gateway-6746b98474-tkzn7      1/1     Running   0          12s
+purchase-history-v1-b47996677-lskt9   1/1     Running   0          31h
+recommendation-69995f55c9-rddwz       1/1     Running   0          31h
+web-api-745fdb5bdf-jbbp4              1/1     Running   0          31h
+
+$ k get svc -n istioinaction
+NAME               TYPE           CLUSTER-IP     EXTERNAL-IP   PORT(S)                                                      AGE
+my-user-gateway    LoadBalancer   10.44.0.7      <pending>     15021:32133/TCP,80:31427/TCP,443:32496/TCP,15443:30130/TCP   19s
+purchase-history   ClusterIP      10.44.9.192    <none>        8080/TCP                                                     31h
+recommendation     ClusterIP      10.44.2.120    <none>        8080/TCP                                                     31h
+web-api            ClusterIP      10.44.12.150   <none>        8080/TCP   
+
+add secret:
+kubectl create -n istioinaction secret tls my-user-gw-istioinaction-cert --key labs/04/certs/istioinaction.io.key --cert labs/04/certs/istioinaction.io.crt
+
+kubectl apply -f labs/04/my-user-gw-https.yaml
 
 
 # integration with a cloud Key management system (AWS/GCP)?
