@@ -139,39 +139,6 @@ kubectl exec -n istio-system -it deploy/istiod-1-8-3 -- pilot-discovery request 
 
 The output of this command can be quite verbose as it lists all of the services in the Istio registry. Workloads are included in the Istio registry even if they are not officially part of the mesh (ie, have a sidecar deployed next to it). We leave it to the reader to grep for some of the previously deployed services (`web-api`, `recommendation` and `purchase-history` services).
 
-## Additional debug paths
-
-Istio provides a nice `debug` interface on the Istio control plane. We can call it with the convenience command on the `pilot-discovery` like we did in the previous step. We could also call it from `curl` or any HTTP client like:
-
-```bash
-kubectl exec -it deploy/sleep -- curl http://istiod.istio-system:15014/debug/registryz
-```
-
-TODO: This section below should be moved as it won't work when there is no proxyID.
-
-Some additional paths that are definitely useful for debugging the control plane:
-
-| Path | Description |
-| ---- | ----------- |
-| /debug/edsz | Status and debug interface for EDS |
-| /debug/ndsz | Status and debug interface for NDS |
-| /debug/adsz | Status and debug interface for ADS |
-| /debug/adsz?push=true | Initiates push of the current state to all connected endpoints | 
-| /debug/syncz | Synchronization status of all Envoys connected to this Pilot instance |
-| /debug/config_distribution | Version status of all Envoys connected to this Pilot instance |
-| /debug/registryz | Debug support for registry |
-| /debug/endpointz | Debug support for endpoints |
-| /debug/endpointShardz | Info about the endpoint shards |
-| /debug/cachez | Info about the internal XDS caches |
-| /debug/configz | Debug support for config |
-| /debug/resourcesz | Debug support for watched resources |
-| /debug/instancesz | Debug support for service instances |
-| /debug/authorizations | Internal authorization policies |
-| /debug/config_dump | ConfigDump in the form of the Envoy admin config dump API for passed in proxyID |
-| /debug/push_status | Last PushContext Details |
-| /debug/inject | Active inject template |
-
-
 ## Digging into the Istio sidecar proxy
 
 In the previous lab we saw an introduction to the Envoy proxy data plane. In Istio, we deploy a sidecar proxy next to each workload to enhance the capabilities of the application network. When a service gets called, or makes a call, all traffic is routed to the sidecar Envoy proxy first. How can we be certain that's the case?
@@ -258,6 +225,43 @@ REDIRECT   tcp  --  anywhere             anywhere             redir ports 15001
 ```
 
 We can see here iptables is used to redirect incoming and outgoing traffic to Istio's data plane proxy. Incoming traffic goes to port `15006` of the Istio proxy while outgoing traffic will go through `15001`. If we check the Envoy listeners for those ports, we can see exactly how the traffic gets handled.
+
+## Additional debug paths
+
+Istio provides a nice `debug` interface on the Istio control plane. We can call it with the convenience command on the `pilot-discovery` like we did in the previous step. We could also call it from `curl` or any HTTP client like:
+
+```bash
+kubectl exec -it deploy/sleep -- curl http://istiod.istio-system:15014/debug/registryz
+```
+
+Some additional paths that are definitely useful for debugging the control plane:
+
+| Path | Description |
+| ---- | ----------- |
+| /debug/edsz | Status and debug interface for EDS |
+| /debug/ndsz | Status and debug interface for NDS |
+| /debug/adsz | Status and debug interface for ADS |
+| /debug/adsz?push=true | Initiates push of the current state to all connected endpoints | 
+| /debug/syncz | Synchronization status of all Envoys connected to this Pilot instance |
+| /debug/config_distribution | Version status of all Envoys connected to this Pilot instance |
+| /debug/registryz | Debug support for registry |
+| /debug/endpointz | Debug support for endpoints |
+| /debug/endpointShardz | Info about the endpoint shards |
+| /debug/cachez | Info about the internal XDS caches |
+| /debug/configz | Debug support for config |
+| /debug/resourcesz | Debug support for watched resources |
+| /debug/instancesz | Debug support for service instances |
+| /debug/authorizations | Internal authorization policies |
+| /debug/config_dump | ConfigDump in the form of the Envoy admin config dump API for passed in proxyID |
+| /debug/push_status | Last PushContext Details |
+| /debug/inject | Active inject template |
+
+For example, to get the EDS debug info for the httpbin service proxy:
+
+```bash
+export HTTPBIN_ID=$(kubectl get pod -l app=httpbin -o jsonpath='{.items[0].metadata.name}')
+kubectl exec -it deploy/sleep -- curl http://istiod.istio-system:15014/debug/edsz?proxyID=$HTTPBIN_ID
+```
 
 ## Next Lab
 
