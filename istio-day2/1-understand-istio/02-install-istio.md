@@ -261,4 +261,4 @@ We can see here iptables is used to redirect incoming and outgoing traffic to Is
 
 ## Next Lab
 
-In the next lab, we will leverage Istio's telemetry collection and scrap it into Prometheus, Grafana, and Kiali. Istio ships with some sample addons to install those components in a POC environment, but we'll look at a more realistic environment.                   
+In the [next lab](03-observability.md), we will leverage Istio's telemetry collection and scrap it into Prometheus, Grafana, and Kiali. Istio ships with some sample addons to install those components in a POC environment, but we'll look at a more realistic environment.                   
