@@ -147,6 +147,8 @@ Istio provides a nice `debug` interface on the Istio control plane. We can call 
 kubectl exec -it deploy/sleep -- curl http://istiod.istio-system:15014/debug/registryz
 ```
 
+TODO: This section below should be moved as it won't work when there is no proxyID.
+
 Some additional paths that are definitely useful for debugging the control plane:
 
 | Path | Description |
