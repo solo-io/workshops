@@ -22,6 +22,13 @@ To get started, let's create the namespace into which we'll deploy our observabi
 kubectl create ns prometheus
 ```
 
+Next, let's add the promoetheus community chart repo and then update available helm charts locally.
+
+```bash
+helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+helm repo update
+```
+
 Next, let's run the helm installer. We are disabling some components of `kube-prometheus` while still keeping the overall spirit of the realistic deployment. To do this, we'll pass in a `values.yaml` file that explicitly controls what gets installed. Feel free to review this file to understand it a bit more.
 
 ```bash
