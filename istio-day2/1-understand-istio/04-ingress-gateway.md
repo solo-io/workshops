@@ -82,8 +82,11 @@ Output:
 securing the traffic coming into the cluster
 secrets need to be in the same namespace as the gateway (ie, in istio-system as needed)
 
+the secrets are in labs/04/certs
+but they can be auto generated again if needed with the ./generate-*.sh scripts
+
 ```bash
-kubectl create -n istio-system secret tls istioinaction-certs --key labs/04/certs/istioinaction.io.key --cert labs/04/certs/istioinaction.io.crt
+kubectl create -n istio-system secret tls istioinaction-cert --key labs/04/certs/istioinaction.io.key --cert labs/04/certs/istioinaction.io.crt
 ```
 
 Create the HTTPS gateway
@@ -102,21 +105,55 @@ curl -k -H "Host: istioinaction.io" https://istioinaction.io --resolve istioinac
 TODO: we don't want to use -k, we should use a cert signed by a CA
 Problem is, this is self signed... we should just get a CA going and sign it from there so we can get it to work correctly
 
+```
+curl --cacert ./labs/04/certs/ca/root-ca.crt  -H "Host: istioinaction.io" https://istioinaction.io --resolve istioinaction.io:443:35.202.132.20
+```
+
 
 From here we should suggest one of two ways to mitigate the cross-NS cert/config issue:
 
 1) user gateways + secrets in own NS
-2) copy secrets over to istio-system
+
+2) copy secrets over to istio-system with kubed
+https://appscode.com/products/kubed/v0.11.0/guides/config-syncer/intra-cluster/
+
 3) another workflow automated around vault/cert-manager?
 
 
-# integration with a cloud Key management system (AWS/GCP)
+
+# With cert manager
+
+kubectl create namespace cert-manager
+helm repo add jetstack https://charts.jetstack.io
+helm repo update
+
+install CRDs??
+kubectl apply -f https://github.com/jetstack/cert-manager/releases/download/v1.2.0/cert-manager.crds.yaml
+
+helm install cert-manager jetstack/cert-manager --namespace cert-manager --version v1.2.0 --create-namespace --set installCRDs=true
+
+create CA as a kube secret
+
+kubectl create -n cert-manager secret tls cert-manager-cacerts --cert labs/04/certs/ca/root-ca.crt --key labs/04/certs/ca/root-ca.key
+
+create cluster issuer
+kubectl apply -f labs/04/cert-manager/ca-cluster-issuer.yaml 
+
+create certificate
+kubectl apply -f labs/04/cert-manager/istioinaction-io-cert.yaml 
+
+check certificate
+kubectl get secret -n istio-system example-istioinaction-cert -o jsonpath="{.data['tls\.crt']}" | base64 -D | step certificate inspect -
+
+
+
+
+# integration with a cloud Key management system (AWS/GCP)?
 
 # leave a note about how the second workshop will go into best practices here around security keys on kubernetes, etc incuding HSM/Vault
 
-
-
 # private vs public gateway/LB 
+# integrating with ALB/NLB
 
 # REDUCE CONFIG SIZE to only VSs with config.. using that Pilot Env Variable
 

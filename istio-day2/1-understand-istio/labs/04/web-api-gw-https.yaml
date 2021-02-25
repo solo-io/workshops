@@ -20,4 +20,4 @@ spec:
     - "istioinaction.io"    
     tls:
       mode: SIMPLE
-      credentialName: istioinaction-certs
+      credentialName: istioinaction-cert
