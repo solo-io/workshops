@@ -1,0 +1,32 @@
+kind: IstioOperator
+metadata:
+  namespace: istio-system
+  name: istio-ingressgateway-private
+spec:
+  profile: empty
+  values:
+    gateways:
+      istio-ingressgateway:
+        autoscaleEnabled: false
+  components:
+    ingressGateways:
+      - enabled: false
+        name: istio-ingressgateway
+      - enabled: true
+        name: istio-ingressgateway-private
+        label:
+          app: istio-ingressgateway-private        
+        k8s:
+          service:
+            ports:
+              - name: http
+                port: 80
+                targetPort: 8080
+              - name: https
+                port: 443
+                targetPort: 8080
+            type: LoadBalancer
+          serviceAnnotations:
+            service.beta.kubernetes.io/aws-load-balancer-type: 'nlb-ip'
+            service.beta.kubernetes.io/aws-load-balancer-internal: "true"
+

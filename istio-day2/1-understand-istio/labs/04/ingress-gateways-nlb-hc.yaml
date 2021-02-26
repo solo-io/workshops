@@ -1,0 +1,39 @@
+kind: IstioOperator
+metadata:
+  namespace: istio-system
+  name: istio-ingressgateway-nlb
+spec:
+  profile: empty
+  values:
+    gateways:
+      istio-ingressgateway:
+        autoscaleEnabled: false
+  components:
+    ingressGateways:
+      - enabled: false
+        name: istio-ingressgateway
+      - enabled: true
+        name: istio-ingressgateway-nlb
+        label:
+          app: istio-ingressgateway-nlb        
+        k8s:
+          service:
+            ports:
+              - name: http
+                port: 80
+                targetPort: 8080
+              - name: https
+                port: 443
+                targetPort: 8080
+            type: ClusterIP
+          serviceAnnotations:
+            service.beta.kubernetes.io/aws-load-balancer-healthcheck-healthy-threshold: '2'
+            service.beta.kubernetes.io/aws-load-balancer-healthcheck-interval: '10'
+            service.beta.kubernetes.io/aws-load-balancer-healthcheck-path: '/'
+            service.beta.kubernetes.io/aws-load-balancer-healthcheck-protocol: 'HTTP'
+            service.beta.kubernetes.io/aws-load-balancer-healthcheck-timeout: '6'
+            service.beta.kubernetes.io/aws-load-balancer-healthcheck-unhealthy-threshold: '2'
+            #service.beta.kubernetes.io/aws-load-balancer-ssl-cert: 'arn:aws:acm:<region>:<account_id>:certificate/<xyz>'
+            service.beta.kubernetes.io/aws-load-balancer-ssl-ports: 'https'
+            service.beta.kubernetes.io/aws-load-balancer-type: 'nlb-ip'
+

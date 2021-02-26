@@ -200,9 +200,22 @@ kubectl apply -f labs/04/my-user-gw-https.yaml
 
 # leave a note about how the second workshop will go into best practices here around security keys on kubernetes, etc incuding HSM/Vault
 
-# private vs public gateway/LB 
+# private vs public gateway/LB -- integrating with ALB/NLB
 
-# integrating with ALB/NLB
+understand AWS LB: 
+https://docs.aws.amazon.com/eks/latest/userguide/load-balancing.html
+
+Install AWS LB Controller
+https://kubernetes-sigs.github.io/aws-load-balancer-controller/latest/deploy/installation/
+
+Use NLB-IP mode:
+https://kubernetes-sigs.github.io/aws-load-balancer-controller/latest/guide/service/nlb_ip_mode/
+
+See following gateway resources:
+
+cat ./labs/04/ingress-gateways-public.yaml
+cat ./labs/04/ingress-gateways-private.yaml
+cat ./labs/04/ingress-gateways-nlb-hc.yaml
 
 # REDUCE CONFIG SIZE to only VSs with config.. using that Pilot Env Variable
 check clusters known by ing gw
