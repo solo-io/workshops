@@ -382,7 +382,7 @@ kubectl create clusterrolebinding kiali-dashboard-admin --clusterrole=cluster-ad
 Getting the token:
 
 ```bash
-kubectl get secret -n istio-system -o jsonpath="{.data.token}" $(k get secret -n istio-system | grep kiali-dashboard | awk '{print $1}' ) | base64 --decode
+kubectl get secret -n istio-system -o jsonpath="{.data.token}" $(kubectl get secret -n istio-system | grep kiali-dashboard | awk '{print $1}' ) | base64 --decode
 ```
 
 Copy and paste that token into the Kiali login screen. Once you login, you should be greeted with the Kiali dashboard:
