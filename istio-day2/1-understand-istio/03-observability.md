@@ -393,9 +393,32 @@ Congrats! You've installed and secured the Kiali dashboard and connected it to t
 
 
 
-# TODO
+# Metrics Merging
+By default, Istio can merge your service's metrics with the sidecar proxy's metrics.  This is useful when your service emits metrics to prometheus. As you gradually add sidecars to your services, it is often good practice to evaluate if your service metrics are still required as the sidecar proxies also provide a lot of metrics for all traffic going through the sidecar proxies.
 
-Should describe metrics merging
+Below is normally you would configure your service's associated deployment to have its metrics scraped by Prometheus:
+
+```yaml
+  template:
+    metadata:
+      annotations:
+        prometheus.io/path: /stats/prometheus
+        prometheus.io/port: "15020"
+        prometheus.io/scrape: "true"
+```
+
+Let us check if the httpbin service has emitted any metrics:
+
+# TODO add command here to check :15020/metrics endpoint
+
+```bash
+```
+Next, let us check the sidecar proxy's metrics here:
+
+# TODO add command here to check :15090/stats/prometheus endpoint
+
+You can also view the merged metrics:
+# TODO add command here to check :15020/stats/prometheus endpoint
 
 Should we add a section to configure TLS for the app scraping when merging is turned off?
 https://github.com/istio/istio/issues/27940#issuecomment-759305377
