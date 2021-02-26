@@ -198,19 +198,74 @@ kubectl create -n istioinaction secret tls my-user-gw-istioinaction-cert --key l
 kubectl apply -f labs/04/my-user-gw-https.yaml
 
 
-# integration with a cloud Key management system (AWS/GCP)?
-
 # leave a note about how the second workshop will go into best practices here around security keys on kubernetes, etc incuding HSM/Vault
 
 # private vs public gateway/LB 
+
 # integrating with ALB/NLB
 
 # REDUCE CONFIG SIZE to only VSs with config.. using that Pilot Env Variable
+check clusters known by ing gw
+istioctl pc clusters istio-ingressgateway-97c7688bb-sjnrd.istio-system
+
+istioctl install -y -n istio-system -f labs/04/control-plane-reduce-gw-config.yaml --revision 1-8-3
+
+check deployment of istiod
+k get deploy/istiod-1-8-3 -n istio-system -o jsonpath="{.spec.template.spec.containers[].env[0]}"
+should see something like this:
+{"name":"PILOT_FILTER_GATEWAY_CLUSTER_CONFIG","value":"true"}
+
+check gw again:
+istioctl pc clusters istio-ingressgateway-97c7688bb-sjnrd.istio-system
+
+Should be a trimmed down version of clusters:
+
+SERVICE FQDN         PORT     SUBSET     DIRECTION     TYPE           DESTINATION RULE                                                                                           BlackHoleCluster     -        -          -             STATIC                           
+agent                -        -          -             STATIC                                                                                                                    
+prometheus_stats     -        -          -             STATIC                                                                                                                    sds-grpc             -        -          -             STATIC                                                                                                                    xds-grpc             -        -          -             STATIC                                                                                                                    zipkin               -        -          -             STRICT_DNS  
 
 # access logging for gateway
+should cat the file:
+
+apiVersion: networking.istio.io/v1alpha3
+kind: EnvoyFilter
+metadata:
+  name: ingressgateway-access-logging
+  namespace: istio-system
+spec:
+  workloadSelector:
+    labels:
+      istio: ingressgateway
+  configPatches:
+  - applyTo: NETWORK_FILTER
+    match:
+      context: GATEWAY
+      listener:
+        filterChain:
+          filter:
+            name: "envoy.filters.network.http_connection_manager"
+    patch:
+      operation: MERGE
+      value:
+        typed_config:
+          "@type": "type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager"
+          access_log:
+          - name: envoy.access_loggers.file
+            typed_config:
+              "@type": "type.googleapis.com/envoy.extensions.access_loggers.file.v3.FileAccessLog"
+              path: /dev/stdout
+              format: "[%START_TIME%] \"%REQ(:METHOD)% %REQ(X-ENVOY-ORIGINAL-PATH?:PATH)% %PROTOCOL%\" %RESPONSE_CODE% %RESPONSE_FLAGS% \"%UPSTREAM_TRANSPORT_FAILURE_REASON%\" %BYTES_RECEIVED% %BYTES_SENT% %DURATION% %RESP(X-ENVOY-UPSTREAM-SERVICE-TIME)% \"%REQ(X-FORWARDED-FOR)%\" \"%REQ(USER-AGENT)%\" \"%REQ(X-REQUEST-ID)%\" \"%REQ(:AUTHORITY)%\" \"%UPSTREAM_HOST%\" %UPSTREAM_CLUSTER% %UPSTREAM_LOCAL_ADDRESS% %DOWNSTREAM_LOCAL_ADDRESS% %DOWNSTREAM_REMOTE_ADDRESS% %REQUESTED_SERVER_NAME% %ROUTE_NAME%\n"
+
+
+kubectl apply -f labs/04/ingress-gw-access-logging.yaml
+
+
+# uninstall my-gateway
+>>> this doesn't work <<< we need to figure out right way to delete resources based on a file
+istioctl install -y -n istioinaction -f labs/04/my-user-gateway.yaml --revision 1-8-3
+
 
 TODO
-Go back and update ingress-gw resources with the "sleep command" on pre-stop with correct names and any other 
 Say a few notes on Cloud LBs like ALB + HTTPS, etc
 
  
