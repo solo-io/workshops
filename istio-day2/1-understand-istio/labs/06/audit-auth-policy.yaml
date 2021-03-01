@@ -1,0 +1,18 @@
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+ name: audit-web-api-authpolicy
+ namespace: istioinaction
+spec:
+  selector:
+    matchLabels:
+      app: web-api
+  action: AUDIT
+  rules:
+  - from:
+    - source:
+        notNamespaces: ["istioinaction"]
+    to:
+    - operation:
+        methods: ["GET"]
+        paths: ["/*"]

@@ -26,5 +26,13 @@ Should see `x-forwarded-client-cert` header:
 add as annnotation.. or on proxyconfig directly:
 https://istio.io/latest/docs/ops/configuration/telemetry/envoy-stats/
 
-kubectl annotate -n istioinaction deploy/web-api sidecar.istio.io/statsInclusionPrefixes=tls_inspector
+
+
+check stats on the listener
+
+put the namespace is PERMISSIVE mode first (or maybe the entire mesh...)
+slowly lockdown specific workloads/ports?
+use kiali to review
+continue lock down until entire namespace is in strict mode
+
 
