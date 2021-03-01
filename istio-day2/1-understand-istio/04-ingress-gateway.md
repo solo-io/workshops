@@ -15,10 +15,12 @@ curl -H "Host: istioinaction.io" http://35.202.132.20
 # using istioctl pc
 ingress gateway is a simple envoy proxy (dig into real quick) / dig into istioctl proxy-config
 
-istioctl pc routes istio-ingressgateway-7967d894f7-2frnd.istio-system 
+```bash
+istioctl pc routes deploy/istio-ingressgateway.istio-system 
+```
 
 ```bash
-istioctl pc routes istio-ingressgateway-7967d894f7-2frnd.istio-system --name http.80 -o json
+istioctl pc routes deploy/istio-ingressgateway.istio-system --name http.80 -o json
 ```
 
 Output: 
@@ -160,7 +162,7 @@ kubectl rollout restart deploy/istio-ingressgateway -n istio-system
 
 You can check if the cert is still loaded in the istio ingress gateway, for example:
 ```bash
-istioctl pc secret istio-ingressgateway-7f977d969b-r666g.istio-system
+istioctl pc secret deploy/istio-ingressgateway -n istio-system 
 ```
 
 try curl to make sure it fails -- (linsun: can't get this to fail, the secret is still as warming status above)
@@ -178,7 +180,7 @@ kubectl -n istioinaction annotate secret istioinaction-cert kubed.appscode.com/s
 
 Now the cert should be loaded in the istio ingress gateway and marked as `ACTIVE`, for example:
 ```bash
-istioctl pc secret istio-ingressgateway-7f977d969b-r666g.istio-system
+istioctl pc secret deploy/istio-ingressgateway -n istio-system 
 ```
 
 cleanup:
@@ -233,18 +235,21 @@ cat ./labs/04/ingress-gateways-nlb-hc.yaml
 
 # REDUCE CONFIG SIZE to only VSs with config.. using that Pilot Env Variable
 check clusters known by ing gw
-istioctl pc clusters istio-ingressgateway-97c7688bb-sjnrd.istio-system
+```bash
+istioctl pc clusters deploy/istio-ingressgateway -n istio-system
+```
 
 istioctl install -y -n istio-system -f labs/04/control-plane-reduce-gw-config.yaml --revision 1-8-3
 
 check deployment of istiod
-k get deploy/istiod-1-8-3 -n istio-system -o jsonpath="{.spec.template.spec.containers[].env[0]}"
+kubectl get deploy/istiod-1-8-3 -n istio-system -o jsonpath="{.spec.template.spec.containers[].env[0]}"
 should see something like this:
 {"name":"PILOT_FILTER_GATEWAY_CLUSTER_CONFIG","value":"true"}
 
 check gw again:
-istioctl pc clusters istio-ingressgateway-97c7688bb-sjnrd.istio-system
-
+```bash
+istioctl pc clusters deploy/istio-ingressgateway -n istio-system
+```
 Should be a trimmed down version of clusters:
 
 SERVICE FQDN         PORT     SUBSET     DIRECTION     TYPE           DESTINATION RULE                                                                                           BlackHoleCluster     -        -          -             STATIC                           
