@@ -192,14 +192,14 @@ curl to make sure it fails
 # resource + cert in own namespace
 istioctl install -y -n istioinaction -f labs/04/my-user-gateway.yaml --revision 1-8-3
 
-$ k get po -n istioinaction
+$ kubectl get po -n istioinaction
 NAME                                  READY   STATUS    RESTARTS   AGE
 my-user-gateway-6746b98474-tkzn7      1/1     Running   0          12s
 purchase-history-v1-b47996677-lskt9   1/1     Running   0          31h
 recommendation-69995f55c9-rddwz       1/1     Running   0          31h
 web-api-745fdb5bdf-jbbp4              1/1     Running   0          31h
 
-$ k get svc -n istioinaction
+$ kubectl get svc -n istioinaction
 NAME               TYPE           CLUSTER-IP     EXTERNAL-IP   PORT(S)                                                      AGE
 my-user-gateway    LoadBalancer   10.44.0.7      <pending>     15021:32133/TCP,80:31427/TCP,443:32496/TCP,15443:30130/TCP   19s
 purchase-history   ClusterIP      10.44.9.192    <none>        8080/TCP                                                     31h
