@@ -157,7 +157,13 @@ clean up previous step
 kubectl delete -f ./labs/04/cert-manager/istioinaction-io-cert.yaml
 kubectl -n istio-system delete secret istioinaction-cert
 kubectl rollout restart deploy/istio-ingressgateway -n istio-system
-try curl to make sure it fails
+
+You can check if the cert is still loaded in the istio ingress gateway, for example:
+```bash
+istioctl pc secret istio-ingressgateway-7f977d969b-r666g.istio-system
+```
+
+try curl to make sure it fails -- (linsun: can't get this to fail, the secret is still as warming status above)
 
 create cert in own namespace
 
@@ -168,6 +174,12 @@ kubectl label namespace istio-system secrets-sync=true
 
 label the secret locally:
 kubectl -n istioinaction annotate secret istioinaction-cert kubed.appscode.com/sync="secrets-sync=true"
+
+
+Now the cert should be loaded in the istio ingress gateway and marked as `ACTIVE`, for example:
+```bash
+istioctl pc secret istio-ingressgateway-7f977d969b-r666g.istio-system
+```
 
 cleanup:
 remove annotation
