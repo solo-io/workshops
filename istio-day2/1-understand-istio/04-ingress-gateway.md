@@ -140,7 +140,9 @@ create certificate
 kubectl apply -f labs/04/cert-manager/istioinaction-io-cert.yaml 
 
 check certificate
-kubectl get secret -n istio-system example-istioinaction-cert -o jsonpath="{.data['tls\.crt']}" | base64 -D | step certificate inspect -
+```bash
+kubectl get secret -n istio-system istioinaction-cert -o jsonpath="{.data['tls\.crt']}" | base64 -D | step certificate inspect -
+```
 
 # deploy config and secret in own namespace, copy over to istio-system
 https://appscode.com/products/kubed/v0.11.0/guides/config-syncer/intra-cluster/
