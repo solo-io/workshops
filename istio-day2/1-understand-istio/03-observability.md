@@ -480,3 +480,7 @@ https://istio.io/latest/docs/ops/integrations/prometheus/#tls-settings
 
 # TODO
 Need to debug Kiali graph issues?
+
+## Next Lab
+
+In the [next lab](04-ingress-gateway.md), we will leverage Istio's ingress gateway to secure an edge service and share some tips on how to configure and debug the gateway, and integrate it with cloud provider's NLB.        
