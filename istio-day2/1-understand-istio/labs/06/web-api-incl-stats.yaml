@@ -16,6 +16,7 @@ spec:
         app: web-api
         version: v1
       annotations:
+        sidecar.istio.io/statsInclusionPrefixes: "tls_inspector,listener.0.0.0.0_15006"
     spec:
       containers:
       - name: web-api
@@ -32,18 +33,3 @@ spec:
         - name: "MESSAGE"
           value: "Hello From Web API"
 
----
-# Service to expose web frontend
-
-apiVersion: v1
-kind: Service
-metadata:
-  name: web-api
-spec:
-  selector:
-    app: web-api
-  ports:
-  - name: http
-    protocol: TCP
-    port: 8080
-    targetPort: 8080

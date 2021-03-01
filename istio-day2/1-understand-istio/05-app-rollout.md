@@ -1,6 +1,8 @@
 * canary introduction of sidecars
 * suggestions for rollout of sidecar using revisions/sidecar injection
 * pre hook configurations
+proxyConfig.holdApplicationUntilProxyStarts
+
 * enable access logs for certain services
 * tips avoid 503s on virtual service
 
