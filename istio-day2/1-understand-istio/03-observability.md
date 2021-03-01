@@ -394,9 +394,9 @@ Congrats! You've installed and secured the Kiali dashboard and connected it to t
 
 
 # Metrics Merging
-By default, Istio can [merge ](https://istio.io/latest/docs/ops/integrations/prometheus/#option-1-metrics-merging) your microservice's metrics with the sidecar proxy and Istio agent's metrics.  This ensures the metrics emitted by your microservice can continue while it joins the mesh. As you gradually add sidecars to your services, it is often good practice to evaluate if your service metrics are still required as the sidecar proxies and Istio agents also provide a lot of metrics for all traffic going through the sidecar proxies.
+By default, Istio can [merge ](https://istio.io/latest/docs/ops/integrations/prometheus/#option-1-metrics-merging) your microservice's metrics with the sidecar proxy and Istio agent's metrics.  This ensures the metrics emitted by your microservice can continue to flow to Prometheus while it joins the mesh. As you gradually add sidecars to your services, it is often good practice to evaluate if you still need to emit metrics from your microservice as the sidecar proxies and Istio agents also provide many useful metrics for traffic going through the sidecar proxies.
 
-Below is normally you would configure your service's associated deployment to have its metrics scraped by Prometheus:
+Below is how you would normally configure your Kubernetes service's associated deployment to have its metrics scraped by Prometheus:
 
 ```yaml
   template:
@@ -413,7 +413,7 @@ Let us check if the httpbin service has emitted any metrics:
 kubectl exec -it deploy/httpbin -n default -c istio-proxy -- curl http://localhost:15020/metrics
 ```
 
-You will get `404 page not found` here because httpbin doesn't emit any metrics at the moment. If your service emits metrics, the result will be displayed in the output.
+You will get `404 page not found` here because httpbin doesn't emit any metrics at the moment. If your service does emit any metrics, the result should be displayed in the output.
 
 Next, let us check the sidecar proxy's metrics here:
 
@@ -444,7 +444,7 @@ envoy_cluster_upstream_rq_retry{cluster_name="xds-grpc"} 0
 ...
 ```
 
-You can also view the merged metrics which includes any potential metrics from httpbin (none here) and its envoy sidecar and Istio agent:
+You can also view the merged metrics which include any potential metrics from httpbin (none here) and its envoy sidecar and Istio agent:
 
 ```bash
 kubectl exec -it deploy/httpbin -n default -c istio-proxy -- curl http://localhost:15020/stats/prometheus
@@ -470,7 +470,7 @@ istio_agent_total_pushes 2
 ...
 ```
 
-With sidecar proxy running to your pod, you immediately gain access to many metrics provided by Envoy and Istio agent. You know what level of Istio agent you are using, how many total pushes, active connections, total scrapes, along with number of total 200 requests, errors, request retries etc.
+With sidecar proxy running next to your pod, you immediately gain access to many metrics provided by Envoy and Istio agent. You can observe what level of Istio agent you are using, how many total pushes, active connections, total scrapes, along with number of total 200 requests, errors, request retries etc.
 
 TBD: Should we add a section to configure TLS for the app scraping when merging is turned off?
 https://github.com/istio/istio/issues/27940#issuecomment-759305377
