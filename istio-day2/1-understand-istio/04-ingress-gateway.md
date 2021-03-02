@@ -293,9 +293,12 @@ kubectl apply -f labs/04/ingress-gw-access-logging.yaml
 
 
 # uninstall my-gateway
->>> this doesn't work <<< we need to figure out right way to delete resources based on a file
+>>> this doesn't work <<< we need to figure out right way to delete resources based on a file - linsun: confirmed, didn't work. need to open an istio bug
 istioctl install -y -n istioinaction -f labs/04/my-user-gateway.yaml --revision 1-8-3
 
+```bash
+istioctl manifest generate -f labs/04/my-user-gateway.yaml --revision 1-8-3 | kubectl delete -f -
+```
 
 TODO
 Say a few notes on Cloud LBs like ALB + HTTPS, etc
