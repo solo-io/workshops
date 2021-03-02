@@ -165,7 +165,7 @@ You can check if the cert is still loaded in the istio ingress gateway, for exam
 istioctl pc secret deploy/istio-ingressgateway -n istio-system 
 ```
 
-try curl to make sure it fails -- (linsun: can't get this to fail, the secret is still as warming status above)
+try curl to make sure it fails -- (linsun: can't get this to fail, the secret is still as warming status and curl continues to work)
 
 create cert in own namespace
 
