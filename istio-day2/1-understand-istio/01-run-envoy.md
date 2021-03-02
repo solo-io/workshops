@@ -4,7 +4,7 @@ In this lab, we dig into one of the foundational pieces of Istio. The "data plan
 
 The service proxy that Istio uses is [Envoy Proxy](https://www.envoyproxy.io). Envoy is an incredibly powerful and well-suited proxy for this use case. It's impossible to understate how important Envoy is to Istio, which is why we start the labs with it.
 
-## Prequisites
+## Prerequisites
 
 You will need access to a Kubernetes cluster. If you're doing this via the Solo.io Workshop format, you should have everything ready to go.
 

@@ -6,7 +6,7 @@ We saw in Lab 01 that Envoy surfaces a large set of stats, metrics, guages, and 
 
 Istio comes with a few [sample addons](https://istio.io/latest/docs/ops/integrations/prometheus/#option-1-quick-start) for adding observability components like Prometheus, Grafana, and Kiali. In this lab **we will assume you are not going to use these components** as they are intended for very simple deployments and **not intended for a realistic production setup**. We will install something that looks more realistic and use that.
 
-## Prequisites
+## Prerequisites
 
 Verify you're in the correct folder for this lab: `/home/solo/workshops/istio-day2/1-understand-istio/`. 
 

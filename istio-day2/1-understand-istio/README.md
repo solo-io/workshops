@@ -51,3 +51,8 @@ cd /home/solo/workshops/istio-day2/1-understand-istio/
 * [Lab 6 - Rolling out mTLS for services in a controlled manner](./06-mtls-rollout.md)
 * [Lab 7 - Controlling configuration](./07-controlling-config.md)
 * [Lab 8 - Debugging networking configurations](./08-debugging-config.md)
+
+### Additional tools needed to install on the workshop VMs:
+
+* [Istioctl 1.8.3](https://github.com/istio/istio/releases/tag/1.8.3)
+* [Step cli](https://smallstep.com/cli/)
