@@ -1,0 +1,22 @@
+apiVersion: networking.istio.io/v1alpha3
+kind: DestinationRule
+metadata:
+  name: purchase-history-dr
+  namespace: istioinaction
+spec:
+  host: purchase-history.istioinaction.svc.cluster.local
+  trafficPolicy:
+    tls:
+      mode: ISTIO_MUTUAL
+---
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: purchase-history-strict
+  namespace: istioinaction
+spec:
+  selector:
+    matchLabels:
+      app: purchase-history
+  mtls:
+    mode: STRICT
