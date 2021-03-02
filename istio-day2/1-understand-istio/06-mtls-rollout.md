@@ -345,7 +345,7 @@ spec:
 
 ```
 
-Note, with this policy, we're saying that if traffic coming to our `web-api` service does not have a mTLS identity that originates in the `istioinaction` namespace, then we should `AUDIT` the request. This means we will still allow the request, but will annotate the request so we know it doesn't fall within this policy. For plaintext connections, this source identity will be blank so this will trigger the `AUDIT` rule. 
+Note, with this policy, we're saying that if traffic coming to our `web-api` service does not have a mTLS identity that originates in the `istioinaction` namespace, then we should `AUDIT` the request. This means we will still allow the request, but will annotate the request so we know it was triggered by this policy. For plaintext connections, this source identity will be blank so this will trigger the `AUDIT` rule. 
 
 ```bash
 kubectl apply -f labs/06/audit-auth-policy.yaml
@@ -418,3 +418,23 @@ Now if we check the access logging, we should see there is no X-F-C-C header and
 ```
 
 We can scrape all of these access logs into Splunk or Elastic Search and determine whether it's safe to enable mTLS when there are no longer any calls without proper mTLS identity and credentials. 
+
+## Apply strict mTLS
+
+When you are comfortable that there are no more plaintext connections coming into your service, you can apply a `STRICT` mTLS policy to your namespace:
+
+```yaml
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: default
+  namespace: istioinaction
+spec:
+  mtls:
+    mode: STRICT
+
+```
+
+```bash
+kubectl apply -f labs/06/istioinaction-peerauth-strict.yaml
+```

@@ -13,3 +13,15 @@ popd
 pushd ./03
 ./cleanup.sh
 popd
+
+pushd ./04
+./cleanup.sh
+popd
+
+pushd ./05
+./cleanup.sh
+popd
+
+pushd ./06
+./cleanup.sh
+popd

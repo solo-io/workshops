@@ -1,3 +1,3 @@
-kubectl delete -f httpbin.yaml
-kubectl delete -f sleep.yaml
-kubectl delete -f envoy-proxy.yaml
+kubectl delete -f httpbin.yaml -n default
+kubectl delete -f sleep.yaml -n default
+kubectl delete -f envoy-proxy.yaml -n default
