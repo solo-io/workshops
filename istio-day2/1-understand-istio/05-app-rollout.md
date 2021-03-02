@@ -89,37 +89,22 @@ kubectl exec -it deploy/sleep -- curl http://web-api.istioinaction:8080/
 
 ## Digging into Proxy configuration
 
-Coming back to our services in the `istioinaction` namespace, let's take a look at some of the Envoy configuration for the sidecar proxies.
+Coming back to our services in the `istioinaction` namespace, let's take a look at some of the Envoy configuration for the sidecar proxies. We will use the `istioctl proxy-config` command to inspect the configuration of the `web-api` pod's proxy. For example, to see the listeners configured on the proxy run this command:
 
 ```bash
-kubectl get po -n istioinaction
+istioctl proxy-config listener deploy/web-api.istioinaction 
 ```
-
-```
-NAME                                  READY   STATUS    RESTARTS   AGE
-purchase-history-v1-b8dc86db6-wfpvm   2/2     Running   0          28m
-recommendation-58c475d67b-f6k8s       2/2     Running   0          28m
-web-api-7b79c4d9c8-7l2l7              2/2     Running   0          72s
-```
-
-We will use the `istioctl proxy-config` command to inspect the configuration of the `web-api` pod's proxy. For example, to see the listeners configured on the proxy run something like this:
-
-```bash
-istioctl proxy-config listener web-api-7b79c4d9c8-7l2l7.istioinaction
-```
-
-Note the name of the pod and namespaces here might be different for your system.
 
 We can also see the clusters that have been configured:
 
 ```bash
-istioctl proxy-config clusters web-api-7b79c4d9c8-7l2l7.istioinaction
+istioctl proxy-config clusters deploy/web-api.istioinaction
 ```
 
 If we want to see more information about how the cluster for `recommendation.istioinaction` has been configured by Istio, run this command:
 
 ```bash
-istioctl proxy-config clusters web-api-7b79c4d9c8-7l2l7.istioinaction --fqdn recommendation.istioinaction.svc.cluster.local -o json
+istioctl proxy-config clusters deploy/web-api.istioinaction --fqdn recommendation.istioinaction.svc.cluster.local -o json
 ```
 
 ```
