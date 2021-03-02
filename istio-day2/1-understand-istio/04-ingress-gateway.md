@@ -376,74 +376,148 @@ kubectl -n istioinaction delete secret istioinaction-cert
 kubectl rollout restart deploy/istio-ingressgateway -n istio-system
 curl to make sure it fails
 
-# resource + cert in own namespace
-istioctl install -y -n istioinaction -f labs/04/my-user-gateway.yaml --revision 1-8-3
+## Create custom Ingress Gateways in a user namespace
 
-$ kubectl get po -n istioinaction
+In the previous steps, we created the out-of-the-box ingress gateway in the `istio-system` namespace. In this section, we'll create a custom ingress gateway named `my-user-gateway` in the `istioinaction` namespace. When deployed like this, the user can completely own all resources including secrets/certificates for the domains they wish to expose on this gateway.
+
+Let's take a look at how we can define our custom gateway:
+
+```yaml
+apiVersion: install.istio.io/v1alpha1
+kind: IstioOperator
+metadata:
+  name: my-user-gateway-install
+  namespace: istioinaction
+spec:
+  profile: empty
+  values:
+    gateways:
+      istio-ingressgateway:
+        autoscaleEnabled: false
+  components:
+    ingressGateways:
+    - name: istio-ingressgateway
+      enabled: false    
+    - name: my-user-gateway
+      namespace: istioinaction
+      enabled: true
+      label:
+        istio: my-user-gateway
+```
+
+We can install it with the `istioctl` cli:
+
+```bash
+istioctl install -y -n istioinaction -f labs/04/my-user-gateway.yaml --revision 1-8-3
+```
+
+We should the check the pod and services that were created:
+
+```bash
+kubectl get po -n istioinaction
+```
+
+```
 NAME                                  READY   STATUS    RESTARTS   AGE
 my-user-gateway-6746b98474-tkzn7      1/1     Running   0          12s
 purchase-history-v1-b47996677-lskt9   1/1     Running   0          31h
 recommendation-69995f55c9-rddwz       1/1     Running   0          31h
 web-api-745fdb5bdf-jbbp4              1/1     Running   0          31h
+```
 
-$ kubectl get svc -n istioinaction
-NAME               TYPE           CLUSTER-IP     EXTERNAL-IP   PORT(S)                                                      AGE
-my-user-gateway    LoadBalancer   10.44.0.7      <pending>     15021:32133/TCP,80:31427/TCP,443:32496/TCP,15443:30130/TCP   19s
-purchase-history   ClusterIP      10.44.9.192    <none>        8080/TCP                                                     31h
-recommendation     ClusterIP      10.44.2.120    <none>        8080/TCP                                                     31h
-web-api            ClusterIP      10.44.12.150   <none>        8080/TCP   
+```bash
+kubectl get svc -n istioinaction
+```
 
-add secret:
+NAME               TYPE           CLUSTER-IP     EXTERNAL-IP    PORT(S)                                                      AGE
+my-user-gateway    LoadBalancer   10.44.4.247    34.68.73.162   15021:30141/TCP,80:32728/TCP,443:30664/TCP,15443:30746/TCP   3m45s
+purchase-history   ClusterIP      10.44.3.84     <none>         8080/TCP                                                     3h49m
+recommendation     ClusterIP      10.44.11.68    <none>         8080/TCP                                                     3h49m
+web-api            ClusterIP      10.44.13.102   <none>         8080/TCP                                                     3h49m
+
+
+From here, you can create any domain certs in the `istioinaction` namespace (either using cert-manager or directly)
+
+```bash
 kubectl create -n istioinaction secret tls my-user-gw-istioinaction-cert --key labs/04/certs/istioinaction.io.key --cert labs/04/certs/istioinaction.io.crt
+```
 
+And then create the appropriate `Gateway` and `VirtualService` resources:
+
+```bash
 kubectl apply -f labs/04/my-user-gw-https.yaml
+kubectl apply -f labs/04/my-user-gw-vs.yaml
+```
+
+If everything is installed correctly, you can get the IP address of your custom ingress gateway and then call the services through the new custom gateway:
+
+```bash
+CUSTOM_GATEWAY_IP=$(kubectl get svc -n istioinaction my-user-gateway  -o jsonpath="{.status.loadBalancer.ingress[0].ip}")
+```
+
+```bash
+curl --cacert ./labs/04/certs/ca/root-ca.crt -H "Host: istioinaction.io" https://istioinaction.io --resolve istioinaction.io:443:$CUSTOM_GATEWAY_IP
+```
+
+#### Clean up custom gateway
+
+```bash
+kubectl apply -f sample-apps/ingress/web-api-gw-vs.yaml
+kubectl delete Gateway -n istioinaction my-gw-web-api-gateway 
+kubectl delete deploy/my-user-gateway -n istioinaction
+kubectl delete svc/my-user-gateway -n istioinaction
+kubectl delete sa/my-user-gateway-service-account -n istioinaction
+kubectl delete secret/my-user-gw-istioinaction-cert -n istioinaction
+```
+
+## Reduce Gateway Config for large meshes
+
+By default, the ingress gateways will be configured with information about every service in the mesh and in fact every service that Istio's control plane has discovered. This is likely overkill for most large mesh deployments. With the gateway, we can scope down the number of backend services that get configured on the gateway to only those that have routing rules defined for them. For example, in our current status with the gateway, let's see what "clusters" it knows about:
 
 
-# leave a note about how the second workshop will go into best practices here around security keys on kubernetes, etc incuding HSM/Vault
-
-# private vs public gateway/LB -- integrating with ALB/NLB
-
-understand AWS LB: 
-https://docs.aws.amazon.com/eks/latest/userguide/load-balancing.html
-
-Install AWS LB Controller
-https://kubernetes-sigs.github.io/aws-load-balancer-controller/latest/deploy/installation/
-
-Use NLB-IP mode:
-https://kubernetes-sigs.github.io/aws-load-balancer-controller/latest/guide/service/nlb_ip_mode/
-
-See following gateway resources:
-
-cat ./labs/04/ingress-gateways-public.yaml
-cat ./labs/04/ingress-gateways-private.yaml
-cat ./labs/04/ingress-gateways-nlb-hc.yaml
-
-# REDUCE CONFIG SIZE to only VSs with config.. using that Pilot Env Variable
-check clusters known by ing gw
 ```bash
 istioctl pc clusters deploy/istio-ingressgateway -n istio-system
 ```
 
+As you see, the output here is quite extensive and includes clusters that the gateway does not need to know anything about. The only clusters that get traffic routed to it are the `web-api` cluster. Let's configure the control plane to scope this down:
+
+```bash
 istioctl install -y -n istio-system -f labs/04/control-plane-reduce-gw-config.yaml --revision 1-8-3
+```
 
-check deployment of istiod
+Give a few moments for `istiod` to come back up. Then run the following to verify the setting `PILOT_FILTER_GATEWAY_CLUSTER_CONFIG` took effect: 
+
+```bash
 kubectl get deploy/istiod-1-8-3 -n istio-system -o jsonpath="{.spec.template.spec.containers[].env[0]}"
-should see something like this:
-{"name":"PILOT_FILTER_GATEWAY_CLUSTER_CONFIG","value":"true"}
+```
 
-check gw again:
+You should see something like this:
+
+```
+{"name":"PILOT_FILTER_GATEWAY_CLUSTER_CONFIG","value":"true"}
+```
+
+Let's check the ingress gateway again:
+
 ```bash
 istioctl pc clusters deploy/istio-ingressgateway -n istio-system
 ```
-Should be a trimmed down version of clusters:
 
-SERVICE FQDN         PORT     SUBSET     DIRECTION     TYPE           DESTINATION RULE                                                                                           BlackHoleCluster     -        -          -             STATIC                           
-agent                -        -          -             STATIC                                                                                                                    
-prometheus_stats     -        -          -             STATIC                                                                                                                    sds-grpc             -        -          -             STATIC                                                                                                                    xds-grpc             -        -          -             STATIC                                                                                                                    zipkin               -        -          -             STRICT_DNS  
+You should see a much more slimmed down list including the `web-api.istioinaction.svc.cluster.local` cluster. There are a couple of additional clusters that have been configured as `static` clusters. 
 
-# access logging for gateway
-should cat the file:
+## Access logging for gateway
 
+In this last section of this lab, we will see how to enable access logging for the ingress gateway. Access logging is instrumental in understanding what traffic is coming and what are the results of that traffic. Istio's documentation [shows how to enable access logging](https://istio.io/latest/docs/tasks/observability/logs/access-log/) but it's for the entire mesh. In this section, we will enable access logging for *just* the ingress gateway. The UX around this is continuously improving, so in the future there may be an easier way to do this. These steps were accurate for Istio 1.8.3. 
+
+Let's take a look at the configuration we'll use to configure access logging for the ingress gateway:
+
+```bash
+cat labs/04/ingress-gw-access-logging.yaml
+```
+
+We should see a file similar to this:
+
+```yaml
 apiVersion: networking.istio.io/v1alpha3
 kind: EnvoyFilter
 metadata:
@@ -472,22 +546,51 @@ spec:
               "@type": "type.googleapis.com/envoy.extensions.access_loggers.file.v3.FileAccessLog"
               path: /dev/stdout
               format: "[%START_TIME%] \"%REQ(:METHOD)% %REQ(X-ENVOY-ORIGINAL-PATH?:PATH)% %PROTOCOL%\" %RESPONSE_CODE% %RESPONSE_FLAGS% \"%UPSTREAM_TRANSPORT_FAILURE_REASON%\" %BYTES_RECEIVED% %BYTES_SENT% %DURATION% %RESP(X-ENVOY-UPSTREAM-SERVICE-TIME)% \"%REQ(X-FORWARDED-FOR)%\" \"%REQ(USER-AGENT)%\" \"%REQ(X-REQUEST-ID)%\" \"%REQ(:AUTHORITY)%\" \"%UPSTREAM_HOST%\" %UPSTREAM_CLUSTER% %UPSTREAM_LOCAL_ADDRESS% %DOWNSTREAM_LOCAL_ADDRESS% %DOWNSTREAM_REMOTE_ADDRESS% %REQUESTED_SERVER_NAME% %ROUTE_NAME%\n"
-
-
-kubectl apply -f labs/04/ingress-gw-access-logging.yaml
-
-
-# uninstall my-gateway
->>> this doesn't work <<< we need to figure out right way to delete resources based on a file - linsun: confirmed, didn't work. need to open an istio bug
-istioctl install -y -n istioinaction -f labs/04/my-user-gateway.yaml --revision 1-8-3
-
-```bash
-istioctl manifest generate -f labs/04/my-user-gateway.yaml --revision 1-8-3 | kubectl delete -f -
 ```
 
-TODO
-Say a few notes on Cloud LBs like ALB + HTTPS, etc
+You can see we are using an `EnvoyFilter` resource to affect the configuration of the gateway proxy. Let's apply this resource:
 
- 
+```bash
+kubectl apply -f labs/04/ingress-gw-access-logging.yaml
+```
 
+Now send some traffic through the ingress gateway:
 
+Recall how to get the ingress gateway IP:
+
+```bash
+GATEWAY_IP=$(kubectl get svc -n istio-system istio-ingressgateway -o jsonpath="{.status.loadBalancer.ingress[0].ip}")
+```
+
+```bash
+curl --cacert ./labs/04/certs/ca/root-ca.crt -H "Host: istioinaction.io" https://istioinaction.io --resolve istioinaction.io:443:$GATEWAY_IP
+```
+
+After sending some traffic through the gateway, check the logs:
+
+```bash
+kubectl logs -n istio-system deploy/istio-ingressgateway -c istio-proxy
+```
+
+You should see something like the following access log:
+
+```
+[2021-03-02T20:43:27.195Z] "GET / HTTP/2" 200 - "-" 0 1102 11 11 "10.128.0.61" "curl/7.64.1" "8821b96b-ecab-4303-9f6d-11681ee22e8f" "istioinaction.io" "10.40.2.49:8080" outbound|8080||web-api.istioinaction.svc.cluster.local 10.40.0.43:32838 10.40.0.43:8443 10.128.0.61:53829 istioinaction.io -
+```
+
+####  TODO :: private vs public gateway/LB -- integrating with ALB/NLB
+
+understand AWS LB: 
+https://docs.aws.amazon.com/eks/latest/userguide/load-balancing.html
+
+Install AWS LB Controller
+https://kubernetes-sigs.github.io/aws-load-balancer-controller/latest/deploy/installation/
+
+Use NLB-IP mode:
+https://kubernetes-sigs.github.io/aws-load-balancer-controller/latest/guide/service/nlb_ip_mode/
+
+See following gateway resources:
+
+cat ./labs/04/ingress-gateways-public.yaml
+cat ./labs/04/ingress-gateways-private.yaml
+cat ./labs/04/ingress-gateways-nlb-hc.yaml
