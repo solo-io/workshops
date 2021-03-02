@@ -16,6 +16,25 @@ Now let's label this namespace with the appropriate labels to enable sidecar inj
 kubectl label namespace istioinaction istio.io/rev=1-8-3
 ```
 
+Rolling restart all the deployment in this namespace:
+
+```bash
+kubectl rollout restart deployment -n istioinaction
+```
+
+Check the pods in this namespace:
+```bash
+kubectl get po -n istioinaction
+```
+
+As you can see from the output, each pod has the sidecar now with `2/2` under the `READY` column:
+```
+NAME                                  READY   STATUS    RESTARTS   AGE
+purchase-history-v1-985b8776b-h7n5d   2/2     Running   0          10s
+recommendation-8966c6b7d-p4xpt        2/2     Running   0          10s
+web-api-69559c56b6-thkcc              2/2     Running   0          10s
+```
+
 Now that we have our service up and running, we should be able to call it:
 
 ```bash
