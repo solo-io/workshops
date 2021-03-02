@@ -43,7 +43,9 @@ Envoy can be configured completely by loading a YAML/JSON file or in part with a
 
 ```
 cat labs/01/envoy-conf.yaml
+```
 
+```
 admin:
   accessLogPath: /dev/stdout
   address:
@@ -229,6 +231,7 @@ Wow, that's a lot of good info! Let's trim it down. Maybe we just want to see re
 kubectl exec -it deploy/sleep -- curl http://envoy:15000/stats | grep retry
 ```
 
+```
 cluster.httpbin_service.circuit_breakers.default.rq_retry_open: 0
 cluster.httpbin_service.circuit_breakers.high.rq_retry_open: 0
 cluster.httpbin_service.retry_or_shadow_abandoned: 0
@@ -242,6 +245,7 @@ vhost.httpbin_host.vcluster.other.upstream_rq_retry: 0
 vhost.httpbin_host.vcluster.other.upstream_rq_retry_limit_exceeded: 0
 vhost.httpbin_host.vcluster.other.upstream_rq_retry_overflow: 0
 vhost.httpbin_host.vcluster.other.upstream_rq_retry_success: 0
+```
 
 Nice! Things have been running smoothly so far. No request retries. Let's change that.
 

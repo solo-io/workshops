@@ -6,35 +6,6 @@ Istio provides that control plane to drive the behavior of the network. Istio pr
 
 ## Prequisites
 
-You will need access to a Kubernetes cluster. If you're doing this via the Solo.io Workshop format, you should have everything ready to go. If you are using Docker Desktop or kind, validate that you have 16.0 GB of memory and 8 CPUs.
-
-Verify you're in the correct folder for this lab: `/home/solo/workshops/istio-day2/1-understand-istio/`. 
-
-In the workshop material, you should already have Istio 1.8.3 installed and ready to go. Although at the time of this writing Istio 1.9 is the latest, we will start on Istio 1.8.x and show how to do upgrades in the second part of this workshop. 
-
-To verify, run 
-
-```bash
-istioctl version
-```
-
-You should see something similar to this:
-
-```
-no running Istio pods in "istio-system"
-1.8.3
-```
-
-We don't have Istio installed and running yet. Let's go ahead and do that. There are three ways to install Istio:
-
-* `istioctl` CLI tool
-* Istio Operator
-* Helm
-
-We will use the `istioctl` approach to install Istio following some best practices to set you up for future success. In the second part of this lab (series 2) we'll explore how to use Helm. 
-
-## Install existing services
-
 Will start this lab by deploying some services in Kubernetes. The scenario we are replicating is one where Istio is being added to a set of workloads and that existing services are deployed into the cluster. In this lab (Lab 02) we will focus on getting Istio installed and in a later lab show how to iteratively roll out the mesh functionality to the workloads.
 
 Let's set up the `sample-apps`:
@@ -65,6 +36,36 @@ web-api-745fdb5bdf-jbbp4              1/1     Running   0          19s
 ```
 
 You now have some existing workloads in your cluster. Let's proceed to install the Istio control plane.
+
+
+### Verify Istio CLI installation
+You will need access to a Kubernetes cluster. If you're doing this via the Solo.io Workshop format, you should have everything ready to go. If you are using Docker Desktop or kind, validate that you have 16.0 GB of memory and 8 CPUs.
+
+Verify you're in the correct folder for this lab: `/home/solo/workshops/istio-day2/1-understand-istio/`. 
+
+In the workshop material, you should already have Istio 1.8.3 CLI installed and ready to go. Although at the time of this writing Istio 1.9 is the latest, we will start on Istio 1.8.x and show how to do upgrades in the second part of this workshop. 
+
+To verify, run 
+
+```bash
+istioctl version
+```
+
+You should see something similar to this:
+
+```
+no running Istio pods in "istio-system"
+1.8.3
+```
+
+We don't have Istio installed and running yet. Let's go ahead and do that. There are three ways to install Istio:
+
+* `istioctl` CLI tool
+* Istio Operator
+* Helm
+
+We will use the `istioctl` approach to install Istio following some best practices to set you up for future success. In the second part of this lab (series 2) we'll explore how to use Helm. 
+
 
 ## Installing Istio
 
@@ -174,7 +175,7 @@ Update the sidecar container to have security context like this:
 Specifically the `allowPrivilegeEscalation` and `privileged` fields change to true. Once you save this change, we should see a new `httpbin` pod with updated security privilege and we can explore some of the `iptables` rules that redirect traffic:
 
 ```
-kubectl exec -it deploy/httpbin -c istio-proxy -- sudo iptables -L -t nat
+kubectl -n default exec -it deploy/httpbin -c istio-proxy -- sudo iptables -L -t nat
 ```
 
 We should see an output similar to:

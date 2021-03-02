@@ -32,7 +32,7 @@ helm repo update
 Next, let's run the helm installer. We are disabling some components of `kube-prometheus` while still keeping the overall spirit of the realistic deployment. To do this, we'll pass in a `values.yaml` file that explicitly controls what gets installed. Feel free to review this file to understand it a bit more.
 
 ```bash
-helm install prom prometheus-community/kube-prometheus-stack -n prometheus -f labs/03/prom-values.yaml
+helm install prom prometheus-community/kube-prometheus-stack --version 13.13.1 -n prometheus -f labs/03/prom-values.yaml
 ```
 
 At this point, we should have a successfully installed prometheus. To verify the components that were installed to support observability for us, let's check the pods:
@@ -389,7 +389,7 @@ Copy and paste that token into the Kiali login screen. Once you login, you shoul
 
 ![](./images/kiali-dashboard.png)
 
-Congrats! You've installed and secured the Kiali dashboard and connected it to the Prometheus instance collecting Istio telemetry.
+Congrats! You've installed and secured the Kiali dashboard and connected it to the Prometheus instance collecting Istio telemetry. In the next few labs, we'll introduce our services to the mesh and send traffic through them. We should see Kiali populated with information at that point. 
 
 
 
@@ -470,16 +470,13 @@ istio_agent_total_pushes 2
 ...
 ```
 
-With sidecar proxy running next to your pod, you immediately gain access to many metrics provided by Envoy and Istio agent. You can observe what level of Istio agent you are using, how many total pushes, active connections, total scrapes, along with number of total 200 requests, errors, request retries etc.
+With the Istio sidecar proxy running next to your app, you immediately gain access to many metrics provided by Envoy and the Istio agent. You can observe what level of Istio agent you are using, how many total pushes, active connections, total scrapes, along with number of total 200 requests, errors, request retries etc.
 
 TBD: Should we add a section to configure TLS for the app scraping when merging is turned off?
 https://github.com/istio/istio/issues/27940#issuecomment-759305377
 
 setting up with TLS requires injecting a sidecar with no redirect rules:
 https://istio.io/latest/docs/ops/integrations/prometheus/#tls-settings
-
-# TODO
-Need to debug Kiali graph issues?
 
 ## Next Lab
 
