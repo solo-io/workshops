@@ -8,6 +8,11 @@ proxyConfig.holdApplicationUntilProxyStarts
 
 == should use existing sample-apps/ dir
 
+# Lab 5 :: Add Services to Istio
+
+In this lab, we'll add services gradually to the Istio service mesh we installed in earlier labs. We will cover how to examine envoy configuration for your services, how to delay your application from starting until the sidecar proxy is ready, how to enable access logs for a given service and some tips to avoid 503s. 
+
+
 ## Prerequisites
 
 Verify you're in the correct folder for this lab: `/home/solo/workshops/istio-day2/1-understand-istio/`. 
