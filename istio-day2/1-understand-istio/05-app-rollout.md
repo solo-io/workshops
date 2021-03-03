@@ -96,7 +96,7 @@ kubectl rollout restart deployment purchase-history-v1 -n istioinaction
 kubectl rollout restart deployment recommendation -n istioinaction
 ```
 
-Tip: If you want to conveniently rollout restart all deployments in the istioinaction namespace, you can just run the command below:
+Tip: If you want to rollout restart all deployments in the istioinaction namespace, you can run the following command:
 
 ```bash
 kubectl rollout restart deployment -n istioinaction
@@ -202,11 +202,59 @@ istioctl proxy-config clusters deploy/web-api.istioinaction --fqdn recommendatio
 
 Note this is just a snippet, there are other configurations there specific to Istio and TLS connectivity. But if you recall the cluster configurations from the previous lab, you'll see they are similar. Istiod took information about the environment, user configurations, and service discovery, and translated this to an appropriate configuration _for this specific workload_.
 
+## Hold application until sidecar proxy is ready
+Kubernetes lacks a standard way to declare container dependencies.  There is a [Sidecar](https://github.com/kubernetes/enhancements/issues/753) Kubernetes Enhancement Proposal (KEP) out there, however it is not yet implemented in a Kubernetes release.  In the meantime, service owners may observe unexpected behavior at startup or stop times because the application container may start before sidecar proxy finishes starting or sidecar proxy could be stopped before application container is stopped. 
+
+To help mediate the issue, Istio has implemented a pod level configuration called `holdApplicationUntilProxyStarts` for service owners to delay application start until the sidecar proxy is ready. For example, you can add this annotation snippet to the web-api deployment yaml to hold the web-api application until the sidecar proxy is ready:
+
+```yaml
+...
+  template:
+    metadata:
+      labels:
+        app: web-api
+        version: v1
+      annotations:
+        proxy.istio.io/config: '{ "holdApplicationUntilProxyStarts": false }'
+    spec:
+      containers:
+...
+```
+
+Deploy the yaml that has the `holdApplicationUntilProxyStarts` configuration:
+
+```bash
+kubectl delete -f sample-apps/web-api-holdapp.yaml -n istioinaction
+kubectl apply -f sample-apps/web-api-holdapp.yaml -n istioinaction
+```
+
+To validate the web-api container starts after its sidecar proxy starts, check the Kubernetes event for the pod:
+
+```bash
+kubectl describe pod/web-api-56d679cf7d-tfxdj -n istioinaction
+```
+
+From the events, the istio-proxy container is created and started first, then the web-api container is created and started:
+
+```
+Events:
+  Type    Reason     Age    From               Message
+  ----    ------     ----   ----               -------
+  Normal  Scheduled  3m56s  default-scheduler  Successfully assigned istioinaction/web-api-56d679cf7d-tfxdj to kind1-control-plane
+  Normal  Pulling    3m55s  kubelet            Pulling image "docker.io/istio/proxyv2:1.8.3"
+  Normal  Pulled     3m55s  kubelet            Successfully pulled image "docker.io/istio/proxyv2:1.8.3" in 490.680774ms
+  Normal  Created    3m55s  kubelet            Created container istio-init
+  Normal  Started    3m55s  kubelet            Started container istio-init
+  Normal  Pulling    3m54s  kubelet            Pulling image "docker.io/istio/proxyv2:1.8.3"
+  Normal  Pulled     3m54s  kubelet            Successfully pulled image "docker.io/istio/proxyv2:1.8.3" in 405.035063ms
+  Normal  Created    3m54s  kubelet            Created container istio-proxy
+  Normal  Started    3m54s  kubelet            Started container istio-proxy
+  Normal  Pulled     3m53s  kubelet            Container image "nicholasjackson/fake-service:v0.7.8" already present on machine
+  Normal  Created    3m53s  kubelet            Created container web-api
+  Normal  Started    3m53s  kubelet            Started container web-api
+```
+## Enable access logs for your service
 
 
 
-
-
-
-
-
+## Avoid 503s on virtual service

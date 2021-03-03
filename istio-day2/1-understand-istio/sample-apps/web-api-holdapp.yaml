@@ -1,0 +1,35 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web-api
+  labels:
+    app: web-api
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: web-api
+      version: v1
+  template:
+    metadata:
+      labels:
+        app: web-api
+        version: v1
+      annotations:
+        proxy.istio.io/config: '{ "holdApplicationUntilProxyStarts": true }'
+    spec:
+      serviceAccountName: web-api    
+      containers:
+      - name: web-api
+        image: nicholasjackson/fake-service:v0.7.8
+        ports:
+        - containerPort: 8080
+        env:
+        - name: "LISTEN_ADDR"
+          value: "0.0.0.0:8080"
+        - name: "UPSTREAM_URIS"
+          value: "http://recommendation:8080"
+        - name: "NAME"
+          value: "web-api"
+        - name: "MESSAGE"
+          value: "Hello From Web API"
