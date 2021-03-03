@@ -8,6 +8,12 @@ proxyConfig.holdApplicationUntilProxyStarts
 
 == should use existing sample-apps/ dir
 
+## Prerequisites
+
+Verify you're in the correct folder for this lab: `/home/solo/workshops/istio-day2/1-understand-istio/`. 
+
+This lab builds on both lab 02, 03 and 04 where we already installed Istio control plane using a minimal profile and ingress gateway using revisions. 
+
 ## Adding services to the mesh
 
 There are a couple ways to add a service to the mesh. What's meant by "adding the service to the mesh" is we install the Envoy proxy alongside the workload. We can do a manual injection of the sidecar or automatically do it. Let's start to deploy some workloads.
