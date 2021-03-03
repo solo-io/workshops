@@ -8,15 +8,43 @@ In this first of a two-part series of workshops on Istio service mesh, we dive i
 * Istio functionality hands on
 * Introducing Istio in your organization
 
-## Lab environment
+## Lab environment and prep
 
-We will use both a combination of Docker and a Kubernetes cluster on the lab machine to work through the following labs. 
+We will use both a combination of Docker and a Kubernetes cluster on the lab machine to work through the following labs. In this prep section we will download `istioctl` and set up our Kubernetes cluster.
 
-Check that docker exists:
+### Check that docker exists
 
 ```
 docker version
 ```
+
+### Download and set up istioctl
+
+Make sure you're on your home directory:
+
+```bash
+cd
+```
+
+And download Istio 1.8.3
+
+```bash
+curl -L https://istio.io/downloadIstio | ISTIO_VERSION=1.8.3 sh -
+```
+
+Let's make `istioctl` available on your `PATH`:
+
+```bash
+export PATH="$PATH:/home/solo/istio-1.8.3/bin"
+```
+
+Now you should be able to run `istioctl` commands from any directory:
+
+```bash
+istioctl version
+```
+
+### Se up Kubernetes cluster with Kind
 
 From the terminal go to the `/home/solo/workshops/scripts` directory:
 
@@ -28,14 +56,16 @@ Run the following commands to deploy a single Kubernetes cluster using [Kind](ht
 
 
 ```bash
-./deploy.sh 1 istio-k8s
+./deploy.sh 1 istio-workshop
 ```
 
 Kind should automatically set up the Kubernetes context for the `kubectl` CLI tool, but to make sure you're pointed to the right cluster, run the following:
 
 ```bash
-kubectl config use-context istio-k8s
+kubectl config use-context kind-istio-workshop
 ```
+
+### Start the lab!
 
 Now go to the directory that has the workshop material:
 
