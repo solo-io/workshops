@@ -8,8 +8,38 @@ The `Sidecar` resource is designed to solve this problem from the service consum
 
 ## Sidecar resource for service consumers
 
-Let's declare web-api is only allowed for services in the istioinaction namespace.
+Let's declare services in the istioinaction namespace is allowed to reach out to services within the namespace or services in the istio-system namespace.
 
+```yaml
+apiVersion: networking.istio.io/v1beta1
+kind: Sidecar
+metadata:
+  name: default
+  namespace: istioinaction
+spec:
+  egress:
+  - hosts:
+    - "./*"
+    - "istio-system/*"
+```
+
+Apply this resource:
+
+```bash
+kubectl apply -f labs/07/default-sidecar.yaml -n istioinaction
+```
+
+Let us reach to web-api service from the sleep pod in the istioinaction namespace.
+
+```bash
+kubectl exec -it deploy/sleep -n istioinaction -- curl http://web-api.istioinaction:8080/
+```
+
+Now reach to web-api service from the sleep pod in the default namespace.
+
+```bash
+kubectl exec -it deploy/sleep -- curl http://web-api.istioinaction:8080/
+```
 
 Let's declare web-api is also added from the sleep service in the default namespace.
 

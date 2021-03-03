@@ -335,6 +335,9 @@ You should see something like the following access log:
 ```
 
 ## Avoid 503s on virtual service
+order prob... have to have a destination rule when you have a VS that refers to a subset
+
+
 
 ## Next Lab
 
