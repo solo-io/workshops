@@ -299,6 +299,15 @@ Let's check the certificate SAN was specified correctly as `istioinaction.io`:
 kubectl get secret -n istio-system istioinaction-cert -o jsonpath="{.data['tls\.crt']}" | base64 -D | step certificate inspect -
 ```
 
+Let's try call our gateway again to make sure the call still succeeds:
+
+```bash
+curl --cacert ./labs/04/certs/ca/root-ca.crt -H "Host: istioinaction.io" https://istioinaction.io --resolve istioinaction.io:443:$GATEWAY_IP
+```
+
+In this section, we created the `Certificate` in the `istio-system` namespace. But if we don't have access to that namespace, what else could we do?
+
+
 ## Certificates in own namespace
 
 Some teams choose to restrict access to `istio-system` namespace but still allow teams to own the resources in their own namespaces. For example, some organizations own the `istio-system` by the platform team, but service teams and SRE can help install things like secrets into their own namespace. For example, with our `istioinaction` namespace, we would be able to access only `istioinaction` namespace and not `istio-system`. 
@@ -367,16 +376,23 @@ default                             Cert Chain     ACTIVE     true           241
 ROOTCA                              CA             ACTIVE     true           266801602762712535092892179697980789542     2031-02-28T16:35:53Z     2021-03-02T16:35:53Z
 ```
 
-**NOTE: we list this use case here because that's what folks seem to be doing in the wild.. however... at Solo.io we don't particularly recommend this approach. There are other approaches that we'll cover in this lab and in the second part of this workshop to more securely deliver secrets for your ingress gateway.**
+Now let's try call our ingress gateway again to verify it works as expected:
+
+```bash
+curl --cacert ./labs/04/certs/ca/root-ca.crt -H "Host: istioinaction.io" https://istioinaction.io --resolve istioinaction.io:443:$GATEWAY_IP
+```
+
+> :warning: We list this use case here because that's what folks seem to be doing in the wild, however, **at Solo.io we don't recommend this approach**. There are other approaches that we'll cover in this lab and in the second part of this workshop to more securely deliver secrets for your ingress gateway.
 
 
-cleanup:
-remove annotation
+If you would like o clean up this portion of the lab, you can run:
+
+```
 kubectl -n istioinaction annotate secret istioinaction-cert kubed.appscode.com/sync-
 kubectl -n istio-system delete secret istioinaction-cert
 kubectl -n istioinaction delete secret istioinaction-cert
 kubectl rollout restart deploy/istio-ingressgateway -n istio-system
-curl to make sure it fails
+```
 
 ## Create custom Ingress Gateways in a user namespace
 
@@ -431,11 +447,13 @@ web-api-745fdb5bdf-jbbp4              1/1     Running   0          31h
 kubectl get svc -n istioinaction
 ```
 
+```
 NAME               TYPE           CLUSTER-IP     EXTERNAL-IP    PORT(S)                                                      AGE
 my-user-gateway    LoadBalancer   10.44.4.247    34.68.73.162   15021:30141/TCP,80:32728/TCP,443:30664/TCP,15443:30746/TCP   3m45s
 purchase-history   ClusterIP      10.44.3.84     <none>         8080/TCP                                                     3h49m
 recommendation     ClusterIP      10.44.11.68    <none>         8080/TCP                                                     3h49m
 web-api            ClusterIP      10.44.13.102   <none>         8080/TCP                                                     3h49m
+```
 
 
 From here, you can create any domain certs in the `istioinaction` namespace (either using cert-manager or directly)
@@ -582,17 +600,19 @@ You should see something like the following access log:
 
 ####  TODO :: private vs public gateway/LB -- integrating with ALB/NLB
 
-understand AWS LB: 
-https://docs.aws.amazon.com/eks/latest/userguide/load-balancing.html
+* understand AWS LB: 
+  https://docs.aws.amazon.com/eks/latest/userguide/load-balancing.html
 
-Install AWS LB Controller
-https://kubernetes-sigs.github.io/aws-load-balancer-controller/latest/deploy/installation/
+* Install AWS LB Controller
+  https://kubernetes-sigs.github.io/aws-load-balancer-controller/latest/deploy/installation/
 
-Use NLB-IP mode:
-https://kubernetes-sigs.github.io/aws-load-balancer-controller/latest/guide/service/nlb_ip_mode/
+* Use NLB-IP mode: 
+  https://kubernetes-sigs.github.io/aws-load-balancer-controller/latest/guide/service/nlb_ip_mode/
 
 See following gateway resources:
 
+```
 cat ./labs/04/ingress-gateways-public.yaml
 cat ./labs/04/ingress-gateways-private.yaml
 cat ./labs/04/ingress-gateways-nlb-hc.yaml
+```
