@@ -78,6 +78,8 @@ istiod-1-8-3           ClusterIP      10.44.11.8     <none>          15010/TCP,1
 kiali                  ClusterIP      10.44.4.127    <none>          20001/TCP,9090/TCP                                                           26m
 ```
 
+## Note our GATEWAY_IP
+
 ```bash
 GATEWAY_IP=$(kubectl get svc -n istio-system istio-ingressgateway -o jsonpath="{.status.loadBalancer.ingress[0].ip}")
 ```

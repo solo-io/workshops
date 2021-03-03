@@ -20,6 +20,7 @@ Now let's create some services:
 kubectl apply -n istioinaction -f sample-apps/web-api.yaml
 kubectl apply -n istioinaction -f sample-apps/recommendation.yaml
 kubectl apply -n istioinaction -f sample-apps/purchase-history-v1.yaml
+kubectl apply -n istioinaction -f sample-apps/sleep.yaml
 ```
 
 After running these commands, we should check the pods running in the `istioinaction` namespace:
@@ -29,10 +30,11 @@ kubectl get po -n istioinaction
 ```
 
 ```
-NAME                                  READY   STATUS    RESTARTS   AGE
-purchase-history-v1-b47996677-lskt9   1/1     Running   0          14s
-recommendation-69995f55c9-rddwz       1/1     Running   0          17s
-web-api-745fdb5bdf-jbbp4              1/1     Running   0          19s
+NAME                                   READY   STATUS    RESTARTS   AGE
+purchase-history-v1-6c8cb7f8f8-wn4dr   1/1     Running   0          22s
+recommendation-c9f7cc86f-nfvmk         1/1     Running   0          22s
+sleep-8f795f47d-5jfbn                  1/1     Running   0          14s
+web-api-6d544cff77-drrbm               1/1     Running   0          22s
 ```
 
 You now have some existing workloads in your cluster. Let's proceed to install the Istio control plane.
