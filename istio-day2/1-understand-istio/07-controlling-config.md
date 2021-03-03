@@ -1,1 +1,1 @@
-sidecar, export-to, merging, delegation
+sidecar, export-to, VS merging, and VS delegation

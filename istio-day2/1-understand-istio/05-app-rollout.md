@@ -45,6 +45,7 @@ As you can see from the output, the web-api pod has the sidecar now with `2/2` u
 NAME                                  READY   STATUS    RESTARTS   AGE
 purchase-history-v1-985b8776b-h7n5d   1/1     Running   0          10h
 recommendation-8966c6b7d-p4xpt        1/1     Running   0          10h
+sleep-854565cb79-8mpgv                1/1     Running   0          10h
 web-api-69559c56b6-thkcc              2/2     Running   0          10s
 ```
 
@@ -105,6 +106,7 @@ Let's add the recommendation and purchase-history-v1 deployments to the mesh.
 ```bash
 kubectl rollout restart deployment purchase-history-v1 -n istioinaction
 kubectl rollout restart deployment recommendation -n istioinaction
+kubectl rollout restart deployment sleep -n istioinaction
 ```
 
 Tip: If you want to rollout restart all deployments in the istioinaction namespace, you can run the following command:
