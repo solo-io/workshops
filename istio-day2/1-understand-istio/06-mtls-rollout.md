@@ -127,23 +127,7 @@ spec:
 
 ```
 
-If we enable mTLS one workload at a time, we need to also create destination rules for those clients:
-
-```yaml
-apiVersion: networking.istio.io/v1alpha3
-kind: DestinationRule
-metadata:
-  name: purchase-history-dr
-  namespace: istioinaction
-spec:
-  host: purchase-history.istioinaction.svc.cluster.local
-  trafficPolicy:
-    tls:
-      mode: ISTIO_MUTUAL
-```
-
 Let's try enable this:
-
 
 ```bash
 kubectl apply -f labs/06/purchase-history-strict.yaml
