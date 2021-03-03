@@ -1,10 +1,10 @@
 apiVersion: networking.istio.io/v1beta1
 kind: Sidecar
 metadata:
-  name: default-sleep
-  namespace: default
+  name: default
+  namespace: istioinaction
 spec:
   egress:
   - hosts:
-    - "./sleep.default"
+    - "./*"
     - "istio-system/*"
