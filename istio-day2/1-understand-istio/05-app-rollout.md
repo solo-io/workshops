@@ -336,4 +336,4 @@ You should see something like the following access log:
 
 ## Next Lab
 
-Istio can automatically encrypt traffic between services in the mesh with mutual TLS. In the [next lab](06-mtls-rollout.md), we will show you how to roll out mTLS to your services in your Istio service mesh.
+Istio can automatically encrypt traffic between services in the mesh with mutual TLS. In the [next lab](06-mtls-rollout.md), we will show you how to gradually roll out mTLS to your services in your Istio service mesh.
