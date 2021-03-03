@@ -290,7 +290,7 @@ spec:
   configPatches:
   - applyTo: NETWORK_FILTER
     match:
-      context: SIDECAR
+      context: ANY
       listener:
         filterChain:
           filter:
@@ -308,6 +308,32 @@ spec:
               format: "[%START_TIME%] \"%REQ(:METHOD)% %REQ(X-ENVOY-ORIGINAL-PATH?:PATH)% %PROTOCOL%\" %RESPONSE_CODE% %RESPONSE_FLAGS% \"%UPSTREAM_TRANSPORT_FAILURE_REASON%\" %BYTES_RECEIVED% %BYTES_SENT% %DURATION% %RESP(X-ENVOY-UPSTREAM-SERVICE-TIME)% \"%REQ(X-FORWARDED-FOR)%\" \"%REQ(USER-AGENT)%\" \"%REQ(X-REQUEST-ID)%\" \"%REQ(:AUTHORITY)%\" \"%UPSTREAM_HOST%\" %UPSTREAM_CLUSTER% %UPSTREAM_LOCAL_ADDRESS% %DOWNSTREAM_LOCAL_ADDRESS% %DOWNSTREAM_REMOTE_ADDRESS% %REQUESTED_SERVER_NAME% %ROUTE_NAME%\n"
 ```
 
-TODO: need to validate the steps above
+You can see we are using an `EnvoyFilter` resource to affect the configuration of the web-api's sidecar proxy. Let's apply this resource:
+
+```bash
+kubectl apply -f labs/05/web-api-access-logging.yaml
+```
+
+Now send some traffic from the sleep pod to the web-api service:
+
+```bash
+kubectl exec -it deploy/sleep -- curl http://web-api.istioinaction:8080/
+```
+
+After sending some traffic, check the web-api's sidecar proxy logs:
+
+```bash
+kubectl logs -n istioinaction deploy/web-api -c istio-proxy
+```
+
+You should see something like the following access log:
+
+```
+[2021-03-03T14:40:21.793Z] "GET / HTTP/1.1" 200 - "-" 0 676 10 9 "-" "curl/7.69.1" "6e7a9242-b5f0-45d8-a519-58053bd16eed" "recommendation:8080" "192.168.1.130:8080" outbound|8080||recommendation.istioinaction.svc.cluster.local 192.168.1.139:43462 10.96.1.230:8080 192.168.1.139:41098 - default
+```
 
 ## Avoid 503s on virtual service
+
+## Next Lab
+
+Istio can automatically encrypt traffic between services in the mesh with mutual TLS. In the [next lab](06-mtls-rollout.md), we will show you how to roll out mTLS to your services in your Istio service mesh.
