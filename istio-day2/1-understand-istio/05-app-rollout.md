@@ -253,8 +253,50 @@ Events:
   Normal  Created    3m53s  kubelet            Created container web-api
   Normal  Started    3m53s  kubelet            Started container web-api
 ```
+
 ## Enable access logs for your service
 
+In this section of this lab, we will see how to enable access logging for a service. Access logging is instrumental in understanding what traffic is coming and what are the results of that traffic. In this section, we will enable access logging for *just* the web-api application. The UX around this is continuously improving, so in the future there may be an easier way to do this. These steps were accurate for Istio 1.8.3. 
 
+Let's take a look at the configuration we'll use to configure access logging for the web-api application:
+
+```bash
+cat labs/05/web-api-access-logging.yaml
+```
+
+We should see a file similar to this:
+
+```yaml
+apiVersion: networking.istio.io/v1alpha3
+kind: EnvoyFilter
+metadata:
+  name: web-api-access-logging
+  namespace: istioinaction
+spec:
+  workloadSelector:
+    labels:
+      app: web-api
+  configPatches:
+  - applyTo: NETWORK_FILTER
+    match:
+      context: SIDECAR
+      listener:
+        filterChain:
+          filter:
+            name: "envoy.filters.network.http_connection_manager"
+    patch:
+      operation: MERGE
+      value:
+        typed_config:
+          "@type": "type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager"
+          access_log:
+          - name: envoy.access_loggers.file
+            typed_config:
+              "@type": "type.googleapis.com/envoy.extensions.access_loggers.file.v3.FileAccessLog"
+              path: /dev/stdout
+              format: "[%START_TIME%] \"%REQ(:METHOD)% %REQ(X-ENVOY-ORIGINAL-PATH?:PATH)% %PROTOCOL%\" %RESPONSE_CODE% %RESPONSE_FLAGS% \"%UPSTREAM_TRANSPORT_FAILURE_REASON%\" %BYTES_RECEIVED% %BYTES_SENT% %DURATION% %RESP(X-ENVOY-UPSTREAM-SERVICE-TIME)% \"%REQ(X-FORWARDED-FOR)%\" \"%REQ(USER-AGENT)%\" \"%REQ(X-REQUEST-ID)%\" \"%REQ(:AUTHORITY)%\" \"%UPSTREAM_HOST%\" %UPSTREAM_CLUSTER% %UPSTREAM_LOCAL_ADDRESS% %DOWNSTREAM_LOCAL_ADDRESS% %DOWNSTREAM_REMOTE_ADDRESS% %REQUESTED_SERVER_NAME% %ROUTE_NAME%\n"
+```
+
+TODO: need to validate the steps above
 
 ## Avoid 503s on virtual service
