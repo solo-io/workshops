@@ -125,7 +125,21 @@ Routes Match (RDS last loaded at Thu, 04 Mar 2021 08:05:33 MST)
 
 ## istioctl proxy-config
 
-As we've seen in previous labs, the `istioctl proxy-config` command can be used to query the proxy for its configuration for particular elements. You can see the [Istio docs for](https://istio.io/latest/docs/ops/diagnostic-tools/proxy-cmd/#deep-dive-into-envoy-configuration) more information. In this lab we will cover one critical part of the `istioctl proxy-config` command: data plane logging
+As we've seen in previous labs, the `istioctl proxy-config` command can be used to query the proxy for its configuration for particular elements. You can see the [Istio docs for](https://istio.io/latest/docs/ops/diagnostic-tools/proxy-cmd/#deep-dive-into-envoy-configuration) more information. In this lab we will cover two critical parts of the `istioctl proxy-config` command: data plane configuration and data plane logging
+
+### Config
+
+The `istioctl proxy-config` command allows you to review the data plane configuration which effectively comes from the `/config_dump` endpoint on Envoy's admin module. We can go right to that module with the following command:
+
+```bash
+istioctl dashboard envoy <pod-name[.namespace]>
+```
+
+This takes us to the Envoy dashboard and gives access to things like `/stats`, `/server_info`, and the full `/config_dump`. Another important endpoint is the `/clusters` endpoint which gives detailed information for all of the Envoy clusters including the specific endpoints that make up a cluster. You can also see endpoint information (EDS) in the full config dump with `/config_dump?include_eds`.
+
+> :pushpin: As an exercise for the reader, try to run the `istioctl dashboard envoy` command and explore these different endpoints
+
+### Logging
 
 Envoy proxy can be configured to increase logging levels to very fine-grained "debug" level which will help you understand more about what's happening on the data plane. Envoy also categorizes different modules for logging, so you can enable/disable logging for just the components you need to review. 
 
@@ -138,7 +152,7 @@ istioctl proxy-config log deploy/web-api --level debug
 To configure just a specific module for debug:
 
 ```bash
-istioctl proxy-config log deploy/web-api --level connection:debug,conn_handler:debug,filter:debug,router:debug,http:debug
+istioctl proxy-config log deploy/web-api --level connection:debug,conn_handler:debug,filter:debug,router:debug,http:debug,upstream:debug
 ```
 
 Some of the common ones used to debug connection/routing issues are seen above. The full list is in this table:
@@ -209,6 +223,9 @@ Some of the common ones used to debug connection/routing issues are seen above. 
     <td></td>
 </tr>
 </table>
+
+## Debugg data plane:
+
 
 
 
