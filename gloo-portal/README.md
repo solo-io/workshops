@@ -1057,7 +1057,7 @@ But you can completely change the look & feel of the **Portal** by providing you
 
 Let's use this feature to change the color of the title.
 
-First of all, go to the main page of the Portal (http://portal.petstore.com) and click on the top right corner to open the menu of the web browser. Then, click on `More tools` and select `Developer tools`.
+First of all, go to the main page of the Portal (http://portal.petstore.com) and click on the top right corner to open the menu of the web browser. Then, click on `Web Developer` and select `Inspector`.
 
 In the developer tools, click on the arrow on the top left corner and then on the title:
 

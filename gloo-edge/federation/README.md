@@ -549,7 +549,7 @@ spec:
  - priorityGroup:
    - cluster: cluster2
      upstreams:
-     - name: default-service-bluegreen-8080
+     - name: default-service-bluegreen2-8080
        namespace: gloo-system
  primary:
    clusterName: cluster1
@@ -623,3 +623,205 @@ kind delete cluster --name kind1
 kind delete cluster --name kind2
 kind delete cluster --name kind3
 ```
+
+
+
+kubectl delete --context mgmt -f - <<EOF
+apiVersion: fed.gloo.solo.io/v1
+kind: FederatedUpstream
+metadata:
+  name: default-service-bluegreen
+  namespace: gloo-fed
+spec:
+  placement:
+    clusters:
+      - cluster1
+      - cluster2
+    namespaces:
+      - gloo-system
+  template:
+    metadata:
+      name: default-service-bluegreen-8080
+    spec:
+      discoveryMetadata: {}
+      healthChecks:
+        - healthyThreshold: 1
+          httpHealthCheck:
+            path: /
+          interval: 1s
+          noTrafficInterval: 1s
+          timeout: 1s
+          unhealthyThreshold: 1
+      kube:
+        serviceName: service-bluegreen
+        serviceNamespace: default
+        servicePort: 8080
+---
+apiVersion: fed.gateway.solo.io/v1
+kind: FederatedVirtualService
+metadata:
+  name: any-bluegreen
+  namespace: gloo-fed
+spec:
+  placement:
+    clusters:
+      - cluster1
+      - cluster2
+    namespaces:
+      - gloo-system
+  template:
+    spec:
+      virtualHost:
+        domains:
+        - '*'
+        routes:
+        - matchers:
+          - prefix: /
+          routeAction:
+            single:
+              upstream:
+                name: default-service-bluegreen-8080
+                namespace: gloo-system
+    metadata:
+      name: any-bluegreen
+EOF
+
+kubectl apply --context cluster1 -f - <<EOF
+apiVersion: v1
+kind: Service
+metadata:
+ labels:
+   app: fake
+ name: service-fake
+ namespace: default
+spec:
+ ports:
+ - name: http
+   port: 8080
+   protocol: TCP
+   targetPort: 8080
+ selector:
+   app: fake
+ sessionAffinity: None
+ type: ClusterIP
+EOF
+
+kubectl apply --context mgmt -f - <<EOF
+apiVersion: fed.solo.io/v1
+kind: FailoverScheme
+metadata:
+ name: failover-scheme
+ namespace: gloo-fed
+spec:
+ failoverGroups:
+ - priorityGroup:
+   - cluster: cluster2
+     upstreams:
+     - name: default-service-bluegreen-8080
+       namespace: gloo-system
+ primary:
+   clusterName: cluster1
+   name: default-service-bluegreen-8080
+   namespace: gloo-system
+EOF
+
+apiVersion: v1
+kind: Service
+metadata:
+ labels:
+   app: bluegreen
+   text: blue
+ name: service-bluegreen
+ namespace: default
+spec:
+ ports:
+ - name: color
+   port: 8080
+   protocol: TCP
+   targetPort: 8080
+ selector:
+   app: bluegreen
+   text: blue
+ sessionAffinity: None
+ type: ClusterIP
+EOF
+
+kubectl delete --context cluster1 -f - <<EOF
+apiVersion: v1
+kind: Service
+metadata:
+ labels:
+   app: bluegreen
+   text: blue
+ name: service-bluegreen
+ namespace: default
+spec:
+ ports:
+ - name: color
+   port: 8080
+   protocol: TCP
+   targetPort: 8080
+ selector:
+   app: bluegreen
+   text: blue
+ sessionAffinity: None
+ type: ClusterIP
+---
+apiVersion: gloo.solo.io/v1
+kind: Upstream
+metadata:
+  name: default-service-bluegreen-8080
+  namespace: gloo-system
+spec:
+  discoveryMetadata:
+    labels:
+      app: bluegreen
+      text: blue
+  failover:
+    prioritizedLocalities:
+    - localityEndpoints:
+      - lbEndpoints:
+        - address: 172.18.0.230
+          port: 15443
+          upstreamSslConfig:
+            secretRef:
+              name: failover-upstream
+              namespace: gloo-system
+            sni: default-service-bluegreen-8080_gloo-system
+        locality:
+          region: us-east-1
+          zone: us-east-1c
+  healthChecks:
+  - healthyThreshold: 1
+    httpHealthCheck:
+      path: /
+    interval: 1s
+    noTrafficInterval: 1s
+    timeout: 1s
+    unhealthyThreshold: 1
+  kube:
+    selector:
+      app: bluegreen
+      text: blue
+    serviceName: service-bluegreen
+    serviceNamespace: default
+    servicePort: 8080
+---
+apiVersion: gateway.solo.io/v1
+kind: VirtualService
+metadata:
+  name: any-bluegreen
+  namespace: gloo-system
+spec:
+  virtualHost:
+    domains:
+    - '*'
+    routes:
+    - matchers:
+      - prefix: /
+      routeAction:
+        single:
+          upstream:
+            name: default-service-bluegreen-8080
+            namespace: gloo-system
+EOF

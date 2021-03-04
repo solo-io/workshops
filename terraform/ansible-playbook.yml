@@ -299,19 +299,6 @@
       url: https://github.com/solo-io/workshops/raw/master/terraform/solo-white.png
       dest: /home/solo/solo-white.png
 
-  - name: Start firefox
-    shell: firefox -headless www.google.fr &
-    become_user: solo
-    become_method: su
-
-  - name: Pause for 30 seconds
-    pause:
-      seconds: 30
-    
-  - name: Kill firefox
-    shell: pkill firefox
-    ignore_errors: True
-
   - name: Create the /home/solo/.config directory if it does not exist
     file:
       path: /home/solo/.config
@@ -323,16 +310,39 @@
   - name: Escape initial setup
     shell: touch /home/solo/.config/gnome-initial-setup-done
 
-  - name: Set homepage
-    shell: bash -c 'echo '"'"'user_pref("browser.startup.homepage", "https://github.com/solo-io/workshops");'"'"' >> /home/solo/.mozilla/firefox/*.default-release/prefs.js'
+  - name: Add Google Chrome apt key
+    apt_key:
+      url: https://dl.google.com/linux/linux_signing_key.pub
+      state: present
 
-  - name: Download the codecopy Firefox addon
-    get_url:
-      url: https://addons.mozilla.org/firefox/downloads/file/631137/codecopy-0.4.0-fx.xpi
-      dest: /home/solo/codecopy@clipboardjs.com.xpi
+  - apt_repository:
+      repo: deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main
+      state: present
 
-  - name: Install the codecopy Firefox addon
-    shell: bash -c 'cp "codecopy@clipboardjs.com.xpi" /home/solo/.mozilla/firefox/*.default-release/extensions/'
+  - name: Install Google Chrome
+    apt:
+      name: google-chrome-stable
+      state: present
+      update_cache: yes
+
+  - name: Create the /etc/opt/chrome/policies/managed directory if it does not exist
+    file:
+      path: /etc/opt/chrome/policies/managed
+      state: directory
+
+  - name: Create the /etc/opt/chrome/policies/recommended directory if it does not exist
+    file:
+      path: /etc/opt/chrome/policies/recommended
+      state: directory
+
+  - name: Set the /etc/opt/chrome/policies/managed/test_policy.json
+    copy:
+      content: |
+                {
+                  "ExtensionInstallForcelist": ["fkbfebkcoelajmhanocgppanfoojcdmg;https://clients2.google.com/service/update2/crx"],
+                  "NewTabPageLocation": "https://github.com/solo-io/workshops"
+                }
+      dest: /etc/opt/chrome/policies/managed/test_policy.json
 
   - name: Create the /home/solo/Desktop directory if it does not exist
     file:
@@ -345,8 +355,8 @@
   - name: Copy the Terminal shortcut
     shell: cp /usr/share/applications/org.gnome.Terminal.desktop /home/solo/Desktop/
 
-  - name: Copy the Firefox shortcut
-    shell: cp /usr/share/applications/firefox.desktop /home/solo/Desktop/
+  - name: Copy the Google Chrome shortcut
+    shell: cp /usr/share/applications/google-chrome.desktop /home/solo/Desktop/
 
   - name: Set the /home/solo/.vnc/xstartup content
     copy:
