@@ -196,16 +196,113 @@ Now reach to web-api service from the sleep pod in the default namespace.
 kubectl exec -it deploy/sleep -n default -- curl http://web-api.istioinaction:8080/
 ```
 
-You will get a 200 status code because the sleep pod in the default namespace doesn't have any sidecar resource thus can see all the configuration for the web-api service in istioinaction.  In summary, sidecar resource can be used per namespace as shown above or per workload by using label selector, or globally.  It is recommended to enable it per namespace or workload first before enable it globally.  Sidecar resource controls the visibility of configurations and what gets pushed to the sidecar proxy.  Further, sidecar resource should NOT be used as security enforcement to prevent service A to reach to service B.  Istio authorization policy (or network policy for layer 3/4 traffic) should be used instead to enforce the security boundry.
+You will get a 200 status code because the sleep pod in the default namespace doesn't have any sidecar resource thus can see all the configuration for the web-api service in istioinaction.  
+
+In summary, sidecar resource can be used per namespace as shown above or per workload by using label selector, or globally.  It is recommended to enable it per namespace or workload first before enable it globally.  Sidecar resource controls the visibility of configurations and what gets pushed to the sidecar proxy.  Further, sidecar resource should NOT be used as security enforcement to prevent service A to reach to service B.  Istio authorization policy (or network policy for layer 3/4 traffic) should be used instead to enforce the security boundry.
 
 ## export-To scope for service producers
 
-Service owners can apply `export-To` to define a list of namespaces that the Istio networking resources can be applied to.  Currently, this configuration is only available for Virtual Service, Destination Rule and Service Entry resources in Istio. For example, as the service owner for the recommendation service, you may want to control that web-api service is only available for the istioinaction namespace and the istio-system namespace.
+Service owners can apply `export-To` to define a list of namespaces that the Istio networking resources can be applied to. This configuration is only available for Virtual Service, Destination Rule and Service Entry resources in Istio. By default, if nothing is specified for `export-To` for these resources, they are made available to all namespaces in the mesh. However, it is best practice to trim the unnecessary proxy configurations. For example, as the service owner for the recommendation service, you may want to control that web-api service is only available for the istioinaction namespace and the istio-system namespace.
 
-Call the recommendation service from the sleep service in the default namespace.
+Recall how to get the ingress gateway IP:
 
+```bash
+GATEWAY_IP=$(kubectl get svc -n istio-system istio-ingressgateway -o jsonpath="{.status.loadBalancer.ingress[0].ip}")
+```
 
-## Virtual service resource merging
+Now send some traffic through the ingress gateway:
+
+```bash
+curl --cacert ./labs/04/certs/ca/root-ca.crt -H "Host: istioinaction.io" https://istioinaction.io --resolve istioinaction.io:443:$GATEWAY_IP
+```
+
+You should get 200 status code because in lab04, you have configured the gateway resource and virtual service resource in the istioinaction namespace, along with the `istioinaction-cert` secret in the istio-system namespace.
+
+Now, let us try create the `web-api-gateway` resource in the istio-system namespace, and continue to have the `web-api-gw-vs` virtual service resource in the istioinaction namespace and explore `exportTo` on this virtual service resource.
+
+First, delete the `web-api-gateway` gateway resource in the istioinaction namespace:
+
+```bash
+kubectl delete gw web-api-gateway -n istioinaction
+```
+
+Create the `web-api-gateway` gateway resource for the istio-system namespace instead:
+
+```
+kubectl apply -f labs/07/web-api-gw-https-istiosystem.yaml -n istio-system
+```
+
+Update the `web-api-gw-vs` virtual service resource in the istioinaction namespace, under ``gateways` section to refer to the `web-api-gateway` in the istio-system namespace.
+
+```yaml
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: web-api-gw-vs
+  namespace: istioinaction
+spec:
+  hosts:
+  - "istioinaction.io"
+  gateways:
+  - istio-system/web-api-gateway
+  http:
+  - route:
+    - destination:
+        host: web-api.istioinaction.svc.cluster.local
+        port:
+          number: 8080
+```
+
+Apply the virtual service resource:
+
+```bash
+kubectl apply -f labs/07/web-api-gw-vs.yaml -n istioinaction
+```
+
+Send some traffic to web-api through the istio ingress gateway via https:
+
+```bash
+curl --cacert ./labs/04/certs/ca/root-ca.crt -H "Host: istioinaction.io" https://istioinaction.io --resolve istioinaction.io:443:$GATEWAY_IP
+```
+
+You should continue to get 200 status code.  Now as web-api's service producer, you want to limit its virtual service scope to within the current namespace, with the `exportTo` configuration:
+
+```yaml
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: web-api-gw-vs
+  namespace: istioinaction
+spec:
+  hosts:
+  - "istioinaction.io"
+  gateways:
+  - istio-system/web-api-gateway
+  exportTo:
+  - "."
+  http:
+  - route:
+    - destination:
+        host: web-api.istioinaction.svc.cluster.local
+        port:
+          number: 8080
+```
+
+Apply the updated virtual service resource:
+
+```bash
+kubectl apply -f labs/07/web-api-gw-vs-exportto.yaml -n istioinaction
+```
+
+Send some traffic to web-api through the istio ingress gateway via https:
+
+```bash
+curl --cacert ./labs/04/certs/ca/root-ca.crt -H "Host: istioinaction.io" https://istioinaction.io --resolve istioinaction.io:443:$GATEWAY_IP
+```
+
+Because istio ingress gateway doesn't know how to route to the web-api service in the istioinaction namespace, you will get an empty reply instead.
+
+## Gateway resource merging
 
 Istio supports virtual service resource merging for resources that are not conflicted.
 
