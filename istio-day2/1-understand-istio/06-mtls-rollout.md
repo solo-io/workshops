@@ -29,9 +29,10 @@ kubectl get po -n default
 ```
 
 ```
-NAME                       READY   STATUS    RESTARTS   AGE
-httpbin-5dfd48f68d-77sfb   2/2     Running   0          5d12h
-sleep-854565cb79-h9qbl     1/1     Running   0          5d11h
+NAME                     READY   STATUS    RESTARTS   AGE
+envoy-54cd966796-vlcw6   1/1     Running   0          16h
+httpbin-9d9dbcd4-xr8tw   2/2     Running   0          17h
+sleep-854565cb79-j5828   1/1     Running   0          11s
 ```
 
 ## First steps
@@ -384,6 +385,10 @@ kubectl exec -it -n istioinaction deploy/sleep -c sleep -- curl web-api.istioina
 If we check the logs of the `web-api` service, we should see something similar to the following:
 
 ```bash
+kubectl logs -n istioinaction deploy/web-api -c istio-proxy
+```
+
+```
 [2021-03-02T14:26:28.710Z] "GET / HTTP/1.1" 200 - "-" 0 1102 9 8 "-" cert: "By=spiffe://cluster.local/ns/istioinaction/sa/web-api;Hash=6db8be07ebcbaffdd88c7652e0cc34e264c0d6b484b98074ffa61a6e7cb1aec3;Subject="";URI=spiffe://cluster.local/ns/istioinaction/sa/sleep" audit_flag: "false"
 ```
 
@@ -422,3 +427,8 @@ spec:
 ```bash
 kubectl apply -f labs/06/istioinaction-peerauth-strict.yaml
 ```
+
+
+## Next Lab
+
+In the [next lab](07-controlling-config.md), we will see how to finely tune configuration for the Istio sidecar proxies to lower any residual overhead and make the sidecar proxies operate lean and mean.

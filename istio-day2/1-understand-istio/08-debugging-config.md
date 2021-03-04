@@ -44,7 +44,9 @@ more here:
 https://istio.io/latest/docs/ops/diagnostic-tools/component-logging/
 
 
-also envoy version: kubectl exec -it productpage-v1-6b746f74dc-9stvs -c istio-proxy -n default  -- pilot-agent request GET server_info --log_as_json | jq {version}
+also envoy version: 
+
+kubectl exec -it productpage-v1-6b746f74dc-9stvs -c istio-proxy -n default  -- pilot-agent request GET server_info --log_as_json | jq {version}
 
 
 ## health checking on proxy/agent via health ports
