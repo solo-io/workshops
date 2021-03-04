@@ -6,5 +6,5 @@ metadata:
 spec:
   egress:
   - hosts:
-    - "./web-api.istioinaction"
+    - "./web-api.istioinaction.svc.cluster.local"    
     - "istio-system/*"

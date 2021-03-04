@@ -19,7 +19,7 @@ metadata:
 spec:
   egress:
   - hosts:
-    - "./web-api.istioinaction"
+    - "./web-api.istioinaction.svc.cluster.local"    
     - "istio-system/*"
 ```
 
@@ -46,28 +46,13 @@ Defaulting container name to sleep.
   "ip_addresses": [
     "192.168.1.168"
   ],
-  "start_time": "2021-03-03T20:38:25.871661",
-  "end_time": "2021-03-03T20:38:25.877065",
-  "duration": "5.4049ms",
+  "start_time": "2021-03-04T04:03:58.041278",
+  "end_time": "2021-03-04T04:03:58.044000",
+  "duration": "2.7219ms",
   "upstream_calls": [
     {
-      "name": "recommendation",
       "uri": "http://recommendation:8080",
-      "type": "HTTP",
-      "ip_addresses": [
-        "192.168.1.169"
-      ],
-      "start_time": "2021-03-03T20:38:25.873831",
-      "end_time": "2021-03-03T20:38:25.876187",
-      "duration": "2.3579ms",
-      "upstream_calls": [
-        {
-          "uri": "http://purchase-history:8080",
-          "code": -1,
-          "error": "Error communicating with upstream service: Get http://purchase-history:8080/: EOF"
-        }
-      ],
-      "code": 500,
+      "code": 503,
       "error": "Error processing upstream request: http://recommendation:8080/"
     }
   ],
@@ -75,13 +60,14 @@ Defaulting container name to sleep.
 }
 ```
 
-This is because the web-api pod's sidecar doesn't know how to get to the recommendation service successfully, neither can the recommendation pod's sidecar know how to reach the purchase-history service. If you review the cluster output, you can see the web-api pod is not aware of the recommendation or purchase-history at all.
+This is because the web-api pod's sidecar doesn't know how to get to the recommendation service successfully. If you review the cluster output, you can see the web-api pod is not aware of the recommendation or purchase-history at all.
 
 ```bash
 istioctl pc cluster deploy/web-api.istioinaction
 ```
 
-You should get output like below with many services from the istio-system namespace and no service from the istioinaction namespace.
+You should get output like below with many services from the istio-system namespace and only the web-api service from the istioinaction namespace:
+
 ```      
 SERVICE FQDN                                            PORT      SUBSET     DIRECTION     TYPE             DESTINATION RULE
 ...         
@@ -99,8 +85,9 @@ istiod.istio-system.svc.cluster.local                   15010     -          out
 istiod.istio-system.svc.cluster.local                   15012     -          outbound      EDS              
 istiod.istio-system.svc.cluster.local                   15014     -          outbound      EDS              
 kiali.istio-system.svc.cluster.local                    9090      -          outbound      EDS              
-kiali.istio-system.svc.cluster.local                    20001     -          outbound      EDS              
-...
+kiali.istio-system.svc.cluster.local                    20001     -          outbound      EDS                        
+web-api.istioinaction.svc.cluster.local                 8080      -          outbound      EDS              
+...    
 ```
 
 Let's modify the sidecar resource to allow all services within the same namespace:
@@ -192,25 +179,21 @@ SERVICE FQDN                                            PORT      SUBSET     DIR
 ...           
 purchase-history.istioinaction.svc.cluster.local        8080      -          outbound      EDS              
 recommendation.istioinaction.svc.cluster.local          8080      -          outbound      EDS              
-sds-grpc                                                -         -          -             STATIC           
 sleep.istioinaction.svc.cluster.local                   80        -          outbound      EDS              
-web-api.istioinaction.svc.cluster.local                 8080      -          outbound
-EDS
+web-api.istioinaction.svc.cluster.local                 8080      -          outbound      EDS
 ...
 ```
 
-TODO: remove this portion below as it doesn't seem to work yet.
-
-Now reach to web-api service from the sleep pod in the default namespace.
-
-```bash
-kubectl exec -it deploy/sleep -- curl http://web-api.istioinaction:8080/
-```
-
-You should also get a 200 code because your sleep pod in the default namespace doesn't have a sidecar yet so there is no sidecar proxy to mediate the traffic.  Let's inject the sidecar proxy to the sleep pod in the default namespace.
+Check if your sleep pod has sidecar proxy injected.  If not, deploy it with sidecar proxy injected:
 
 ```bash
 istioctl kube-inject -f sample-apps/sleep.yaml --meshConfigMapName istio-1-8-3 --injectConfigMapName istio-sidecar-injector-1-8-3  | kubectl apply -n default -f -
+```
+
+Now reach to web-api service from the sleep pod in the default namespace:
+
+```bash
+kubectl exec -it deploy/sleep -- curl http://web-api.istioinaction:8080/
 ```
 
 Now reach to web-api service from the sleep pod in the default namespace.
@@ -219,33 +202,61 @@ Now reach to web-api service from the sleep pod in the default namespace.
 kubectl exec -it deploy/sleep -n default -- curl http://web-api.istioinaction:8080/
 ```
 
-You still get a 200 code because your sleep pod doesn't have any sidecar traffic mediation configured so the sleep pod in the default namespace still knows how to route to the web-api service in the istioinaction namespace.  
+You should not be able to get a 200 status code because the sleep pod doesn't have the necessary sidecar configuration to establish the connection to the web-api pod in the istioinaction namespace:
 
 ```
+Defaulting container name to sleep.
+Use 'kubectl describe pod/sleep-5db46f66c4-gtq96 -n default' to see all of the containers in this pod.
+curl: (52) Empty reply from server
+```
+
+Let us configure the sleep pod in the default namespace to see the configuration for the web-api pod in the istioinaction namespace:
+
+```yaml
 apiVersion: networking.istio.io/v1beta1
 kind: Sidecar
 metadata:
-  name: default
-  namespace: istioinaction
+  name: default-sleep
+  namespace: default
 spec:
   egress:
   - hosts:
-    - "./*"
+    - "istioinaction/web-api.istioinaction.svc.cluster.local"
     - "istio-system/*"
 ```
 
-Apply this `default-sidecar.yaml` file in the default namespace to your cluster:
+Deploy the `labs/07/default-sidecar.yaml` file:
 
 ```bash
 kubectl apply -f labs/07/default-sidecar.yaml -n default
 ```
 
-Let's declare web-api is also added from the sleep service in the default namespace.
+Let us curl the web-api service from the sleep pod in the default namespace:
+
+```bash
+kubectl exec -it deploy/sleep -n default -- curl http://web-api.istioinaction:8080/
+```
+
+Success!
+
+```
+Defaulting container name to sleep.
+{
+  "name": "web-api",
+  "uri": "/",
+  "type": "HTTP",
+  "ip_addresses": [
+    "192.168.1.168"
+  ],
+...
+  "code": 200
+}
+```
 
 
-## Export-To scope for service producers
+## export-To scope for service producers
 
-As the service owner for the recommendation service, you want to control that web-api service is only available for the istioinaction namespace
+Service owners can apply `export-To` to define a list of namespaces that the Istio networking resources can be applied to.  Currently, this configuration is only available for Virtual Service, Destination Rule and Service Entry resources in Istio. For example, as the service owner for the recommendation service, you may want to control that web-api service is only available for the istioinaction namespace and the istio-system namespace.
 
 Call the recommendation service from the sleep service in the default namespace.
 
