@@ -190,69 +190,13 @@ Check if your sleep pod has sidecar proxy injected.  If not, deploy it with side
 istioctl kube-inject -f sample-apps/sleep.yaml --meshConfigMapName istio-1-8-3 --injectConfigMapName istio-sidecar-injector-1-8-3  | kubectl apply -n default -f -
 ```
 
-Now reach to web-api service from the sleep pod in the default namespace:
-
-```bash
-kubectl exec -it deploy/sleep -- curl http://web-api.istioinaction:8080/
-```
-
 Now reach to web-api service from the sleep pod in the default namespace.
 
 ```bash
 kubectl exec -it deploy/sleep -n default -- curl http://web-api.istioinaction:8080/
 ```
 
-You should not be able to get a 200 status code because the sleep pod doesn't have the necessary sidecar configuration to establish the connection to the web-api pod in the istioinaction namespace:
-
-```
-Defaulting container name to sleep.
-Use 'kubectl describe pod/sleep-5db46f66c4-gtq96 -n default' to see all of the containers in this pod.
-curl: (52) Empty reply from server
-```
-
-Let us configure the sleep pod in the default namespace to see the configuration for the web-api pod in the istioinaction namespace:
-
-```yaml
-apiVersion: networking.istio.io/v1beta1
-kind: Sidecar
-metadata:
-  name: default-sleep
-  namespace: default
-spec:
-  egress:
-  - hosts:
-    - "istioinaction/web-api.istioinaction.svc.cluster.local"
-    - "istio-system/*"
-```
-
-Deploy the `labs/07/default-sidecar.yaml` file:
-
-```bash
-kubectl apply -f labs/07/default-sidecar.yaml -n default
-```
-
-Let us curl the web-api service from the sleep pod in the default namespace:
-
-```bash
-kubectl exec -it deploy/sleep -n default -- curl http://web-api.istioinaction:8080/
-```
-
-Success!
-
-```
-Defaulting container name to sleep.
-{
-  "name": "web-api",
-  "uri": "/",
-  "type": "HTTP",
-  "ip_addresses": [
-    "192.168.1.168"
-  ],
-...
-  "code": 200
-}
-```
-
+You will get a 200 status code because the sleep pod in the default namespace doesn't have any sidecar resource thus can see all the configuration for the web-api service in istioinaction.  In summary, sidecar resource can be used per namespace as shown above or per workload by using label selector, or globally.  It is recommended to enable it per namespace or workload first before enable it globally.  Sidecar resource controls the visibility of configurations and what gets pushed to the sidecar proxy.  Further, sidecar resource should NOT be used as security enforcement to prevent service A to reach to service B.  Istio authorization policy (or network policy for layer 3/4 traffic) should be used instead to enforce the security boundry.
 
 ## export-To scope for service producers
 
