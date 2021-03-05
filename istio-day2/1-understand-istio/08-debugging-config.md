@@ -129,7 +129,7 @@ As we've seen in previous labs, the `istioctl proxy-config` command can be used 
 
 ### Config
 
-The `istioctl proxy-config` command allows you to review the data plane configuration which effectively comes from the `/config_dump` endpoint on Envoy's admin module. We can go right to that module with the following command:
+The `istioctl proxy-config` command allows you to review the data plane configuration which effectively comes from the `/config_dump` endpoint on Envoy's admin module. We can go right to the admin API with the following command:
 
 ```bash
 istioctl dashboard envoy <pod-name[.namespace]>
@@ -143,19 +143,29 @@ This takes us to the Envoy dashboard and gives access to things like `/stats`, `
 
 Envoy proxy can be configured to increase logging levels to very fine-grained "debug" level which will help you understand more about what's happening on the data plane. Envoy also categorizes different modules for logging, so you can enable/disable logging for just the components you need to review. 
 
-For example, to turn on debug logging for a particular pod:
+For example, to turn on `debug` logging for a particular pod:
 
 ```bash
-istioctl proxy-config log deploy/web-api --level debug
+istioctl proxy-config log deploy/web-api -n istioinaction --level debug
 ```
 
 To configure just a specific module for debug:
 
 ```bash
-istioctl proxy-config log deploy/web-api --level connection:debug,conn_handler:debug,filter:debug,router:debug,http:debug,upstream:debug
+istioctl proxy-config log deploy/web-api -n istioinaction --level connection:debug,conn_handler:debug,filter:debug,router:debug,http:debug,upstream:debug
 ```
 
-Some of the common ones used to debug connection/routing issues are seen above. The full list is in this table:
+The following logging levels are available:
+
+* trace
+* debug
+* info
+* warning
+* error
+* critical
+* off
+
+Some of the common subsections used to debug connection/routing issues are seen above. The full list is in this table:
 
 
 <table>
@@ -224,16 +234,79 @@ Some of the common ones used to debug connection/routing issues are seen above. 
 </tr>
 </table>
 
-## Debugg data plane:
-
-
-
 
 ## profile dumps of control plane / agent / envoy?
+
+kubectl port-forward -n istio-system deploy/istiod 8080:8080
+
+More notes:
+
+https://docs.google.com/document/d/1QXsh3m2UQY00OHh2Uyi7W9Cj8XoY69Bn5rrBTarMOKk/edit#
+
+https://github.com/istio/istio/wiki/Analyzing-Istio-Performance#cpu-profile
+
+## Additional debug paths
+
+Istio provides a nice `debug` interface on the Istio control plane. We can call it with the convenience command on the `pilot-discovery` like we did in the previous step. We could also call it from `curl` or any HTTP client like:
+
+```bash
+kubectl exec -it deploy/sleep -- curl http://istiod.istio-system:15014/debug/registryz
+```
+
+Some additional paths that are definitely useful for debugging the control plane:
+
+| Path | Description |
+| ---- | ----------- |
+| /debug/edsz | Status and debug interface for EDS |
+| /debug/ndsz | Status and debug interface for NDS |
+| /debug/adsz | Status and debug interface for ADS |
+| /debug/adsz?push=true | Initiates push of the current state to all connected endpoints | 
+| /debug/syncz | Synchronization status of all Envoys connected to this Pilot instance |
+| /debug/config_distribution | Version status of all Envoys connected to this Pilot instance |
+| /debug/registryz | Debug support for registry |
+| /debug/endpointz | Debug support for endpoints |
+| /debug/endpointShardz | Info about the endpoint shards |
+| /debug/cachez | Info about the internal XDS caches |
+| /debug/configz | Debug support for config |
+| /debug/resourcesz | Debug support for watched resources |
+| /debug/instancesz | Debug support for service instances |
+| /debug/authorizations | Internal authorization policies |
+| /debug/config_dump | ConfigDump in the form of the Envoy admin config dump API for passed in proxyID |
+| /debug/push_status | Last PushContext Details |
+| /debug/inject | Active inject template |
+
+For example, to get the EDS debug info for the httpbin service proxy:
+
+```bash
+export HTTPBIN_ID=$(kubectl get pod -l app=httpbin -o jsonpath='{.items[0].metadata.name}')
+kubectl exec -it deploy/sleep -- curl http://istiod.istio-system:15014/debug/edsz?proxyID=$HTTPBIN_ID
+```
+
+To get Prometheus metrics for the `istiod` control plane:
+
+```bash
+kubectl exec -it deploy/sleep -- curl http://istiod.istio-system:15014/metrics
+```
+
+To get Istiod version:
+
+```bash
+kubectl exec -it deploy/sleep -- curl http://istiod.istio-system:15014/version
+```
+
 
 ## debug endpoints on CP (maybe move that from lab 02?)
 
 what about controlz?
+istioctl dashboard controlz deploy/istiod-1-8-3
+
+http://localhost:8080/debug
+
+To get the profile:
+
+http://localhost:8080/debug/pprof/profile?seconds=30
+
+
 
 enabling logging for istiod
 by cli flag:
