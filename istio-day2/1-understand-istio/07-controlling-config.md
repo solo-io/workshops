@@ -1,5 +1,3 @@
-sidecar, export-to, VS merging, and VS delegation
-
 # Lab 7 :: Controlling configuration scope
 
 By default, Istio networking resources and services are visible to all services running in all namespaces that are part of the Istio service mesh. As you add more services to the mesh, the amount of sidecar proxy's configuration increases dramatically which will grow your sidecar proxy's memory accordingly. Thus this default behavior is not desired when you have more than a few services and not all of your services communicate to all other services.
@@ -200,7 +198,7 @@ You will get a 200 status code because the sleep pod in the default namespace do
 
 In summary, sidecar resource can be used per namespace as shown above or per workload by using label selector, or globally.  It is recommended to enable it per namespace or workload first before enable it globally.  Sidecar resource controls the visibility of configurations and what gets pushed to the sidecar proxy.  Further, sidecar resource should NOT be used as security enforcement to prevent service A to reach to service B.  Istio authorization policy (or network policy for layer 3/4 traffic) should be used instead to enforce the security boundry.
 
-## export-To scope for service producers
+## export-To configuration for service producers
 
 Service owners can apply `export-To` in Virtual Service, Destination Rule and Service Entry resources to define a list of namespaces that the Istio networking resources can be applied to. Further, service owners can declare their services' visibility via the `networking.istio.io/exportTo` annotation. By default, if no `export-To` for these Istio resources or users' services, they are made available to all namespaces in the mesh. However, it is best practice to trim the unnecessary proxy configurations. For example, as the service owner for the recommendation service, you may want to control that web-api service is only available for the istioinaction namespace and the istio-system namespace.
 
@@ -407,9 +405,79 @@ Let us undo the annotation so that you can continue to reach to web-api service 
 kubectl apply -f labs/07/web-api-service.yaml -n istioinaction
 ```
 
-## Gateway resource merging
+## Virtual service resource merging
 
-Istio supports virtual service resource merging for resources that are not conflicted.
+Istio supports simple virtual service resource merging for same host when there is no conflicts. This is helpful when each service owner owns the virtual service resource on his/her own.  Let us explore this with the helloworld sample from Istio along with our web-api service.
+
+Deploy the helloworld sample in the istioinaction namespace:
+
+```bash
+kubectl apply -f https://raw.githubusercontent.com/istio/istio/master/samples/helloworld/helloworld.yaml -n istioinaction
+```
+
+You should see the helloworld pods reach running in a few seconds:
+
+```bash
+kubectl get po -n istioinaction
+```
+
+Deploy the helloworld virtual service.  This virtual service has some changes over the default one shipped from Istio,  changes are in the `hosts` and `gateways` values to refer to the same host and gateway as the web-api service.
+
+```yaml
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: helloworld
+spec:
+  hosts:
+  - "istioinaction.io"
+  gateways:
+  - istio-system/web-api-gateway
+  http:
+  - match:
+    - uri:
+        exact: /hello
+    route:
+    - destination:
+        host: helloworld
+        port:
+          number: 5000
+```
+
+Deploy this helloworld virtual service in the istioinaction namespace
+
+```bash
+kubectl apply -f labs/07/helloworld-gateway.yaml -n istioinaction
+```
+
+Send some http traffic to the helloworld service via the istio-ingressgateway:
+
+```bash
+curl -H "Host: istioinaction.io" http://istioinaction.io/hello --resolve istioinaction.io:80:$GATEWAY_IP  
+```
+
+Also send some https traffic to the helloworld service via the istio-ingressgateway:
+
+```bash
+curl --cacert ./labs/04/certs/ca/root-ca.crt -H "Host: istioinaction.io" https://istioinaction.io/hello --resolve istioinaction.io:443:$GATEWAY_IP 
+```
+
+You should receive some hello message like below for both of these curl commands:
+
+```
+Hello version: v1, instance: helloworld-v1-776f57d5f6-29xdw
+```
+
+Send some https traffic to the web-api service via the istio-ingressgateway:
+
+```bash
+ curl --cacert ./labs/04/certs/ca/root-ca.crt -H "Host: istioinaction.io" https://istioinaction.io --resolve istioinaction.io:443:$GATEWAY_IP
+```
+
+You should see the 200 status code as before.
+
+
+
 
 Explain VS merging with httpbin and web-api.
 
