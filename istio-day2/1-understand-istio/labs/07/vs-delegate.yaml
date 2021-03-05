@@ -1,0 +1,21 @@
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: delegate-vs
+  namespace: istio-system
+spec:
+  hosts:
+  - "istioinaction.io"
+  gateways:
+  - web-api-gateway
+  http:
+  - match:
+    - uri:
+        exact: /hello
+    delegate:
+      name: helloworld
+      namespace: default
+  - route:
+    delegate:
+      name: web-api-gw-vs
+      namespace: istioinaction

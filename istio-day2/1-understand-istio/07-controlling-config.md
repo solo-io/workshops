@@ -490,13 +490,89 @@ http.80                                          istioinaction.io     /*        
                                                  *                    /healthz/ready*        
                                                  *                    /stats/prometheus*
 ```
+
 ## Virtual service resource delegation
 
 Gateway resource in istio-system, and delegate the VS resource to the service's namespace.  for example platform owner owns the gateway resources on which hosts and associated port numbers and TLS configuration but want to delegate the details of the virtual service resources to service owners.
 
 
-Validate VS delegation working by visit the web-api:
+```bash
+kubectl delete vs web-api-gw-vs -n istioinaction
+kubectl delete vs helloworld -n istioinaction
+```
 
+Create the helloworld in the default namespace:
+
+```bash
+kubectl apply -f https://raw.githubusercontent.com/istio/istio/master/samples/helloworld/helloworld.yaml
+```
+
+As platform owner, one can decide which route is delegated to which team in a specific namespace the team owns. For example, one can delegate the `/hello` to the helloworld virtual service in the default namespace and other routes to web-api-gw-vs virtual service in the istioinaction namespace:
+
+```yaml
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: delegate-vs
+  namespace: istio-system
+spec:
+  hosts:
+  - "istioinaction.io"
+  gateways:
+  - web-api-gateway
+  http:
+  - match:
+    - uri:
+        exact: /hello
+    delegate:
+      name: helloworld
+      namespace: default
+  - route:
+    delegate:
+      name: web-api-gw-vs
+      namespace: istioinaction
+```
+Apply the above virtual service resource at the istio-system namespace:
+
+```bash
+kubectl apply -f labs/07/vs-delegate.yaml -n istio-system
+```
+
+Create the helloworld virtual service in the default namespace:
+
+```bash
+kubectl apply -f labs/07/helloworld-vs.yaml -n default
+```
+
+Validate VS delegation working by visit the web-api service via the istio-ingressgateway:
+
+```bash
+curl --cacert ./labs/04/certs/ca/root-ca.crt -H "Host: istioinaction.io" https://istioinaction.io --resolve istioinaction.io:443:$GATEWAY_IP
+```
+
+Send some traffic to helloworld service via the istio-ingressgateway:
+
+```bash
+curl --cacert ./labs/04/certs/ca/root-ca.crt -H "Host: istioinaction.io" https://istioinaction.io/hello --resolve istioinaction.io:443:$GATEWAY_IP
+```
+
+Repeat the same commands for http traffic as well. :) As you can see the virtual service delegation is working.  Check what the route look like from the istio-ingressgateway pod:
+
+```bash
+istioctl pc routes deploy/istio-ingressgateway -n istio-system
+```
+
+From the output, you can see the routes are correct for the istioinaction.io host for both `https.443` and `http.80`. The output is same as what you saw earlier in the virtual service resource merging section except the helloworld is from the default namespace.
+
+```
+NAME                                             DOMAINS              MATCH                  VIRTUAL SERVICE
+https.443.https.web-api-gateway.istio-system     istioinaction.io     /hello                 helloworld.default
+https.443.https.web-api-gateway.istio-system     istioinaction.io     /*                     web-api-gw-vs.istioinaction
+http.80                                          istioinaction.io     /hello                 helloworld.default
+http.80                                          istioinaction.io     /*                     web-api-gw-vs.istioinaction
+                                                 *                    /healthz/ready*        
+                                                 *                    /stats/prometheus*  
+```
 
 ## Next Lab
 
