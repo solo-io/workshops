@@ -447,7 +447,7 @@ spec:
 Deploy this helloworld virtual service in the istioinaction namespace
 
 ```bash
-kubectl apply -f labs/07/helloworld-gateway.yaml -n istioinaction
+kubectl apply -f labs/07/helloworld-vs.yaml -n istioinaction
 ```
 
 Send some http traffic to the helloworld service via the istio-ingressgateway:
@@ -471,18 +471,25 @@ Hello version: v1, instance: helloworld-v1-776f57d5f6-29xdw
 Send some https traffic to the web-api service via the istio-ingressgateway:
 
 ```bash
- curl --cacert ./labs/04/certs/ca/root-ca.crt -H "Host: istioinaction.io" https://istioinaction.io --resolve istioinaction.io:443:$GATEWAY_IP
+curl --cacert ./labs/04/certs/ca/root-ca.crt -H "Host: istioinaction.io" https://istioinaction.io --resolve istioinaction.io:443:$GATEWAY_IP
 ```
 
-You should see the 200 status code as before.
+You should see the 200 status code as before.  This is because Istiod successfully merged the virtual services resources (`helloworld-vs.yaml` & `web-api-gw-vs.yaml`) automatically for you knowing they are using the same host name. If you examine the routes configuration for istio-ingressgateway:
 
+```bash
+istioctl pc routes deploy/istio-ingressgateway -n istio-system
+```
 
-
-
-Explain VS merging with httpbin and web-api.
-
-Test endpoint.
-
+From the output, you can see the routes are merged for the istioinaction.io host for both `https.443` and `http.80`.
+```
+NAME                                             DOMAINS              MATCH                  VIRTUAL SERVICE
+https.443.https.web-api-gateway.istio-system     istioinaction.io     /hello                 helloworld.istioinaction
+https.443.https.web-api-gateway.istio-system     istioinaction.io     /*                     web-api-gw-vs.istioinaction
+http.80                                          istioinaction.io     /hello                 helloworld.istioinaction
+http.80                                          istioinaction.io     /*                     web-api-gw-vs.istioinaction
+                                                 *                    /healthz/ready*        
+                                                 *                    /stats/prometheus*
+```
 ## Virtual service resource delegation
 
 Gateway resource in istio-system, and delegate the VS resource to the service's namespace.  for example platform owner owns the gateway resources on which hosts and associated port numbers and TLS configuration but want to delegate the details of the virtual service resources to service owners.
