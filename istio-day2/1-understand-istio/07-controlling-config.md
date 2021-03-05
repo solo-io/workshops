@@ -202,7 +202,7 @@ In summary, sidecar resource can be used per namespace as shown above or per wor
 
 ## export-To scope for service producers
 
-Service owners can apply `export-To` to define a list of namespaces that the Istio networking resources can be applied to. This configuration is only available for Virtual Service, Destination Rule and Service Entry resources in Istio. By default, if nothing is specified for `export-To` for these resources, they are made available to all namespaces in the mesh. However, it is best practice to trim the unnecessary proxy configurations. For example, as the service owner for the recommendation service, you may want to control that web-api service is only available for the istioinaction namespace and the istio-system namespace.
+Service owners can apply `export-To` in Virtual Service, Destination Rule and Service Entry resources to define a list of namespaces that the Istio networking resources can be applied to. Further, service owners can declare their services' visibility via the `networking.istio.io/exportTo` annotation. By default, if no `export-To` for these Istio resources or users' services, they are made available to all namespaces in the mesh. However, it is best practice to trim the unnecessary proxy configurations. For example, as the service owner for the recommendation service, you may want to control that web-api service is only available for the istioinaction namespace and the istio-system namespace.
 
 Recall how to get the ingress gateway IP:
 
@@ -265,7 +265,23 @@ Send some traffic to web-api through the istio ingress gateway via https:
 curl --cacert ./labs/04/certs/ca/root-ca.crt -H "Host: istioinaction.io" https://istioinaction.io --resolve istioinaction.io:443:$GATEWAY_IP
 ```
 
-You should continue to get 200 status code.  Now as web-api's service producer, you want to limit its virtual service scope to within the current namespace, with the `exportTo` configuration:
+You should continue to get 200 status code.  Check the route configuration for istio-ingressgateway in the istio-system namespace:
+
+```bash
+istioctl pc route deploy/istio-ingressgateway.istio-system
+```
+
+The route output shows the expected `web-api-gw-vs.istioinaction` for the web-api-gateway for both port 443 and port 80:
+
+```yaml
+NAME                                             DOMAINS              MATCH                  VIRTUAL SERVICE
+https.443.https.web-api-gateway.istio-system     istioinaction.io     /*                     web-api-gw-vs.istioinaction
+http.80                                          istioinaction.io     /*                     web-api-gw-vs.istioinaction
+                                                 *                    /healthz/ready*        
+                                                 *                    /stats/prometheus* 
+```
+
+Now as web-api's service producer, you want to limit its virtual service scope to within the current namespace, with the `exportTo` configuration:
 
 ```yaml
 apiVersion: networking.istio.io/v1alpha3
@@ -300,7 +316,96 @@ Send some traffic to web-api through the istio ingress gateway via https:
 curl --cacert ./labs/04/certs/ca/root-ca.crt -H "Host: istioinaction.io" https://istioinaction.io --resolve istioinaction.io:443:$GATEWAY_IP
 ```
 
-Because istio ingress gateway doesn't know how to route to the web-api service in the istioinaction namespace, you will get an empty reply instead.
+Because istio ingress gateway doesn't know how to route to the web-api service in the istioinaction namespace, you will get an empty reply instead.  Confirm the route configuration for istio-ingressgateway in the istio-system namespace:
+
+```bash
+istioctl pc route deploy/istio-ingressgateway.istio-system
+```
+
+The route output shows 404 for the web-api-gateway's virtual service:
+
+```yaml
+NAME                                             DOMAINS     MATCH                  VIRTUAL SERVICE
+https.443.https.web-api-gateway.istio-system     *           /*                     404
+http.80                                          *           /*                     404
+                                                 *           /healthz/ready*        
+                                                 *           /stats/prometheus*    
+```
+
+Let's undo the `exportTo` configuration in the virtual service resource:
+
+```bash
+kubectl apply -f labs/07/web-api-gw-vs.yaml -n istioinaction
+```
+
+Confirm you can send some traffic to web-api service via istio-ingressgateway and get a 200 status code.  Check the clusters for the istio-ingressgateway:
+
+```bash
+istioctl pc cluster deploy/istio-ingressgateway.istio-system
+```
+
+You'll see web-api.istioinaction is in the list of services:
+
+```
+SERVICE FQDN                                PORT     SUBSET     DIRECTION     TYPE           DESTINATION RULE
+BlackHoleCluster                            -        -          -             STATIC         
+agent                                       -        -          -             STATIC         
+prometheus_stats                            -        -          -             STATIC         
+sds-grpc                                    -        -          -             STATIC         
+web-api.istioinaction.svc.cluster.local     8080     -          outbound      EDS            
+xds-grpc                                    -        -          -             STATIC         
+zipkin                                      -        -          -             STRICT_DNS  
+```
+
+Add the `networking.istio.io/exportTo` annotation to the web-api service to specify the service is only exported to the deployed namespace (e.g. istioinaction):
+
+```yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: web-api
+  annotations:
+    networking.istio.io/exportTo: "."
+spec:
+  selector:
+    app: web-api
+  ports:
+  - name: http
+    protocol: TCP
+    port: 8080
+    targetPort: 8080
+
+```
+
+Deploy the change to the web-api service:
+
+```bash
+kubectl apply -f labs/07/web-api-service-exportto.yaml -n istioinaction
+```
+
+Do you think you will be able to reach web-api via istio ingressgateway? You won't because the web-api service declares it is only exposed to the istioinaction namespace.  Check the clusters for the istio-ingressgateway:
+
+```bash
+istioctl pc cluster deploy/istio-ingressgateway.istio-system
+```
+
+You'll NOT see web-api.istioinaction is in the list of services:
+
+```
+SERVICE FQDN         PORT     SUBSET     DIRECTION     TYPE           DESTINATION RULE
+BlackHoleCluster     -        -          -             STATIC         
+agent                -        -          -             STATIC         
+prometheus_stats     -        -          -             STATIC         
+sds-grpc             -        -          -             STATIC         
+xds-grpc             -        -          -             STATIC         
+zipkin               -        -          -             STRICT_DNS       
+```
+
+Let us undo the annotation so that you can continue to reach to web-api service via istio-ingressgateway:
+
+```bash
+kubectl apply -f labs/07/web-api-service.yaml -n istioinaction
+```
 
 ## Gateway resource merging
 

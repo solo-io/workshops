@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: web-api
+  annotations:
+    networking.istio.io/exportTo: "."  
+spec:
+  selector:
+    app: web-api
+  ports:
+  - name: http
+    protocol: TCP
+    port: 8080
+    targetPort: 8080
