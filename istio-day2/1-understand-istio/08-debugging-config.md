@@ -1,6 +1,6 @@
 # Lab 8 :: Debugging Istio configuration
 
-The service mesh contains proxies that are on the request path between services. When anomalies are detected, it's typically because of a misconfiguration. In this lab, we explore tools to troubleshoot misconfiguration and turn different knobs to tell us more information about where to look. 
+The service mesh contains proxies that are on the request path between services. When anomalies are detected, it's typically because of a misconfiguration. In this lab, we explore tools to troubleshoot misconfiguration and get a better understanding of how to debug Istio.
 
 ## istioctl analyze
 
@@ -235,17 +235,7 @@ Some of the common subsections used to debug connection/routing issues are seen 
 </table>
 
 
-## profile dumps of control plane / agent / envoy?
-
-kubectl port-forward -n istio-system deploy/istiod 8080:8080
-
-More notes:
-
-https://docs.google.com/document/d/1QXsh3m2UQY00OHh2Uyi7W9Cj8XoY69Bn5rrBTarMOKk/edit#
-
-https://github.com/istio/istio/wiki/Analyzing-Istio-Performance#cpu-profile
-
-## Additional debug paths
+## Additional health and monitoring endpoints
 
 Istio provides a nice `debug` interface on the Istio control plane. We can call it with the convenience command on the `pilot-discovery` like we did in the previous step. We could also call it from `curl` or any HTTP client like:
 
@@ -294,22 +284,38 @@ To get Istiod version:
 kubectl exec -it deploy/sleep -- curl http://istiod.istio-system:15014/version
 ```
 
+### What about on the data plane?
 
-## debug endpoints on CP (maybe move that from lab 02?)
+
+
+## Profiling the control plane and data plane
+
+kubectl port-forward -n istio-system deploy/istiod-1-8-3 15014
+
+localhost:15014/debug
+
+
+https://docs.google.com/document/d/1QXsh3m2UQY00OHh2Uyi7W9Cj8XoY69Bn5rrBTarMOKk/edit#
+
+https://github.com/istio/istio/wiki/Analyzing-Istio-Performance#cpu-profile
+
+
+TODO:
 
 what about controlz?
 istioctl dashboard controlz deploy/istiod-1-8-3
 
-http://localhost:8080/debug
 
 To get the profile:
 
 http://localhost:8080/debug/pprof/profile?seconds=30
 
+What about on the pilot agent? this was just introduced recently...
+
 
 
 enabling logging for istiod
-by cli flag:
+by cli flag (it's already specified; to do at runtime, see controlz)
 https://istio.io/latest/docs/reference/commands/pilot-discovery/
 
 more here:
