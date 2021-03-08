@@ -1,17 +1,6 @@
-* canary introduction of sidecars
-* suggestions for rollout of sidecar using revisions/sidecar injection
-* pre hook configurations
-proxyConfig.holdApplicationUntilProxyStarts
-
-* enable access logs for certain services
-* tips avoid 503s on virtual service
-
-== should use existing sample-apps/ dir
-
 # Lab 5 :: Add Services to Istio
 
 In this lab, we'll add services gradually to the Istio service mesh we installed in earlier labs. We will cover how to examine envoy configuration for your services, how to delay your application from starting until the sidecar proxy is ready, how to enable access logs for a given service and some tips to avoid 503s. 
-
 
 ## Prerequisites
 
@@ -29,24 +18,27 @@ Now let's label this namespace with the appropriate labels to enable sidecar inj
 kubectl label namespace istioinaction istio.io/rev=1-8-3
 ```
 
-Rolling restart the web-api deployment in this namespace:
+Deploy the web-api canary deployment in this namespace:
 
 ```bash
-kubectl rollout restart deployment web-api -n istioinaction
+kubectl apply -f labs/05/web-api-canary.yaml -n istioinaction
 ```
 
 Check the pods in this namespace:
+
 ```bash
 kubectl get po -n istioinaction
 ```
 
-As you can see from the output, the web-api pod has the sidecar now with `2/2` under the `READY` column:
+As you can see from the output, the web-api-canary pod has the sidecar now with `2/2` under the `READY` column:
+
 ```
 NAME                                  READY   STATUS    RESTARTS   AGE
 purchase-history-v1-985b8776b-h7n5d   1/1     Running   0          10h
 recommendation-8966c6b7d-p4xpt        1/1     Running   0          10h
 sleep-854565cb79-8mpgv                1/1     Running   0          10h
-web-api-69559c56b6-thkcc              2/2     Running   0          10s
+web-api-69559c56b6-thkcc              1/1     Running   0          10h
+web-api-canary-6d87d9c4-jx82w         2/2     Running   0          10s
 ```
 
 Now that we have our web-api pod up and running, we should be able to call it:
@@ -104,16 +96,27 @@ kubectl exec -it deploy/sleep -- curl http://web-api.istioinaction:8080/
 Let's add the recommendation and purchase-history-v1 deployments to the mesh.
 
 ```bash
+kubectl apply -f labs/05/purchase-history-v1-canary.yaml -n istioinaction
+kubectl apply -f labs/05/recommendation-canary.yaml -n istioinaction
+kubectl apply -f labs/05/sleep-canary.yaml -n istioinaction
+```
+
+Sent more traffic to web-api service. Rolling restart these deployments so that they will be added to the mesh also:
+
+```
+kubectl rollout restart deployment web-api -n istioinaction
 kubectl rollout restart deployment purchase-history-v1 -n istioinaction
 kubectl rollout restart deployment recommendation -n istioinaction
 kubectl rollout restart deployment sleep -n istioinaction
 ```
 
-Tip: If you want to rollout restart all deployments in the istioinaction namespace, you can run the following command:
+Sent more traffic to web-api service. If all is well, delete the canary deployments:
 
 ```bash
-kubectl rollout restart deployment -n istioinaction
+kubectl delete deployment web-api-canary purchase-history-v1-canary recommendation-canary sleep-canary -n istioinaction
 ```
+
+Congratulations! You have successfully added all of your services in the istioinaction namespace to the mesh without any downtime.
 
 ## Digging into Proxy configuration
 
