@@ -84,6 +84,8 @@ kiali                  ClusterIP      10.44.4.127    <none>          20001/TCP,9
 GATEWAY_IP=$(kubectl get svc -n istio-system istio-ingressgateway -o jsonpath="{.status.loadBalancer.ingress[0].ip}")
 ```
 
+Tip: if you are running this lab on your MacBook, you need to follow [this instruction](https://github.com/christian-posta/docker-tuntap-osx) to setup MetalLB on your Kind cluster so you can access the `GATEWAY_IP` from your terminal.
+
 ## Expose our apps
 
 Even though we don't have our apps in the `istioinaction` namespace in the mesh yet, we can still use the Istio ingress gateway to route traffic to them. Let's apply a `Gateway` and `VirtualService` resource to permit this:
