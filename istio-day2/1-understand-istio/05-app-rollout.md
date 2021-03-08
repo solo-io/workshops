@@ -337,10 +337,69 @@ You should see something like the following access log:
 [2021-03-03T14:40:21.793Z] "GET / HTTP/1.1" 200 - "-" 0 676 10 9 "-" "curl/7.69.1" "6e7a9242-b5f0-45d8-a519-58053bd16eed" "recommendation:8080" "192.168.1.130:8080" outbound|8080||recommendation.istioinaction.svc.cluster.local 192.168.1.139:43462 10.96.1.230:8080 192.168.1.139:41098 - default
 ```
 
-## Avoid 503s on virtual service
-order prob... have to have a destination rule when you have a VS that refers to a subset
+## Subsets for virtual service resources
 
+DestinationRule defines destination policies when client reaches its server and they are applied after routing has occurred.  DestinationRule resources are optional. For example, in lab04, our `web-api-gw-vs` doesn't have any DestinationRule resources associated with it.  In Istio, subsets are used to describe service versions in virtual service and destination rule resources. You must have a destination rule resource for your service if you have subsets in your virtual service resource. Additionally, if your service need to overwrite the traffic policy from the default, you can configure its traffic policy in your service's destination rule resource.
 
+Let us add `subset: v1` to the `web-api-gw-vs` virtual service resource:
+
+```yaml
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: web-api-gw-vs
+spec:
+  hosts:
+  - "istioinaction.io"
+  gateways:
+  - web-api-gateway
+  http:
+  - route:
+    - destination:
+        host: web-api.istioinaction.svc.cluster.local
+        subset: v1
+        port:
+          number: 8080
+```
+
+Deploy this updated resource:
+
+```bash
+kubectl apply -f labs/05/web-api-gw-vs-subset.yaml -n istio-system
+```
+
+Send some traffic to web-api via istio-ingressgateway:
+
+```bash
+curl -H "Host: istioinaction.io" http://istioinaction.io/hello --resolve istioinaction.io:80:$GATEWAY_IP 
+```
+
+You'll get an empty reply, because the istio-ingressgateway doesn't know how to reach web-api service v1.  Create a destination rule resource for web-api service v1.
+
+```yaml
+apiVersion: networking.istio.io/v1alpha3
+kind: DestinationRule
+metadata:
+  name: web-api-dr
+spec:
+  host: web-api.istioinaction.svc.cluster.local
+  subsets:
+  - name: v1
+    labels:
+      version: v1
+```
+
+Apply this destination rule resource:
+
+```bash
+kubectl apply -f labs/05/web-api-dr.yaml   -n istioinaction
+```
+
+Send some traffic to web-api via istio-ingressgateway, you should get 200 status code now.
+
+```bash
+curl -H "Host: istioinaction.io" http://istioinaction.io/hello --resolve istioinaction.io:80:$GATEWAY_IP 
+```
 
 ## Next Lab
 
