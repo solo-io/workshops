@@ -8,8 +8,8 @@ This workshop series is for those looking to learn more about how Istio works an
 
 The workshop series is broken up into separate workshops:
 
-* [Deploy Istio for Production](./1-deploy-istio/README.md)
-* [Operationalizing Istio for Day-2](./2-operate-istio/README.md)
+* [Deploy Istio for Production](1-deploy-istio/README.md)
+* [Operationalizing Istio for Day-2](2-operate-istio/README.md)
 * :construction: Istio for zero-trust networking (WIP)
 
 ## Workshop delivery options
