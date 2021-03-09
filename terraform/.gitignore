@@ -1,6 +1,6 @@
 license.env
 hosts
-*.tfstate
+**/*.tfstate
 *.tfstate.*
 .terraform
 .env.sh
