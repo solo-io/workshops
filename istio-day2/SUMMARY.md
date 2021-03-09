@@ -1,6 +1,7 @@
 
 * [Deploy Istio for Production](./1-deploy-istio/README.md)
 * [Lab 1 - Run Envoy Proxy](./1-deploy-istio/01-run-envoy.md)
+    * [Lab 1 Bonus](./1-deploy-istio/01a-bonus.md)
 * [Lab 2 - Installing Istio](./1-deploy-istio/02-install-istio.md)
 * [Lab 3 - Connecting to observability systems](./1-deploy-istio/03-observability.md)
 * [Lab 4 - Using ingress gateways across teams](./1-deploy-istio/04-ingress-gateway.md)
