@@ -5,7 +5,7 @@ Getting started with Envoy based technology is best by starting small and iterat
 
 ## Prerequisites
 
-Verify you're in the correct folder for this lab: `/home/solo/workshops/istio-day2/1-understand-istio/`. 
+Verify you're in the correct folder for this lab: `/home/solo/workshops/istio-day2/1-deploy-istio/`. 
 
 This lab builds on both lab 02 and 03 where we already installed Istio control plane using a minimal profile and using revisions. 
 

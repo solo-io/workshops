@@ -8,7 +8,7 @@ The service proxy that Istio uses is [Envoy Proxy](https://www.envoyproxy.io). E
 
 You will need access to a Kubernetes cluster. If you're doing this via the Solo.io Workshop format, you should have everything ready to go.
 
-Verify you're in the correct folder for this lab: `/home/solo/workshops/istio-day2/1-understand-istio/`. 
+Verify you're in the correct folder for this lab: `/home/solo/workshops/istio-day2/1-deploy-istio/`. 
 
 ## Set up supporting services
 

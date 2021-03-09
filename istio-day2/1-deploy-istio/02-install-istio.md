@@ -45,7 +45,7 @@ You will need access to a Kubernetes cluster. If you're doing this via the Solo.
 
 > :memo: If you are using Docker Desktop or kind locally, expect to use 16.0 GB of memory and 4-8 CPUs depending how much of the lab you wish to do. We end up downloading and using a lot of components. 
 
-Verify you're in the correct folder for this lab: `/home/solo/workshops/istio-day2/1-understand-istio/`. 
+Verify you're in the correct folder for this lab: `/home/solo/workshops/istio-day2/1-deploy-istio/`. 
 
 In the workshop material, you should already have Istio `1.8.3` cli installed and ready to go. 
 

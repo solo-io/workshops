@@ -4,7 +4,7 @@ In this lab, we'll add services gradually to the Istio service mesh we installed
 
 ## Prerequisites
 
-Verify you're in the correct folder for this lab: `/home/solo/workshops/istio-day2/1-understand-istio/`. 
+Verify you're in the correct folder for this lab: `/home/solo/workshops/istio-day2/1-deploy-istio/`. 
 
 This lab builds on both lab 02, 03 and 04 where we already installed Istio control plane using a minimal profile and ingress gateway using revisions. 
 

@@ -1,12 +1,14 @@
-# Understanding Istio and How it Works
+# Deploy Istio for Production
 
-
-In this first of a two-part series of workshops on Istio service mesh, we dive into Istio foundations with a focus on understanding how it all works and how to roll it out to your organization. Istio is a powerful tool, but learning how to deploy it, configure it, debug it, secure it has its own challenges.  We've cultivated a lot of this knowledge from working organizations across the world and helping them operationalize Istio.  We cover the following topics in this first workshop:
+In this first of a three-part series of workshops on Istio service mesh, we dive into Istio with a focus on rolling out the mesh to your organization in a production-ready way. We've cultivated a lot of this knowledge from working with organizations across the world and helping them operationalize Istio.  We cover the following topics in this first workshop:
 
 * Understanding Istio's data plane (Envoy Proxy)
-* Installing Istio with upgrades in mind
-* Istio functionality hands on
-* Introducing Istio in your organization
+* Installing Istio with day-2 in mind
+* Iteratively introducing Istio in your organization
+* Leveraging gateways
+* Debugging when things go wrong
+
+Let's get the lab environment set up.
 
 ## Lab environment and prep
 
@@ -69,7 +71,7 @@ istioctl version
 Now go to the directory that has the workshop material:
 
 ```
-cd /home/solo/workshops/istio-day2/1-understand-istio/
+cd /home/solo/workshops/istio-day2/1-deploy-istio/
 ```
 
 * [Lab 1 - Run Envoy Proxy](./01-run-envoy.md)
