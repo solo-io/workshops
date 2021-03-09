@@ -188,8 +188,6 @@ Let's delete the secret we created earlier and see what other options we have:
 ```bash
 kubectl delete secret -n istio-system istioinaction-cert
 ```
-
-
 > :memo: We should delete the secret like in the previous step so the next sections will work as expected
 
 ## Integrate Istio ingress gateway with Cert Manager
@@ -224,6 +222,13 @@ cert-manager-85f9bbcd97-zslwx              1/1     Running   0          2m45s
 cert-manager-cainjector-74459fcc56-xq6pk   1/1     Running   0          2m45s
 cert-manager-webhook-57d97ccc67-xtl82      1/1     Running   0          2m45s
 ```
+
+Let's delete the secret we created earlier and see what other options we have:
+
+```bash
+kubectl delete secret -n istio-system istioinaction-cert
+```
+> :memo: We should delete the secret like in the previous step so the next sections will work as expected
 
 Since we're going to use our own CA as the backend, let's install the correct root certs/keys:
 
@@ -428,9 +433,6 @@ You should see something like the following access log:
 
 
 ## Recap
-
-
-
 
 We covered a lot in this lab about Gateways, but we're just scratching the surface. We touched on common Gateway use cases including getting traffic into the mesh and routing to services that may be in the cluster but may not be in the mesh yet. Some other cases we touched on:
 

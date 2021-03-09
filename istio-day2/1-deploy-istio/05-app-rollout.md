@@ -10,7 +10,7 @@ This lab builds on both lab 02, 03 and 04 where we already installed Istio contr
 
 ## Adding services to the mesh
 
-There are a couple ways to add a service to the mesh. What's meant by "adding the service to the mesh" is we install the Envoy proxy alongside the workload. We can do a manual injection of the sidecar or automatically do it. Let's start to deploy some workloads.
+There are a couple ways to add a service to the mesh. What's meant by "adding the service to the mesh" is we install the Istio sidecar proxy (Envoy) alongside the workload. We can do a manual injection of the sidecar or automatically do it. Let's start to deploy some workloads.
 
 Now let's label this namespace with the appropriate labels to enable sidecar injection:
 
@@ -18,11 +18,15 @@ Now let's label this namespace with the appropriate labels to enable sidecar inj
 kubectl label namespace istioinaction istio.io/rev=1-8-3
 ```
 
-Deploy the web-api canary deployment in this namespace:
+> :memo: As you can see here we're using a different label than the normal `istio-injection` label; we are leveraging revisions which allows us to control which control plane to which an istio sidecar connects
+
+Next, we deploy a `web-api` _canary_ deployment in the `istioinaction` namespace:
 
 ```bash
 kubectl apply -f labs/05/web-api-canary.yaml -n istioinaction
 ```
+
+> :memo: The purpose of this deployment is to not touch any of the existing services yet but to deploy a sidecar next to one instance of the `web-api` service as a _canary_
 
 Check the pods in this namespace:
 
@@ -93,7 +97,7 @@ kubectl exec -it deploy/sleep -- curl http://web-api.istioinaction:8080/
 }
 ```
 
-Let's add the recommendation and purchase-history-v1 deployments to the mesh.
+Now we can add more canary versions of our services:
 
 ```bash
 kubectl apply -f labs/05/purchase-history-v1-canary.yaml -n istioinaction
@@ -101,7 +105,19 @@ kubectl apply -f labs/05/recommendation-canary.yaml -n istioinaction
 kubectl apply -f labs/05/sleep-canary.yaml -n istioinaction
 ```
 
-Sent more traffic to web-api service. Rolling restart these deployments so that they will be added to the mesh also:
+Check that the canary workloads got the sidecar deployed:
+
+```bash
+kubectl get po -n istioinaction
+```
+
+Let's send some more traffic to the `web-api` service:
+
+```bash
+for i in {1..10}; do kubectl exec -it deploy/sleep -n default -- curl http://httpbin.default:8000/headers; done
+```
+
+If everything looks good, we can introduce the sidecar to the rest of the services and delete the canary:
 
 ```
 kubectl rollout restart deployment web-api -n istioinaction
@@ -110,15 +126,15 @@ kubectl rollout restart deployment recommendation -n istioinaction
 kubectl rollout restart deployment sleep -n istioinaction
 ```
 
-Sent more traffic to web-api service. If all is well, delete the canary deployments:
 
 ```bash
 kubectl delete deployment web-api-canary purchase-history-v1-canary recommendation-canary sleep-canary -n istioinaction
 ```
 
+
 Congratulations! You have successfully added all of your services in the istioinaction namespace to the mesh without any downtime.
 
-## Optional: Digging into Proxy configuration
+## Digging into Proxy configuration
 
 Coming back to our services in the `istioinaction` namespace, let's take a look at some of the Envoy configuration for the sidecar proxies. We will use the `istioctl proxy-config` command to inspect the configuration of the `web-api` pod's proxy. For example, to see the listeners configured on the proxy run this command:
 
@@ -218,7 +234,7 @@ istioctl proxy-config clusters deploy/web-api.istioinaction --fqdn recommendatio
 
 Note this is just a snippet, there are other configurations there specific to Istio and TLS connectivity. But if you recall the cluster configurations from the previous lab, you'll see they are similar. Istiod took information about the environment, user configurations, and service discovery, and translated this to an appropriate configuration _for this specific workload_.
 
-## Optional: Hold application until sidecar proxy is ready
+## Hold application until sidecar proxy is ready
 Kubernetes lacks a standard way to declare container dependencies.  There is a [Sidecar](https://github.com/kubernetes/enhancements/issues/753) Kubernetes Enhancement Proposal (KEP) out there, however it is not yet implemented in a Kubernetes release.  In the meantime, service owners may observe unexpected behavior at startup or stop times because the application container may start before sidecar proxy finishes starting or sidecar proxy could be stopped before application container is stopped. 
 
 To help mediate the issue, Istio has implemented a pod level configuration called `holdApplicationUntilProxyStarts` for service owners to delay application start until the sidecar proxy is ready. For example, you can add this annotation snippet to the web-api deployment yaml to hold the web-api application until the sidecar proxy is ready:
@@ -270,174 +286,16 @@ Events:
   Normal  Started    3m53s  kubelet            Started container web-api
 ```
 
-## Enable access logs for your service
 
-In this section of this lab, we will see how to enable access logging for a service. Access logging is instrumental in understanding what traffic is coming and what are the results of that traffic. In this section, we will enable access logging for *just* the web-api application. The UX around this is continuously improving, so in the future there may be an easier way to do this. These steps were accurate for Istio 1.8.3. 
+## Recap
 
-Let's take a look at the configuration we'll use to configure access logging for the web-api application:
+Introducing the Istio sidecar to existing services so that they can participate in the service mesh requires care and attention. In this lab we saw approaches to canary the services into the mesh as well as functionality to play nicely with existing workloads where timing and app ordering/startup matters. 
 
-```bash
-cat labs/05/web-api-access-logging.yaml
-```
+## Bonus
 
-We should see a file similar to this:
+Other areas of bringing existing services which we cover are enabling access logs for your service, and more detailed subset routing configurations where there are some gotchas. 
 
-```yaml
-apiVersion: networking.istio.io/v1alpha3
-kind: EnvoyFilter
-metadata:
-  name: web-api-access-logging
-  namespace: istioinaction
-spec:
-  workloadSelector:
-    labels:
-      app: web-api
-  configPatches:
-  - applyTo: NETWORK_FILTER
-    match:
-      context: ANY
-      listener:
-        filterChain:
-          filter:
-            name: "envoy.filters.network.http_connection_manager"
-    patch:
-      operation: MERGE
-      value:
-        typed_config:
-          "@type": "type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager"
-          access_log:
-          - name: envoy.access_loggers.file
-            typed_config:
-              "@type": "type.googleapis.com/envoy.extensions.access_loggers.file.v3.FileAccessLog"
-              path: /dev/stdout
-              format: "[%START_TIME%] \"%REQ(:METHOD)% %REQ(X-ENVOY-ORIGINAL-PATH?:PATH)% %PROTOCOL%\" %RESPONSE_CODE% %RESPONSE_FLAGS% \"%UPSTREAM_TRANSPORT_FAILURE_REASON%\" %BYTES_RECEIVED% %BYTES_SENT% %DURATION% %RESP(X-ENVOY-UPSTREAM-SERVICE-TIME)% \"%REQ(X-FORWARDED-FOR)%\" \"%REQ(USER-AGENT)%\" \"%REQ(X-REQUEST-ID)%\" \"%REQ(:AUTHORITY)%\" \"%UPSTREAM_HOST%\" %UPSTREAM_CLUSTER% %UPSTREAM_LOCAL_ADDRESS% %DOWNSTREAM_LOCAL_ADDRESS% %DOWNSTREAM_REMOTE_ADDRESS% %REQUESTED_SERVER_NAME% %ROUTE_NAME%\n"
-```
-
-You can see we are using an `EnvoyFilter` resource to affect the configuration of the web-api's sidecar proxy. Let's apply this resource:
-
-```bash
-kubectl apply -f labs/05/web-api-access-logging.yaml
-```
-
-Now send some traffic from the sleep pod to the web-api service:
-
-```bash
-kubectl exec -it deploy/sleep -- curl http://web-api.istioinaction:8080/
-```
-
-After sending some traffic, check the web-api's sidecar proxy logs:
-
-```bash
-kubectl logs -n istioinaction deploy/web-api -c istio-proxy
-```
-
-You should see something like the following access log:
-
-```
-[2021-03-03T14:40:21.793Z] "GET / HTTP/1.1" 200 - "-" 0 676 10 9 "-" "curl/7.69.1" "6e7a9242-b5f0-45d8-a519-58053bd16eed" "recommendation:8080" "192.168.1.130:8080" outbound|8080||recommendation.istioinaction.svc.cluster.local 192.168.1.139:43462 10.96.1.230:8080 192.168.1.139:41098 - default
-```
-
-## Subsets for virtual service resources
-
-DestinationRule defines destination policies when client reaches its server and they are applied after routing has occurred.  DestinationRule resources are optional. For example, in lab04, our `web-api-gw-vs` doesn't have any DestinationRule resources associated with it.  In Istio, subsets are used to describe service versions in virtual service and destination rule resources. You must have a destination rule resource for your service if you have subsets in your virtual service resource. Additionally, if your service need to overwrite the traffic policy from the default, you can configure its traffic policy in your service's destination rule resource.
-
-Let us add `subset: v1` to the `web-api-gw-vs` virtual service resource:
-
-```yaml
-apiVersion: networking.istio.io/v1alpha3
-kind: VirtualService
-metadata:
-  name: web-api-gw-vs
-spec:
-  hosts:
-  - "istioinaction.io"
-  gateways:
-  - web-api-gateway
-  http:
-  - route:
-    - destination:
-        host: web-api.istioinaction.svc.cluster.local
-        subset: v1
-        port:
-          number: 8080
-```
-
-Deploy this updated resource:
-
-```bash
-kubectl apply -f labs/05/web-api-gw-vs-subset.yaml -n istio-system
-```
-
-Send some traffic to web-api via istio-ingressgateway:
-
-```bash
-curl -H "Host: istioinaction.io" http://istioinaction.io/hello --resolve istioinaction.io:80:$GATEWAY_IP 
-```
-
-You'll get an empty reply, because the istio-ingressgateway doesn't know how to reach web-api service v1.  Create a destination rule resource for web-api service v1.
-
-```yaml
-apiVersion: networking.istio.io/v1alpha3
-kind: DestinationRule
-metadata:
-  name: web-api-dr
-spec:
-  host: web-api.istioinaction.svc.cluster.local
-  subsets:
-  - name: v1
-    labels:
-      version: v1
-```
-
-Apply this destination rule resource:
-
-```bash
-kubectl apply -f labs/05/web-api-dr.yaml   -n istioinaction
-```
-
-Send some traffic to web-api via istio-ingressgateway, you should get 200 status code now.
-
-```bash
-curl -H "Host: istioinaction.io" http://istioinaction.io/hello --resolve istioinaction.io:80:$GATEWAY_IP 
-```
-
-Examine the clusters configuration for istio-ingressgateway:
-
-```bash
-istioctl pc clusters deploy/istio-ingressgateway.istio-system
-```
-
-Clusters output with subset v1:
-
-```
-SERVICE FQDN                                PORT     SUBSET     DIRECTION     TYPE           DESTINATION RULE
-BlackHoleCluster                            -        -          -             STATIC         
-agent                                       -        -          -             STATIC         
-prometheus_stats                            -        -          -             STATIC         
-sds-grpc                                    -        -          -             STATIC         
-web-api.istioinaction.svc.cluster.local     8080     -          outbound      EDS            web-api-dr.istioinaction
-web-api.istioinaction.svc.cluster.local     8080     v1         outbound      EDS            web-api-dr.istioinaction
-xds-grpc                                    -        -          -             STATIC         
-zipkin                                      -        -          -             STRICT_DNS    
-```
-
-Examine the endpoints configuration for istio-ingressgateway:
-
-```bash
-istioctl pc endpoint deploy/istio-ingressgateway.istio-system 
-```
-
-Endpoints output with subset v1:
-
-```
-ENDPOINT                         STATUS      OUTLIER CHECK     CLUSTER
-127.0.0.1:15000                  HEALTHY     OK                prometheus_stats
-127.0.0.1:15020                  HEALTHY     OK                agent
-192.168.1.155:8080               HEALTHY     OK                outbound|8080|v1|web-api.istioinaction.svc.cluster.local
-192.168.1.155:8080               HEALTHY     OK                outbound|8080||web-api.istioinaction.svc.cluster.local
-unix://./etc/istio/proxy/SDS     HEALTHY     OK                sds-grpc
-unix://./etc/istio/proxy/XDS     HEALTHY     OK                xds-grpc
-```
+[See the Lab 05 bonus section](./05a-bonus.md).
 
 ## Next Lab
 
