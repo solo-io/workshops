@@ -45,7 +45,7 @@ spec:
                  exec:
                    command: ["sh", "-c", "sleep 5"]
 ```
-Note this uses the `empty` profile and enables the `istio-ingressgateway` component. Let's install it with a revision that matches the control plane:
+> :memo: This uses the `empty` profile and enables the `istio-ingressgateway` component. Let's install it with a revision that matches the control plane:
 
 ```bash
 istioctl install -y -n istio-system -f labs/04/ingress-gateways.yaml --revision 1-8-3
@@ -78,13 +78,15 @@ istiod-1-8-3           ClusterIP      10.44.11.8     <none>          15010/TCP,1
 kiali                  ClusterIP      10.44.4.127    <none>          20001/TCP,9090/TCP                                                           26m
 ```
 
-## Note our GATEWAY_IP
+## Note the GATEWAY_IP env variable
+
+> :information_source: We use the `GATEWAY_IP` environment variable in other parts of this lab.
 
 ```bash
 GATEWAY_IP=$(kubectl get svc -n istio-system istio-ingressgateway -o jsonpath="{.status.loadBalancer.ingress[0].ip}")
 ```
 
-Tip: if you are running this lab on your MacBook, you need to follow [this instruction](https://github.com/christian-posta/docker-tuntap-osx) to setup MetalLB on your Kind cluster so you can access the `GATEWAY_IP` from your terminal.
+> :pushpin: If you are running this lab on your MacBook, you need to follow [this instruction](https://github.com/christian-posta/docker-tuntap-osx) to setup MetalLB on your Kind cluster so you can access the `GATEWAY_IP` from your terminal.
 
 ## Expose our apps
 
@@ -179,11 +181,16 @@ What are some common issues that folks run into with this approach?
 2) Users may not manage their own certs
 3) Integration with CA/PKI is highly desirable
 
-Let's dig into these a bit. Let's delete the secret we created earlier and see what other options we have:
+Let's dig into these a bit. Some of these sections will be left for the _bonus_ section.
+
+Let's delete the secret we created earlier and see what other options we have:
 
 ```bash
 kubectl delete secret -n istio-system istioinaction-cert
 ```
+
+
+> :memo: We should delete the secret like in the previous step so the next sections will work as expected
 
 ## Integrate Istio ingress gateway with Cert Manager
 
@@ -310,187 +317,6 @@ curl --cacert ./labs/04/certs/ca/root-ca.crt -H "Host: istioinaction.io" https:/
 In this section, we created the `Certificate` in the `istio-system` namespace. But if we don't have access to that namespace, what else could we do?
 
 
-## Certificates in own namespace
-
-Some teams choose to restrict access to `istio-system` namespace but still allow teams to own the resources in their own namespaces. For example, some organizations own the `istio-system` by the platform team, but service teams and SRE can help install things like secrets into their own namespace. For example, with our `istioinaction` namespace, we would be able to access only `istioinaction` namespace and not `istio-system`. 
-
-We can use [kubed](https://appscode.com/products/kubed/v0.11.0/guides/config-syncer/intra-cluster/) to help sync secrets to the appropriate namespace.
-
-Let's install `kubed`:
-
-```bash
-helm repo add appscode https://charts.appscode.com/stable/
-helm repo update
-helm install kubed appscode/kubed --version v0.12.0 --namespace kube-system
-```
-
-Let's uninstall the certs created by cert-manager:
-
-```bash
-kubectl delete -f ./labs/04/cert-manager/istioinaction-io-cert.yaml
-kubectl -n istio-system delete secret istioinaction-cert
-kubectl rollout restart deploy/istio-ingressgateway -n istio-system
-```
-
-You can check if the cert is still loaded in the istio ingress gateway, for example:
-
-```bash
-istioctl pc secret deploy/istio-ingressgateway -n istio-system 
-```
-
-```
-RESOURCE NAME                       TYPE           STATUS      VALID CERT     SERIAL NUMBER                               NOT AFTER                NOT BEFORE
-kubernetes://istioinaction-cert                    WARMING     false                                                                               
-default                             Cert Chain     ACTIVE      true           241284066253111748685603285574737309740     2021-03-03T17:52:27Z     2021-03-02T17:52:27Z
-ROOTCA                              CA             ACTIVE      true           266801602762712535092892179697980789542     2031-02-28T16:35:53Z     2021-03-02T16:35:53Z
-```
-
-Now let's go ahead and create the cert in our own (`istioinaction`) namespace:
-
-```bash
-kubectl create -n istioinaction secret tls istioinaction-cert --key labs/04/certs/istioinaction.io.key --cert labs/04/certs/istioinaction.io.crt
-```
-
-This doesn't help us much because the Istio ingress gateway is located in the `istio-system` namespace and the secret must be there too but we don't have access to this namespace.
-
-Let's use `kubed` to help here. Let's label `istio-system` namespace (done by an administrator) to indicate we can sync secrets to it:
-
-```bash
-kubectl label namespace istio-system secrets-sync=true
-```
-
-Then from our namespace we can label it and have it automatically sync'd:
-
-```bash
-kubectl -n istioinaction annotate secret istioinaction-cert kubed.appscode.com/sync="secrets-sync=true"
-```
-
-Now the cert should be loaded in the istio ingress gateway and marked as `ACTIVE`, for example:
-
-```bash
-istioctl pc secret deploy/istio-ingressgateway -n istio-system 
-```
-
-```
-RESOURCE NAME                       TYPE           STATUS     VALID CERT     SERIAL NUMBER                               NOT AFTER                NOT BEFORE
-kubernetes://istioinaction-cert     Cert Chain     ACTIVE     true           121991962222466462275317923552518909586     2031-02-23T17:16:32Z     2021-02-25T17:16:32Z
-default                             Cert Chain     ACTIVE     true           241284066253111748685603285574737309740     2021-03-03T17:52:27Z     2021-03-02T17:52:27Z
-ROOTCA                              CA             ACTIVE     true           266801602762712535092892179697980789542     2031-02-28T16:35:53Z     2021-03-02T16:35:53Z
-```
-
-Now let's try call our ingress gateway again to verify it works as expected:
-
-```bash
-curl --cacert ./labs/04/certs/ca/root-ca.crt -H "Host: istioinaction.io" https://istioinaction.io --resolve istioinaction.io:443:$GATEWAY_IP
-```
-
-> :warning: We list this use case here because that's what folks seem to be doing in the wild, however, **at Solo.io we don't recommend this approach**. There are other approaches that we'll cover in this lab and in the second part of this workshop to more securely deliver secrets for your ingress gateway.
-
-
-If you would like o clean up this portion of the lab, you can run:
-
-```
-kubectl -n istioinaction annotate secret istioinaction-cert kubed.appscode.com/sync-
-kubectl -n istio-system delete secret istioinaction-cert
-kubectl -n istioinaction delete secret istioinaction-cert
-kubectl rollout restart deploy/istio-ingressgateway -n istio-system
-```
-
-## Create custom Ingress Gateways in a user namespace
-
-In the previous steps, we created the out-of-the-box ingress gateway in the `istio-system` namespace. In this section, we'll create a custom ingress gateway named `my-user-gateway` in the `istioinaction` namespace. When deployed like this, the user can completely own all resources including secrets/certificates for the domains they wish to expose on this gateway.
-
-Let's take a look at how we can define our custom gateway:
-
-```yaml
-apiVersion: install.istio.io/v1alpha1
-kind: IstioOperator
-metadata:
-  name: my-user-gateway-install
-  namespace: istioinaction
-spec:
-  profile: empty
-  values:
-    gateways:
-      istio-ingressgateway:
-        autoscaleEnabled: false
-  components:
-    ingressGateways:
-    - name: istio-ingressgateway
-      enabled: false    
-    - name: my-user-gateway
-      namespace: istioinaction
-      enabled: true
-      label:
-        istio: my-user-gateway
-```
-
-We can install it with the `istioctl` cli:
-
-```bash
-istioctl install -y -n istioinaction -f labs/04/my-user-gateway.yaml --revision 1-8-3
-```
-
-We should the check the pod and services that were created:
-
-```bash
-kubectl get po -n istioinaction
-```
-
-```
-NAME                                  READY   STATUS    RESTARTS   AGE
-my-user-gateway-6746b98474-tkzn7      1/1     Running   0          12s
-purchase-history-v1-b47996677-lskt9   1/1     Running   0          31h
-recommendation-69995f55c9-rddwz       1/1     Running   0          31h
-web-api-745fdb5bdf-jbbp4              1/1     Running   0          31h
-```
-
-```bash
-kubectl get svc -n istioinaction
-```
-
-```
-NAME               TYPE           CLUSTER-IP     EXTERNAL-IP    PORT(S)                                                      AGE
-my-user-gateway    LoadBalancer   10.44.4.247    34.68.73.162   15021:30141/TCP,80:32728/TCP,443:30664/TCP,15443:30746/TCP   3m45s
-purchase-history   ClusterIP      10.44.3.84     <none>         8080/TCP                                                     3h49m
-recommendation     ClusterIP      10.44.11.68    <none>         8080/TCP                                                     3h49m
-web-api            ClusterIP      10.44.13.102   <none>         8080/TCP                                                     3h49m
-```
-
-
-From here, you can create any domain certs in the `istioinaction` namespace (either using cert-manager or directly)
-
-```bash
-kubectl create -n istioinaction secret tls my-user-gw-istioinaction-cert --key labs/04/certs/istioinaction.io.key --cert labs/04/certs/istioinaction.io.crt
-```
-
-And then create the appropriate `Gateway` and `VirtualService` resources:
-
-```bash
-kubectl apply -f labs/04/my-user-gw-https.yaml
-kubectl apply -f labs/04/my-user-gw-vs.yaml
-```
-
-If everything is installed correctly, you can get the IP address of your custom ingress gateway and then call the services through the new custom gateway:
-
-```bash
-CUSTOM_GATEWAY_IP=$(kubectl get svc -n istioinaction my-user-gateway  -o jsonpath="{.status.loadBalancer.ingress[0].ip}")
-```
-
-```bash
-curl --cacert ./labs/04/certs/ca/root-ca.crt -H "Host: istioinaction.io" https://istioinaction.io --resolve istioinaction.io:443:$CUSTOM_GATEWAY_IP
-```
-
-#### Clean up custom gateway
-
-```bash
-kubectl apply -f sample-apps/ingress/web-api-gw-vs.yaml
-kubectl delete Gateway -n istioinaction my-gw-web-api-gateway 
-kubectl delete deploy/my-user-gateway -n istioinaction
-kubectl delete svc/my-user-gateway -n istioinaction
-kubectl delete sa/my-user-gateway-service-account -n istioinaction
-kubectl delete secret/my-user-gw-istioinaction-cert -n istioinaction
-```
 
 ## Reduce Gateway Config for large meshes
 
@@ -600,21 +426,26 @@ You should see something like the following access log:
 [2021-03-02T20:43:27.195Z] "GET / HTTP/2" 200 - "-" 0 1102 11 11 "10.128.0.61" "curl/7.64.1" "8821b96b-ecab-4303-9f6d-11681ee22e8f" "istioinaction.io" "10.40.2.49:8080" outbound|8080||web-api.istioinaction.svc.cluster.local 10.40.0.43:32838 10.40.0.43:8443 10.128.0.61:53829 istioinaction.io -
 ```
 
-####  TODO :: private vs public gateway/LB -- integrating with ALB/NLB
 
-* understand AWS LB: 
-  https://docs.aws.amazon.com/eks/latest/userguide/load-balancing.html
+## Recap
 
-* Install AWS LB Controller
-  https://kubernetes-sigs.github.io/aws-load-balancer-controller/latest/deploy/installation/
 
-* Use NLB-IP mode: 
-  https://kubernetes-sigs.github.io/aws-load-balancer-controller/latest/guide/service/nlb_ip_mode/
 
-See following gateway resources:
 
-```
-cat ./labs/04/ingress-gateways-public.yaml
-cat ./labs/04/ingress-gateways-private.yaml
-cat ./labs/04/ingress-gateways-nlb-hc.yaml
-```
+We covered a lot in this lab about Gateways, but we're just scratching the surface. We touched on common Gateway use cases including getting traffic into the mesh and routing to services that may be in the cluster but may not be in the mesh yet. Some other cases we touched on:
+
+1) Users may not have access to write anything (ie, certs) into `istio-system`
+2) Users may not manage their own certs
+3) Integration with CA/PKI is highly desirable
+
+And we covered only part 3 when we integrate with Cert Manager. In the second part of this lab, we'll go into more detail about safe secrets/Certs. In the Bonus section, we address some more of these concerns.
+
+## Bonus
+
+In the bonus section, we dig deeper into teams owning their own Ingress Gateway resources including getting around some of the limitations of secrets for certs/keys being in the same namespace as an ingress gateway deployed in the `istio-system` namespace.
+
+[See the Lab 04 bonus section](./04a-bonus.md).
+
+## Next lab
+
+In the [next lab](05-app-rollout.md), we take a look at iteratively and safely getting workloads into the mesh. 

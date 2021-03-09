@@ -321,6 +321,8 @@ Let's create the Kiali instance:
 kubectl apply -f labs/03/kiali.yaml 
 ```
 
+> :eyes: You may see kubectl complain about the manner in which we apply this resource; you can safely ignore it for this lab
+
 Let's check that it got created:
 
 ```bash
@@ -346,6 +348,8 @@ You are greeted with a login page when you get there:
 ![](./images/kiali-login.png)
 
 How do we login here? We configured Kiali to use the [token auth](https://kiali.io/documentation/latest/configuration/authentication/token/) strategy which is similar to securing the default Kubernetes dashboard. Let's create the service-account token and RBAC so we can login:
+
+> :warning: Some times the lab machines can have issues with copy/paste of the token; you can switch to `anonymous` login with the file `labs/03/kiali-no-auth.yaml` if you need to
 
 ```bash
 kubectl create serviceaccount kiali-dashboard -n istio-system
