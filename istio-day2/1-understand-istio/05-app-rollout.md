@@ -439,7 +439,6 @@ unix://./etc/istio/proxy/SDS     HEALTHY     OK                sds-grpc
 unix://./etc/istio/proxy/XDS     HEALTHY     OK                xds-grpc
 ```
 
-
 ## Next Lab
 
 Istio can automatically encrypt traffic between services in the mesh with mutual TLS. In the [next lab](06-mtls-rollout.md), we will show you how to gradually roll out mTLS to your services in your Istio service mesh.
