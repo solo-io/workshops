@@ -79,6 +79,8 @@ Now you should see the main dashboard like this:
 
 Feel free to poke around and see what dashboards are available with this default set up (note some dashboards we have disabled in the original deployment when we cut down some of the components -- at least in the instructor-led workshop).
 
+> :question: If you're unfamiliar with Grafana, you should start by clicking the "Home" button on the top left of the main screen 
+
 
 ## Add Istio Dashboards to Grafana
 
@@ -124,11 +126,13 @@ Click the "Control Plane" dashboard. You should be taken to a dashboard with som
 
 Actually, the graphs are all empty!! This is not of much value to us, so let's figure out how to populate these graphs.
 
+> :warning: It may take quite a few minutes for data to populate into the Grafana dashboards. In practice, it may be worth moving on to other parts and coming back later to check the data in the dashboards. 
+
 ## Scraping the Istio service mesh: control plane
 
 The reason we don't see any information in the Control Plane dashboard (or any of the Istio dashboards really) is because we don't have any configuration for scraping information from the Istio service mesh. 
 
-To configure Prometheus to do this, we will use the Prometheus Operator CRs `ServiceMonitor` and `PodMonitor`. These Customer Resources are described in good detail in the [design doc on the Prometheus Operator repo](https://github.com/prometheus-operator/prometheus-operator/blob/master/Documentation/design.md).
+To configure Prometheus to do this, we will use the Prometheus Operator CRs `ServiceMonitor` and `PodMonitor`. These Custom Resources are described in good detail in the [design doc on the Prometheus Operator repo](https://github.com/prometheus-operator/prometheus-operator/blob/master/Documentation/design.md).
 
 Here's how we can set up a `ServiceMonitor` to scrape the Istio control-plane components:
 
@@ -160,10 +164,11 @@ Let's apply it:
 kubectl apply -f labs/03/monitor-control-plane.yaml
 ```
 
-At this point we will start to see important telemetry signals about the control plane such as the number of sidecars attached to the control plane, whether there are configuration conflicts, the amount of churn in the mesh, as well as basic memory/CPU usage of the control plane. Just note, it may take a few moments for these signals to start to make it into the Grafana dashboards, so be patient :)
+At this point we will start to see important telemetry signals about the control plane such as the number of sidecars attached to the control plane, whether there are configuration conflicts, the amount of churn in the mesh, as well as basic memory/CPU usage of the control plane. 
+
+> :question: As mentioned earlier, it may take a few minutes for these signals to start to make it into the Grafana dashboards, so be patient :)
 
 Since there aren't very many workloads (just our `httpbin` service we installed for testing), we won't see too much data.
-
 
 ## Scraping the Istio service mesh: data plane
 
@@ -227,6 +232,8 @@ We could also use a load generator tool to put more load on the system over a pe
 
 Now we should be scraping the data-plane workloads. If we check the Istio Service Dashboard, specifically the "Service Workload" section, we should start to see load. 
 
+> :question: As mentioned earlier, it may take a few minutes for these signals to start to make it into the Grafana dashboards, so be patient :)
+
 ![](./images/grafana-service-workloads.png)
 
 If we go back and look at the Control Plane dashboard, we should see those XDS graphs now populated:
@@ -240,7 +247,7 @@ If you're familiar with Prometheus, you know that Prometheus gets configured by 
 The Prometheus rule `configmap` is actually stored as a secret and is updated through the operator configurations. 
 
 ```bash
-kubectl get secret -n prometheus prometheus-prom-kube-prometheus-stack-prometheus -o jsonpath="{.data['prometheus\.yaml\.gz']}" | base64 -D | gunzip
+kubectl get secret -n prometheus prometheus-prom-kube-prometheus-stack-prometheus -o jsonpath="{.data['prometheus\.yaml\.gz']}" | base64 -d | gunzip
 ```
 
 You would see something like this (truncated for brevity):
@@ -297,6 +304,8 @@ helm install \
     kiali-operator \
     kiali-operator
 ```
+
+> :eyes: You may see helm complain about some parts of the Kiali install; you can ignore those for now and verify the Kiali Operator got installed correctly
 
 At this point we have the Kiali operator installed. Let's check that it's up and running:
 
@@ -480,4 +489,4 @@ https://istio.io/latest/docs/ops/integrations/prometheus/#tls-settings
 
 ## Next Lab
 
-In the [next lab](04-ingress-gateway.md), we will leverage Istio's ingress gateway to secure an edge service and share some tips on how to configure and debug the gateway, and integrate it with cloud provider's NLB.        
+In the [next lab](04-ingress-gateway.md), we will leverage Istio's ingress gateway to secure an edge service and share some tips on how to configure and debug the gateway.        

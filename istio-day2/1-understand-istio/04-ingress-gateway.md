@@ -298,7 +298,7 @@ istioinaction-cert   True    istioinaction-cert   12s
 Let's check the certificate SAN was specified correctly as `istioinaction.io`:
 
 ```bash
-kubectl get secret -n istio-system istioinaction-cert -o jsonpath="{.data['tls\.crt']}" | base64 -D | step certificate inspect -
+kubectl get secret -n istio-system istioinaction-cert -o jsonpath="{.data['tls\.crt']}" | base64 -d | step certificate inspect -
 ```
 
 Let's try call our gateway again to make sure the call still succeeds:
@@ -501,7 +501,7 @@ By default, the ingress gateways will be configured with information about every
 istioctl pc clusters deploy/istio-ingressgateway -n istio-system
 ```
 
-As you see, the output here is quite extensive and includes clusters that the gateway does not need to know anything about. The only clusters that get traffic routed to it are the `web-api` cluster. Let's configure the control plane to scope this down:
+As you see, the output here is quite extensive and includes clusters that the gateway does not need to know anything about. The only clusters that get traffic routed to it are the `web-api` cluster. Let's configure the control plane to scope this down. To do that, we set the `PILOT_FILTER_GATEWAY_CLUSTER_CONFIG` environment variable in the `istiod` deployment:
 
 ```bash
 istioctl install -y -n istio-system -f labs/04/control-plane-reduce-gw-config.yaml --revision 1-8-3

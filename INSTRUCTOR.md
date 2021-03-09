@@ -113,3 +113,17 @@ Run the following command to destroy all the VMs:
 ```
 terraform destroy -force
 ```
+
+## Additional reference
+
+You can use emoji's in GitHub markdown to signal additional callouts such as:
+
+* :information_source: - Info
+* :memo: - Note
+* :warning: - Warning
+* :bulb: - hint
+* :x: - Error
+* :heavy_check_mark: - Correct
+* :question: - Question
+* :construction: - WIP
+* :eyes: - Be careful

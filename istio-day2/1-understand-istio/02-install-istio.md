@@ -41,11 +41,15 @@ You now have some existing workloads in your cluster. Let's proceed to install t
 
 
 ### Verify Istio CLI installation
-You will need access to a Kubernetes cluster. If you're doing this via the Solo.io Workshop format, you should have everything ready to go. If you are using Docker Desktop or kind, validate that you have 16.0 GB of memory and 8 CPUs.
+You will need access to a Kubernetes cluster. If you're doing this via the Solo.io Workshop format, you should have everything ready to go. 
+
+> :memo: If you are using Docker Desktop or kind locally, expect to use 16.0 GB of memory and 4-8 CPUs depending how much of the lab you wish to do. We end up downloading and using a lot of components. 
 
 Verify you're in the correct folder for this lab: `/home/solo/workshops/istio-day2/1-understand-istio/`. 
 
-In the workshop material, you should already have Istio 1.8.3 CLI installed and ready to go. Although at the time of this writing Istio 1.9 is the latest, we will start on Istio 1.8.x and show how to do upgrades in the second part of this workshop. 
+In the workshop material, you should already have Istio `1.8.3` cli installed and ready to go. 
+
+> :memo: Although at the time of this writing Istio `1.9` is the latest, we will start on Istio `1.8.x` and show how to do upgrades in the second part of this workshop. 
 
 To verify, run 
 
@@ -84,6 +88,8 @@ Next let's create the control plane service `istiod`:
 ```bash 
 kubectl apply -f labs/02/istiod-service.yaml
 ```
+
+> :bulb: This is an additional step you may not see very clearly in the Istio docs; we need this step to workaround a long-standing issue with Istio revisions which we'll use in the next steps. Istio revisions allow us to run multiple versions of the Istio control plane.
 
 Lastly, we will install the Istio control plane using a _revisions_. You can check the Istio docs [for more on revisions](https://istio.io/latest/docs/setup/upgrade/canary/#control-plane)
 
@@ -164,6 +170,8 @@ To update the security configuration of the sidecar container, run the following
 kubectl edit deploy/httpbin -n default
 ```
 
+> :warning: You should edit the resource in place; we've seen instances where saving to a file and trying to apply doesn't actually apply the changes. 
+
 Update the sidecar container to have security context like this:
 
 ```
@@ -176,7 +184,9 @@ Update the sidecar container to have security context like this:
         
 ```
 
-Specifically the `allowPrivilegeEscalation` and `privileged` fields change to true. Once you save this change, we should see a new `httpbin` pod with updated security privilege and we can explore some of the `iptables` rules that redirect traffic:
+Specifically the `allowPrivilegeEscalation` and `privileged` fields change to true. Once you save this change, we should see a new `httpbin` pod with updated security privilege and we can explore some of the `iptables` rules that redirect traffic. 
+
+> :eyes: Double check the changes you made actually got applied if you the following steps do not work. 
 
 ```
 kubectl -n default exec -it deploy/httpbin -c istio-proxy -- sudo iptables -L -t nat
