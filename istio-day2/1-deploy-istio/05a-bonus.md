@@ -1,4 +1,4 @@
-# Lab 5 :: Add Services to Istio
+# Lab 5 Bonus :: Add Services to Istio
 
 ## Bonus: Enable access logs for your service
 

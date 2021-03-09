@@ -1,4 +1,4 @@
-# Lab 1 :: Run Envoy Proxy
+# Lab 1 Bonus :: Run Envoy Proxy
 
 ## Bonus: Additional notes about Envoy configuration
 

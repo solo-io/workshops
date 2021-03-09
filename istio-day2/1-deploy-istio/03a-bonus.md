@@ -1,4 +1,4 @@
-# Lab 3 :: Connecting to observability systems
+# Lab 3 Bonus :: Connecting to observability systems
 
 ## Bonus: Prometheus Kube Stack tips and tricks
 

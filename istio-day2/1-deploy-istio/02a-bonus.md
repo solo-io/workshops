@@ -1,4 +1,4 @@
-# Lab 2 :: Installing Istio
+# Lab 2 Bonus :: Installing Istio
 
 ## Bonus: Digging into the Istio sidecar proxy
 

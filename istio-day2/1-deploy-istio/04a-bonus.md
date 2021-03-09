@@ -1,4 +1,4 @@
-# Lab 4 :: Ingress Gateway
+# Lab 4 Bonus :: Ingress Gateway
 
 
 ## Bonus: Certificates in own namespace
