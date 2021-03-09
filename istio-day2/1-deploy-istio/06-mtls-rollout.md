@@ -428,6 +428,10 @@ spec:
 kubectl apply -f labs/06/istioinaction-peerauth-strict.yaml
 ```
 
+## Recap
+
+In this lab we explored safe ways to introduce mTLS to the services within the mesh while maintaining compatibility with services outside of the mesh as desired. After completing this lab you should have some good tools to iteratively add mTLS to your services without breaking existing services.
+
 
 ## Next Lab
 
