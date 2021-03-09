@@ -1,4 +1,6 @@
-# Additional notes about Envoy configuration
+# Lab 1 :: Run Envoy Proxy
+
+## Bonus: Additional notes about Envoy configuration
 
 So far we've taken a basic approach to understanding what the Envoy proxy is and how to configure it. We've also seen how it can alter the behavior of a network call and give us very valuable information about how the network is behaving at the request/message level. We can even do more complicated networking things like:
 

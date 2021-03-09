@@ -64,13 +64,15 @@ no running Istio pods in "istio-system"
 1.8.3
 ```
 
-We don't have Istio installed and running yet. Let's go ahead and do that. There are three ways to install Istio:
+We don't have the Istio control plane installed and running yet. Let's go ahead and do that. There are three ways to install Istio:
 
 * `istioctl` CLI tool
 * Istio Operator
 * Helm
 
 We will use the `istioctl` approach to install Istio following some best practices to set you up for future success. In the second part of this lab (series 2) we'll explore how to use Helm. 
+
+> :memo: Helm 3 is another common approach to installing and upgrading Istio. We'll see labs on Helm 3 in the second part of this workshop series.
 
 
 ## Installing Istio
@@ -93,9 +95,7 @@ kubectl apply -f labs/02/istiod-service.yaml
 
 Lastly, we will install the Istio control plane using a _revisions_. You can check the Istio docs [for more on revisions](https://istio.io/latest/docs/setup/upgrade/canary/#control-plane)
 
-NOTE: Again, there might be some slight deviations from the Istio doc here as these instructions are intended to be used to support Istio upgrades going forward.. ie "day 2". We are working with the Istio community to get this learning back into the offical docs.
-
-Now let's install the control plane. This installation uses the IstioOperator CR along with `istioctl`. The IstioOperator looks like this:
+Now let's install the control plane. This installation uses the `IstioOperator` CR along with `istioctl`. The IstioOperator looks like this:
 
 ```
 apiVersion: install.istio.io/v1alpha1
@@ -138,8 +138,6 @@ NAME                            READY   STATUS    RESTARTS   AGE
 istiod-1-8-3-78b88c997d-rpnck   1/1     Running   0          2m1s
 ```
 
-So we have the control plane up and running, but we don't have any services in the mesh. Let's add one!
-
 From here, we can query the Istio control plane's debug endpoints to see what services we have running and what Istio has discovered.
 
 ```bash
@@ -150,11 +148,9 @@ The output of this command can be quite verbose as it lists all of the services 
 
 > :pushpin: We will cover more of the `debug` endpoints in [Lab 08](./08-debugging-config.md)
 
-## Digging into the Istio sidecar proxy
+## Install sidecar for demo app
 
-In the previous lab we saw an introduction to the Envoy proxy data plane. In Istio, we deploy a sidecar proxy next to each workload to enhance the capabilities of the application network. When a service gets called, or makes a call, all traffic is routed to the sidecar Envoy proxy first. How can we be certain that's the case?
-
-In this section, we'll install a sidecar onto the `httpbin` service from the previous lab and explore it. We will manually inject it so we can fiddle with the security permissions because by default the Istio sidecar has privileges disabled.
+In this section, we'll install a sidecar onto the `httpbin` service from the previous lab and explore it. We will manually inject the sidecar so that in the bonus section we can fiddle with the security permissions because by default the Istio sidecar has privileges disabled.
 
 Run the following command to add the Istio sidecar to the `httpbin` service in the `default` namespasce:
 
@@ -162,85 +158,17 @@ Run the following command to add the Istio sidecar to the `httpbin` service in t
 istioctl kube-inject -f labs/01/httpbin.yaml --meshConfigMapName istio-1-8-3 --injectConfigMapName istio-sidecar-injector-1-8-3  | kubectl apply -f -
 ```
 
-Note in the above command we configure `istioctl` to use the configmaps from our `1-8-3` revision. We can run multiple versions of Istio concurrently and can specify exactly which revision gets applied in the tooling.
+> :eyes: In the above command we configure `istioctl` to use the configmaps from our `1-8-3` revision. We can run multiple versions of Istio concurrently and can specify exactly which revision gets applied in the tooling.
 
-To update the security configuration of the sidecar container, run the following command from the cli:
+## Recap
 
-```
-kubectl edit deploy/httpbin -n default
-```
+At this point, we've installed the Istio control plane following a slightly different method than the official docs, but one that sets us up for success for operating Istio. 
 
-> :warning: You should edit the resource in place; we've seen instances where saving to a file and trying to apply doesn't actually apply the changes. 
+## Bonus Content
 
-Update the sidecar container to have security context like this:
+In the bonus section, we tie together our understanding of the Istio sidecar proxy (Envoy) that we gained in Lab 01 with the Istio control plane. We dig into how the Istio sidecar proxy works. 
 
-```
-      containers:
-      - name: istio-proxy 
-        image: docker.io/istio/proxyv2:1.8.3       
-        securityContext:
-          allowPrivilegeEscalation: true
-          privileged: true
-        
-```
-
-Specifically the `allowPrivilegeEscalation` and `privileged` fields change to true. Once you save this change, we should see a new `httpbin` pod with updated security privilege and we can explore some of the `iptables` rules that redirect traffic. 
-
-> :eyes: Double check the changes you made actually got applied if you the following steps do not work. 
-
-```
-kubectl -n default exec -it deploy/httpbin -c istio-proxy -- sudo iptables -L -t nat
-```
-
-We should see an output similar to:
-
-```
-Chain PREROUTING (policy ACCEPT)
-target     prot opt source               destination         
-ISTIO_INBOUND  tcp  --  anywhere             anywhere            
-
-Chain INPUT (policy ACCEPT)
-target     prot opt source               destination         
-
-Chain OUTPUT (policy ACCEPT)
-target     prot opt source               destination         
-ISTIO_OUTPUT  tcp  --  anywhere             anywhere            
-
-Chain POSTROUTING (policy ACCEPT)
-target     prot opt source               destination         
-
-Chain ISTIO_INBOUND (1 references)
-target     prot opt source               destination         
-RETURN     tcp  --  anywhere             anywhere             tcp dpt:15008
-RETURN     tcp  --  anywhere             anywhere             tcp dpt:22
-RETURN     tcp  --  anywhere             anywhere             tcp dpt:15090
-RETURN     tcp  --  anywhere             anywhere             tcp dpt:15021
-RETURN     tcp  --  anywhere             anywhere             tcp dpt:15020
-ISTIO_IN_REDIRECT  tcp  --  anywhere             anywhere            
-
-Chain ISTIO_IN_REDIRECT (3 references)
-target     prot opt source               destination         
-REDIRECT   tcp  --  anywhere             anywhere             redir ports 15006
-
-Chain ISTIO_OUTPUT (1 references)
-target     prot opt source               destination         
-RETURN     all  --  127.0.0.6            anywhere            
-ISTIO_IN_REDIRECT  all  --  anywhere            !localhost            owner UID match istio-proxy
-RETURN     all  --  anywhere             anywhere             ! owner UID match istio-proxy
-RETURN     all  --  anywhere             anywhere             owner UID match istio-proxy
-ISTIO_IN_REDIRECT  all  --  anywhere            !localhost            owner GID match istio-proxy
-RETURN     all  --  anywhere             anywhere             ! owner GID match istio-proxy
-RETURN     all  --  anywhere             anywhere             owner GID match istio-proxy
-RETURN     all  --  anywhere             localhost           
-ISTIO_REDIRECT  all  --  anywhere             anywhere            
-
-Chain ISTIO_REDIRECT (1 references)
-target     prot opt source               destination         
-REDIRECT   tcp  --  anywhere             anywhere             redir ports 15001
-```
-
-We can see here iptables is used to redirect incoming and outgoing traffic to Istio's data plane proxy. Incoming traffic goes to port `15006` of the Istio proxy while outgoing traffic will go through `15001`. If we check the Envoy listeners for those ports, we can see exactly how the traffic gets handled.
-
+[See the Lab 02 bonus section](./02a-bonus.md).
 
 ## Next Lab
 

@@ -1,8 +1,10 @@
 # Lab 1 :: Run Envoy Proxy
 
-In this lab, we dig into one of the foundational pieces of Istio. The "data plane", or the service proxy that lives with each service/application instance is on the request path on both origination of a service call as well as usually on the destination side of the service call. We will see in later labs that being on the origination side may not always be the case.
+In this lab, we dig into one of the foundational pieces of Istio. The "data plane", or the service proxy that lives with each service/application instance is on the request path on both origination of a service call as well as usually on the destination side of the service call. 
 
-The service proxy that Istio uses is [Envoy Proxy](https://www.envoyproxy.io). Envoy is an incredibly powerful and well-suited proxy for this use case. It's impossible to understate how important Envoy is to Istio, which is why we start the labs with it.
+The service proxy that Istio uses is [Envoy Proxy](https://www.envoyproxy.io). Envoy is an incredibly powerful and well-suited proxy for this use case. 
+
+It's impossible to understate how important Envoy is to Istio, which is why we start the labs with it.
 
 ## Prerequisites
 
@@ -24,6 +26,9 @@ To verify we have things installed correctly, let's try run it:
 ```bash
 kubectl exec -it deploy/sleep -- curl httpbin:8000/headers
 ```
+
+> :eyes: Note, it may take a few moments for the `sleep` pod to come up, so you may need to retry the previous command if it fails
+
 We should see httpbin output that looks similar to this:
 
 ```
@@ -39,7 +44,9 @@ We should see httpbin output that looks similar to this:
 
 ## Review Envoy proxy config
 
-Envoy can be configured completely by loading a YAML/JSON file or in part with a dynamic API. The dynamic API is a big reason why microservice networking frameworks like Istio use Envoy, but we start by first understanding the configuration from a basic level. We will directly use the file configuration format. Take a look at as simple configuration file:
+Envoy can be configured completely by loading a YAML/JSON file or in part with a dynamic API. The dynamic API is a big reason why microservice networking frameworks like Istio use Envoy, but we start by first understanding the configuration from a basic level. 
+
+We will  use the file configuration format. Take a look at as simple configuration file:
 
 ```
 cat labs/01/envoy-conf.yaml
@@ -134,7 +141,7 @@ Now our response from `httpbin` should look similar to this:
 }
 ```
 
-Note we now see a response with some enriched response headers.
+> :eyes: We now see a response with some enriched response headers, `X-Envoy-Expected-Rq-Timeout-Ms`
 
 Now that we have Envoy on the request path of a service-to-service interaction, let's try changing the behavior of the call. While in this default configuration, we saw an expected request timeout of `15s`, let's try change the call timeout.
 
@@ -273,6 +280,8 @@ Let's see how to configure to retry on HTTP `5xx` requests:
                     numRetries: 3                      
 ```
 
+> :eyes: Note the configuration for retries on `5xx`
+
 Let's apply this new configuration:
 
 ```bash
@@ -339,8 +348,13 @@ We see that indeed the call to `httpbin` did get retried 3 times.
 
 ## Recap
 
-So far we've taken a basic approach to understanding what the Envoy proxy is and how to configure it. We've also seen how it can alter the behavior of a network call and give us very valuable information about how the network is behaving at the request/message level. We can do even more complicated networking things [as detailed in the Lab 01a section](./01a-additional-envoy.md).
+So far we've taken a basic approach to understanding what the Envoy proxy is and how to configure it. We've also seen how it can alter the behavior of a network call and give us very valuable information about how the network is behaving at the request/message level. 
 
+## Bonus Content
+
+In the bonus section, we dig into more networking settings like load balancing, circuit breaking, and more. 
+
+[See the Lab 01 bonus section](./01a-bonus.md).
 
 ## Next Lab
 
