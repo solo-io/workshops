@@ -118,7 +118,7 @@ kubectl delete deployment web-api-canary purchase-history-v1-canary recommendati
 
 Congratulations! You have successfully added all of your services in the istioinaction namespace to the mesh without any downtime.
 
-## Digging into Proxy configuration
+## Optional: Digging into Proxy configuration
 
 Coming back to our services in the `istioinaction` namespace, let's take a look at some of the Envoy configuration for the sidecar proxies. We will use the `istioctl proxy-config` command to inspect the configuration of the `web-api` pod's proxy. For example, to see the listeners configured on the proxy run this command:
 
@@ -218,7 +218,7 @@ istioctl proxy-config clusters deploy/web-api.istioinaction --fqdn recommendatio
 
 Note this is just a snippet, there are other configurations there specific to Istio and TLS connectivity. But if you recall the cluster configurations from the previous lab, you'll see they are similar. Istiod took information about the environment, user configurations, and service discovery, and translated this to an appropriate configuration _for this specific workload_.
 
-## Hold application until sidecar proxy is ready
+## Optional: Hold application until sidecar proxy is ready
 Kubernetes lacks a standard way to declare container dependencies.  There is a [Sidecar](https://github.com/kubernetes/enhancements/issues/753) Kubernetes Enhancement Proposal (KEP) out there, however it is not yet implemented in a Kubernetes release.  In the meantime, service owners may observe unexpected behavior at startup or stop times because the application container may start before sidecar proxy finishes starting or sidecar proxy could be stopped before application container is stopped. 
 
 To help mediate the issue, Istio has implemented a pod level configuration called `holdApplicationUntilProxyStarts` for service owners to delay application start until the sidecar proxy is ready. For example, you can add this annotation snippet to the web-api deployment yaml to hold the web-api application until the sidecar proxy is ready:

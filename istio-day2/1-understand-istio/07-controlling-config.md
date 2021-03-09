@@ -491,7 +491,7 @@ http.80                                          istioinaction.io     /*        
                                                  *                    /stats/prometheus*
 ```
 
-## Virtual service resource delegation
+## Optional: Virtual service resource delegation
 
 Gateway resource in istio-system, and delegate the VS resource to the service's namespace.  for example platform owner owns the gateway resources on which hosts and associated port numbers and TLS configuration but want to delegate the details of the virtual service resources to service owners.
 
