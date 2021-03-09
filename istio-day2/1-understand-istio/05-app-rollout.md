@@ -401,6 +401,45 @@ Send some traffic to web-api via istio-ingressgateway, you should get 200 status
 curl -H "Host: istioinaction.io" http://istioinaction.io/hello --resolve istioinaction.io:80:$GATEWAY_IP 
 ```
 
+Examine the clusters configuration for istio-ingressgateway:
+
+```bash
+istioctl pc clusters deploy/istio-ingressgateway.istio-system
+```
+
+Clusters output with subset v1:
+
+```
+SERVICE FQDN                                PORT     SUBSET     DIRECTION     TYPE           DESTINATION RULE
+BlackHoleCluster                            -        -          -             STATIC         
+agent                                       -        -          -             STATIC         
+prometheus_stats                            -        -          -             STATIC         
+sds-grpc                                    -        -          -             STATIC         
+web-api.istioinaction.svc.cluster.local     8080     -          outbound      EDS            web-api-dr.istioinaction
+web-api.istioinaction.svc.cluster.local     8080     v1         outbound      EDS            web-api-dr.istioinaction
+xds-grpc                                    -        -          -             STATIC         
+zipkin                                      -        -          -             STRICT_DNS    
+```
+
+Examine the endpoints configuration for istio-ingressgateway:
+
+```bash
+istioctl pc endpoint deploy/istio-ingressgateway.istio-system 
+```
+
+Endpoints output with subset v1:
+
+```
+ENDPOINT                         STATUS      OUTLIER CHECK     CLUSTER
+127.0.0.1:15000                  HEALTHY     OK                prometheus_stats
+127.0.0.1:15020                  HEALTHY     OK                agent
+192.168.1.155:8080               HEALTHY     OK                outbound|8080|v1|web-api.istioinaction.svc.cluster.local
+192.168.1.155:8080               HEALTHY     OK                outbound|8080||web-api.istioinaction.svc.cluster.local
+unix://./etc/istio/proxy/SDS     HEALTHY     OK                sds-grpc
+unix://./etc/istio/proxy/XDS     HEALTHY     OK                xds-grpc
+```
+
+
 ## Next Lab
 
 Istio can automatically encrypt traffic between services in the mesh with mutual TLS. In the [next lab](06-mtls-rollout.md), we will show you how to gradually roll out mTLS to your services in your Istio service mesh.
