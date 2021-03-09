@@ -380,7 +380,7 @@ In this lab we've set up one of the most important parts of running a service me
 
 In the bonus section, we dig into the observability system as well as some tips and tricks for how Istio handles metrics provided by the application. 
 
-[See the Lab 03 bonus section](./03a-bonus.md).
+[See the Lab 03 bonus section](03a-bonus.md).
 
 ## Next Lab
 

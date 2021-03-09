@@ -168,7 +168,7 @@ At this point, we've installed the Istio control plane following a slightly diff
 
 In the bonus section, we tie together our understanding of the Istio sidecar proxy (Envoy) that we gained in Lab 01 with the Istio control plane. We dig into how the Istio sidecar proxy works. 
 
-[See the Lab 02 bonus section](./02a-bonus.md).
+[See the Lab 02 bonus section](02a-bonus.md).
 
 ## Next Lab
 

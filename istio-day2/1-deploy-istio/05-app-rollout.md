@@ -295,7 +295,7 @@ Introducing the Istio sidecar to existing services so that they can participate 
 
 Other areas of bringing existing services which we cover are enabling access logs for your service, and more detailed subset routing configurations where there are some gotchas. 
 
-[See the Lab 05 bonus section](./05a-bonus.md).
+[See the Lab 05 bonus section](05a-bonus.md).
 
 ## Next Lab
 

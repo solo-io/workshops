@@ -354,7 +354,7 @@ So far we've taken a basic approach to understanding what the Envoy proxy is and
 
 In the bonus section, we dig into more networking settings like load balancing, circuit breaking, and more. 
 
-[See the Lab 01 bonus section](./01a-bonus.md).
+[See the Lab 01 bonus section](01a-bonus.md).
 
 ## Next Lab
 

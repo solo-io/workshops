@@ -446,7 +446,7 @@ And we covered only part 3 when we integrate with Cert Manager. In the second pa
 
 In the bonus section, we dig deeper into teams owning their own Ingress Gateway resources including getting around some of the limitations of secrets for certs/keys being in the same namespace as an ingress gateway deployed in the `istio-system` namespace.
 
-[See the Lab 04 bonus section](./04a-bonus.md).
+[See the Lab 04 bonus section](04a-bonus.md).
 
 ## Next lab
 
