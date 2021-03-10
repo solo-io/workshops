@@ -27,7 +27,10 @@ To verify we have things installed correctly, let's try run it:
 kubectl exec -it deploy/sleep -- curl httpbin:8000/headers
 ```
 
-> :eyes: Note, it may take a few moments for the `sleep` pod to come up, so you may need to retry the previous command if it fails
+{% hint style="info" %}
+Note, it may take a few moments for the `sleep` pod to come up, so you may need to retry the previous command if it fails
+{% endhint %}
+
 
 We should see httpbin output that looks similar to this:
 
