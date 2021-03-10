@@ -14,7 +14,7 @@ Let's get the lab environment set up.
 
 We will use a Kubernetes cluster on the lab machine to work through the following labs. In this prep section we will set up our cluster and download `istioctl`.
 
-### Se up Kubernetes cluster with Kind
+### Set up Kubernetes cluster with Kind
 
 From the terminal go to the `/home/solo/workshops/scripts` directory:
 
