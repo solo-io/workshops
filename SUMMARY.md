@@ -1,5 +1,8 @@
 
-
+* [Gloo Mesh Workshop](./gloo-mesh/README.md)    
+* Gloo Edge Workshop
+    * [Gloo Edge Gateway](./gloo-edge/gloo-edge/README.md)
+    * [Gloo Edge Federation](./gloo-mesh/federation/README.md)    
 * [Istio Day 2 Series](./istio-day2/README.md)
     * [Deploy Istio for Production](./istio-day2/1-deploy-istio/README.md)
         * [Lab 1 - Run Envoy Proxy](./istio-day2/1-deploy-istio/01-run-envoy.md)
@@ -15,3 +18,5 @@
         * [Lab 6 - Rolling out mTLS for services in a controlled manner](./istio-day2/1-deploy-istio/06-mtls-rollout.md)
         * [Lab 7 - Controlling configuration](./istio-day2/1-deploy-istio/07-controlling-config.md)
         * [Lab 8 - Debugging networking configurations](./istio-day2/1-deploy-istio/08-debugging-config.md)
+    * [Operate Istio in Production](./istio-day2/2-operate-istio/README.md)
+* [Developer portal](./gloo-portal/README.md)

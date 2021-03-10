@@ -324,7 +324,7 @@
     shell: touch /home/solo/.config/gnome-initial-setup-done
 
   - name: Set homepage
-    shell: bash -c 'echo '"'"'user_pref("browser.startup.homepage", "https://github.com/solo-io/workshops");'"'"' >> /home/solo/.mozilla/firefox/*.default-release/prefs.js'
+    shell: bash -c 'echo '"'"'user_pref("browser.startup.homepage", "https://solo-io.gitbook.io/gloo-workshops/");'"'"' >> /home/solo/.mozilla/firefox/*.default-release/prefs.js'
 
   - name: Download the codecopy Firefox addon
     get_url:
