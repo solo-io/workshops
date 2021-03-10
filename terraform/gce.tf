@@ -4,7 +4,7 @@ locals {
 
 resource "google_compute_instance" "default" {
   count         = "1"
-  name         = "istio-workshop-west-${count.index + 1}"
+  name         = "solo-workshop-west-${count.index + 1}"
   machine_type = "n1-standard-8"
   zone         = "us-west1-a"
 
@@ -30,7 +30,7 @@ resource "google_compute_instance" "default" {
     }
   }
 
-  project = "solo-test-236622"
+  project = "solo-workshops"
 
   metadata = {
     enable-oslogin = "FALSE"
