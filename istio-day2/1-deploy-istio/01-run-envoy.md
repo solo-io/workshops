@@ -144,7 +144,10 @@ Now our response from `httpbin` should look similar to this:
 }
 ```
 
-> :eyes: We now see a response with some enriched response headers, `X-Envoy-Expected-Rq-Timeout-Ms`
+{% hint style="info" %}
+We now see a response with some enriched response headers, `X-Envoy-Expected-Rq-Timeout-Ms`
+{% endhint %}
+
 
 Now that we have Envoy on the request path of a service-to-service interaction, let's try changing the behavior of the call. While in this default configuration, we saw an expected request timeout of `15s`, let's try change the call timeout.
 
@@ -283,7 +286,10 @@ Let's see how to configure to retry on HTTP `5xx` requests:
                     numRetries: 3                      
 ```
 
-> :eyes: Note the configuration for retries on `5xx`
+{% hint style="info" %}
+Note the configuration for retries on `5xx`
+{% endhint %}
+
 
 Let's apply this new configuration:
 

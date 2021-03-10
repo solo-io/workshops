@@ -45,7 +45,11 @@ spec:
                  exec:
                    command: ["sh", "-c", "sleep 5"]
 ```
-> :memo: This uses the `empty` profile and enables the `istio-ingressgateway` component. Let's install it with a revision that matches the control plane:
+{% hint style="info" %}
+This uses the `empty` profile and enables the `istio-ingressgateway` component. 
+{% endhint %}
+
+Let's install it with a revision that matches the control plane:
 
 ```bash
 istioctl install -y -n istio-system -f labs/04/ingress-gateways.yaml --revision 1-8-3
@@ -80,13 +84,19 @@ kiali                  ClusterIP      10.44.4.127    <none>          20001/TCP,9
 
 ## Note the GATEWAY_IP env variable
 
-> :information_source: We use the `GATEWAY_IP` environment variable in other parts of this lab.
+
+{% hint style="success" %}
+We use the `GATEWAY_IP` environment variable in other parts of this lab.
+{% endhint %}
 
 ```bash
 GATEWAY_IP=$(kubectl get svc -n istio-system istio-ingressgateway -o jsonpath="{.status.loadBalancer.ingress[0].ip}")
 ```
 
-> :pushpin: If you are running this lab on your MacBook, you need to follow [this instruction](https://github.com/christian-posta/docker-tuntap-osx) to setup MetalLB on your Kind cluster so you can access the `GATEWAY_IP` from your terminal.
+{% hint style="info" %}
+If you are running this lab on your MacBook, you need to follow [this instruction](https://github.com/christian-posta/docker-tuntap-osx) to setup MetalLB on your Kind cluster so you can access the `GATEWAY_IP` from your terminal.
+{% endhint %}
+
 
 ## Expose our apps
 
@@ -188,7 +198,9 @@ Let's delete the secret we created earlier and see what other options we have:
 ```bash
 kubectl delete secret -n istio-system istioinaction-cert
 ```
-> :memo: We should delete the secret like in the previous step so the next sections will work as expected
+{% hint style="info" %}
+We should delete the secret like in the previous step so the next sections will work as expected
+{% endhint %}
 
 ## Integrate Istio ingress gateway with Cert Manager
 
@@ -228,7 +240,9 @@ Let's delete the secret we created earlier and see what other options we have:
 ```bash
 kubectl delete secret -n istio-system istioinaction-cert
 ```
-> :memo: We should delete the secret like in the previous step so the next sections will work as expected
+{% hint style="info" %}
+We should delete the secret like in the previous step so the next sections will work as expected
+{% endhint %}
 
 Since we're going to use our own CA as the backend, let's install the correct root certs/keys:
 

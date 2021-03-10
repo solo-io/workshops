@@ -12,7 +12,9 @@ To update the security configuration of the sidecar container, run the following
 kubectl edit deploy/httpbin -n default
 ```
 
-> :warning: You should edit the resource in place; we've seen instances where saving to a file and trying to apply doesn't actually apply the changes. 
+{% hint style="danger" %}
+You should edit the resource in place; we've seen instances where saving to a file and trying to apply doesn't actually apply the changes. 
+{% endhint %}
 
 Update the sidecar container to have security context like this:
 
@@ -28,7 +30,10 @@ Update the sidecar container to have security context like this:
 
 Specifically the `allowPrivilegeEscalation` and `privileged` fields change to true. Once you save this change, we should see a new `httpbin` pod with updated security privilege and we can explore some of the `iptables` rules that redirect traffic. 
 
-> :eyes: Double check the changes you made actually got applied if you the following steps do not work. 
+{% hint style="info" %}
+Double check the changes you made actually got applied if you the following steps do not work. 
+{% endhint %}
+
 
 ```
 kubectl -n default exec -it deploy/httpbin -c istio-proxy -- sudo iptables -L -t nat

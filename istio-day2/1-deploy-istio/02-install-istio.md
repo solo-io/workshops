@@ -43,13 +43,17 @@ You now have some existing workloads in your cluster. Let's proceed to install t
 ### Verify Istio CLI installation
 You will need access to a Kubernetes cluster. If you're doing this via the Solo.io Workshop format, you should have everything ready to go. 
 
-> :memo: If you are using Docker Desktop or kind locally, expect to use 16.0 GB of memory and 4-8 CPUs depending how much of the lab you wish to do. We end up downloading and using a lot of components. 
+{% hint style="info" %}
+If you are using Docker Desktop or kind locally, expect to use 16.0 GB of memory and 4-8 CPUs depending how much of the lab you wish to do. We end up downloading and using a lot of components. 
+{% endhint %}
 
 Verify you're in the correct folder for this lab: `/home/solo/workshops/istio-day2/1-deploy-istio/`. 
 
 In the workshop material, you should already have Istio `1.8.3` cli installed and ready to go. 
 
-> :memo: Although at the time of this writing Istio `1.9` is the latest, we will start on Istio `1.8.x` and show how to do upgrades in the second part of this workshop. 
+{% hint style="info" %}
+Although at the time of this writing Istio `1.9` is the latest, we will start on Istio `1.8.x` and show how to do upgrades in the second part of this workshop. 
+{% endhint %}
 
 To verify, run 
 
@@ -72,7 +76,9 @@ We don't have the Istio control plane installed and running yet. Let's go ahead 
 
 We will use the `istioctl` approach to install Istio following some best practices to set you up for future success. In the second part of this lab (series 2) we'll explore how to use Helm. 
 
-> :memo: Helm 3 is another common approach to installing and upgrading Istio. We'll see labs on Helm 3 in the second part of this workshop series.
+{% hint style="success" %}
+Helm 3 is another common approach to installing and upgrading Istio. We'll see labs on Helm 3 in the second part of this workshop series.
+{% endhint %}
 
 
 ## Installing Istio
@@ -91,7 +97,9 @@ Next let's create the control plane service `istiod`:
 kubectl apply -f labs/02/istiod-service.yaml
 ```
 
-> :bulb: This is an additional step you may not see very clearly in the Istio docs; we need this step to workaround a long-standing issue with Istio revisions which we'll use in the next steps. Istio revisions allow us to run multiple versions of the Istio control plane.
+{% hint style="info" %}
+This is an additional step you may not see very clearly in the Istio docs; we need this step to workaround a long-standing issue with Istio revisions which we'll use in the next steps. Istio revisions allow us to run multiple versions of the Istio control plane.
+{% endhint %}
 
 Lastly, we will install the Istio control plane using a _revisions_. You can check the Istio docs [for more on revisions](https://istio.io/latest/docs/setup/upgrade/canary/#control-plane)
 
@@ -146,7 +154,9 @@ kubectl exec -n istio-system -it deploy/istiod-1-8-3 -- pilot-discovery request 
 
 The output of this command can be quite verbose as it lists all of the services in the Istio registry. Workloads are included in the Istio registry even if they are not officially part of the mesh (ie, have a sidecar deployed next to it). We leave it to the reader to grep for some of the previously deployed services (`web-api`, `recommendation` and `purchase-history` services).
 
-> :pushpin: We will cover more of the `debug` endpoints in [Lab 08](./08-debugging-config.md)
+{% hint style="info" %}
+We will cover more of the `debug` endpoints in [Lab 08](./08-debugging-config.md)
+{% endhint %}
 
 ## Install sidecar for demo app
 
@@ -158,7 +168,9 @@ Run the following command to add the Istio sidecar to the `httpbin` service in t
 istioctl kube-inject -f labs/01/httpbin.yaml --meshConfigMapName istio-1-8-3 --injectConfigMapName istio-sidecar-injector-1-8-3  | kubectl apply -f -
 ```
 
-> :eyes: In the above command we configure `istioctl` to use the configmaps from our `1-8-3` revision. We can run multiple versions of Istio concurrently and can specify exactly which revision gets applied in the tooling.
+{% hint style="info" %}
+In the above command we configure `istioctl` to use the configmaps from our `1-8-3` revision. We can run multiple versions of Istio concurrently and can specify exactly which revision gets applied in the tooling.
+{% endhint %}
 
 ## Recap
 

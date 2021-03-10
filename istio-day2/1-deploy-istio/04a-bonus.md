@@ -75,7 +75,9 @@ Now let's try call our ingress gateway again to verify it works as expected:
 curl --cacert ./labs/04/certs/ca/root-ca.crt -H "Host: istioinaction.io" https://istioinaction.io --resolve istioinaction.io:443:$GATEWAY_IP
 ```
 
-> :warning: We list this use case here because that's what folks seem to be doing in the wild, however, **at Solo.io we don't recommend this approach**. There are other approaches that we'll cover in this lab and in the second part of this workshop to more securely deliver secrets for your ingress gateway.
+{% hint style="warning" %}
+We list this use case here because that's what folks seem to be doing in the wild, however, **at Solo.io we don't recommend this approach**. There are other approaches that we'll cover in this lab and in the second part of this workshop to more securely deliver secrets for your ingress gateway.
+{% endhint %}
 
 
 If you would like o clean up this portion of the lab, you can run:
@@ -186,7 +188,10 @@ kubectl delete secret/my-user-gw-istioinaction-cert -n istioinaction
 
 ####  TODO :: private vs public gateway/LB -- integrating with ALB/NLB
 
-> :construction: This section is WIP!!
+
+{% hint style="danger" %}
+This section is WIP!!
+{% endhint %}
 
 * understand AWS LB: 
   https://docs.aws.amazon.com/eks/latest/userguide/load-balancing.html

@@ -18,7 +18,9 @@ Now let's label this namespace with the appropriate labels to enable sidecar inj
 kubectl label namespace istioinaction istio.io/rev=1-8-3
 ```
 
-> :memo: As you can see here we're using a different label than the normal `istio-injection` label; we are leveraging revisions which allows us to control which control plane to which an istio sidecar connects
+{% hint style="info" %}
+As you can see here we're using a different label than the normal `istio-injection` label; we are leveraging revisions which allows us to control which control plane to which an istio sidecar connects
+{% endhint %}
 
 Next, we deploy a `web-api` _canary_ deployment in the `istioinaction` namespace:
 
@@ -26,7 +28,9 @@ Next, we deploy a `web-api` _canary_ deployment in the `istioinaction` namespace
 kubectl apply -f labs/05/web-api-canary.yaml -n istioinaction
 ```
 
-> :memo: The purpose of this deployment is to not touch any of the existing services yet but to deploy a sidecar next to one instance of the `web-api` service as a _canary_
+{% hint style="info" %}
+The purpose of this deployment is to not touch any of the existing services yet but to deploy a sidecar next to one instance of the `web-api` service as a _canary_
+{% endhint %}
 
 Check the pods in this namespace:
 

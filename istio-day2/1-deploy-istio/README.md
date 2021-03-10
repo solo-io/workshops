@@ -29,7 +29,9 @@ Run the following commands to deploy a single Kubernetes cluster using [Kind](ht
 ./deploy.sh 1 istio-workshop
 ```
 
-> :eyes: Note the `1` in the CLI command above
+{% hint style="info" %}
+Note the `1` in the CLI command above
+{% endhint %}
 
 Kind should automatically set up the Kubernetes context for the `kubectl` CLI tool, but to make sure you're pointed to the right cluster, run the following:
 

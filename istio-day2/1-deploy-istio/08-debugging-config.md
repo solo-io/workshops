@@ -137,7 +137,9 @@ istioctl dashboard envoy <pod-name[.namespace]>
 
 This takes us to the Envoy dashboard and gives access to things like `/stats`, `/server_info`, and the full `/config_dump`. Another important endpoint is the `/clusters` endpoint which gives detailed information for all of the Envoy clusters including the specific endpoints that make up a cluster. You can also see endpoint information (EDS) in the full config dump with `/config_dump?include_eds`.
 
-> :pushpin: As an exercise for the reader, try to run the `istioctl dashboard envoy` command and explore these different endpoints
+{% hint style="success" %}
+As an exercise for the reader, try to run the `istioctl dashboard envoy` command and explore these different endpoints
+{% endhint %}
 
 ### Logging
 

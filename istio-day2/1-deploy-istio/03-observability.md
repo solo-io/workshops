@@ -6,7 +6,9 @@ We saw in Lab 01 that Envoy surfaces a large set of stats, metrics, guages, and 
 
 Istio comes with a few [sample addons](https://istio.io/latest/docs/ops/integrations/prometheus/#option-1-quick-start) for adding observability components like Prometheus, Grafana, and Kiali. In this lab **we will assume you are not going to use these components** as they are intended for very simple deployments and **not intended for a realistic production setup**. We will install something that looks more realistic and use that.
 
-> :warning: Istio's sample addons for Prometheus, Grafana, Kiali, etc are NOT intended for production usage. This guide will walk through a setup more production like.
+{% hint style="warning" %}
+Istio's sample addons for Prometheus, Grafana, Kiali, etc are NOT intended for production usage. This guide will walk through a setup more production like.
+{% endhint %}
 
 ## Prerequisites
 
@@ -37,7 +39,9 @@ Next, let's run the helm installer. We are disabling some components of `kube-pr
 helm install prom prometheus-community/kube-prometheus-stack --version 13.13.1 -n prometheus -f labs/03/prom-values.yaml
 ```
 
-> :memo: This command may take a few moments to complete; be patient.
+{% hint style="info" %}
+This command may take a few moments to complete; be patient.
+{% endhint %}
 
 At this point, we should have a successfully installed prometheus. To verify the components that were installed to support observability for us, let's check the pods:
 
@@ -83,7 +87,9 @@ Now you should see the main dashboard like this:
 
 Feel free to poke around and see what dashboards are available with this default set up (note some dashboards we have disabled in the original deployment when we cut down some of the components -- at least in the instructor-led workshop).
 
-> :question: If you're unfamiliar with Grafana, you should start by clicking the "Home" button on the top left of the main screen 
+{% hint style="success" %}
+If you're unfamiliar with Grafana, you should start by clicking the "Home" button on the top left of the main screen 
+{% endhint %}
 
 
 ## Add Istio Dashboards to Grafana
@@ -124,7 +130,9 @@ From here, you should see the new Istio dashboards that have been added:
 
 ![](./images/grafana-istio-dashboard-list.png)
 
-> :eyes: It may take a few moments for the dashboards to appear
+{% hint style="info" %}
+It may take a few moments for the dashboards to appear
+{% endhint %}
 
 Click the "Control Plane" dashboard. You should be taken to a dashboard with some interesting graphs:
 
@@ -132,7 +140,9 @@ Click the "Control Plane" dashboard. You should be taken to a dashboard with som
 
 Actually, the graphs are all empty!! This is not of much value to us, so let's figure out how to populate these graphs.
 
-> :warning: It may take quite a few minutes for data to populate into the Grafana dashboards. In practice, it may be worth moving on to other parts and coming back later to check the data in the dashboards. 
+{% hint style="warning" %}
+It may take quite a few minutes for data to populate into the Grafana dashboards. In practice, it may be worth moving on to other parts and coming back later to check the data in the dashboards. 
+{% endhint %}
 
 ## Scraping the Istio service mesh: control plane
 
@@ -172,7 +182,10 @@ kubectl apply -f labs/03/monitor-control-plane.yaml
 
 At this point we will start to see important telemetry signals about the control plane such as the number of sidecars attached to the control plane, whether there are configuration conflicts, the amount of churn in the mesh, as well as basic memory/CPU usage of the control plane. 
 
-> :question: As mentioned earlier, it may take a few minutes for these signals to start to make it into the Grafana dashboards, so be patient :)
+{% hint style="success" %}
+As mentioned earlier, it may take a few minutes for these signals to start to make it into the Grafana dashboards, so be patient :)
+{% endhint %}
+
 
 Since there aren't very many workloads (just our `httpbin` service we installed for testing), we won't see too much data.
 
@@ -238,7 +251,10 @@ We could also use a load generator tool to put more load on the system over a pe
 
 Now we should be scraping the data-plane workloads. If we check the Istio Service Dashboard, specifically the "Service Workload" section, we should start to see load. 
 
-> :question: As mentioned earlier, it may take a few minutes for these signals to start to make it into the Grafana dashboards, so be patient :)
+{% hint style="success" %}
+As mentioned earlier, it may take a few minutes for these signals to start to make it into the Grafana dashboards, so be patient :)
+{% endhint %}
+
 
 ![](./images/grafana-service-workloads.png)
 
@@ -272,7 +288,10 @@ helm install \
     kiali-operator
 ```
 
-> :eyes: You may see helm complain about some parts of the Kiali install; you can ignore those for now and verify the Kiali Operator got installed correctly
+
+{% hint style="info" %}
+You may see helm complain about some parts of the Kiali install; you can ignore those for now and verify the Kiali Operator got installed correctly
+{% endhint %}
 
 At this point we have the Kiali operator installed. Let's check that it's up and running:
 
@@ -321,7 +340,10 @@ Let's create the Kiali instance:
 kubectl apply -f labs/03/kiali.yaml 
 ```
 
-> :eyes: You may see kubectl complain about the manner in which we apply this resource; you can safely ignore it for this lab
+{% hint style="info" %}
+You may see kubectl complain about the manner in which we apply this resource; you can safely ignore it for this lab
+{% endhint %}
+
 
 Let's check that it got created:
 
@@ -349,7 +371,9 @@ You are greeted with a login page when you get there:
 
 How do we login here? We configured Kiali to use the [token auth](https://kiali.io/documentation/latest/configuration/authentication/token/) strategy which is similar to securing the default Kubernetes dashboard. Let's create the service-account token and RBAC so we can login:
 
-> :warning: Some times the lab machines can have issues with copy/paste of the token; you can switch to `anonymous` login with the file `labs/03/kiali-no-auth.yaml` if you need to
+{% hint style="warning" %}
+Some times the lab machines can have issues with copy/paste of the token; you can switch to `anonymous` login with the file `labs/03/kiali-no-auth.yaml` if you need to
+{% endhint %}
 
 ```bash
 kubectl create serviceaccount kiali-dashboard -n istio-system
