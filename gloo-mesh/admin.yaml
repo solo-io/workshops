@@ -1,4 +1,4 @@
-apiVersion: rbac.mesh.gloo.solo.io/v1alpha1
+apiVersion: rbac.enterprise.mesh.gloo.solo.io/v1alpha1
 kind: Role
 metadata:
   name: admin-role
@@ -68,7 +68,7 @@ spec:
             namespace: "*"
             clusterName: "*"
 ---
-apiVersion: rbac.mesh.gloo.solo.io/v1alpha1
+apiVersion: rbac.enterprise.mesh.gloo.solo.io/v1alpha1
 kind: RoleBinding
 metadata:
   labels:

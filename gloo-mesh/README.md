@@ -12,7 +12,7 @@ The goal of this workshop is to show several unique features of the Gloo Mesh in
 
 ## Lab environment
 
-Gloo Mesh can be run in its own cluster or co-located with an existing mesh.  In this exercise, Gloo Mesh will run in its own dedicated management cluster, while the two managed Istio meshes will run in separate clusters.
+Gloo Mesh can be run in its own cluster or co-located with an existing mesh. In this exercise, Gloo Mesh will run in its own dedicated management cluster, while the two managed Istio meshes will run in separate clusters.
 
 ![Lab](images/lab.png)
 
@@ -32,7 +32,7 @@ Run the following commands to deploy three Kubernetes clusters using [Kind](http
 ../scripts/deploy.sh 3 cluster2
 ```
 
-Then run the following commands to wait for all the Pods to be ready:
+Then run the following commands to wait for all the system Pods to be ready:
 
 ```bash
 ../scripts/check.sh mgmt
@@ -46,18 +46,18 @@ Once the `check.sh` script completes, when you execute the `kubectl get pods -A`
 
 ```
 NAMESPACE            NAME                                          READY   STATUS    RESTARTS   AGE
-kube-system          calico-kube-controllers-59d85c5c84-sbk4k      1/1     Running   0          4h26m
-kube-system          calico-node-przxs                             1/1     Running   0          4h26m
-kube-system          coredns-6955765f44-ln8f5                      1/1     Running   0          4h26m
-kube-system          coredns-6955765f44-s7xxx                      1/1     Running   0          4h26m
-kube-system          etcd-cluster1-control-plane                   1/1     Running   0          4h27m
-kube-system          kube-apiserver-cluster1-control-plane         1/1     Running   0          4h27m
-kube-system          kube-controller-manager-cluster1-control-plane1/1     Running   0          4h27m
-kube-system          kube-proxy-ksvzw                              1/1     Running   0          4h26m
-kube-system          kube-scheduler-cluster1-control-plane         1/1     Running   0          4h27m
-local-path-storage   local-path-provisioner-58f6947c7-lfmdx        1/1     Running   0          4h26m
-metallb-system       controller-5c9894b5cd-cn9x2                   1/1     Running   0          4h26m
-metallb-system       speaker-d7jkp                                 1/1     Running   0          4h26m
+kube-system          calico-kube-controllers-7d66c56c96-xvhq9      1/1     Running   0          115s
+kube-system          calico-node-smr6f                             1/1     Running   0          115s
+kube-system          coredns-74ff55c5b-25gtw                       1/1     Running   0          115s
+kube-system          coredns-74ff55c5b-7b4dk                       1/1     Running   0          115s
+kube-system          etcd-kind3-control-plane                      1/1     Running   0          2m5s
+kube-system          kube-apiserver-kind3-control-plane            1/1     Running   0          2m5s
+kube-system          kube-controller-manager-kind3-control-plane   1/1     Running   0          2m5s
+kube-system          kube-proxy-ttxgh                              1/1     Running   0          115s
+kube-system          kube-scheduler-kind3-control-plane            1/1     Running   0          2m5s
+local-path-storage   local-path-provisioner-78776bfc44-nzhdp       1/1     Running   0          115s
+metallb-system       controller-fb659dc8-sqbmn                     1/1     Running   0          115s
+metallb-system       speaker-9cb9z                                 1/1     Running   0          105s
 ```
 
 Note that this represents the output just for `cluster2`, although the pod footprint for all three clusters should look similar at this point.
@@ -65,10 +65,10 @@ Note that this represents the output just for `cluster2`, although the pod footp
 You can see that your currently connected to this cluster by executing the `kubectl config get-contexts` command:
 
 ```
-CURRENT   NAME         CLUSTER         AUTHINFO   NAMESPACE  
-          cluster1     kind-cluster1   cluster1
-*         cluster2     kind-cluster2   cluster2
-          mgmt         kind-mgmt       kind-mgmt 
+CURRENT   NAME             CLUSTER          AUTHINFO         NAMESPACE
+          cluster1         kind-kind2       kind-kind2
+*         cluster2         kind-kind3       kind-kind3
+          mgmt             kind-kind1       kind-kind1
 ```
 
 Run the following command to make `mgmt` the current cluster.
@@ -79,7 +79,7 @@ kubectl config use-context mgmt
 
 ## Lab 2 : Deploy Gloo Mesh and register the clusters
 
-First of all, you need to install the *meshctl* CLI:
+First, install the *meshctl* CLI:
 
 ```bash
 curl -sL https://run.solo.io/meshctl/install | GLOO_MESH_VERSION=v0.12.2 sh -
@@ -88,7 +88,7 @@ export PATH=$HOME/.gloo-mesh/bin:$PATH
 
 Gloo Mesh Enterprise is adding unique features on top of Gloo Mesh Open Source (RBAC, UI, WASM, ...).
 
-Run the following commands to deploy Gloo Mesh Enterprise:
+Run the following commands to deploy Gloo Mesh Enterprise onto the `mgmt` cluster:
 
 ```bash
 meshctl install enterprise --license=${GLOO_MESH_LICENSE_KEY} --version=0.5.1
@@ -100,7 +100,13 @@ kubectl --context mgmt -n gloo-mesh rollout status deploy/networking
 kubectl --context mgmt -n gloo-mesh rollout status deploy/rbac-webhook
 ```
 
-Then, you need to register the two other clusters:
+The role-based API in Gloo Mesh Enterprise uses Role and RoleBinding CRDs to define and grant operations to users. Let's give ourselves permissions to perform all actions on all scopes.
+
+```bash
+kubectl --context mgmt create -f admin.yaml
+```
+
+Then, register the two other clusters with Gloo Mesh:
 
 ```bash
 meshctl cluster register \
@@ -116,7 +122,7 @@ meshctl cluster register \
   --install-wasm-agent --wasm-agent-chart-file https://storage.googleapis.com/gloo-mesh-enterprise/wasm-agent/wasm-agent-0.4.0.tgz
 ```
 
-You can list the registered cluster using the following command:
+You can list the registered clusters using the following command:
 
 ```bash
 kubectl get kubernetescluster -n gloo-mesh
@@ -138,13 +144,15 @@ Download istio 1.8.2:
 curl -L https://istio.io/downloadIstio | ISTIO_VERSION=1.8.2 sh -
 ```
 
-Now let's deploy Istio on the first cluster:
+Now let's deploy Istio on `cluster1` by installing the Istio Operator and then applying the installation configuration.
 
 ```bash
 ./istio-1.8.2/bin/istioctl --context cluster1 operator init
 
 kubectl --context cluster1 create ns istio-system
+```
 
+```bash
 cat << EOF | kubectl --context cluster1 apply -f -
 apiVersion: install.istio.io/v1alpha1
 kind: IstioOperator
@@ -220,13 +228,15 @@ spec:
 EOF
 ```
 
-And deploy Istio on the second cluster:
+Repeat for `cluster2`
 
 ```bash
 ./istio-1.8.2/bin/istioctl --context cluster2 operator init
 
 kubectl --context cluster2 create ns istio-system
+```
 
+```bash
 cat << EOF | kubectl --context cluster2 apply -f -
 apiVersion: install.istio.io/v1alpha1
 kind: IstioOperator
@@ -394,7 +404,7 @@ As you can see, it deployed all three versions of the `reviews` microservice.
 
 ![Initial setup](images/initial-setup.png)
 
-Open the <a href="http://172.18.0.220/productpage" target="_blank">bookinfo app</a> with your web browser.
+Go to <a href="http://172.18.0.220/productpage" target="_blank">http://172.18.0.220/productpage</a> with your web browser to visit the bookinfo app. `172.18.0.220` is the IP address of the Ingress Gateway running in `cluster1`.
 
 ![Bookinfo working](images/bookinfo-working.png)
 
