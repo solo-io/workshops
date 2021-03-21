@@ -349,7 +349,7 @@ read -r client token <<<$(curl -H "Authorization: Bearer ${KEYCLOAK_TOKEN}" -X P
 read -r id secret <<<$(curl -X POST -d "{ \"clientId\": \"${client}\" }" -H "Content-Type:application/json" -H "Authorization: bearer ${token}" ${KEYCLOAK_URL}/realms/master/clients-registrations/default| jq -r '[.id, .secret] | @tsv')
 
 # Add allowed redirect URIs
-curl -H "Authorization: Bearer ${KEYCLOAK_TOKEN}" -X PUT -H "Content-Type: application/json" -d '{"serviceAccountsEnabled": true, "authorizationServicesEnabled": true, "redirectUris": ["https://172.18.0.210/callback", "http://portal.example.com/callback"]}' $KEYCLOAK_URL/admin/realms/master/clients/${id}
+curl -H "Authorization: Bearer ${KEYCLOAK_TOKEN}" -X PUT -H "Content-Type: application/json" -d '{"serviceAccountsEnabled": true, "authorizationServicesEnabled": true, "redirectUris": ["https://172.18.1.1/callback", "http://portal.example.com/callback"]}' $KEYCLOAK_URL/admin/realms/master/clients/${id}
 
 # Add the group attribute in the JWT token returned by Keycloak
 curl -H "Authorization: Bearer ${KEYCLOAK_TOKEN}" -X POST -H "Content-Type: application/json" -d '{"name": "group", "protocol": "openid-connect", "protocolMapper": "oidc-usermodel-attribute-mapper", "config": {"claim.name": "group", "jsonType.label": "String", "user.attribute": "group", "id.token.claim": "true", "access.token.claim": "true"}}' $KEYCLOAK_URL/admin/realms/master/clients/${id}/protocol-mappers/models
@@ -402,7 +402,7 @@ spec:
   configs:
   - oauth2:
       oidcAuthorizationCode:
-        appUrl: https://172.18.0.210
+        appUrl: https://172.18.1.1
         callbackPath: /callback
         clientId: ${client}
         clientSecretRef:
@@ -1013,7 +1013,7 @@ You should get the following output:
     "Accept-Language": "en-US,en;q=0.9", 
     "Content-Length": "0", 
     "Cookie": "id_token=eyJhbGciOiJSUzI1NiIsInR5cCIgOiAiSldUIiwia2lkIiA6ICJZd18zVTBoOFFkbGpsODBiSkQxUDhzbUtud0ZYYkVJZE0xZjlMU3R1N2E0In0.eyJleHAiOjE2MDc0MTkxNjksImlhdCI6MTYwNzQxOTEwOSwiYXV0aF90aW1lIjoxNjA3NDE4NzQ5LCJqdGkiOiI0NzMyNjU5Mi0xY2Q0LTQzNjItODA5ZS01NzA2YzU5MTU2MzYiLCJpc3MiOiJodHRwOi8vMTcyLjE4LjAuMjExOjgwODAvYXV0aC9yZWFsbXMvbWFzdGVyIiwiYXVkIjoiZjg3YzAzOWQtNTdiZi00NTQzLWExZjAtOGIyMmZjNmY5ZTYwIiwic3ViIjoiN2Q0N2I2YmYtOTcyYi00OGRjLWI3YjctM2U5N2NlZGM4NjM1IiwidHlwIjoiSUQiLCJhenAiOiJmODdjMDM5ZC01N2JmLTQ1NDMtYTFmMC04YjIyZmM2ZjllNjAiLCJzZXNzaW9uX3N0YXRlIjoiOGJmNjAzMTYtY2NmYi00ZWZkLWFiNDgtOTc5MmQzNTkzNzBhIiwiYXRfaGFzaCI6InJxZHVfVEVucHZaUElDSm1SblMwM0EiLCJhY3IiOiIwIiwiZW1haWxfdmVyaWZpZWQiOmZhbHNlLCJwcmVmZXJyZWRfdXNlcm5hbWUiOiJ1c2VyMSIsImVtYWlsIjoidXNlcjFAc29sby5pbyIsImdyb3VwIjoidXNlcnMifQ.FnuiURxT6Y8NZGKcFxlud0jgz9QieZiYx5zB0VXeIMeTrKvcmWxkFEViIF22MvaGh2jYRSoSCCqiR3JwMgmMTtDU2NPuAL6FyLbeeOOxOw6h7zc4XRKHzzwPH4p8l6Np4GLgHEPzlP_ZGochgieeYGA5kKzV2r6BrFFoKAbHTio5waJlnyDQQ6_EbBfHngrgiW8ngrMD5RiryhJ-idaNae_bM0KrXTow0xVFpOlo59E03N_QamJeegAPZnwpm5meEMN1w8uHm2WRe3NtUxb2sLBoQoJIKZj-7AsRNPzfJ5kbUQ250Sdbeeo4t6mmO5Vf472DkxzyPho3gf-avLINLg; access_token=eyJhbGciOiJSUzI1NiIsInR5cCIgOiAiSldUIiwia2lkIiA6ICJZd18zVTBoOFFkbGpsODBiSkQxUDhzbUtud0ZYYkVJZE0xZjlMU3R1N2E0In0.eyJleHAiOjE2MDc0MTkxNjksImlhdCI6MTYwNzQxOTEwOSwiYXV0aF90aW1lIjoxNjA3NDE4NzQ5LCJqdGkiOiJhNmI5MDk5MC0zYjBhLTQwZjItYmI0Yy0yMTc0NTlmZjUyMjQiLCJpc3MiOiJodHRwOi8vMTcyLjE4LjAuMjExOjgwODAvYXV0aC9yZWFsbXMvbWFzdGVyIiwiYXVkIjoiYWNjb3VudCIsInN1YiI6IjdkNDdiNmJmLTk3MmItNDhkYy1iN2I3LTNlOTdjZWRjODYzNSIsInR5cCI6IkJlYXJlciIsImF6cCI6ImY4N2MwMzlkLTU3YmYtNDU0My1hMWYwLThiMjJmYzZmOWU2MCIsInNlc3Npb25fc3RhdGUiOiI4YmY2MDMxNi1jY2ZiLTRlZmQtYWI0OC05NzkyZDM1OTM3MGEiLCJhY3IiOiIwIiwicmVhbG1fYWNjZXNzIjp7InJvbGVzIjpbIm9mZmxpbmVfYWNjZXNzIiwidW1hX2F1dGhvcml6YXRpb24iXX0sInJlc291cmNlX2FjY2VzcyI6eyJhY2NvdW50Ijp7InJvbGVzIjpbIm1hbmFnZS1hY2NvdW50IiwibWFuYWdlLWFjY291bnQtbGlua3MiLCJ2aWV3LXByb2ZpbGUiXX19LCJzY29wZSI6Im9wZW5pZCBlbWFpbCBwcm9maWxlIiwiZW1haWxfdmVyaWZpZWQiOmZhbHNlLCJwcmVmZXJyZWRfdXNlcm5hbWUiOiJ1c2VyMSIsImVtYWlsIjoidXNlcjFAc29sby5pbyIsImdyb3VwIjoidXNlcnMifQ.NT4_BFfaDvngCKkg2X1_8eIiyA76sCwIbNo0nFdnelg9wr1PBCW1mFLh8PvD4NQjy26KuYZswMoGtwP5y-6PAuHzoH9Pxe2peeLEGuWhhDfhjE9RknG9qFxVS1jV3-i3rTewoPMJKHFP29Ocmkl9CB31zShOyhsj19YTYWy7wB9Da_GMH7kRjmvYaiZOsNdZ8LVNBeFTp0QYz1xTss-KABBXJNbC164aokWGDwe2wDPyNPf9ZYoEQ4zwjX4Qt5-hBaBnMIH6Je4hei05pjZikiuDcW4KvGOEAfFR6xPWLW0pfxfmuKghAigYhpq5BmLIisgByN0jsfVGRcKkD1_gXQ", 
-    "Host": "172.18.0.210", 
+    "Host": "172.18.1.1", 
     "Sec-Fetch-Dest": "document", 
     "Sec-Fetch-Mode": "navigate", 
     "Sec-Fetch-Site": "none", 
@@ -1021,10 +1021,10 @@ You should get the following output:
     "Upgrade-Insecure-Requests": "1", 
     "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.88 Safari/537.36", 
     "X-Envoy-Expected-Rq-Timeout-Ms": "15000", 
-    "X-User-Id": "http://172.18.0.211:8080/auth/realms/master;7d47b6bf-972b-48dc-b7b7-3e97cedc8635"
+    "X-User-Id": "http://172.18.1.2:8080/auth/realms/master;7d47b6bf-972b-48dc-b7b7-3e97cedc8635"
   }, 
   "origin": "192.168.149.15", 
-  "url": "https://172.18.0.210/get"
+  "url": "https://172.18.1.1/get"
 }
 ```
 
@@ -1100,7 +1100,7 @@ Here is the output you should get if you refresh the web page:
     "Accept-Language": "en-US,en;q=0.9", 
     "Cache-Control": "max-age=0", 
     "Content-Length": "0", 
-    "Host": "172.18.0.210", 
+    "Host": "172.18.1.1", 
     "Jwt": "eyJhbGciOiJSUzI1NiIsInR5cCIgOiAiSldUIiwia2lkIiA6ICJZd18zVTBoOFFkbGpsODBiSkQxUDhzbUtud0ZYYkVJZE0xZjlMU3R1N2E0In0.eyJleHAiOjE2MDc0MTkyOTMsImlhdCI6MTYwNzQxOTIzMywiYXV0aF90aW1lIjoxNjA3NDE4NzQ5LCJqdGkiOiI2NWExYzM0Ni0wNTY5LTQwNWUtYTNmZi0wOTVjZGE3MGRiYmMiLCJpc3MiOiJodHRwOi8vMTcyLjE4LjAuMjExOjgwODAvYXV0aC9yZWFsbXMvbWFzdGVyIiwiYXVkIjoiZjg3YzAzOWQtNTdiZi00NTQzLWExZjAtOGIyMmZjNmY5ZTYwIiwic3ViIjoiN2Q0N2I2YmYtOTcyYi00OGRjLWI3YjctM2U5N2NlZGM4NjM1IiwidHlwIjoiSUQiLCJhenAiOiJmODdjMDM5ZC01N2JmLTQ1NDMtYTFmMC04YjIyZmM2ZjllNjAiLCJzZXNzaW9uX3N0YXRlIjoiOGJmNjAzMTYtY2NmYi00ZWZkLWFiNDgtOTc5MmQzNTkzNzBhIiwiYXRfaGFzaCI6IkV5ZUtXbjhELWdZQlIxOWhpaEg2YXciLCJhY3IiOiIwIiwiZW1haWxfdmVyaWZpZWQiOmZhbHNlLCJwcmVmZXJyZWRfdXNlcm5hbWUiOiJ1c2VyMSIsImVtYWlsIjoidXNlcjFAc29sby5pbyIsImdyb3VwIjoidXNlcnMifQ.nrwvo8F1jKjyQCED95gLYAvYi9TxRRDW6_Z8WC8c61WU1hHUMsHJG77G-CG0T8NwORG2cB7dlP3iu_M_e9BaONCsCZsUZUCpwV5w7ZsFxbbMy4jWSuQyd38kTnoFyMHQGxCXGI0VS02TqsAaO6oQIjwoC6Ib_6MKxsgYNrIGhp7FihO7D1rfBW-Ggvqx88INFSMCKWOft6xzYvBS6JQcDjLXMAkc4TOmTBFZkfXpepsKlDjFxW5DreaDZXv1zIUM-dG-1MRk_N5CPg_OWgnjiF4gKWTqCG8hJd__QPwo4RO7FqM5BM8o0u_lugNbgHlB-09GjO7NTZiZHiQB3HxWVw", 
     "Sec-Fetch-Dest": "document", 
     "Sec-Fetch-Mode": "navigate", 
@@ -1109,10 +1109,10 @@ Here is the output you should get if you refresh the web page:
     "Upgrade-Insecure-Requests": "1", 
     "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.88 Safari/537.36", 
     "X-Envoy-Expected-Rq-Timeout-Ms": "15000", 
-    "X-User-Id": "http://172.18.0.211:8080/auth/realms/master;7d47b6bf-972b-48dc-b7b7-3e97cedc8635"
+    "X-User-Id": "http://172.18.1.2:8080/auth/realms/master;7d47b6bf-972b-48dc-b7b7-3e97cedc8635"
   }, 
   "origin": "192.168.149.15", 
-  "url": "https://172.18.0.210/get"
+  "url": "https://172.18.1.1/get"
 }
 ```
 
@@ -1162,7 +1162,7 @@ spec:
       jwt:
         providers:
           dex:
-            issuer: http://172.18.0.211:8080/auth/realms/master
+            issuer: http://172.18.1.2:8080/auth/realms/master
             tokenSource:
               headers:
               - header: Jwt
@@ -1202,7 +1202,7 @@ Here is the output you should get if you refresh the web page:
     "Accept-Language": "en-US,en;q=0.9", 
     "Cache-Control": "max-age=0", 
     "Content-Length": "0", 
-    "Host": "172.18.0.210", 
+    "Host": "172.18.1.1", 
     "Sec-Fetch-Dest": "document", 
     "Sec-Fetch-Mode": "navigate", 
     "Sec-Fetch-Site": "cross-site", 
@@ -1212,10 +1212,10 @@ Here is the output you should get if you refresh the web page:
     "X-Envoy-Expected-Rq-Timeout-Ms": "15000", 
     "X-Solo-Claim-Email": "user1@solo.io", 
     "X-Solo-Claim-Email-Verified": "false", 
-    "X-User-Id": "http://172.18.0.211:8080/auth/realms/master;7d47b6bf-972b-48dc-b7b7-3e97cedc8635"
+    "X-User-Id": "http://172.18.1.2:8080/auth/realms/master;7d47b6bf-972b-48dc-b7b7-3e97cedc8635"
   }, 
   "origin": "192.168.149.15", 
-  "url": "https://172.18.0.210/get"
+  "url": "https://172.18.1.1/get"
 }
 ```
 
@@ -1266,7 +1266,7 @@ spec:
       jwt:
         providers:
           dex:
-            issuer: http://172.18.0.211:8080/auth/realms/master
+            issuer: http://172.18.1.2:8080/auth/realms/master
             tokenSource:
               headers:
               - header: Jwt
@@ -1482,7 +1482,7 @@ When targeting Gloo Edge, Gloo Portal manages a set of Gloo Edge Custom Resource
 So, you can now access the API using the command below:
 
 ```bash
-curl -H "Host: api.example.com" http://172.18.0.210/api/v1/products
+curl -H "Host: api.example.com" http://172.18.1.1/api/v1/products
 ```
 
 ```
@@ -1565,8 +1565,8 @@ We need to update the `/etc/hosts` file to be able to access the Portal:
 
 ```bash
 cat <<EOF | sudo tee -a /etc/hosts
-172.18.0.210 api.example.com
-172.18.0.210 portal.example.com
+172.18.1.1 api.example.com
+172.18.1.1 portal.example.com
 EOF
 ```
 
@@ -1684,15 +1684,15 @@ key=$(kubectl get secret -l environments.devportal.solo.io=dev.default -n defaul
 Then, we can run the following command:
 
 ```
-curl -H "Host: api.example.com" -H "api-key: ${key}" http://172.18.0.210/api/v1/products -v
+curl -H "Host: api.example.com" -H "api-key: ${key}" http://172.18.1.1/api/v1/products -v
 ```
 
 You should get a result similar to:
 
 ```
-*   Trying 172.18.0.210...
+*   Trying 172.18.1.1...
 * TCP_NODELAY set
-* Connected to 172.18.0.210 (172.18.0.210) port 80 (#0)
+* Connected to 172.18.1.1 (172.18.1.1) port 80 (#0)
 > GET /api/v1/products HTTP/1.1
 > Host: api.example.com
 > User-Agent: curl/7.52.1
@@ -1707,7 +1707,7 @@ You should get a result similar to:
 < x-envoy-upstream-service-time: 2
 < 
 * Curl_http_done: called premature == 0
-* Connection #0 to host 172.18.0.210 left intact
+* Connection #0 to host 172.18.1.1 left intact
 [{"id": 0, "title": "The Comedy of Errors", "descriptionHtml": "<a href=\"https://en.wikipedia.org/wiki/The_Comedy_of_Errors\">Wikipedia Summary</a>: The Comedy of Errors is one of <b>William Shakespeare's</b> early plays. It is his shortest and one of his most farcical comedies, with a major part of the humour coming from slapstick and mistaken identity, in addition to puns and word play."}]
 ```
 
@@ -1716,9 +1716,9 @@ Now, execute the curl command again several times.
 As soon as you reach the rate limit, you should get the following output:
 
 ```
-*   Trying 172.18.0.210...
+*   Trying 172.18.1.1...
 * TCP_NODELAY set
-* Connected to 172.18.0.210 (172.18.0.210) port 80 (#0)
+* Connected to 172.18.1.1 (172.18.1.1) port 80 (#0)
 > GET /api/v1/products HTTP/1.1
 > Host: api.example.com
 > User-Agent: curl/7.52.1
@@ -1732,7 +1732,7 @@ As soon as you reach the rate limit, you should get the following output:
 < content-length: 0
 < 
 * Curl_http_done: called premature == 0
-* Connection #0 to host 172.18.0.210 left intact
+* Connection #0 to host 172.18.1.1 left intact
 ```
 
 ## Lab 8 : Extend Envoy with WebAssembly

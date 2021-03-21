@@ -924,9 +924,9 @@ curl -H "api-key: ${key}" http://dev.petstore.com/v1/store/inventory -vvv
 You should get a result similar to:
 
 ```
-*   Trying 172.18.0.211...
+*   Trying 172.18.1.2...
 * TCP_NODELAY set
-* Connected to dev.petstore.com (172.18.0.211) port 80 (#0)
+* Connected to dev.petstore.com (172.18.1.2) port 80 (#0)
 > GET /v1/store/inventory HTTP/1.1
 > Host: dev.petstore.com
 > User-Agent: curl/7.52.1
@@ -953,9 +953,9 @@ Now, execute the curl command again several times.
 As soon as you reach the rate limit, you should get the following output:
 
 ```
-*   Trying 172.18.0.211...
+*   Trying 172.18.1.2...
 * TCP_NODELAY set
-* Connected to dev.petstore.com (172.18.0.211) port 80 (#0)
+* Connected to dev.petstore.com (172.18.1.2) port 80 (#0)
 > GET /v1/store/inventory HTTP/1.1
 > Host: dev.petstore.com
 > User-Agent: curl/7.52.1
