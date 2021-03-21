@@ -1,14 +1,20 @@
+variable "prefix" {
+  type = string
+  default = "workshop"
+}
+
 locals {
   ssh_file = "./lab.pub"
 }
 
 resource "google_compute_instance" "default" {
-  count         = "1"
-  name         = "solo-workshop-west-${count.index + 1}"
+  project = "solo-test-236622"
+  count         = "2"
+  name         = "${var.prefix}-${count.index + 1}"
   machine_type = "n1-standard-8"
-  zone         = "us-west1-a"
+  zone         = "europe-west1-b"
 
-  tags = ["http-server", "https-server"]
+  tags = [var.prefix]
 
   boot_disk {
     initialize_params {
@@ -30,12 +36,28 @@ resource "google_compute_instance" "default" {
     }
   }
 
-  project = "solo-workshops"
-
   metadata = {
     enable-oslogin = "FALSE"
     ssh-keys = "solo:${file(local.ssh_file)}"
   }
+}
+
+resource "google_compute_firewall" "default" {
+  project = "solo-test-236622"
+  name    = "${var.prefix}-firewall"
+  network = "default"
+
+  allow {
+    protocol = "icmp"
+  }
+
+  allow {
+    protocol = "tcp"
+    ports    = ["80", "443", "22", "9900", "15443"]
+  }
+
+  source_ranges = ["0.0.0.0/0"]
+  target_tags = [var.prefix]
 }
 
 output "gce_public_ip" {
