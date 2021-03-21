@@ -1,4 +1,16 @@
 number=$1
+name=$2
+region=$3
+zone=$4
+twodigits=$(printf "%02d\n" $number)
+
+if [ -z "$3" ]; then
+  region=us-east-1
+fi
+
+if [ -z "$4" ]; then
+  zone=us-east-1a
+fi
 
 if hostname -i; then
   myip=$(hostname -i)
@@ -25,12 +37,11 @@ nodes:
 - role: control-plane
   extraPortMappings:
   - containerPort: 6443
-    hostPort: ${number}000
-  - containerPort: ${number}2000
-    hostPort: ${number}2000
-    protocol: TCP
+    hostPort: 70${twodigits}
 networking:
   disableDefaultCNI: true
+  serviceSubnet: "10.0${twodigits}.0.0/16"
+  podSubnet: "10.1${twodigits}.0.0/16"
 kubeadmConfigPatches:
 - |
   apiVersion: kubelet.config.k8s.io/v1beta1
@@ -47,14 +58,11 @@ kubeadmConfigPatches:
       service-account-api-audiences: api,vault,factors
   metadata:
     name: config
-  networking:
-    serviceSubnet: "10.96.$1.0/24"
-    podSubnet: "192.168.$1.0/24"
 - |
   kind: InitConfiguration
   nodeRegistration:
     kubeletExtraArgs:
-      node-labels: "topology.kubernetes.io/region=us-east-1,topology.kubernetes.io/zone=us-east-1c"
+      node-labels: "ingress-ready=true,topology.kubernetes.io/region=${region},topology.kubernetes.io/zone=${zone}"
 containerdConfigPatches:
 - |-
   [plugins."io.containerd.grpc.v1.cri".registry.mirrors."localhost:${reg_port}"]
@@ -64,12 +72,11 @@ EOF
 kind create cluster --name kind${number} --config kind${number}.yaml
 
 ipkind=$(docker inspect kind${number}-control-plane | jq -r '.[0].NetworkSettings.Networks[].IPAddress')
-networkkind=$(echo ${ipkind} | sed 's/.$//')
+networkkind=$(echo ${ipkind} | awk -F. '{ print $1"."$2 }')
 
-kubectl config set-cluster kind-kind${number} --server=https://${myip}:${number}000 --insecure-skip-tls-verify=true
+kubectl config set-cluster kind-kind${number} --server=https://${myip}:70${twodigits} --insecure-skip-tls-verify=true
 
-kubectl --context=kind-kind${number} apply -f https://docs.projectcalico.org/v3.15/manifests/calico.yaml
-kubectl --context=kind-kind${number} -n kube-system set env daemonset/calico-node FELIX_IGNORELOOSERPF=true
+kubectl --context=kind-kind${number} apply -f https://docs.projectcalico.org/v3.18/manifests/calico.yaml
 
 kubectl --context=kind-kind${number} apply -f https://raw.githubusercontent.com/metallb/metallb/v0.9.3/manifests/namespace.yaml
 kubectl --context=kind-kind${number} apply -f https://raw.githubusercontent.com/metallb/metallb/v0.9.3/manifests/metallb.yaml
@@ -87,7 +94,7 @@ data:
     - name: default
       protocol: layer2
       addresses:
-      - ${networkkind}2${number}0-${networkkind}2${number}9
+      - ${networkkind}.0${twodigits}.1-${networkkind}.0${twodigits}.254
 EOF
 
 kubectl --context=kind-kind${number} apply -f metallb${number}.yaml
@@ -106,4 +113,4 @@ data:
     help: "https://kind.sigs.k8s.io/docs/user/local-registry/"
 EOF
 
-kubectl config rename-context kind-kind${number} $2
+kubectl config rename-context kind-kind${number} ${name}
