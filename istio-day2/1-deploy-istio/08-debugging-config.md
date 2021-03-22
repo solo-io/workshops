@@ -1,4 +1,4 @@
-# Lab 8 :: Debugging Istio configuration
+# Lab 8 - Debugging networking configurations
 
 The service mesh contains proxies that are on the request path between services. When anomalies are detected, it's typically because of a misconfiguration. In this lab, we explore tools to troubleshoot misconfiguration and get a better understanding of how to debug Istio.
 
@@ -12,7 +12,7 @@ istioctl analyze
 
 This will output a set of reports about the state of your Istio configuration; you should see something like this:
 
-```
+```text
 Info [IST0102] (Namespace default) The namespace is not enabled for Istio injection. Run 'kubectl label namespace default istio-injection=enabled' to enable it, or 'kubectl label namespace default istio-injection=disabled' to explicitly mark it as not needing injection.
 Info [IST0118] (Service envoy.default) Port name admin (port: 15000, targetPort: 15000) doesn't follow the naming convention of Istio port.
 ```
@@ -31,7 +31,7 @@ istioctl analyze -n istioinaction
 
 Indeed we caught this misconfiguration as an `Error`:
 
-```
+```text
 Error [IST0101] (Gateway web-api-gateway.istioinaction) Referenced credentialName not found: "istioinaction-cert"
 Error: Analyzers found issues when analyzing namespace: istioinaction.
 See https://istio.io/v1.8/docs/reference/config/analysis for more information about causes and resolutions.
@@ -43,7 +43,7 @@ We can also run diagnostics against new configuration **before** we add it to th
 istioctl analyze labs/08/web-api-gw-vs.yaml -n default
 ```
 
-```
+```text
 Error [IST0101] (VirtualService web-api-gw-vs.default labs/08/web-api-gw-vs.yaml:10) Referenced gateway not found: "web-api-gateway"
 Info [IST0102] (Namespace default) The namespace is not enabled for Istio injection. Run 'kubectl label namespace default istio-injection=enabled' to enable it, or 'kubectl label namespace default istio-injection=disabled' to explicitly mark it as not needing injection.
 Info [IST0118] (Service envoy.default) Port name admin (port: 15000, targetPort: 15000) doesn't follow the naming convention of Istio port.
@@ -51,9 +51,9 @@ Error: Analyzers found issues when analyzing namespace: default.
 See https://istio.io/v1.8/docs/reference/config/analysis for more information about causes and resolutions.
 ```
 
-Again, we didn't add the configuration to the cluster yet but we were able to detect forthcoming misconfigurations. 
+Again, we didn't add the configuration to the cluster yet but we were able to detect forthcoming misconfigurations.
 
-If some of the errors are too verbose, or you're not interested in seeing them (ie, maybe you don't care that certain namespaces aren't labeled with Istio injection), you can supress them like this:
+If some of the errors are too verbose, or you're not interested in seeing them \(ie, maybe you don't care that certain namespaces aren't labeled with Istio injection\), you can supress them like this:
 
 ```bash
 istioctl analyze labs/08/web-api-gw-vs.yaml -n default -S "IST0102=Namespace *"
@@ -61,8 +61,7 @@ istioctl analyze labs/08/web-api-gw-vs.yaml -n default -S "IST0102=Namespace *"
 
 Please see the [Istio documentation about `istioctl analyze` for more](https://istio.io/latest/docs/ops/diagnostic-tools/istioctl-analyze/).
 
-
-## istioctl x describe 
+## istioctl x describe
 
 With a lot of different configurations affecting the edge between two services, it can be helpful to ask Istio "what configurations apply to a workload". You can do exactly that with the `istioctl x describe` command. For example, to see what configurations apply to the `web-api` workload, run the following:
 
@@ -72,7 +71,7 @@ istioctl x describe service web-api -n istioinaction
 
 In our simple environment, we can see the following rules:
 
-```
+```text
 Service: web-api
    Port: http 8080/HTTP targets pod port 8080
 RBAC policies: ns[istioinaction]-policy[audit-web-api-authpolicy]-rule[0]
@@ -83,10 +82,9 @@ VirtualService: web-api-gw-vs
    1 HTTP route(s)
 ```
 
-This command can make it apparent when a configuration you intended to affect service behavior is present/not present and give you indications about which resources to review. 
+This command can make it apparent when a configuration you intended to affect service behavior is present/not present and give you indications about which resources to review.
 
 Please see the [Istio documentation about `istioctl x describe` for more](https://istio.io/latest/docs/ops/diagnostic-tools/istioctl-describe/).
-
 
 ## istioctl proxy-status
 
@@ -98,7 +96,7 @@ istioctl proxy-status
 
 Here we can see all of the workloads in the mesh with useful details:
 
-```
+```text
 NAME                                                   CDS        LDS        EDS        RDS        ISTIOD                            VERSION
 httpbin-9d9dbcd4-xr8tw.default                         SYNCED     SYNCED     SYNCED     SYNCED     istiod-1-8-3-84c6b6cdc7-ztj84     1.8.3
 istio-ingressgateway-5bc557575f-dsc2c.istio-system     SYNCED     SYNCED     SYNCED     SYNCED     istiod-1-8-3-84c6b6cdc7-ztj84     1.8.3
@@ -116,12 +114,11 @@ istioctl proxy-status deploy/web-api -n istioinaction
 
 TODO: inject some drift here and see whether proxy-status can detect the diff...
 
-```
+```text
 Clusters Match
 Listeners Match
 Routes Match (RDS last loaded at Thu, 04 Mar 2021 08:05:33 MST)
 ```
-
 
 ## istioctl proxy-config
 
@@ -135,7 +132,7 @@ The `istioctl proxy-config` command allows you to review the data plane configur
 istioctl dashboard envoy <pod-name[.namespace]>
 ```
 
-This takes us to the Envoy dashboard and gives access to things like `/stats`, `/server_info`, and the full `/config_dump`. Another important endpoint is the `/clusters` endpoint which gives detailed information for all of the Envoy clusters including the specific endpoints that make up a cluster. You can also see endpoint information (EDS) in the full config dump with `/config_dump?include_eds`.
+This takes us to the Envoy dashboard and gives access to things like `/stats`, `/server_info`, and the full `/config_dump`. Another important endpoint is the `/clusters` endpoint which gives detailed information for all of the Envoy clusters including the specific endpoints that make up a cluster. You can also see endpoint information \(EDS\) in the full config dump with `/config_dump?include_eds`.
 
 {% hint style="success" %}
 As an exercise for the reader, try to run the `istioctl dashboard envoy` command and explore these different endpoints
@@ -143,7 +140,7 @@ As an exercise for the reader, try to run the `istioctl dashboard envoy` command
 
 ### Logging
 
-Envoy proxy can be configured to increase logging levels to very fine-grained "debug" level which will help you understand more about what's happening on the data plane. Envoy also categorizes different modules for logging, so you can enable/disable logging for just the components you need to review. 
+Envoy proxy can be configured to increase logging levels to very fine-grained "debug" level which will help you understand more about what's happening on the data plane. Envoy also categorizes different modules for logging, so you can enable/disable logging for just the components you need to review.
 
 For example, to turn on `debug` logging for a particular pod:
 
@@ -169,73 +166,16 @@ The following logging levels are available:
 
 Some of the common subsections used to debug connection/routing issues are seen above. The full list is in this table:
 
-
-<table>
-<tr>
-    <td>admin</td>
-    <td>aws</td>
-    <td>assert</td>
-    <td>backtrace</td>
-    <td>client</td>
-</tr>
-<tr>
-    <td>config</td>
-    <td>connection</td>
-    <td>conn_handler</td>
-    <td>dubbo</td>
-    <td>file</td>
-</tr>
-<tr>
-    <td>filter</td>
-    <td>forward_proxy</td>
-    <td>grpc</td>
-    <td>hc</td>
-    <td>health_checker</td>
-</tr>
-<tr>
-    <td>http</td>
-    <td>http2</td>
-    <td>hystrix</td>
-    <td>init</td>
-    <td>io</td>
-</tr>
-<tr>
-    <td>jwt</td>
-    <td>kafka</td>
-    <td>lua</td>
-    <td>main</td>
-    <td>misc</td>
-</tr>
-<tr>
-    <td>mongo</td>
-    <td>quic</td>
-    <td>pool</td>
-    <td>rbac</td>
-    <td>redis</td>
-</tr>
-<tr>
-    <td>router</td>
-    <td>runtime</td>
-    <td>stats</td>
-    <td>secret</td>
-    <td>tap</td>
-</tr>
-<tr>
-    <td>testing</td>
-    <td>thrift</td>
-    <td>tracing</td>
-    <td>upstream</td>
-    <td>udp</td>
-</tr>
-<tr>
-    <td>wasm</td>
-    <td></td>
-    <td></td>
-    <td></td>
-    <td></td>
-</tr>
-</table>
-
+| admin | aws | assert | backtrace | client |
+| :--- | :--- | :--- | :--- | :--- |
+| config | connection | conn\_handler | dubbo | file |
+| filter | forward\_proxy | grpc | hc | health\_checker |
+| http | http2 | hystrix | init | io |
+| jwt | kafka | lua | main | misc |
+| mongo | quic | pool | rbac | redis |
+| router | runtime | stats | secret | tap |
+| testing | thrift | tracing | upstream | udp |
+| wasm |  |  |  |  |
 
 ## Additional health and monitoring endpoints
 
@@ -248,13 +188,13 @@ kubectl exec -it deploy/sleep -- curl http://istiod.istio-system:15014/debug/reg
 Some additional paths that are definitely useful for debugging the control plane:
 
 | Path | Description |
-| ---- | ----------- |
+| :--- | :--- |
 | /debug/edsz | Status and debug interface for EDS |
 | /debug/ndsz | Status and debug interface for NDS |
 | /debug/adsz | Status and debug interface for ADS |
-| /debug/adsz?push=true | Initiates push of the current state to all connected endpoints | 
+| /debug/adsz?push=true | Initiates push of the current state to all connected endpoints |
 | /debug/syncz | Synchronization status of all Envoys connected to this Pilot instance |
-| /debug/config_distribution | Version status of all Envoys connected to this Pilot instance |
+| /debug/config\_distribution | Version status of all Envoys connected to this Pilot instance |
 | /debug/registryz | Debug support for registry |
 | /debug/endpointz | Debug support for endpoints |
 | /debug/endpointShardz | Info about the endpoint shards |
@@ -263,8 +203,8 @@ Some additional paths that are definitely useful for debugging the control plane
 | /debug/resourcesz | Debug support for watched resources |
 | /debug/instancesz | Debug support for service instances |
 | /debug/authorizations | Internal authorization policies |
-| /debug/config_dump | ConfigDump in the form of the Envoy admin config dump API for passed in proxyID |
-| /debug/push_status | Last PushContext Details |
+| /debug/config\_dump | ConfigDump in the form of the Envoy admin config dump API for passed in proxyID |
+| /debug/push\_status | Last PushContext Details |
 | /debug/inject | Active inject template |
 
 For example, to get the EDS debug info for the httpbin service proxy:
@@ -288,49 +228,37 @@ kubectl exec -it deploy/sleep -- curl http://istiod.istio-system:15014/version
 
 ### What about on the data plane?
 
-
-
 ## Profiling the control plane and data plane
 
 kubectl port-forward -n istio-system deploy/istiod-1-8-3 15014
 
 localhost:15014/debug
 
+[https://docs.google.com/document/d/1QXsh3m2UQY00OHh2Uyi7W9Cj8XoY69Bn5rrBTarMOKk/edit\#](https://docs.google.com/document/d/1QXsh3m2UQY00OHh2Uyi7W9Cj8XoY69Bn5rrBTarMOKk/edit#)
 
-https://docs.google.com/document/d/1QXsh3m2UQY00OHh2Uyi7W9Cj8XoY69Bn5rrBTarMOKk/edit#
-
-https://github.com/istio/istio/wiki/Analyzing-Istio-Performance#cpu-profile
-
+[https://github.com/istio/istio/wiki/Analyzing-Istio-Performance\#cpu-profile](https://github.com/istio/istio/wiki/Analyzing-Istio-Performance#cpu-profile)
 
 TODO:
 
-what about controlz?
-istioctl dashboard controlz deploy/istiod-1-8-3
-
+what about controlz? istioctl dashboard controlz deploy/istiod-1-8-3
 
 To get the profile:
 
-http://localhost:8080/debug/pprof/profile?seconds=30
+[http://localhost:8080/debug/pprof/profile?seconds=30](http://localhost:8080/debug/pprof/profile?seconds=30)
 
 What about on the pilot agent? this was just introduced recently...
 
+enabling logging for istiod by cli flag \(it's already specified; to do at runtime, see controlz\) [https://istio.io/latest/docs/reference/commands/pilot-discovery/](https://istio.io/latest/docs/reference/commands/pilot-discovery/)
 
+more here: [https://istio.io/latest/docs/ops/diagnostic-tools/component-logging/](https://istio.io/latest/docs/ops/diagnostic-tools/component-logging/)
 
-enabling logging for istiod
-by cli flag (it's already specified; to do at runtime, see controlz)
-https://istio.io/latest/docs/reference/commands/pilot-discovery/
+also envoy version:
 
-more here:
-https://istio.io/latest/docs/ops/diagnostic-tools/component-logging/
-
-
-also envoy version: 
-
-kubectl exec -it productpage-v1-6b746f74dc-9stvs -c istio-proxy -n default  -- pilot-agent request GET server_info --log_as_json | jq {version}
-
+kubectl exec -it productpage-v1-6b746f74dc-9stvs -c istio-proxy -n default -- pilot-agent request GET server\_info --log\_as\_json \| jq {version}
 
 ## health checking on proxy/agent via health ports
 
 curl localhost:15021/healthz/ready
 
 maybe worth calling out all ports on envoy/control plane?
+

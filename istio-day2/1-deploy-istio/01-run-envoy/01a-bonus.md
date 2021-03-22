@@ -1,4 +1,4 @@
-# Lab 1 Bonus :: Run Envoy Proxy
+# Lab 1 Bonus
 
 ## Bonus: Additional notes about Envoy configuration
 
@@ -6,7 +6,7 @@ So far we've taken a basic approach to understanding what the Envoy proxy is and
 
 ### Circuit breaking
 
-```
+```text
     circuitBreakers:
       thresholds:
       - maxConnections: 1
@@ -17,43 +17,42 @@ So far we've taken a basic approach to understanding what the Envoy proxy is and
 
 ### Outlier detection
 
-```
+```text
     outlierDetection:
       consecutive_5xx: 5
       maxEjectionPercent: 100
-      interval: 3000ms                                    
+      interval: 3000ms
 ```
 
 SPECIAL NOTE: Understanding `healthy_panic_threshold`
 
-```
+```text
     outlierDetection:
       consecutive_5xx: 5
       maxEjectionPercent: 100
       interval: 3000ms    
     commonLbConfig:
         healthyPanicThreshold: 100.0
-      
 ```
 
 ### Load balancing/client-side load balancing
 
 `lb_type`:
 
-* ROUND_ROBIN
-* LEAST_REQUEST
-* RING_HASH
+* ROUND\_ROBIN
+* LEAST\_REQUEST
+* RING\_HASH
 * RANDOM
-* ORIGINAL_DST_LB
+* ORIGINAL\_DST\_LB
 * MAGLEV
 
-```
+```text
     lbPolicy: LEAST_REQUEST
 ```
 
 ### Traffic routing
 
-```
+```text
 routes:
     - match: { prefix: "/foo" }
     route: 
@@ -65,12 +64,12 @@ routes:
     - match: { prefix: "/" }
     route: 
         auto_host_rewrite: true
-        cluster: httpbin_service_v2 
-```        
+        cluster: httpbin_service_v2
+```
 
 ### Traffic splitting
 
-```
+```text
 routes:
 - match: { prefix: "/" }
     route: 
@@ -83,10 +82,8 @@ routes:
             - name: httpbin_service.v2
             weight: 33
             - name: httpbin_service.v3
-            weight: 33                                            
-
+            weight: 33
 ```
-
 
 ...and MANY other things. We didn't even crack the surface of the security features Envoy can implement. Envoy is an incredibly powerful and versatile proxy. Take a look at a configuration file with some more substance:
 
@@ -94,7 +91,7 @@ routes:
 cat labs/01/envoy-conf-lb.yaml
 ```
 
-```
+```text
 admin:
   accessLogPath: /dev/stdout
   address:
@@ -160,21 +157,19 @@ staticResources:
 
 In the next sections we take a brief look at these configurations and then dig into how Istio actually leverages Envoy. Istio doesn't write files to disk and do a _restart_ or even "hot" restart of the proxy. Istio controls Envoy via a dynamic API and can change values on the fly. Istio provides the "control plane" for Envoy as the "data plane". Let's dig into this a bit more.
 
-
-## Envoy Discovery (XDS)
+## Envoy Discovery \(XDS\)
 
 Envoy is driven by a set of APIs that configure certain aspects of the proxy. We saw earlier how we specified clusters, listeners, and routes. We can also configure those over Envoy's _xDS_ APIs:
 
-* Listener discovery service (LDS)
-* Route discovery service (RDS)
-* Cluster discovery service (CDS)
-* Service discovery service (SDS/EDS)
+* Listener discovery service \(LDS\)
+* Route discovery service \(RDS\)
+* Cluster discovery service \(CDS\)
+* Service discovery service \(SDS/EDS\)
 * Aggregated discovery service
-
 
 For example, to dynamically specify listeners over the API, you can configure Envoy's configuration file like this to connect to a gRPC service:
 
-```
+```text
 dynamic_resources:
     lds_config:   
     api_config_source:
@@ -189,14 +184,13 @@ clusters:
     lb_policy: ROUND_ROBIN
     http2_protocol_options: {}
     hosts: [{ socket_address: { address: 127.0.0.3, port_value: 5678 }}]
-            
 ```
 
-Now we don't have to specify listeners ahead of time. We can open them up or close them at runtime based on what use cases a user wants to implement. 
+Now we don't have to specify listeners ahead of time. We can open them up or close them at runtime based on what use cases a user wants to implement.
 
 We can do the same thing for the various other sections of the config. To specify ALL of the config through an "aggregate" API, we can configure Envoy like this:
 
-```
+```text
 dynamic_resources:
     ads_config:   
     api_config_source:
@@ -213,9 +207,9 @@ clusters:
     hosts: [{ socket_address: { address: 127.0.0.3, port_value: 5678 }}]
 ```
 
-
-Configuring Envoy through this API is exactly what Istio's control plane does. With Istio we specify configurations in a more user-friendly format and Istio _translates_ that configuration into something Envoy can understand and delivers this configuration through Envoy's _xDS_ API. 
+Configuring Envoy through this API is exactly what Istio's control plane does. With Istio we specify configurations in a more user-friendly format and Istio _translates_ that configuration into something Envoy can understand and delivers this configuration through Envoy's _xDS_ API.
 
 ## Next Lab
 
-In the [next lab](02-install-istio.md), we will dig into Istio's control plane a bit more. We'll also see how we can leverage all of these Envoy capabilities (resilience features, routing, observability, security, etc) to implement a secure, observable microservices architecture.                    
+In the [next lab](../02-install-istio/), we will dig into Istio's control plane a bit more. We'll also see how we can leverage all of these Envoy capabilities \(resilience features, routing, observability, security, etc\) to implement a secure, observable microservices architecture.
+
