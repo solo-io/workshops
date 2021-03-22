@@ -38,7 +38,7 @@ scrape_configs:
     regex: http-monitoring    
 ```
 
-Now that we have Prometheus and Grafana installed, we can continue to layer observability tools on top. In the next section we install Kiali using the Kiali operator.
+Now that we have Prometheus and Grafana installed, we can continue to layer observability tools on top. 
 
 
 ## Bonus: Metrics Merging
