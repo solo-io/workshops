@@ -50,8 +50,8 @@ Then run the following commands to wait for all the Pods to be ready:
 
 ```bash
 ../scripts/check.sh mgmt
-../scripts/check.sh cluster1
-../scripts/check.sh cluster2
+../scripts/check.sh cluster1 us-west us-west-1
+../scripts/check.sh cluster2 us-west us-west-2
 ```
 
 **Note:** If you run the `check.sh` script immediately after the `deploy.sh` script, you may see a jsonpath error. If that happens, simply wait a few seconds and try again.
@@ -117,8 +117,8 @@ Then, you need to register the two other clusters:
 ```bash
 SVC=$(kubectl --context mgmt -n gloo-mesh get svc enterprise-networking -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
 
-meshctl cluster register --mgmt-context=mgmt --remote-context=cluster1 --relay-server-address=$SVC:9900 enterprise cluster1
-meshctl cluster register --mgmt-context=mgmt --remote-context=cluster2 --relay-server-address=$SVC:9900 enterprise cluster2
+meshctl cluster register --mgmt-context=mgmt --remote-context=cluster1 --relay-server-address=$SVC:9900 enterprise cluster1 --cluster-domain cluster.local
+meshctl cluster register --mgmt-context=mgmt --remote-context=cluster2 --relay-server-address=$SVC:9900 enterprise cluster2 --cluster-domain cluster.local
 ```
 
 You can list the registered cluster using the following command:
@@ -1361,24 +1361,6 @@ If you refresh the page several times again, you'll see the `v3` version of the 
 
 ![Bookinfo v3](images/bookinfo-v3.png)
 
-Now, let's understand what happened when we created this TrafficPolicy.
-
-On the first cluster:
-
-![cluster1 workflow](images/cluster1-workflow.png)
-
-- A VirtualService has been created to route 75% of the traffic to the subset `version-v3` of the host `reviews.default.svc.cluster2.global`.
-- A DestinationRule has been created for this host and define the subset `version-v3` with the label `cluster: cluster2`.
-- A ServiceEntry has been created for this host and associate this label with the endpoint corresponding to the Istio Ingress Gateway of the second cluster.
-
-On the second cluster:
-
-![cluster2 workflow](images/cluster2-workflow.png)
-
-- An EnvoyFilter has been created to replace the suffix `.cluster2.global` by `cluster.local` when requests arrive in the Istio Ingress Gateway.
-- A DestinationRule has been created for the same host (but with the `.cluster.local` suffix) and define the subset `version-v3` with the label `version: v3`.
-- The traffic is routed to the Pods of the corresponding service that have this label.
-
 ## Lab 8 : Traffic Failover {#lab8}
 
 First of all, let's delete the TrafficPolicy we've created in the previous lab:
@@ -1474,34 +1456,6 @@ You should see a line like below each time you refresh the web page:
 ```
 [2020-10-12T14:19:35.996Z] "GET /reviews/0 HTTP/1.1" 200 - "-" "-" 0 295 6 6 "-" "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/86.0.4240.75 Safari/537.36" "d18da89b-8682-4e8d-9284-b3d5ff78f2f7" "reviews:9080" "127.0.0.1:9080" inbound|9080|http|reviews.default.svc.cluster.local 127.0.0.1:41542 192.168.163.201:9080 192.168.163.221:42110 outbound_.9080_.version-v1_.reviews.default.svc.cluster.local default
 ```
-
-Now, let's understand what happened when we created the TrafficPolicies and the FailoverService.
-
-- `mgmt-reviews-outlier` TrafficPolicy:
-
-![Outlier detection](images/outlier-detection.png)
-
-Gloo Mesh updates the `reviews` DestinatioRule on both clusters to add the outlier detection specified in the TrafficPolicy.
-
-> Note that `maxEjectionPercent` default value is `10%` in Istio ! That's why Gloo Mesh set it to `100%` if there's no value specified in the TrafficPolicy.
-
-- `reviews-failover` FailoverService:
-
-![Envoy filter](images/envoy-filter.png)
-
-Gloo Mesh creates an EnvoyFilter on the first Kubernetes cluster to replace the `outbound|9080||reviews-failover.default.global` Envoy cluster by the following ones:
-- outbound|9080||reviews.default.svc.cluster.local
-- outbound|9080||reviews.default.svc.cluster2.global
-
-![Service entry](images/service-entry.png)
-
-Gloo Mesh creates a ServiceEntry for the `reviews-failover.default.global` hosts.
-
-- `reviews-shift-failover` TrafficPolicy:
-
-![Virtual service](images/virtual-service.png)
-
-Gloo Mesh creates a VirtualService on the first Kubernetes cluster to tell Istio to send the requests for the `reviews` microservice to the `reviews-failover.default.global` host.
 
 We're going to make the `reviews` services available again on the first cluster.
 
@@ -1734,44 +1688,46 @@ You can try to create the Traffic Policy again:
 
 ```bash
 cat << EOF | kubectl --context mgmt apply -f -
-apiVersion: networking.mesh.gloo.solo.io/v1alpha2
+apiVersion: networking.mesh.gloo.solo.io/v1
 kind: TrafficPolicy
 metadata:
   namespace: gloo-mesh
   name: simple
 spec:
   sourceSelector:
-  - namespaces: 
-    - default
+  - kubeWorkloadMatcher:
+      namespaces:
+      - default
   destinationSelector:
   - kubeServiceRefs:
       services:
         - clusterName: cluster1
           name: reviews
           namespace: default
-  trafficShift:
-    destinations:
-      - kubeService:
-          clusterName: cluster2
-          name: reviews
-          namespace: default
-          subset:
-            version: v3
-        weight: 75
-      - kubeService:
-          clusterName: cluster1
-          name: reviews
-          namespace: default
-          subset:
-            version: v1
-        weight: 15
-      - kubeService:
-          clusterName: cluster1
-          name: reviews
-          namespace: default
-          subset:
-            version: v2
-        weight: 10
+  policy:
+    trafficShift:
+      destinations:
+        - kubeService:
+            clusterName: cluster2
+            name: reviews
+            namespace: default
+            subset:
+              version: v3
+          weight: 75
+        - kubeService:
+            clusterName: cluster1
+            name: reviews
+            namespace: default
+            subset:
+              version: v1
+          weight: 15
+        - kubeService:
+            clusterName: cluster1
+            name: reviews
+            namespace: default
+            subset:
+              version: v2
+          weight: 10
 EOF
 ```
 
@@ -1831,12 +1787,16 @@ WebAssembly Hub is a meeting place for the community to share and consume WebAss
 
 Gloo Mesh Enterprise CLI comes with all the features you need to develop, build, push and deploy your Wasm filters on Istio.
 
-You just need to add the Wasm extension to it:
+Install the Gloo Mesh Enterprise CLI plugin manager:
 
 ```bash
-wget https://github.com/solo-io/workshops/raw/master/gloo-mesh/meshctl-wasm-linux-amd64
-mv meshctl-wasm-linux-amd64 $HOME/.gloo-mesh/bin/meshctl-wasm
-chmod +x $HOME/.gloo-mesh/bin/meshctl-wasm
+meshctl init-plugin-manager
+```
+
+Install the WASM meshctl plugins:
+
+```bash
+meshctl plugin install wasm
 ```
 
 The main advantage of building a Wasm Envoy filter is that you can manipulate requests (and responses) exactly the way it makes sense for your specific use cases.
@@ -2138,13 +2098,14 @@ spec:
       '@type': type.googleapis.com/google.protobuf.StringValue
       value: "Gloo Mesh Enterprise"
   workloadSelector:
-  - clusters:
-    - cluster1
-    labels:
-      app: reviews
-      version: v1
-    namespaces:
-    - default
+  - kubeWorkloadMatcher:
+      clusters:
+      - cluster1
+      labels:
+        app: reviews
+        version: v1
+      namespaces:
+      - default
 EOF
 ```
 
@@ -2180,6 +2141,12 @@ status:
 ```
 
 Very useful, no ?
+
+Delete the WasmDeployment:
+
+```bash
+kubectl --context mgmt -n gloo-mesh delete wasmdeployment reviews-wasm
+```
 
 ## Lab 11 : Exploring the Gloo Mesh Enterprise UI {#lab11}
 
@@ -2217,5 +2184,139 @@ And you can even see the workloads were a Wasm filter has been deployed on:
 
 Take the time to explore the `Policies` and `Debug` tab to see what other information is available.
 
+## Lab 12 : Observability
+
+Gloo Mesh can also be used to collect the access logs from any Pod running in any cluster.
+
+Create the following `AccessLogRecord` object to collect all the access logs of the `reviews` services running on any cluster:
+
+```bash
+kubectl --context mgmt apply -f - <<EOF
+apiVersion: observability.enterprise.mesh.gloo.solo.io/v1
+kind: AccessLogRecord
+metadata:
+  name: access-log-reviews
+  namespace: gloo-mesh
+spec:
+  workloadSelectors:
+  - kubeWorkloadMatcher:
+      namespaces:
+      - default
+      labels:
+        app: reviews
+EOF
+```
+
+Generate some traffic and run the command below to gather the latest access logs:
+
+```bash
+curl -XPOST '172.18.1.1:8080/v0/observability/logs?pretty'
+```
+
+You should get an output similar to the following one:
+
+```
+{
+  "result": {
+    "workloadRef": {
+      "name": "reviews-v2",
+      "namespace": "default",
+      "clusterName": "cluster1"
+    },
+    "httpAccessLog": {
+      "commonProperties": {
+        "downstreamRemoteAddress": {
+          "socketAddress": {
+            "address": "10.102.158.19",
+            "portValue": 47198
+          }
+        },
+        "downstreamLocalAddress": {
+          "socketAddress": {
+            "address": "10.102.158.25",
+            "portValue": 9080
+          }
+        },
+        "tlsProperties": {
+          "tlsVersion": "TLSv1_2",
+          "tlsCipherSuite": 49200,
+          "tlsSniHostname": "outbound_.9080_._.reviews.default.svc.cluster.local",
+          "localCertificateProperties": {
+            "subjectAltName": [
+              {
+                "uri": "spiffe://cluster1/ns/default/sa/bookinfo-reviews"
+              }
+            ]
+          },
+          "peerCertificateProperties": {
+            "subjectAltName": [
+              {
+                "uri": "spiffe://cluster1/ns/default/sa/bookinfo-productpage"
+              }
+            ]
+          }
+        },
+        "startTime": "2021-03-21T17:33:46.182478Z",
+        "timeToLastRxByte": "0.000062572s",
+        "timeToFirstUpstreamTxByte": "0.000428530s",
+        "timeToLastUpstreamTxByte": "0.000436843s",
+        "timeToFirstUpstreamRxByte": "0.040638581s",
+        "timeToLastUpstreamRxByte": "0.040692768s",
+        "timeToFirstDownstreamTxByte": "0.040671495s",
+        "timeToLastDownstreamTxByte": "0.040708877s",
+        "upstreamRemoteAddress": {
+          "socketAddress": {
+            "address": "127.0.0.1",
+            "portValue": 9080
+          }
+        },
+        "upstreamLocalAddress": {
+          "socketAddress": {
+            "address": "127.0.0.1",
+            "portValue": 43078
+          }
+        },
+        "upstreamCluster": "inbound|9080||",
+        "metadata": {
+          "filterMetadata": {
+            "istio_authn": {
+              "request.auth.principal": "cluster1/ns/default/sa/bookinfo-productpage",
+              "source.namespace": "default",
+              "source.principal": "cluster1/ns/default/sa/bookinfo-productpage",
+              "source.user": "cluster1/ns/default/sa/bookinfo-productpage"
+            }
+          }
+        },
+        "routeName": "default",
+        "downstreamDirectRemoteAddress": {
+          "socketAddress": {
+            "address": "10.102.158.19",
+            "portValue": 47198
+          }
+        }
+      },
+      "protocolVersion": "HTTP11",
+      "request": {
+        "requestMethod": "GET",
+        "scheme": "http",
+        "authority": "reviews:9080",
+        "path": "/reviews/0",
+        "userAgent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/89.0.4389.90 Safari/537.36",
+        "requestId": "b0522245-d300-46a4-bfd3-727fcfa42efd",
+        "requestHeadersBytes": "644"
+      },
+      "response": {
+        "responseCode": 200,
+        "responseHeadersBytes": "1340",
+        "responseBodyBytes": "379",
+        "responseCodeDetails": "via_upstream"
+      }
+    }
+  }
+}
+...
+```
+
+Interesting, no ?
 
 This is the end of the workshop. We hope you enjoyed it !

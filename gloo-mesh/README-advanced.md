@@ -6,6 +6,8 @@ cat README.md | ../md-to-bash.sh | bash
 
 ## Lab 1 : Gloo Portal
 
+For this lab to work, you need to deploy the environment with Istio 1.8.2 instead of 1.9.1.
+
 The Gloo Portal provides a framework for managing the definitions of APIs, API client identity, and API policies on top of the Istio and Gloo Gateways. Vendors of API products can leverage the Developer Portal to secure, manage, and publish their APIs independent of the operations used to manage networking infrastructure.
 
 We will deploy the Developer Portal on `cluster2`.
@@ -49,7 +51,7 @@ We'll use Helm to deploy the Developer portal:
 helm repo add dev-portal https://storage.googleapis.com/dev-portal-helm
 helm repo update
 kubectl create namespace dev-portal
-helm install dev-portal dev-portal/dev-portal -n dev-portal --set licenseKey.value=${PORTAL_LICENSE_KEY} --set istio.enabled=true --version=0.5.0
+helm install dev-portal dev-portal/dev-portal -n dev-portal --set licenseKey.value=${PORTAL_LICENSE_KEY} --set istio.enabled=true --version=0.5.3
 ```
 
 <!--bash
@@ -172,7 +174,7 @@ When targeting Istio Gateways, the Developer Portal manages a set of Istio Custo
 So, you can now access the API using the command below:
 
 ```bash
-curl -H "Host: api.example.com" http://172.18.0.230/api/v1/products
+curl -H "Host: api.example.com" http://172.18.3.1/api/v1/products
 ```
 
 You should get an `RBAC: access denied` response. We have allowed the Istio Ingress Gateway of `cluster1` to access the `productpage` microservice, not the one of `cluster2`.
@@ -181,7 +183,7 @@ Let's update the corresponding AccessPolicy:
 
 ```bash
 cat << EOF | kubectl --context mgmt apply -f -
-apiVersion: networking.mesh.gloo.solo.io/v1alpha2
+apiVersion: networking.mesh.gloo.solo.io/v1
 kind: AccessPolicy
 metadata:
   namespace: gloo-mesh
@@ -208,7 +210,7 @@ EOF
 Now, you should be able to access the API:
 
 ```bash
-curl -H "Host: api.example.com" http://172.18.0.230/api/v1/products
+curl -H "Host: api.example.com" http://172.18.3.1/api/v1/products
 ```
 
 Once a set of APIs have been bundled together in an API Product, those products can be published in a user-friendly interface through which developers can discover, browse, request access to, and interact with APIs. This is done by defining Portals, a custom resource which tells the Developer Portal how to publish a customized website containing an interactive catalog of those products.
@@ -251,8 +253,8 @@ We need to update the `/etc/hosts` file to be able to access the Portal:
 
 ```bash
 cat <<EOF | sudo tee -a /etc/hosts
-172.18.0.230 api.example.com
-172.18.0.230 portal.example.com
+172.18.3.1 api.example.com
+172.18.3.1 portal.example.com
 EOF
 ```
 
@@ -409,15 +411,15 @@ key=$(kubectl --context cluster2 get secret -l environments.devportal.solo.io=de
 Then, we can run the following command:
 
 ```
-curl -H "Host: api.example.com" -H "api-key: ${key}" http://172.18.0.230/api/v1/products -v
+curl -H "Host: api.example.com" -H "api-key: ${key}" http://172.18.3.1/api/v1/products -v
 ```
 
 You should get a result similar to:
 
 ```
-*   Trying 172.18.0.230...
+*   Trying 172.18.3.1...
 * TCP_NODELAY set
-* Connected to 172.18.0.230 (172.18.0.230) port 80 (#0)
+* Connected to 172.18.3.1 (172.18.3.1) port 80 (#0)
 > GET /api/v1/products HTTP/1.1
 > Host: api.example.com
 > User-Agent: curl/7.52.1
@@ -432,7 +434,7 @@ You should get a result similar to:
 < x-envoy-upstream-service-time: 3
 < 
 * Curl_http_done: called premature == 0
-* Connection #0 to host 172.18.0.230 left intact
+* Connection #0 to host 172.18.3.1 left intact
 [{"id": 0, "title": "The Comedy of Errors", "descriptionHtml": "<a href=\"https://en.wikipedia.org/wiki/The_Comedy_of_Errors\">Wikipedia Summary</a>: The Comedy of Errors is one of <b>William Shakespeare's</b> early plays. It is his shortest and one of his most farcical comedies, with a major part of the humour coming from slapstick and mistaken identity, in addition to puns and word play."}]
 ```
 
@@ -441,9 +443,9 @@ Now, execute the curl command again several times.
 As soon as you reach the rate limit, you should get the following output:
 
 ```
-*   Trying 172.18.0.230...
+*   Trying 172.18.3.1...
 * TCP_NODELAY set
-* Connected to 172.18.0.230 (172.18.0.230) port 80 (#0)
+* Connected to 172.18.3.1 (172.18.3.1) port 80 (#0)
 > GET /api/v1/products HTTP/1.1
 > Host: api.example.com
 > User-Agent: curl/7.52.1
@@ -457,18 +459,18 @@ As soon as you reach the rate limit, you should get the following output:
 < content-length: 0
 < 
 * Curl_http_done: called premature == 0
-* Connection #0 to host 172.18.0.230 left intact
+* Connection #0 to host 172.18.3.1 left intact
 ```
 
 ## Lab 2 : VM support
 
-In Istio 1.8, support for running workloads in the Service Mesh on VMs has been improved.
-
-So, let's see how we can configure our VM to be part of the Mesh.
+Let's see how we can configure a VM to be part of the Mesh.
 
 We are going to use a mix of the instructions provided on these 2 pages:
 - [Virtual Machine Installation](https://istio.io/latest/docs/setup/install/virtual-machine/)
 - [Virtual Machines in Multi-Network Meshes](https://istio.io/latest/docs/setup/install/virtual-machine/)
+
+To make it easier (and more fun), we'll use a Docker container to simulate a VM.
 
 Run the following command to make `cluster1` the current cluster.
 
@@ -479,10 +481,13 @@ kubectl config use-context cluster1
 First of all, we need to define a few environment variables:
 
 ```bash
-VM_APP=$(hostname)
-VM_NAMESPACE=virtualmachines
-WORK_DIR=vm
-SERVICE_ACCOUNT=$(hostname)
+VM_APP="vm1"
+VM_NAMESPACE="virtualmachines"
+WORK_DIR="vm1"
+SERVICE_ACCOUNT="vm1-sa"
+CLUSTER_NETWORK="network1"
+VM_NETWORK="vm-network"
+CLUSTER="cluster1"
 ```
 
 Then, we need to create a directory where we'll store all the files that need to be used in our VM:
@@ -496,7 +501,7 @@ mkdir -p ${WORK_DIR}
 Expose the port 15012 and 15017 of istiod through the Istio Ingress Gateway:
 
 ```bash
-kubectl apply -f - <<EOF
+kubectl --context cluster1 apply -f - <<EOF
 apiVersion: networking.istio.io/v1alpha3
 kind: Gateway
 metadata:
@@ -565,108 +570,10 @@ spec:
 EOF
 ```
 
-Create the namespace that will host the virtual machine:
-
-```bash
-kubectl create namespace "${VM_NAMESPACE}"
-```
-
-Create a serviceaccount for the virtual machine:
-
-```bash
-kubectl create serviceaccount "${SERVICE_ACCOUNT}" -n "${VM_NAMESPACE}"
-```
-
-Create a template WorkloadGroup for the VM:
-
-```bash
-./istio-1.8.2/bin/istioctl x workload group create --name "${VM_APP}" --namespace "${VM_NAMESPACE}" --labels app="${VM_APP}" --serviceAccount "${SERVICE_ACCOUNT}" > workloadgroup.yaml
-```
-
-Use the istioctl x workload entry command to generate:
-
-- cluster.env: Contains metadata that identifies what namespace, service account, network CIDR and (optionally) what inbound ports to capture.
-- istio-token: A Kubernetes token used to get certs from the CA.
-- mesh.yaml: Provides additional Istio metadata including, network name, trust domain and other values.
-- root-cert.pem: The root certificate used to authenticate.
-- hosts: An addendum to /etc/hosts that the proxy will use to reach istiod for xDS.*
-
-```bash
-./istio-1.8.2/bin/istioctl x workload entry configure -f workloadgroup.yaml -o "${WORK_DIR}"
-```
-
-Update the `cluster.env` file to handle the incoming traffic on port 9999:
-
-```bash
-cat << EOF >> "${WORK_DIR}"/cluster.env
-ISTIO_INBOUND_PORTS='9999'
-ISTIO_META_POD_PORTS='[{"name":"http","containerPort":9999,"protocol":"http"}]'
-EOF
-```
-
-Add an entry in the hosts file to resolve the address of istiod by the IP address of the Istio Ingress Gateway:
-
-```bash
-echo "172.18.0.220 istiod.istio-system.svc" > "${WORK_DIR}"/hosts
-```
-
-Run the following command to make sure addresses with the `.local` suffix won't be used by the Avahi daemon:
-
-```bash
-sudo sed -i 's/#domain-name=local/domain-name=.alocal/' /etc/avahi/avahi-daemon.conf
-sudo service avahi-daemon restart
-```
-
-Install the root certificate at /var/run/secrets/istio:
-
-```bash
-sudo mkdir -p /etc/certs
-sudo cp "${WORK_DIR}"/root-cert.pem /etc/certs/root-cert.pem
-```
-
-Install the token at /var/run/secrets/tokens:
-
-```bash
-sudo  mkdir -p /var/run/secrets/tokens
-sudo cp "${WORK_DIR}"/istio-token /var/run/secrets/tokens/istio-token
-```
-
-Install the deb package containing the Istio virtual machine integration runtime:
-
-```bash
-curl -LO https://storage.googleapis.com/istio-release/releases/1.8.2/deb/istio-sidecar.deb
-sudo dpkg -i istio-sidecar.deb
-```
-
-Install cluster.env within the directory /var/lib/istio/envoy/:
-
-```bash
-sudo cp "${WORK_DIR}"/cluster.env /var/lib/istio/envoy/cluster.env
-```
-
-Install the Mesh Config to /etc/istio/config/mesh:
-
-```bash
-sudo cp "${WORK_DIR}"/mesh.yaml /etc/istio/config/mesh
-```
-
-Add the istiod host to /etc/hosts:
-
-```bash
-sudo sh -c "cat "${WORK_DIR}"/hosts >> /etc/hosts"
-```
-
-Transfer ownership to the Istio proxy:
-
-```bash
-sudo mkdir -p /etc/istio/proxy
-sudo chown -R istio-proxy /var/lib/istio /etc/certs /etc/istio/proxy /etc/istio/config /var/run/secrets /etc/certs/root-cert.pem
-```
-
 Create a Gateway resource that allows application traffic from the VMs to route correctly:
 
 ```bash
-kubectl apply -f - <<EOF
+kubectl --context cluster1 apply -f - <<EOF
 apiVersion: networking.istio.io/v1alpha3
 kind: Gateway
 metadata:
@@ -687,18 +594,139 @@ spec:
 EOF
 ```
 
+Create the namespace that will host the virtual machine:
+
+```bash
+kubectl create namespace "${VM_NAMESPACE}"
+```
+
+Create a serviceaccount for the virtual machine:
+
+```bash
+kubectl create serviceaccount "${SERVICE_ACCOUNT}" -n "${VM_NAMESPACE}"
+```
+
+Create a the WorkloadGroup yaml for the VM:
+
+```bash
+cat <<EOF > workloadgroup.yaml
+apiVersion: networking.istio.io/v1alpha3
+kind: WorkloadGroup
+metadata:
+  name: "${VM_APP}"
+  namespace: "${VM_NAMESPACE}"
+spec:
+  metadata:
+    labels:
+      app: "${VM_APP}"
+  template:
+    serviceAccount: "${SERVICE_ACCOUNT}"
+    network: "${VM_NETWORK}"
+EOF
+```
+
+Use the istioctl x workload entry command to generate:
+
+- cluster.env: Contains metadata that identifies what namespace, service account, network CIDR and (optionally) what inbound ports to capture.
+- istio-token: A Kubernetes token used to get certs from the CA.
+- mesh.yaml: Provides additional Istio metadata including, network name, trust domain and other values.
+- root-cert.pem: The root certificate used to authenticate.
+- hosts: An addendum to /etc/hosts that the proxy will use to reach istiod for xDS.*
+
+```bash
+./istio-1.9.1/bin/istioctl --context cluster1 x workload entry configure -f workloadgroup.yaml -o "${WORK_DIR}" --clusterID "${CLUSTER}"
+```
+
+Run a Docker container that we'll use to simulate a VM:
+
+```bash
+docker run -d --name vm1 --network kind --privileged -v `pwd`/vm1:/vm ubuntu:18.04 bash -c 'sleep 360000'
+```
+
+Install the dependencies:
+
+```bash
+docker exec vm1 apt update -y
+docker exec vm1 apt-get install -y iputils-ping curl iproute2 iptables python
+```
+
+Create routes to allow the VM to access the Pods on the 2 Kubernetes clusters:
+
+```bash
+docker exec vm1 $(kubectl --context cluster1 get nodes -o=jsonpath='{range .items[*]}{"ip route add "}{.spec.podCIDR}{" via "}{.status.addresses[?(@.type=="InternalIP")].address}{"\n"}{end}' | sed 's/\/24/\/16/')
+docker exec vm1 $(kubectl --context cluster2 get nodes -o=jsonpath='{range .items[*]}{"ip route add "}{.spec.podCIDR}{" via "}{.status.addresses[?(@.type=="InternalIP")].address}{"\n"}{end}' | sed 's/\/24/\/16/')
+```
+
+Add an entry in the hosts file to resolve the address of istiod by the IP address of the Istio Ingress Gateway:
+
+```bash
+echo "172.18.2.1 istiod.istio-system.svc" > "${WORK_DIR}"/hosts
+```
+
+Install the root certificate at /var/run/secrets/istio:
+
+```bash
+docker exec vm1 mkdir -p /etc/certs
+docker exec vm1 cp /vm/root-cert.pem /etc/certs/root-cert.pem
+```
+
+Install the token at /var/run/secrets/tokens:
+
+```bash
+docker exec vm1 mkdir -p /var/run/secrets/tokens
+docker exec vm1 cp /vm/istio-token /var/run/secrets/tokens/istio-token
+```
+
+Install the deb package containing the Istio virtual machine integration runtime:
+
+```bash
+docker exec vm1 curl -LO https://storage.googleapis.com/istio-release/releases/1.9.1/deb/istio-sidecar.deb
+docker exec vm1 dpkg -i istio-sidecar.deb
+```
+
+Install cluster.env within the directory /var/lib/istio/envoy/:
+
+```bash
+docker exec vm1 cp /vm/cluster.env /var/lib/istio/envoy/cluster.env
+```
+
+Install the Mesh Config to /etc/istio/config/mesh:
+
+```bash
+docker exec vm1 cp /vm/mesh.yaml /etc/istio/config/mesh
+```
+
+Add the istiod host to /etc/hosts:
+
+```bash
+docker exec vm1 bash -c 'cat /vm/hosts >> /etc/hosts'
+```
+
+Transfer ownership to the Istio proxy:
+
+```bash
+docker exec vm1 mkdir -p /etc/istio/proxy
+docker exec vm1 chown -R istio-proxy /var/lib/istio /etc/certs /etc/istio/proxy /etc/istio/config /var/run/secrets /etc/certs/root-cert.pem
+```
+
+Update the DNS configuration:
+
+```bash
+docker exec vm1 bash -c "sed 's/127.0.0.11/8.8.8.8/' /etc/resolv.conf > /vm/resolv.conf"
+docker exec vm1 cp /vm/resolv.conf /etc/resolv.conf
+```
+
 Start the Istio agent:
 
 ```bash
-sudo systemctl start istio
+docker exec vm1 bash -c '/usr/local/bin/istio-start.sh &'
 ```
-
 
 Create a Gloo Mesh Access Policy:
 
 ```bash
 cat << EOF | kubectl --context mgmt apply -f -
-apiVersion: networking.mesh.gloo.solo.io/v1alpha2
+apiVersion: networking.mesh.gloo.solo.io/v1
 kind: AccessPolicy
 metadata:
   namespace: gloo-mesh
@@ -716,24 +744,19 @@ spec:
       - default
       labels:
         service: productpage
-  - kubeServiceMatcher:
-      namespaces:
-      - default
-      labels:
-        service: reviews
 EOF
 ```
 
 Take a look at the Envoy clusters:
 
 ```bash
-curl -v localhost:15000/clusters | grep productpage.default.svc.cluster.local
+docker exec vm1 curl -v localhost:15000/clusters | grep productpage.default.svc.cluster.local
 ```
 
 It should return several lines similar to the one below:
 
 ```
-outbound|9080||productpage.default.svc.cluster.local::172.18.0.220:443::cx_active::0
+outbound|9080||productpage.default.svc.cluster.local::172.18.2.1:15443::cx_active::0
 ```
 
 You can see that the IP address corresponds to the IP address of the Istio Ingress Gateway.
@@ -741,25 +764,26 @@ You can see that the IP address corresponds to the IP address of the Istio Ingre
 You should now be able to reach the product page application from the VM:
 
 ```bash
-curl -I productpage.default.svc.cluster.local:9080/productpage
+docker exec vm1 curl -I productpage.default.svc.cluster.local:9080/productpage
 ```
 
 Now, let's do the opposite and access an application running in the VM from a Pod.
 
-Run the following command in a separate tab:
+Run the following command to start a web server:
 
-<!--bash
-python -m SimpleHTTPServer 9999 2>&1 &
--->
+```bash
+docker exec -d vm1 python -m SimpleHTTPServer 9999
+```
 
-```
-python -m SimpleHTTPServer 9999
-```
+Get the IP address of the container:
+
+```bash
+VM_IP=$(docker inspect vm1 | jq -r '.[0].NetworkSettings.Networks.kind.IPAddress')
 
 Expose the app:
 
 ```bash
-cat <<EOF | kubectl apply -f -
+cat <<EOF | kubectl --context cluster1 apply -f -
 apiVersion: v1
 kind: Service
 metadata:
@@ -776,40 +800,18 @@ spec:
     app: ${VM_APP}
 EOF
 
-cat <<EOF | kubectl apply -f -
+cat <<EOF | kubectl --context cluster1 apply -f -
 apiVersion: networking.istio.io/v1beta1
 kind: WorkloadEntry
 metadata:
   name: ${VM_APP}
   namespace: virtualmachines
 spec:
-  network: vm-network
-  address: $(hostname -i)
+  network: network1
+  address: ${VM_IP}
   labels:
     app: ${VM_APP}
   serviceAccount: ${SERVICE_ACCOUNT}
-EOF
-
-### Not needed
-cat <<EOF | kubectl apply -f -
-apiVersion: networking.istio.io/v1beta1
-kind: ServiceEntry
-metadata:
-  name: ${VM_APP}
-  namespace: virtualmachines
-spec:
-  hosts:
-  - ${VM_APP}.virtualmachines.svc.cluster.local
-  location: MESH_INTERNAL
-  ports:
-  - number: 9999
-    name: http-vm
-    protocol: HTTP
-    targetPort: 9999
-  resolution: STATIC
-  workloadSelector:
-    labels:
-      app: ${VM_APP}
 EOF
 ```
 
@@ -817,8 +819,8 @@ Create a Gloo Mesh Traffic Target for the VM:
 
 ```bash
 cat << EOF | kubectl --context mgmt apply -f -
-apiVersion: discovery.mesh.gloo.solo.io/v1alpha2
-kind: TrafficTarget
+apiVersion: discovery.mesh.gloo.solo.io/v1
+kind: Destination
 metadata:
   name: ${VM_APP}-virtualmachines-cluster1
   namespace: gloo-mesh
@@ -842,9 +844,11 @@ spec:
 EOF
 ```
 
+Create a Gloo Mesh Access Policy:
+
 ```bash
 cat << EOF | kubectl --context mgmt apply -f -
-apiVersion: networking.mesh.gloo.solo.io/v1alpha2
+apiVersion: networking.mesh.gloo.solo.io/v1
 kind: AccessPolicy
 metadata:
   namespace: gloo-mesh
@@ -885,8 +889,10 @@ Let's deploy Gloo on the first cluster:
 
 ```bash
 kubectl config use-context cluster1
-glooctl upgrade --release=v1.6.8
-glooctl install gateway enterprise --version 1.6.12 --license-key $LICENSE_KEY
+glooctl upgrade --release=v1.6.14
+helm repo add glooe http://storage.googleapis.com/gloo-ee-helm
+helm install gloo glooe/gloo-ee --namespace gloo-system --create-namespace --version=1.6.20 --set-string license_key=$LICENSE_KEY --set global.istioSDS.enabled=true
+kubectl set env deployments/gateway-proxy -n gloo-system --containers=istio-proxy ISTIO_META_MESH_ID=mesh1 ISTIO_META_CLUSTER_ID=cluster1
 ```
 
 Use the following commands to wait for the Gloo components to be deployed:
@@ -909,31 +915,8 @@ Serving as the Ingress for an Istio cluster – without compromising on security
 
 For Gloo to successfully send requests to an Istio Upstream with mTLS enabled, we need to add the Istio mTLS secret to the gateway-proxy pod. The secret allows Gloo to authenticate with the Upstream service. We will also add an SDS server container to the pod, to handle cert rotation when Istio updates its certs.
 
-<<<<<<< HEAD
-Everything is done automatically when we use the `--set global.istioSDS.enabled=true` option during the Gloo Edge installation, but we still need to update 2 environment variables to match the values we used when we deployed Istio.
+Everything is done automatically when we use the `--set global.istioSDS.enabled=true` option during the Gloo Edge installation, but we also needed to update 2 environment variables to match the values we used when we deployed Istio.
 
-```bash
-kubectl set env deployments/gateway-proxy -n gloo-system --containers=istio-proxy ISTIO_META_MESH_ID=mesh1 ISTIO_META_CLUSTER_ID=cluster1
-=======
-Everything is done by simply running the following command:
-
-```bash
-glooctl istio inject
->>>>>>> eed5a98 (Moving from Debian 9 to Ubuntu 20.04)
-```
-
-It will restart a few Pods, so you can use the following commands to wait for all the Pods to be ready:
-
-<!--bash
-kubectl --context cluster1 -n istio-system delete pod -l app=istio-ingressgateway
--->
-
-```bash
-until [ $(kubectl --context cluster1 get pods -A -o jsonpath='{range .items[*].status.containerStatuses[*]}{.ready}{"\n"}{end}' | grep false -c) -eq 0 ]; do
-  echo "Waiting for all the pods to become ready on cluster cluster1"
-  sleep 1
-done
-```
 Finally, you must disable function discovery before editing the Upstream to prevent your change from being overwritten by Gloo:
 
 ```bash
@@ -1012,9 +995,9 @@ Check that all the Pods are running in the `default` namespace:
 kubectl --context cluster1 get pods
 ```
 
-When the pods are all running, the bookinfo app is accessible via the Gloo gateway using the `172.18.0.221` IP address.
+When the pods are all running, the bookinfo app is accessible via the Gloo gateway using the `172.18.2.2` IP address.
 
-Go to this new <a href="http://172.18.0.221/productpage" target="_blank">bookinfo app URL</a> to see if you can access the `productpage` microservice using Gloo.
+Go to this new <a href="http://172.18.2.2/productpage" target="_blank">bookinfo app URL</a> to see if you can access the `productpage` microservice using Gloo.
 
 As you might have guessed, this operation fails.  While you can access the Gloo endpoint, Gloo isn't yet allowed to talk to the `productpage` microservice.
 
@@ -1022,7 +1005,7 @@ Let's create an `AccessPolicy` to remedy that:
 
 ```bash
 cat << EOF | kubectl --context mgmt apply -f -
-apiVersion: networking.mesh.gloo.solo.io/v1alpha2
+apiVersion: networking.mesh.gloo.solo.io/v1
 kind: AccessPolicy
 metadata:
   namespace: gloo-mesh
