@@ -1,4 +1,4 @@
-# Gloo Edge Gateway
+# Gloo Edge Workshop
 
 Gloo Edge is a feature-rich, Kubernetes-native ingress controller, and next-generation API gateway. Gloo is exceptional in its function-level routing; its support for legacy apps, microservices and serverless; its discovery capabilities; its numerous features; and its tight integration with leading open-source projects. Gloo is uniquely designed to support hybrid applications, in which multiple technologies, architectures, protocols, and clouds can coexist.
 
@@ -9,8 +9,7 @@ The goal of this workshop is to expose some key features of Gloo API Gateway, li
 The lab environment consists of a Kubernetes environment deployed locally using kind.
 
 In this workshop we will:
-
-* Deploy a demo application \(Istio's [bookinfo](https://istio.io/latest/docs/examples/bookinfo/) demo app\) on a k8s cluster and expose it through Gloo Edge
+* Deploy a demo application (Istio's [bookinfo](https://istio.io/latest/docs/examples/bookinfo/) demo app) on a k8s cluster and expose it through Gloo Edge
 * Deploy a second version of the demo app and route traffic to both versions
 * Secure the demo app using TLS
 * Secure the demo app using OIDC
@@ -23,7 +22,7 @@ In this workshop we will:
 
 Go to the `/home/solo/workshops/gloo-edge/gloo-edge` directory:
 
-```text
+```
 cd /home/solo/workshops/gloo-edge/gloo-edge
 ```
 
@@ -35,13 +34,13 @@ Deploy a local Kubernetes cluster using this command:
 ../../scripts/deploy.sh 1 gloo-edge
 ```
 
-Then verify that your Kubernetes cluster is ready:
+Then verify that your Kubernetes cluster is ready: 
 
 ```bash
 ../../scripts/check.sh gloo-edge
 ```
 
-### Install Gloo
+### Install Gloo 
 
 Run the commands below to deploy Gloo Edge Enterprise:
 
@@ -69,7 +68,7 @@ done
 
 ## Lab 1: Traffic Management
 
-### Routing to a Kubernetes Service
+### Routing to a Kubernetes Service 
 
 In this step we will expose a demo service to the outside world using Gloo Edge.
 
@@ -80,8 +79,8 @@ kubectl create ns bookinfo
 kubectl -n bookinfo  apply -f https://raw.githubusercontent.com/istio/istio/1.7.3/samples/bookinfo/platform/kube/bookinfo.yaml
 kubectl delete deployment reviews-v1 reviews-v3 -n bookinfo
 ```
-
-```text
+ 
+```
                  +----------------------------------------------------------------------------+
                  |                                                                            |
                  |                                         +---------------+                  |
@@ -104,13 +103,14 @@ kubectl delete deployment reviews-v1 reviews-v3 -n bookinfo
                  +----------------------------------------------------------------------------+
 ```
 
-The bookinfo app has 3 versions of a microservice called reviews. We will keep only the version 2 of the reviews microservice for this step and will add the other versions later. An easy way to distinguish among the different versions in the web interface is to look at the stars: v1 displays no stars in the reviews, v2 displays black stars, and v3 displays red stars.
+The bookinfo app has 3 versions of a microservice called reviews.  We will keep only the version 2 of the reviews microservice for this step and will add the other versions later.  An easy way to distinguish among the different versions in the web interface is to look at the stars: v1 displays no stars in the reviews, v2 displays black stars, and v3 displays red stars.
+
 
 Gloo Edge uses a discovery mechanism to create Upstreams automatically, but Upstreams can be also created manually using Kubernetes CRDs.
 
-After a few seconds, Gloo Edge will discover the newly created service and create an Upstream called `bookinfo-productpage-9080` \(Gloo Edge uses the convention `namespace-service-port` for the discovered Upstreams\).
+After a few seconds, Gloo Edge will discover the newly created service and create an Upstream called  `bookinfo-productpage-9080` (Gloo Edge uses the convention `namespace-service-port` for the discovered Upstreams).
 
-To verify that the Upstream was created properly, run the following command:
+To verify that the Upstream was created properly, run the following command: 
 
 ```bash
 until glooctl get upstream bookinfo-productpage-9080 2> /dev/null
@@ -120,9 +120,9 @@ do
 done
 ```
 
-It should return the discovered upstream with an `Accepted` status:
+It should return the discovered upstream with an `Accepted` status: 
 
-```text
+```
 +---------------------------+------------+----------+----------------------------+
 |         UPSTREAM          |    TYPE    |  STATUS  |          DETAILS           |
 +---------------------------+------------+----------+----------------------------+
@@ -161,19 +161,20 @@ The creation of the Virtual Service exposes the Kubernetes service through the g
 
 We can access the application using the web browser by running the following command:
 
-```text
+```
 chromium $(glooctl proxy url)/productpage
 ```
 
-It should return the bookinfo application webpage. Note that the review stars are black \(v2\).
+It should return the bookinfo application webpage. Note that the review stars are black (v2).
 
-![Lab](../.gitbook/assets/1.png)
+![Lab](images/1.png)
+
 
 ### Routing to Multiple Upstreams
 
 In many cases, we need to route traffic to two different versions of an application to test a new feature. In this step, we are going to update the Virtual Service to route traffic to two different Upstreams:
 
-The first step is to create a new deployment of the demo application, this time with the version 3 of the reviews microservice:
+The first step is to create a new deployment of the demo application, this time with the version 3 of the reviews microservice: 
 
 ```bash
 kubectl create ns bookinfo-beta 
@@ -181,7 +182,7 @@ kubectl -n bookinfo-beta apply -f https://raw.githubusercontent.com/istio/istio/
 kubectl delete deployment reviews-v1 reviews-v2 -n bookinfo-beta
 ```
 
-```text
+```
                  +----------------------------------------------------------------------------+
                  |                                                                            |
                  |                                         +---------------+                  |
@@ -204,7 +205,8 @@ kubectl delete deployment reviews-v1 reviews-v2 -n bookinfo-beta
                  +----------------------------------------------------------------------------+
 ```
 
-Verify that the Upstream for the beta application was created, using the following command:
+Verify that the Upstream for the beta application was created, using the following command: 
+
 
 ```bash
 until glooctl get upstream bookinfo-beta-productpage-9080 2> /dev/null
@@ -214,7 +216,7 @@ do
 done
 ```
 
-Now we can route to multiple Upstreams by updating the Virtual Service as follow:
+Now we can route to multiple Upstreams by updating the Virtual Service as follow: 
 
 ```bash
 kubectl apply -f - <<EOF
@@ -247,13 +249,13 @@ spec:
 EOF
 ```
 
-We should see either the black star reviews \(v2\) or the new red star reviews \(v3\) when refreshing the page.
+We should see either the black star reviews (v2) or the new red star reviews (v3) when refreshing the page.
 
-![Lab](../.gitbook/assets/2.png)
+![Lab](images/2.png)
 
 ## Lab 2: Security
 
-In this lab, we will explore some Gloo Edge features related to security.
+In this lab, we will explore some Gloo Edge features related to security. 
 
 ### Network Encryption - Server TLS
 
@@ -312,10 +314,10 @@ spec:
 EOF
 ```
 
-Now the application is securely exposed through TLS. To test the TLS configuration, run the following command to open the browser \(note that now the traffic is served using https\):
+Now the application is securely exposed through TLS. To test the TLS configuration, run the following command to open the browser (note that now the traffic is served using https): 
 
-```text
-chromium $(glooctl proxy url --port https)/productpage
+```
+chromium $(glooctl proxy url --port https)/productpage 
 ```
 
 ### OIDC Support
@@ -328,6 +330,10 @@ Let's start by installing Keycloak:
 kubectl create -f https://raw.githubusercontent.com/keycloak/keycloak-quickstarts/latest/kubernetes-examples/keycloak.yaml
 kubectl rollout status deploy/keycloak
 ```
+
+<!--bash
+sleep 30
+-->
 
 Then, we need to configure it and create a user with the credentials `user1/password`:
 
@@ -354,7 +360,7 @@ curl -H "Authorization: Bearer ${KEYCLOAK_TOKEN}" -X POST -H "Content-Type: appl
 
 The architecture looks like this now:
 
-```text
+```
                  +----------------------------------------------------------------------------+
                  |                                                                            |
                  |                                         +---------------+                  |
@@ -383,7 +389,7 @@ The next step is to configure the authentication in the Virtual Service. For thi
 glooctl create secret oauth --namespace gloo-system --name keycloak-oauth --client-secret ${secret}
 ```
 
-Then we will create an AuthConfig, which is a Gloo Edge CRD that contains authentication information:
+Then we will create an AuthConfig, which is a Gloo Edge CRD that contains authentication information: 
 
 ```bash
 kubectl apply -f - <<EOF
@@ -455,7 +461,7 @@ To test the authentication, refresh the web browser.
 
 If you login as the `user1` user with the password `password`, Gloo should redirect you to the application.
 
-![Lab](../.gitbook/assets/3.png)
+![Lab](images/3.png)
 
 ### Rate Limiting
 
@@ -485,7 +491,7 @@ spec:
 EOF
 ```
 
-Now let's update our Virtual Service to use the bookinfo application with the new rate limit enforced:
+Now let's update our Virtual Service to use the bookinfo application with the new rate limit enforced: 
 
 ```bash
 kubectl apply -f - <<EOF
@@ -532,15 +538,15 @@ spec:
 EOF
 ```
 
-To test rate limiting, refresh the browser until you see a 429 message.
+To test rate limiting, refresh the browser until you see a 429 message. 
 
-![Lab](../.gitbook/assets/4.png)
+![Lab](images/4.png)
 
-### Web Application Firewall \(WAF\)
+### Web Application Firewall (WAF)
 
-A web application firewall \(WAF\) protects web applications by monitoring, filtering and blocking potentially harmful traffic and attacks that can overtake or exploit them.
+A web application firewall (WAF) protects web applications by monitoring, filtering and blocking potentially harmful traffic and attacks that can overtake or exploit them.
 
-Gloo Edge Enterprise includes the ability to enable the ModSecurity Web Application Firewall for any incoming and outgoing HTTP connections.
+Gloo Edge Enterprise includes the ability to enable the ModSecurity Web Application Firewall for any incoming and outgoing HTTP connections. 
 
 Let's update our Virtual Service to restrict the characters allowed for usernames.
 
@@ -598,11 +604,11 @@ EOF
 
 The rule means that a username can only contains letters.
 
-Click on the `Sign in` button and try to login with a user called `user1` \(the password doesn't matter\).
+Click on the `Sign in` button and try to login with a user called `user1` (the password doesn't matter).
 
 You should get the following error message:
 
-```text
+```
 Username should only contain letters
 ```
 
@@ -612,7 +618,7 @@ In this section we will explore how to transform requests using Gloo Edge.
 
 ### Response Transformation
 
-The following example demonstrates how to modify a response using Gloo Edge. We are going to return a basic html page when the response code is 429 \(rate limited\).
+The following example demonstrates how to modify a response using Gloo Edge. We are going to return a basic html page when the response code is 429 (rate limited).  
 
 ```bash
 kubectl apply -f - <<EOF
@@ -672,7 +678,7 @@ spec:
 EOF
 ```
 
-Refreshing your browser a couple times, you should be able to see a styled HTML page indicating that you reached the limit.
+Refreshing your browser a couple times, you should be able to see a styled HTML page indicating that you reached the limit. 
 
 ## Lab 4: Delegation
 
@@ -680,11 +686,11 @@ Gloo Edge provides a feature referred to as delegation. Delegation allows a comp
 
 Use cases for delegation include:
 
-* Allowing multiple tenants to own add, remove, and update routes without requiring shared access to the root-level Virtual Service
-* Sharing route configuration between Virtual Services
-* Simplifying blue-green routing configurations by swapping the target Route Table for a delegated route.
-* Simplifying very large routing configurations for a single Virtual Service
-* Restricting ownership of routing configuration for a tenant to a subset of the whole Virtual Service.
+- Allowing multiple tenants to own add, remove, and update routes without requiring shared access to the root-level Virtual Service
+- Sharing route configuration between Virtual Services
+- Simplifying blue-green routing configurations by swapping the target Route Table for a delegated route.
+- Simplifying very large routing configurations for a single Virtual Service
+- Restricting ownership of routing configuration for a tenant to a subset of the whole Virtual Service.
 
 Let's rewrite our Virtual Service to use delegate the routing information to a Route Table:
 
@@ -758,43 +764,43 @@ spec:
 EOF
 ```
 
-As you can see, in this case the security options remains in the `VirtualService` \(and can be managed by the infrastructure team\) whil the routing options are now in the `RouteTable` \(and can be managed by the application team\).
+As you can see, in this case the security options remains in the `VirtualService` (and can be managed by the infrastructure team) whil the routing options are now in the `RouteTable` (and can be managed by the application team).
 
 ## Lab 5: Observability
 
 ### Metrics
 
-Gloo Edge automatically generates a Grafana dashboard for whole-cluster stats \(overall request timing, aggregated response codes, etc.\), and dynamically generates a more-specific dashboard for each upstream that is tracked.
+Gloo Edge automatically generates a Grafana dashboard for whole-cluster stats (overall request timing, aggregated response codes, etc.), and dynamically generates a more-specific dashboard for each upstream that is tracked.
 
 Let's run the following command to allow access ot the Grafana UI:
 
-```text
+```
 kubectl port-forward -n gloo-system svc/glooe-grafana 8001:80
 ```
 
-You can now access the Grafana UI at [http://localhost:8001](http://localhost:8001) and login with `admin/admin`.
+You can now access the Grafana UI at http://localhost:8001 and login with `admin/admin`.
 
 You can take a look at the `Gloo -> Envoy Statistics` Dashboard that provides global statistics:
 
-![Grafana Envoy Statistics](../.gitbook/assets/grafana1.png)
+![Grafana Envoy Statistics](images/grafana1.png)
 
 You can also see that Gloo is dynamically generating a Dashboard for each Upstream:
 
-![Grafana Upstream](../.gitbook/assets/grafana2.png)
+![Grafana Upstream](images/grafana2.png)
 
 You can run the following command to see the default template used to generate these templates:
 
-```text
+```
 kubectl -n gloo-system get cm gloo-observability-config -o yaml
 ```
 
-If you want to customize how these per-upstream dashboards look, you can provide your own template to use by writing a Grafana dashboard JSON representation to that config map key.
+If you want to customize how these per-upstream dashboards look, you can provide your own template to use by writing a Grafana dashboard JSON representation to that config map key. 
 
 ### Access Logging
 
-Access logs are important to check if a system is behaving correctly and for debugging purposes. Logs aggregators \(datadog, splunk..etc\) use agents deployed on the Kubernetes clusters to collect logs.
+Access logs are important to check if a system is behaving correctly and for debugging purposes. Logs aggregators (datadog, splunk..etc) use agents deployed on the Kubernetes clusters to collect logs.  
 
-Lets first enable access logging on the gateway:
+Lets first enable access logging on the gateway: 
 
 ```bash
 kubectl apply -f - <<EOF
@@ -847,9 +853,9 @@ spec:
 EOF
 ```
 
-NOTE: You can safely ignore the following warning when you run the above command:
+NOTE:  You can safely ignore the following warning when you run the above command:
 
-```text
+```
 Warning: kubectl apply should be used on resource created by either kubectl create --save-config or kubectl apply
 ```
 
@@ -863,7 +869,7 @@ kubectl logs -n gloo-system deployment/gateway-proxy | grep '^{' | jq
 
 If you refresh the browser to send additional requests until the rate limiting threshold is exceeded, then you will see both `200 OK` and `429 Too Many Requests` responses in the access logs, as in the example below.
 
-```text
+```
 {
   "messageType": null,
   "requestId": "06c54299-de6b-463e-8035-aebd3e530cb5",
@@ -894,15 +900,15 @@ If you refresh the browser to send additional requests until the rate limiting t
 }
 ```
 
-These logs can now be collected by the Log aggregator agents and potentially forwarded to your favorite enterprise logging service.
+These logs can now be collected by the Log aggregator agents and potentially forwarded to your favorite enterprise logging service. 
 
 The following labs are optional. The instructor will go through them.
 
 ## Lab 6: Advanced Authentication Workflows
 
-As you've seen in the previous lab, Gloo Edge supports authentication via OpenID Connect \(OIDC\). OIDC is an identity layer on top of the OAuth 2.0 protocol. In OAuth 2.0 flows, authentication is performed by an external Identity Provider \(IdP\) which, in case of success, returns an Access Token representing the user identity. The protocol does not define the contents and structure of the Access Token, which greatly reduces the portability of OAuth 2.0 implementations.
+As you've seen in the previous lab, Gloo Edge supports authentication via OpenID Connect (OIDC). OIDC is an identity layer on top of the OAuth 2.0 protocol. In OAuth 2.0 flows, authentication is performed by an external Identity Provider (IdP) which, in case of success, returns an Access Token representing the user identity. The protocol does not define the contents and structure of the Access Token, which greatly reduces the portability of OAuth 2.0 implementations.
 
-The goal of OIDC is to address this ambiguity by additionally requiring Identity Providers to return a well-defined ID Token. OIDC ID tokens follow the JSON Web Token standard and contain specific fields that your applications can expect and handle. This standardization allows you to switch between Identity Providers – or support multiple ones at the same time – with minimal, if any, changes to your downstream services; it also allows you to consistently apply additional security measures like Role-based Access Control \(RBAC\) based on the identity of your users, i.e. the contents of their ID token.
+The goal of OIDC is to address this ambiguity by additionally requiring Identity Providers to return a well-defined ID Token. OIDC ID tokens follow the JSON Web Token standard and contain specific fields that your applications can expect and handle. This standardization allows you to switch between Identity Providers – or support multiple ones at the same time – with minimal, if any, changes to your downstream services; it also allows you to consistently apply additional security measures like Role-based Access Control (RBAC) based on the identity of your users, i.e. the contents of their ID token.
 
 As explained above, Keycloak will return a JWT token, so we’ll use Gloo to extract some claims from this token and to create new headers corresponding to these claims.
 
@@ -992,13 +998,13 @@ EOF
 
 Let's take a look at what the application returns:
 
-```text
-chromium $(glooctl proxy url --port https)/get
+```
+chromium $(glooctl proxy url --port https)/get 
 ```
 
 You should get the following output:
 
-```text
+```
 {
   "args": {}, 
   "headers": {
@@ -1085,7 +1091,7 @@ This transformation is using a regular expression to extract the JWT token from 
 
 Here is the output you should get if you refresh the web page:
 
-```text
+```
 {
   "args": {}, 
   "headers": {
@@ -1187,7 +1193,7 @@ EOF
 
 Here is the output you should get if you refresh the web page:
 
-```text
+```
 {
   "args": {}, 
   "headers": {
@@ -1305,7 +1311,7 @@ If you refresh the web page, you should still get the same response you got befo
 
 But if you change the path to anything that doesn't start with `/get`, you should get the following response:
 
-```text
+```
 RBAC: access denied
 ```
 
@@ -1334,6 +1340,13 @@ EOF
 kubectl create namespace dev-portal
 helm install dev-portal dev-portal/dev-portal -n dev-portal --values gloo-values.yaml  --version=0.5.0
 ```
+
+<!--bash
+until kubectl get ns dev-portal
+do
+  sleep 1
+done
+-->
 
 Use the following snippet to wait for the installation to finish:
 
@@ -1461,10 +1474,10 @@ kubectl get environment.devportal.solo.io -n default dev -oyaml
 
 ### Test the Service
 
-When targeting Gloo Edge, Gloo Portal manages a set of Gloo Edge Custom Resource Definitions \(CRDs\) on behalf of users:
+When targeting Gloo Edge, Gloo Portal manages a set of Gloo Edge Custom Resource Definitions (CRDs) on behalf of users:
 
-* VirtualServices: Gloo Portal generates a Gloo Edge VirtualService for each API Product. The VirtualService contains a single HTTP route for each API operation exposed in the product. Routes are named and their matchers are derived from the OpenAPI definition.
-* Upstreams: Gloo Portal generates a Gloo Upstream for each unique destination references in an API Product route.
+- VirtualServices: Gloo Portal generates a Gloo Edge VirtualService for each API Product. The VirtualService contains a single HTTP route for each API operation exposed in the product. Routes are named and their matchers are derived from the OpenAPI definition.
+- Upstreams: Gloo Portal generates a Gloo Upstream for each unique destination references in an API Product route.
 
 So, you can now access the API using the command below:
 
@@ -1472,7 +1485,7 @@ So, you can now access the API using the command below:
 curl -H "Host: api.example.com" http://172.18.1.1/api/v1/products
 ```
 
-```text
+```
 [
   {
     "id": 0,
@@ -1540,8 +1553,7 @@ spec:
   - name: dev
     namespace: default
 EOF
-`
-```
+````
 
 You can now check the status of the Portal using the following command:
 
@@ -1623,21 +1635,21 @@ EOF
 
 Let's run the following command to allow access ot the admin UI of Gloo Portal:
 
-```text
+```
 kubectl port-forward -n dev-portal svc/admin-server 8000:8080
 ```
 
-You can now access the admin UI at [http://localhost:8000](http://localhost:8000)
+You can now access the admin UI at http://localhost:8000
 
-![Admin Developer Portal](../.gitbook/assets/dev-portal-admin.png)
+![Admin Developer Portal](images/dev-portal-admin.png)
 
 Take the time to explore the UI and see the different components we have created.
 
 ### Explore the Portal Interface
 
-The user Portal we have created is available at [http://portal.example.com](http://portal.example.com)
+The user Portal we have created is available at http://portal.example.com
 
-![User Developer Portal](../.gitbook/assets/dev-portal-user.png)
+![User Developer Portal](images/dev-portal-user.png)
 
 Log in with the user `user1` and the password `password`.
 
@@ -1645,19 +1657,19 @@ Click on `user1@solo.io` on the top right corner and select `API Keys`.
 
 Click on `API Keys` again and Add an API Key.
 
-![User Developer Portal API Key](../.gitbook/assets/dev-portal-api-key.png)
+![User Developer Portal API Key](images/dev-portal-api-key.png)
 
 Click on the key to copy the value to the clipboard.
 
 Click on the `APIs` tab.
 
-![User Developer Portal APIs](../.gitbook/assets/dev-portal-apis.png)
+![User Developer Portal APIs](images/dev-portal-apis.png)
 
 You can click on on of the versions of the `Bookinfo Product` and explore the API.
 
 You can also test the API and use the `Authorize` button to set your API key.
 
-![User Developer Portal API](../.gitbook/assets/dev-portal-api.png)
+![User Developer Portal API](images/dev-portal-api.png)
 
 ### Verify the Rate Limiting Policy
 
@@ -1665,19 +1677,19 @@ Now we're going to exercise the service using `curl`:
 
 So, we need to retrieve the API key first:
 
-```text
+```
 key=$(kubectl get secret -l environments.devportal.solo.io=dev.default -n default -o jsonpath='{.items[0].data.api-key}' | base64 --decode)
 ```
 
 Then, we can run the following command:
 
-```text
+```
 curl -H "Host: api.example.com" -H "api-key: ${key}" http://172.18.1.1/api/v1/products -v
 ```
 
 You should get a result similar to:
 
-```text
+```
 *   Trying 172.18.1.1...
 * TCP_NODELAY set
 * Connected to 172.18.1.1 (172.18.1.1) port 80 (#0)
@@ -1703,7 +1715,7 @@ Now, execute the curl command again several times.
 
 As soon as you reach the rate limit, you should get the following output:
 
-```text
+```
 *   Trying 172.18.1.1...
 * TCP_NODELAY set
 * Connected to 172.18.1.1 (172.18.1.1) port 80 (#0)
@@ -1725,7 +1737,7 @@ As soon as you reach the rate limit, you should get the following output:
 
 ## Lab 8 : Extend Envoy with WebAssembly
 
-WebAssembly \(WASM\) is the future of cloud-native infrastructure extensibility.
+WebAssembly (WASM) is the future of cloud-native infrastructure extensibility.
 
 WASM is a safe, secure, and dynamic way of extending infrastructure with the language of your choice. WASM tool chains compile your code from any of the supported languages into a type-safe, binary format that can be loaded dynamically in a WASM sandbox/VM.
 
@@ -1748,20 +1760,20 @@ chmod +x /home/solo/.gloo/bin/glooctl-wasm
 
 Note tha we are currently developing in plugin for `glooctl` to allow you to do the same with `glooctl wasm` commands.
 
-The main advantage of building a Wasm Envoy filter is that you can manipulate requests \(and responses\) exactly the way it makes sense for your specific use cases.
+The main advantage of building a Wasm Envoy filter is that you can manipulate requests (and responses) exactly the way it makes sense for your specific use cases.
 
 Perhaps you want to gather some metrics only when the request contain specific headers, or you want to enrich the request by getting information from another API, it doesn't matter, you're now free to do exactly what you want.
 
-The first decision you need to take is to decide which SDK \(so which language\) you want to use. SDKs are currently available for C++, AssemblyScript, RUST and TinyGo.
+The first decision you need to take is to decide which SDK (so which language) you want to use. SDKs are currently available for C++, AssemblyScript, RUST and TinyGo.
 
-Not all the languages can be compiled to WebAssembly and don't expect that you'll be able to import any external packages \(like the Amazon SDK\).
+Not all the languages can be compiled to WebAssembly and don't expect that you'll be able to import any external packages (like the Amazon SDK).
 
 There are 2 main reasons why you won't be able to do that:
 
-* The first one is that you'll need to tell Envoy to send HTTP requests for you \(if you need to get information from an API, for example\).
-* The second one is that most of these languages are not supporting all the standard packages you expect. For example, TinyGo doesn't have a JSON package and AssemblyScript doesn't have a Regexp package.
+- The first one is that you'll need to tell Envoy to send HTTP requests for you (if you need to get information from an API, for example).
+- The second one is that most of these languages are not supporting all the standard packages you expect. For example, TinyGo doesn't have a JSON package and AssemblyScript doesn't have a Regexp package.
 
-So, you need to determine what you want your filter to do, look at what kind of packages you'll need \(Regexp, ...\) and check which one of the language you already know is matching your requirements.
+So, you need to determine what you want your filter to do, look at what kind of packages you'll need (Regexp, ...) and check which one of the language you already know is matching your requirements.
 
 For example, if you want to manipulate the response headers with a regular expression and you have some experience with Golang, then you'll probably choose TinyGo.
 
@@ -1773,7 +1785,7 @@ The Gloo Edge Enterprise CLI can be used to create the skeleton for you.
 
 Let's take a look at the help of the `glooctl wasm` option:
 
-```text
+```
 glooctl wasm
 
 The interface for managing Gloo Edge WASM filters
@@ -1802,15 +1814,15 @@ Use "wasm [command] --help" for more information about a command.
 
 The following command will create the skeleton to build a Wasm filter using AssemblyScript:
 
-```text
+```
 glooctl wasm init helloworld --language=assemblyscript
 ```
 
-It will ask what platform you will run your filter on \(because the SDK version can be different based on the ABI corresponding to the version of Envoy used by this Platform\).
+It will ask what platform you will run your filter on (because the SDK version can be different based on the ABI corresponding to the version of Envoy used by this Platform).
 
 And it will create the following file structure under the directory you have indicated:
 
-```text
+```
 ./package-lock.json
 ./.gitignore
 ./assembly
@@ -1822,7 +1834,7 @@ And it will create the following file structure under the directory you have ind
 
 The most interesting file is the index.ts one, where you'll write the code corresponding to your filter:
 
-```text
+```
 export * from "@solo-io/proxy-runtime/proxy";
 import { RootContext, Context, RootContextHelper, ContextHelper, registerRootContext, FilterHeadersStatusValues, stream_context } from "@solo-io/proxy-runtime";
 
@@ -1861,7 +1873,7 @@ class AddHeader extends Context {
 registerRootContext(() => { return RootContextHelper.wrap(new AddHeaderRoot()); }, "add_header");
 ```
 
-We'll keep the default content, so the filter will add a new Header in all the Responses with the key hello and the value passed to the filter \(or world! if no value is passed to it\).
+We'll keep the default content, so the filter will add a new Header in all the Responses with the key hello and the value passed to the filter (or world! if no value is passed to it).
 
 ### Build
 
@@ -1871,7 +1883,7 @@ The Gloo Edge Enterprise CLI will make your life easier again.
 
 You simply need to run the following commands:
 
-```text
+```
 cd /home/solo/workshops/gloo-edge/gloo-edge/helloworld
 glooctl wasm build assemblyscript -t webassemblyhub.io/djannot/helloworld-gloo-ee:1.6 .
 ```
@@ -1888,11 +1900,11 @@ But you would need to create a free account and to run `glooctl wasm login` to a
 
 To simplify the lab, we will use the image that has already been pushed.
 
-![Web Assembly Hub](../.gitbook/assets/web-assembly-hub.png)
+![Web Assembly Hub](images/web-assembly-hub.png)
 
 But note that the command to push the Image is the following one:
 
-```text
+```
 glooctl wasm push webassemblyhub.io/djannot/helloworld-gloo-ee:1.6
 ```
 
@@ -1906,7 +1918,7 @@ Note that you can also deploy it on Istio using Gloo Mesh.
 
 You can deploy it using `glooctl wasm deploy`, but we now live in a Declarative world, so let's do it the proper way.
 
-You can deploy your filter by updating the `Gateway` CRD \(Custom Resource Definition\).
+You can deploy your filter by updating the `Gateway` CRD (Custom Resource Definition).
 
 To deploy your Wasm filter, use the following commands:
 
@@ -1954,13 +1966,13 @@ EOF
 
 And run the following command:
 
-```text
+```
 curl $(glooctl proxy url)/get  -I
 ```
 
 You should get the following output:
 
-```text
+```
 HTTP/1.1 200 OK
 server: envoy
 date: Tue, 26 Jan 2021 08:38:54 GMT
@@ -1973,4 +1985,3 @@ hello: Gloo Edge Enterprise
 ```
 
 This is the end of the workshop. We hope you enjoyed it !
-

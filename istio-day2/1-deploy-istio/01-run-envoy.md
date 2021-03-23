@@ -1,8 +1,8 @@
-# Lab 1 - Run Envoy Proxy
+# Lab 1 :: Run Envoy Proxy
 
-In this lab, we dig into one of the foundational pieces of Istio. The "data plane", or the service proxy that lives with each service/application instance is on the request path on both origination of a service call as well as usually on the destination side of the service call.
+In this lab, we dig into one of the foundational pieces of Istio. The "data plane", or the service proxy that lives with each service/application instance is on the request path on both origination of a service call as well as usually on the destination side of the service call. 
 
-The service proxy that Istio uses is [Envoy Proxy](https://www.envoyproxy.io). Envoy is an incredibly powerful and well-suited proxy for this use case.
+The service proxy that Istio uses is [Envoy Proxy](https://www.envoyproxy.io). Envoy is an incredibly powerful and well-suited proxy for this use case. 
 
 It's impossible to understate how important Envoy is to Istio, which is why we start the labs with it.
 
@@ -10,7 +10,7 @@ It's impossible to understate how important Envoy is to Istio, which is why we s
 
 You will need access to a Kubernetes cluster. If you're doing this via the Solo.io Workshop format, you should have everything ready to go.
 
-Verify you're in the correct folder for this lab: `/home/solo/workshops/istio-day2/1-deploy-istio/`.
+Verify you're in the correct folder for this lab: `/home/solo/workshops/istio-day2/1-deploy-istio/`. 
 
 ## Set up supporting services
 
@@ -31,9 +31,10 @@ kubectl exec -it deploy/sleep -- curl httpbin:8000/headers
 Note, it may take a few moments for the `sleep` pod to come up, so you may need to retry the previous command if it fails
 {% endhint %}
 
+
 We should see httpbin output that looks similar to this:
 
-```text
+```
 {
   "headers": {
     "Accept": "*/*", 
@@ -43,17 +44,18 @@ We should see httpbin output that looks similar to this:
 }
 ```
 
+
 ## Review Envoy proxy config
 
-Envoy can be configured completely by loading a YAML/JSON file or in part with a dynamic API. The dynamic API is a big reason why microservice networking frameworks like Istio use Envoy, but we start by first understanding the configuration from a basic level.
+Envoy can be configured completely by loading a YAML/JSON file or in part with a dynamic API. The dynamic API is a big reason why microservice networking frameworks like Istio use Envoy, but we start by first understanding the configuration from a basic level. 
 
-We will use the file configuration format. Take a look at as simple configuration file:
+We will  use the file configuration format. Take a look at as simple configuration file:
 
-```text
+```
 cat labs/01/envoy-conf.yaml
 ```
 
-```text
+```
 admin:
   accessLogPath: /dev/stdout
   address:
@@ -107,9 +109,9 @@ staticResources:
 
 In this configuration, we see three main sections:
 
-* \[Admin\] - Setting up the administration API for the proxy
-* \[Listeners\] - Declaration of ports to open on the proxy and listen for incoming connections
-* \[Clusters\] - Backend service to which we can route traffic
+* [Admin] - Setting up the administration API for the proxy
+* [Listeners] - Declaration of ports to open on the proxy and listen for incoming connections
+* [Clusters] - Backend service to which we can route traffic
 
 We will discuss these sections in more detail during the instructor-led lab.
 
@@ -129,7 +131,8 @@ kubectl exec -it deploy/sleep -- curl http://envoy/headers
 
 Now our response from `httpbin` should look similar to this:
 
-```text
+
+```
 {
   "headers": {
     "Accept": "*/*", 
@@ -145,13 +148,15 @@ Now our response from `httpbin` should look similar to this:
 We now see a response with some enriched response headers, `X-Envoy-Expected-Rq-Timeout-Ms`
 {% endhint %}
 
+
 Now that we have Envoy on the request path of a service-to-service interaction, let's try changing the behavior of the call. While in this default configuration, we saw an expected request timeout of `15s`, let's try change the call timeout.
+
 
 ## Change the call timeout
 
 To change the call timeout, let's take a look at the routing configuration and find the parameter that specified the timeout:
 
-```text
+```
           routeConfig:
             name: simple_httpbin_route
             virtualHosts:
@@ -171,7 +176,6 @@ Here, we can see we set the timeout to 1s. Let's try call the `httpbin` service 
 ```bash
 kubectl create cm envoy --from-file=envoy.yaml=./labs/01/envoy-conf-timeout.yaml -o yaml --dry-run=client | kubectl apply -f -
 ```
-
 We will also need to _restart_ Envoy to pick up the new configuration:
 
 ```bash
@@ -184,7 +188,7 @@ kubectl exec -it deploy/sleep -- curl http://envoy/headers
 
 We should see the headers now look like this:
 
-```text
+```
 {
   "headers": {
     "Accept": "*/*", 
@@ -202,7 +206,7 @@ If we call our service, which takes longer than 1s, we should see a HTTP 504 / g
 kubectl exec -it deploy/sleep -- curl -v http://envoy/delay/5
 ```
 
-```text
+```
 *   Trying 10.44.8.102:80...
 * Connected to envoy (10.44.8.102) port 80 (#0)
 > GET /delay/5 HTTP/1.1
@@ -219,9 +223,10 @@ kubectl exec -it deploy/sleep -- curl -v http://envoy/delay/5
 < 
 * Connection #0 to host envoy left intact
 upstream request timeout
-```
+    
+```    
 
-Although this is pretty simple so far, we can see how Envoy can become very valuable for a service-to-service request path. Enriching the networking with timeouts, retries, circuit breaking, etc allow the service to focus on business logic and differentiating features vs boring cross-cutting networking features.
+Although this is pretty simple so far, we can see how Envoy can become very valuable for a service-to-service request path. Enriching the networking with timeouts, retries, circuit breaking, etc allow the service to focus on business logic and differentiating features vs boring cross-cutting networking features.                            
 
 ## Admin stats
 
@@ -239,7 +244,7 @@ Wow, that's a lot of good info! Let's trim it down. Maybe we just want to see re
 kubectl exec -it deploy/sleep -- curl http://envoy:15000/stats | grep retry
 ```
 
-```text
+```
 cluster.httpbin_service.circuit_breakers.default.rq_retry_open: 0
 cluster.httpbin_service.circuit_breakers.high.rq_retry_open: 0
 cluster.httpbin_service.retry_or_shadow_abandoned: 0
@@ -263,7 +268,7 @@ Calling services over the network can get scary. Services don't always respond, 
 
 Let's see how to configure to retry on HTTP `5xx` requests:
 
-```text
+```
           routeConfig:
             name: simple_httpbin_route
             virtualHosts:
@@ -278,12 +283,13 @@ Let's see how to configure to retry on HTTP `5xx` requests:
                   timeout: 1s
                   retryPolicy:
                     retryOn: 5xx
-                    numRetries: 3
+                    numRetries: 3                      
 ```
 
 {% hint style="info" %}
 Note the configuration for retries on `5xx`
 {% endhint %}
+
 
 Let's apply this new configuration:
 
@@ -301,7 +307,7 @@ kubectl exec -it deploy/sleep -- curl -v http://envoy/status/500
 
 We see the call fails:
 
-```text
+```
 *   Trying 10.44.8.102:80...
 * Connected to envoy (10.44.8.102) port 80 (#0)
 > GET /status/500 HTTP/1.1
@@ -328,7 +334,7 @@ So let's see what Envoy observed in terms of retries:
 kubectl exec -it deploy/sleep -- curl http://envoy:15000/stats | grep retry
 ```
 
-```text
+```
 cluster.httpbin_service.circuit_breakers.default.rq_retry_open: 0
 cluster.httpbin_service.circuit_breakers.high.rq_retry_open: 0
 cluster.httpbin_service.retry.upstream_rq_500: 3
@@ -347,19 +353,18 @@ vhost.httpbin_host.vcluster.other.upstream_rq_retry_overflow: 0
 vhost.httpbin_host.vcluster.other.upstream_rq_retry_success: 0
 ```
 
-We see that indeed the call to `httpbin` did get retried 3 times.
+We see that indeed the call to `httpbin` did get retried 3 times. 
 
 ## Recap
 
-So far we've taken a basic approach to understanding what the Envoy proxy is and how to configure it. We've also seen how it can alter the behavior of a network call and give us very valuable information about how the network is behaving at the request/message level.
+So far we've taken a basic approach to understanding what the Envoy proxy is and how to configure it. We've also seen how it can alter the behavior of a network call and give us very valuable information about how the network is behaving at the request/message level. 
 
 ## Bonus Content
 
-In the bonus section, we dig into more networking settings like load balancing, circuit breaking, and more.
+In the bonus section, we dig into more networking settings like load balancing, circuit breaking, and more. 
 
 [See the Lab 01 bonus section](01a-bonus.md).
 
 ## Next Lab
 
-In the [next lab](../02-install-istio/), we will dig into Istio's control plane a bit more. We'll also see how we can leverage all of these Envoy capabilities \(resilience features, routing, observability, security, etc\) to implement a secure, observable microservices architecture.
-
+In the [next lab](02-install-istio.md), we will dig into Istio's control plane a bit more. We'll also see how we can leverage all of these Envoy capabilities (resilience features, routing, observability, security, etc) to implement a secure, observable microservices architecture.                    

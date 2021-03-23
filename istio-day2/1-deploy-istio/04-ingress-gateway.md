@@ -1,12 +1,13 @@
-# Lab 4 - Using ingress gateways across teams
+# Lab 4 :: Ingress Gateway
 
-Getting started with Envoy based technology is best by starting small and iteratively growing. In this lab, we'll take a look at adopting Envoy first at the edge with the Istio ingress gateway. The intention of the ingress gateway is to allow traffic into the mesh. If you need more sophisticated edge gateway capabilities \(rate limiting, request transformation, OIDC, LDAP, OPA, etc\) then use a gateway specifically built for those use cases like [Gloo Edge](https://docs.solo.io/gloo-edge/latest/).
+Getting started with Envoy based technology is best by starting small and iteratively growing. In this lab, we'll take a look at adopting Envoy first at the edge with the Istio ingress gateway. The intention of the ingress gateway is to allow traffic into the mesh. If you need more sophisticated edge gateway capabilities (rate limiting, request transformation, OIDC, LDAP, OPA, etc) then use a gateway specifically built for those use cases like [Gloo Edge](https://docs.solo.io/gloo-edge/latest/). 
+
 
 ## Prerequisites
 
-Verify you're in the correct folder for this lab: `/home/solo/workshops/istio-day2/1-deploy-istio/`.
+Verify you're in the correct folder for this lab: `/home/solo/workshops/istio-day2/1-deploy-istio/`. 
 
-This lab builds on both lab 02 and 03 where we already installed Istio control plane using a minimal profile and using revisions.
+This lab builds on both lab 02 and 03 where we already installed Istio control plane using a minimal profile and using revisions. 
 
 ## Install Istio ingress gateway
 
@@ -44,9 +45,8 @@ spec:
                  exec:
                    command: ["sh", "-c", "sleep 5"]
 ```
-
 {% hint style="info" %}
-This uses the `empty` profile and enables the `istio-ingressgateway` component.
+This uses the `empty` profile and enables the `istio-ingressgateway` component. 
 {% endhint %}
 
 Let's install it with a revision that matches the control plane:
@@ -61,7 +61,7 @@ We should check that the ingress gateway was correctly installed:
 kubectl get po -n istio-system
 ```
 
-```text
+```
 NAME                                    READY   STATUS    RESTARTS   AGE
 istio-ingressgateway-5686db779c-8nr5p   1/1     Running   0          78s
 istiod-1-8-3-5f4f595578-b22c8           1/1     Running   0          40m
@@ -74,7 +74,7 @@ The ingress gateway will create a Kubernetes Service of type `LoadBalancer`. Use
 kubectl get svc -n istio-system
 ```
 
-```text
+```
 NAME                   TYPE           CLUSTER-IP     EXTERNAL-IP     PORT(S)                                                                      AGE
 istio-ingressgateway   LoadBalancer   10.44.0.91     35.202.132.20   15021:32218/TCP,80:30062/TCP,443:30105/TCP,15012:32488/TCP,15443:30178/TCP   5m45s
 istiod                 ClusterIP      10.44.10.140   <none>          15010/TCP,15012/TCP,443/TCP,15014/TCP                                        47m
@@ -82,7 +82,8 @@ istiod-1-8-3           ClusterIP      10.44.11.8     <none>          15010/TCP,1
 kiali                  ClusterIP      10.44.4.127    <none>          20001/TCP,9090/TCP                                                           26m
 ```
 
-## Note the GATEWAY\_IP env variable
+## Note the GATEWAY_IP env variable
+
 
 {% hint style="success" %}
 We use the `GATEWAY_IP` environment variable in other parts of this lab.
@@ -95,6 +96,7 @@ GATEWAY_IP=$(kubectl get svc -n istio-system istio-ingressgateway -o jsonpath="{
 {% hint style="info" %}
 If you are running this lab on your MacBook, you need to follow [this instruction](https://github.com/christian-posta/docker-tuntap-osx) to setup MetalLB on your Kind cluster so you can access the `GATEWAY_IP` from your terminal.
 {% endhint %}
+
 
 ## Expose our apps
 
@@ -113,15 +115,15 @@ curl -H "Host: istioinaction.io" http://$GATEWAY_IP
 We can query the gateway configuration using the `istioctl proxy-config` command:
 
 ```bash
-istioctl proxy-config routes deploy/istio-ingressgateway.istio-system
+istioctl proxy-config routes deploy/istio-ingressgateway.istio-system 
 ```
 
-```text
+```
 NOTE: This output only contains routes loaded via RDS.
 NAME        DOMAINS              MATCH                  VIRTUAL SERVICE
 http.80     istioinaction.io     /*                     web-api-gw-vs.istioinaction
             *                    /stats/prometheus*     
-            *                    /healthz/ready*
+            *                    /healthz/ready*    
 ```
 
 If we wanted to see an individual route, we can ask for its output as `json` like this:
@@ -129,6 +131,7 @@ If we wanted to see an individual route, we can ask for its output as `json` lik
 ```bash
 istioctl proxy-config routes deploy/istio-ingressgateway.istio-system --name http.80 -o json
 ```
+
 
 ## Securing inbound traffic with HTTPS
 
@@ -170,7 +173,7 @@ spec:
       credentialName: istioinaction-cert
 ```
 
-Note, we are pointing to the `istioinaction-cert` and **that the cert must be in the same namespace as the ingress gateway deployment**. Even though the `Gateway` resource is in the `istioinaction` namespace, _the cert must be where the gateway is actually deployed_.
+Note, we are pointing to the `istioinaction-cert` and **that the cert must be in the same namespace as the ingress gateway deployment**. Even though the `Gateway` resource is in the `istioinaction` namespace, _the cert must be where the gateway is actually deployed_. 
 
 ```bash
 kubectl -n istioinaction apply -f labs/04/web-api-gw-https.yaml
@@ -184,7 +187,9 @@ curl --cacert ./labs/04/certs/ca/root-ca.crt -H "Host: istioinaction.io" https:/
 
 What are some common issues that folks run into with this approach?
 
-1\) Users may not have access to write anything \(ie, certs\) into `istio-system` 2\) Users may not manage their own certs 3\) Integration with CA/PKI is highly desirable
+1) Users may not have access to write anything (ie, certs) into `istio-system`
+2) Users may not manage their own certs
+3) Integration with CA/PKI is highly desirable
 
 Let's dig into these a bit. Some of these sections will be left for the _bonus_ section.
 
@@ -193,14 +198,13 @@ Let's delete the secret we created earlier and see what other options we have:
 ```bash
 kubectl delete secret -n istio-system istioinaction-cert
 ```
-
 {% hint style="info" %}
 We should delete the secret like in the previous step so the next sections will work as expected
 {% endhint %}
 
 ## Integrate Istio ingress gateway with Cert Manager
 
-In the previous lab we already had a cert for our domain. In this lab, let's use cert-manager to provision the certs for us using a backend CA. In this lab, the CA will be our own CA but cert-manager can be integrated with a lot of backend PKI --- which is a big reason why cert manager is so popular.
+In the previous lab we already had a cert for our domain. In this lab, let's use cert-manager to provision the certs for us using a backend CA. In this lab, the CA will be our own CA but cert-manager can be integrated with a lot of backend PKI --- which is a big reason why cert manager is so popular. 
 
 Let's prep for the installation of cert manager:
 
@@ -224,7 +228,7 @@ kubectl get po -n cert-manager
 
 Output:
 
-```text
+```
 NAME                                       READY   STATUS    RESTARTS   AGE
 cert-manager-85f9bbcd97-zslwx              1/1     Running   0          2m45s
 cert-manager-cainjector-74459fcc56-xq6pk   1/1     Running   0          2m45s
@@ -236,7 +240,6 @@ Let's delete the secret we created earlier and see what other options we have:
 ```bash
 kubectl delete secret -n istio-system istioinaction-cert
 ```
-
 {% hint style="info" %}
 We should delete the secret like in the previous step so the next sections will work as expected
 {% endhint %}
@@ -263,7 +266,7 @@ spec:
 ```
 
 ```bash
-kubectl apply -f labs/04/cert-manager/ca-cluster-issuer.yaml
+kubectl apply -f labs/04/cert-manager/ca-cluster-issuer.yaml 
 ```
 
 Before we ask cert-manager to issue us a new cert for `istioinaction.io`, let's make sure we delete it from the previous lab:
@@ -304,7 +307,7 @@ spec:
 ```
 
 ```bash
-kubectl apply -f labs/04/cert-manager/istioinaction-io-cert.yaml
+kubectl apply -f labs/04/cert-manager/istioinaction-io-cert.yaml 
 ```
 
 Let's make sure the certificate was recognized and issued:
@@ -313,7 +316,7 @@ Let's make sure the certificate was recognized and issued:
 kubectl get Certificate -n istio-system
 ```
 
-```text
+```
 NAME                 READY   SECRET               AGE
 istioinaction-cert   True    istioinaction-cert   12s
 ```
@@ -332,9 +335,12 @@ curl --cacert ./labs/04/certs/ca/root-ca.crt -H "Host: istioinaction.io" https:/
 
 In this section, we created the `Certificate` in the `istio-system` namespace. But if we don't have access to that namespace, what else could we do?
 
+
+
 ## Reduce Gateway Config for large meshes
 
 By default, the ingress gateways will be configured with information about every service in the mesh and in fact every service that Istio's control plane has discovered. This is likely overkill for most large mesh deployments. With the gateway, we can scope down the number of backend services that get configured on the gateway to only those that have routing rules defined for them. For example, in our current status with the gateway, let's see what "clusters" it knows about:
+
 
 ```bash
 istioctl pc clusters deploy/istio-ingressgateway -n istio-system
@@ -346,7 +352,7 @@ As you see, the output here is quite extensive and includes clusters that the ga
 istioctl install -y -n istio-system -f labs/04/control-plane-reduce-gw-config.yaml --revision 1-8-3
 ```
 
-Give a few moments for `istiod` to come back up. Then run the following to verify the setting `PILOT_FILTER_GATEWAY_CLUSTER_CONFIG` took effect:
+Give a few moments for `istiod` to come back up. Then run the following to verify the setting `PILOT_FILTER_GATEWAY_CLUSTER_CONFIG` took effect: 
 
 ```bash
 kubectl get deploy/istiod-1-8-3 -n istio-system -o jsonpath="{.spec.template.spec.containers[].env[0]}"
@@ -354,7 +360,7 @@ kubectl get deploy/istiod-1-8-3 -n istio-system -o jsonpath="{.spec.template.spe
 
 You should see something like this:
 
-```text
+```
 {"name":"PILOT_FILTER_GATEWAY_CLUSTER_CONFIG","value":"true"}
 ```
 
@@ -364,11 +370,11 @@ Let's check the ingress gateway again:
 istioctl pc clusters deploy/istio-ingressgateway -n istio-system
 ```
 
-You should see a much more slimmed down list including the `web-api.istioinaction.svc.cluster.local` cluster. There are a couple of additional clusters that have been configured as `static` clusters.
+You should see a much more slimmed down list including the `web-api.istioinaction.svc.cluster.local` cluster. There are a couple of additional clusters that have been configured as `static` clusters. 
 
 ## Access logging for gateway
 
-In this last section of this lab, we will see how to enable access logging for the ingress gateway. Access logging is instrumental in understanding what traffic is coming and what are the results of that traffic. Istio's documentation [shows how to enable access logging](https://istio.io/latest/docs/tasks/observability/logs/access-log/) but it's for the entire mesh. In this section, we will enable access logging for _just_ the ingress gateway. The UX around this is continuously improving, so in the future there may be an easier way to do this. These steps were accurate for Istio 1.8.3.
+In this last section of this lab, we will see how to enable access logging for the ingress gateway. Access logging is instrumental in understanding what traffic is coming and what are the results of that traffic. Istio's documentation [shows how to enable access logging](https://istio.io/latest/docs/tasks/observability/logs/access-log/) but it's for the entire mesh. In this section, we will enable access logging for *just* the ingress gateway. The UX around this is continuously improving, so in the future there may be an easier way to do this. These steps were accurate for Istio 1.8.3. 
 
 Let's take a look at the configuration we'll use to configure access logging for the ingress gateway:
 
@@ -435,15 +441,18 @@ kubectl logs -n istio-system deploy/istio-ingressgateway -c istio-proxy
 
 You should see something like the following access log:
 
-```text
+```
 [2021-03-02T20:43:27.195Z] "GET / HTTP/2" 200 - "-" 0 1102 11 11 "10.128.0.61" "curl/7.64.1" "8821b96b-ecab-4303-9f6d-11681ee22e8f" "istioinaction.io" "10.40.2.49:8080" outbound|8080||web-api.istioinaction.svc.cluster.local 10.40.0.43:32838 10.40.0.43:8443 10.128.0.61:53829 istioinaction.io -
 ```
+
 
 ## Recap
 
 We covered a lot in this lab about Gateways, but we're just scratching the surface. We touched on common Gateway use cases including getting traffic into the mesh and routing to services that may be in the cluster but may not be in the mesh yet. Some other cases we touched on:
 
-1\) Users may not have access to write anything \(ie, certs\) into `istio-system` 2\) Users may not manage their own certs 3\) Integration with CA/PKI is highly desirable
+1) Users may not have access to write anything (ie, certs) into `istio-system`
+2) Users may not manage their own certs
+3) Integration with CA/PKI is highly desirable
 
 And we covered only part 3 when we integrate with Cert Manager. In the second part of this lab, we'll go into more detail about safe secrets/Certs. In the Bonus section, we address some more of these concerns.
 
@@ -455,5 +464,4 @@ In the bonus section, we dig deeper into teams owning their own Ingress Gateway 
 
 ## Next lab
 
-In the [next lab](../05-app-rollout/), we take a look at iteratively and safely getting workloads into the mesh.
-
+In the [next lab](05-app-rollout.md), we take a look at iteratively and safely getting workloads into the mesh. 

@@ -1,2 +1,0 @@
-# Gloo Edge Federation
-

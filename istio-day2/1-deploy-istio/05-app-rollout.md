@@ -1,16 +1,16 @@
-# Lab 5 - Onboarding services to the mesh
+# Lab 5 :: Add Services to Istio
 
-In this lab, we'll add services gradually to the Istio service mesh we installed in earlier labs. We will cover how to examine envoy configuration for your services, how to delay your application from starting until the sidecar proxy is ready, how to enable access logs for a given service and some tips to avoid 503s.
+In this lab, we'll add services gradually to the Istio service mesh we installed in earlier labs. We will cover how to examine envoy configuration for your services, how to delay your application from starting until the sidecar proxy is ready, how to enable access logs for a given service and some tips to avoid 503s. 
 
 ## Prerequisites
 
-Verify you're in the correct folder for this lab: `/home/solo/workshops/istio-day2/1-deploy-istio/`.
+Verify you're in the correct folder for this lab: `/home/solo/workshops/istio-day2/1-deploy-istio/`. 
 
-This lab builds on both lab 02, 03 and 04 where we already installed Istio control plane using a minimal profile and ingress gateway using revisions.
+This lab builds on both lab 02, 03 and 04 where we already installed Istio control plane using a minimal profile and ingress gateway using revisions. 
 
 ## Adding services to the mesh
 
-There are a couple ways to add a service to the mesh. What's meant by "adding the service to the mesh" is we install the Istio sidecar proxy \(Envoy\) alongside the workload. We can do a manual injection of the sidecar or automatically do it. Let's start to deploy some workloads.
+There are a couple ways to add a service to the mesh. What's meant by "adding the service to the mesh" is we install the Istio sidecar proxy (Envoy) alongside the workload. We can do a manual injection of the sidecar or automatically do it. Let's start to deploy some workloads.
 
 Now let's label this namespace with the appropriate labels to enable sidecar injection:
 
@@ -40,7 +40,7 @@ kubectl get po -n istioinaction
 
 As you can see from the output, the web-api-canary pod has the sidecar now with `2/2` under the `READY` column:
 
-```text
+```
 NAME                                  READY   STATUS    RESTARTS   AGE
 purchase-history-v1-985b8776b-h7n5d   1/1     Running   0          10h
 recommendation-8966c6b7d-p4xpt        1/1     Running   0          10h
@@ -55,7 +55,7 @@ Now that we have our web-api pod up and running, we should be able to call it:
 kubectl exec -it deploy/sleep -- curl http://web-api.istioinaction:8080/
 ```
 
-```text
+```
 {
   "name": "web-api",
   "uri": "/",
@@ -123,16 +123,18 @@ for i in {1..10}; do kubectl exec -it deploy/sleep -n default -- curl http://htt
 
 If everything looks good, we can introduce the sidecar to the rest of the services and delete the canary:
 
-```text
+```
 kubectl rollout restart deployment web-api -n istioinaction
 kubectl rollout restart deployment purchase-history-v1 -n istioinaction
 kubectl rollout restart deployment recommendation -n istioinaction
 kubectl rollout restart deployment sleep -n istioinaction
 ```
 
+
 ```bash
 kubectl delete deployment web-api-canary purchase-history-v1-canary recommendation-canary sleep-canary -n istioinaction
 ```
+
 
 Congratulations! You have successfully added all of your services in the istioinaction namespace to the mesh without any downtime.
 
@@ -141,10 +143,10 @@ Congratulations! You have successfully added all of your services in the istioin
 Coming back to our services in the `istioinaction` namespace, let's take a look at some of the Envoy configuration for the sidecar proxies. We will use the `istioctl proxy-config` command to inspect the configuration of the `web-api` pod's proxy. For example, to see the listeners configured on the proxy run this command:
 
 ```bash
-istioctl proxy-config listener deploy/web-api.istioinaction
+istioctl proxy-config listener deploy/web-api.istioinaction 
 ```
 
-```text
+```
 ADDRESS       PORT  MATCH                                                                 DESTINATION
 10.96.1.10    53    ALL                                                                   Cluster: outbound|53||kube-dns.kube-system.svc.cluster.local
 0.0.0.0       80    Trans: raw_buffer; App: HTTP                                          Route: 80
@@ -165,7 +167,7 @@ We can also see the clusters that have been configured:
 istioctl proxy-config clusters deploy/web-api.istioinaction
 ```
 
-```text
+```
 SERVICE FQDN                                                                         PORT      SUBSET     DIRECTION     TYPE             DESTINATION RULE
                                                                                      8080      -          inbound       STATIC           
 BlackHoleCluster                                                                     -         -          -             STATIC           
@@ -197,7 +199,7 @@ istiod.istio-system.svc.cluster.local                                           
 istiod.istio-system.svc.cluster.local                                                15012     -          outbound      EDS              
 istiod.istio-system.svc.cluster.local                                                15014     -          outbound      EDS              
 kiali-operator-metrics.kiali-operator.svc.cluster.local                              8383      -          outbound      EDS
-...
+...  
 ```
 
 If we want to see more information about how the cluster for `recommendation.istioinaction` has been configured by Istio, run this command:
@@ -206,9 +208,9 @@ If we want to see more information about how the cluster for `recommendation.ist
 istioctl proxy-config clusters deploy/web-api.istioinaction --fqdn recommendation.istioinaction.svc.cluster.local -o json
 ```
 
-```text
+```
 [
-
+    
         "name": "outbound|8080||recommendation.istioinaction.svc.cluster.local",
         "type": "EDS",
         "edsClusterConfig": {
@@ -231,13 +233,13 @@ istioctl proxy-config clusters deploy/web-api.istioinaction --fqdn recommendatio
         },
     }
 ]
+
 ```
 
 Note this is just a snippet, there are other configurations there specific to Istio and TLS connectivity. But if you recall the cluster configurations from the previous lab, you'll see they are similar. Istiod took information about the environment, user configurations, and service discovery, and translated this to an appropriate configuration _for this specific workload_.
 
 ## Hold application until sidecar proxy is ready
-
-Kubernetes lacks a standard way to declare container dependencies. There is a [Sidecar](https://github.com/kubernetes/enhancements/issues/753) Kubernetes Enhancement Proposal \(KEP\) out there, however it is not yet implemented in a Kubernetes release. In the meantime, service owners may observe unexpected behavior at startup or stop times because the application container may start before sidecar proxy finishes starting or sidecar proxy could be stopped before application container is stopped.
+Kubernetes lacks a standard way to declare container dependencies.  There is a [Sidecar](https://github.com/kubernetes/enhancements/issues/753) Kubernetes Enhancement Proposal (KEP) out there, however it is not yet implemented in a Kubernetes release.  In the meantime, service owners may observe unexpected behavior at startup or stop times because the application container may start before sidecar proxy finishes starting or sidecar proxy could be stopped before application container is stopped. 
 
 To help mediate the issue, Istio has implemented a pod level configuration called `holdApplicationUntilProxyStarts` for service owners to delay application start until the sidecar proxy is ready. For example, you can add this annotation snippet to the web-api deployment yaml to hold the web-api application until the sidecar proxy is ready:
 
@@ -270,7 +272,7 @@ kubectl describe pod/web-api-56d679cf7d-tfxdj -n istioinaction
 
 From the events, the istio-proxy container is created and started first, then the web-api container is created and started:
 
-```text
+```
 Events:
   Type    Reason     Age    From               Message
   ----    ------     ----   ----               -------
@@ -288,17 +290,17 @@ Events:
   Normal  Started    3m53s  kubelet            Started container web-api
 ```
 
+
 ## Recap
 
-Introducing the Istio sidecar to existing services so that they can participate in the service mesh requires care and attention. In this lab we saw approaches to canary the services into the mesh as well as functionality to play nicely with existing workloads where timing and app ordering/startup matters.
+Introducing the Istio sidecar to existing services so that they can participate in the service mesh requires care and attention. In this lab we saw approaches to canary the services into the mesh as well as functionality to play nicely with existing workloads where timing and app ordering/startup matters. 
 
 ## Bonus
 
-Other areas of bringing existing services which we cover are enabling access logs for your service, and more detailed subset routing configurations where there are some gotchas.
+Other areas of bringing existing services which we cover are enabling access logs for your service, and more detailed subset routing configurations where there are some gotchas. 
 
 [See the Lab 05 bonus section](05a-bonus.md).
 
 ## Next Lab
 
-Istio can automatically encrypt traffic between services in the mesh with mutual TLS. In the [next lab](../06-mtls-rollout.md), we will show you how to gradually roll out mTLS to your services in your Istio service mesh.
-
+Istio can automatically encrypt traffic between services in the mesh with mutual TLS. In the [next lab](06-mtls-rollout.md), we will show you how to gradually roll out mTLS to your services in your Istio service mesh.

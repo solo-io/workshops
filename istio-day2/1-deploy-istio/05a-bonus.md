@@ -1,8 +1,8 @@
-# Lab 5 - Bonus
+# Lab 5 Bonus :: Add Services to Istio
 
 ## Bonus: Enable access logs for your service
 
-In this section of this lab, we will see how to enable access logging for a service. Access logging is instrumental in understanding what traffic is coming and what are the results of that traffic. In this section, we will enable access logging for _just_ the web-api application. The UX around this is continuously improving, so in the future there may be an easier way to do this. These steps were accurate for Istio 1.8.3.
+In this section of this lab, we will see how to enable access logging for a service. Access logging is instrumental in understanding what traffic is coming and what are the results of that traffic. In this section, we will enable access logging for *just* the web-api application. The UX around this is continuously improving, so in the future there may be an easier way to do this. These steps were accurate for Istio 1.8.3. 
 
 Let's take a look at the configuration we'll use to configure access logging for the web-api application:
 
@@ -63,13 +63,13 @@ kubectl logs -n istioinaction deploy/web-api -c istio-proxy
 
 You should see something like the following access log:
 
-```text
+```
 [2021-03-03T14:40:21.793Z] "GET / HTTP/1.1" 200 - "-" 0 676 10 9 "-" "curl/7.69.1" "6e7a9242-b5f0-45d8-a519-58053bd16eed" "recommendation:8080" "192.168.1.130:8080" outbound|8080||recommendation.istioinaction.svc.cluster.local 192.168.1.139:43462 10.96.1.230:8080 192.168.1.139:41098 - default
 ```
 
-## Bonus: Subsets for virtual service resources
+##  Bonus: Subsets for virtual service resources
 
-DestinationRule defines destination policies when client reaches its server and they are applied after routing has occurred. DestinationRule resources are optional. For example, in lab04, our `web-api-gw-vs` doesn't have any DestinationRule resources associated with it. In Istio, subsets are used to describe service versions in virtual service and destination rule resources. You must have a destination rule resource for your service if you have subsets in your virtual service resource. Additionally, if your service need to overwrite the traffic policy from the default, you can configure its traffic policy in your service's destination rule resource.
+DestinationRule defines destination policies when client reaches its server and they are applied after routing has occurred.  DestinationRule resources are optional. For example, in lab04, our `web-api-gw-vs` doesn't have any DestinationRule resources associated with it.  In Istio, subsets are used to describe service versions in virtual service and destination rule resources. You must have a destination rule resource for your service if you have subsets in your virtual service resource. Additionally, if your service need to overwrite the traffic policy from the default, you can configure its traffic policy in your service's destination rule resource.
 
 Let us add `subset: v1` to the `web-api-gw-vs` virtual service resource:
 
@@ -101,10 +101,10 @@ kubectl apply -f labs/05/web-api-gw-vs-subset.yaml -n istio-system
 Send some traffic to web-api via istio-ingressgateway:
 
 ```bash
-curl -H "Host: istioinaction.io" http://istioinaction.io/hello --resolve istioinaction.io:80:$GATEWAY_IP
+curl -H "Host: istioinaction.io" http://istioinaction.io/hello --resolve istioinaction.io:80:$GATEWAY_IP 
 ```
 
-You'll get an empty reply, because the istio-ingressgateway doesn't know how to reach web-api service v1. Create a destination rule resource for web-api service v1.
+You'll get an empty reply, because the istio-ingressgateway doesn't know how to reach web-api service v1.  Create a destination rule resource for web-api service v1.
 
 ```yaml
 apiVersion: networking.istio.io/v1alpha3
@@ -128,7 +128,7 @@ kubectl apply -f labs/05/web-api-dr.yaml   -n istioinaction
 Send some traffic to web-api via istio-ingressgateway, you should get 200 status code now.
 
 ```bash
-curl -H "Host: istioinaction.io" http://istioinaction.io/hello --resolve istioinaction.io:80:$GATEWAY_IP
+curl -H "Host: istioinaction.io" http://istioinaction.io/hello --resolve istioinaction.io:80:$GATEWAY_IP 
 ```
 
 Examine the clusters configuration for istio-ingressgateway:
@@ -139,7 +139,7 @@ istioctl pc clusters deploy/istio-ingressgateway.istio-system
 
 Clusters output with subset v1:
 
-```text
+```
 SERVICE FQDN                                PORT     SUBSET     DIRECTION     TYPE           DESTINATION RULE
 BlackHoleCluster                            -        -          -             STATIC         
 agent                                       -        -          -             STATIC         
@@ -148,18 +148,18 @@ sds-grpc                                    -        -          -             ST
 web-api.istioinaction.svc.cluster.local     8080     -          outbound      EDS            web-api-dr.istioinaction
 web-api.istioinaction.svc.cluster.local     8080     v1         outbound      EDS            web-api-dr.istioinaction
 xds-grpc                                    -        -          -             STATIC         
-zipkin                                      -        -          -             STRICT_DNS
+zipkin                                      -        -          -             STRICT_DNS    
 ```
 
 Examine the endpoints configuration for istio-ingressgateway:
 
 ```bash
-istioctl pc endpoint deploy/istio-ingressgateway.istio-system
+istioctl pc endpoint deploy/istio-ingressgateway.istio-system 
 ```
 
 Endpoints output with subset v1:
 
-```text
+```
 ENDPOINT                         STATUS      OUTLIER CHECK     CLUSTER
 127.0.0.1:15000                  HEALTHY     OK                prometheus_stats
 127.0.0.1:15020                  HEALTHY     OK                agent
@@ -169,7 +169,7 @@ unix://./etc/istio/proxy/SDS     HEALTHY     OK                sds-grpc
 unix://./etc/istio/proxy/XDS     HEALTHY     OK                xds-grpc
 ```
 
+
 ## Next Lab
 
-Istio can automatically encrypt traffic between services in the mesh with mutual TLS. In the [next lab](../06-mtls-rollout.md), we will show you how to gradually roll out mTLS to your services in your Istio service mesh.
-
+Istio can automatically encrypt traffic between services in the mesh with mutual TLS. In the [next lab](06-mtls-rollout.md), we will show you how to gradually roll out mTLS to your services in your Istio service mesh.

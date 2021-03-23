@@ -1,8 +1,8 @@
-# Lab 7 - Controlling configuration
+# Lab 7 :: Controlling configuration scope
 
 By default, Istio networking resources and services are visible to all services running in all namespaces that are part of the Istio service mesh. As you add more services to the mesh, the amount of sidecar proxy's configuration increases dramatically which will grow your sidecar proxy's memory accordingly. Thus this default behavior is not desired when you have more than a few services and not all of your services communicate to all other services.
 
-The `Sidecar` resource is designed to solve this problem from the service consumers perspective. This configuration allows you to configure the sidecar proxy that mediates inbound and outbound communication to the workload instance it is applicable to. The `Export-To` configuration allows service producers to declare the scope of the services to be exported. With both of these configuration, service owners can effectively control the scope of the sidecar configuration.
+The `Sidecar` resource is designed to solve this problem from the service consumers perspective. This configuration allows you to configure the sidecar proxy that mediates inbound and outbound communication to the workload instance it is applicable to.  The `Export-To` configuration allows service producers to declare the scope of the services to be exported. With both of these configuration, service owners can effectively control the scope of the sidecar configuration. 
 
 ## Sidecar resource for service consumers
 
@@ -27,7 +27,7 @@ Apply this resource:
 kubectl apply -f labs/07/default-sidecar-web-api.yaml -n istioinaction
 ```
 
-Let us reach to web-api service from the sleep pod in the istioinaction namespace.
+Let us reach to web-api service from the sleep pod in the istioinaction namespace.  
 
 ```bash
 kubectl exec -it deploy/sleep -n istioinaction -- curl http://web-api.istioinaction:8080/
@@ -35,7 +35,7 @@ kubectl exec -it deploy/sleep -n istioinaction -- curl http://web-api.istioinact
 
 You will get a 500 error code:
 
-```text
+```
 Defaulting container name to sleep.
 {
   "name": "web-api",
@@ -66,7 +66,7 @@ istioctl pc cluster deploy/web-api.istioinaction
 
 You should get output like below with many services from the istio-system namespace and only the web-api service from the istioinaction namespace:
 
-```text
+```      
 SERVICE FQDN                                            PORT      SUBSET     DIRECTION     TYPE             DESTINATION RULE
 ...         
 istio-ingressgateway.istio-system.svc.cluster.local     80        -          outbound      EDS              
@@ -85,7 +85,7 @@ istiod.istio-system.svc.cluster.local                   15014     -          out
 kiali.istio-system.svc.cluster.local                    9090      -          outbound      EDS              
 kiali.istio-system.svc.cluster.local                    20001     -          outbound      EDS                        
 web-api.istioinaction.svc.cluster.local                 8080      -          outbound      EDS              
-...
+...    
 ```
 
 Let's modify the sidecar resource to allow all services within the same namespace:
@@ -117,7 +117,7 @@ kubectl exec -it deploy/sleep -n istioinaction -- curl http://web-api.istioinact
 
 You should see 200 code from the recommendation service and purchase-history services:
 
-```text
+```
 Defaulting container name to sleep.
 {
   "name": "web-api",
@@ -172,7 +172,7 @@ istioctl pc cluster deploy/web-api.istioinactio
 
 You should see the recommendation, purchase-history and sleep service from the istioinaction namespace in the output:
 
-```text
+```
 SERVICE FQDN                                            PORT      SUBSET     DIRECTION     TYPE             DESTINATION RULE
 ...           
 purchase-history.istioinaction.svc.cluster.local        8080      -          outbound      EDS              
@@ -182,7 +182,7 @@ web-api.istioinaction.svc.cluster.local                 8080      -          out
 ...
 ```
 
-Check if your sleep pod has sidecar proxy injected. If not, deploy it with sidecar proxy injected:
+Check if your sleep pod has sidecar proxy injected.  If not, deploy it with sidecar proxy injected:
 
 ```bash
 istioctl kube-inject -f sample-apps/sleep.yaml --meshConfigMapName istio-1-8-3 --injectConfigMapName istio-sidecar-injector-1-8-3  | kubectl apply -n default -f -
@@ -194,9 +194,9 @@ Now reach to web-api service from the sleep pod in the default namespace.
 kubectl exec -it deploy/sleep -n default -- curl http://web-api.istioinaction:8080/
 ```
 
-You will get a 200 status code because the sleep pod in the default namespace doesn't have any sidecar resource thus can see all the configuration for the web-api service in istioinaction.
+You will get a 200 status code because the sleep pod in the default namespace doesn't have any sidecar resource thus can see all the configuration for the web-api service in istioinaction.  
 
-In summary, sidecar resource can be used per namespace as shown above or per workload by using label selector, or globally. It is recommended to enable it per namespace or workload first before enable it globally. Sidecar resource controls the visibility of configurations and what gets pushed to the sidecar proxy. Further, sidecar resource should NOT be used as security enforcement to prevent service A to reach to service B. Istio authorization policy \(or network policy for layer 3/4 traffic\) should be used instead to enforce the security boundry.
+In summary, sidecar resource can be used per namespace as shown above or per workload by using label selector, or globally.  It is recommended to enable it per namespace or workload first before enable it globally.  Sidecar resource controls the visibility of configurations and what gets pushed to the sidecar proxy.  Further, sidecar resource should NOT be used as security enforcement to prevent service A to reach to service B.  Istio authorization policy (or network policy for layer 3/4 traffic) should be used instead to enforce the security boundry.
 
 ## export-To configuration for service producers
 
@@ -226,11 +226,11 @@ kubectl delete gw web-api-gateway -n istioinaction
 
 Create the `web-api-gateway` gateway resource for the istio-system namespace instead:
 
-```text
+```
 kubectl apply -f labs/07/web-api-gw-https-istiosystem.yaml -n istio-system
 ```
 
-Update the `web-api-gw-vs` virtual service resource in the istioinaction namespace, under ```gateways`` section to refer to the `web-api-gateway` in the istio-system namespace.
+Update the `web-api-gw-vs` virtual service resource in the istioinaction namespace, under ``gateways` section to refer to the `web-api-gateway` in the istio-system namespace.
 
 ```yaml
 apiVersion: networking.istio.io/v1alpha3
@@ -263,7 +263,7 @@ Send some traffic to web-api through the istio ingress gateway via https:
 curl --cacert ./labs/04/certs/ca/root-ca.crt -H "Host: istioinaction.io" https://istioinaction.io --resolve istioinaction.io:443:$GATEWAY_IP
 ```
 
-You should continue to get 200 status code. Check the route configuration for istio-ingressgateway in the istio-system namespace:
+You should continue to get 200 status code.  Check the route configuration for istio-ingressgateway in the istio-system namespace:
 
 ```bash
 istioctl pc route deploy/istio-ingressgateway.istio-system
@@ -276,7 +276,7 @@ NAME                                             DOMAINS              MATCH     
 https.443.https.web-api-gateway.istio-system     istioinaction.io     /*                     web-api-gw-vs.istioinaction
 http.80                                          istioinaction.io     /*                     web-api-gw-vs.istioinaction
                                                  *                    /healthz/ready*        
-                                                 *                    /stats/prometheus*
+                                                 *                    /stats/prometheus* 
 ```
 
 Now as web-api's service producer, you want to limit its virtual service scope to within the current namespace, with the `exportTo` configuration:
@@ -314,7 +314,7 @@ Send some traffic to web-api through the istio ingress gateway via https:
 curl --cacert ./labs/04/certs/ca/root-ca.crt -H "Host: istioinaction.io" https://istioinaction.io --resolve istioinaction.io:443:$GATEWAY_IP
 ```
 
-Because istio ingress gateway doesn't know how to route to the web-api service in the istioinaction namespace, you will get an empty reply instead. Confirm the route configuration for istio-ingressgateway in the istio-system namespace:
+Because istio ingress gateway doesn't know how to route to the web-api service in the istioinaction namespace, you will get an empty reply instead.  Confirm the route configuration for istio-ingressgateway in the istio-system namespace:
 
 ```bash
 istioctl pc route deploy/istio-ingressgateway.istio-system
@@ -327,7 +327,7 @@ NAME                                             DOMAINS     MATCH              
 https.443.https.web-api-gateway.istio-system     *           /*                     404
 http.80                                          *           /*                     404
                                                  *           /healthz/ready*        
-                                                 *           /stats/prometheus*
+                                                 *           /stats/prometheus*    
 ```
 
 Let's undo the `exportTo` configuration in the virtual service resource:
@@ -336,7 +336,7 @@ Let's undo the `exportTo` configuration in the virtual service resource:
 kubectl apply -f labs/07/web-api-gw-vs.yaml -n istioinaction
 ```
 
-Confirm you can send some traffic to web-api service via istio-ingressgateway and get a 200 status code. Check the clusters for the istio-ingressgateway:
+Confirm you can send some traffic to web-api service via istio-ingressgateway and get a 200 status code.  Check the clusters for the istio-ingressgateway:
 
 ```bash
 istioctl pc cluster deploy/istio-ingressgateway.istio-system
@@ -344,7 +344,7 @@ istioctl pc cluster deploy/istio-ingressgateway.istio-system
 
 You'll see web-api.istioinaction is in the list of services:
 
-```text
+```
 SERVICE FQDN                                PORT     SUBSET     DIRECTION     TYPE           DESTINATION RULE
 BlackHoleCluster                            -        -          -             STATIC         
 agent                                       -        -          -             STATIC         
@@ -352,10 +352,10 @@ prometheus_stats                            -        -          -             ST
 sds-grpc                                    -        -          -             STATIC         
 web-api.istioinaction.svc.cluster.local     8080     -          outbound      EDS            
 xds-grpc                                    -        -          -             STATIC         
-zipkin                                      -        -          -             STRICT_DNS
+zipkin                                      -        -          -             STRICT_DNS  
 ```
 
-Add the `networking.istio.io/exportTo` annotation to the web-api service to specify the service is only exported to the deployed namespace \(e.g. istioinaction\):
+Add the `networking.istio.io/exportTo` annotation to the web-api service to specify the service is only exported to the deployed namespace (e.g. istioinaction):
 
 ```yaml
 apiVersion: v1
@@ -372,6 +372,7 @@ spec:
     protocol: TCP
     port: 8080
     targetPort: 8080
+
 ```
 
 Deploy the change to the web-api service:
@@ -380,7 +381,7 @@ Deploy the change to the web-api service:
 kubectl apply -f labs/07/web-api-service-exportto.yaml -n istioinaction
 ```
 
-Do you think you will be able to reach web-api via istio ingressgateway? You won't because the web-api service declares it is only exposed to the istioinaction namespace. Check the clusters for the istio-ingressgateway:
+Do you think you will be able to reach web-api via istio ingressgateway? You won't because the web-api service declares it is only exposed to the istioinaction namespace.  Check the clusters for the istio-ingressgateway:
 
 ```bash
 istioctl pc cluster deploy/istio-ingressgateway.istio-system
@@ -388,14 +389,14 @@ istioctl pc cluster deploy/istio-ingressgateway.istio-system
 
 You'll NOT see web-api.istioinaction is in the list of services:
 
-```text
+```
 SERVICE FQDN         PORT     SUBSET     DIRECTION     TYPE           DESTINATION RULE
 BlackHoleCluster     -        -          -             STATIC         
 agent                -        -          -             STATIC         
 prometheus_stats     -        -          -             STATIC         
 sds-grpc             -        -          -             STATIC         
 xds-grpc             -        -          -             STATIC         
-zipkin               -        -          -             STRICT_DNS
+zipkin               -        -          -             STRICT_DNS       
 ```
 
 Let us undo the annotation so that you can continue to reach to web-api service via istio-ingressgateway:
@@ -406,7 +407,7 @@ kubectl apply -f labs/07/web-api-service.yaml -n istioinaction
 
 ## Virtual service resource merging
 
-Istio supports simple virtual service resource merging for same host when there is no conflicts. This is helpful when each service owner owns the virtual service resource on his/her own. Let us explore this with the helloworld sample from Istio along with our web-api service.
+Istio supports simple virtual service resource merging for same host when there is no conflicts. This is helpful when each service owner owns the virtual service resource on his/her own.  Let us explore this with the helloworld sample from Istio along with our web-api service.
 
 Deploy the helloworld sample in the istioinaction namespace:
 
@@ -420,7 +421,7 @@ You should see the helloworld pods reach running in a few seconds:
 kubectl get po -n istioinaction
 ```
 
-Deploy the helloworld virtual service. This virtual service has some changes over the default one shipped from Istio, changes are in the `hosts` and `gateways` values to refer to the same host and gateway as the web-api service.
+Deploy the helloworld virtual service.  This virtual service has some changes over the default one shipped from Istio,  changes are in the `hosts` and `gateways` values to refer to the same host and gateway as the web-api service.
 
 ```yaml
 apiVersion: networking.istio.io/v1alpha3
@@ -452,18 +453,18 @@ kubectl apply -f labs/07/helloworld-vs.yaml -n istioinaction
 Send some http traffic to the helloworld service via the istio-ingressgateway:
 
 ```bash
-curl -H "Host: istioinaction.io" http://istioinaction.io/hello --resolve istioinaction.io:80:$GATEWAY_IP
+curl -H "Host: istioinaction.io" http://istioinaction.io/hello --resolve istioinaction.io:80:$GATEWAY_IP  
 ```
 
 Also send some https traffic to the helloworld service via the istio-ingressgateway:
 
 ```bash
-curl --cacert ./labs/04/certs/ca/root-ca.crt -H "Host: istioinaction.io" https://istioinaction.io/hello --resolve istioinaction.io:443:$GATEWAY_IP
+curl --cacert ./labs/04/certs/ca/root-ca.crt -H "Host: istioinaction.io" https://istioinaction.io/hello --resolve istioinaction.io:443:$GATEWAY_IP 
 ```
 
 You should receive some hello message like below for both of these curl commands:
 
-```text
+```
 Hello version: v1, instance: helloworld-v1-776f57d5f6-29xdw
 ```
 
@@ -473,15 +474,14 @@ Send some https traffic to the web-api service via the istio-ingressgateway:
 curl --cacert ./labs/04/certs/ca/root-ca.crt -H "Host: istioinaction.io" https://istioinaction.io --resolve istioinaction.io:443:$GATEWAY_IP
 ```
 
-You should see the 200 status code as before. This is because Istiod successfully merged the virtual services resources \(`helloworld-vs.yaml` & `web-api-gw-vs.yaml`\) automatically for you knowing they are using the same host name. If you examine the routes configuration for istio-ingressgateway:
+You should see the 200 status code as before.  This is because Istiod successfully merged the virtual services resources (`helloworld-vs.yaml` & `web-api-gw-vs.yaml`) automatically for you knowing they are using the same host name. If you examine the routes configuration for istio-ingressgateway:
 
 ```bash
 istioctl pc routes deploy/istio-ingressgateway -n istio-system
 ```
 
 From the output, you can see the routes are merged for the istioinaction.io host for both `https.443` and `http.80`.
-
-```text
+```
 NAME                                             DOMAINS              MATCH                  VIRTUAL SERVICE
 https.443.https.web-api-gateway.istio-system     istioinaction.io     /hello                 helloworld.istioinaction
 https.443.https.web-api-gateway.istio-system     istioinaction.io     /*                     web-api-gw-vs.istioinaction
@@ -493,7 +493,8 @@ http.80                                          istioinaction.io     /*        
 
 ## Optional: Virtual service resource delegation
 
-Gateway resource in istio-system, and delegate the VS resource to the service's namespace. for example platform owner owns the gateway resources on which hosts and associated port numbers and TLS configuration but want to delegate the details of the virtual service resources to service owners.
+Gateway resource in istio-system, and delegate the VS resource to the service's namespace.  for example platform owner owns the gateway resources on which hosts and associated port numbers and TLS configuration but want to delegate the details of the virtual service resources to service owners.
+
 
 ```bash
 kubectl delete vs web-api-gw-vs -n istioinaction
@@ -531,7 +532,6 @@ spec:
       name: web-api-gw-vs
       namespace: istioinaction
 ```
-
 Apply the above virtual service resource at the istio-system namespace:
 
 ```bash
@@ -556,7 +556,7 @@ Send some traffic to helloworld service via the istio-ingressgateway:
 curl --cacert ./labs/04/certs/ca/root-ca.crt -H "Host: istioinaction.io" https://istioinaction.io/hello --resolve istioinaction.io:443:$GATEWAY_IP
 ```
 
-Repeat the same commands for http traffic as well. :\) As you can see the virtual service delegation is working. Check what the route look like from the istio-ingressgateway pod:
+Repeat the same commands for http traffic as well. :) As you can see the virtual service delegation is working.  Check what the route look like from the istio-ingressgateway pod:
 
 ```bash
 istioctl pc routes deploy/istio-ingressgateway -n istio-system
@@ -564,17 +564,17 @@ istioctl pc routes deploy/istio-ingressgateway -n istio-system
 
 From the output, you can see the routes are correct for the istioinaction.io host for both `https.443` and `http.80`. The output is same as what you saw earlier in the virtual service resource merging section except the helloworld is from the default namespace.
 
-```text
+```
 NAME                                             DOMAINS              MATCH                  VIRTUAL SERVICE
 https.443.https.web-api-gateway.istio-system     istioinaction.io     /hello                 helloworld.default
 https.443.https.web-api-gateway.istio-system     istioinaction.io     /*                     web-api-gw-vs.istioinaction
 http.80                                          istioinaction.io     /hello                 helloworld.default
 http.80                                          istioinaction.io     /*                     web-api-gw-vs.istioinaction
                                                  *                    /healthz/ready*        
-                                                 *                    /stats/prometheus*
+                                                 *                    /stats/prometheus*  
 ```
 
 ## Next Lab
 
-As you explore your services in Istio, things may not go smoothly. In the [next lab](08-debugging-config.md), we will explore how to debug your services or Istio resources in your service mesh.
+As you explore your services in Istio, things may not go smoothly.  In the [next lab](08-debugging-config.md), we will explore how to debug your services or Istio resources in your service mesh.
 
