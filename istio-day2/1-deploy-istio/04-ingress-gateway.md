@@ -260,13 +260,17 @@ spec:
 kubectl apply -f labs/04/cert-manager/ca-cluster-issuer.yaml 
 ```
 
-Before we ask cert-manager to issue us a new cert for `istioinaction.io`, let's make sure we delete it from the previous lab:
+Before we ask cert-manager to issue us a new cert for `istioinaction.io`, let's again make sure we delete the old secret from the previous lab:
 
 ```bash
 kubectl delete secret -n istio-system istioinaction-cert
 ```
 
-Now let's ask cert-manager to issue us a secret:
+We will ask ask cert-manager to issue us a secret with this config:
+
+```bash
+cat labs/04/cert-manager/istioinaction-io-cert.yaml
+```
 
 ```yaml
 apiVersion: cert-manager.io/v1
@@ -296,6 +300,8 @@ spec:
     kind: ClusterIssuer
     group: cert-manager.io
 ```
+
+After reviewing the config, go ahead and apply it:
 
 ```bash
 kubectl apply -f labs/04/cert-manager/istioinaction-io-cert.yaml 
@@ -339,7 +345,7 @@ istioctl pc clusters deploy/istio-ingressgateway -n istio-system
 
 {% hint style="info" %} "clusters" is referring to Envoy clusters, not Kubernetes clusters. A Envoy cluster is a group of logically similar upstream hosts that Envoy connects to. {% endhint %}
 
-As you see, the output here is quite extensive and includes clusters that the gateway does not need to know anything about. The only clusters that get traffic routed to it are the `web-api` cluster. Let's configure the control plane to scope this down. To do that, we set the `PILOT_FILTER_GATEWAY_CLUSTER_CONFIG` environment variable in the `istiod` deployment:
+As you see, the output here is quite extensive and includes clusters that the gateway does not need to know anything about. The only clusters that get traffic routed to it from the gateway are the `web-api` cluster. Let's configure the control plane to scope this down. To do that, we set the `PILOT_FILTER_GATEWAY_CLUSTER_CONFIG` environment variable in the `istiod` deployment:
 
 ```bash
 istioctl install -y -n istio-system -f labs/04/control-plane-reduce-gw-config.yaml --revision 1-8-3
@@ -348,7 +354,7 @@ istioctl install -y -n istio-system -f labs/04/control-plane-reduce-gw-config.ya
 Give a few moments for `istiod` to come back up. Then run the following to verify the setting `PILOT_FILTER_GATEWAY_CLUSTER_CONFIG` took effect: 
 
 ```bash
-kubectl get deploy/istiod-1-8-3 -n istio-system -o jsonpath="{.spec.template.spec.containers[].env[0]}"
+kubectl get deploy/istiod-1-8-3 -n istio-system -o jsonpath="{.spec.template.spec.containers[].env[?(@.name=='PILOT_FILTER_GATEWAY_CLUSTER_CONFIG')]}";
 ```
 
 You should see something like this:
