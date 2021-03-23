@@ -337,6 +337,8 @@ By default, the ingress gateways will be configured with information about every
 istioctl pc clusters deploy/istio-ingressgateway -n istio-system
 ```
 
+{% hint style="info" %} "clusters" is referring to Envoy clusters, not Kubernetes clusters. A Envoy cluster is a group of logically similar upstream hosts that Envoy connects to. {% endhint %}
+
 As you see, the output here is quite extensive and includes clusters that the gateway does not need to know anything about. The only clusters that get traffic routed to it are the `web-api` cluster. Let's configure the control plane to scope this down. To do that, we set the `PILOT_FILTER_GATEWAY_CLUSTER_CONFIG` environment variable in the `istiod` deployment:
 
 ```bash
