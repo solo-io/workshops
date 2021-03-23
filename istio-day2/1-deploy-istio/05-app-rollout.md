@@ -118,7 +118,7 @@ kubectl get po -n istioinaction
 Let's send some more traffic to the `web-api` service:
 
 ```bash
-for i in {1..10}; do kubectl exec -it deploy/sleep -n default -- curl http://httpbin.default:8000/headers; done
+for i in {1..10}; do kubectl exec -it deploy/sleep -n default -- curl http://web-api.istioinaction:8080/; done
 ```
 
 If everything looks good, we can introduce the sidecar to the rest of the services and delete the canary:
@@ -267,7 +267,7 @@ kubectl apply -f sample-apps/web-api-holdapp.yaml -n istioinaction
 To validate the web-api container starts after its sidecar proxy starts, check the Kubernetes event for the pod:
 
 ```bash
-kubectl describe pod/web-api-56d679cf7d-tfxdj -n istioinaction
+kubectl describe pod -l app=web-api -n istioinaction
 ```
 
 From the events, the istio-proxy container is created and started first, then the web-api container is created and started:
