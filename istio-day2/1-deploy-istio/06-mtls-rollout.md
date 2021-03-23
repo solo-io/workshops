@@ -140,7 +140,13 @@ Let's try call our services in the `istioinaction` namespace from _outside_ that
 kubectl exec -it -n default deploy/sleep -- curl web-api.istioinaction:8080
 ```
 
-It still works because we called a service different than the one we locked down with mTLS. But since that service, `purchase-history` is part of the call graph, we should verify that indeed it was mTLS. We can do this by looking at the Kiali dashboard we installed in Lab 03. 
+It still works because we called a service different than the one we locked down with mTLS. But since that service, `purchase-history` is part of the call graph, we should verify that indeed it was mTLS. We can do this by looking at the Kiali dashboard we installed in Lab 03.
+
+Kiali currently [doesn't handle](https://github.com/kiali/kiali-operator/pull/270) istio config map version other than the default. To get around this limitation, manually copy the `istio-1-8-3` configmap to the `istio` configmap:
+
+```bash
+kubectl get cm istio-1-8-3 -n istio-system -o yaml | sed 's/istio-1-8-3/istio/g' | kubectl -n istio-system create -f -
+```
 
 Port-forward Kiali and navigate to the dashboard:
 
