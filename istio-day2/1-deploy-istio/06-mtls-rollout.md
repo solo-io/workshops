@@ -156,7 +156,7 @@ kubectl port-forward -n istio-system deploy/kiali 20001
 
 And navigate to [http://localhost:20001](http://localhost:20001) and select the Graph tab.
 
-On the "Display" drop down, select "Security":
+On the"Namespace" dropdown, select "istioinaction". On the "Display" drop down, select "Security":
 
 ![](./images/kiali-check-security.png)
 
