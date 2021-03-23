@@ -20,6 +20,7 @@ Info [IST0118] (Service envoy.default) Port name admin (port: 15000, targetPort:
 Let's put our configuration in a state of misconfiguration and verify `istioctl analyze` will catch it:
 
 ```bash
+kubectl delete Certificate istioinaction-cert -n istio-system
 kubectl delete secret -n istio-system istioinaction-cert
 ```
 
