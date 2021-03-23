@@ -36,7 +36,7 @@ default                             Cert Chain     ACTIVE      true           24
 ROOTCA                              CA             ACTIVE      true           266801602762712535092892179697980789542     2031-02-28T16:35:53Z     2021-03-02T16:35:53Z
 ```
 
-Now let's go ahead and create the cert in our own (`istioinaction`) namespace:
+Notice the `WARMING` status and empty fields for `kubernetes://istioinaction-cert`. Now let's go ahead and create the cert in our own (`istioinaction`) namespace:
 
 ```bash
 kubectl create -n istioinaction secret tls istioinaction-cert --key labs/04/certs/istioinaction.io.key --cert labs/04/certs/istioinaction.io.crt
