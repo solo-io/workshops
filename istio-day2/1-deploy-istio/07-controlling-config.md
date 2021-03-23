@@ -550,19 +550,26 @@ Create the web-api virtual service in the istioinaction namespace:
 kubectl apply -f labs/07/web-api-gw-vs.yaml -n istioinaction
 ```
 
-Validate VS delegation working by visit the web-api service via the istio-ingressgateway:
+Validate VS delegation working by visit the web-api service via the istio-ingressgateway using https:
 
 ```bash
 curl --cacert ./labs/04/certs/ca/root-ca.crt -H "Host: istioinaction.io" https://istioinaction.io --resolve istioinaction.io:443:$GATEWAY_IP
 ```
 
-Send some traffic to helloworld service via the istio-ingressgateway:
+Send some traffic to helloworld service as well:
 
 ```bash
 curl --cacert ./labs/04/certs/ca/root-ca.crt -H "Host: istioinaction.io" https://istioinaction.io/hello --resolve istioinaction.io:443:$GATEWAY_IP
 ```
 
-Repeat the same commands for http traffic as well. :) As you can see the virtual service delegation is working.  Check what the route look like from the istio-ingressgateway pod:
+Now, try it out with just http:
+
+```bash
+curl -H "Host: istioinaction.io" http://$GATEWAY_IP/hello
+curl -H "Host: istioinaction.io" http://$GATEWAY_IP
+```
+
+:) As you can see the virtual service delegation is working.  Check what the route look like from the istio-ingressgateway pod:
 
 ```bash
 istioctl pc routes deploy/istio-ingressgateway -n istio-system
