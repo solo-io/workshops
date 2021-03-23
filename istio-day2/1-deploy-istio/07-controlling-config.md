@@ -167,7 +167,7 @@ Defaulting container name to sleep.
 If you view the cluster configuration for the web-api pod in the istioinaction namespace:
 
 ```bash
-istioctl pc cluster deploy/web-api.istioinactio
+istioctl pc cluster deploy/web-api.istioinaction
 ```
 
 You should see the recommendation, purchase-history and sleep service from the istioinaction namespace in the output:
