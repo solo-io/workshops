@@ -719,7 +719,7 @@ docker exec vm1 cp /vm/resolv.conf /etc/resolv.conf
 Start the Istio agent:
 
 ```bash
-docker exec vm1 bash -c '/usr/local/bin/istio-start.sh &'
+docker exec -d vm1 bash /usr/local/bin/istio-start.sh
 ```
 
 Create a Gloo Mesh Access Policy:
