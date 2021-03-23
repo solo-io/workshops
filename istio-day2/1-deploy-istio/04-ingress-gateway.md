@@ -235,15 +235,6 @@ cert-manager-cainjector-74459fcc56-xq6pk   1/1     Running   0          2m45s
 cert-manager-webhook-57d97ccc67-xtl82      1/1     Running   0          2m45s
 ```
 
-Let's delete the secret we created earlier and see what other options we have:
-
-```bash
-kubectl delete secret -n istio-system istioinaction-cert
-```
-{% hint style="info" %}
-We should delete the secret like in the previous step so the next sections will work as expected
-{% endhint %}
-
 Since we're going to use our own CA as the backend, let's install the correct root certs/keys:
 
 ```bash
