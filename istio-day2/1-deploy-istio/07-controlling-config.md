@@ -544,6 +544,12 @@ Create the helloworld virtual service in the default namespace:
 kubectl apply -f labs/07/helloworld-vs.yaml -n default
 ```
 
+Create the web-api virtual service in the istioinaction namespace:
+
+```bash
+kubectl apply -f labs/07/web-api-gw-vs.yaml -n istioinaction
+```
+
 Validate VS delegation working by visit the web-api service via the istio-ingressgateway:
 
 ```bash
