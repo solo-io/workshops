@@ -187,9 +187,9 @@ curl --cacert ./labs/04/certs/ca/root-ca.crt -H "Host: istioinaction.io" https:/
 
 What are some common issues that folks run into with this approach?
 
-1) Users may not have access to write anything (ie, certs) into `istio-system`
-2) Users may not manage their own certs
-3) Integration with CA/PKI is highly desirable
+1. Users may not have access to write anything (ie, certs) into `istio-system`
+2. Users may not manage their own certs
+3. Integration with CA/PKI is highly desirable
 
 Let's dig into these a bit. Some of these sections will be left for the _bonus_ section.
 
