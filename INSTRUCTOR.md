@@ -127,3 +127,10 @@ You can use emoji's in GitHub markdown to signal additional callouts such as:
 * :question: - Question
 * :construction: - WIP
 * :eyes: - Be careful
+
+You can use GitBook [hints and callouts](https://docs.gitbook.com/editing-content/markdown#hints-and-callouts) with the following types:
+
+* info
+* success
+* danger
+* warning
