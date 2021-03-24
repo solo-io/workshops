@@ -20,20 +20,22 @@ Info [IST0118] (Service envoy.default) Port name admin (port: 15000, targetPort:
 Let's put our configuration in a state of misconfiguration and verify `istioctl analyze` will catch it:
 
 ```bash
+kubectl delete Certificate istioinaction-cert -n istio-system
 kubectl delete secret -n istio-system istioinaction-cert
 ```
 
 The TLS/SSL secret for the `istioinaction.io` hostname should now be missing. Let's run analyze:
 
 ```bash
-istioctl analyze -n istioinaction
+istioctl analyze -n istio-system
 ```
 
 Indeed we caught this misconfiguration as an `Error`:
 
 ```
-Error [IST0101] (Gateway web-api-gateway.istioinaction) Referenced credentialName not found: "istioinaction-cert"
-Error: Analyzers found issues when analyzing namespace: istioinaction.
+Error [IST0101] (Gateway web-api-gateway.istio-system) Referenced credentialName not found: "istioinaction-cert"
+...
+Error: Analyzers found issues when analyzing namespace: istio-system.
 See https://istio.io/v1.8/docs/reference/config/analysis for more information about causes and resolutions.
 ```
 

@@ -54,6 +54,10 @@ And download Istio 1.8.3
 curl -L https://istio.io/downloadIstio | ISTIO_VERSION=1.8.3 sh -
 ```
 
+{% hint style="success" %}
+You may be wondering why we are using Istio 1.8.x when 1.9.x is out. This is purposeful -- in the second part of this workshop we will be doing upgrades of Istio and being on the previous version is helpful to illustrate proper upgrades.
+{% endhint %}
+
 Let's make `istioctl` available on your `PATH`:
 
 ```bash

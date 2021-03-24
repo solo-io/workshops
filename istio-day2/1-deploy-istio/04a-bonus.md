@@ -87,6 +87,10 @@ kubectl -n istioinaction annotate secret istioinaction-cert kubed.appscode.com/s
 kubectl -n istio-system delete secret istioinaction-cert
 kubectl -n istioinaction delete secret istioinaction-cert
 kubectl rollout restart deploy/istio-ingressgateway -n istio-system
+
+# Restore cert-manager secret
+kubectl apply -f labs/04/cert-manager/istioinaction-io-cert.yaml
+
 ```
 
 ## Bonus: Create custom Ingress Gateways in a user namespace
