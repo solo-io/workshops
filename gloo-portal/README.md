@@ -182,6 +182,7 @@ wget -O petstore-v1.zip $(curl -X POST --header 'Content-Type: application/json'
 Uncompress the archive:
 
 ```bash
+rm -rf petstore-v1
 unzip petstore-v1.zip -d petstore-v1
 ```
 
@@ -354,8 +355,8 @@ EOF
 Run the commands below to deploy Gloo Edge Enterprise:
 
 ```bash
-glooctl upgrade --release=v1.6.7
-glooctl install gateway enterprise --version 1.6.10 --license-key $LICENSE_KEY
+glooctl upgrade --release=v1.7.0-beta32
+glooctl install gateway enterprise --version v1.7.0-beta15 --license-key $LICENSE_KEY
 ```
 
 Gloo Edge can also be deployed using a Helm chart.
@@ -393,7 +394,7 @@ licenseKey:
 EOF
 
 kubectl create namespace dev-portal
-helm install dev-portal dev-portal/dev-portal -n dev-portal --values gloo-values.yaml  --version=0.5.2
+helm install dev-portal dev-portal/dev-portal -n dev-portal --values gloo-values.yaml  --version=0.6.0
 ```
 
 <!--bash
@@ -524,6 +525,7 @@ spec:
     - apiDoc:
         name: petstore-v1
         namespace: default
+      openApi: {}
     tags:
       stable: {}
     defaultRoute:
@@ -538,6 +540,7 @@ spec:
     - apiDoc:
         name: petstore-v2
         namespace: default
+      openApi: {}
     tags:
       stable: {}
     defaultRoute:
