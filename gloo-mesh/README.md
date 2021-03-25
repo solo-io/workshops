@@ -98,6 +98,9 @@ First of all, you need to install the *meshctl* CLI:
 ```bash
 curl -sL https://run.solo.io/meshctl/install | GLOO_MESH_VERSION=v1.0.0 sh -
 export PATH=$HOME/.gloo-mesh/bin:$PATH
+# - alternative way
+# wget https://github.com/istio/istio/releases/download/1.9.1/istioctl-1.9.1-linux-amd64.tar.gz
+# tar xvfz istioctl-1.9.1-linux-amd64.tar.gz
 ```
 
 Gloo Mesh Enterprise is adding unique features on top of Gloo Mesh Open Source (RBAC, UI, WASM, ...).
