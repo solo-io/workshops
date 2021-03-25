@@ -51,7 +51,8 @@ cd
 And download Istio 1.8.3
 
 ```bash
-curl -L https://istio.io/downloadIstio | ISTIO_VERSION=1.8.3 sh -
+# curl -L https://istio.io/downloadIstio | ISTIO_VERSION=1.8.3 sh -
+curl -L https://raw.githubusercontent.com/istio/istio/master/release/downloadIstioCandidate.sh | ISTIO_VERSION=1.8.3 sh -
 ```
 
 {% hint style="success" %}
