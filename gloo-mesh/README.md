@@ -42,16 +42,16 @@ Run the following commands to deploy three Kubernetes clusters using [Kind](http
 
 ```bash
 ../scripts/deploy.sh 1 mgmt
-../scripts/deploy.sh 2 cluster1
-../scripts/deploy.sh 3 cluster2
+../scripts/deploy.sh 2 cluster1 us-west us-west-1
+../scripts/deploy.sh 3 cluster2 us-west us-west-2
 ```
 
 Then run the following commands to wait for all the Pods to be ready:
 
 ```bash
 ../scripts/check.sh mgmt
-../scripts/check.sh cluster1 us-west us-west-1
-../scripts/check.sh cluster2 us-west us-west-2
+../scripts/check.sh cluster1 
+../scripts/check.sh cluster2 
 ```
 
 **Note:** If you run the `check.sh` script immediately after the `deploy.sh` script, you may see a jsonpath error. If that happens, simply wait a few seconds and try again.
