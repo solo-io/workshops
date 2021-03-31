@@ -102,6 +102,7 @@ kubectl delete deployment reviews-v1 reviews-v3 -n bookinfo
                  |Kubernetes                                                                  |
                  +----------------------------------------------------------------------------+
 ```
+![Lab](images/bookinfo-v2.png)
 
 The bookinfo app has 3 versions of a microservice called reviews.  We will keep only the version 2 of the reviews microservice for this step and will add the other versions later.  An easy way to distinguish among the different versions in the web interface is to look at the stars: v1 displays no stars in the reviews, v2 displays black stars, and v3 displays red stars.
 
