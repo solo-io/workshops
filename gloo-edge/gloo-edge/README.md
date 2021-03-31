@@ -80,29 +80,7 @@ kubectl -n bookinfo  apply -f https://raw.githubusercontent.com/istio/istio/1.7.
 kubectl delete deployment reviews-v1 reviews-v3 -n bookinfo
 ```
  
-```
-                 +----------------------------------------------------------------------------+
-                 |                                                                            |
-                 |                                         +---------------+                  |
-                 |                                         |-------+       |                  |
-                 +-------+                                 ||Product       |                  |
-+-Client-------->+  Envoy+-------------------------------->-|Page  |       |                  |
-                 +---+---+                                 +-------+       |                  |
-                 |   |                                     |Bookinfo       |                  |
-                 |   |                                     +v2             |                  |
-                 |   |                                     +---------------+                  |
-                 |   |                                                                        |
-                 |   |                                                                        |
-                 |   |                                                                        |
-                 | +-v------------+                                                           |
-                 | |  Gloo Edge   |                                                           |
-                 | |              |                                                           |
-                 | +--------------+                                                           |
-                 |                                                                            |
-                 |Kubernetes                                                                  |
-                 +----------------------------------------------------------------------------+
-```
-![Lab](images/bookinfo-v2.png)
+![Gloo Edge with Bookinfo](images/bookinfo-v2.png)
 
 The bookinfo app has 3 versions of a microservice called reviews.  We will keep only the version 2 of the reviews microservice for this step and will add the other versions later.  An easy way to distinguish among the different versions in the web interface is to look at the stars: v1 displays no stars in the reviews, v2 displays black stars, and v3 displays red stars.
 
@@ -183,29 +161,7 @@ kubectl -n bookinfo-beta apply -f https://raw.githubusercontent.com/istio/istio/
 kubectl delete deployment reviews-v1 reviews-v2 -n bookinfo-beta
 ```
 
-```
-                 +----------------------------------------------------------------------------+
-                 |                                                                            |
-                 |                                         +---------------+                  |
-                 |                                         |-------+       |                  |
-                 +-------+            50%                  ||Product       |                  |
-+-Client-------->+  Envoy+-------------------------------->-|Page  |       |                  |
-                 |       |            50%                  +-------+       |                  |
-                 |       +----------------------------+    |Bookinfo       |                  |
-                 +---+---+                            |    +v2             |                  |
-                 |   |                                |    +---------------+                  |
-                 |   |                                |                                       |
-                 |   |                                |    +---------------+                  |
-                 |   |                                |    |-------+       |                  |
-                 | +-v------------+                   +--->-|Product       |                  |
-                 | |  Gloo Edge   |                        ||Page  |       |                  |
-                 | |              |                        +-------+       |                  |
-                 | +--------------+                        |Bookinfo beta  |                  |
-                 |                                         +v3             |                  |
-                 |Kubernetes                               |---------------+                  |
-                 +----------------------------------------------------------------------------+
-```
-![Lab](images/bookinfo-v3.png)
+![Weighted routing](images/bookinfo-v3.png)
 
 Verify that the Upstream for the beta application was created, using the following command: 
 
