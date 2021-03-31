@@ -161,9 +161,6 @@ metadata:
   namespace: istio-system
 spec:
   profile: default
-  addonComponents:
-    istiocoredns:
-      enabled: true
   meshConfig:
     accessLogFile: /dev/stdout
     enableAutoMtls: true
@@ -248,9 +245,6 @@ metadata:
   namespace: istio-system
 spec:
   profile: default
-  addonComponents:
-    istiocoredns:
-      enabled: true
   meshConfig:
     accessLogFile: /dev/stdout
     enableAutoMtls: true
@@ -353,7 +347,6 @@ When they are ready, you should get this output:
 ```
 NAME                                    READY   STATUS    RESTARTS   AGE
 istio-ingressgateway-5c7759c8cb-52r2j   1/1     Running   0          22s
-istiocoredns-685b5c449f-77psm           2/2     Running   0          22s
 istiod-7884b57b4c-rvr2c                 1/1     Running   0          30s
 ```
 
