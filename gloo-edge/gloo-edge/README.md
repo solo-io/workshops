@@ -205,6 +205,7 @@ kubectl delete deployment reviews-v1 reviews-v2 -n bookinfo-beta
                  |Kubernetes                               |---------------+                  |
                  +----------------------------------------------------------------------------+
 ```
+![Lab](images/bookinfo-v3.png)
 
 Verify that the Upstream for the beta application was created, using the following command: 
 
