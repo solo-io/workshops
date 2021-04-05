@@ -318,28 +318,7 @@ curl -H "Authorization: Bearer ${KEYCLOAK_TOKEN}" -X POST -H "Content-Type: appl
 
 The architecture looks like this now:
 
-```
-                 +----------------------------------------------------------------------------+
-                 |                                                                            |
-                 |                                         +---------------+                  |
-                 |                                         |-------+       |                  |
-                 +-------+            50%                  ||Product       |                  |
-+-Client-------->+  Envoy+-------------------------------->-|Page  |       |                  |
-                 |       |            50%                  +-------+       |                  |
-                 |       +----------------------------+    |Bookinfo       |                  |
-                 +---+---------------------+          |    +v2             |                  |
-                 |   |                     |          |    +---------------+                  |
-                 |   |                    Auth        |                                       |
-                 |   |                     |          |    +---------------+                  |
-                 |   |                     |          |    |-------+       |                  |
-                 | +-v------------+        |          +--->-|Product       |                  |
-                 | |  Gloo Edge   |   +----v-----+         ||Page  |       |                  |
-                 | |              |   |          |         +-------+       |                  |
-                 | +--------------+   |   IDP    |         |Bookinfo beta  |                  |
-                 |                    +----------+         +v3             |                  |
-                 |Kubernetes                               |---------------+                  |
-                 +----------------------------------------------------------------------------+
-```
+![Bookinfo with OIDC](images/bookinfo-oidc.png)
 
 The next step is to configure the authentication in the Virtual Service. For this we will have to create a Kubernetes Secret that contains the OIDC secret:
 
