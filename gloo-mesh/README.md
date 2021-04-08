@@ -18,17 +18,17 @@ Gloo Mesh can be run in its own cluster or co-located with an existing mesh.  In
 
 ## Table of contents
 
-* [Lab 1 - Deploy your Kubernetes clusters](#lab1)
-* [Lab 2 - Deploy Gloo Mesh and register the clusters](#lab2)
-* [Lab 3 - Deploy Istio on both clusters](#lab3)
-* [Lab 4 - Deploy the Bookinfo demo app](#lab4)
-* [Lab 5 - Create the Virtual Mesh](#lab5)
-* [Lab 6 - Access Control](#lab6)
-* [Lab 7 - Multi-cluster Traffic](#lab7)
-* [Lab 8 - Traffic Failover](#lab8)
-* [Lab 9 - Gloo Mesh Enterprise RBAC](#lab9)
-* [Lab 10 - Extend Envoy with WebAssembly](#lab10)
-* [Lab 11 - Exploring the Gloo Mesh Enterprise UI](#lab11)
+* [Lab 1 - Deploy your Kubernetes clusters](#lab-1)
+* [Lab 2 - Deploy Gloo Mesh and register the clusters](#lab-2)
+* [Lab 3 - Deploy Istio on both clusters](#lab-3)
+* [Lab 4 - Deploy the Bookinfo demo app](#lab-4)
+* [Lab 5 - Create the Virtual Mesh](#lab-5)
+* [Lab 6 - Access Control](#lab-6)
+* [Lab 7 - Multi-cluster Traffic](#lab-7)
+* [Lab 8 - Traffic Failover](#lab-8)
+* [Lab 9 - Gloo Mesh Enterprise RBAC](#lab-9)
+* [Lab 10 - Extend Envoy with WebAssembly](#lab-10)
+* [Lab 11 - Exploring the Gloo Mesh Enterprise UI](#lab-11)
 
 ## Lab 1 : Deploy your Kubernetes clusters {#lab1}
 
