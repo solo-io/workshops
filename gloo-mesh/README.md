@@ -30,7 +30,7 @@ Gloo Mesh can be run in its own cluster or co-located with an existing mesh.  In
 * [Lab 10 - Extend Envoy with WebAssembly](#lab-10)
 * [Lab 11 - Exploring the Gloo Mesh Enterprise UI](#lab-11)
 
-## Lab 1 : Deploy your Kubernetes clusters {#lab1}
+## Lab 1 : Deploy your Kubernetes clusters
 
 From the terminal go to the `/home/solo/workshops/gloo-mesh` directory:
 
