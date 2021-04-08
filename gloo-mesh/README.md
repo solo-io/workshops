@@ -18,7 +18,7 @@ Gloo Mesh can be run in its own cluster or co-located with an existing mesh.  In
 
 ## Table of contents
 
-* [Lab 1 - Deploy your Kubernetes clusters](#Lab-1-deploy-your-kubernetes-clusters)
+* [Lab 1 - Deploy your Kubernetes clusters](#lab-1-deploy-your-kubernetes-clusters)
 * [Lab 2 - Deploy Gloo Mesh and register the clusters](#lab-2)
 * [Lab 3 - Deploy Istio on both clusters](#lab-3)
 * [Lab 4 - Deploy the Bookinfo demo app](#lab-4)
