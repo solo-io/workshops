@@ -780,9 +780,6 @@ Get the IP address of the container:
 ```bash
 VM_IP=$(docker inspect vm1 | jq -r '.[0].NetworkSettings.Networks.kind.IPAddress')
 
-Expose the app:
-
-```bash
 cat <<EOF | kubectl --context cluster1 apply -f -
 apiVersion: v1
 kind: Service

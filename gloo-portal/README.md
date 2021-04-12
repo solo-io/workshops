@@ -65,7 +65,7 @@ read -r client token <<<$(curl -H "Authorization: Bearer ${KEYCLOAK_TOKEN}" -X P
 read -r id secret <<<$(curl -X POST -d "{ \"clientId\": \"${client}\" }" -H "Content-Type:application/json" -H "Authorization: bearer ${token}" ${KEYCLOAK_URL}/realms/master/clients-registrations/default| jq -r '[.id, .secret] | @tsv')
 
 # Add allowed redirect URIs
-curl -H "Authorization: Bearer ${KEYCLOAK_TOKEN}" -X PUT -H "Content-Type: application/json" -d '{"serviceAccountsEnabled": true, "authorizationServicesEnabled": true, "redirectUris": ["http://portal.petstore.com/callback"]}' $KEYCLOAK_URL/admin/realms/master/clients/${id}
+curl -H "Authorization: Bearer ${KEYCLOAK_TOKEN}" -X PUT -H "Content-Type: application/json" -d '{"serviceAccountsEnabled": true, "authorizationServicesEnabled": true, "redirectUris": ["http://portal.petstore.com/callback", "http://portal.petstore.com/oauth-redirect"], "webOrigins": ["http://portal.petstore.com"]}' $KEYCLOAK_URL/admin/realms/master/clients/${id}
 
 # Add the group attribute in the JWT token returned by Keycloak
 curl -H "Authorization: Bearer ${KEYCLOAK_TOKEN}" -X POST -H "Content-Type: application/json" -d '{"name": "group", "protocol": "openid-connect", "protocolMapper": "oidc-usermodel-attribute-mapper", "config": {"claim.name": "group", "jsonType.label": "String", "user.attribute": "group", "id.token.claim": "true", "access.token.claim": "true"}}' $KEYCLOAK_URL/admin/realms/master/clients/${id}/protocol-mappers/models
@@ -394,7 +394,7 @@ licenseKey:
 EOF
 
 kubectl create namespace dev-portal
-helm install dev-portal dev-portal/dev-portal -n dev-portal --values gloo-values.yaml  --version=0.6.0
+helm install dev-portal dev-portal/dev-portal -n dev-portal --values gloo-values.yaml  --version=0.7.0
 ```
 
 <!--bash
@@ -525,7 +525,6 @@ spec:
     - apiDoc:
         name: petstore-v1
         namespace: default
-      openApi: {}
     tags:
       stable: {}
     defaultRoute:
@@ -540,7 +539,6 @@ spec:
     - apiDoc:
         name: petstore-v2
         namespace: default
-      openApi: {}
     tags:
       stable: {}
     defaultRoute:
@@ -760,6 +758,7 @@ spec:
       key: client_secret
     groupClaimKey: group
     issuer: ${KEYCLOAK_URL}/realms/master
+  portalUrlPrefix: http://portal.petstore.com/
 
   publishedEnvironments:
   - name: dev
@@ -837,11 +836,11 @@ You should get a 200 response:
 
 Take the time to explore the UI and see the difference between the 2 versions for the `POST /v2/pet` API call. Only v2 has the `photoUrls` key.
 
-## Lab 7: Secure the access to the API
+## Lab 7: Secure the access to the API with API keys
 
 We've already secured the access to the Portal UI, but we didn't secure the API itself yet.
 
-We can update the Environment to create a plan (called `Basic`) with its associated rate limit. Consumers will authenticate themselvles thanks to an API key:
+We can update the Environment to create a plan (called `Basic`) with its associated rate limit. Consumers will authenticate themselves using an API key:
 
 ```bash
 cat << EOF | kubectl apply -f-
@@ -1052,7 +1051,343 @@ spec:
 
 The `extauth` and `rateLimitConfigs` options have been added on each route to secure the API.
 
-## Lab 8: Portal rebranding
+## Lab 8: Secure the access to the API with Oauth tokens
+
+We can update the Environment to create a plan (called `Basic auth`) with its associated rate limit. Consumers will authenticate themselves using an OAuth token:
+
+```bash
+KEYCLOAK_URL=http://$(kubectl get service keycloak -o jsonpath='{.status.loadBalancer.ingress[0].ip}'):8080/auth
+
+cat << EOF | kubectl apply -f-
+apiVersion: devportal.solo.io/v1alpha1
+kind: Environment
+metadata:
+  name: dev
+  namespace: default
+spec:
+  domains:
+  - dev.petstore.com
+  displayInfo:
+    description: This environment is meant for developers to deploy and test their APIs.
+    displayName: Development
+  apiProducts:
+  - name: petstore
+    namespace: default
+    plans:
+    - authPolicy:
+        oauth:
+          authorizationUrl: ${KEYCLOAK_URL}/realms/master/protocol/openid-connect/auth
+          tokenUrl: ${KEYCLOAK_URL}/realms/master/protocol/openid-connect/token
+          jwtValidation:
+            issuer: ${KEYCLOAK_URL}/realms/master
+            remoteJwks:
+              refreshInterval: 60s
+              url: ${KEYCLOAK_URL}/realms/master/protocol/openid-connect/certs
+      displayName: Basic Oauth
+      name: basic-oauth
+      rateLimit:
+        requestsPerUnit: 5
+        unit: MINUTE
+    publishedVersions:
+    - name: v1
+    - name: v2
+EOF
+```
+
+And finally, we need to let the users of the `users` group to use this plan:
+
+```bash
+cat << EOF | kubectl apply -f -
+apiVersion: devportal.solo.io/v1alpha1
+kind: Group
+metadata:
+  name: oidc-group
+  namespace: default
+spec:
+  accessLevel:
+    apiProducts:
+    - name: petstore
+      namespace: default
+      environments:
+      - name: dev
+        namespace: default
+        plans:
+        - basic-oauth
+    portals:
+    - name: petstore-portal
+      namespace: default
+  oidcGroup:
+    groupName: users
+EOF
+```
+
+Now, we need to get an OAuth token:
+
+```
+token=$(curl -d "client_id=admin-cli" -d "username=user1" -d "password=password" -d "grant_type=password" "$KEYCLOAK_URL/realms/master/protocol/openid-connect/token" | jq -r .access_token)
+```
+
+Then, we can run the following command:
+
+```
+curl -H "Authorization: Bearer ${token}" http://dev.petstore.com/v1/store/inventory -vvv
+```
+
+You should get a result similar to:
+
+```
+*   Trying 172.18.1.2:80...
+* TCP_NODELAY set
+* Connected to dev.petstore.com (172.18.1.2) port 80 (#0)
+> GET /v1/store/inventory HTTP/1.1
+> Host: dev.petstore.com
+> User-Agent: curl/7.68.0
+> Accept: */*
+> Authorization: Bearer eyJhbGciOiJSUzI1NiIsInR5cCIgOiAiSldUIiwia2lkIiA6ICI5UVJONFlBQm5EYzRGalRUTWpMVUNoU21qRER2TmNyek1EUTk1R25Ta240In0.eyJleHAiOjE2MTc5Nzc2NzQsImlhdCI6MTYxNzk3NzYxNCwianRpIjoiMjlhMDgyMDEtNTE3Ni00OGE2LTkyOTMtOTNkNWJmOGZkYmViIiwiaXNzIjoiaHR0cDovLzE3Mi4xOC4xLjE6ODA4MC9hdXRoL3JlYWxtcy9tYXN0ZXIiLCJzdWIiOiI5NDMyMGIyMS01ZDU0LTQ1NWEtYjI3Mi03ZTk4ZDFiMGIwYTIiLCJ0eXAiOiJCZWFyZXIiLCJhenAiOiJhZG1pbi1jbGkiLCJzZXNzaW9uX3N0YXRlIjoiZTViMDgxNzgtMDA0NS00ZDBiLWJhMzgtN2VhYzcwYjcyZWE3IiwiYWNyIjoiMSIsInNjb3BlIjoiZW1haWwgcHJvZmlsZSIsImVtYWlsX3ZlcmlmaWVkIjpmYWxzZSwicHJlZmVycmVkX3VzZXJuYW1lIjoidXNlcjEiLCJlbWFpbCI6InVzZXIxQHNvbG8uaW8ifQ.DU35ng9pyPS6ljXO7bTnt87Vj8dw0mE8PIHArKR5xzNvMn8mCFW5MyyM_FBrZwSCaYBFG5o_73bwPJ7drkj9xkCTnQrqzY174pJ0pJeNNggATMLw6pbJIp70hP3-gXP3ImqElPSU9mcx-kYBn6xt_zFvx9h-XmztIi_YHEJm-W6Dmjp1GWdFwepKOT1drrOCMC7mlUOp8QsLzUVvAv_ibK8SROslmQqqeXAP6wrjVm_GnFOYfse03pXLFImHoEh5bD4sJ8YTDtaWcLWcMMiiRCZ80wO76CmxNslaR-lCM2eSVbtpuXah1vnorS38QKitW85laDi50BWsy4M8yZ-w9A
+> 
+* Mark bundle as not supporting multiuse
+< HTTP/1.1 200 OK
+< date: Fri, 09 Apr 2021 14:13:36 GMT
+< access-control-allow-origin: *
+< access-control-allow-methods: GET, POST, DELETE, PUT
+< access-control-allow-headers: Content-Type, api_key, Authorization
+< content-type: application/json
+< server: envoy
+< x-envoy-upstream-service-time: 151
+< transfer-encoding: chunked
+< 
+* Connection #0 to host dev.petstore.com left intact
+{"sold":1,"pending":2,"available":7}
+```
+
+## Lab 9: gRPC
+
+Gloo Portal can also be used to expose gRPC applications.
+
+Let's deploy a gRPC version of our application:
+
+```bash
+cat <<EOF | kubectl apply -f -
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: petstore-grpc
+  name: petstore-grpc
+  namespace: default
+spec:
+  selector:
+    matchLabels:
+      app: petstore-grpc
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: petstore-grpc
+    spec:
+      containers:
+      - image: quay.io/solo-io/petstore-grpc:0.0.2
+        name: petstore-grpc
+        ports:
+        - containerPort: 8080
+          name: grpc
+        env:
+        - name: SERVER_PORT
+          value: "8080"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: petstore-grpc
+  namespace: default
+  labels:
+    service: petstore-grpc
+spec:
+  selector:
+    app: petstore-grpc
+  ports:
+  - name: grpc
+    port: 8080
+    protocol: TCP
+
+EOF
+```
+
+Let's create an **API Doc** using the reflection endpoint implemented by our gRPC application:
+
+```bash
+cat <<EOF | kubectl apply -f -
+apiVersion: devportal.solo.io/v1alpha1
+kind: APIDoc
+metadata:
+  name: petstore-grpc-doc
+  namespace: default
+spec:
+  grpc:
+    reflectionSource:
+      connectionTimeout: 5s
+      insecure: true
+      serviceAddress: petstore-grpc.default:8080
+      # we use a reflection server here to tell the Gloo Portal
+      # to fetch the schema contents directly from the petstore service.
+EOF
+```
+
+You can then check the status of the API Doc using the following command:
+
+```bash
+kubectl get apidoc -n default petstore-grpc-doc -oyaml
+```
+
+Let's update our **API Product** to expose the gRPC **API Dos** we've just created:
+
+```bash
+cat << EOF | kubectl apply -f-
+apiVersion: devportal.solo.io/v1alpha1
+kind: APIProduct
+metadata:
+  name: petstore
+  namespace: default
+spec:
+  displayInfo: 
+    description: Petstore Product
+    title: Petstore Product
+    image:
+      fetchUrl: https://i.imgur.com/EXbBN1a.jpg
+  versions:
+  - name: v1
+    apis:
+    - apiDoc:
+        name: petstore-v1
+        namespace: default
+    tags:
+      stable: {}
+    defaultRoute:
+      inlineRoute:
+        backends:
+        - kube:
+            name: petstore-v1
+            namespace: default
+            port: 8080
+  - name: v2
+    apis:
+    - apiDoc:
+        name: petstore-v2
+        namespace: default
+    tags:
+      stable: {}
+    defaultRoute:
+      inlineRoute:
+        backends:
+        - kube:
+            name: petstore-v2
+            namespace: default
+            port: 8080
+  - name: v3
+    apis:
+    - apiDoc:
+        name: petstore-grpc-doc
+        namespace: default
+    defaultRoute:
+      inlineRoute:
+        backends:
+        - kube:
+            name: petstore-grpc
+            namespace: default
+            port: 8080
+    tags:
+      stable: {}
+EOF
+```
+
+You can then check the status of the API Product using the following command:
+
+```bash
+kubectl get apiproducts.devportal.solo.io petstore -o yaml
+```
+
+Update the **Environment** to include the gRPC version:
+
+```bash
+KEYCLOAK_URL=http://$(kubectl get service keycloak -o jsonpath='{.status.loadBalancer.ingress[0].ip}'):8080/auth
+
+cat << EOF | kubectl apply -f-
+apiVersion: devportal.solo.io/v1alpha1
+kind: Environment
+metadata:
+  name: dev
+  namespace: default
+spec:
+  domains:
+  - dev.petstore.com
+  displayInfo:
+    description: This environment is meant for developers to deploy and test their APIs.
+    displayName: Development
+  apiProducts:
+  - name: petstore
+    namespace: default
+    plans:
+    - authPolicy:
+        oauth:
+          authorizationUrl: ${KEYCLOAK_URL}/realms/master/protocol/openid-connect/auth
+          tokenUrl: ${KEYCLOAK_URL}/realms/master/protocol/openid-connect/token
+          jwtValidation:
+            issuer: ${KEYCLOAK_URL}/realms/master
+            remoteJwks:
+              refreshInterval: 60s
+              url: ${KEYCLOAK_URL}/realms/master/protocol/openid-connect/certs
+      displayName: Basic Oauth
+      name: basic-oauth
+      rateLimit:
+        requestsPerUnit: 5
+        unit: MINUTE
+    publishedVersions:
+    - name: v1
+    - name: v2
+    - name: v3
+EOF
+```
+
+Download and extract `grpcurl`:
+
+```bash
+wget https://github.com/fullstorydev/grpcurl/releases/download/v1.8.0/grpcurl_1.8.0_linux_x86_64.tar.gz
+tar zxvf grpcurl_1.8.0_linux_x86_64.tar.gz 
+```
+
+Now, we need to get a new OAuth token:
+
+```
+token=$(curl -d "client_id=admin-cli" -d "username=user1" -d "password=password" -d "grant_type=password" "$KEYCLOAK_URL/realms/master/protocol/openid-connect/token" | jq -r .access_token)
+```
+
+Then, we can run the following command:
+
+```
+./grpcurl -plaintext -H "Authorization: Bearer ${token}" -authority dev.petstore.com 172.18.1.2:80 test.solo.io.PetStore/ListPets
+```
+
+You should get a result similar to:
+
+```
+{
+  "pets": [
+    {
+      "id": "1",
+      "name": "Dog",
+      "tags": [
+        "puppy"
+      ]
+    },
+    {
+      "id": "2",
+      "name": "Cat"
+    }
+  ]
+}
+```
+
+## Lab 10: Portal rebranding
 
 As you've seen in the previous lab, we've been able to provide a few pictures (banner, logo, etc.).
 
@@ -1177,7 +1512,7 @@ You can use the CSS below to further rebrand it:
 }
 ```
 
-## Lab 9: Extending the Portal
+## Lab 11: Extending the Portal
 
 You can add static or dynamic pages.
 
