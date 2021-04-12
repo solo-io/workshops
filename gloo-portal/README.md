@@ -1,8 +1,8 @@
 # Gloo Portal Workshop
 
-Gloo Portal provides a framework for managing APIs' definitions, API client identity, and API policies on top of Gloo Edge or of the Istio Ingress Gateway. Vendors of API products can leverage Gloo Portal to secure, manage, and publish their APIs independently of the operations used to manage networking infrastructure.
+Gloo Portal provides a framework for managing API definitions, API client identity, and API policies on top of Gloo Edge or Istio Ingress Gateway. Vendors of API products can leverage Gloo Portal to secure, manage, and publish their APIs independently of the operations used to manage networking infrastructure.
 
-This workshop aims to expose some key features of the Gloo Portal like API lifecycle, Authentication, Rebranding, ...
+This workshop aims to expose some key features of the Gloo Portal like API lifecycle, authentication, and branding.
 
 ## OpenAPI vs Swagger
 
@@ -126,7 +126,7 @@ The output should be similar to this:
 
 You can see a key called `basePath` with a value `v2`.
 
-Including the version of an API in the `basePath` is a common way to manage the lifecycle of an application, even of there is no standard. Other approaches exist (like using a header, a different host, etc.).
+Including the version of an API in the `basePath` is a common way to manage the lifecycle of an application, even if there is no standard. Other approaches exist (like using a header, a different host, etc.).
 
 There are 2 OpenAPI documents in the current directory:
 
@@ -764,7 +764,7 @@ spec:
   - name: dev
     namespace: default
 EOF
-````
+```
 
 You can now check the status of the Portal using the following command:
 

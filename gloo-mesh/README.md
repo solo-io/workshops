@@ -42,16 +42,16 @@ Run the following commands to deploy three Kubernetes clusters using [Kind](http
 
 ```bash
 ../scripts/deploy.sh 1 mgmt
-../scripts/deploy.sh 2 cluster1
-../scripts/deploy.sh 3 cluster2
+../scripts/deploy.sh 2 cluster1 us-west us-west-1
+../scripts/deploy.sh 3 cluster2 us-west us-west-2
 ```
 
 Then run the following commands to wait for all the Pods to be ready:
 
 ```bash
 ../scripts/check.sh mgmt
-../scripts/check.sh cluster1 us-west us-west-1
-../scripts/check.sh cluster2 us-west us-west-2
+../scripts/check.sh cluster1 
+../scripts/check.sh cluster2 
 ```
 
 **Note:** If you run the `check.sh` script immediately after the `deploy.sh` script, you may see a jsonpath error. If that happens, simply wait a few seconds and try again.
@@ -141,6 +141,9 @@ Download istio 1.9.1:
 
 ```bash
 curl -L https://istio.io/downloadIstio | ISTIO_VERSION=1.9.1 sh -
+# - alternative way
+# wget https://github.com/istio/istio/releases/download/1.9.1/istioctl-1.9.1-linux-amd64.tar.gz
+# tar xvfz istioctl-1.9.1-linux-amd64.tar.gz
 ```
 
 Now let's deploy Istio on the first cluster:
@@ -158,9 +161,6 @@ metadata:
   namespace: istio-system
 spec:
   profile: default
-  addonComponents:
-    istiocoredns:
-      enabled: true
   meshConfig:
     accessLogFile: /dev/stdout
     enableAutoMtls: true
@@ -245,9 +245,6 @@ metadata:
   namespace: istio-system
 spec:
   profile: default
-  addonComponents:
-    istiocoredns:
-      enabled: true
   meshConfig:
     accessLogFile: /dev/stdout
     enableAutoMtls: true
@@ -350,7 +347,6 @@ When they are ready, you should get this output:
 ```
 NAME                                    READY   STATUS    RESTARTS   AGE
 istio-ingressgateway-5c7759c8cb-52r2j   1/1     Running   0          22s
-istiocoredns-685b5c449f-77psm           2/2     Running   0          22s
 istiod-7884b57b4c-rvr2c                 1/1     Running   0          30s
 ```
 
