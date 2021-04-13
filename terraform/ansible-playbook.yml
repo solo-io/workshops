@@ -548,6 +548,12 @@
     become_user: solo
     become_method: su
 
+  - name: Create vimrc
+    command: touch $HOME/.vimrc
+
+  - name: Turn on line numbers by default
+    command: echo "set number" >> $HOME/.vimrc
+
   - name: Install apache2-utils
     apt:
       name: apache2-utils
