@@ -96,7 +96,7 @@ kubectl config use-context mgmt
 First of all, you need to install the *meshctl* CLI:
 
 ```bash
-curl -sL https://run.solo.io/meshctl/install | GLOO_MESH_VERSION=v1.0.0 sh -
+curl -sL https://run.solo.io/meshctl/install | GLOO_MESH_VERSION=v1.0.1 sh -
 export PATH=$HOME/.gloo-mesh/bin:$PATH
 ```
 
@@ -105,7 +105,7 @@ Gloo Mesh Enterprise is adding unique features on top of Gloo Mesh Open Source (
 Run the following commands to deploy Gloo Mesh Enterprise:
 
 ```bash
-helm install gloo-mesh https://storage.googleapis.com/gloo-mesh-enterprise/gloo-mesh-enterprise/gloo-mesh-enterprise-1.0.0.tgz -n gloo-mesh --create-namespace --kube-context mgmt --set licenseKey=${GLOO_MESH_LICENSE_KEY}
+helm install gloo-mesh https://storage.googleapis.com/gloo-mesh-enterprise/gloo-mesh-enterprise/gloo-mesh-enterprise-1.0.3.tgz -n gloo-mesh --create-namespace --kube-context mgmt --set licenseKey=${GLOO_MESH_LICENSE_KEY}
 
 kubectl --context mgmt -n gloo-mesh rollout status deploy/enterprise-networking
 
@@ -141,9 +141,6 @@ Download istio 1.9.1:
 
 ```bash
 curl -L https://istio.io/downloadIstio | ISTIO_VERSION=1.9.1 sh -
-# - alternative way
-# wget https://github.com/istio/istio/releases/download/1.9.1/istioctl-1.9.1-linux-amd64.tar.gz
-# tar xvfz istioctl-1.9.1-linux-amd64.tar.gz
 ```
 
 Now let's deploy Istio on the first cluster:

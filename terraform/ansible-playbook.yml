@@ -1,5 +1,5 @@
 ---
-- hosts: hosts
+- hosts: all
   remote_user: solo
   become: yes
   become_user: root
@@ -260,7 +260,7 @@
   - name: Set VNC password
     shell: echo password | vncpasswd -f > /home/solo/.vnc/passwd
     become_user: solo
-    become_method: su
+    become_method: sudo
 
   - name: Set the permissions of the /home/solo/.vnc/passwd file
     file:
@@ -493,12 +493,12 @@
       repo: https://github.com/solo-io/workshops.git
       dest: /home/solo/workshops
     become_user: solo
-    become_method: su
+    become_method: sudo
 
   - name: Enable clipboard when launching the terminal
     shell: echo '/usr/bin/autocutsel -s CLIPBOARD -fork' >> /home/solo/.bashrc
     become_user: solo
-    become_method: su
+    become_method: sudo
 
   - name: Add VSCode apt key
     apt_key:
@@ -526,27 +526,27 @@
   - name: Install glooctl
     shell: curl -sL https://run.solo.io/gloo/install | sh
     become_user: solo
-    become_method: su
+    become_method: sudo
 
   - name: Add glooctl to the path
     shell: echo 'export PATH=$HOME/.gloo/bin:$PATH' >> /home/solo/.bashrc
     become_user: solo
-    become_method: su
+    become_method: sudo
 
   - name: Add LICENSE_KEY environment variable
     shell: echo "export LICENSE_KEY={{ lookup('env','LICENSE_KEY') }}" >> /home/solo/.bashrc
     become_user: solo
-    become_method: su
+    become_method: sudo
 
   - name: Add GLOO_MESH_LICENSE_KEY environment variable
     shell: echo "export GLOO_MESH_LICENSE_KEY={{ lookup('env','GLOO_MESH_LICENSE_KEY') }}" >> /home/solo/.bashrc
     become_user: solo
-    become_method: su
+    become_method: sudo
 
   - name: Add PORTAL_LICENSE_KEY environment variable
     shell: echo "export PORTAL_LICENSE_KEY={{ lookup('env','PORTAL_LICENSE_KEY') }}" >> /home/solo/.bashrc
     become_user: solo
-    become_method: su
+    become_method: sudo
 
   - name: Create vimrc
     command: touch $HOME/.vimrc

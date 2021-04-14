@@ -1,4 +1,4 @@
-# Service Mesh Hub workshop
+# Gloo Mesh workshop
 
 ## Prerequisites
 
@@ -22,7 +22,7 @@ Go to the terraform directory:
 cd terraform
 ```
 
-Run the following command is used to initialize the working directory:
+Run the following command to initialize the working directory:
 
 ```
 terraform init
