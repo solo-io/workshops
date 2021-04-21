@@ -39,10 +39,9 @@ You can also access the shell by running `vagrant ssh`. In this case, don't forg
 
 ## Access Docker from your laptop
 
-Run the following command to configure the Docker CLI to use the Docker Engine running in the VM:
+Run the following command on your laptop to configure the Docker CLI to use the Docker Engine running in the VM:
 
 ```
-vagrant ssh 
 ssh-keyscan -p 2222 127.0.0.1 >> $HOME/.ssh/known_hosts
 ssh-add $(pwd)/.vagrant/machines/default/virtualbox/private_key
 export DOCKER_HOST="ssh://vagrant@127.0.0.1:2222"
