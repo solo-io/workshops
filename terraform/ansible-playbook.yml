@@ -201,7 +201,7 @@
 
   - name: Unarchive guacamole
     unarchive:
-      src: http://apache.org/dyn/closer.cgi?action=download&filename=guacamole/1.2.0/source/guacamole-server-1.2.0.tar.gz
+      src: https://mirrors.ircam.fr/pub/apache/guacamole/1.2.0/source/guacamole-server-1.2.0.tar.gz
       dest: /
       remote_src: yes
 
@@ -226,7 +226,7 @@
 
   - name: Download guacamole war
     get_url:
-      url: http://apache.org/dyn/closer.cgi?action=download&filename=guacamole/1.2.0/binary/guacamole-1.2.0.war
+      url: https://mirrors.ircam.fr/pub/apache/guacamole/1.2.0/binary/guacamole-1.2.0.war
       dest: /var/lib/tomcat9/webapps/guacamole.war
 
   - name: Install autocutsel
