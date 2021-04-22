@@ -275,7 +275,8 @@ EOF
 Now the application is securely exposed through TLS. To test the TLS configuration, run the following command to open the browser (note that now the traffic is served using https): 
 
 ```
-chromium $(glooctl proxy url --port https)/productpage 
+APP_URL=$(glooctl proxy url --port https)
+chromium $APP_URL/productpage 
 ```
 
 ### OIDC Support
@@ -288,6 +289,17 @@ Let's start by installing Keycloak:
 kubectl create -f https://raw.githubusercontent.com/keycloak/keycloak-quickstarts/latest/kubernetes-examples/keycloak.yaml
 kubectl rollout status deploy/keycloak
 ```
+**Troubleshooting Tip**
+
+Make sure that the KeyCloak deployment worked correctly by executing the following.
+
+`kubectl describe pod keycloak`
+
+If you see an issue with the readiness probe failing, then you will want to edit the deployment and add the following values under the readinessProbe.
+
+`kubectl patch deployment keycloak --type='json' -p='[{"op": "replace", "path": "/spec/template/spec/containers/0/readinessProbe/timeoutSeconds", "value":10}]'`
+
+`kubectl patch deployment keycloak --type='json' -p='[{"op": "add", "path": "/spec/template/spec/containers/0/readinessProbe/initialDelaySeconds", "value":10 }]'`
 
 <!--bash
 sleep 30
@@ -307,7 +319,7 @@ read -r client token <<<$(curl -H "Authorization: Bearer ${KEYCLOAK_TOKEN}" -X P
 read -r id secret <<<$(curl -X POST -d "{ \"clientId\": \"${client}\" }" -H "Content-Type:application/json" -H "Authorization: bearer ${token}" ${KEYCLOAK_URL}/realms/master/clients-registrations/default| jq -r '[.id, .secret] | @tsv')
 
 # Add allowed redirect URIs
-curl -H "Authorization: Bearer ${KEYCLOAK_TOKEN}" -X PUT -H "Content-Type: application/json" -d '{"serviceAccountsEnabled": true, "authorizationServicesEnabled": true, "redirectUris": ["https://172.18.1.1/callback", "http://portal.example.com/callback"]}' $KEYCLOAK_URL/admin/realms/master/clients/${id}
+curl -H "Authorization: Bearer ${KEYCLOAK_TOKEN}" -X PUT -H "Content-Type: application/json" -d '{"serviceAccountsEnabled": true, "authorizationServicesEnabled": true, "redirectUris": ["${APP_URL}/callback", "http://portal.example.com/callback"]}' $KEYCLOAK_URL/admin/realms/master/clients/${id}
 
 # Add the group attribute in the JWT token returned by Keycloak
 curl -H "Authorization: Bearer ${KEYCLOAK_TOKEN}" -X POST -H "Content-Type: application/json" -d '{"name": "group", "protocol": "openid-connect", "protocolMapper": "oidc-usermodel-attribute-mapper", "config": {"claim.name": "group", "jsonType.label": "String", "user.attribute": "group", "id.token.claim": "true", "access.token.claim": "true"}}' $KEYCLOAK_URL/admin/realms/master/clients/${id}/protocol-mappers/models
@@ -339,7 +351,7 @@ spec:
   configs:
   - oauth2:
       oidcAuthorizationCode:
-        appUrl: https://172.18.1.1
+        appUrl: ${APP_URL}
         callbackPath: /callback
         clientId: ${client}
         clientSecretRef:

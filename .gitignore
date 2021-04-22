@@ -1,1 +1,7 @@
 .vscode/
+
+# Add temporary files created in gloo-edge tutorial
+gloo-edge/gloo-edge/kind1.yaml
+gloo-edge/gloo-edge/metallb1.yaml
+gloo-edge/gloo-edge/tls.crt 
+gloo-edge/gloo-edge/tls.key
