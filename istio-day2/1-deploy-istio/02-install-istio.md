@@ -8,6 +8,8 @@ Istio provides that control plane to drive the behavior of the network. Istio pr
 
 Will start this lab by deploying some services in Kubernetes. The scenario we are replicating is one where Istio is being added to a set of workloads and that existing services are deployed into the cluster. In this lab (Lab 02) we will focus on getting Istio installed and in a later lab show how to iteratively roll out the mesh functionality to the workloads.
 
+Verify you're in the correct folder for this lab: `/home/solo/workshops/istio-day2/1-deploy-istio/`. 
+
 Let's set up the `sample-apps`:
 
 ```bash

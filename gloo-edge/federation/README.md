@@ -76,7 +76,7 @@ kubectl config use-context mgmt
 Upgrade `glooctl` using the following command:
 
 ```bash
-glooctl upgrade --release=v1.7.0-beta11
+glooctl upgrade --release=v1.7.1
 ```
 
 Check if the `LICENSE_KEY` variable is already set.
@@ -99,7 +99,7 @@ Deploy Gloo Edge Federation:
 
 ```bash
 kubectl config use-context mgmt
-glooctl install federation --values values-federation.yaml --license-key $LICENSE_KEY --version=v1.7.0-beta11
+glooctl install federation --values values-federation.yaml --license-key $LICENSE_KEY --version v1.7.1
 ```
 
 ## Deploy Gloo on the two other clusters
@@ -108,7 +108,7 @@ Deploy Gloo on the second cluster:
 
 ```bash
 kubectl config use-context cluster1
-glooctl install gateway enterprise  --version v1.7.0-beta11 --license-key $LICENSE_KEY
+glooctl install gateway enterprise --version v1.7.1 --license-key $LICENSE_KEY 
 ```
 
 Deploy Gloo Edge on the third cluster:
@@ -131,7 +131,7 @@ gloo:
         type: LoadBalancer
 EOF
 
-glooctl install gateway enterprise --values values.yaml --version v1.7.0-beta11 --license-key $LICENSE_KEY
+glooctl install gateway enterprise --values values.yaml --version v1.7.1 --license-key $LICENSE_KEY
 ```
 
 Use the following commands to wait for the Gloo Edge components to be deployed on all the clusters:

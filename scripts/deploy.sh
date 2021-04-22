@@ -12,8 +12,8 @@ if [ -z "$4" ]; then
   zone=us-east-1a
 fi
 
-if hostname -i; then
-  myip=$(hostname -i)
+if hostname -I; then
+  myip=$(hostname -I | awk '{ print $1 }')
 else
   myip=$(ipconfig getifaddr en0)
 fi
