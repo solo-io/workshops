@@ -1,3 +1,5 @@
+In this lab, you will install Istio and its addons. You will validate the installation is successfully and examinate the installation artifacts.
+
 ## Download Istio
 
 Download the istio release binary:
@@ -89,7 +91,7 @@ Verify you can access the Kiali dashboard:
 istioctl dashboard kiali
 ```
 
-Congratulations, you have installed Istio and its addon components successfully.  We'll explore expose and secure your services to Istio ingress gateway in the next lab.
+Congratulations, you have installed Istio and its addon components successfully.  We'll explore expose and secure your services to Istio ingress gateway in the [next lab](./02-secure-service-ingress.md).
 
 
 
