@@ -25,7 +25,7 @@ Check if your Kubernetes environment meets Istio's platform requirement:
 istioctl x precheck
 ```
 
-# Install Istio
+## Install Istio
 
 List available installation profiles:
 
