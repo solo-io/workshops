@@ -39,6 +39,24 @@ Since this is a get started workshop, let's use the demo profile.
 istioctl install --set profile=demo -y
 ```
 
+Check out the resources installed by Istio:
+
+```bash
+kubectl get all,cm,secrets -n istio-system
+```
+
+Check out CRDs installed by Istio:
+
+```bash
+kubectl get crds -n istio-system
+```
+
+Check out Istio resources installed by Istio and used by Istio internally:
+
+```bash
+kubectl get istio-io -n istio-system
+```
+
 ## Install Istio Telemetry Addons
 
 Istio telemetry addons are shipped as samples because these addons are optimized for quick get started and demo purpose and not for production usage. They provides a convenient way to install these telemetry components that integrate with Istio.
@@ -71,6 +89,7 @@ Verify you can access the Kiali dashboard:
 istioctl dashboard kiali
 ```
 
+Congratulations, you have installed Istio and its addon components successfully.  We'll explore expose and secure your services to Istio ingress gateway in the next lab.
 
 
 
