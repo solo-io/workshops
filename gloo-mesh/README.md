@@ -105,7 +105,12 @@ Gloo Mesh Enterprise is adding unique features on top of Gloo Mesh Open Source (
 Run the following commands to deploy Gloo Mesh Enterprise:
 
 ```bash
-helm install gloo-mesh https://storage.googleapis.com/gloo-mesh-enterprise/gloo-mesh-enterprise/gloo-mesh-enterprise-1.0.4.tgz -n gloo-mesh --create-namespace --kube-context mgmt --set licenseKey=${GLOO_MESH_LICENSE_KEY}
+helm repo add gloo-mesh-enterprise https://storage.googleapis.com/gloo-mesh-enterprise/gloo-mesh-enterprise 
+helm repo update
+kubectl --context mgmt create ns gloo-mesh 
+helm install gloo-mesh-enterprise gloo-mesh-enterprise/gloo-mesh-enterprise \
+--namespace gloo-mesh --kube-context mgmt \
+--set licenseKey=${GLOO_MESH_LICENSE_KEY}
 
 kubectl --context mgmt -n gloo-mesh rollout status deploy/enterprise-networking
 ```
@@ -135,16 +140,16 @@ cluster2   23s
 
 ## Lab 3 : Deploy Istio on both clusters {#lab3}
 
-Download istio 1.9.1:
+Download istio 1.9.3:
 
 ```bash
-curl -L https://istio.io/downloadIstio | ISTIO_VERSION=1.9.1 sh -
+curl -L https://istio.io/downloadIstio | ISTIO_VERSION=1.9.3 sh -
 ```
 
 Now let's deploy Istio on the first cluster:
 
 ```bash
-./istio-1.9.1/bin/istioctl --context cluster1 operator init
+./istio-1.9.3/bin/istioctl --context cluster1 operator init
 
 kubectl --context cluster1 create ns istio-system
 
@@ -228,7 +233,7 @@ EOF
 And deploy Istio on the second cluster:
 
 ```bash
-./istio-1.9.1/bin/istioctl --context cluster2 operator init
+./istio-1.9.3/bin/istioctl --context cluster2 operator init
 
 kubectl --context cluster2 create ns istio-system
 
