@@ -46,8 +46,8 @@ Run the commands below to deploy Gloo Edge Enterprise:
 
 ```bash
 kubectl config use-context gloo-edge
-glooctl upgrade --release=v1.6.3
-glooctl install gateway enterprise --version 1.6.3 --license-key $LICENSE_KEY
+glooctl upgrade --release=v1.7.2
+glooctl install gateway enterprise --version 1.7.2 --license-key $LICENSE_KEY
 ```
 
 Gloo Edge can also be deployed using a Helm chart.
@@ -141,7 +141,7 @@ The creation of the Virtual Service exposes the Kubernetes service through the g
 We can access the application using the web browser by running the following command:
 
 ```
-chromium $(glooctl proxy url)/productpage
+/opt/google/chrome/chrome $(glooctl proxy url)/productpage
 ```
 
 It should return the bookinfo application webpage. Note that the review stars are black (v2).
@@ -275,8 +275,8 @@ EOF
 Now the application is securely exposed through TLS. To test the TLS configuration, run the following command to open the browser (note that now the traffic is served using https): 
 
 ```
-APP_URL=$(glooctl proxy url --port https)
-chromium $APP_URL/productpage 
+APP_URL=$(glooctl proxy url --port https | cut -d: -f1-2)
+/opt/google/chrome/chrome $APP_URL/productpage 
 ```
 
 ### OIDC Support
@@ -948,7 +948,7 @@ EOF
 Let's take a look at what the application returns:
 
 ```
-chromium $(glooctl proxy url --port https)/get 
+/opt/google/chrome/chrome $(glooctl proxy url --port https)/get 
 ```
 
 You should get the following output:
