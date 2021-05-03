@@ -549,7 +549,7 @@ spec:
  - priorityGroup:
    - cluster: cluster2
      upstreams:
-     - name: default-service-bluegreen2-8080
+     - name: default-service-bluegreen-8080
        namespace: gloo-system
  primary:
    clusterName: cluster1
