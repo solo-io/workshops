@@ -352,8 +352,14 @@
       group: solo
       mode: '0700'
 
-  - name: Copy the Terminal shortcut
-    shell: cp /usr/share/applications/org.gnome.Terminal.desktop /home/solo/Desktop/
+  - name: Install Xfce4 terminal
+    apt:
+      name: xfce4-terminal
+      state: present
+      update_cache: yes
+
+  - name: Copy the Xfce4 terminal shortcut
+    shell: cp /usr/share/applications/xfce4-terminal.desktop /home/solo/Desktop/
 
   - name: Copy the Google Chrome shortcut
     shell: cp /usr/share/applications/google-chrome.desktop /home/solo/Desktop/
