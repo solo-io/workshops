@@ -1,5 +1,10 @@
 In this lab, you will deploy the sample application to your Kubernetes cluster, and expose the web-api service to the Istio ingress gateway and configure secure access to it.
 
+
+## Prerequisites
+
+Verify you're in the correct folder for this lab: `/home/solo/workshops/istio-basics`. This lab builds on both lab 01 where we already installed Istio using the demo profile. 
+
 ## Deploy the sample application
 
 Verify you're in the correct folder for this lab: /home/solo/workshops/istio-basics/.

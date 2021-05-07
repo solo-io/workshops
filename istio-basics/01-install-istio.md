@@ -1,4 +1,4 @@
-In this lab, you will install Istio and its addons. You will validate the installation is successfully and examinate the installation artifacts.
+One of the quickest way to get started with Istio is to leverage the demo profile. The demo profile is designed to showcase Istio functionality with modest resource requirements. The demo profile contains Istio control plane (also called Istiod), Istio ingress-gateway and egress-gateway, and a few addon components. In this lab, you will install Istio with the demo profile. You will validate the installation is successfully and examinate the installation artifacts.
 
 ## Download Istio
 
@@ -91,7 +91,7 @@ Verify you can access the Kiali dashboard:
 istioctl dashboard kiali
 ```
 
-Congratulations, you have installed Istio and its addon components successfully.  We'll explore expose and secure your services to Istio ingress gateway in the [next lab](./02-secure-service-ingress.md).
+Congratulations, you have installed Istio control plane (Istiod), Istio ingress-gateway and egress-gateway and its addon components successfully.  We'll explore expose and secure your services to Istio ingress gateway in the [next lab](./02-secure-service-ingress.md).
 
 
 
