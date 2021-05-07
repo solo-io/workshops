@@ -286,7 +286,7 @@ In many use cases, we need to restrict the access to our applications to authent
 Let's start by installing Keycloak:
 
 ```bash
-kubectl create -f https://raw.githubusercontent.com/keycloak/keycloak-quickstarts/latest/kubernetes-examples/keycloak.yaml
+kubectl create -f https://raw.githubusercontent.com/keycloak/keycloak-quickstarts/12.0.4/kubernetes-examples/keycloak.yaml
 kubectl rollout status deploy/keycloak
 ```
 **Troubleshooting Tip**
