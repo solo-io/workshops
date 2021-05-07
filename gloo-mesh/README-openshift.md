@@ -2056,6 +2056,7 @@ The Gloo Mesh Enterprise CLI will make your life easier again.
 You simply need to run the following command:
 
 ```
+cd myfilter
 meshctl wasm build assemblyscript -t webassemblyhub.io/djannot/myfilter:0.1 .
 ```
 
