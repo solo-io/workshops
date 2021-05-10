@@ -168,6 +168,58 @@ istioctl proxy-config routes deploy/istio-ingressgateway.istio-system --name htt
 
 ## Secure the inbound traffic
 
-Congratulations, you have exposed the web-api service to Istio ingress gateway securely. We'll explore adding services to the mesh in the [next lab](./03-add-services-to-mesh.md).
+To secure inbound traffic with HTTPS, we need a certificate with the appropriate SAN. Let's create one for `istioinaction.io` in the `istio-system` namespace:
+
+```bash
+kubectl create -n istio-system secret tls istioinaction-cert --key labs/02/certs/istioinaction.io.key --cert labs/02/certs/istioinaction.io.crt
+```
+
+We can update the gateway to use this cert:
+
+```bash
+cat labs/02/web-api-gw-https.yaml
+```
+
+```yaml
+apiVersion: networking.istio.io/v1alpha3
+kind: Gateway
+metadata:
+  name: web-api-gateway
+spec:
+  selector:
+    istio: ingressgateway 
+  servers:
+  - port:
+      number: 443
+      name: https
+      protocol: HTTPS
+    hosts:
+    - "istioinaction.io"    
+    tls:
+      mode: SIMPLE
+      credentialName: istioinaction-cert
+```
+
+Note, we are pointing to the `istioinaction-cert` and **that the cert must be in the same namespace as the ingress gateway deployment**. Even though the `Gateway` resource is in the `istioinaction` namespace, _the cert must be where the gateway is actually deployed_. Since this gateway resource is also called `web-api-gateway`, it will replace our prior `web-api-gateway` configuration for port `80`.
+
+```bash
+kubectl -n istioinaction apply -f labs/02/web-api-gw-https.yaml
+```
+
+Example calling it on the secure `443` port:
+
+```bash
+curl --cacert ./labs/04/certs/ca/root-ca.crt -H "Host: istioinaction.io" https://istioinaction.io --resolve istioinaction.io:443:$GATEWAY_IP
+```
+
+If you call it on the `80` port with `http`, it will not work as we no longer configure the gateway resource to expose on port `80`.
+
+```bash
+curl -H "Host: istioinaction.io" http://$GATEWAY_IP
+```
+
+## Next lab
+
+Congratulations, you have exposed the web-api service to Istio Ingress gateway securely. We'll explore adding services to the mesh in the [next lab](./03-add-services-to-mesh.md).
 
 

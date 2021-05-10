@@ -100,6 +100,7 @@ Verify you can access the Kiali dashboard:
 istioctl dashboard kiali
 ```
 
+## Next lab
 Congratulations, you have installed Istio control plane (Istiod), Istio ingress-gateway and egress-gateway and its addon components successfully.  We'll explore expose and secure your services to Istio ingress gateway in the [next lab](./02-secure-service-ingress.md).
 
 
