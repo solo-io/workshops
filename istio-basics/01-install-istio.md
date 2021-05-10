@@ -47,6 +47,7 @@ If your Kubernetes environment can only support Kubernetes Service of type `Node
 ```bash
 istioctl install --set profile=demo -y --set values.gateways.istio-ingressgateway.type=NodePort
 ```
+
 {% endhint %}
 
 Check out the resources installed by Istio:

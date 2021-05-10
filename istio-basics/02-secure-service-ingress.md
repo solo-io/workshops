@@ -82,13 +82,66 @@ export SECURE_INGRESS_PORT=$(kubectl -n istio-system get service istio-ingressga
 
 ## Expose our apps
 
-Even though we don't have our apps in the `istioinaction` namespace in the mesh yet, we can still use the Istio ingress gateway to route traffic to them. Let's apply a `Gateway` and `VirtualService` resource to permit this:
+Even though we don't have our apps in the `istioinaction` namespace in the mesh yet, we can still use the Istio Ingress gateway to route traffic to them. Using Istio's `Gateway` resource, we can configure what ports should be exposed, what protocol to use etc.  Using Istio's `VirtualService` resource, we can configure how to route traffic from the Istio Ingress gateway to our `web-api` service.
+
+Let's review our `Gateway` resource:
+
+```bash
+cat sample-apps/ingress/web-api-gw.yaml
+```
+
+In addition to the `web-api-gateway` name of the gateway resource, we can configure that port `80` with protocol `HTTP` is exposed for the `istioinaction.io` host for our Istio Ingress gateway selected by the `istio: ingressgateway` selector:
+
+```yaml
+apiVersion: networking.istio.io/v1alpha3
+kind: Gateway
+metadata:
+  name: web-api-gateway
+spec:
+  selector:
+    istio: ingressgateway
+  servers:
+  - port:
+      number: 80
+      name: http
+      protocol: HTTP
+    hosts:
+    - "istioinaction.io"
+```
+
+Let's review our `VirtualService` resource:
+
+```bash
+cat sample-apps/ingress/web-api-gw-vs.yaml
+```
+
+We can configure that the virtual service is for the `istioinaction.io` host and the `web-api-gateway` gateway resource. When it is the `http` protocol, we want to route to port `8080` of our `web-api` service in the `istioinaction` namespace.
+
+```yaml
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: web-api-gw-vs
+spec:
+  hosts:
+  - "istioinaction.io"
+  gateways:
+  - web-api-gateway
+  http:
+  - route:
+    - destination:
+        host: web-api.istioinaction.svc.cluster.local
+        port:
+          number: 8080
+```
+
+Let's apply the `Gateway` and `VirtualService` resource to expose our `web-api` service outside of the Kubernetes cluster:
 
 ```bash
 kubectl -n istioinaction apply -f sample-apps/ingress/
 ```
 
-The ingress gateway will create new routes on the proxy that we should be able to call:
+The ingress gateway will create new routes on the proxy that we should be able to call it from outside of the Kubernetes cluster:
 
 ```bash
 curl -H "Host: istioinaction.io" http://$GATEWAY_IP
@@ -104,7 +157,6 @@ istioctl proxy-config routes deploy/istio-ingressgateway.istio-system
 NOTE: This output only contains routes loaded via RDS.
 NAME        DOMAINS              MATCH                  VIRTUAL SERVICE
 http.80     istioinaction.io     /*                     web-api-gw-vs.istioinaction
-            *                    /stats/prometheus*     
             *                    /healthz/ready*    
 ```
 
@@ -113,8 +165,6 @@ If we wanted to see an individual route, we can ask for its output as `json` lik
 ```bash
 istioctl proxy-config routes deploy/istio-ingressgateway.istio-system --name http.80 -o json
 ```
-
-
 
 ## Secure the inbound traffic
 
