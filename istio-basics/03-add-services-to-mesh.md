@@ -109,9 +109,27 @@ kubectl rollout restart deployment sleep -n istioinaction
 
 Congratulations on getting all services in the `istioinaction` namespace to the Istio service mesh. One of the values of using a service mesh is that you can gain immediate insights into the behaviors and interactions of your services. Istio deliveres a set of dashboards as addon components that provide you access to important telemetry data that is available just by adding services to the mesh.
 
-TODO: open up jaeger
+Let's also generate some load to the data plane (by calling our `web-api` service) so that you can observe interactions among your services:
 
-TODO: open up kiali
+```bash
+for i in {1..10}; do curl --cacert ./labs/02/certs/ca/root-ca.crt -H "Host: istioinaction.io" https://istioinaction.io --resolve istioinaction.io:443:$GATEWAY_IP; done
+```
+
+You can visualize the services in the mesh in Kiali.  Launch Kiali using the command below:
+
+```bash
+istioctl dashboard kiali
+```
+
+TODO: add a screen shot for Kiali UI.
+
+You can view distributed tracing information using the Jaeger dashboard, which you can launch using `istioctl dashboard jaeger` command:
+
+```bash
+istioctl dashboard jaeger
+```
+
+TODO: capture a screen shot of Jaeger.
 
 ## Propogate Trace Headers
 

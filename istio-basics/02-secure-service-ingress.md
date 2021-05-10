@@ -232,14 +232,14 @@ kubectl -n istioinaction apply -f labs/02/web-api-gw-https.yaml
 Example calling it on the secure `443` port:
 
 ```bash
-curl --cacert ./labs/04/certs/ca/root-ca.crt -H "Host: istioinaction.io" https://istioinaction.io --resolve istioinaction.io:443:$GATEWAY_IP
+curl --cacert ./labs/02/certs/ca/root-ca.crt -H "Host: istioinaction.io" https://istioinaction.io --resolve istioinaction.io:443:$GATEWAY_IP
 ```
 
 {% hint style="info" %}
 If your Istio ingress gateway created a Kubernetes Service of type `NodePort`, use below to call it:
 
 ```bash
-curl --cacert ./labs/04/certs/ca/root-ca.crt -H "Host: istioinaction.io" https://istioinaction.io --resolve istioinaction.io:$SECURE_INGRESS_PORT:$GATEWAY_IP
+curl --cacert ./labs/02/certs/ca/root-ca.crt -H "Host: istioinaction.io" https://istioinaction.io --resolve istioinaction.io:$SECURE_INGRESS_PORT:$GATEWAY_IP
 ```
 
 {% endhint %}
