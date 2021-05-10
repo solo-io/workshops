@@ -10,12 +10,6 @@ The goal of this workshop is to show several unique features of the Gloo Mesh in
 - Multi-cluster traffic
 - Failover
 
-## Lab environment
-
-Gloo Mesh can be run in its own cluster or co-located with an existing mesh.  In this exercise, Gloo Mesh will run in its own dedicated management cluster, while the two managed Istio meshes will run in separate clusters.
-
-![Lab](images/lab.png)
-
 ## Table of contents
 
 * [Lab 1 - Deploy your Kubernetes clusters](#lab1)
@@ -32,59 +26,32 @@ Gloo Mesh can be run in its own cluster or co-located with an existing mesh.  In
 
 ## Lab 1 : Deploy your Kubernetes clusters {#lab1}
 
-
-
 From the terminal go to the `/home/solo/workshops/gloo-mesh` directory:
 
 ```
 cd /home/solo/workshops/gloo-mesh
 ```
 
-Run the following commands to deploy three Kubernetes clusters using [Kind](https://kind.sigs.k8s.io/):
+For this workshop, you need to deploy 3 EKS clusters.
 
-```bash
-../scripts/deploy.sh 1 mgmt
-../scripts/deploy.sh 2 cluster1 us-west us-west-1
-../scripts/deploy.sh 3 cluster2 us-west us-west-2
-```
+All the instructions have been tested with each EKS cluster composed of 3 `3.xlarge` instances (4 CPUs and 16 GB of RAM).
 
-Then run the following commands to wait for all the Pods to be ready:
+Gloo Mesh can be run in its own cluster or co-located with an existing mesh.  In this exercise, Gloo Mesh will run in its own dedicated management cluster, while the two managed Istio meshes will run in separate clusters.
 
-```bash
-../scripts/check.sh mgmt
-../scripts/check.sh cluster1 
-../scripts/check.sh cluster2 
-```
-
-**Note:** If you run the `check.sh` script immediately after the `deploy.sh` script, you may see a jsonpath error. If that happens, simply wait a few seconds and try again.
-
-Once the `check.sh` script completes, when you execute the `kubectl get pods -A` command, you should see the following:
+You can deploy them using the following commands:
 
 ```
-NAMESPACE            NAME                                          READY   STATUS    RESTARTS   AGE
-kube-system          calico-kube-controllers-59d85c5c84-sbk4k      1/1     Running   0          4h26m
-kube-system          calico-node-przxs                             1/1     Running   0          4h26m
-kube-system          coredns-6955765f44-ln8f5                      1/1     Running   0          4h26m
-kube-system          coredns-6955765f44-s7xxx                      1/1     Running   0          4h26m
-kube-system          etcd-cluster1-control-plane                   1/1     Running   0          4h27m
-kube-system          kube-apiserver-cluster1-control-plane         1/1     Running   0          4h27m
-kube-system          kube-controller-manager-cluster1-control-plane1/1     Running   0          4h27m
-kube-system          kube-proxy-ksvzw                              1/1     Running   0          4h26m
-kube-system          kube-scheduler-cluster1-control-plane         1/1     Running   0          4h27m
-local-path-storage   local-path-provisioner-58f6947c7-lfmdx        1/1     Running   0          4h26m
-metallb-system       controller-5c9894b5cd-cn9x2                   1/1     Running   0          4h26m
-metallb-system       speaker-d7jkp                                 1/1     Running   0          4h26m
+eksctl create cluster --version 1.18 -N 3 -t t3.xlarge --name mgmt --region eu-west-1
+eksctl create cluster --version 1.18 -N 3 -t t3.xlarge --name cluster1 --region eu-west-1
+eksctl create cluster --version 1.18 -N 3 -t t3.xlarge --name cluster2 --region eu-west-1
 ```
 
-Note that this represents the output just for `cluster2`, although the pod footprint for all three clusters should look similar at this point.
+You also need to rename the Kubernete contexts of each EKS cluster to match `mgmt`, `cluster1` and `cluster2`.
 
-You can see that your currently connected to this cluster by executing the `kubectl config get-contexts` command:
+Here is an example showing how to rename a Kubernetes context:
 
 ```
-CURRENT   NAME         CLUSTER         AUTHINFO   NAMESPACE  
-          cluster1     kind-cluster1   cluster1
-*         cluster2     kind-cluster2   cluster2
-          mgmt         kind-mgmt       kind-mgmt 
+kubectl config rename-context <context to rename> <new context name>
 ```
 
 Run the following command to make `mgmt` the current cluster.
@@ -98,7 +65,7 @@ kubectl config use-context mgmt
 First of all, you need to install the *meshctl* CLI:
 
 ```bash
-curl -sL https://run.solo.io/meshctl/install | GLOO_MESH_VERSION=v1.0.3 sh -
+curl -sL https://run.solo.io/meshctl/install | GLOO_MESH_VERSION=v1.1.0-beta5 sh -
 export PATH=$HOME/.gloo-mesh/bin:$PATH
 ```
 
@@ -112,6 +79,7 @@ helm repo update
 kubectl --context mgmt create ns gloo-mesh 
 helm install gloo-mesh-enterprise gloo-mesh-enterprise/gloo-mesh-enterprise \
 --namespace gloo-mesh --kube-context mgmt \
+--version=1.1.0-beta6 \
 --set licenseKey=${GLOO_MESH_LICENSE_KEY}
 
 kubectl --context mgmt -n gloo-mesh rollout status deploy/enterprise-networking
@@ -120,7 +88,7 @@ kubectl --context mgmt -n gloo-mesh rollout status deploy/enterprise-networking
 Then, you need to register the two other clusters:
 
 ```bash
-SVC=$(kubectl --context mgmt -n gloo-mesh get svc enterprise-networking -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+SVC=$(kubectl --context mgmt -n gloo-mesh get svc enterprise-networking -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
 
 meshctl cluster register --mgmt-context=mgmt --remote-context=cluster1 --relay-server-address=$SVC:9900 enterprise cluster1 --cluster-domain cluster.local
 meshctl cluster register --mgmt-context=mgmt --remote-context=cluster2 --relay-server-address=$SVC:9900 enterprise cluster2 --cluster-domain cluster.local
@@ -407,7 +375,11 @@ As you can see, it deployed all three versions of the `reviews` microservice.
 
 ![Initial setup](images/initial-setup.png)
 
-Open the <a href="http://172.18.2.1/productpage" target="_blank">bookinfo app</a> with your web browser.
+Run the following command to get the URL you can use to access the Bookinfo application:
+
+```bash
+echo "http://$(kubectl --context cluster1 -n istio-system get svc istio-ingressgateway -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')/productpage"
+```
 
 ![Bookinfo working](images/bookinfo-working.png)
 
@@ -1389,6 +1361,7 @@ spec:
   port:
     number: 9080
     protocol: http
+    targetNumber: 9080
   localized:
     outlierDetection:
       consecutiveErrors: 1
@@ -1788,7 +1761,7 @@ Gloo Mesh Enterprise CLI comes with all the features you need to develop, build,
 Install the Gloo Mesh Enterprise CLI plugin manager:
 
 ```bash
-meshctl init-plugin-manager
+meshctl init-plugin-manager -f
 ```
 
 Install the WASM meshctl plugins:

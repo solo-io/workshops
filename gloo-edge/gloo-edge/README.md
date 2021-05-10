@@ -1080,6 +1080,13 @@ In this case, let's take a closer look at the claims that the Keycloak-generated
 
 JWKS is a set of public keys that can be used to verify the JWT tokens.
 
+First, we need to assign the value to a variable of the keycloak master realm.   
+
+```
+KEYCLOAK_MASTER_REALM_URL=http://$(kubectl get svc keycloak -ojsonpath='{.status.loadBalancer.ingress[0].ip}'):8080/auth/realms/master
+```
+
+
 Now, we can update the Virtual Service to validate the token, extract claims from the token and create new headers based on these claims.
 
 ```bash
@@ -1120,7 +1127,7 @@ spec:
       jwt:
         providers:
           keycloak:
-            issuer: http://172.18.1.2:8080/auth/realms/master
+            issuer: ${KEYCLOAK_MASTER_REALM_URL}
             tokenSource:
               headers:
               - header: Jwt
@@ -1224,7 +1231,7 @@ spec:
       jwt:
         providers:
           dex:
-            issuer: http://172.18.1.2:8080/auth/realms/master
+            issuer: ${KEYCLOAK_MASTER_REALM_URL}
             tokenSource:
               headers:
               - header: Jwt

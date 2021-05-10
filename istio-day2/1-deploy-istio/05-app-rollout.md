@@ -123,7 +123,7 @@ for i in {1..10}; do kubectl exec -it deploy/sleep -n default -- curl http://web
 
 If everything looks good, we can introduce the sidecar to the rest of the services and delete the canary:
 
-```
+```bash
 kubectl rollout restart deployment web-api -n istioinaction
 kubectl rollout restart deployment purchase-history-v1 -n istioinaction
 kubectl rollout restart deployment recommendation -n istioinaction
