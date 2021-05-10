@@ -39,8 +39,9 @@ Then verify that your Kubernetes cluster is ready:
 ```bash
 ../../scripts/check.sh gloo-edge
 ```
+The `check.sh` script will return immediately with no output if the cluster is ready.  Otherwise, it will output a series of periodic "waiting" messages until the cluster is up.
 
-### Install Gloo 
+### Install Gloo Edge Enterprise
 
 Run the commands below to deploy Gloo Edge Enterprise:
 
@@ -747,7 +748,7 @@ If you want to customize how these per-upstream dashboards look, you can provide
 
 ### Access Logging
 
-Access logs are important to check if a system is behaving correctly and for debugging purposes. Logs aggregators (datadog, splunk..etc) use agents deployed on the Kubernetes clusters to collect logs.  
+Access logs are important to check if a system is behaving correctly and for debugging purposes. Log aggregators like Datadog and Splunk use agents deployed on the Kubernetes clusters to collect logs.  
 
 Lets first enable access logging on the gateway: 
 
@@ -1065,7 +1066,15 @@ Here is the output you should get if you refresh the web page:
 }
 ```
 
-You can see that the `jwt` header has been added to the request while the cookie header has been removed.
+You can see that the `Jwt` header has been added to the request while the cookie header has been removed.
+
+### Inspect the JWT token claims
+
+The JWT token contains a number of claims that we can use to drive RBAC decisions and potentially to provide other input to our upstream systems.
+
+In this case, let's take a closer look at the claims that the Keycloak-generated JWT provides us.  Paste the text of the `Jwt` header into the `Encoded` block at [jwt.io](https://jwt.io), and it will show you the full set of claims available.
+
+![JWT Claims](images/jwt-claims.png)
 
 ### Extract information from the JWT token
 
@@ -1117,7 +1126,7 @@ spec:
 #--------------Extract claims-----------------
       jwt:
         providers:
-          dex:
+          keycloak:
             issuer: ${KEYCLOAK_MASTER_REALM_URL}
             tokenSource:
               headers:
@@ -1175,9 +1184,9 @@ Here is the output you should get if you refresh the web page:
 }
 ```
 
-As you can see, Gloo Edge has added the x-solo-claim-email and x-solo-claime-email-verified headers using the information it has extracted from the JWT token.
+As you can see, Gloo Edge has added the `x-solo-claim-email` and `x-solo-claim-email-verified` headers using the information it has extracted from the JWT token.
 
-It will allow the application to know who the user is and if his email has been verified.
+It will allow the application to know the user's email identity and if that email has been verified.
 
 ### RBAC using the claims of the JWT token
 
