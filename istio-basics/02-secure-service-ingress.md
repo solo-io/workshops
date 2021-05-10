@@ -1,3 +1,5 @@
+# Lab 2 :: Istio Ingress Gateway
+
 In this lab, you will deploy the sample application to your Kubernetes cluster, and expose the web-api service to the Istio ingress gateway and configure secure access to it. The intention of the ingress gateway is to allow traffic into the mesh. If you need more sophisticated edge gateway capabilities (rate limiting, request transformation, OIDC, LDAP, OPA, etc) then use a gateway specifically built for those use cases like [Gloo Edge](https://docs.solo.io/gloo-edge/latest/).
 
 ## Prerequisites
