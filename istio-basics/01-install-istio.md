@@ -41,6 +41,14 @@ Since this is a get started workshop, let's use the demo profile.
 istioctl install --set profile=demo -y
 ```
 
+{% hint style="info" %}
+If your Kubernetes environment can only support Kubernetes Service of type `NodePort`, configure your Istio ingress gateway to use type `NodePort`
+
+```bash
+istioctl install --set profile=demo -y --set values.gateways.istio-ingressgateway.type=NodePort
+```
+{% endhint %}
+
 Check out the resources installed by Istio:
 
 ```bash
