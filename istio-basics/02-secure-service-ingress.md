@@ -137,6 +137,18 @@ spec:
           number: 8080
 ```
 
+Why port number `8080` in the destination route configuration for the `web-api-gw-vs` virtual service resource? Check the service port for the `web-api` service in the `istioinaction` namespace:
+
+```bash
+kubectl get service web-api -n istioinaction
+```
+
+You can see the service listens on port `8080`:
+```
+NAME      TYPE        CLUSTER-IP    EXTERNAL-IP   PORT(S)    AGE
+web-api   ClusterIP   10.1.54.188   <none>        8080/TCP   19d
+```
+
 Let's apply the `Gateway` and `VirtualService` resource to expose our `web-api` service outside of the Kubernetes cluster:
 
 ```bash
