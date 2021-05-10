@@ -67,20 +67,55 @@ From the deployment descriptor, the `app: web-api` label matches the `web-api` s
         - containerPort: 8081
 ```
 
+Check the `purchase-history-v1`, `recommendation` and `sleep` service and validate they all meet the above requirements.
+
 ## Adding services to the mesh
 
-Next, let us introduce the sidecar to each of the services in this namespace:
+Let us add the sidecar to each of the services in the `istioinaction` namespace, starting with the `web-api` service:
+
 
 ```bash
 kubectl rollout restart deployment web-api -n istioinaction
+```
+
+Validate the `web-api` pod has reached running status with sidecar injected:
+
+```bash
+kubectl get pod -l app=web-api -n istioinaction
+```
+
+Validate the `web-api` pod log looks good:
+
+```bash
+kubectl logs -c web-api -n istioinaction
+```
+
+Validate you can continue to call the `web-api` service securely:
+
+```bash
+curl -H "Host: istioinaction.io" http://$GATEWAY_IP:$INGRESS_PORT
+```
+
+TODO: describe the pod to view the init-container and sidecar container.
+
+Next, let us add the sidecar to all other services in the `istioinaction` namespace
+
+```bash
 kubectl rollout restart deployment purchase-history-v1 -n istioinaction
 kubectl rollout restart deployment recommendation -n istioinaction
 kubectl rollout restart deployment sleep -n istioinaction
 ```
-## Observe communications among services.
+## What have you gained?
+
+Congratulations on getting all services in the `istioinaction` namespace to the Istio service mesh. One of the values of using a service mesh is that you can gain immediate insights into the behaviors and interactions of your services. Istio deliveres a set of dashboards as addon components that provide you access to important telemetry data that is available just by adding services to the mesh.
+
+TODO: open up jaeger
+
+TODO: open up kiali
 
 ## Propogate Trace Headers
 
+## Next lab
 Congratulations, you have added the sample application successfully to Istio service mesh and observed the services' communications. We'll explore securing these services in the mesh in the [next lab](./04-secure-services-with-istio.md).
 
 
