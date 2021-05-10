@@ -37,7 +37,7 @@ web-api-6d544cff77-drrbm               1/1     Running   0          22s
 
 ## Configure the inbound traffic
 
-The ingress gateway will create a Kubernetes Service of type `LoadBalancer`. Use this IP address to reach the gateway:
+The Istio ingress gateway will create a Kubernetes Service of type `LoadBalancer`. Use this IP address to reach the gateway:
 
 ```bash
 kubectl get svc -n istio-system
@@ -64,7 +64,7 @@ There is a known issue with MetalLB with MacOS. If you are running this lab on y
 {% endhint %}
 
 {% hint style="info" %}
-If your ingress gateway created a Kubernetes Service of type `NodePort`, use the following commands to set your `GATEWAY_IP`:
+If your Istio ingress gateway created a Kubernetes Service of type `NodePort`, use the following commands to set your `GATEWAY_IP`:
 
 ```bash
 export GATEWAY_IP=$(kubectl get po -l istio=ingressgateway -n istio-system -o jsonpath='{.items[0].status.hostIP}')
@@ -82,7 +82,7 @@ export SECURE_INGRESS_PORT=$(kubectl -n istio-system get service istio-ingressga
 
 ## Expose our apps
 
-Even though we don't have our apps in the `istioinaction` namespace in the mesh yet, we can still use the Istio Ingress gateway to route traffic to them. Using Istio's `Gateway` resource, we can configure what ports should be exposed, what protocol to use etc.  Using Istio's `VirtualService` resource, we can configure how to route traffic from the Istio Ingress gateway to our `web-api` service.
+Even though we don't have our apps in the `istioinaction` namespace in the mesh yet, we can still use the Istio ingress gateway to route traffic to them. Using Istio's `Gateway` resource, we can configure what ports should be exposed, what protocol to use etc.  Using Istio's `VirtualService` resource, we can configure how to route traffic from the Istio ingress gateway to our `web-api` service.
 
 Let's review our `Gateway` resource:
 
@@ -90,7 +90,7 @@ Let's review our `Gateway` resource:
 cat sample-apps/ingress/web-api-gw.yaml
 ```
 
-In addition to the `web-api-gateway` name of the gateway resource, we can configure that port `80` with protocol `HTTP` is exposed for the `istioinaction.io` host for our Istio Ingress gateway selected by the `istio: ingressgateway` selector:
+In addition to the `web-api-gateway` name of the gateway resource, we can configure that port `80` with protocol `HTTP` is exposed for the `istioinaction.io` host for our Istio ingress gateway selected by the `istio: ingressgateway` selector:
 
 ```yaml
 apiVersion: networking.istio.io/v1alpha3
@@ -141,11 +141,20 @@ Let's apply the `Gateway` and `VirtualService` resource to expose our `web-api` 
 kubectl -n istioinaction apply -f sample-apps/ingress/
 ```
 
-The ingress gateway will create new routes on the proxy that we should be able to call it from outside of the Kubernetes cluster:
+The Istio ingress gateway will create new routes on the proxy that we should be able to call it from outside of the Kubernetes cluster:
 
 ```bash
 curl -H "Host: istioinaction.io" http://$GATEWAY_IP
 ```
+
+{% hint style="info" %}
+If your Istio ingress gateway created a Kubernetes Service of type `NodePort`, use below to call it:
+
+```bash
+curl -H "Host: istioinaction.io" http://$GATEWAY_IP:$INGRESS_PORT
+```
+
+{% endhint %}
 
 We can query the gateway configuration using the `istioctl proxy-config` command:
 
@@ -212,14 +221,29 @@ Example calling it on the secure `443` port:
 curl --cacert ./labs/04/certs/ca/root-ca.crt -H "Host: istioinaction.io" https://istioinaction.io --resolve istioinaction.io:443:$GATEWAY_IP
 ```
 
+{% hint style="info" %}
+If your Istio ingress gateway created a Kubernetes Service of type `NodePort`, use below to call it:
+
+```bash
+curl --cacert ./labs/04/certs/ca/root-ca.crt -H "Host: istioinaction.io" https://istioinaction.io --resolve istioinaction.io:$SECURE_INGRESS_PORT:$GATEWAY_IP
+```
+
+{% endhint %}
+
 If you call it on the `80` port with `http`, it will not work as we no longer configure the gateway resource to expose on port `80`.
 
 ```bash
 curl -H "Host: istioinaction.io" http://$GATEWAY_IP
 ```
 
+{% hint style="info" %}
+If your Istio ingress gateway created a Kubernetes Service of type `NodePort`, use below to call it:
+
+```bash
+curl -H "Host: istioinaction.io" http://$GATEWAY_IP:$INGRESS_PORT
+```
 ## Next lab
 
-Congratulations, you have exposed the web-api service to Istio Ingress gateway securely. We'll explore adding services to the mesh in the [next lab](./03-add-services-to-mesh.md).
+Congratulations, you have exposed the web-api service to Istio ingress gateway securely. We'll explore adding services to the mesh in the [next lab](./03-add-services-to-mesh.md).
 
 
