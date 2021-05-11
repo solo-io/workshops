@@ -1,4 +1,4 @@
-# Gloo Mesh workshop (local)
+# Gloo Mesh Or Istio Workshop (local)
 
 ## Prerequisites
 
@@ -7,6 +7,8 @@ Install VirtualBox.
 Install Vagrant.
 
 Install Ansible.
+
+Requires at least 8GB base memory and 8 CPU allocated to VM.
 
 ## Deploy
 
