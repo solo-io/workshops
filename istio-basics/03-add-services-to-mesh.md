@@ -131,7 +131,19 @@ istioctl dashboard jaeger
 
 TODO: capture a screen shot of Jaeger.
 
+You can also view various service metrics from the Grafana dashboard.  Launch the Grafana dashboard:
+
+```bash
+istioctl dashboard grafana
+```
+
+TODO: capture a screen shot of Grafana service level metrics.
+
+TODO: add some content for prometheus and connect it to generate alerts.
+
 ## Propogate Trace Headers
+
+TODO: check if the sample services already propogate trace headers. If not, we need to add code to do it.
 
 ## Next lab
 Congratulations, you have added the sample application successfully to Istio service mesh and observed the services' communications. We'll explore securing these services in the mesh in the [next lab](./04-secure-services-with-istio.md).
