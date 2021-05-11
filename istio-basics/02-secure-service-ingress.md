@@ -8,6 +8,8 @@ Verify you're in the correct folder for this lab: `/home/solo/workshops/istio-ba
 
 ## Deploy the sample application
 
+TODO: explain the sample application with a diagram.
+
 Let's set up the namespace for our services:
 
 ```bash

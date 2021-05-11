@@ -102,6 +102,8 @@ Verify you can access the Kiali dashboard:
 istioctl dashboard kiali
 ```
 
+You will not see much telemetry data from any of these dashboards, as we don't have any services in the Istio service mesh yet. We will revisit these dashboards in the [lab 03](03-add-services-to-mesh.md).
+
 ## Next lab
 
 Congratulations, you have installed Istio control plane (Istiod), Istio ingress-gateway and egress-gateway and its addon components successfully.  We'll explore expose and secure your services to Istio ingress gateway in the [next lab](./02-secure-service-ingress.md).
