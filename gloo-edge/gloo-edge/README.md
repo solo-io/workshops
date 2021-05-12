@@ -147,7 +147,7 @@ We can access the application using the web browser by running the following com
 
 It should return the bookinfo application webpage. Note that the review stars are black (v2).
 
-![Lab](images/1.png)
+![Bookinfo Web Interface](images/1.png)
 
 
 ### Routing to Multiple Upstreams
@@ -162,7 +162,7 @@ kubectl -n bookinfo-beta apply -f https://raw.githubusercontent.com/istio/istio/
 kubectl delete deployment reviews-v1 reviews-v2 -n bookinfo-beta
 ```
 
-![Weighted routing](images/bookinfo-v3.png)
+![Weighted Routing Diagram](images/bookinfo-v3.png)
 
 Verify that the Upstream for the beta application was created, using the following command: 
 
@@ -210,7 +210,7 @@ EOF
 
 We should see either the black star reviews (v2) or the new red star reviews (v3) when refreshing the page.
 
-![Lab](images/2.png)
+![Bookinfo Web Interface](images/2.png)
 
 ## Lab 2: Security
 
@@ -279,6 +279,10 @@ Now the application is securely exposed through TLS. To test the TLS configurati
 APP_URL=$(glooctl proxy url --port https | cut -d: -f1-2)
 /opt/google/chrome/chrome $APP_URL/productpage 
 ```
+
+The browser will warn you that your connection is not private due to the self-signed certificate.  Click through the `Advanced` button and the subsequent link to proceed to the "unsafe" destination.  Then the bookinfo interface should display as expected, although the address bar may continue to warn you that the destination is "Not Secure."  Don't worry; this is expected behavior given the self-signed certificate.
+
+![Self-Signed Certificate Warning](images/self-signed-cert-error.png)
 
 ### OIDC Support
 
@@ -411,7 +415,7 @@ To test the authentication, refresh the web browser.
 
 If you login as the `user1` user with the password `password`, Gloo should redirect you to the application.
 
-![Lab](images/3.png)
+![Keycloak Authentication Dialog](images/3.png)
 
 ### Rate Limiting
 
@@ -490,7 +494,7 @@ EOF
 
 To test rate limiting, refresh the browser until you see a 429 message. 
 
-![Lab](images/4.png)
+![Browser 429 Too Many Requests Interface](images/4.png)
 
 ### Web Application Firewall (WAF)
 
@@ -642,7 +646,7 @@ Use cases for delegation include:
 - Simplifying very large routing configurations for a single Virtual Service
 - Restricting ownership of routing configuration for a tenant to a subset of the whole Virtual Service.
 
-Let's rewrite our Virtual Service to use delegate the routing information to a Route Table:
+Let's rewrite our Virtual Service to delegate the routing to a Route Table:
 
 ```bash
 kubectl apply -f - <<EOF
