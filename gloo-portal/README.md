@@ -355,8 +355,8 @@ EOF
 Run the commands below to deploy Gloo Edge Enterprise:
 
 ```bash
-glooctl upgrade --release=v1.7.0-beta32
-glooctl install gateway enterprise --version v1.7.0-beta15 --license-key $LICENSE_KEY
+glooctl upgrade --release=v1.7.3
+glooctl install gateway enterprise --version v1.7.5 --license-key $LICENSE_KEY
 ```
 
 Gloo Edge can also be deployed using a Helm chart.
@@ -394,7 +394,7 @@ licenseKey:
 EOF
 
 kubectl create namespace dev-portal
-helm install dev-portal dev-portal/dev-portal -n dev-portal --values gloo-values.yaml  --version=0.7.0
+helm install dev-portal dev-portal/dev-portal -n dev-portal --values gloo-values.yaml  --version=0.7.4
 ```
 
 <!--bash
