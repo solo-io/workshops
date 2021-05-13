@@ -16,11 +16,12 @@ spec:
         app: purchase-history
         version: v2
       annotations:
+        proxy.istio.io/config: '{ "holdApplicationUntilProxyStarts": true }'
     spec:
       serviceAccountName: purchase-history    
       containers:
       - name: purchase-history
-        image: nicholasjackson/fake-service:v0.7.8
+        image: linsun/fake-service:v2
         ports:
         - containerPort: 8080
         env:
@@ -32,3 +33,6 @@ spec:
           value: "http"
         - name: "MESSAGE"
           value: "Hello From Purchase History (v2)!"
+        - name: "EXTERNAL_SERVICE_URL"
+          value: "http://jsonplaceholder.typicode.com/posts"
+        imagePullPolicy: Always
