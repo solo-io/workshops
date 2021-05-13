@@ -1364,7 +1364,7 @@ token=$(curl -d "client_id=admin-cli" -d "username=user1" -d "password=password"
 Then, we can run the following command:
 
 ```
-./grpcurl -plaintext -H "Authorization: Bearer ${token}" -authority dev.petstore.com 172.18.1.2:80 test.solo.io.PetStore/ListPets
+./grpcurl -plaintext -H "Authorization: Bearer ${token}" -authority dev.petstore.com $(glooctl proxy url | cut -c 8-) test.solo.io.PetStore/ListPets
 ```
 
 You should get a result similar to:
