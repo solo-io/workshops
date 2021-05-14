@@ -504,7 +504,7 @@ status:
 
 **API Products** are Kubernetes Custom Resources which bundle the APIs defined in **API Docs** into a product that can be exposed to ingress traffic as well as published on a Portal UI. An **API Product** defines what API operations are being exposed, and the routing information to reach the services.
 
-Let's create an **API Product** using the **API Docs** we've just created and pointing to the 2 versions of the `Petstore` application:
+Let's build an **API Product** using the **API Docs** we've just created to point to the two versions of the `Petstore` application:
 
 ```bash
 cat << EOF | kubectl apply -f-
@@ -858,6 +858,7 @@ spec:
   apiProducts:
   - name: petstore
     namespace: default
+    # ----------------------- Add basic usage plan ----------------------
     plans:
     - authPolicy:
         apiKey: {}
@@ -866,6 +867,7 @@ spec:
       rateLimit:
         requestsPerUnit: 5
         unit: MINUTE
+    # -------------------------------------------------------------------
     publishedVersions:
     - name: v1
     - name: v2
@@ -889,8 +891,10 @@ spec:
       environments:
       - name: dev
         namespace: default
+        # ----------------------- Add basic usage plan ----------------------
         plans:
         - basic
+        # -------------------------------------------------------------------
     portals:
     - name: petstore-portal
       namespace: default
@@ -1051,7 +1055,7 @@ spec:
 
 The `extauth` and `rateLimitConfigs` options have been added on each route to secure the API.
 
-## Lab 8: Secure the access to the API with Oauth tokens
+## Lab 8: Secure the access to the API with OAuth tokens
 
 We can update the Environment to create a plan (called `Basic auth`) with its associated rate limit. Consumers will authenticate themselves using an OAuth token:
 
@@ -1074,6 +1078,7 @@ spec:
   - name: petstore
     namespace: default
     plans:
+    # ----------------------------- Change authPolicy from apiKey to OAuth ------------------------------
     - authPolicy:
         oauth:
           authorizationUrl: ${KEYCLOAK_URL}/realms/master/protocol/openid-connect/auth
@@ -1083,8 +1088,9 @@ spec:
             remoteJwks:
               refreshInterval: 60s
               url: ${KEYCLOAK_URL}/realms/master/protocol/openid-connect/certs
-      displayName: Basic Oauth
+      displayName: Basic OAuth
       name: basic-oauth
+    # ---------------------------------------------------------------------------------------------------
       rateLimit:
         requestsPerUnit: 5
         unit: MINUTE
@@ -1111,8 +1117,10 @@ spec:
       environments:
       - name: dev
         namespace: default
+        # ----------------------------- Specify new usage plan ------------------------------
         plans:
         - basic-oauth
+        # -----------------------------------------------------------------------------------
     portals:
     - name: petstore-portal
       namespace: default
@@ -1239,7 +1247,7 @@ You can then check the status of the API Doc using the following command:
 kubectl get apidoc -n default petstore-grpc-doc -oyaml
 ```
 
-Let's update our **API Product** to expose the gRPC **API Dos** we've just created:
+Let's update our **API Product** to expose the gRPC **API Docs** we've just created:
 
 ```bash
 cat << EOF | kubectl apply -f-
@@ -1283,6 +1291,7 @@ spec:
             name: petstore-v2
             namespace: default
             port: 8080
+  # ----------------------------- Add new gRPC version to APIProduct ------------------------------
   - name: v3
     apis:
     - apiDoc:
@@ -1295,6 +1304,7 @@ spec:
             name: petstore-grpc
             namespace: default
             port: 8080
+  # -----------------------------------------------------------------------------------------------
     tags:
       stable: {}
 EOF
@@ -1304,6 +1314,47 @@ You can then check the status of the API Product using the following command:
 
 ```bash
 kubectl get apiproducts.devportal.solo.io petstore -o yaml
+```
+
+Note that the API Doc's reflection endpoint has been used to capture all the operations published by the Petstore gRPC interface.
+
+```
+apiVersion: devportal.solo.io/v1alpha1
+kind: APIDoc
+metadata:
+  ...
+  name: petstore-grpc-doc
+  namespace: default
+  ...
+spec:
+  grpc:
+    reflectionSource:
+      connectionTimeout: 5s
+      insecure: true
+      serviceAddress: petstore-grpc.default:8080
+status:
+  grpc:
+    methods:
+    - rpcName: ServerReflectionInfo
+      rpcType: BIDIRECTIONAL_STREAMING
+      serviceName: grpc.reflection.v1alpha.ServerReflection
+    - rpcName: ListPets
+      rpcType: UNARY
+      serviceName: test.solo.io.PetStore
+    - rpcName: FindPetById
+      rpcType: UNARY
+      serviceName: test.solo.io.PetStore
+    - rpcName: AddPet
+      rpcType: UNARY
+      serviceName: test.solo.io.PetStore
+    - rpcName: DeletePet
+      rpcType: UNARY
+      serviceName: test.solo.io.PetStore
+    - rpcName: WatchPets
+      rpcType: SERVER_STREAMING
+      serviceName: test.solo.io.PetStore
+  observedGeneration: 1
+  state: Succeeded
 ```
 
 Update the **Environment** to include the gRPC version:
@@ -1336,7 +1387,7 @@ spec:
             remoteJwks:
               refreshInterval: 60s
               url: ${KEYCLOAK_URL}/realms/master/protocol/openid-connect/certs
-      displayName: Basic Oauth
+      displayName: Basic OAuth
       name: basic-oauth
       rateLimit:
         requestsPerUnit: 5
@@ -1344,7 +1395,9 @@ spec:
     publishedVersions:
     - name: v1
     - name: v2
+    # ----------------------- Add v3 to dev Environment ----------------------
     - name: v3
+    # ------------------------------------------------------------------------
 EOF
 ```
 
