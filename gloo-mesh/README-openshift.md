@@ -340,7 +340,7 @@ istio-ingressgateway-5c7759c8cb-52r2j   1/1     Running   0          22s
 istiod-7884b57b4c-rvr2c                 1/1     Running   0          30s
 ```
 
-Check the status on the
+Check the status on the second cluster using `kubectl --context cluster2 get pods -n istio-system`
 
 Expose an OpenShift route for the ingress gateway on each cluster:
 

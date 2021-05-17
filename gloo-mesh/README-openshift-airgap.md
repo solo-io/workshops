@@ -18,7 +18,7 @@ Gloo Mesh can be run in its own cluster or co-located with an existing mesh.  In
 
 ## Table of contents
 
-* [Lab 1 - Deploy your Kubernetes clusters](#lab1)
+* [Lab 1 - Deploy your Openshift clusters](#lab1)
 * [Lab 2 - Deploy Gloo Mesh and register the clusters](#lab2)
 * [Lab 3 - Deploy Istio on both clusters](#lab3)
 * [Lab 4 - Deploy the Bookinfo demo app](#lab4)
@@ -30,7 +30,7 @@ Gloo Mesh can be run in its own cluster or co-located with an existing mesh.  In
 * [Lab 10 - Extend Envoy with WebAssembly](#lab10)
 * [Lab 11 - Exploring the Gloo Mesh Enterprise UI](#lab11)
 
-## Lab 1 : Deploy your Kubernetes clusters {#lab1}
+## Lab 1 : Deploy your Openshift clusters {#lab1}
 
 From the terminal go to the `/home/solo/workshops/gloo-mesh` directory:
 
@@ -38,51 +38,18 @@ From the terminal go to the `/home/solo/workshops/gloo-mesh` directory:
 cd /home/solo/workshops/gloo-mesh
 ```
 
-Run the following commands to deploy three Kubernetes clusters using [Kind](https://kind.sigs.k8s.io/):
+For this workshop, you need to deploy 3 Openshift clusters.
 
-```bash
-../scripts/deploy.sh 1 mgmt
-../scripts/deploy.sh 2 cluster1 us-west us-west-1
-../scripts/deploy.sh 3 cluster2 us-west us-west-2
-```
+All the instructions have been tested with Openshift 4.6.22 and each cluster was composed of 3 worker nodes with 4 CPUs and 16 GB of RAM each.
 
-Then run the following commands to wait for all the Pods to be ready:
+Gloo Mesh can be run in its own cluster or co-located with an existing mesh.  In this exercise, Gloo Mesh will run in its own dedicated management cluster, while the two managed Istio meshes will run in separate clusters.
 
-```bash
-../scripts/check.sh mgmt
-../scripts/check.sh cluster1 
-../scripts/check.sh cluster2 
-```
+You also need to rename the Kubernete contexts of each Openshift cluster to match `mgmt`, `cluster1` and `cluster2`.
 
-**Note:** If you run the `check.sh` script immediately after the `deploy.sh` script, you may see a jsonpath error. If that happens, simply wait a few seconds and try again.
-
-Once the `check.sh` script completes, when you execute the `kubectl get pods -A` command, you should see the following:
+Here is an example showing how to rename a Kubernetes context:
 
 ```
-NAMESPACE            NAME                                          READY   STATUS    RESTARTS   AGE
-kube-system          calico-kube-controllers-59d85c5c84-sbk4k      1/1     Running   0          4h26m
-kube-system          calico-node-przxs                             1/1     Running   0          4h26m
-kube-system          coredns-6955765f44-ln8f5                      1/1     Running   0          4h26m
-kube-system          coredns-6955765f44-s7xxx                      1/1     Running   0          4h26m
-kube-system          etcd-cluster1-control-plane                   1/1     Running   0          4h27m
-kube-system          kube-apiserver-cluster1-control-plane         1/1     Running   0          4h27m
-kube-system          kube-controller-manager-cluster1-control-plane1/1     Running   0          4h27m
-kube-system          kube-proxy-ksvzw                              1/1     Running   0          4h26m
-kube-system          kube-scheduler-cluster1-control-plane         1/1     Running   0          4h27m
-local-path-storage   local-path-provisioner-58f6947c7-lfmdx        1/1     Running   0          4h26m
-metallb-system       controller-5c9894b5cd-cn9x2                   1/1     Running   0          4h26m
-metallb-system       speaker-d7jkp                                 1/1     Running   0          4h26m
-```
-
-Note that this represents the output just for `cluster2`, although the pod footprint for all three clusters should look similar at this point.
-
-You can see that your currently connected to this cluster by executing the `kubectl config get-contexts` command:
-
-```
-CURRENT   NAME         CLUSTER         AUTHINFO   NAMESPACE  
-          cluster1     kind-cluster1   cluster1
-*         cluster2     kind-cluster2   cluster2
-          mgmt         kind-mgmt       kind-mgmt 
+kubectl config rename-context <context to rename> <new context name>
 ```
 
 Run the following command to make `mgmt` the current cluster.
@@ -91,12 +58,48 @@ Run the following command to make `mgmt` the current cluster.
 kubectl config use-context mgmt
 ```
 
+Set the registry variable:
+```bash
+registry=localhost:5000
+```
+
+Pull and push locally the Docker images needed:
+
+```bash
+cat <<EOF > images.txt
+gcr.io/gloo-mesh/gloo-mesh-apiserver:1.0.10
+gcr.io/gloo-mesh/gloo-mesh-ui:1.0.10
+gcr.io/gloo-mesh/gloo-mesh-envoy:1.0.10
+gcr.io/gloo-mesh/enterprise-networking:1.0.10
+gcr.io/gloo-mesh/rbac-webhook:1.0.10
+gcr.io/gloo-mesh/enterprise-agent:1.0.10
+docker.io/istio/operator:1.9.2
+gcr.io/istio-enterprise/pilot:1.9.2
+gcr.io/istio-enterprise/proxyv2:1.9.2
+docker.io/istio/examples-bookinfo-productpage-v1:1.16.2
+docker.io/istio/examples-bookinfo-reviews-v1:1.16.2
+docker.io/istio/examples-bookinfo-reviews-v2:1.16.2
+docker.io/istio/examples-bookinfo-reviews-v3:1.16.2
+docker.io/istio/examples-bookinfo-details-v1:1.16.2
+docker.io/istio/examples-bookinfo-ratings-v1:1.16.2
+EOF
+
+cat images.txt | while read image; do
+  src=$(echo $image | sed 's/^docker\.io\///g')
+  dst=$(echo $image | awk -F/ '{ if(NF>2){ print $2"/"$3}else{print $1"/"$2}}')
+  docker pull $image
+  id=$(docker images $src  --format "{{.ID}}") 
+  docker tag $id ${registry}/$dst
+  docker push ${registry}/$dst
+done
+```
+
 ## Lab 2 : Deploy Gloo Mesh and register the clusters {#lab2}
 
 First of all, you need to install the *meshctl* CLI:
 
 ```bash
-curl -sL https://run.solo.io/meshctl/install | GLOO_MESH_VERSION=v1.0.3 sh -
+curl -sL https://run.solo.io/meshctl/install | GLOO_MESH_VERSION=v1.0.5 sh -
 export PATH=$HOME/.gloo-mesh/bin:$PATH
 ```
 
@@ -105,23 +108,47 @@ Gloo Mesh Enterprise is adding unique features on top of Gloo Mesh Open Source (
 Run the following commands to deploy Gloo Mesh Enterprise:
 
 ```bash
-helm repo add gloo-mesh-enterprise https://storage.googleapis.com/gloo-mesh-enterprise/gloo-mesh-enterprise 
-helm repo update
-kubectl --context mgmt create ns gloo-mesh 
-helm install gloo-mesh-enterprise gloo-mesh-enterprise/gloo-mesh-enterprise \
+wget https://storage.googleapis.com/gloo-mesh-enterprise/gloo-mesh-enterprise/gloo-mesh-enterprise-1.0.10.tgz
+
+kubectl --context mgmt create ns gloo-mesh
+helm upgrade --install gloo-mesh-enterprise gloo-mesh-enterprise-1.0.10.tgz \
 --namespace gloo-mesh --kube-context mgmt \
---set licenseKey=${GLOO_MESH_LICENSE_KEY}
+--set licenseKey=${GLOO_MESH_LICENSE_KEY} \
+--set enterprise-networking.enterpriseNetworking.image.registry=${registry}/gloo-mesh \
+--set rbac-webhook.rbacWebhook.image.registry=${registry}/gloo-mesh \
+--set gloo-mesh-ui.GlooMeshDashboard.apiserver.image.registry=${registry}/gloo-mesh \
+--set gloo-mesh-ui.GlooMeshDashboard.console.image.registry=${registry}/gloo-mesh \
+--set gloo-mesh-ui.GlooMeshDashboard.envoy.image.registry=${registry}/gloo-mesh \
+--set gloo-mesh-ui.GlooMeshDashboard.apiserver.floatingUserId=true
 
 kubectl --context mgmt -n gloo-mesh rollout status deploy/enterprise-networking
+```
+
+Update the default Gloo Mesh role binding to provide administrative privilege to the current user (it assumes you have only one user defined in your Kubernetes cluster):
+
+```
+cat > rolebinding-patch.yaml <<EOF
+spec:
+  roleRef:
+    name: admin-role
+    namespace: gloo-mesh
+  subjects:
+  - kind: User
+    name: $(kubectl --context mgmt get user -o jsonpath='{.items[0].metadata.name}')
+EOF
+
+kubectl --context mgmt -n gloo-mesh patch rolebindings.rbac.enterprise.mesh.gloo.solo.io admin-role-binding --type=merge --patch "$(cat rolebinding-patch.yaml)"
 ```
 
 Then, you need to register the two other clusters:
 
 ```bash
+wget https://storage.googleapis.com/gloo-mesh-enterprise/enterprise-agent/enterprise-agent-1.0.10.tgz
+
 SVC=$(kubectl --context mgmt -n gloo-mesh get svc enterprise-networking -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
 
-meshctl cluster register --mgmt-context=mgmt --remote-context=cluster1 --relay-server-address=$SVC:9900 enterprise cluster1 --cluster-domain cluster.local
-meshctl cluster register --mgmt-context=mgmt --remote-context=cluster2 --relay-server-address=$SVC:9900 enterprise cluster2 --cluster-domain cluster.local
+meshctl cluster register --mgmt-context=mgmt --remote-context=cluster1 --relay-server-address=$SVC:9900 enterprise cluster1 --cluster-domain cluster.local --enterprise-agent-chart-file enterprise-agent-1.0.10.tgz --enterprise-agent-chart-values values.yaml
+meshctl cluster register --mgmt-context=mgmt --remote-context=cluster2 --relay-server-address=$SVC:9900 enterprise cluster2 --cluster-domain cluster.local --enterprise-agent-chart-file enterprise-agent-1.0.10.tgz --enterprise-agent-chart-values values.yaml
 ```
 
 You can list the registered cluster using the following command:
@@ -140,16 +167,21 @@ cluster2   23s
 
 ## Lab 3 : Deploy Istio on both clusters {#lab3}
 
-Download istio 1.9.3:
+Note that the few Openshift specific commands used in this lab are documented on the Istio website [here](https://istio.io/latest/docs/setup/platform-setup/openshift/).
+
+Download istio 1.9.2:
 
 ```bash
-curl -L https://istio.io/downloadIstio | ISTIO_VERSION=1.9.3 sh -
+curl -L https://istio.io/downloadIstio | ISTIO_VERSION=1.9.2 sh -
 ```
 
 Now let's deploy Istio on the first cluster:
 
 ```bash
-./istio-1.9.3/bin/istioctl --context cluster1 operator init
+oc --context cluster1 adm policy add-scc-to-group anyuid system:serviceaccounts:istio-system
+oc --context cluster1 adm policy add-scc-to-group anyuid system:serviceaccounts:istio-operator
+
+./istio-1.9.2/bin/istioctl --context cluster1 operator init --hub ${registry}/istio
 
 kubectl --context cluster1 create ns istio-system
 
@@ -160,7 +192,8 @@ metadata:
   name: istiocontrolplane-default
   namespace: istio-system
 spec:
-  profile: default
+  hub: ${registry}/istio-enterprise
+  profile: openshift
   meshConfig:
     accessLogFile: /dev/stdout
     enableAutoMtls: true
@@ -233,7 +266,10 @@ EOF
 And deploy Istio on the second cluster:
 
 ```bash
-./istio-1.9.3/bin/istioctl --context cluster2 operator init
+oc --context cluster2 adm policy add-scc-to-group anyuid system:serviceaccounts:istio-system
+oc --context cluster2 adm policy add-scc-to-group anyuid system:serviceaccounts:istio-operator
+
+./istio-1.9.2/bin/istioctl --context cluster2 operator init --hub ${registry}/istio
 
 kubectl --context cluster2 create ns istio-system
 
@@ -244,7 +280,8 @@ metadata:
   name: istiocontrolplane-default
   namespace: istio-system
 spec:
-  profile: default
+  hub: ${registry}/istio-enterprise
+  profile: openshift
   meshConfig:
     accessLogFile: /dev/stdout
     enableAutoMtls: true
@@ -352,16 +389,38 @@ istiod-7884b57b4c-rvr2c                 1/1     Running   0          30s
 
 Check the status on the second cluster using `kubectl --context cluster2 get pods -n istio-system`
 
+Expose an OpenShift route for the ingress gateway on each cluster:
+
+```bash
+oc --context cluster1 -n istio-system expose svc/istio-ingressgateway --port=http2
+oc --context cluster2 -n istio-system expose svc/istio-ingressgateway --port=http2
+```
+
 ## Lab 4 : Deploy the Bookinfo demo app {#lab4}
+
+Download the bookinfo yaml and update the registry:
+```bash
+curl https://raw.githubusercontent.com/istio/istio/1.8.2/samples/bookinfo/platform/kube/bookinfo.yaml | sed "s/image: docker.io/image: ${registry}/g" > bookinfo.yaml
+```
 
 Run the following commands to deploy the bookinfo app on `cluster1`:
 
 ```bash
+oc --context cluster1 adm policy add-scc-to-group privileged system:serviceaccounts:default
+oc --context cluster1 adm policy add-scc-to-group anyuid system:serviceaccounts:default
+
+cat <<EOF | oc --context cluster1 -n default create -f -
+apiVersion: "k8s.cni.cncf.io/v1"
+kind: NetworkAttachmentDefinition
+metadata:
+  name: istio-cni
+EOF
+
 kubectl --context cluster1 label namespace default istio-injection=enabled
 # deploy bookinfo application components for all versions less than v3
-kubectl --context cluster1 apply -f https://raw.githubusercontent.com/istio/istio/1.8.2/samples/bookinfo/platform/kube/bookinfo.yaml -l 'app,version notin (v3)'
+kubectl --context cluster1 apply -f bookinfo.yaml -l 'app,version notin (v3)'
 # deploy all bookinfo service accounts
-kubectl --context cluster1 apply -f https://raw.githubusercontent.com/istio/istio/1.8.2/samples/bookinfo/platform/kube/bookinfo.yaml -l 'account'
+kubectl --context cluster1 apply -f bookinfo.yaml -l 'account'
 # configure ingress gateway to access bookinfo
 kubectl --context cluster1 apply -f https://raw.githubusercontent.com/istio/istio/1.8.2/samples/bookinfo/networking/bookinfo-gateway.yaml
 ```
@@ -382,9 +441,19 @@ As you can see, it deployed the `v1` and `v2` versions of the `reviews` microser
 Now, run the following commands to deploy the bookinfo app on `cluster2`:
 
 ```bash
+oc --context cluster2 adm policy add-scc-to-group privileged system:serviceaccounts:default
+oc --context cluster2 adm policy add-scc-to-group anyuid system:serviceaccounts:default
+
+cat <<EOF | oc --context cluster2 -n default create -f -
+apiVersion: "k8s.cni.cncf.io/v1"
+kind: NetworkAttachmentDefinition
+metadata:
+  name: istio-cni
+EOF
+
 kubectl --context cluster2 label namespace default istio-injection=enabled
 # deploy all bookinfo service accounts and application components for all versions
-kubectl --context cluster2 apply -f https://raw.githubusercontent.com/istio/istio/1.8.2/samples/bookinfo/platform/kube/bookinfo.yaml
+kubectl --context cluster2 apply -f bookinfo.yaml
 # configure ingress gateway to access bookinfo
 kubectl --context cluster2 apply -f https://raw.githubusercontent.com/istio/istio/1.8.2/samples/bookinfo/networking/bookinfo-gateway.yaml
 ```
@@ -405,7 +474,11 @@ As you can see, it deployed all three versions of the `reviews` microservice.
 
 ![Initial setup](images/initial-setup.png)
 
-Open the <a href="http://172.18.2.1/productpage" target="_blank">bookinfo app</a> with your web browser.
+Run the following command to get the URL you can use to access the Bookinfo application:
+
+```bash
+echo "http://$(kubectl --context cluster1 -n istio-system get svc istio-ingressgateway -o jsonpath='{.status.loadBalancer.ingress[0].ip}')/productpage"
+```
 
 ![Bookinfo working](images/bookinfo-working.png)
 
@@ -422,6 +495,13 @@ until [ $(kubectl --context cluster2 get pods -o jsonpath='{range .items[*].stat
   sleep 1
 done
 -->
+
+Check what images have been deployed in the different clusters using the following commands:
+```bash
+kubectl --context mgmt get pods -A -o jsonpath='{range .items[*]}{range .spec.containers[*]}{.image}{"\n"}{end}{end}'
+kubectl --context cluster1 get pods -A -o jsonpath='{range .items[*]}{range .spec.containers[*]}{.image}{"\n"}{end}{end}'
+kubectl --context cluster2 get pods -A -o jsonpath='{range .items[*]}{range .spec.containers[*]}{.image}{"\n"}{end}{end}'
+```
 
 ## Lab 5 : Create the Virtual Mesh {#lab5}
 
@@ -1676,7 +1756,7 @@ spec:
     namespace: gloo-mesh
   subjects:
     - kind: User
-      name: kubernetes-admin
+      name: $(kubectl --context mgmt get user -o jsonpath='{.items[0].metadata.name}')
 EOF
 ```
 
@@ -1763,7 +1843,7 @@ spec:
     namespace: gloo-mesh
   subjects:
     - kind: User
-      name: kubernetes-admin
+      name: $(kubectl --context mgmt get user -o jsonpath='{.items[0].metadata.name}')
 EOF
 ```
 
@@ -2207,7 +2287,7 @@ EOF
 Generate some traffic and run the command below to gather the latest access logs:
 
 ```bash
-curl -XPOST '172.18.1.1:8080/v0/observability/logs?pretty'
+curl -XPOST "${SVC}:8080/v0/observability/logs?pretty"
 ```
 
 You should get an output similar to the following one:
