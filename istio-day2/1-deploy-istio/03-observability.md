@@ -4,10 +4,10 @@ One of the most powerful parts of Istio is using the mesh to quickly troubleshoo
 
 We saw in Lab 01 that Envoy surfaces a large set of stats, metrics, guages, and histograms. In this lab we look at connecting that source of information to an observability system. In many ways the mesh makes these systems more valuable.
 
-Istio comes with a few [sample addons](https://istio.io/latest/docs/ops/integrations/prometheus/#option-1-quick-start) for adding observability components like Prometheus, Grafana, and Kiali. In this lab **we will assume you are not going to use these components** as they are intended for very simple deployments and **not intended for a realistic production setup**. We will install something that looks more realistic and use that.
+Istio comes with a few [sample addons](https://istio.io/latest/docs/ops/integrations/prometheus/#option-1-quick-start) for adding observability components like Prometheus, Grafana, and Kiali. In this lab **we assume you are not going to use these components** in production. They are intended for very simple deployments and **not intended for a realistic production setup**. We will install something that looks more realistic and use that.
 
 {% hint style="warning" %}
-Istio's sample addons for Prometheus, Grafana, Kiali, etc are NOT intended for production usage. This guide will walk through a setup more production like.
+Istio's sample addons for Prometheus, Grafana, Kiali, etc are NOT intended for production usage. This guide will walk through a more production-like setup.
 {% endhint %}
 
 ## Prerequisites
