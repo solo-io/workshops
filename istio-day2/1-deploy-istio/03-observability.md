@@ -26,7 +26,7 @@ To get started, let's create the namespace into which we'll deploy our observabi
 kubectl create ns prometheus
 ```
 
-Next, let's add the promoetheus community chart repo and then update available helm charts locally.
+Next, let's add the prometheus community chart repo and then update available helm charts locally.
 
 ```bash
 helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
