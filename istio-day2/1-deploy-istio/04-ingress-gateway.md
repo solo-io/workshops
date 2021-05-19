@@ -173,7 +173,7 @@ spec:
       credentialName: istioinaction-cert
 ```
 
-Note, we are pointing to the `istioinaction-cert` and **that the cert must be in the same namespace as the ingress gateway deployment**. Even though the `Gateway` resource is in the `istioinaction` namespace, _the cert must be where the gateway is actually deployed_. 
+Note that we are pointing to the `istioinaction-cert`, and **that the cert must be in the same namespace as the ingress gateway deployment**. Even though the `Gateway` resource is in the `istioinaction` namespace, _the cert must be where the gateway is actually deployed_. 
 
 ```bash
 kubectl -n istioinaction apply -f labs/04/web-api-gw-https.yaml

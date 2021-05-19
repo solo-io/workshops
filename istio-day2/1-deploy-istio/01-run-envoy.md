@@ -4,7 +4,7 @@ In this lab, we dig into one of the foundational pieces of Istio. The "data plan
 
 The service proxy that Istio uses is [Envoy Proxy](https://www.envoyproxy.io). Envoy is an incredibly powerful and well-suited proxy for this use case. 
 
-It's impossible to understate how important Envoy is to Istio, which is why we start the labs with it.
+It's impossible to overstate how important Envoy is to Istio, which is why we start the labs with it.
 
 ## Prerequisites
 
@@ -21,7 +21,7 @@ kubectl apply -f labs/01/httpbin.yaml
 kubectl apply -f labs/01/sleep.yaml
 ```
 
-To verify we have things installed correctly, let's try run it:
+To verify we have things installed correctly, let's try running it:
 
 ```bash
 kubectl exec -it deploy/sleep -- curl httpbin:8000/headers
@@ -123,7 +123,7 @@ kubectl create cm envoy --from-file=envoy.yaml=./labs/01/envoy-conf.yaml -o yaml
 kubectl apply -f labs/01/envoy-proxy.yaml
 ```
 
-Now let's try call the Envoy Proxy and see that it correctly routes to the `httpbin` service:
+Now let's try to call the Envoy Proxy and see that it correctly routes to the `httpbin` service:
 
 ```bash
 kubectl exec -it deploy/sleep -- curl http://envoy/headers
@@ -149,7 +149,7 @@ We now see a response with some enriched response headers, `X-Envoy-Expected-Rq-
 {% endhint %}
 
 
-Now that we have Envoy on the request path of a service-to-service interaction, let's try changing the behavior of the call. While in this default configuration, we saw an expected request timeout of `15s`, let's try change the call timeout.
+Now that we have Envoy on the request path of a service-to-service interaction, let's try changing the behavior of the call. While in this default configuration, we saw an expected request timeout of `15s`, let's try to change the call timeout.
 
 
 ## Change the call timeout
@@ -171,7 +171,7 @@ To change the call timeout, let's take a look at the routing configuration and f
                   timeout: 1s
 ```
 
-Here, we can see we set the timeout to 1s. Let's try call the `httpbin` service again through the Envoy proxy. First, let's update the configuration:
+Here, we can see we set the timeout to 1s. Let's try to call the `httpbin` service again through the Envoy proxy. First, let's update the configuration:
 
 ```bash
 kubectl create cm envoy --from-file=envoy.yaml=./labs/01/envoy-conf-timeout.yaml -o yaml --dry-run=client | kubectl apply -f -
@@ -299,7 +299,7 @@ kubectl create cm envoy --from-file=envoy.yaml=./labs/01/envoy-conf-retry.yaml -
 kubectl rollout restart deploy/envoy
 ```
 
-Now let's try call the `httpbin` service which returns an error:
+Now let's try to call an `httpbin` service endpoint that deliberately returns an error code:
 
 ```bash
 kubectl exec -it deploy/sleep -- curl -v http://envoy/status/500
