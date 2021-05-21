@@ -19,6 +19,7 @@ spec:
   - hosts:
     - "./web-api.istioinaction.svc.cluster.local"    
     - "istio-system/*"
+    - "istio-ingress/*"
 ```
 
 Apply this resource:
@@ -64,16 +65,16 @@ This is because the web-api pod's sidecar doesn't know how to get to the recomme
 istioctl pc cluster deploy/web-api.istioinaction
 ```
 
-You should get output like below with many services from the istio-system namespace and only the web-api service from the istioinaction namespace:
+You should get output like below with many services from the istio-system and istio-ingress namespaces and only the web-api service from the istioinaction namespace:
 
 ```      
 SERVICE FQDN                                            PORT      SUBSET     DIRECTION     TYPE             DESTINATION RULE
 ...         
-istio-ingressgateway.istio-system.svc.cluster.local     80        -          outbound      EDS              
-istio-ingressgateway.istio-system.svc.cluster.local     443       -          outbound      EDS              
-istio-ingressgateway.istio-system.svc.cluster.local     15012     -          outbound      EDS              
-istio-ingressgateway.istio-system.svc.cluster.local     15021     -          outbound      EDS              
-istio-ingressgateway.istio-system.svc.cluster.local     15443     -          outbound      EDS              
+istio-ingressgateway.istio-ingress.svc.cluster.local    80        -          outbound      EDS              
+istio-ingressgateway.istio-ingress.svc.cluster.local    443       -          outbound      EDS              
+istio-ingressgateway.istio-ingress.svc.cluster.local    15012     -          outbound      EDS              
+istio-ingressgateway.istio-ingress.svc.cluster.local    15021     -          outbound      EDS              
+istio-ingressgateway.istio-ingress.svc.cluster.local    15443     -          outbound      EDS              
 istiod-1-8-3.istio-system.svc.cluster.local             443       -          outbound      EDS              
 istiod-1-8-3.istio-system.svc.cluster.local             15010     -          outbound      EDS              
 istiod-1-8-3.istio-system.svc.cluster.local             15012     -          outbound      EDS              
@@ -101,6 +102,7 @@ spec:
   - hosts:
     - "./*"
     - "istio-system/*"
+    - "istio-ingress/*"    
 ```
 
 Apply this `default-sidecar-allows-all-egress.yaml` file to your cluster:
@@ -200,12 +202,12 @@ In summary, sidecar resource can be used per namespace as shown above or per wor
 
 ## export-To configuration for service producers
 
-Service owners can apply `export-To` in Virtual Service, Destination Rule and Service Entry resources to define a list of namespaces that the Istio networking resources can be applied to. Further, service owners can declare their services' visibility via the `networking.istio.io/exportTo` annotation. By default, if no `export-To` for these Istio resources or users' services, they are made available to all namespaces in the mesh. However, it is best practice to trim the unnecessary proxy configurations. For example, as the service owner for the recommendation service, you may want to control that web-api service is only available for the istioinaction namespace and the istio-system namespace.
+Service owners can apply `export-To` in Virtual Service, Destination Rule and Service Entry resources to define a list of namespaces that the Istio networking resources can be applied to. Further, service owners can declare their services' visibility via the `networking.istio.io/exportTo` annotation. By default, if no `export-To` for these Istio resources or users' services, they are made available to all namespaces in the mesh. However, it is best practice to trim the unnecessary proxy configurations. For example, as the service owner for the recommendation service, you may want to control that web-api service is only available for the istioinaction, istio-system and istio-ingress namespaces.
 
 Recall how to get the ingress gateway IP:
 
 ```bash
-GATEWAY_IP=$(kubectl get svc -n istio-system istio-ingressgateway -o jsonpath="{.status.loadBalancer.ingress[0].ip}")
+GATEWAY_IP=$(kubectl get svc -n istio-ingress istio-ingressgateway -o jsonpath="{.status.loadBalancer.ingress[0].ip}")
 ```
 
 Now send some traffic through the ingress gateway:
@@ -214,9 +216,9 @@ Now send some traffic through the ingress gateway:
 curl --cacert ./labs/04/certs/ca/root-ca.crt -H "Host: istioinaction.io" https://istioinaction.io --resolve istioinaction.io:443:$GATEWAY_IP
 ```
 
-You should get 200 status code because in lab04, you have configured the gateway resource and virtual service resource in the istioinaction namespace, along with the `istioinaction-cert` secret in the istio-system namespace.
+You should get 200 status code because in lab04, you have configured the gateway resource and virtual service resource in the istioinaction namespace, along with the `istioinaction-cert` secret in the istio-ingress namespace.
 
-Now, let us try create the `web-api-gateway` resource in the istio-system namespace, and continue to have the `web-api-gw-vs` virtual service resource in the istioinaction namespace and explore `exportTo` on this virtual service resource.
+Now, let us try create the `web-api-gateway` resource in the istio-ingress namespace, and continue to have the `web-api-gw-vs` virtual service resource in the istioinaction namespace and explore `exportTo` on this virtual service resource.
 
 First, delete the `web-api-gateway` gateway resource in the istioinaction namespace:
 
@@ -224,13 +226,13 @@ First, delete the `web-api-gateway` gateway resource in the istioinaction namesp
 kubectl delete gw web-api-gateway -n istioinaction
 ```
 
-Create the `web-api-gateway` gateway resource for the istio-system namespace instead:
+Create the `web-api-gateway` gateway resource for the istio-ingress namespace instead:
 
 ```
-kubectl apply -f labs/07/web-api-gw-https-istiosystem.yaml -n istio-system
+kubectl apply -f labs/07/web-api-gw-https-istiosystem.yaml -n istio-ingress
 ```
 
-Update the `web-api-gw-vs` virtual service resource in the istioinaction namespace, under ``gateways` section to refer to the `web-api-gateway` in the istio-system namespace.
+Update the `web-api-gw-vs` virtual service resource in the istioinaction namespace, under ``gateways` section to refer to the `web-api-gateway` in the istio-ingress namespace.
 
 ```yaml
 apiVersion: networking.istio.io/v1alpha3
@@ -242,7 +244,7 @@ spec:
   hosts:
   - "istioinaction.io"
   gateways:
-  - istio-system/web-api-gateway
+  - istio-ingress/web-api-gateway
   http:
   - route:
     - destination:
@@ -266,14 +268,14 @@ curl --cacert ./labs/04/certs/ca/root-ca.crt -H "Host: istioinaction.io" https:/
 You should continue to get 200 status code.  Check the route configuration for istio-ingressgateway in the istio-system namespace:
 
 ```bash
-istioctl pc route deploy/istio-ingressgateway.istio-system
+istioctl pc route deploy/istio-ingressgateway.istio-ingress
 ```
 
 The route output shows the expected `web-api-gw-vs.istioinaction` for the web-api-gateway for both port 443 and port 80:
 
 ```yaml
 NAME                                             DOMAINS              MATCH                  VIRTUAL SERVICE
-https.443.https.web-api-gateway.istio-system     istioinaction.io     /*                     web-api-gw-vs.istioinaction
+https.443.https.web-api-gateway.istio-ingress    istioinaction.io     /*                     web-api-gw-vs.istioinaction
 http.80                                          istioinaction.io     /*                     web-api-gw-vs.istioinaction
                                                  *                    /healthz/ready*        
                                                  *                    /stats/prometheus* 
@@ -291,7 +293,7 @@ spec:
   hosts:
   - "istioinaction.io"
   gateways:
-  - istio-system/web-api-gateway
+  - istio-ingress/web-api-gateway
   exportTo:
   - "."
   http:
@@ -314,17 +316,17 @@ Send some traffic to web-api through the istio ingress gateway via https:
 curl --cacert ./labs/04/certs/ca/root-ca.crt -H "Host: istioinaction.io" https://istioinaction.io --resolve istioinaction.io:443:$GATEWAY_IP
 ```
 
-Because istio ingress gateway doesn't know how to route to the web-api service in the istioinaction namespace, you will get an empty reply instead.  Confirm the route configuration for istio-ingressgateway in the istio-system namespace:
+Because istio ingress gateway doesn't know how to route to the web-api service in the istioinaction namespace, you will get an empty reply instead.  Confirm the route configuration for istio-ingressgateway in the istio-ingress namespace:
 
 ```bash
-istioctl pc route deploy/istio-ingressgateway.istio-system
+istioctl pc route deploy/istio-ingressgateway.istio-ingress
 ```
 
 The route output shows 404 for the web-api-gateway's virtual service:
 
 ```yaml
 NAME                                             DOMAINS     MATCH                  VIRTUAL SERVICE
-https.443.https.web-api-gateway.istio-system     *           /*                     404
+https.443.https.web-api-gateway.istio-ingress    *           /*                     404
 http.80                                          *           /*                     404
                                                  *           /healthz/ready*        
                                                  *           /stats/prometheus*    
@@ -339,7 +341,7 @@ kubectl apply -f labs/07/web-api-gw-vs.yaml -n istioinaction
 Confirm you can send some traffic to web-api service via istio-ingressgateway and get a 200 status code.  Check the clusters for the istio-ingressgateway:
 
 ```bash
-istioctl pc cluster deploy/istio-ingressgateway.istio-system
+istioctl pc cluster deploy/istio-ingressgateway.istio-ingress
 ```
 
 You'll see web-api.istioinaction is in the list of services:
@@ -384,7 +386,7 @@ kubectl apply -f labs/07/web-api-service-exportto.yaml -n istioinaction
 Do you think you will be able to reach web-api via istio ingressgateway? You won't because the web-api service declares it is only exposed to the istioinaction namespace.  Check the clusters for the istio-ingressgateway:
 
 ```bash
-istioctl pc cluster deploy/istio-ingressgateway.istio-system
+istioctl pc cluster deploy/istio-ingressgateway.istio-ingress
 ```
 
 You'll NOT see web-api.istioinaction is in the list of services:
@@ -432,7 +434,7 @@ spec:
   hosts:
   - "istioinaction.io"
   gateways:
-  - istio-system/web-api-gateway
+  - istio-ingress/web-api-gateway
   http:
   - match:
     - uri:
@@ -477,14 +479,14 @@ curl --cacert ./labs/04/certs/ca/root-ca.crt -H "Host: istioinaction.io" https:/
 You should see the 200 status code as before.  This is because Istiod successfully merged the virtual services resources (`helloworld-vs.yaml` & `web-api-gw-vs.yaml`) automatically for you knowing they are using the same host name. If you examine the routes configuration for istio-ingressgateway:
 
 ```bash
-istioctl pc routes deploy/istio-ingressgateway -n istio-system
+istioctl pc routes deploy/istio-ingressgateway -n istio-ingress
 ```
 
 From the output, you can see the routes are merged for the istioinaction.io host for both `https.443` and `http.80`.
 ```
 NAME                                             DOMAINS              MATCH                  VIRTUAL SERVICE
-https.443.https.web-api-gateway.istio-system     istioinaction.io     /hello                 helloworld.istioinaction
-https.443.https.web-api-gateway.istio-system     istioinaction.io     /*                     web-api-gw-vs.istioinaction
+https.443.https.web-api-gateway.istio-ingress    istioinaction.io     /hello                 helloworld.istioinaction
+https.443.https.web-api-gateway.istio-ingress    istioinaction.io     /*                     web-api-gw-vs.istioinaction
 http.80                                          istioinaction.io     /hello                 helloworld.istioinaction
 http.80                                          istioinaction.io     /*                     web-api-gw-vs.istioinaction
                                                  *                    /healthz/ready*        
@@ -493,7 +495,7 @@ http.80                                          istioinaction.io     /*        
 
 ## Optional: Virtual service resource delegation
 
-Gateway resource in istio-system, and delegate the VS resource to the service's namespace.  for example platform owner owns the gateway resources on which hosts and associated port numbers and TLS configuration but want to delegate the details of the virtual service resources to service owners.
+You can have Gateway resource in the istio-ingress namespace, and delegate the VirtualService resource to the service's namespace. For example platform owner owns the gateway resources on which hosts and associated port numbers and TLS configuration but want to delegate the details of the VirtualService resources to service owners.
 
 
 ```bash
@@ -514,7 +516,7 @@ apiVersion: networking.istio.io/v1alpha3
 kind: VirtualService
 metadata:
   name: delegate-vs
-  namespace: istio-system
+  namespace: istio-ingress
 spec:
   hosts:
   - "istioinaction.io"
@@ -532,10 +534,10 @@ spec:
       name: web-api-gw-vs
       namespace: istioinaction
 ```
-Apply the above virtual service resource at the istio-system namespace:
+Apply the above virtual service resource at the istio-ingress namespace:
 
 ```bash
-kubectl apply -f labs/07/vs-delegate.yaml -n istio-system
+kubectl apply -f labs/07/vs-delegate.yaml -n istio-ingress
 ```
 
 Create the helloworld virtual service in the default namespace:
@@ -572,15 +574,15 @@ curl -H "Host: istioinaction.io" http://$GATEWAY_IP
 :) As you can see the virtual service delegation is working.  Check what the route look like from the istio-ingressgateway pod:
 
 ```bash
-istioctl pc routes deploy/istio-ingressgateway -n istio-system
+istioctl pc routes deploy/istio-ingressgateway -n istio-ingress
 ```
 
 From the output, you can see the routes are correct for the istioinaction.io host for both `https.443` and `http.80`. The output is same as what you saw earlier in the virtual service resource merging section except the helloworld is from the default namespace.
 
 ```
 NAME                                             DOMAINS              MATCH                  VIRTUAL SERVICE
-https.443.https.web-api-gateway.istio-system     istioinaction.io     /hello                 helloworld.default
-https.443.https.web-api-gateway.istio-system     istioinaction.io     /*                     web-api-gw-vs.istioinaction
+https.443.https.web-api-gateway.istio-ingress    istioinaction.io     /hello                 helloworld.default
+https.443.https.web-api-gateway.istio-ingress    istioinaction.io     /*                     web-api-gw-vs.istioinaction
 http.80                                          istioinaction.io     /hello                 helloworld.default
 http.80                                          istioinaction.io     /*                     web-api-gw-vs.istioinaction
                                                  *                    /healthz/ready*        

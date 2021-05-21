@@ -20,22 +20,22 @@ Info [IST0118] (Service envoy.default) Port name admin (port: 15000, targetPort:
 Let's put our configuration in a state of misconfiguration and verify `istioctl analyze` will catch it:
 
 ```bash
-kubectl delete Certificate istioinaction-cert -n istio-system
-kubectl delete secret -n istio-system istioinaction-cert
+kubectl delete Certificate istioinaction-cert -n istio-ingress
+kubectl delete secret -n istio-ingress istioinaction-cert
 ```
 
 The TLS/SSL secret for the `istioinaction.io` hostname should now be missing. Let's run analyze:
 
 ```bash
-istioctl analyze -n istio-system
+istioctl analyze -n istio-ingress
 ```
 
 Indeed we caught this misconfiguration as an `Error`:
 
 ```
-Error [IST0101] (Gateway web-api-gateway.istio-system) Referenced credentialName not found: "istioinaction-cert"
+Error [IST0101] (Gateway web-api-gateway.istio-ingress) Referenced credentialName not found: "istioinaction-cert"
 ...
-Error: Analyzers found issues when analyzing namespace: istio-system.
+Error: Analyzers found issues when analyzing namespace: istio-ingress.
 See https://istio.io/v1.8/docs/reference/config/analysis for more information about causes and resolutions.
 ```
 
@@ -103,7 +103,7 @@ Here we can see all of the workloads in the mesh with useful details:
 ```
 NAME                                                   CDS        LDS        EDS        RDS        ISTIOD                            VERSION
 httpbin-9d9dbcd4-xr8tw.default                         SYNCED     SYNCED     SYNCED     SYNCED     istiod-1-8-3-84c6b6cdc7-ztj84     1.8.3
-istio-ingressgateway-5bc557575f-dsc2c.istio-system     SYNCED     SYNCED     SYNCED     SYNCED     istiod-1-8-3-84c6b6cdc7-ztj84     1.8.3
+istio-ingressgateway-5bc557575f-dsc2c.istio-ingress    SYNCED     SYNCED     SYNCED     SYNCED     istiod-1-8-3-84c6b6cdc7-ztj84     1.8.3
 purchase-history-v1-54c8956877-s79qn.istioinaction     SYNCED     SYNCED     SYNCED     SYNCED     istiod-1-8-3-84c6b6cdc7-ztj84     1.8.3
 recommendation-7f66565d54-l2d4t.istioinaction          SYNCED     SYNCED     SYNCED     SYNCED     istiod-1-8-3-84c6b6cdc7-ztj84     1.8.3
 sleep-854565cb79-krhks.istioinaction                   SYNCED     SYNCED     SYNCED     SYNCED     istiod-1-8-3-84c6b6cdc7-ztj84     1.8.3
