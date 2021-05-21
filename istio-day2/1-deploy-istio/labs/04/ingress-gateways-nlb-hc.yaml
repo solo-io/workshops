@@ -1,6 +1,6 @@
 kind: IstioOperator
 metadata:
-  namespace: istio-system
+  namespace: istio-ingress
   name: istio-ingressgateway-nlb
 spec:
   profile: empty
