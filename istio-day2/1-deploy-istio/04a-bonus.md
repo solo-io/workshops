@@ -95,7 +95,7 @@ kubectl apply -f labs/04/cert-manager/istioinaction-io-cert.yaml
 
 ## Bonus: Create custom Ingress Gateways in a user namespace
 
-In the previous steps, we created the out-of-the-box ingress gateway in the `istio-system` namespace. In this section, we'll create a custom ingress gateway named `my-user-gateway` in the `istioinaction` namespace. When deployed like this, the user can completely own all resources including secrets/certificates for the domains they wish to expose on this gateway.
+In the previous steps, we created the out-of-the-box ingress gateway in the `istio-ingress` namespace. In this section, we'll create a custom ingress gateway named `my-user-gateway` in the `istioinaction` namespace. When deployed like this, the user can completely own all resources including secrets/certificates for the domains they wish to expose on this gateway.
 
 Let's take a look at how we can define our custom gateway:
 
