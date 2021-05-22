@@ -323,8 +323,6 @@ curl --cacert ./labs/04/certs/ca/root-ca.crt -H "Host: istioinaction.io" https:/
 
 In this section, we created the `Certificate` in the `istio-system` namespace. But if we don't have access to that namespace, what else could we do?
 
-
-
 ## Reduce Gateway Config for large meshes
 
 By default, the ingress gateways will be configured with information about every service in the mesh and in fact every service that Istio's control plane has discovered. This is likely overkill for most large mesh deployments. With the gateway, we can scope down the number of backend services that get configured on the gateway to only those that have routing rules defined for them. For example, in our current status with the gateway, let's see what "clusters" it knows about:
