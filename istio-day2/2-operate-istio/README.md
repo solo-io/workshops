@@ -4,6 +4,7 @@ In this second of a two-part series of workshops on Istio service mesh, we dig i
 
 We've cultivated a lot of this knowledge from working organizations across the world and helping them operationalize Istio.  We cover the following topics in this second workshop:
 
+* Zero downtime upgrades in production
 * Automating config with Fluxcd and Flagger
 * Integrate with APM/observability tools
 * Certificate rotation and PKI integration

@@ -1,0 +1,12 @@
+apiVersion: install.istio.io/v1alpha1
+kind: IstioOperator
+metadata:
+  name: control-plane
+spec:
+  profile: minimal
+  meshConfig:              
+    defaultConfig:       
+      proxyMetadata:      
+        ISTIO_META_DNS_CAPTURE: "true"
+    enablePrometheusMerge: true  
+  
