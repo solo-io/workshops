@@ -111,7 +111,7 @@ istio-ingressgateway-1-8-3-c5d84b5c-r7nvc.istio-ingress     SYNCED     SYNCED   
 # Download Istio 1.10
 
 ```
-TAG="1.10.0-rc.0"
+TAG="1.10.0"
 curl -L https://istio.io/downloadIstio | ISTIO_VERSION=${TAG}  sh -
 export PATH=$PWD/istio-${TAG}/bin:$PATH
 ```
@@ -123,7 +123,7 @@ istioctl version
 
 ```bash
 # OUTPUT:
-client version: 1.10.0-rc.1
+client version: 1.10.0
 control plane version: 1.8.3
 data plane version: 1.8.3 (1 proxies)
 ```
@@ -161,7 +161,7 @@ Then, recreate the httpbin pods
 kubectl rollout restart deployment httpbin
 ```
 
-Check that the pod now points to the new istio version:
+Check that the pod now points to the new Istio version:
 
 ```bash
 istioctl ps
@@ -170,15 +170,15 @@ istioctl ps
 ```bash
 # OUTPUT
 NAME                                                    CDS        LDS        EDS        RDS          ISTIOD                             VERSION
-httpbin-85f6c75d69-xj6xz.default                        SYNCED     SYNCED     SYNCED     SYNCED       istiod-1-10-0-68b8bf78dd-j7bff     1.10.0-rc.1
+httpbin-85f6c75d69-xj6xz.default                        SYNCED     SYNCED     SYNCED     SYNCED       istiod-1-10-0-68b8bf78dd-j7bff     1.10.0
 istio-ingressgateway-69b5ffc84c-nw58w.istio-ingress     SYNCED     SYNCED     SYNCED     NOT SENT     istiod-1-8-3-78b88c997d-7chhm      1.8.3
 ```
 
 ## Deploy Istio 1.10 Gateway
 
-Install Istio Ingress 1.10 gateway with the name "istio-ingressgateway-1-10" 
+Install Istio Ingress 1.10 gateway:
 ```bash
-istioctl install -y -f labs/01/ingress-gateway-1-10-0.yaml
+istioctl install -y -f labs/01/ingress-gateway-1-10-0.yaml --revision 1-10-0
 ```
 
 Check that you now have both versions of the gateways installed
@@ -195,6 +195,16 @@ pod/istio-ingressgateway-1-8-3-c5d84b5c-r7nvc   1/1     Running   0          8m8
 NAME                                 TYPE           CLUSTER-IP    EXTERNAL-IP      PORT(S)                                                      AGE
 service/istio-ingressgateway-1-10    LoadBalancer   10.56.57.33   35.239.151.156   15021:31334/TCP,80:31674/TCP,443:31578/TCP                   6m19s
 service/istio-ingressgateway-1-8-3   LoadBalancer   10.56.52.85   146.148.32.224   15021:32671/TCP,80:30277/TCP,443:30557/TCP,15443:31103/TCP   8m7s
+```
+
+
+Visit the External-IP of the Istio 1.10 ingress gateway service. You should be able to see your httpbin application.
+
+## Uninstall Istio 1.8
+
+```
+istioctl x uninstall --revision 1-8-3
+```
 
 ## Next Lab
 
