@@ -27,6 +27,38 @@ if [ "${running}" != 'true' ]; then
     registry:2
 fi
 
+cache_name='kind-cache'
+cache_port='5000'
+running="$(docker inspect -f '{{.State.Running}}' "${cache_name}" 2>/dev/null || true)"
+if [ "${running}" != 'true' ]; then
+  cat > config.yml <<EOF
+version: 0.1
+proxy:
+  remoteurl: https://registry-1.docker.io
+log:
+  fields:
+    service: registry
+storage:
+  cache:
+    blobdescriptor: inmemory
+  filesystem:
+    rootdirectory: /var/lib/registry
+http:
+  addr: :5000
+  headers:
+    X-Content-Type-Options: [nosniff]
+health:
+  storagedriver:
+    enabled: true
+    interval: 10s
+    threshold: 3
+EOF
+
+  docker run \
+    -d --restart=always -v `pwd`/config.yml:/etc/docker/registry/config.yml --name "${cache_name}" \
+    registry:2
+fi
+
 cat << EOF > kind${number}.yaml
 kind: Cluster
 apiVersion: kind.x-k8s.io/v1alpha4
@@ -67,6 +99,8 @@ containerdConfigPatches:
 - |-
   [plugins."io.containerd.grpc.v1.cri".registry.mirrors."localhost:${reg_port}"]
     endpoint = ["http://${reg_name}:${reg_port}"]
+  [plugins."io.containerd.grpc.v1.cri".registry.mirrors."docker.io"]
+    endpoint = ["http://${cache_name}:${cache_port}"]
 EOF
 
 kind create cluster --name kind${number} --config kind${number}.yaml
@@ -100,6 +134,7 @@ EOF
 kubectl --context=kind-kind${number} apply -f metallb${number}.yaml
 
 docker network connect "kind" "${reg_name}" || true
+docker network connect "kind" "${cache_name}" || true
 
 cat <<EOF | kubectl apply -f -
 apiVersion: v1

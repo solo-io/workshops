@@ -110,6 +110,7 @@ helm repo update
 kubectl --context mgmt create ns gloo-mesh 
 helm install gloo-mesh-enterprise gloo-mesh-enterprise/gloo-mesh-enterprise \
 --namespace gloo-mesh --kube-context mgmt \
+--version=1.0.10 \
 --set licenseKey=${GLOO_MESH_LICENSE_KEY}
 
 kubectl --context mgmt -n gloo-mesh rollout status deploy/enterprise-networking
@@ -1786,7 +1787,7 @@ Gloo Mesh Enterprise CLI comes with all the features you need to develop, build,
 Install the Gloo Mesh Enterprise CLI plugin manager:
 
 ```bash
-meshctl init-plugin-manager
+meshctl init-plugin-manager -f
 ```
 
 Install the WASM meshctl plugins:

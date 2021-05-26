@@ -76,6 +76,7 @@ gcr.io/gloo-mesh/enterprise-agent:1.0.10
 docker.io/istio/operator:1.9.2
 gcr.io/istio-enterprise/pilot:1.9.2
 gcr.io/istio-enterprise/proxyv2:1.9.2
+gcr.io/istio-enterprise/install-cni:1.9.2
 docker.io/istio/examples-bookinfo-productpage-v1:1.16.2
 docker.io/istio/examples-bookinfo-reviews-v1:1.16.2
 docker.io/istio/examples-bookinfo-reviews-v2:1.16.2
@@ -147,8 +148,8 @@ wget https://storage.googleapis.com/gloo-mesh-enterprise/enterprise-agent/enterp
 
 SVC=$(kubectl --context mgmt -n gloo-mesh get svc enterprise-networking -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
 
-meshctl cluster register --mgmt-context=mgmt --remote-context=cluster1 --relay-server-address=$SVC:9900 enterprise cluster1 --cluster-domain cluster.local --enterprise-agent-chart-file enterprise-agent-1.0.10.tgz --enterprise-agent-chart-values values.yaml
-meshctl cluster register --mgmt-context=mgmt --remote-context=cluster2 --relay-server-address=$SVC:9900 enterprise cluster2 --cluster-domain cluster.local --enterprise-agent-chart-file enterprise-agent-1.0.10.tgz --enterprise-agent-chart-values values.yaml
+meshctl cluster register --mgmt-context=mgmt --remote-context=cluster1 --relay-server-address=$SVC:9900 enterprise cluster1 --cluster-domain cluster.local --enterprise-agent-chart-file enterprise-agent-1.0.10.tgz
+meshctl cluster register --mgmt-context=mgmt --remote-context=cluster2 --relay-server-address=$SVC:9900 enterprise cluster2 --cluster-domain cluster.local --enterprise-agent-chart-file enterprise-agent-1.0.10.tgz
 ```
 
 You can list the registered cluster using the following command:
@@ -207,6 +208,18 @@ spec:
         ISTIO_META_DNS_AUTO_ALLOCATE: "true"
         GLOO_MESH_CLUSTER_NAME: cluster1
   values:
+    cni:
+      cniBinDir: /var/lib/cni/bin
+      cniConfDir: /etc/cni/multus/net.d
+      chained: false
+      cniConfFileName: "istio-cni.conf"
+      excludeNamespaces:
+       - istio-system
+       - kube-system
+      logLevel: info
+    sidecarInjectorWebhook:
+      injectedAnnotations:
+        k8s.v1.cni.cncf.io/networks: istio-cni
     global:
       meshID: mesh1
       multiCluster:
@@ -222,6 +235,10 @@ spec:
             port: 443
         vm-network:
   components:
+    cni:
+      enabled: true
+      namespace: kube-system
+      hub: ${registry}/istio-enterprise
     ingressGateways:
     - name: istio-ingressgateway
       label:
@@ -295,6 +312,18 @@ spec:
         ISTIO_META_DNS_AUTO_ALLOCATE: "true"
         GLOO_MESH_CLUSTER_NAME: cluster1
   values:
+    cni:
+      cniBinDir: /var/lib/cni/bin
+      cniConfDir: /etc/cni/multus/net.d
+      chained: false
+      cniConfFileName: "istio-cni.conf"
+      excludeNamespaces:
+       - istio-system
+       - kube-system
+      logLevel: info
+    sidecarInjectorWebhook:
+      injectedAnnotations:
+        k8s.v1.cni.cncf.io/networks: istio-cni
     global:
       meshID: mesh1
       multiCluster:
@@ -310,6 +339,10 @@ spec:
             port: 443
         vm-network:
   components:
+    cni:
+      enabled: true
+      namespace: kube-system
+      hub: ${registry}/istio-enterprise
     ingressGateways:
     - name: istio-ingressgateway
       label:

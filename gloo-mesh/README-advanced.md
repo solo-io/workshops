@@ -1087,3 +1087,360 @@ kubectl --context cluster1 -n gloo-system patch virtualservice prodpage --type=m
 If you refresh the web page, it will ask you for the credentials.
 
 It was just a simple example. You can learn more about the Gloo features in the [documentation](https://docs.solo.io/gloo/latest/guides/).
+
+## Lab 4 : Management plane Disaster Recovery
+
+In case, the Kubernetes cluster hosting the Gloo Mesh management plan is lost (permanently or for a long period of time), you will need to redeploy it on another Kubernetes cluster.
+
+But before it happens you need to backup the TLS secrets from the Gloo Mesh management plane by running the following commands:
+
+```bash
+kubectl --context mgmt -n gloo-mesh get secret relay-root-tls-secret -o yaml > relay-root-tls-secret.yaml
+kubectl --context mgmt -n gloo-mesh get secret relay-server-tls-secret -o yaml > relay-server-tls-secret.yaml
+kubectl --context mgmt -n gloo-mesh get secret relay-tls-signing-secret -o yaml > relay-tls-signing-secret.yaml
+```
+
+To simulate a disaster, you need to delete the Kubernetes cluster:
+
+```bash
+kind delete cluster --name kind1
+```
+
+Before redeploying the Gloo Mesh management plane, you need to scale down the Gloo Mesh agents on the different clusters (to make sure they don't reconnect to the new management plane before it's correctly configured):
+
+```bash
+kubectl --context cluster1 -n gloo-mesh scale deploy/enterprise-agent --replicas=0
+kubectl --context cluster2 -n gloo-mesh scale deploy/enterprise-agent --replicas=0
+```
+
+Now, we're going to deploy a new cluster with a different id to make sure the external IP of the `enteprise-networking` service is not the same as it was before. 
+
+```bash
+kubectl config delete-context mgmt
+../scripts/deploy.sh 4 mgmt
+```
+
+Then run the following command to wait for all the Pods to be ready:
+
+```bash
+../scripts/check.sh mgmt
+```
+
+Before we redeploy Gloo Mesh, we need to recreate the TLS secrets we've backed up previously:
+
+```
+kubectl --context mgmt create ns gloo-mesh
+kubectl --context mgmt apply -f relay-root-tls-secret.yaml
+kubectl --context mgmt apply -f relay-server-tls-secret.yaml
+kubectl --context mgmt apply -f relay-tls-signing-secret.yaml
+```
+
+After that, we can install Gloo Mesh normally:
+
+```
+helm repo add gloo-mesh-enterprise https://storage.googleapis.com/gloo-mesh-enterprise/gloo-mesh-enterprise 
+helm repo update
+helm install gloo-mesh-enterprise gloo-mesh-enterprise/gloo-mesh-enterprise \
+--namespace gloo-mesh --kube-context mgmt \
+--version=1.0.10 \
+--set licenseKey=${GLOO_MESH_LICENSE_KEY}
+
+kubectl --context mgmt -n gloo-mesh rollout status deploy/enterprise-networking
+```
+
+We also need to recreate the `KubernetesCluster` objects that are normally created when we register the remote clusters:
+
+```
+cat << EOF | kubectl --context mgmt apply -f -
+apiVersion: multicluster.solo.io/v1alpha1
+kind: KubernetesCluster
+metadata:
+  name: cluster1
+  namespace: gloo-mesh
+spec:
+  clusterDomain: cluster.local
+EOF
+
+cat << EOF | kubectl --context mgmt apply -f -
+apiVersion: multicluster.solo.io/v1alpha1
+kind: KubernetesCluster
+metadata:
+  name: cluster2
+  namespace: gloo-mesh
+spec:
+  clusterDomain: cluster.local
+EOF
+```
+
+Finally, we need to recreate all the Gloo Mesh objects:
+
+```
+cat << EOF | kubectl --context mgmt apply -f -
+apiVersion: networking.mesh.gloo.solo.io/v1
+kind: VirtualMesh
+metadata:
+  name: virtual-mesh
+  namespace: gloo-mesh
+spec:
+  mtlsConfig:
+    autoRestartPods: true
+    shared:
+      rootCertificateAuthority:
+        generated: {}
+  federation: {}
+  globalAccessPolicy: ENABLED
+  meshes:
+  - name: istiod-istio-system-cluster1
+    namespace: gloo-mesh
+  - name: istiod-istio-system-cluster2
+    namespace: gloo-mesh
+EOF
+
+cat << EOF | kubectl --context mgmt apply -f -
+apiVersion: networking.mesh.gloo.solo.io/v1
+kind: AccessPolicy
+metadata:
+  namespace: gloo-mesh
+  name: istio-ingressgateway
+spec:
+  sourceSelector:
+  - kubeServiceAccountRefs:
+      serviceAccounts:
+        - name: istio-ingressgateway-service-account
+          namespace: istio-system
+          clusterName: cluster1
+  destinationSelector:
+  - kubeServiceMatcher:
+      namespaces:
+      - default
+      labels:
+        service: productpage
+EOF
+
+cat << EOF | kubectl --context mgmt apply -f -
+apiVersion: networking.mesh.gloo.solo.io/v1
+kind: AccessPolicy
+metadata:
+  namespace: gloo-mesh
+  name: productpage
+spec:
+  sourceSelector:
+  - kubeServiceAccountRefs:
+      serviceAccounts:
+        - name: bookinfo-productpage
+          namespace: default
+          clusterName: cluster1
+  destinationSelector:
+  - kubeServiceMatcher:
+      namespaces:
+      - default
+      labels:
+        service: details
+  - kubeServiceMatcher:
+      namespaces:
+      - default
+      labels:
+        service: reviews
+EOF
+
+cat << EOF | kubectl --context mgmt apply -f -
+apiVersion: networking.mesh.gloo.solo.io/v1
+kind: AccessPolicy
+metadata:
+  namespace: gloo-mesh
+  name: reviews
+spec:
+  sourceSelector:
+  - kubeServiceAccountRefs:
+      serviceAccounts:
+        - name: bookinfo-reviews
+          namespace: default
+          clusterName: cluster1
+        - name: bookinfo-reviews
+          namespace: default
+          clusterName: cluster2
+  destinationSelector:
+  - kubeServiceMatcher:
+      namespaces:
+      - default
+      labels:
+        service: ratings
+EOF
+```
+
+In a production environment, these objects would be stored in a Github repository and would be applied automatically through a CI/CD pipeline.
+
+Get the new external IP of the `enteprise-networking` service:
+
+```bash
+SVC=$(kubectl --context mgmt -n gloo-mesh get svc enterprise-networking -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+```
+
+Update the configuration of the Gloo Mesh agents to use the new external IP address:
+
+```bash
+helm repo add enterprise-agent https://storage.googleapis.com/gloo-mesh-enterprise/enterprise-agent
+
+helm upgrade enterprise-agent enterprise-agent/enterprise-agent --namespace gloo-mesh --kube-context cluster1 --version=1.0.10 --set relay.serverAddress=${SVC}:9900 --set relay.cluster=cluster1
+helm upgrade enterprise-agent enterprise-agent/enterprise-agent --namespace gloo-mesh --kube-context cluster2 --version=1.0.10 --set relay.serverAddress=${SVC}:9900 --set relay.cluster=cluster2
+```
+
+You can now scale up the deployments of the remote agents:
+
+```bash
+kubectl --context cluster1 -n gloo-mesh scale deploy/enterprise-agent --replicas=1
+kubectl --context cluster2 -n gloo-mesh scale deploy/enterprise-agent --replicas=1
+```
+
+Everything should be working fine now.
+
+You can create the following TrafficPolicy to validate the environment is working well:
+
+```bash
+cat << EOF | kubectl --context mgmt apply -f -
+apiVersion: networking.mesh.gloo.solo.io/v1
+kind: TrafficPolicy
+metadata:
+  namespace: gloo-mesh
+  name: simple
+spec:
+  sourceSelector:
+  - kubeWorkloadMatcher:
+      namespaces:
+      - default
+  destinationSelector:
+  - kubeServiceRefs:
+      services:
+        - clusterName: cluster1
+          name: reviews
+          namespace: default
+  policy:
+    trafficShift:
+      destinations:
+        - kubeService:
+            clusterName: cluster2
+            name: reviews
+            namespace: default
+            subset:
+              version: v3
+          weight: 75
+        - kubeService:
+            clusterName: cluster1
+            name: reviews
+            namespace: default
+            subset:
+              version: v1
+          weight: 15
+        - kubeService:
+            clusterName: cluster1
+            name: reviews
+            namespace: default
+            subset:
+              version: v2
+          weight: 10
+EOF
+```
+
+If you refresh the page several times, you'll see the `v3` version of the `reviews` microservice:
+
+![Bookinfo v3](images/bookinfo-v3-no-ratings.png)
+
+Let's delete the TrafficPolicy:
+
+```bash
+kubectl --context mgmt -n gloo-mesh delete trafficpolicy simple
+```
+
+## Lab 5 : Upgrade Gloo Mesh
+
+When upgrading from one major version to another major version (for example, Gloo Mesh 1.0 to Gloo Mesh 1.1), you may need to go through some additional steps (like updating CRDs, objects, ...).
+
+In this lab we cover a minor upgrade (from 1.0.10 to 1.0.11).
+
+Before upgrade the Gloo Mesh management plane, you need to scale down the Gloo Mesh agents on the different clusters (to make sure they don't reconnect to the new management plane before they are upgraded as well):
+
+```bash
+kubectl --context cluster1 -n gloo-mesh scale deploy/enterprise-agent --replicas=0
+kubectl --context cluster2 -n gloo-mesh scale deploy/enterprise-agent --replicas=0
+```
+
+Start by upgrading the Gloo Mesh management plane:
+
+```bash
+helm upgrade gloo-mesh-enterprise gloo-mesh-enterprise/gloo-mesh-enterprise --namespace gloo-mesh --kube-context mgmt --version=1.0.11
+
+kubectl --context mgmt -n gloo-mesh rollout status deploy/enterprise-networking
+```
+
+Then, update the remote agents:
+
+```bash
+helm repo add enterprise-agent https://storage.googleapis.com/gloo-mesh-enterprise/enterprise-agent
+
+helm upgrade enterprise-agent enterprise-agent/enterprise-agent --namespace gloo-mesh --kube-context cluster1 --version=1.0.11
+helm upgrade enterprise-agent enterprise-agent/enterprise-agent --namespace gloo-mesh --kube-context cluster2 --version=1.0.11
+```
+
+You can now scale up the deployments of the remote agents:
+
+```bash
+kubectl --context cluster1 -n gloo-mesh scale deploy/enterprise-agent --replicas=1
+kubectl --context cluster2 -n gloo-mesh scale deploy/enterprise-agent --replicas=1
+```
+
+You can create the following TrafficPolicy to validate the environment is working well:
+
+```bash
+cat << EOF | kubectl --context mgmt apply -f -
+apiVersion: networking.mesh.gloo.solo.io/v1
+kind: TrafficPolicy
+metadata:
+  namespace: gloo-mesh
+  name: simple
+spec:
+  sourceSelector:
+  - kubeWorkloadMatcher:
+      namespaces:
+      - default
+  destinationSelector:
+  - kubeServiceRefs:
+      services:
+        - clusterName: cluster1
+          name: reviews
+          namespace: default
+  policy:
+    trafficShift:
+      destinations:
+        - kubeService:
+            clusterName: cluster2
+            name: reviews
+            namespace: default
+            subset:
+              version: v3
+          weight: 75
+        - kubeService:
+            clusterName: cluster1
+            name: reviews
+            namespace: default
+            subset:
+              version: v1
+          weight: 15
+        - kubeService:
+            clusterName: cluster1
+            name: reviews
+            namespace: default
+            subset:
+              version: v2
+          weight: 10
+EOF
+```
+
+If you refresh the page several times, you'll see the `v3` version of the `reviews` microservice:
+
+![Bookinfo v3](images/bookinfo-v3-no-ratings.png)
+
+Let's delete the TrafficPolicy:
+
+```bash
+kubectl --context mgmt -n gloo-mesh delete trafficpolicy simple
+```
