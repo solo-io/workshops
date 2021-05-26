@@ -95,7 +95,7 @@ spec:
 Deploy this updated resource:
 
 ```bash
-kubectl apply -f labs/05/web-api-gw-vs-subset.yaml -n istio-system
+kubectl apply -f labs/05/web-api-gw-vs-subset.yaml -n istio-ingress
 ```
 
 Send some traffic to web-api via istio-ingressgateway:
@@ -122,7 +122,7 @@ spec:
 Apply this destination rule resource:
 
 ```bash
-kubectl apply -f labs/05/web-api-dr.yaml   -n istioinaction
+kubectl apply -f labs/05/web-api-dr.yaml -n istioinaction
 ```
 
 Send some traffic to web-api via istio-ingressgateway, you should get 200 status code now.
@@ -134,7 +134,7 @@ curl -H "Host: istioinaction.io" http://istioinaction.io/hello --resolve istioin
 Examine the clusters configuration for istio-ingressgateway:
 
 ```bash
-istioctl pc clusters deploy/istio-ingressgateway.istio-system
+istioctl pc clusters deploy/istio-ingressgateway.istio-ingress
 ```
 
 Clusters output with subset v1:
@@ -154,7 +154,7 @@ zipkin                                      -        -          -             ST
 Examine the endpoints configuration for istio-ingressgateway:
 
 ```bash
-istioctl pc endpoint deploy/istio-ingressgateway.istio-system 
+istioctl pc endpoint deploy/istio-ingressgateway.istio-ingress 
 ```
 
 Endpoints output with subset v1:

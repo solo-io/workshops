@@ -2,7 +2,7 @@ apiVersion: networking.istio.io/v1alpha3
 kind: EnvoyFilter
 metadata:
   name: ingressgateway-access-logging
-  namespace: istio-system
+  namespace: istio-ingress
 spec:
   workloadSelector:
     labels:

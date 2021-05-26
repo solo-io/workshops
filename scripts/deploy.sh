@@ -76,10 +76,6 @@ networking:
   podSubnet: "10.1${twodigits}.0.0/16"
 kubeadmConfigPatches:
 - |
-  apiVersion: kubelet.config.k8s.io/v1beta1
-  kind: KubeletConfiguration
-  maxPods: 1000
-  ---
   apiVersion: kubeadm.k8s.io/v1beta2
   kind: ClusterConfiguration
   apiServer:

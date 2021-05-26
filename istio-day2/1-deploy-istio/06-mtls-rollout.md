@@ -4,7 +4,7 @@ Istio can automatically encrypt traffic between services in the mesh with mutual
 
 In the previous lab, we iteratively introduced the sidecar proxies to our services. In this lab, we'll see how to iteratively roll out mTLS to our services in a safe way.
 
-## Prequisites
+## Prerequisites
 
 In this lab we assume you have the sample services deployed into the `istioinaction` namespace with the Istio sidecar proxy deployed with each instance. In other words, we assume that the services in the `istioinaction` namespace are all part of the mesh.
 

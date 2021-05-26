@@ -8,3 +8,4 @@ spec:
   - hosts:
     - "./*"
     - "istio-system/*"
+    - "istio-ingress/*"

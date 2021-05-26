@@ -186,4 +186,4 @@ In the bonus section, we tie together our understanding of the Istio sidecar pro
 
 ## Next Lab
 
-In the [next lab](03-observability.md), we will leverage Istio's telemetry collection and scrap it into Prometheus, Grafana, and Kiali. Istio ships with some sample addons to install those components in a POC environment, but we'll look at a more realistic environment.                   
+In the [next lab](03-observability.md), we will leverage Istio's telemetry collection and scrape it into Prometheus, Grafana, and Kiali. Istio ships with some sample addons to install those components in a POC environment, but we'll look at a more realistic environment.                   

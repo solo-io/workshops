@@ -251,7 +251,7 @@ To help mediate the issue, Istio has implemented a pod level configuration calle
         app: web-api
         version: v1
       annotations:
-        proxy.istio.io/config: '{ "holdApplicationUntilProxyStarts": false }'
+        proxy.istio.io/config: '{ "holdApplicationUntilProxyStarts": true }'
     spec:
       containers:
 ...
@@ -260,7 +260,6 @@ To help mediate the issue, Istio has implemented a pod level configuration calle
 Deploy the yaml that has the `holdApplicationUntilProxyStarts` configuration:
 
 ```bash
-kubectl delete -f sample-apps/web-api-holdapp.yaml -n istioinaction
 kubectl apply -f sample-apps/web-api-holdapp.yaml -n istioinaction
 ```
 

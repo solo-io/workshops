@@ -19,14 +19,14 @@ Let's uninstall the certs created by cert-manager:
 
 ```bash
 kubectl delete -f ./labs/04/cert-manager/istioinaction-io-cert.yaml
-kubectl -n istio-system delete secret istioinaction-cert
-kubectl rollout restart deploy/istio-ingressgateway -n istio-system
+kubectl -n istio-ingress delete secret istioinaction-cert
+kubectl rollout restart deploy/istio-ingressgateway -n istio-ingress
 ```
 
 You can check if the cert is still loaded in the istio ingress gateway, for example:
 
 ```bash
-istioctl pc secret deploy/istio-ingressgateway -n istio-system 
+istioctl pc secret deploy/istio-ingressgateway -n istio-ingress 
 ```
 
 ```
@@ -42,12 +42,12 @@ Notice the `WARMING` status and empty fields for `kubernetes://istioinaction-cer
 kubectl create -n istioinaction secret tls istioinaction-cert --key labs/04/certs/istioinaction.io.key --cert labs/04/certs/istioinaction.io.crt
 ```
 
-This doesn't help us much because the Istio ingress gateway is located in the `istio-system` namespace and the secret must be there too but we don't have access to this namespace.
+This doesn't help us much because the Istio ingress gateway is located in the `istio-ingress` namespace and the secret must be there too but we don't have access to this namespace.
 
-Let's use `kubed` to help here. Let's label `istio-system` namespace (done by an administrator) to indicate we can sync secrets to it:
+Let's use `kubed` to help here. Let's label `istio-ingress` namespace (done by an administrator) to indicate we can sync secrets to it:
 
 ```bash
-kubectl label namespace istio-system secrets-sync=true
+kubectl label namespace istio-ingress secrets-sync=true
 ```
 
 Then from our namespace we can label it and have it automatically sync'd:
@@ -59,7 +59,7 @@ kubectl -n istioinaction annotate secret istioinaction-cert kubed.appscode.com/s
 Now the cert should be loaded in the istio ingress gateway and marked as `ACTIVE`, for example:
 
 ```bash
-istioctl pc secret deploy/istio-ingressgateway -n istio-system 
+istioctl pc secret deploy/istio-ingressgateway -n istio-ingress 
 ```
 
 ```
@@ -84,9 +84,9 @@ If you would like o clean up this portion of the lab, you can run:
 
 ```
 kubectl -n istioinaction annotate secret istioinaction-cert kubed.appscode.com/sync-
-kubectl -n istio-system delete secret istioinaction-cert
+kubectl -n istio-ingress delete secret istioinaction-cert
 kubectl -n istioinaction delete secret istioinaction-cert
-kubectl rollout restart deploy/istio-ingressgateway -n istio-system
+kubectl rollout restart deploy/istio-ingressgateway -n istio-ingress
 
 # Restore cert-manager secret
 kubectl apply -f labs/04/cert-manager/istioinaction-io-cert.yaml
@@ -95,7 +95,7 @@ kubectl apply -f labs/04/cert-manager/istioinaction-io-cert.yaml
 
 ## Bonus: Create custom Ingress Gateways in a user namespace
 
-In the previous steps, we created the out-of-the-box ingress gateway in the `istio-system` namespace. In this section, we'll create a custom ingress gateway named `my-user-gateway` in the `istioinaction` namespace. When deployed like this, the user can completely own all resources including secrets/certificates for the domains they wish to expose on this gateway.
+In the previous steps, we created the out-of-the-box ingress gateway in the `istio-ingress` namespace. In this section, we'll create a custom ingress gateway named `my-user-gateway` in the `istioinaction` namespace. When deployed like this, the user can completely own all resources including secrets/certificates for the domains they wish to expose on this gateway.
 
 Let's take a look at how we can define our custom gateway:
 

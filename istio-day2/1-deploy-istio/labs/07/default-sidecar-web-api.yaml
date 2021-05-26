@@ -8,3 +8,4 @@ spec:
   - hosts:
     - "./web-api.istioinaction.svc.cluster.local"    
     - "istio-system/*"
+    - "istio-ingress/*"

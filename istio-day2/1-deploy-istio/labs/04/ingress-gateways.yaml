@@ -11,7 +11,7 @@ spec:
   components:
     ingressGateways:
     - name: istio-ingressgateway
-      namespace: istio-system
+      namespace: istio-ingress
       enabled: true
       k8s:
         overlays:
