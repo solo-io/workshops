@@ -3,13 +3,18 @@ variable "prefix" {
   default = "workshop"
 }
 
+variable "project" {
+  type = string
+  default = "solo-workshops"
+}
+
 locals {
   ssh_file = "./lab.pub"
 }
 
 resource "google_compute_instance" "default" {
-  project = "solo-test-236622"
-  count         = "2"
+  project = var.project
+  count         = "1"
   name         = "${var.prefix}-${count.index + 1}"
   machine_type = "n1-standard-8"
   zone         = "europe-west1-b"
@@ -43,7 +48,7 @@ resource "google_compute_instance" "default" {
 }
 
 resource "google_compute_firewall" "default" {
-  project = "solo-test-236622"
+  project = var.project
   name    = "${var.prefix}-firewall"
   network = "default"
 
