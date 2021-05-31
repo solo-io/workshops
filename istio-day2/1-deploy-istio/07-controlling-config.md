@@ -543,13 +543,13 @@ kubectl apply -f labs/07/vs-delegate.yaml -n istio-ingress
 Create the helloworld virtual service in the default namespace:
 
 ```bash
-kubectl apply -f labs/07/helloworld-vs.yaml -n default
+kubectl apply -f labs/07/helloworld-vs-delegate.yaml -n default
 ```
 
 Create the web-api virtual service in the istioinaction namespace:
 
 ```bash
-kubectl apply -f labs/07/web-api-gw-vs.yaml -n istioinaction
+kubectl apply -f labs/07/web-api-gw-vs-delegate.yaml -n istioinaction
 ```
 
 Validate VS delegation working by visit the web-api service via the istio-ingressgateway using https:
