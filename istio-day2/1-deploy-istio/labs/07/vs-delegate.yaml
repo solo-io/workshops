@@ -15,7 +15,6 @@ spec:
     delegate:
       name: helloworld
       namespace: default
-  - route:
-    delegate:
+  - delegate:
       name: web-api-gw-vs
       namespace: istioinaction
