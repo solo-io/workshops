@@ -156,6 +156,7 @@ istioctl proxy-config log deploy/web-api -n istioinaction --level debug
 To configure just a specific module for debug:
 
 ```bash
+istioctl proxy-config log deploy/web-api -n istioinaction --level info
 istioctl proxy-config log deploy/web-api -n istioinaction --level connection:debug,conn_handler:debug,filter:debug,router:debug,http:debug,upstream:debug
 ```
 
