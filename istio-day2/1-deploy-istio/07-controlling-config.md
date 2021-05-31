@@ -235,7 +235,7 @@ kubectl apply -f labs/07/web-api-gw-https-istiosystem.yaml -n istio-ingress
 Update the `web-api-gw-vs` virtual service resource in the istioinaction namespace, under ``gateways` section to refer to the `web-api-gateway` in the istio-ingress namespace.
 
 ```yaml
-apiVersion: networking.istio.io/v1alpha3
+apiVersion: networking.istio.io/v1beta1
 kind: VirtualService
 metadata:
   name: web-api-gw-vs
@@ -284,7 +284,7 @@ http.80                                          istioinaction.io     /*        
 Now as web-api's service producer, you want to limit its virtual service scope to within the current namespace, with the `exportTo` configuration:
 
 ```yaml
-apiVersion: networking.istio.io/v1alpha3
+apiVersion: networking.istio.io/v1beta1
 kind: VirtualService
 metadata:
   name: web-api-gw-vs
@@ -426,7 +426,7 @@ kubectl get po -n istioinaction
 Deploy the helloworld virtual service.  This virtual service has some changes over the default one shipped from Istio,  changes are in the `hosts` and `gateways` values to refer to the same host and gateway as the web-api service.
 
 ```yaml
-apiVersion: networking.istio.io/v1alpha3
+apiVersion: networking.istio.io/v1beta1
 kind: VirtualService
 metadata:
   name: helloworld
@@ -512,7 +512,7 @@ kubectl apply -f https://raw.githubusercontent.com/istio/istio/master/samples/he
 As platform owner, one can decide which route is delegated to which team in a specific namespace the team owns. For example, one can delegate the `/hello` to the helloworld virtual service in the default namespace and other routes to web-api-gw-vs virtual service in the istioinaction namespace:
 
 ```yaml
-apiVersion: networking.istio.io/v1alpha3
+apiVersion: networking.istio.io/v1beta1
 kind: VirtualService
 metadata:
   name: delegate-vs
@@ -529,8 +529,7 @@ spec:
     delegate:
       name: helloworld
       namespace: default
-  - route:
-    delegate:
+  - delegate:
       name: web-api-gw-vs
       namespace: istioinaction
 ```

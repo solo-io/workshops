@@ -1,0 +1,1 @@
+kubectl delete -f https://raw.githubusercontent.com/istio/istio/master/samples/helloworld/helloworld.yaml

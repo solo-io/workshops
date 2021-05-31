@@ -345,7 +345,7 @@ kubectl apply -f labs/06/audit-auth-policy.yaml
 Now, we need some way to see whether a request has been audited or not. We can do that with access logging:
 
 ```yaml
-apiVersion: networking.istio.io/v1alpha3
+apiVersion: networking.istio.io/v1beta1
 kind: EnvoyFilter
 metadata:
   name: web-api-access-log
