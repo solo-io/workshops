@@ -139,7 +139,7 @@ cat labs/04/web-api-gw-https.yaml
 ```
 
 ```yaml
-apiVersion: networking.istio.io/v1alpha3
+apiVersion: networking.istio.io/v1beta1
 kind: Gateway
 metadata:
   name: web-api-gateway
@@ -373,7 +373,7 @@ cat labs/04/ingress-gw-access-logging.yaml
 We should see a file similar to this:
 
 ```yaml
-apiVersion: networking.istio.io/v1alpha3
+apiVersion: networking.istio.io/v1beta1
 kind: EnvoyFilter
 metadata:
   name: ingressgateway-access-logging
