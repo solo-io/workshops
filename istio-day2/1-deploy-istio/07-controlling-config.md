@@ -415,11 +415,13 @@ Deploy the helloworld sample in the istioinaction namespace:
 
 ```bash
 kubectl apply -f https://raw.githubusercontent.com/istio/istio/master/samples/helloworld/helloworld.yaml -n istioinaction
+kubectl delete deploy/helloworld-v3 -n istioinaction
 ```
 
 You should see the helloworld pods reach running in a few seconds:
 
 ```bash
+kubectl wait --for=delete pod -l version=v3 -n istioinaction
 kubectl wait --for=condition=Ready pod --all -n istioinaction
 ```
 

@@ -294,10 +294,23 @@ spec:
 
 After reviewing the config, go ahead and apply it:
 
+<!--bash
+until kubectl apply -f labs/04/cert-manager/istioinaction-io-cert.yaml  >/dev/null 2>&1
+do
+  sleep 1
+done
+-->
+
 ```bash
 kubectl apply -f labs/04/cert-manager/istioinaction-io-cert.yaml 
 ```
 
+<!--bash
+until kubectl get secrets/istioinaction-cert -n istio-ingress >/dev/null 2>&1
+do
+  sleep 1
+done
+-->
 Let's make sure the certificate was recognized and issued:
 
 ```

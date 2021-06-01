@@ -115,6 +115,13 @@ Check that the canary workloads got the sidecar deployed:
 kubectl wait --for=condition=Ready pod --all -n istioinaction
 ```
 
+<!--bash
+until kubectl exec deploy/sleep -- curl http://web-api.istioinaction:8080/ -sSL -m 1 >/dev/null 2>&1
+do
+  sleep 1
+done
+-->
+
 Let's send some more traffic to the `web-api` service:
 
 ```bash
@@ -129,7 +136,6 @@ kubectl rollout restart deployment purchase-history-v1 -n istioinaction
 kubectl rollout restart deployment recommendation -n istioinaction
 kubectl rollout restart deployment sleep -n istioinaction
 ```
-
 
 ```bash
 kubectl delete deployment web-api-canary purchase-history-v1-canary recommendation-canary sleep-canary -n istioinaction

@@ -23,8 +23,13 @@ kubectl apply -f labs/01/sleep.yaml
 
 To verify we have things installed correctly, let's try running it:
 
+<!--bash
+until kubectl exec deploy/sleep -- curl httpbin:8000/headers -sSL -m 1 >/dev/null 2>&1
+do
+  sleep 1
+done
+-->
 ```bash
-kubectl wait --for=condition=Ready pod --all
 kubectl exec deploy/sleep -- curl httpbin:8000/headers
 ```
 
@@ -126,6 +131,13 @@ kubectl apply -f labs/01/envoy-proxy.yaml
 
 Now let's try to call the Envoy Proxy and see that it correctly routes to the `httpbin` service:
 
+<!--bash
+until kubectl exec deploy/sleep -- curl http://envoy/headers -sSL -m 1 >/dev/null 2>&1
+do
+  sleep 1
+done
+-->
+
 ```bash
 kubectl exec deploy/sleep -- curl http://envoy/headers
 ```
@@ -182,7 +194,12 @@ We will also need to _restart_ Envoy to pick up the new configuration:
 ```bash
 kubectl rollout restart deploy/envoy
 ```
-
+<!--bash
+until kubectl exec deploy/sleep -- curl http://envoy/headers -sSL -m 1 >/dev/null 2>&1
+do
+  sleep 1
+done
+-->
 ```bash
 kubectl exec deploy/sleep -- curl http://envoy/headers
 ```
@@ -301,7 +318,12 @@ kubectl rollout restart deploy/envoy
 ```
 
 Now let's try to call an `httpbin` service endpoint that deliberately returns an error code:
-
+<!--bash
+until kubectl exec deploy/sleep -- curl http://envoy/status/200 -sSL -m 1 >/dev/null 2>&1
+do
+  sleep 1
+done
+-->
 ```bash
 kubectl exec deploy/sleep -- curl -v http://envoy/status/500
 ```

@@ -243,6 +243,13 @@ kubectl apply -f labs/03/monitor-data-plane.yaml
 
 Let's also generate some load to the data plane (by calling our `httpbin` service) so telemetry will show up:
 
+<!--bash
+until kubectl exec deploy/sleep -- curl httpbin:8000/headers -sSL -m 1 >/dev/null 2>&1
+do
+  sleep 1
+done
+-->
+
 ```bash
 for i in {1..10}; do kubectl exec deploy/sleep -n default -- curl http://httpbin.default:8000/headers; done
 ```
