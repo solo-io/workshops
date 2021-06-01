@@ -35,8 +35,8 @@ Double check the changes you made actually got applied if you the following step
 {% endhint %}
 
 
-```
-kubectl -n default exec -it deploy/httpbin -c istio-proxy -- sudo iptables -L -t nat
+```bash
+kubectl -n default exec deploy/httpbin -c istio-proxy -- sudo iptables -L -t nat
 ```
 
 We should see an output similar to:

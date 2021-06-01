@@ -45,6 +45,9 @@ This command may take a few moments to complete; be patient.
 
 At this point, we should have a successfully installed prometheus. To verify the components that were installed to support observability for us, let's check the pods:
 
+<!--bash
+kubectl wait --for=condition=Ready pod --all -n prometheus
+-->
 ```bash
 kubectl get po -n prometheus
 ```
@@ -60,7 +63,7 @@ prometheus-prom-kube-prometheus-stack-prometheus-0     2/2     Running   1      
 
 Let's quickly port-forward the Prometheus deployment and verify we can connect to it:
 
-```bash
+```
 kubectl -n prometheus port-forward statefulset/prometheus-prom-kube-prometheus-stack-prometheus 9090
 ```
 
@@ -70,7 +73,7 @@ Now go to [http://localhost:9090/](http://localhost:9090) to verify you can get 
 
 Press `ctrl+C` to end the port forwarding and let's try the same thing for the Grafana dashboard:
 
-```bash
+```
 kubectl -n prometheus port-forward svc/prom-grafana 3000:80
 ```
 
@@ -118,7 +121,7 @@ kubectl label -n prometheus cm istio-dashboards grafana_dashboard=1
 
 If we port-forward our Grafana dashboard again, we can go find our new Istio dashboards:
 
-```bash
+```
 kubectl -n prometheus port-forward svc/prom-grafana 3000:80
 ```
 
@@ -243,8 +246,15 @@ kubectl apply -f labs/03/monitor-data-plane.yaml
 
 Let's also generate some load to the data plane (by calling our `httpbin` service) so telemetry will show up:
 
+<!--bash
+until kubectl exec deploy/sleep -- curl httpbin:8000/headers -sSL -m 1 >/dev/null 2>&1
+do
+  sleep 1
+done
+-->
+
 ```bash
-for i in {1..10}; do kubectl exec -it deploy/sleep -n default -- curl http://httpbin.default:8000/headers; done
+for i in {1..10}; do kubectl exec deploy/sleep -n default -- curl http://httpbin.default:8000/headers; done
 ```
 
 We could also use a load generator tool to put more load on the system over a period of time.
@@ -295,6 +305,9 @@ You may see helm complain about some parts of the Kiali install; you can ignore 
 
 At this point we have the Kiali operator installed. Let's check that it's up and running:
 
+<!--bash
+kubectl wait --for=condition=Ready pod --all -n kiali-operator
+-->
 ```bash
 kubectl get po -n kiali-operator
 ```
@@ -347,6 +360,9 @@ You may see kubectl complain about the manner in which we apply this resource; y
 
 Let's check that it got created:
 
+<!--bash
+kubectl wait --for=condition=Ready pod --all -n istio-system
+-->
 ```bash
 kubectl get po -n istio-system
 ```
@@ -359,7 +375,7 @@ kiali-67cd5cf9fc-lnwc9          1/1     Running   0          29s
 
 Now let's port-forward the Kiali dashboard:
 
-```bash
+```
 kubectl -n istio-system port-forward deploy/kiali 20001
 ```
 

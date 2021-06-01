@@ -23,8 +23,14 @@ kubectl apply -f labs/01/sleep.yaml
 
 To verify we have things installed correctly, let's try running it:
 
+<!--bash
+until kubectl exec deploy/sleep -- curl httpbin:8000/headers -sSL -m 1 >/dev/null 2>&1
+do
+  sleep 1
+done
+-->
 ```bash
-kubectl exec -it deploy/sleep -- curl httpbin:8000/headers
+kubectl exec deploy/sleep -- curl httpbin:8000/headers
 ```
 
 {% hint style="info" %}
@@ -125,8 +131,15 @@ kubectl apply -f labs/01/envoy-proxy.yaml
 
 Now let's try to call the Envoy Proxy and see that it correctly routes to the `httpbin` service:
 
+<!--bash
+until kubectl exec deploy/sleep -- curl http://envoy/headers -sSL -m 1 >/dev/null 2>&1
+do
+  sleep 1
+done
+-->
+
 ```bash
-kubectl exec -it deploy/sleep -- curl http://envoy/headers
+kubectl exec deploy/sleep -- curl http://envoy/headers
 ```
 
 Now our response from `httpbin` should look similar to this:
@@ -181,9 +194,14 @@ We will also need to _restart_ Envoy to pick up the new configuration:
 ```bash
 kubectl rollout restart deploy/envoy
 ```
-
+<!--bash
+until kubectl exec deploy/sleep -- curl http://envoy/headers -sSL -m 1 >/dev/null 2>&1
+do
+  sleep 1
+done
+-->
 ```bash
-kubectl exec -it deploy/sleep -- curl http://envoy/headers
+kubectl exec deploy/sleep -- curl http://envoy/headers
 ```
 
 We should see the headers now look like this:
@@ -203,7 +221,7 @@ We should see the headers now look like this:
 If we call our service, which takes longer than 1s, we should see a HTTP 504 / gateway timeout:
 
 ```bash
-kubectl exec -it deploy/sleep -- curl -v http://envoy/delay/5
+kubectl exec deploy/sleep -- curl -v http://envoy/delay/5
 ```
 
 ```
@@ -235,13 +253,13 @@ Now that we have a basic understanding of how to configure Envoy, let's take a l
 Envoy exposes a `/stats` endpoint we can inspect:
 
 ```bash
-kubectl exec -it deploy/sleep -- curl http://envoy:15000/stats
+kubectl exec deploy/sleep -- curl http://envoy:15000/stats
 ```
 
 Wow, that's a lot of good info! Let's trim it down. Maybe we just want to see retry when the proxy calls the `httpbin` service
 
 ```bash
-kubectl exec -it deploy/sleep -- curl http://envoy:15000/stats | grep retry
+kubectl exec deploy/sleep -- curl http://envoy:15000/stats | grep retry
 ```
 
 ```
@@ -300,9 +318,14 @@ kubectl rollout restart deploy/envoy
 ```
 
 Now let's try to call an `httpbin` service endpoint that deliberately returns an error code:
-
+<!--bash
+until kubectl exec deploy/sleep -- curl http://envoy/status/200 -sSL -m 1 >/dev/null 2>&1
+do
+  sleep 1
+done
+-->
 ```bash
-kubectl exec -it deploy/sleep -- curl -v http://envoy/status/500
+kubectl exec deploy/sleep -- curl -v http://envoy/status/500
 ```
 
 We see the call fails:
@@ -331,7 +354,7 @@ We see the call fails:
 So let's see what Envoy observed in terms of retries:
 
 ```bash
-kubectl exec -it deploy/sleep -- curl http://envoy:15000/stats | grep retry
+kubectl exec deploy/sleep -- curl http://envoy:15000/stats | grep retry
 ```
 
 ```

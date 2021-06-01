@@ -82,7 +82,7 @@ We list this use case here because that's what folks seem to be doing in the wil
 
 If you would like o clean up this portion of the lab, you can run:
 
-```
+```bash
 kubectl -n istioinaction annotate secret istioinaction-cert kubed.appscode.com/sync-
 kubectl -n istio-ingress delete secret istioinaction-cert
 kubectl -n istioinaction delete secret istioinaction-cert
