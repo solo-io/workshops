@@ -57,9 +57,11 @@ istioctl install -y -n istio-ingress -f labs/04/ingress-gateways.yaml --revision
 ```
 
 We should check that the ingress gateway was correctly installed:
-
-```bash
+<!--bash
 kubectl wait --for=condition=Ready pod --all -n istio-ingress
+-->
+```bash
+kubectl get po -n istio-ingress
 ```
 
 ```
