@@ -52,7 +52,7 @@ This uses the `empty` profile and enables the `istio-ingressgateway` component.
 Let's install it with a revision that matches the control plane in the `istio-ingress` namespace. We recommend that you install the `istio-ingress` gateway in a namespace that is different than istiod for better security and isolation.
 
 ```bash
-kubectl create namespace istio-ingress || true
+kubectl create namespace istio-ingress
 istioctl install -y -n istio-ingress -f labs/04/ingress-gateways.yaml --revision 1-8-3
 ```
 
@@ -69,7 +69,13 @@ istio-ingressgateway-5686db779c-8nr5p   1/1     Running   0          78s
 
 The ingress gateway will create a Kubernetes Service of type `LoadBalancer`. Use this IP address to reach the gateway:
 
-```
+<!--bash
+until [ $(kubectl get svc/istio-ingressgateway -n istio-ingress -o jsonpath="{.status.loadBalancer.ingress[0].ip}"|wc -c) -gt 5 ]
+do
+  sleep 1
+done
+-->
+```bash
 kubectl get svc -n istio-ingress
 ```
 
@@ -200,7 +206,7 @@ In the previous lab we already had a cert for our domain. In this lab, let's use
 Let's prep for the installation of cert manager:
 
 ```bash
-kubectl create namespace cert-manager || true
+kubectl create namespace cert-manager
 helm repo add jetstack https://charts.jetstack.io
 helm repo update
 ```
@@ -212,9 +218,11 @@ helm install cert-manager jetstack/cert-manager --namespace cert-manager --versi
 ```
 
 Verify things installed correctly:
-
-```bash
+<!--bash
 kubectl wait --for=condition=Ready pod --all -n cert-manager
+-->
+```bash
+kubectl get po -n cert-manager
 ```
 
 Wait a few seconds till all pods are running:
@@ -313,7 +321,7 @@ done
 -->
 Let's make sure the certificate was recognized and issued:
 
-```
+```bash
 kubectl get Certificate -n istio-ingress
 ```
 
@@ -324,7 +332,7 @@ istioinaction-cert   True    istioinaction-cert   12s
 
 Let's check the certificate SAN was specified correctly as `istioinaction.io`:
 
-```
+```bash
 kubectl get secret -n istio-ingress istioinaction-cert -o jsonpath="{.data['tls\.crt']}" | base64 -d | step certificate inspect -
 ```
 
@@ -355,10 +363,10 @@ istioctl install -y -n istio-system -f labs/04/control-plane-reduce-gw-config.ya
 
 Give a few moments for `istiod` to come back up. Then run the following to verify the setting `PILOT_FILTER_GATEWAY_CLUSTER_CONFIG` took effect: 
 
-```bash
+<!--bash
 kubectl wait --for=condition=Ready pod --all -n istio-system
-```
-```
+-->
+```bash
 kubectl get deploy/istiod-1-8-3 -n istio-system -o jsonpath="{.spec.template.spec.containers[].env[?(@.name=='PILOT_FILTER_GATEWAY_CLUSTER_CONFIG')]}";
 ```
 
@@ -439,7 +447,7 @@ curl --cacert ./labs/04/certs/ca/root-ca.crt -H "Host: istioinaction.io" https:/
 
 After sending some traffic through the gateway, check the logs:
 
-```
+```bash
 kubectl logs -n istio-ingress deploy/istio-ingressgateway -c istio-proxy
 ```
 

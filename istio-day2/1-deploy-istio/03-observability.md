@@ -23,7 +23,7 @@ We will be using the [helm](https://github.com/prometheus-community/helm-charts/
 To get started, let's create the namespace into which we'll deploy our observability components:
 
 ```bash
-kubectl create ns prometheus || true
+kubectl create ns prometheus
 ```
 
 Next, let's add the prometheus community chart repo and then update available helm charts locally.
@@ -45,7 +45,10 @@ This command may take a few moments to complete; be patient.
 
 At this point, we should have a successfully installed prometheus. To verify the components that were installed to support observability for us, let's check the pods:
 
-```
+<!--bash
+kubectl wait --for=condition=Ready pod --all -n prometheus
+-->
+```bash
 kubectl get po -n prometheus
 ```
 
@@ -281,7 +284,7 @@ For more details on installing Kiali, please see the [official install guide](ht
 Let's install the `kiali-operator` here:
 
 ```bash
-kubectl create ns kiali-operator || true
+kubectl create ns kiali-operator
 ```
 
 ```bash
@@ -302,8 +305,11 @@ You may see helm complain about some parts of the Kiali install; you can ignore 
 
 At this point we have the Kiali operator installed. Let's check that it's up and running:
 
-```bash
+<!--bash
 kubectl wait --for=condition=Ready pod --all -n kiali-operator
+-->
+```bash
+kubectl get po -n kiali-operator
 ```
 
 ```
@@ -354,7 +360,10 @@ You may see kubectl complain about the manner in which we apply this resource; y
 
 Let's check that it got created:
 
-```
+<!--bash
+kubectl wait --for=condition=Ready pod --all -n istio-system
+-->
+```bash
 kubectl get po -n istio-system
 ```
 
@@ -392,7 +401,7 @@ kubectl create clusterrolebinding kiali-dashboard-admin --clusterrole=cluster-ad
 
 Getting the token:
 
-```
+```bash
 kubectl get secret -n istio-system -o jsonpath="{.data.token}" $(kubectl get secret -n istio-system | grep kiali-dashboard | awk '{print $1}' ) | base64 --decode
 ```
 

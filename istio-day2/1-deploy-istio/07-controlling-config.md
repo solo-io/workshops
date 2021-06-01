@@ -420,9 +420,12 @@ kubectl delete deploy/helloworld-v3 -n istioinaction
 
 You should see the helloworld pods reach running in a few seconds:
 
-```bash
+<!--bash
 kubectl wait --for=delete pod -l version=v3 -n istioinaction
 kubectl wait --for=condition=Ready pod --all -n istioinaction
+-->
+```bash
+kubectl get po -n istioinaction
 ```
 
 Deploy the helloworld virtual service.  This virtual service has some changes over the default one shipped from Istio,  changes are in the `hosts` and `gateways` values to refer to the same host and gateway as the web-api service.

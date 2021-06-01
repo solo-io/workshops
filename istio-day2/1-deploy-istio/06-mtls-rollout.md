@@ -8,7 +8,7 @@ In the previous lab, we iteratively introduced the sidecar proxies to our servic
 
 In this lab we assume you have the sample services deployed into the `istioinaction` namespace with the Istio sidecar proxy deployed with each instance. In other words, we assume that the services in the `istioinaction` namespace are all part of the mesh.
 
-```
+```bash
 kubectl get po -n istioinaction
 ```
 
@@ -24,7 +24,7 @@ web-api-5d56f44d8b-bklll               2/2     Running   0          3h35m
 
 We also assume that you have the `httpbin` and `sleep` services deployed into the `default` namespace with the `sleep` service NOT part of the service mesh:
 
-```
+```bash
 kubectl get po -n default
 ```
 
@@ -390,7 +390,7 @@ kubectl exec -n istioinaction deploy/sleep -c sleep -- curl web-api.istioinactio
 
 If we check the logs of the `web-api` service, we should see something similar to the following:
 
-```
+```bash
 kubectl logs -n istioinaction deploy/web-api -c istio-proxy
 ```
 

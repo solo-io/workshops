@@ -34,7 +34,10 @@ The purpose of this deployment is to not touch any of the existing services yet 
 
 Check the pods in this namespace:
 
-```
+<!--bash
+kubectl wait --for=condition=Ready pod --all -n istioinaction
+-->
+```bash
 kubectl get po -n istioinaction
 ```
 
@@ -51,7 +54,13 @@ web-api-canary-6d87d9c4-jx82w         2/2     Running   0          10s
 
 Now that we have our web-api pod up and running, we should be able to call it:
 
-```
+<!--bash
+until kubectl exec deploy/sleep -- curl http://web-api.istioinaction:8080/ -sSL -m 1 >/dev/null 2>&1
+do
+  sleep 1
+done
+-->
+```bash
 kubectl exec deploy/sleep -- curl http://web-api.istioinaction:8080/
 ```
 
@@ -111,16 +120,16 @@ kubectl apply -f labs/05/sleep-canary.yaml -n istioinaction
 
 Check that the canary workloads got the sidecar deployed:
 
-```bash
-kubectl wait --for=condition=Ready pod --all -n istioinaction
-```
-
 <!--bash
 until kubectl exec deploy/sleep -- curl http://web-api.istioinaction:8080/ -sSL -m 1 >/dev/null 2>&1
 do
   sleep 1
 done
 -->
+
+```bash
+kubectl get po -n istioinaction
+```
 
 Let's send some more traffic to the `web-api` service:
 
@@ -271,7 +280,7 @@ kubectl apply -f sample-apps/web-api-holdapp.yaml -n istioinaction
 
 To validate the web-api container starts after its sidecar proxy starts, check the Kubernetes event for the pod:
 
-```
+```bash
 kubectl describe pod -l app=web-api -n istioinaction
 ```
 
