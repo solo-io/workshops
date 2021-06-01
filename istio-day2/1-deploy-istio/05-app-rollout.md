@@ -34,7 +34,7 @@ The purpose of this deployment is to not touch any of the existing services yet 
 
 Check the pods in this namespace:
 
-```bash
+```
 kubectl get po -n istioinaction
 ```
 
@@ -51,8 +51,8 @@ web-api-canary-6d87d9c4-jx82w         2/2     Running   0          10s
 
 Now that we have our web-api pod up and running, we should be able to call it:
 
-```bash
-kubectl exec -it deploy/sleep -- curl http://web-api.istioinaction:8080/
+```
+kubectl exec deploy/sleep -- curl http://web-api.istioinaction:8080/
 ```
 
 ```
@@ -112,13 +112,13 @@ kubectl apply -f labs/05/sleep-canary.yaml -n istioinaction
 Check that the canary workloads got the sidecar deployed:
 
 ```bash
-kubectl get po -n istioinaction
+kubectl wait --for=condition=Ready pod --all -n istioinaction
 ```
 
 Let's send some more traffic to the `web-api` service:
 
 ```bash
-for i in {1..10}; do kubectl exec -it deploy/sleep -n default -- curl http://web-api.istioinaction:8080/; done
+for i in {1..10}; do kubectl exec deploy/sleep -n default -- curl http://web-api.istioinaction:8080/; done
 ```
 
 If everything looks good, we can introduce the sidecar to the rest of the services and delete the canary:
@@ -142,7 +142,7 @@ Congratulations! You have successfully added all of your services in the istioin
 
 Coming back to our services in the `istioinaction` namespace, let's take a look at some of the Envoy configuration for the sidecar proxies. We will use the `istioctl proxy-config` command to inspect the configuration of the `web-api` pod's proxy. For example, to see the listeners configured on the proxy run this command:
 
-```bash
+```
 istioctl proxy-config listener deploy/web-api.istioinaction 
 ```
 
@@ -163,7 +163,7 @@ ADDRESS       PORT  MATCH                                                       
 
 We can also see the clusters that have been configured:
 
-```bash
+```
 istioctl proxy-config clusters deploy/web-api.istioinaction
 ```
 
@@ -204,7 +204,7 @@ kiali-operator-metrics.kiali-operator.svc.cluster.local                         
 
 If we want to see more information about how the cluster for `recommendation.istioinaction` has been configured by Istio, run this command:
 
-```bash
+```
 istioctl proxy-config clusters deploy/web-api.istioinaction --fqdn recommendation.istioinaction.svc.cluster.local -o json
 ```
 
@@ -265,7 +265,7 @@ kubectl apply -f sample-apps/web-api-holdapp.yaml -n istioinaction
 
 To validate the web-api container starts after its sidecar proxy starts, check the Kubernetes event for the pod:
 
-```bash
+```
 kubectl describe pod -l app=web-api -n istioinaction
 ```
 

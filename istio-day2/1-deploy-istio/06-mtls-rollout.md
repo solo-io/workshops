@@ -8,13 +8,13 @@ In the previous lab, we iteratively introduced the sidecar proxies to our servic
 
 In this lab we assume you have the sample services deployed into the `istioinaction` namespace with the Istio sidecar proxy deployed with each instance. In other words, we assume that the services in the `istioinaction` namespace are all part of the mesh.
 
-```bash
+```
 kubectl get po -n istioinaction
 ```
 
 Should look something like this:
 
-```bash
+```
 NAME                                   READY   STATUS    RESTARTS   AGE
 purchase-history-v1-54c8956877-5cxq6   2/2     Running   0          3h35m
 recommendation-7f66565d54-bl8s2        2/2     Running   0          3h36m
@@ -24,7 +24,7 @@ web-api-5d56f44d8b-bklll               2/2     Running   0          3h35m
 
 We also assume that you have the `httpbin` and `sleep` services deployed into the `default` namespace with the `sleep` service NOT part of the service mesh:
 
-```bash
+```
 kubectl get po -n default
 ```
 
@@ -61,7 +61,7 @@ At this point, services within the mesh should be able to call others in the mes
 For services in the mesh:
 
 ```bash
-kubectl exec -it deploy/sleep -c sleep -n istioinaction -- curl httpbin.default:8000/headers
+kubectl exec deploy/sleep -c sleep -n istioinaction -- curl httpbin.default:8000/headers
 ```
 
 ```
@@ -86,7 +86,7 @@ We see above both the `httpbin` and `sleep` services are part of the mesh and we
 If we run the following command for a service outside of the mesh talking to one inside the mesh:
 
 ```bash
-kubectl exec -it deploy/sleep -c sleep -n default -- curl httpbin.default:8000/headers
+kubectl exec deploy/sleep -c sleep -n default -- curl httpbin.default:8000/headers
 ```
 
 Now you should see a response similar to this:
@@ -137,7 +137,7 @@ kubectl apply -f labs/06/purchase-history-strict.yaml
 Let's try call our services in the `istioinaction` namespace from _outside_ that namespace:
 
 ```bash
-kubectl exec -it -n default deploy/sleep -- curl web-api.istioinaction:8080
+kubectl exec -n default deploy/sleep -- curl web-api.istioinaction:8080
 ```
 
 It still works because we called a service different than the one we locked down with mTLS. But since that service, `purchase-history` is part of the call graph, we should verify that indeed it was mTLS. We can do this by looking at the Kiali dashboard we installed in Lab 03.
@@ -150,7 +150,7 @@ kubectl get cm istio-1-8-3 -n istio-system -o yaml | sed 's/istio-1-8-3/istio/g'
 
 Port-forward Kiali and navigate to the dashboard:
 
-```bash
+```
 kubectl port-forward -n istio-system deploy/kiali 20001
 ```
 
@@ -201,7 +201,7 @@ kubectl -n istioinaction apply -f labs/06/web-api-incl-stats.yaml
 Now let's curl some of the stats available for the newly exposed `tls_inspector`:
 
 ```bash
-kubectl exec -it -n istioinaction deploy/web-api -c istio-proxy -- curl localhost:15000/stats | grep tls_inspector
+kubectl exec -n istioinaction deploy/web-api -c istio-proxy -- curl localhost:15000/stats | grep tls_inspector
 ```
 
 ```
@@ -221,7 +221,7 @@ You can find more information about the Envoy `tls_inspector` [on the Envoy docu
 We can also see connection/ssl information from the listener:
 
 ```bash
-kubectl exec -it -n istioinaction deploy/web-api -c istio-proxy -- curl localhost:15000/stats | grep listener.0.0.0.0
+kubectl exec -n istioinaction deploy/web-api -c istio-proxy -- curl localhost:15000/stats | grep listener.0.0.0.0
 ```
 
 In this set of metrics, we see the following interesting stats (among others):
@@ -259,13 +259,13 @@ listener.0.0.0.0_15006.ssl.session_reused: 0
 These metrics can be used to determine whether plaintext connections are still coming in when we expect only mTLS connections (for those services in the mesh). For example, let's send a plaintext call into the `web-api` service and review some of these metrics:
 
 ```bash
-kubectl exec -it -n default deploy/sleep -- curl web-api.istioinaction:8080
+kubectl exec -n default deploy/sleep -- curl web-api.istioinaction:8080
 ```
 
 If we check `tls_inspector`
 
 ```bash
-kubectl exec -it -n istioinaction deploy/web-api -c istio-proxy -- curl localhost:15000/stats | grep tls_inspector
+kubectl exec -n istioinaction deploy/web-api -c istio-proxy -- curl localhost:15000/stats | grep tls_inspector
 ```
 ```
 tls_inspector.sni_found: 0
@@ -279,7 +279,7 @@ We see that the `tls_not_found` stat incremented... (it incremented by 2, we'll 
 Let's check the listener stats:
 
 ```bash
-kubectl exec -it -n istioinaction deploy/web-api -c istio-proxy -- curl localhost:15000/stats | grep listener.0.0.0.0
+kubectl exec -n istioinaction deploy/web-api -c istio-proxy -- curl localhost:15000/stats | grep listener.0.0.0.0
 ```
 
 ```
@@ -300,7 +300,7 @@ We can see we had a connection come in to the listener, but we did not have a co
 For the user: try calling with a service in the mesh that will establish TLS/mTLS and evaluate what the stats look like:
 
 ```bash
-kubectl exec -it -n istioinaction deploy/sleep -c sleep -- curl web-api.istioinaction:8080
+kubectl exec -n istioinaction deploy/sleep -c sleep -- curl web-api.istioinaction:8080
 ```
 
 By whitelisting these stats for workloads that you're trying to evaluate whether or not to convert to `STRICT` mTLS, you can tell whether it's safe to do so. You could pull these stats into a TSDB/Prometheus to get a holistic view of all replicas in a workload (exercise left to the reader). 
@@ -385,12 +385,12 @@ kubectl apply -f labs/06/web-api-access-logging-audit.yaml
 Now call the `web-api` service from within the mesh with mTLS:
 
 ```bash
-kubectl exec -it -n istioinaction deploy/sleep -c sleep -- curl web-api.istioinaction:8080
+kubectl exec -n istioinaction deploy/sleep -c sleep -- curl web-api.istioinaction:8080
 ```
 
 If we check the logs of the `web-api` service, we should see something similar to the following:
 
-```bash
+```
 kubectl logs -n istioinaction deploy/web-api -c istio-proxy
 ```
 
@@ -403,7 +403,7 @@ Notice the `X-Forwarded-Client-Cert` header and the `audit_flag` field.
 Now let's call the service from outside the mesh:
 
 ```bash
-kubectl exec -it -n default deploy/sleep -- curl web-api.istioinaction:8080
+kubectl exec -n default deploy/sleep -- curl web-api.istioinaction:8080
 ```
 
 Now if we check the access logging, we should see there is no X-F-C-C header and the `audit_flag` is `true`:

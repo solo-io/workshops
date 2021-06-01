@@ -31,7 +31,7 @@ kubectl apply -f labs/07/default-sidecar-web-api.yaml -n istioinaction
 Let us reach to web-api service from the sleep pod in the istioinaction namespace.  
 
 ```bash
-kubectl exec -it deploy/sleep -n istioinaction -- curl http://web-api.istioinaction:8080/
+kubectl exec deploy/sleep -n istioinaction -- curl http://web-api.istioinaction:8080/
 ```
 
 You will get a 500 error code:
@@ -114,7 +114,7 @@ kubectl apply -f labs/07/default-sidecar-allows-all-egress.yaml -n istioinaction
 Curl the web-api from the sleep pod in the istioinaction namespace:
 
 ```bash
-kubectl exec -it deploy/sleep -n istioinaction -- curl http://web-api.istioinaction:8080/
+kubectl exec deploy/sleep -n istioinaction -- curl http://web-api.istioinaction:8080/
 ```
 
 You should see 200 code from the recommendation service and purchase-history services:
@@ -168,7 +168,7 @@ Defaulting container name to sleep.
 
 If you view the cluster configuration for the web-api pod in the istioinaction namespace:
 
-```bash
+```
 istioctl pc cluster deploy/web-api.istioinaction
 ```
 
@@ -193,7 +193,7 @@ istioctl kube-inject -f sample-apps/sleep.yaml --meshConfigMapName istio-1-8-3 -
 Now reach to web-api service from the sleep pod in the default namespace.
 
 ```bash
-kubectl exec -it deploy/sleep -n default -- curl http://web-api.istioinaction:8080/
+kubectl exec deploy/sleep -n default -- curl http://web-api.istioinaction:8080/
 ```
 
 You will get a 200 status code because the sleep pod in the default namespace doesn't have any sidecar resource thus can see all the configuration for the web-api service in istioinaction.  
@@ -228,7 +228,7 @@ kubectl delete gw web-api-gateway -n istioinaction
 
 Create the `web-api-gateway` gateway resource for the istio-ingress namespace instead:
 
-```
+```bash
 kubectl apply -f labs/07/web-api-gw-https-istiosystem.yaml -n istio-ingress
 ```
 
@@ -267,7 +267,7 @@ curl --cacert ./labs/04/certs/ca/root-ca.crt -H "Host: istioinaction.io" https:/
 
 You should continue to get 200 status code.  Check the route configuration for istio-ingressgateway in the istio-system namespace:
 
-```bash
+```
 istioctl pc route deploy/istio-ingressgateway.istio-ingress
 ```
 
@@ -318,7 +318,7 @@ curl --cacert ./labs/04/certs/ca/root-ca.crt -H "Host: istioinaction.io" https:/
 
 Because istio ingress gateway doesn't know how to route to the web-api service in the istioinaction namespace, you will get an empty reply instead.  Confirm the route configuration for istio-ingressgateway in the istio-ingress namespace:
 
-```bash
+```
 istioctl pc route deploy/istio-ingressgateway.istio-ingress
 ```
 
@@ -340,7 +340,7 @@ kubectl apply -f labs/07/web-api-gw-vs.yaml -n istioinaction
 
 Confirm you can send some traffic to web-api service via istio-ingressgateway and get a 200 status code.  Check the clusters for the istio-ingressgateway:
 
-```bash
+```
 istioctl pc cluster deploy/istio-ingressgateway.istio-ingress
 ```
 
@@ -385,7 +385,7 @@ kubectl apply -f labs/07/web-api-service-exportto.yaml -n istioinaction
 
 Do you think you will be able to reach web-api via istio ingressgateway? You won't because the web-api service declares it is only exposed to the istioinaction namespace.  Check the clusters for the istio-ingressgateway:
 
-```bash
+```
 istioctl pc cluster deploy/istio-ingressgateway.istio-ingress
 ```
 
@@ -420,7 +420,7 @@ kubectl apply -f https://raw.githubusercontent.com/istio/istio/master/samples/he
 You should see the helloworld pods reach running in a few seconds:
 
 ```bash
-kubectl get po -n istioinaction
+kubectl wait --for=condition=Ready pod --all -n istioinaction
 ```
 
 Deploy the helloworld virtual service.  This virtual service has some changes over the default one shipped from Istio,  changes are in the `hosts` and `gateways` values to refer to the same host and gateway as the web-api service.
@@ -478,7 +478,7 @@ curl --cacert ./labs/04/certs/ca/root-ca.crt -H "Host: istioinaction.io" https:/
 
 You should see the 200 status code as before.  This is because Istiod successfully merged the virtual services resources (`helloworld-vs.yaml` & `web-api-gw-vs.yaml`) automatically for you knowing they are using the same host name. If you examine the routes configuration for istio-ingressgateway:
 
-```bash
+```
 istioctl pc routes deploy/istio-ingressgateway -n istio-ingress
 ```
 
@@ -572,7 +572,7 @@ curl -H "Host: istioinaction.io" http://$GATEWAY_IP
 
 :) As you can see the virtual service delegation is working.  Check what the route look like from the istio-ingressgateway pod:
 
-```bash
+```
 istioctl pc routes deploy/istio-ingressgateway -n istio-ingress
 ```
 

@@ -23,7 +23,7 @@ We will be using the [helm](https://github.com/prometheus-community/helm-charts/
 To get started, let's create the namespace into which we'll deploy our observability components:
 
 ```bash
-kubectl create ns prometheus
+kubectl create ns prometheus || true
 ```
 
 Next, let's add the prometheus community chart repo and then update available helm charts locally.
@@ -45,7 +45,7 @@ This command may take a few moments to complete; be patient.
 
 At this point, we should have a successfully installed prometheus. To verify the components that were installed to support observability for us, let's check the pods:
 
-```bash
+```
 kubectl get po -n prometheus
 ```
 
@@ -60,7 +60,7 @@ prometheus-prom-kube-prometheus-stack-prometheus-0     2/2     Running   1      
 
 Let's quickly port-forward the Prometheus deployment and verify we can connect to it:
 
-```bash
+```
 kubectl -n prometheus port-forward statefulset/prometheus-prom-kube-prometheus-stack-prometheus 9090
 ```
 
@@ -70,7 +70,7 @@ Now go to [http://localhost:9090/](http://localhost:9090) to verify you can get 
 
 Press `ctrl+C` to end the port forwarding and let's try the same thing for the Grafana dashboard:
 
-```bash
+```
 kubectl -n prometheus port-forward svc/prom-grafana 3000:80
 ```
 
@@ -118,7 +118,7 @@ kubectl label -n prometheus cm istio-dashboards grafana_dashboard=1
 
 If we port-forward our Grafana dashboard again, we can go find our new Istio dashboards:
 
-```bash
+```
 kubectl -n prometheus port-forward svc/prom-grafana 3000:80
 ```
 
@@ -244,7 +244,7 @@ kubectl apply -f labs/03/monitor-data-plane.yaml
 Let's also generate some load to the data plane (by calling our `httpbin` service) so telemetry will show up:
 
 ```bash
-for i in {1..10}; do kubectl exec -it deploy/sleep -n default -- curl http://httpbin.default:8000/headers; done
+for i in {1..10}; do kubectl exec deploy/sleep -n default -- curl http://httpbin.default:8000/headers; done
 ```
 
 We could also use a load generator tool to put more load on the system over a period of time.
@@ -274,7 +274,7 @@ For more details on installing Kiali, please see the [official install guide](ht
 Let's install the `kiali-operator` here:
 
 ```bash
-kubectl create ns kiali-operator
+kubectl create ns kiali-operator || true
 ```
 
 ```bash
@@ -296,7 +296,7 @@ You may see helm complain about some parts of the Kiali install; you can ignore 
 At this point we have the Kiali operator installed. Let's check that it's up and running:
 
 ```bash
-kubectl get po -n kiali-operator
+kubectl wait --for=condition=Ready pod --all -n kiali-operator
 ```
 
 ```
@@ -347,7 +347,7 @@ You may see kubectl complain about the manner in which we apply this resource; y
 
 Let's check that it got created:
 
-```bash
+```
 kubectl get po -n istio-system
 ```
 
@@ -359,7 +359,7 @@ kiali-67cd5cf9fc-lnwc9          1/1     Running   0          29s
 
 Now let's port-forward the Kiali dashboard:
 
-```bash
+```
 kubectl -n istio-system port-forward deploy/kiali 20001
 ```
 
@@ -385,7 +385,7 @@ kubectl create clusterrolebinding kiali-dashboard-admin --clusterrole=cluster-ad
 
 Getting the token:
 
-```bash
+```
 kubectl get secret -n istio-system -o jsonpath="{.data.token}" $(kubectl get secret -n istio-system | grep kiali-dashboard | awk '{print $1}' ) | base64 --decode
 ```
 
