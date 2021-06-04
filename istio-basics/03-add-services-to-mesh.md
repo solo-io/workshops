@@ -19,7 +19,8 @@ Validate the `istioinaction` namespace is annotated with the `istio-injection` l
 kubectl get namespace -L istio-injection
 ```
 
-Now that you have a namespace with automatic sidecar injection enabled, you are ready to start adding services in the `istioinaction` namespace to the mesh.
+Now that you have a namespace with automatic sidecar injection enabled, you are ready to start adding services in the `istioinaction` namespace to the mesh. Since you added the `istio-injection` label to the `istioinaction` namespace, the Istio mutating admission controller automatically injects the Envoy proxy sidecar during the deployment or restart of the pod.
+
 ## Review Service requirements
 
 Before you add Kubernete services to the mesh, you need to be aware of the [application requirements](https://istio.io/latest/docs/ops/deployment/requirements/) to ensure that your Kubernetes services meet the minimum requirements.
@@ -33,6 +34,8 @@ Deployment descriptors:
 - App and version labels are added to provide contextual information for metrics and tracing.
 
 Check the above requirements for each of the Kubernetes services and make adjustments as necessary. If you don't have `NET_ADMIN` security rights, you would need to explore the Istio CNI plugin to remove the `NET_ADMIN` requirement for deploying services.
+
+TODO: add a tip for statefulset.
 
 Using the `web-api` service as an example, Let's review its service and deployment descriptor.
 
@@ -78,25 +81,82 @@ Let us add the sidecar to each of the services in the `istioinaction` namespace,
 kubectl rollout restart deployment web-api -n istioinaction
 ```
 
-Validate the `web-api` pod has reached running status with sidecar injected:
+Validate the `web-api` pod has reached running status with Istio's default sidecar proxy injected:
 
 ```bash
 kubectl get pod -l app=web-api -n istioinaction
 ```
 
+You should see `2/2` in the output which indicates the sidecar proxy runs alongside of the `web-api` application container in the `web-api` pod:
+
+```
+NAME                       READY   STATUS    RESTARTS   AGE
+web-api-7d5ccfd7b4-m7lkj   2/2     Running   0          9m4s
+```
+
 Validate the `web-api` pod log looks good:
 
 ```bash
-kubectl logs -c web-api -n istioinaction
+kubectl logs deploy/web-api -c web-api -n istioinaction
 ```
 
 Validate you can continue to call the `web-api` service securely:
 
 ```bash
-curl -H "Host: istioinaction.io" http://$GATEWAY_IP:$INGRESS_PORT
+curl --cacert ./labs/02/certs/ca/root-ca.crt -H "Host: istioinaction.io" https://istioinaction.io --resolve istioinaction.io:443:$GATEWAY_IP
 ```
 
-TODO: describe the pod to view the init-container and sidecar container.
+### Understand what happens
+
+Use the command below to get the details of the `web-api` pod:
+
+```bash
+kubectl get pod -l app=web-api -n istioinaction -o yaml
+```
+
+From the output, the `web-api` pod contains 1 init container and 2 normal containers.  The Istio mutating admission controller was responsible for injecting the `istio-init` init container and the `istio-proxy` container. The entry point of the container is `pilot-agent`, which contains the `istio-iptables` command to setup port forwarding for Istio's sidecar proxy. 
+
+
+```bash
+kubectl exec deploy/web-api -c istio-proxy -n istioinaction -- /usr/local/bin/pilot-agent istio-iptables --help
+```
+
+Want to know more about the flags for istio-iptables, run the command below:
+
+```
+istio-iptables is responsible for setting up port forwarding for Istio Sidecar.
+
+Usage:
+  pilot-agent istio-iptables [flags]
+
+Flags:
+  -n, --dry-run                                     Do not call any external dependencies like iptables
+  -p, --envoy-port string                           Specify the envoy port to which redirect all TCP traffic (default $ENVOY_PORT = 15001)
+  -h, --help                                        help for istio-iptables
+  -z, --inbound-capture-port string                 Port to which all inbound TCP traffic to the pod/VM should be redirected to (default $INBOUND_CAPTURE_PORT = 15006)
+  -e, --inbound-tunnel-port string                  Specify the istio tunnel port for inbound tcp traffic (default $INBOUND_TUNNEL_PORT = 15008)
+      --iptables-probe-port string                  set listen port for failure detection (default "15002")
+  -m, --istio-inbound-interception-mode string      The mode used to redirect inbound connections to Envoy, either "REDIRECT" or "TPROXY"
+  -b, --istio-inbound-ports string                  Comma separated list of inbound ports for which traffic is to be redirected to Envoy (optional). The wildcard character "*" can be used to configure redirection for all ports. An empty list will disable
+  -t, --istio-inbound-tproxy-mark string
+  -r, --istio-inbound-tproxy-route-table string
+  -d, --istio-local-exclude-ports string            Comma separated list of inbound ports to be excluded from redirection to Envoy (optional). Only applies  when all inbound traffic (i.e. "*") is being redirected (default to $ISTIO_LOCAL_EXCLUDE_PORTS)
+  -o, --istio-local-outbound-ports-exclude string   Comma separated list of outbound ports to be excluded from redirection to Envoy
+  -q, --istio-outbound-ports string                 Comma separated list of outbound ports to be explicitly included for redirection to Envoy
+  -i, --istio-service-cidr string                   Comma separated list of IP ranges in CIDR form to redirect to envoy (optional). The wildcard character "*" can be used to redirect all outbound traffic. An empty list will disable all outbound
+  -x, --istio-service-exclude-cidr string           Comma separated list of IP ranges in CIDR form to be excluded from redirection. Only applies when all  outbound traffic (i.e. "*") is being redirected (default to $ISTIO_SERVICE_EXCLUDE_CIDR)
+  -k, --kube-virt-interfaces string                 Comma separated list of virtual interfaces whose inbound traffic (from VM) will be treated as outbound
+      --probe-timeout duration                      failure detection timeout (default 5s)
+  -g, --proxy-gid string                            Specify the GID of the user for which the redirection is not applied. (same default value as -u param)
+  -u, --proxy-uid string                            Specify the UID of the user for which the redirection is not applied. Typically, this is the UID of the proxy container
+      --redirect-dns                                Enable capture of dns traffic by istio-agent
+...
+```
+
+You will notice that all inbound ports are redirected to the Envoy proxy container within the pod. You can also see a few ports such as 15020 are excluded from redirection (you'll soon learn why this is the case).
+
+
+
 
 Next, let us add the sidecar to all other services in the `istioinaction` namespace
 
