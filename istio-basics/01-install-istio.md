@@ -78,6 +78,12 @@ Istio telemetry addons are shipped as samples because these addons are optimized
 kubectl apply -f samples/addons
 ```
 
+If you hit an error like below, rerun the above command to ensure the `samples/addons` are applied to your Kubernetes cluster. The error below could happen when you attempt to install any `MonitoringDashboard` custom resource before the `MonitoringDashboard` custom resource definition (CRD) is installed.
+
+```
+unable to recognize "samples/addons/kiali.yaml": no matches for kind "MonitoringDashboard" in version "monitoring.kiali.io/v1alpha1"
+```
+
 Verify you can access the Prometheus dashboard:
 
 ```bash
@@ -106,7 +112,7 @@ You will not see much telemetry data from any of these dashboards, as we don't h
 
 ## Next lab
 
-Congratulations, you have installed Istio control plane (Istiod), Istio ingress-gateway and egress-gateway and its addon components successfully.  We'll explore expose and secure your services to Istio ingress gateway in the [next lab](./02-secure-service-ingress.md).
+Congratulations, you have installed Istio control plane (Istiod), Istio ingress-gateway and egress-gateway and its addon components successfully.  We'll learn to expose and secure your services to Istio ingress gateway in the [next lab](./02-secure-service-ingress.md).
 
 
 
