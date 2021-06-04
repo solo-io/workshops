@@ -1,3 +1,5 @@
+cd
+
 curl -L https://istio.io/downloadIstio | ISTIO_VERSION=1.9.3 sh -
 cd istio-1.9.3
 export PATH=$PWD/bin:$PATH

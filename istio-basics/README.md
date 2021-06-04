@@ -13,7 +13,7 @@ This lab explains how to get started with Istio and explore various functions Is
 We will use a Kubernetes cluster offered by instruqt to run the lab. 
 
 ### Lab environment prep on your local laptop
-You can also run this lab on your laptop where Docker is supported. If you are using MacOS, run the following commands to download k3d and setup a Kubernetes cluster after you start your Docker deamon:
+You can also run this lab on your laptop where Docker is supported. If you are using Linux, run the following commands to download k3d and setup a Kubernetes cluster after you start your Docker deamon:
 
 ```
 # download k3d
@@ -24,7 +24,7 @@ network=demo-1
 docker network create $network || true
 
 # use loadbalancer and port mapping
-k3d cluster create istiocluster --image "rancher/k3s:v1.20.2-k3s1" --port 80:80@loadbalancer --port 443:443@loadbalancer --k3s-server-arg "--disable=traefik" --network $network
+k3d cluster create istiocluster --image "rancher/k3s:v1.20.2-k3s1" --k3s-server-arg "--disable=traefik" --network $network
 
 kube_ctx=k3d-istiocluster
 k3d kubeconfig get istiocluster > ~/.kube/istiocluster
