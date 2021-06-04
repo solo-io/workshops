@@ -8,6 +8,7 @@ kubectl apply -n istioinaction -f sample-apps/purchase-history-v1.yaml
 kubectl apply -n istioinaction -f sample-apps/sleep.yaml
 
 kubectl get po -n istioinaction
+kubectl wait --for=condition=Ready pod --all -n istioinaction
 
 kubectl get svc -n istio-system
 

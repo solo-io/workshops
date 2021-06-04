@@ -13,7 +13,34 @@ This lab explains how to get started with Istio and explore various functions Is
 We will use a Kubernetes cluster offered by instruqt to run the lab. 
 
 ### Lab environment prep on your local laptop
-You can also run this lab on your laptop where Docker is supported. If you are using Linux, run the following commands to download k3d and setup a Kubernetes cluster after you start your Docker deamon:
+Alternatively, you can also run this lab on your laptop where Docker is supported. Due to a known issue with MetalLB with MacOS. If you are running this lab on MacOS, we recommend you to run a vagrant Ubuntu VM on your MacOS.
+### Set up Kubernetes cluster with Kind
+
+From the terminal go to the `/home/solo/workshops/scripts` directory:
+
+```
+cd /home/solo/workshops/scripts
+```
+
+Run the following commands to deploy a single Kubernetes cluster using [Kind](https://kind.sigs.k8s.io/):
+
+
+```bash
+./deploy.sh 1 istio-workshop
+```
+
+{% hint style="info" %}
+Note the `1` in the CLI command above
+{% endhint %}
+
+Kind should automatically set up the Kubernetes context for the `kubectl` CLI tool, but to make sure you're pointed to the right cluster, run the following:
+
+```bash
+kubectl config use-context istio-workshop
+```
+
+#### Set up Kubernetes cluster with k3d
+Run the following commands to download k3d and setup a Kubernetes cluster after you start your Docker deamon:
 
 ```
 # download k3d
@@ -23,7 +50,7 @@ curl -s https://raw.githubusercontent.com/rancher/k3d/main/install.sh | bash
 network=demo-1
 docker network create $network || true
 
-# use loadbalancer and port mapping
+# setup the cluster
 k3d cluster create istiocluster --image "rancher/k3s:v1.20.2-k3s1" --k3s-server-arg "--disable=traefik" --network $network
 
 kube_ctx=k3d-istiocluster
