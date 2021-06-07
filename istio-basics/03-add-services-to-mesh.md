@@ -291,6 +291,8 @@ curl --cacert ./labs/02/certs/ca/root-ca.crt -H "Host: istioinaction.io" https:/
 
 Congratulations on getting all services in the `istioinaction` namespace to the Istio service mesh. One of the values of using a service mesh is that you can gain immediate insights into the behaviors and interactions of your services. Istio deliveres a set of dashboards as addon components that provide you access to important telemetry data that is available just by adding services to the mesh.
 
+### Visualize your services
+
 You can visualize the services in the mesh in Kiali.  Launch Kiali using the command below:
 
 ```bash
@@ -313,20 +315,35 @@ You should observe the service interaction graph with some traffic animation and
 
 ![](./images/kiali-istioinaction.png)
 
-Now click on the call graph between `istio-ingressgateway` and `web-api` service. You should see that indeed this call is enforced with mTLS along with some HTTP traffic details among the two services:
+Now click on the call graph between `istio-ingressgateway` and `web-api` service. You should see that indeed this call is secured using mTLS along with some HTTP traffic details among the two services:
 
 ![](./images/kiali-select-a-link.png)
 
+While it is nice to see the communications are secured using mTLS, how do you enforce only traffic with mTLS are allowed?  We will cover this in the next lab.
 
-You can view distributed tracing information using the Jaeger dashboard, which you can launch using `istioctl dashboard jaeger` command:
+### Distributed tracing
+
+You can view distributed tracing information using the Jaeger dashboard. Press `ctrl+C` to end the prior `istioctl dashboard kiali` command and use the command below to launch the Jaeger dashboard: 
 
 ```bash
 istioctl dashboard jaeger
 ```
 
-TODO: capture a screen shot of Jaeger.
+Let's also generate some load to the data plane (by calling our `web-api` service) so that you can observe interactions among your services:
 
-You can also view various service metrics from the Grafana dashboard.  Launch the Grafana dashboard:
+```bash
+for i in {1..10}; do curl --cacert ./labs/02/certs/ca/root-ca.crt -H "Host: istioinaction.io" https://istioinaction.io --resolve istioinaction.io:443:$GATEWAY_IP; done
+```
+
+Navigate to [http://localhost:16686](http://localhost:16686). On the "Service" dropdown, select "istio-ingressgateway". Click on the "Find Traces" button at the bottom. You should see 10 traces, which are for every single request to the `web-api` service through the Istio's ingress gateway.
+
+![](./images/jaeger-traces-ingress-gw.png)
+
+Click on one of the traces to view the details of the distributed traces for that request. For example, this request from the picture below has a duration of `6ms` and 6 trace spans among 4 services.  Why there are 6 trace spans?  You can click on each trace span to learn more information of the trace span. You may notice all trace spans has the same value for the `x-request-id` header. Why? This is how Jaeger knows these trace spans are part of the same request. In order for your services' distributed tracing to work properly in Istio service mesh, the [B-3 trace headers](https://istio.io/latest/docs/tasks/observability/distributed-tracing/overview/#trace-context-propagation) inluding `x-request-id` have to be propogated between your services. 
+
+![](./images/jaeger-traces-spans-single-req.png)
+
+You can also view various service metrics from the Grafana dashboard. Press `ctrl+C` to end the prior `istioctl dashboard jaeger` command and use the command below to launch the Grafana dashboard:
 
 ```bash
 istioctl dashboard grafana
@@ -336,12 +353,8 @@ TODO: capture a screen shot of Grafana service level metrics.
 
 TODO: add some content for prometheus and connect it to generate alerts.
 
-## Propogate Trace Headers
-
-TODO: check if the sample services already propogate trace headers. If not, we need to add code to do it.
-
 ## Next lab
-Congratulations, you have added the sample application successfully to Istio service mesh and observed the services' communications. We'll explore securing these services in the mesh in the [next lab](./04-secure-services-with-istio.md).
+Congratulations, you have added the sample application successfully to Istio service mesh and observed the services' communications. You have observed the secure communication among your services and how much time each request spent. We'll explore securing these services with declarative policies in the Istio service mesh in the [next lab](./04-secure-services-with-istio.md).
 
 
 
