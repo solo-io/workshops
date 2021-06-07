@@ -5,12 +5,14 @@
 Install terraform:
 
 ```
+# Tested with terraform v0.15.4
 brew install terraform
 ```
 
 Install ansible:
 
 ```
+# Tested with ansible v2.11.1 / python 3.9.5
 pip3 install ansible
 ```
 
@@ -28,18 +30,34 @@ Run the following command to initialize the working directory:
 terraform init
 ```
 
-Edit the `gce.tf` file to adapt it to your needs:
-
-- the prefix of the `name` is `test-` by default, change it to your name, for example, to avoid conflicts with other workshops
-- the `count` value should be updated to reflect the number of Virtual Machines you want to provision
-- the `zone` value should be updated to use a GCP zone that is part of a region close to the people who will attend the workshop
-
-Run the following command to deploy the Virtual Machines:
+Set your workspace:
 
 ```
-terraform apply -auto-approve
+terraform workspace list
+terraform workspace select <workspace_name> || terraform workspace new <workspace_name>
 ```
 
+Edit the `terraform.tfvars` file to adapt it to your needs:
+
+- Add as many entries to `environment` as desired (or none). Every entry can be considered an isolated unit from the others
+- Inside an `environment` all parameters are optional, and default values are defined in the same file
+- Possible options:
+```
+  workshop1 = { # Prefix that will be shared in all objects
+    project       = "solo-test-236622"
+    # https://cloud.google.com/compute/docs/machine-types
+    machine_type  = "n1-standard-8"
+    # Zone where replicas will be created
+    zone          = "europe-west4-a"
+    # Replicas to deploy, in addition 1 'source-image' will be always created
+    num_instances = 0
+    # OS image https://cloud.google.com/compute/docs/images
+    vm_image      = "ubuntu-2004-focal-v20210211"
+  }
+
+**NOTE**  
+If you only want to create the source vm image and not any replica, just set num_instances = 0. You can re-run terraform again later with a number and the source image step will be skipped. The generation of the source image is a SLOW process.
+```
 When the deployment is finished, you need to run the ansible script to deploy the prerequisites.
 
 Load the `lab` ssh key:
@@ -52,13 +70,6 @@ If you don't already have the `lab` private key available locally, retrieve it f
 
 ```
 ssh-add lab
-```
-
-Create the ansible `hosts` file from the terraform output:
-
-```
-echo "[hosts]" > hosts
-terraform output -json | jq -r '.gce_public_ip.value[]' | while read ip; do echo $ip ansible_host=$ip ansible_user=solo >> hosts; done
 ```
 
 Remove the SSH known hosts (optional, but recommended as Google Cloud reuses the same IP addresses quite often):
@@ -75,11 +86,26 @@ export GLOO_MESH_LICENSE_KEY=AnotherVeryLongKeyString
 export PORTAL_LICENSE_KEY=AnotherVeryLongKeyString
 ```
 
+Run the following command to deploy the Virtual Machines:
+
+```
+terraform apply -auto-approve
+```
+
+# Manual provisioning
+
+Create the ansible `hosts` file from the terraform output:
+
+```
+export env_name = <myname> # PUT HERE YOUR ENV NAME IN terraform.tfvars
+echo "[hosts]" > hosts
+terraform output -json | jq -r ".gce_replicas_public_ip.value.${env_name}[]" | while read ip; do echo $ip ansible_host=$ip ansible_user=solo >> hosts; done
+```
+
 Run the ansible playbook to apply all the prerequisites to the Virtual Machines.
 
 ```
-export ANSIBLE_HOST_KEY_CHECKING=False
-ansible-playbook -i ./hosts -f 30 ansible-playbook.yml
+ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -i ./hosts -f 30 -e ansible_python_interpreter=/usr/bin/python3 -e reboot_vm=true ansible-playbook.yml
 ```
 
 ## Deliver
@@ -108,7 +134,19 @@ Go to the terraform directory:
 cd terraform
 ```
 
-Run the following command to destroy all the VMs:
+Run the following command to destroy all the replicas:
+
+```
+terraform destroy -target=module.vm-replica -force
+```
+
+Run the following command to destroy all the source images:
+
+```
+terraform destroy -target=module.vm-image -force
+```
+
+Run the following command to destroy all:
 
 ```
 terraform destroy -force
