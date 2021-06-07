@@ -343,13 +343,33 @@ Click on one of the traces to view the details of the distributed traces for tha
 
 ![](./images/jaeger-traces-spans-single-req.png)
 
+### Istio control plane and data plane Grafana dashboards
+
 You can also view various service metrics from the Grafana dashboard. Press `ctrl+C` to end the prior `istioctl dashboard jaeger` command and use the command below to launch the Grafana dashboard:
 
 ```bash
 istioctl dashboard grafana
 ```
 
-TODO: capture a screen shot of Grafana service level metrics.
+Navigate to [http://localhost:3000](http://localhost:3000). On the left menu, select "Dashboards" (the icon that has 4 sqares), then click on the "Manage" menu. On the resulting page, you will view the list of available Istio dashboards:
+
+![](./images/grafana-view-list-dashboards.png)
+
+Select the "Istio Control Plane Dashboard" to view the control plane metrics such as version, resource usage, push metrics to the `istio-proxy` containers, etc.
+
+![](./images/grafana-control-plane-dashboard.png)
+
+Go back to the Istio dashboard folder, and select the "Istio Service Dashboard" to view the services in the Istio mesh metrics.
+
+Let's also generate some load to the data plane (by calling our `web-api` service) so that you can observe interactions among your services:
+
+```bash
+for i in {1..20}; do curl --cacert ./labs/02/certs/ca/root-ca.crt -H "Host: istioinaction.io" https://istioinaction.io --resolve istioinaction.io:443:$GATEWAY_IP; done
+```
+
+On the "Service" dropdown, select the "web-api.istioinaction.svc.cluster.local" service. You will notice the Istio service dashboard is updated with client and server request metrics. CLick on the "Refresh dashboard" button if needed. Expand the "Client workloads" and "Server Workloads" section to view details for each workload types. 
+
+![](./images/grafana-service-dashboard.png)
 
 TODO: add some content for prometheus and connect it to generate alerts.
 
