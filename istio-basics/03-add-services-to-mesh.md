@@ -371,8 +371,6 @@ On the "Service" dropdown, select the "web-api.istioinaction.svc.cluster.local" 
 
 ![](./images/grafana-service-dashboard.png)
 
-TODO: add some content for prometheus and connect it to generate alerts.
-
 ## Next lab
 Congratulations, you have added the sample application successfully to Istio service mesh and observed the services' communications. You have observed the secure communication among your services and how much time each request spent. We'll explore securing these services with declarative policies in the Istio service mesh in the [next lab](./04-secure-services-with-istio.md).
 
