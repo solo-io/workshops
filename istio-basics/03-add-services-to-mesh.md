@@ -103,6 +103,8 @@ kubectl logs deploy/web-api -c web-api -n istioinaction
 Validate you can continue to call the `web-api` service securely:
 
 ```bash
+GATEWAY_IP=$(kubectl get svc -n istio-system istio-ingressgateway -o jsonpath="{.status.loadBalancer.ingress[0].ip}")
+
 curl --cacert ./labs/02/certs/ca/root-ca.crt -H "Host: istioinaction.io" https://istioinaction.io --resolve istioinaction.io:443:$GATEWAY_IP
 ```
 
@@ -198,11 +200,79 @@ You will notice that all inbound ports are redirected to the Envoy proxy contain
 
 #### The `istio-proxy` container:
 
-When you continue looking through the list of containers in the pod, you will see the `istio-proxy` container. The `istio-proxy` container also uses the `proxyv2` image. 
-```
+When you continue looking through the list of containers in the pod, you will see the `istio-proxy` container. The `istio-proxy` container also uses the `proxyv2` image. You'll notice the `istio-proxy` container has requested 0.01 CPU and 40 MB memory to start with as well as 2 CPU and 1 GB memory for limits. You will need to budget for these settings when managing the capacity for the cluster. These resources can be customized during the Istio installation thus may vary per [installation profile](https://istio.io/latest/docs/setup/additional-setup/config-profiles/).
 
 ```
+    - args:
+      - proxy
+      - sidecar
+      - --domain
+      - $(POD_NAMESPACE).svc.cluster.local
+      - --serviceCluster
+      - web-api.$(POD_NAMESPACE)
+      - --proxyLogLevel=warning
+      - --proxyComponentLogLevel=misc:error
+      - --log_output_level=default:info
+      - --concurrency
+      - "2"
+      # many env vars omitted
+      image: docker.io/istio/proxyv2:1.10.0
+      imagePullPolicy: IfNotPresent
+      name: istio-proxy
+      ports:
+      - containerPort: 15090
+        name: http-envoy-prom
+        protocol: TCP
+      readinessProbe:
+        failureThreshold: 30
+        httpGet:
+          path: /healthz/ready
+          port: 15021
+          scheme: HTTP
+        initialDelaySeconds: 1
+        periodSeconds: 2
+        successThreshold: 1
+        timeoutSeconds: 3
+      resources:
+        limits:
+          cpu: "2"
+          memory: 1Gi
+        requests:
+          cpu: 10m
+          memory: 40Mi
+      securityContext:
+        allowPrivilegeEscalation: false
+        capabilities:
+          drop:
+          - ALL
+        privileged: false
+        readOnlyRootFilesystem: true
+        runAsGroup: 1337
+        runAsNonRoot: true
+        runAsUser: 1337
+      terminationMessagePath: /dev/termination-log
+      terminationMessagePolicy: File
+      volumeMounts:
+      - mountPath: /var/run/secrets/istio
+        name: istiod-ca-cert
+      - mountPath: /var/lib/istio/data
+        name: istio-data
+      - mountPath: /etc/istio/proxy
+        name: istio-envoy
+      - mountPath: /var/run/secrets/tokens
+        name: istio-token
+      - mountPath: /etc/istio/pod
+        name: istio-podinfo
+      - mountPath: /var/run/secrets/kubernetes.io/serviceaccount
+        name: web-api-token-ztk5d
+        readOnly: true
+```
 
+When you reviewed the `istio-init` container configuration earlier, we noticed that ports `15021`, `15090`, and `15020` are on the list of inbound ports to be excluded from redirection to Envoy. The reason is that port `15021` is for health check, and port `15090` is for Envoy proxy to emit its metrics to Prometheus, port `15020` is for the merged Prometheus metrics from Istio agent, Envoy proxy and the application container. Thus it is not necessary to redirect inbound traffic for these ports used by the `istio-proxy` container.
+
+Also notice that the `istiod-ca-cert` and `istio-token` volumes are mounted to the pod for the purpose of implemnting mutual TLS, which we will cover in the lab04.
+
+### Add all other services to the Istio service mesh
 
 Next, let us add the sidecar to all other services in the `istioinaction` namespace
 
@@ -211,6 +281,13 @@ kubectl rollout restart deployment purchase-history-v1 -n istioinaction
 kubectl rollout restart deployment recommendation -n istioinaction
 kubectl rollout restart deployment sleep -n istioinaction
 ```
+
+Validate you can continue to call the `web-api` service securely:
+
+```bash
+curl --cacert ./labs/02/certs/ca/root-ca.crt -H "Host: istioinaction.io" https://istioinaction.io --resolve istioinaction.io:443:$GATEWAY_IP
+```
+
 ## What have you gained?
 
 Congratulations on getting all services in the `istioinaction` namespace to the Istio service mesh. One of the values of using a service mesh is that you can gain immediate insights into the behaviors and interactions of your services. Istio deliveres a set of dashboards as addon components that provide you access to important telemetry data that is available just by adding services to the mesh.
