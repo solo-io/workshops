@@ -243,6 +243,18 @@
       owner: solo
       group: solo
 
+  - name: Create the /home/solo/.config/xfce4/terminal/ directory if it does not exist
+    file:
+      path: /home/solo/.config/xfce4/terminal
+      state: directory
+
+  - name: Set the /home/solo/.config/xfce4/terminal/terminalrc
+    copy:
+      content: |
+                [Configuration]
+                MiscShowUnsafePasteDialog=FALSE
+      dest: /home/solo/.config/xfce4/terminal/terminalrc
+
   - name: Copy the Google Chrome shortcut
     copy:
       src: /usr/share/applications/google-chrome.desktop
@@ -345,7 +357,7 @@
                 [Install]
                 WantedBy=multi-user.target
       dest: /etc/systemd/system/socat.service
-  
+
   - name: Run ldconfig
     ansible.builtin.command: ldconfig
 
@@ -358,7 +370,7 @@
     service:
       name: guacd
       enabled: yes
-  
+
   - name: Stop the tomcat9 service
     systemd:
       name: tomcat9
@@ -389,11 +401,8 @@
     git:
       repo: https://github.com/solo-io/workshops.git
       dest: /home/solo/workshops
-    become_user: solo
-    become_method: sudo
-
-  - name: Enable clipboard when launching the terminal
-    shell: echo '/usr/bin/autocutsel -s CLIPBOARD -fork' >> /home/solo/.bashrc
+      depth: 1
+      single_branch: yes
     become_user: solo
     become_method: sudo
 
@@ -402,7 +411,7 @@
       path: /usr/lib/x86_64-linux-gnu/libxcb.so.1.1.0
       regexp: 'BIG-REQUESTS'
       replace: '_IG-REQUESTS'
-
+  
   - name: Get glooctl installer
     get_url:
       url: https://run.solo.io/gloo/install
@@ -416,25 +425,40 @@
     become_user: solo
     become_method: sudo
 
+  - name: Enable clipboard when launching the terminal
+    lineinfile:
+      path: /home/solo/.bashrc
+      line: 'usr/bin/autocutsel -s CLIPBOARD -fork'
+    become_user: solo
+    become_method: sudo
+  
   - name: Add glooctl to the path
-    shell: echo 'export PATH=$HOME/.gloo/bin:$PATH' >> /home/solo/.bashrc
+    lineinfile:
+      path: /home/solo/.bashrc
+      line: 'export PATH=$HOME/.gloo/bin:$PATH'
     become_user: solo
     become_method: sudo
 
   - name: Add LICENSE_KEY environment variable
-    shell: echo "export LICENSE_KEY={{ lookup('env','LICENSE_KEY') }}" >> /home/solo/.bashrc
+    lineinfile:
+      path: /home/solo/.bashrc
+      line: "export LICENSE_KEY={{ lookup('env','LICENSE_KEY') }}"
     become_user: solo
     become_method: sudo
     no_log: true
 
   - name: Add GLOO_MESH_LICENSE_KEY environment variable
-    shell: echo "export GLOO_MESH_LICENSE_KEY={{ lookup('env','GLOO_MESH_LICENSE_KEY') }}" >> /home/solo/.bashrc
+    lineinfile:
+      path: /home/solo/.bashrc
+      line: "export GLOO_MESH_LICENSE_KEY={{ lookup('env','GLOO_MESH_LICENSE_KEY') }}"
     become_user: solo
     become_method: sudo
     no_log: true
 
   - name: Add PORTAL_LICENSE_KEY environment variable
-    shell: echo "export PORTAL_LICENSE_KEY={{ lookup('env','PORTAL_LICENSE_KEY') }}" >> /home/solo/.bashrc
+    lineinfile:
+      path: /home/solo/.bashrc
+      line: "export PORTAL_LICENSE_KEY={{ lookup('env','PORTAL_LICENSE_KEY') }}"
     become_user: solo
     become_method: sudo
     no_log: true
@@ -445,13 +469,15 @@
     become_method: sudo
 
   - name: Turn on line numbers by default
-    command: echo "set number" >> $HOME/.vimrc
+    lineinfile:
+      path: /home/solo/.vimrc
+      line: 'set number'
     become_user: solo
     become_method: sudo
 
   - name: Download and install step-cli
     apt:
-      deb: "https://github.com/smallstep/cli/releases/download/v0.15.3/step-cli_0.15.3_amd64.deb" 
+      deb: "https://github.com/smallstep/cli/releases/download/v0.15.3/step-cli_0.15.3_amd64.deb"
 
   - name: Reboot VM
     reboot:

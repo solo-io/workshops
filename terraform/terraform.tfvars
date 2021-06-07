@@ -14,7 +14,7 @@ environments = {
   #  vm_image      = "ubuntu-2004-focal-v20210211"
   #}
   personal1 = {
-    num_instances = 2
+    num_instances = 1
     machine_type  = "n1-standard-8"
   }
 }
