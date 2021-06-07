@@ -104,7 +104,6 @@ Validate you can continue to call the `web-api` service securely:
 
 ```bash
 GATEWAY_IP=$(kubectl get svc -n istio-system istio-ingressgateway -o jsonpath="{.status.loadBalancer.ingress[0].ip}")
-
 curl --cacert ./labs/02/certs/ca/root-ca.crt -H "Host: istioinaction.io" https://istioinaction.io --resolve istioinaction.io:443:$GATEWAY_IP
 ```
 
@@ -292,19 +291,32 @@ curl --cacert ./labs/02/certs/ca/root-ca.crt -H "Host: istioinaction.io" https:/
 
 Congratulations on getting all services in the `istioinaction` namespace to the Istio service mesh. One of the values of using a service mesh is that you can gain immediate insights into the behaviors and interactions of your services. Istio deliveres a set of dashboards as addon components that provide you access to important telemetry data that is available just by adding services to the mesh.
 
-Let's also generate some load to the data plane (by calling our `web-api` service) so that you can observe interactions among your services:
-
-```bash
-for i in {1..10}; do curl --cacert ./labs/02/certs/ca/root-ca.crt -H "Host: istioinaction.io" https://istioinaction.io --resolve istioinaction.io:443:$GATEWAY_IP; done
-```
-
 You can visualize the services in the mesh in Kiali.  Launch Kiali using the command below:
 
 ```bash
 istioctl dashboard kiali
 ```
 
-TODO: add a screen shot for Kiali UI.
+Navigate to [http://localhost:20001](http://localhost:20001) and select the Graph tab.
+
+On the "Namespace" dropdown, select "istioinaction". On the "Display" drop down, select "Traffic Animation" and "Security":
+
+![](./images/kiali-selections.png)
+
+Let's also generate some load to the data plane (by calling our `web-api` service) so that you can observe interactions among your services:
+
+```bash
+for i in {1..10}; do curl --cacert ./labs/02/certs/ca/root-ca.crt -H "Host: istioinaction.io" https://istioinaction.io --resolve istioinaction.io:443:$GATEWAY_IP; done
+```
+
+You should observe the service interaction graph with some traffic animation and security badgeslike below:
+
+![](./images/kiali-istioinaction.png)
+
+Now click on the call graph between `istio-ingressgateway` and `web-api` service. You should see that indeed this call is enforced with mTLS along with some HTTP traffic details among the two services:
+
+![](./images/kiali-select-a-link.png)
+
 
 You can view distributed tracing information using the Jaeger dashboard, which you can launch using `istioctl dashboard jaeger` command:
 
