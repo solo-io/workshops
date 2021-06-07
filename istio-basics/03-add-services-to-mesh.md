@@ -155,9 +155,6 @@ Flags:
 
 You will notice that all inbound ports are redirected to the Envoy proxy container within the pod. You can also see a few ports such as 15020 are excluded from redirection (you'll soon learn why this is the case).
 
-
-
-
 Next, let us add the sidecar to all other services in the `istioinaction` namespace
 
 ```bash
