@@ -114,14 +114,44 @@ Use the command below to get the details of the `web-api` pod:
 kubectl get pod -l app=web-api -n istioinaction -o yaml
 ```
 
-From the output, the `web-api` pod contains 1 init container and 2 normal containers.  The Istio mutating admission controller was responsible for injecting the `istio-init` init container and the `istio-proxy` container. The entry point of the container is `pilot-agent`, which contains the `istio-iptables` command to setup port forwarding for Istio's sidecar proxy. 
+From the output, the `web-api` pod contains 1 init container and 2 normal containers.  The Istio mutating admission controller was responsible for injecting the `istio-init` container and the `istio-proxy` container. 
 
+#### The `istio-init` container:
+
+The `istio-init` container uses the `proxyv2` image. The entry point of the container is `pilot-agent`, which contains the `istio-iptables` command to setup port forwarding for Istio's sidecar proxy. 
+
+```
+    initContainers:
+    - args:
+      - istio-iptables
+      - -p
+      - "15001"
+      - -z
+      - "15006"
+      - -u
+      - "1337"
+      - -m
+      - REDIRECT
+      - -i
+      - '*'
+      - -x
+      - ""
+      - -b
+      - '*'
+      - -d
+      - 15090,15021,15020
+      image: docker.io/istio/proxyv2:1.10.0
+      imagePullPolicy: Always
+      name: istio-init
+```
+
+Interested in knowing more about the flags for istio-iptables, run the command below:
 
 ```bash
 kubectl exec deploy/web-api -c istio-proxy -n istioinaction -- /usr/local/bin/pilot-agent istio-iptables --help
 ```
 
-Want to know more about the flags for istio-iptables, run the command below:
+The output explains the flags such as `-u` `-m` and `-i` etc used in the `istio-init` container.
 
 ```
 istio-iptables is responsible for setting up port forwarding for Istio Sidecar.
@@ -153,7 +183,26 @@ Flags:
 ...
 ```
 
-You will notice that all inbound ports are redirected to the Envoy proxy container within the pod. You can also see a few ports such as 15020 are excluded from redirection (you'll soon learn why this is the case).
+You will notice that all inbound ports are redirected to the Envoy proxy container within the pod. You can also see a few ports such as 15021 are excluded from redirection (you'll soon learn why this is the case). You may also notice the following securityContext for the `istio-init` container. This means that a service deployer must have the `NET_ADMIN` and `NET_RAW` security capabilities to run the `istio-init` container for the `web-api` service or other services. If the service deployer can't have these security capabilities, you can use the [Istio CNI plugin](https://istio.io/latest/docs/setup/additional-setup/cni/) which removes the `NET_ADMIN` and `NET_RAW` requirement for users deploying pods into Istio service mesh.
+
+```
+      securityContext:
+        allowPrivilegeEscalation: false
+        capabilities:
+          add:
+          - NET_ADMIN
+          - NET_RAW
+          drop:
+          - ALL
+```
+
+#### The `istio-proxy` container:
+
+When you continue looking through the list of containers in the pod, you will see the `istio-proxy` container. The `istio-proxy` container also uses the `proxyv2` image. 
+```
+
+```
+
 
 Next, let us add the sidecar to all other services in the `istioinaction` namespace
 

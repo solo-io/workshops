@@ -39,22 +39,11 @@ Kind should automatically set up the Kubernetes context for the `kubectl` CLI to
 kubectl config use-context istio-workshop
 ```
 
-#### Set up Kubernetes cluster with k3d
+### Set up Kubernetes cluster with k3d
 Run the following commands to download k3d and setup a Kubernetes cluster after you start your Docker deamon:
 
 ```
-# download k3d
-curl -s https://raw.githubusercontent.com/rancher/k3d/main/install.sh | bash
-
-# create docker network if it does not exist
-network=demo-1
-docker network create $network || true
-
-# setup the cluster
-k3d cluster create istiocluster --image "rancher/k3s:v1.20.2-k3s1" --k3s-server-arg "--disable=traefik" --network $network
-
-kube_ctx=k3d-istiocluster
-k3d kubeconfig get istiocluster > ~/.kube/istiocluster
+labs/setup/setup-k3d.sh
 ```
 
 You should have a working k3s cluster:
