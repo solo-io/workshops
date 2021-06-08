@@ -6,31 +6,20 @@ In the previous lab, we explored adding services into a mesh. However, when we i
 
 By default, Istio automatically upgrades the connection securely from the source service's sidecar proxy to the target service's sidecar proxy. This is why you saw the paddlelock icon in the Kiali graph earlier from Istio ingress gateway to the `web-api` service to the `history` service then to the `recommendation` service. While this is good when onboarding your services to Istio service mesh as the communication between source and target services continues to be allowed via plain text if mutual TLS communication fails, you don't want this in production environment without proper security policy in place.
 
-Validate you have the default `PERMISSIVE` in the mTLS mode by viewing the default `peerauthentication` policy in the Istio root namespace, which is the `istio-system` namespace in our installation:
+Check if you have any `peerauthentication` policy in all of your namespaces:
 
 ```bash
-kubectl get peerauthentication default -n istio-system -o yaml
+kubectl get peerauthentication --all-namespaces
 ```
 
-You should see `PERMISSIVE` in the output:
-
-```yaml
-apiVersion: security.istio.io/v1beta1
-kind: PeerAuthentication
-metadata:
-  name: default
-  namespace: istio-system
-spec:
-  mtls:
-    mode: PERMISSIVE
-```
+You should see `No resources found` in the output, which means no peer authentication has been specified and the default `PERMISSIVE` mTLS mode is being used.
 
 ## Enable strict mTLS
 
 You can lock down the secure access to all services in the `istioinaction` namespace to require mTLS using a peer authentication policy. Execute this command to define a default policy for the `istioinaction` namespace that updates all of the servers to accept only mTLS traffic:
 
 ```bash
-kubectl apply -n istioinaction -f - <<EOF
+kubectl apply -n istio-system -f - <<EOF
 apiVersion: "security.istio.io/v1beta1"
 kind: "PeerAuthentication"
 metadata:
@@ -40,6 +29,21 @@ spec:
     mode: STRICT
 EOF
 ```
+
+Verify your  `peerauthentication` policy is installed:
+
+```bash
+kubectl get peerauthentication --all-namespaces
+```
+
+You should see the the default `peerauthentication` policy installed in the `istio-system` namespace with STRICT mTLS enabled:
+
+```
+NAMESPACE      NAME      MODE     AGE
+istio-system   default   STRICT   84s
+```
+
+Because the `istio-system` namespace is also the Istio mesh configuration root namespace in your environment, this `peerauthentication` policy is the default policy for all of your services in the mesh regardless of which namespaces your services run.
 
 Let us see mTLS in action! First, we want to send some traffic to web-api from a pod that is not part of the Istio service mesh. Deploy the `sleep` service and pod in the default namespace:
 
@@ -61,7 +65,7 @@ kubectl exec -it deploy/sleep -n istioinaction -- curl http://web-api.istioinact
 
 You should see the request succeed.
 
-Question: How can you check if a service or namespace is ready to enable the `STRICT` mtls mode?  We'll cover this topic in our Istio day essential workshop.
+Question: How can you check if a service or namespace is ready to enable the `STRICT` mtls mode?  What is the best practice to enable mTLS for your services? We'll cover this topic in our Istio essential workshop.
 
 ### Visualize mTLS enforcement in Kiali
 
@@ -76,12 +80,15 @@ Navigate to [http://localhost:20001](http://localhost:20001) and select the Grap
 On the "Namespace" dropdown, select "istioinaction". On the "Display" drop down, select "Traffic Animation" and "Security". Let's also generate some load to the data plane (by calling our `web-api` service) so that you can observe interactions among your services:
 
 ```bash
-for i in {1..10}; do curl --cacert ./labs/02/certs/ca/root-ca.crt -H "Host: istioinaction.io" https://istioinaction.io --resolve istioinaction.io:443:$GATEWAY_IP; done
+for i in {1..200}; 
+  do curl --cacert ./labs/02/certs/ca/root-ca.crt -H "Host: istioinaction.io" https://istioinaction.io --resolve istioinaction.io:443:$GATEWAY_IP;
+  sleep 1;
+done
 ```
 
 You should observe the service interaction graph with some traffic animation and security badges like below:
 
-![](./images/kiali-istioinaction.png)
+![](./images/kiali-istioinaction-mtls-enforced.png)
 
 ### Understand Strict mTLS
 
