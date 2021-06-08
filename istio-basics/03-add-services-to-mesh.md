@@ -303,7 +303,7 @@ Navigate to [http://localhost:20001](http://localhost:20001) and select the Grap
 
 On the "Namespace" dropdown, select "istioinaction". On the "Display" drop down, select "Traffic Animation" and "Security":
 
-![](./images/kiali-selections.png)
+<img src="./images/kiali-selections.png" alt="Kiali - Enable Options" width="300"/>
 
 Let's also generate some load to the data plane (by calling our `web-api` service) so that you can observe interactions among your services:
 
