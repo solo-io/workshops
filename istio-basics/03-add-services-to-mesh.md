@@ -311,7 +311,7 @@ Let's also generate some load to the data plane (by calling our `web-api` servic
 for i in {1..10}; do curl --cacert ./labs/02/certs/ca/root-ca.crt -H "Host: istioinaction.io" https://istioinaction.io --resolve istioinaction.io:443:$GATEWAY_IP; done
 ```
 
-You should observe the service interaction graph with some traffic animation and security badgeslike below:
+You should observe the service interaction graph with some traffic animation and security badges like below:
 
 ![](./images/kiali-istioinaction.png)
 
