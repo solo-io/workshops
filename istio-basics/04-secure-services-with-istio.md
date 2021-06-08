@@ -95,7 +95,7 @@ You should observe the service interaction graph with some traffic animation and
 Inspect the key and/or certificates used by Istio for the `web-api` service in the `istioinaction` namespace:
 
 ```bash
-istioctl pc secret deploy/web-api -n istioinaction
+istioctl proxy-config secret deploy/web-api -n istioinaction
 ```
 
 From the output, you'll see there is the default secret and your Istio service mesh's root CA public certificate:
@@ -112,7 +112,7 @@ The `default` secret containers the public certificate information for the `web-
 First, check the issuer of the public certificate:
 
 ```bash
-istioctl pc secret deploy/web-api -n istioinaction -o json | jq '[.dynamicActiveSecrets[] | select(.name == "default")][0].secret.tlsCertificate.certificateChain.inlineBytes' -r | base64 -d | openssl x509 -noout -text | grep 'Issuer'
+istioctl proxy-config secret deploy/web-api -n istioinaction -o json | jq '[.dynamicActiveSecrets[] | select(.name == "default")][0].secret.tlsCertificate.certificateChain.inlineBytes' -r | base64 -d | openssl x509 -noout -text | grep 'Issuer'
 ```
 
 ```
@@ -122,7 +122,7 @@ istioctl pc secret deploy/web-api -n istioinaction -o json | jq '[.dynamicActive
 Second, you can check if the public certificate in the default secret is valid:
 
 ```bash
-istioctl pc secret deploy/web-api -n istioinaction -o json | jq '[.dynamicActiveSecrets[] | select(.name == "default")][0].secret.tlsCertificate.certificateChain.inlineBytes' -r | base64 -d | openssl x509 -noout -text | grep 'Validity' -A 2
+istioctl proxy-config secret deploy/web-api -n istioinaction -o json | jq '[.dynamicActiveSecrets[] | select(.name == "default")][0].secret.tlsCertificate.certificateChain.inlineBytes' -r | base64 -d | openssl x509 -noout -text | grep 'Validity' -A 2
 ```
 
 You should see the public certificate is valid and expires in 24 hours:
@@ -136,7 +136,7 @@ You should see the public certificate is valid and expires in 24 hours:
 Third, you can check if the identity of the client certificate:
 
 ```bash
-istioctl pc secret deploy/web-api -n istioinaction -o json | jq '[.dynamicActiveSecrets[] | select(.name == "default")][0].secret.tlsCertificate.certificateChain.inlineBytes' -r | base64 -d | openssl x509 -noout -text | grep 'Subject Alternative Name' -A 1
+istioctl proxy-config secret deploy/web-api -n istioinaction -o json | jq '[.dynamicActiveSecrets[] | select(.name == "default")][0].secret.tlsCertificate.certificateChain.inlineBytes' -r | base64 -d | openssl x509 -noout -text | grep 'Subject Alternative Name' -A 1
 ```
 
 You should see the identity of the `web-api` service. Note it is using the spiffe format, e.g. `spiffe://{my-trust-domain}/ns/{namespace}/sa/{service-account}`:
@@ -211,9 +211,9 @@ In lab 03, you reviewed the injected `istio-proxy` container for the `web-api` p
         secretName: web-api-token-ztk5d        
 ```
 
-The `istio-ca-cert` is from the `istio-ca-root-cert` configmap in the `istioinaction` namespace. During start up time, Istio agent (internally also called `pilot-agent`) creates the private key for the `web-api` service and then uses the `istio-token` and the `web-api` service's service account token `web-api-token-ztk5d` to generate the certificate signing request (CSR) for the Istio CA (Istio control plane is the Istio CA in your installation) to sign the private key. The Istio agent sends the certificates received from the Istio CA along with the private key to Envoy via the Envoy SDS API.
+The `istio-ca-cert` mounted volumn is from the `istio-ca-root-cert` configmap in the `istioinaction` namespace. During start up time, Istio agent (also called `pilot-agent`) creates the private key for the `web-api` service and then sends the certificate signing request (CSR) for the Istio CA (Istio control plane is the Istio CA in your installation) to sign the private key, using the `istio-token` and the `web-api` service's service account token `web-api-token-ztk5d` as credentials. The Istio agent sends the certificates received from the Istio CA along with the private key to Envoy via the Envoy SDS API.
 
-You noticed earlier that the certificate expires in 24 hours.  What happens when the certificate expires? The Istio agent monitors the `web-api` certificate for expiration and repeat the CSR request process described above periodically.
+You noticed earlier that the certificate expires in 24 hours.  What happens when the certificate expires? The Istio agent monitors the `web-api` certificate for expiration and repeat the CSR request process described above periodically to ensure each of your workload's certificate is valid.
 
 #### How is mTLS strict enforced?
 
