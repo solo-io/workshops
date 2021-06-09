@@ -16,7 +16,7 @@
 
   - name: Print parameters
     debug:
-      msg: "reboot_vm={{ reboot_vm | bool }} reboot_vm={{ reboot_vm | bool }}"
+      msg: "reboot_vm={{ reboot_vm | bool }} reset_repo={{ reset_repo | bool }}"
   
   - name: Populate service facts
     service_facts:
