@@ -135,42 +135,32 @@
       dest: /
       remote_src: yes
     when:
-    - "ansible_facts.services is defined"
-    - "ansible_facts.services.guacd is defined"
-    - "not ansible_facts.services.guacd.state == 'running'"
+    - "not ansible_facts.services is defined or not ansible_facts.services.guacd is defined or not ansible_facts.services.guacd.state == 'running'"
 
   - name: Configure guacamole
     shell: cd /guacamole-server-1.2.0 && ./configure --with-init-dir=/etc/init.d
     when:
-    - "ansible_facts.services is defined"
-    - "ansible_facts.services.guacd is defined"
-    - "not ansible_facts.services.guacd.state == 'running'"
+    - "not ansible_facts.services is defined or not ansible_facts.services.guacd is defined or not ansible_facts.services.guacd.state == 'running'"
 
   - name: Make guacamole
     make:
       chdir: /guacamole-server-1.2.0
     when:
-    - "ansible_facts.services is defined"
-    - "ansible_facts.services.guacd is defined"
-    - "not ansible_facts.services.guacd.state == 'running'"
+    - "not ansible_facts.services is defined or not ansible_facts.services.guacd is defined or not ansible_facts.services.guacd.state == 'running'"
 
   - name: Make install guacamole
     make:
       chdir: /guacamole-server-1.2.0
       target: install
     when:
-    - "ansible_facts.services is defined"
-    - "ansible_facts.services.guacd is defined"
-    - "not ansible_facts.services.guacd.state == 'running'"
+    - "not ansible_facts.services is defined or not ansible_facts.services.guacd is defined or not ansible_facts.services.guacd.state == 'running'"
 
   - name: Download guacamole war
     get_url:
       url: https://mirrors.ircam.fr/pub/apache/guacamole/1.2.0/binary/guacamole-1.2.0.war
       dest: /var/lib/tomcat9/webapps/guacamole.war
     when:
-    - "ansible_facts.services is defined"
-    - "ansible_facts.services.guacd is defined"
-    - "not ansible_facts.services.guacd.state == 'running'"
+    - "not ansible_facts.services is defined or not ansible_facts.services.guacd is defined or not ansible_facts.services.guacd.state == 'running'"
 
   - name: Create the /home/solo/.vnc directory if it does not exist
     file:
@@ -388,12 +378,23 @@
     service:
       name: "{{ item }}"
       enabled: yes
-      state: "{{ 'stopped' if ( reboot_vm | bool ) else 'started' }}"
     loop:
     - vncserver@:1
     - tomcat9
     - guacd
     - socat
+
+  - name: Start services
+    service:
+      name: "{{ item }}"
+      enabled: yes
+      state: 'started'
+    loop:
+    - vncserver@:1
+    - tomcat9
+    - guacd
+    - socat
+    when: "not ( reboot_vm | bool )"
 
   - name: Remove any existing directory from prior runs
     file:
