@@ -4,7 +4,6 @@ metadata:
   name: purchase-history-v2
   labels:
     app: purchase-history
-    version: v2
 spec:
   replicas: 1
   selector:
@@ -16,6 +15,8 @@ spec:
       labels:
         app: purchase-history
         version: v2
+      annotations:
+        proxy.istio.io/config: '{ "holdApplicationUntilProxyStarts": true }'
     spec:
       serviceAccountName: purchase-history    
       containers:

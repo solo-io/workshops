@@ -8,7 +8,8 @@ kind: Deployment
 metadata:
   name: purchase-history-v1
   labels:
-    app: purchase-history-v1
+    app: purchase-history
+    version: v1
 spec:
   replicas: 1
   selector:
