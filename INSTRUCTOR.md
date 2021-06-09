@@ -72,12 +72,6 @@ If you don't already have the `lab` private key available locally, retrieve it f
 ssh-add lab
 ```
 
-Remove the SSH known hosts (optional, but recommended as Google Cloud reuses the same IP addresses quite often):
-
-```
-terraform output -json | jq -r '.gce_public_ip.value[]' | while read ip; do ssh-keygen -R $ip; done
-```
-
 All solo.io enterprise products require a license key.  If you'd like to preset limited-term keys on the student Virtual Machines, then set the `LICENSE_KEY` and `GLOO_MESH_LICENSE_KEY` and `PORTAL_LICENSE_KEY` environment variables on your workstation before running the `ansible-playbook` command.
 
 ```
@@ -100,6 +94,12 @@ Create the ansible `hosts` file from the terraform output:
 export env_name = <myname> # PUT HERE YOUR ENV NAME IN terraform.tfvars
 echo "[hosts]" > hosts
 terraform output -json | jq -r ".gce_replicas_public_ip.value.${env_name}[]" | while read ip; do echo $ip ansible_host=$ip ansible_user=solo >> hosts; done
+```
+
+Remove the SSH known hosts (optional, but recommended as Google Cloud reuses the same IP addresses quite often):
+
+```
+terraform output -json | jq -r '.gce_replicas_public_ip.value.${env_name}[]' | while read ip; do ssh-keygen -R $ip; done
 ```
 
 Run the ansible playbook to apply all the prerequisites to the Virtual Machines.

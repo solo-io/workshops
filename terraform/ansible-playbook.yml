@@ -407,17 +407,10 @@
       path: /home/solo/workshops
     register: workshop_folder
 
-  - name: Remove any existing directory from prior runs
-    file:
-      state: absent
-      path: /home/solo/workshops
-
   - name: Clone the workshop repo
     git:
       repo: https://github.com/solo-io/workshops.git
       dest: /home/solo/workshops
-      depth: 1
-      single_branch: yes
     become_user: solo
     become_method: sudo
     when: not workshop_folder.stat.exists
