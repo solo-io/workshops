@@ -310,7 +310,7 @@ spec:
       proxyMetadata:
         ISTIO_META_DNS_CAPTURE: "true"
         ISTIO_META_DNS_AUTO_ALLOCATE: "true"
-        GLOO_MESH_CLUSTER_NAME: cluster1
+        GLOO_MESH_CLUSTER_NAME: cluster2
   values:
     cni:
       cniBinDir: /var/lib/cni/bin
@@ -433,13 +433,12 @@ oc --context cluster2 -n istio-system expose svc/istio-ingressgateway --port=htt
 
 Download the bookinfo yaml and update the registry:
 ```bash
-curl https://raw.githubusercontent.com/istio/istio/1.8.2/samples/bookinfo/platform/kube/bookinfo.yaml | sed "s/image: docker.io/image: ${registry}/g" > bookinfo.yaml
+curl https://raw.githubusercontent.com/istio/istio/1.9.3/samples/bookinfo/platform/kube/bookinfo.yaml | sed "s/image: docker.io/image: ${registry}/g" > bookinfo.yaml
 ```
 
 Run the following commands to deploy the bookinfo app on `cluster1`:
 
 ```bash
-oc --context cluster1 adm policy add-scc-to-group privileged system:serviceaccounts:default
 oc --context cluster1 adm policy add-scc-to-group anyuid system:serviceaccounts:default
 
 cat <<EOF | oc --context cluster1 -n default create -f -
@@ -455,7 +454,7 @@ kubectl --context cluster1 apply -f bookinfo.yaml -l 'app,version notin (v3)'
 # deploy all bookinfo service accounts
 kubectl --context cluster1 apply -f bookinfo.yaml -l 'account'
 # configure ingress gateway to access bookinfo
-kubectl --context cluster1 apply -f https://raw.githubusercontent.com/istio/istio/1.8.2/samples/bookinfo/networking/bookinfo-gateway.yaml
+kubectl --context cluster1 apply -f https://raw.githubusercontent.com/istio/istio/1.9.3/samples/bookinfo/networking/bookinfo-gateway.yaml
 ```
 
 You can check that the app is running using `kubectl --context cluster1 get pods`:
@@ -474,7 +473,6 @@ As you can see, it deployed the `v1` and `v2` versions of the `reviews` microser
 Now, run the following commands to deploy the bookinfo app on `cluster2`:
 
 ```bash
-oc --context cluster2 adm policy add-scc-to-group privileged system:serviceaccounts:default
 oc --context cluster2 adm policy add-scc-to-group anyuid system:serviceaccounts:default
 
 cat <<EOF | oc --context cluster2 -n default create -f -
@@ -488,7 +486,7 @@ kubectl --context cluster2 label namespace default istio-injection=enabled
 # deploy all bookinfo service accounts and application components for all versions
 kubectl --context cluster2 apply -f bookinfo.yaml
 # configure ingress gateway to access bookinfo
-kubectl --context cluster2 apply -f https://raw.githubusercontent.com/istio/istio/1.8.2/samples/bookinfo/networking/bookinfo-gateway.yaml
+kubectl --context cluster2 apply -f https://raw.githubusercontent.com/istio/istio/1.9.3/samples/bookinfo/networking/bookinfo-gateway.yaml
 ```
 
 You can check that the app is running using `kubectl --context cluster2 get pods`:
