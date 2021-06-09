@@ -213,9 +213,17 @@ In lab 03, you reviewed the injected `istio-proxy` container for the `web-api` p
 
 The `istio-ca-cert` mounted volumn is from the `istio-ca-root-cert` configmap in the `istioinaction` namespace. During start up time, Istio agent (also called `pilot-agent`) creates the private key for the `web-api` service and then sends the certificate signing request (CSR) for the Istio CA (Istio control plane is the Istio CA in your installation) to sign the private key, using the `istio-token` and the `web-api` service's service account token `web-api-token-ztk5d` as credentials. The Istio agent sends the certificates received from the Istio CA along with the private key to Envoy via the Envoy SDS API.
 
-You noticed earlier that the certificate expires in 24 hours.  What happens when the certificate expires? The Istio agent monitors the `web-api` certificate for expiration and repeat the CSR request process described above periodically to ensure each of your workload's certificate is valid.
+You noticed earlier that the certificate expires in 24 hours.  What happens when the certificate expires? The Istio agent monitors the `web-api` certificate for expiration and repeats the CSR request process described above periodically to ensure each of your workload's certificate is valid.
 
 #### How is mTLS strict enforced?
+
+When mTLS strict is enabled, you will find the Envoy configuration for the `istio-proxy` container actually has less lines of configurations.  This is because when mTLS strict is enabled, we would only allow mTLS traffic thus no need to have any filter chain configurations to allow any plain text traffic to services in the mesh (hint: search for `"transport_protocol": "raw_buffer"` in your Envoy configuration when `PERMISSIVE` mode is applied).  If you are curious to explore Envoy configuration for any of your pod, you can use the command below to view all of the Envoy proxy configuration for the `istio-proxy` container of the `web-api` pod.
+
+```bash
+istioctl proxy-config all deploy/web-api -n istioinaction -o json
+```
+
+Question: We have only deployed a few services, why there are so much Envoy configuration for the pod?  Istio listens to everything in your Kubernetes cluster by default, we will explore using discovery selectors, `exportTo` and `Sidecar` resources for operating Istio in a production environment in the Istio Essential and Expert workshops.
 
 ## Next lab
 
