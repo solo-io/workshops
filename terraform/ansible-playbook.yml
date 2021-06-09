@@ -411,8 +411,6 @@
     git:
       repo: https://github.com/solo-io/workshops.git
       dest: /home/solo/workshops
-      depth: 1
-      single_branch: yes
     become_user: solo
     become_method: sudo
     when: not workshop_folder.stat.exists
