@@ -4,51 +4,42 @@
   become: yes
   become_user: root
   become_method: sudo
+  vars:
+    reboot_vm: yes # reboot machine at the end of the playbook
+    reset_repo: no # force overwrite of local changes
+    terminal_title: "solo.io workshops"
 
   roles:
     - k9s
 
   tasks:
 
-  - name: Add Docker apt key
-    apt_key:
-      url: https://download.docker.com/linux/ubuntu/gpg
-      state: present
-
-  - name: Add Docker apt repository
-    apt_repository:
-      repo: deb [arch=amd64] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable
-      state: present
-
-  - name: Add Google Chrome apt key
-    apt_key:
-      url: https://dl.google.com/linux/linux_signing_key.pub
-      state: present
-
-  - name: Add Google Chrome apt repository
-    apt_repository:
-      repo: deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main
-      state: present
+  - name: Print parameters
+    debug:
+      msg: "reboot_vm={{ reboot_vm | bool }} reset_repo={{ reset_repo | bool }}"
   
-  - name: Add VSCode apt key
+  - name: Populate service facts
+    service_facts:
+
+  - name: Add apt keys
     apt_key:
-      url: https://packages.microsoft.com/keys/microsoft.asc
+      url: "{{ item }}"
       state: present
+    loop:
+    - https://download.docker.com/linux/ubuntu/gpg
+    - https://dl.google.com/linux/linux_signing_key.pub
+    - https://packages.microsoft.com/keys/microsoft.asc
+    - https://baltocdn.com/helm/signing.asc
 
-  - name: Add VSCode apt repository
+  - name: Add apt repositories
     apt_repository:
-      repo: deb [arch=amd64] https://packages.microsoft.com/repos/vscode stable main
+      repo: "{{ item }}"
       state: present
-
-  - name: Add Helm apt key
-    apt_key:
-      url: https://baltocdn.com/helm/signing.asc
-      state: present
-
-  - name: Add Helm apt repository
-    apt_repository:
-      repo: deb https://baltocdn.com/helm/stable/debian/ all main
-      state: present
+    loop:
+    - deb [arch=amd64] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable
+    - deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main
+    - deb [arch=amd64] https://packages.microsoft.com/repos/vscode stable main
+    - deb https://baltocdn.com/helm/stable/debian/ all main
 
   - name: Install baseline software
     apt:
@@ -143,23 +134,33 @@
       src: https://mirrors.ircam.fr/pub/apache/guacamole/1.2.0/source/guacamole-server-1.2.0.tar.gz
       dest: /
       remote_src: yes
+    when:
+    - "not ansible_facts.services is defined or not ansible_facts.services.guacd is defined or not ansible_facts.services.guacd.state == 'running'"
 
   - name: Configure guacamole
     shell: cd /guacamole-server-1.2.0 && ./configure --with-init-dir=/etc/init.d
+    when:
+    - "not ansible_facts.services is defined or not ansible_facts.services.guacd is defined or not ansible_facts.services.guacd.state == 'running'"
 
   - name: Make guacamole
     make:
       chdir: /guacamole-server-1.2.0
+    when:
+    - "not ansible_facts.services is defined or not ansible_facts.services.guacd is defined or not ansible_facts.services.guacd.state == 'running'"
 
   - name: Make install guacamole
     make:
       chdir: /guacamole-server-1.2.0
       target: install
+    when:
+    - "not ansible_facts.services is defined or not ansible_facts.services.guacd is defined or not ansible_facts.services.guacd.state == 'running'"
 
   - name: Download guacamole war
     get_url:
       url: https://mirrors.ircam.fr/pub/apache/guacamole/1.2.0/binary/guacamole-1.2.0.war
       dest: /var/lib/tomcat9/webapps/guacamole.war
+    when:
+    - "not ansible_facts.services is defined or not ansible_facts.services.guacd is defined or not ansible_facts.services.guacd.state == 'running'"
 
   - name: Create the /home/solo/.vnc directory if it does not exist
     file:
@@ -253,6 +254,7 @@
       content: |
                 [Configuration]
                 MiscShowUnsafePasteDialog=FALSE
+                TitleInitial={{ terminal_title }}
       dest: /home/solo/.config/xfce4/terminal/terminalrc
 
   - name: Copy the Google Chrome shortcut
@@ -359,17 +361,7 @@
       dest: /etc/systemd/system/socat.service
 
   - name: Run ldconfig
-    ansible.builtin.command: ldconfig
-
-  - name: Enable the vncserver service
-    service:
-      name: vncserver@:1
-      enabled: yes
- 
-  - name: Enable the guacd service
-    service:
-      name: guacd
-      enabled: yes
+    command: ldconfig
 
   - name: Stop the tomcat9 service
     systemd:
@@ -377,20 +369,43 @@
       state: stopped
 
   - name: Update the tomcat9 configuration to use port 8888
-    ansible.builtin.replace:
+    replace:
       path: /etc/tomcat9/server.xml
       regexp: '8080'
       replace: '8888'
 
-  - name: Enable the tomcat9 service
+  - name: Enable services
     service:
-      name: tomcat9
+      name: "{{ item }}"
       enabled: yes
+    loop:
+    - vncserver@:1
+    - tomcat9
+    - guacd
+    - socat
 
-  - name: Enable the socat service
+  - name: Start services
     service:
-      name: socat
+      name: "{{ item }}"
       enabled: yes
+      state: 'started'
+    loop:
+    - vncserver@:1
+    - tomcat9
+    - guacd
+    - socat
+    when: "not ( reboot_vm | bool )"
+
+  - name: Remove any existing directory from prior runs
+    file:
+      state: absent
+      path: /home/solo/workshops
+    when: "reset_repo | bool"
+
+  - name: Check the /home/solo/workshops has been cloned
+    stat:
+      path: /home/solo/workshops
+    register: workshop_folder
 
   - name: Remove any existing directory from prior runs
     file:
@@ -405,13 +420,11 @@
       single_branch: yes
     become_user: solo
     become_method: sudo
+    when: not workshop_folder.stat.exists
 
   - name: Fix a known issue with VSCode
-    ansible.builtin.replace:
-      path: /usr/lib/x86_64-linux-gnu/libxcb.so.1.1.0
-      regexp: 'BIG-REQUESTS'
-      replace: '_IG-REQUESTS'
-  
+    shell: sed -i 's/BIG-REQUESTS/_IG-REQUESTS/' /usr/lib/x86_64-linux-gnu/libxcb.so.1.1.0
+
   - name: Get glooctl installer
     get_url:
       url: https://run.solo.io/gloo/install
@@ -421,7 +434,7 @@
     become_method: sudo
 
   - name: Install glooctl
-    ansible.builtin.command: /home/solo/glooctl_install
+    command: /home/solo/glooctl_install
     become_user: solo
     become_method: sudo
 
@@ -475,10 +488,74 @@
     become_user: solo
     become_method: sudo
 
+  - name: Set default keyring (path creation)
+    file:
+      path: /home/solo/.local/share/keyrings
+      state: directory
+    become_user: solo
+    become_method: sudo
+
+  - name: Set default keyring (content)
+    copy:
+      content: |
+                [keyring]
+                display-name=Default keyring
+                ctime=1623227729
+                mtime=0
+                lock-on-idle=false
+                lock-after=false
+
+                [2]
+                item-type=0
+                display-name=Chrome Safe Storage
+                secret=ucj3eCSYrBEifzVk3WB57A==
+                mtime=1623227729
+                ctime=1623227729
+
+                [2:attribute0]
+                name=application
+                type=string
+                value=chrome
+
+                [2:attribute1]
+                name=xdg:schema
+                type=string
+                value=chrome_libsecret_os_crypt_password_v2
+
+                [1]
+                item-type=0
+                display-name=Chrome Safe Storage Control
+                secret=The meaning of life
+                mtime=1623227729
+                ctime=1623227729
+
+                [1:attribute0]
+                name=explanation
+                type=string
+                value=Because of quirks in the gnome libsecret API, Chrome needs to store a dummy entry to guarantee that this keyring was properly unlocked. More details at http://crbug.com/660005.
+
+                [1:attribute1]
+                name=xdg:schema
+                type=string
+                value=_chrome_dummy_schema_for_unlocking
+      dest: /home/solo/.local/share/keyrings/Default_keyring.keyring
+      mode: '0600'
+    become_user: solo
+    become_method: sudo
+
+  - name: Set default keyring (pointer)
+    copy:
+      content: |
+                Default_keyring
+      dest: /home/solo/.local/share/keyrings/default
+      mode: '0644'
+    become_user: solo
+    become_method: sudo
+
   - name: Download and install step-cli
     apt:
       deb: "https://github.com/smallstep/cli/releases/download/v0.15.3/step-cli_0.15.3_amd64.deb"
 
   - name: Reboot VM
     reboot:
-    when: reboot_vm is defined
+    when: "reboot_vm | bool"

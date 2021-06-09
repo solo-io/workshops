@@ -26,6 +26,9 @@ kubectl create -n istio-system secret tls istioinaction-cert --key labs/02/certs
 
 kubectl -n istioinaction apply -f labs/02/web-api-gw-https.yaml
 
+sleep 5
+
 curl --cacert ./labs/02/certs/ca/root-ca.crt -H "Host: istioinaction.io" https://istioinaction.io --resolve istioinaction.io:443:$GATEWAY_IP
 
+echo "This should fail"
 curl -H "Host: istioinaction.io" http://$GATEWAY_IP

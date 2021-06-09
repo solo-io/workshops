@@ -7,13 +7,13 @@ One of the quickest way to get started with Istio is to leverage the demo profil
 Download the istio release binary:
 
 ```bash
-curl -L https://istio.io/downloadIstio | ISTIO_VERSION=1.9.3 sh -
+curl -L https://istio.io/downloadIstio | ISTIO_VERSION=1.10.0 sh -
 ```
 
 Add istioctl client to your path:
 
 ```bash
-cd istio-1.9.3
+cd istio-1.10.0
 export PATH=$PWD/bin:$PATH
 ```
 

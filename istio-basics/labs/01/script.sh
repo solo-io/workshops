@@ -1,7 +1,7 @@
 cd
 
-curl -L https://istio.io/downloadIstio | ISTIO_VERSION=1.9.3 sh -
-cd istio-1.9.3
+curl -L https://istio.io/downloadIstio | ISTIO_VERSION=1.10.0 sh -
+cd istio-1.10.0
 sudo cp bin/istioctl /usr/local/bin
 istioctl version
 istioctl x precheck
