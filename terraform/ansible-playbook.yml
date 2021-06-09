@@ -4,67 +4,95 @@
   become: yes
   become_user: root
   become_method: sudo
+  vars:
+    reboot_vm: yes # reboot machine at the end of the playbook
+    reset_repo: no # force overwrite of local changes
+    terminal_title: "solo.io workshops"
 
   roles:
     - k9s
 
   tasks:
 
-  - name: Install jq
-    apt:
-      name: jq
-      state: present
-      update_cache: yes
+  - name: Print parameters
+    debug:
+      msg: "reboot_vm={{ reboot_vm | bool }} reset_repo={{ reset_repo | bool }}"
+  
+  - name: Populate service facts
+    service_facts:
 
-  - name: Install curl
-    apt:
-      name: curl
-      state: present
-
-  - name: Install apt-transport-https
-    apt:
-      name: apt-transport-https
-      state: present
-
-  - name: Install ca-certificates
-    apt:
-      name: ca-certificates
-      state: present
-
-  - name: Install gnupg-agent
-    apt:
-      name: gnupg-agent
-      state: present
-
-  - name: Install software-properties-common
-    apt:
-      name: software-properties-common
-      state: present
-
-  - name: Add Docker apt key
+  - name: Add apt keys
     apt_key:
-      url: https://download.docker.com/linux/ubuntu/gpg
+      url: "{{ item }}"
       state: present
+    loop:
+    - https://download.docker.com/linux/ubuntu/gpg
+    - https://dl.google.com/linux/linux_signing_key.pub
+    - https://packages.microsoft.com/keys/microsoft.asc
+    - https://baltocdn.com/helm/signing.asc
 
-  - apt_repository:
-      repo: deb [arch=amd64] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable
+  - name: Add apt repositories
+    apt_repository:
+      repo: "{{ item }}"
       state: present
+    loop:
+    - deb [arch=amd64] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable
+    - deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main
+    - deb [arch=amd64] https://packages.microsoft.com/repos/vscode stable main
+    - deb https://baltocdn.com/helm/stable/debian/ all main
 
-  - name: Install docker-ce
+  - name: Install baseline software
     apt:
-      name: docker-ce
       state: present
       update_cache: yes
-
-  - name: Install docker-ce-cli
-    apt:
-      name: docker-ce-cli
-      state: present
-
-  - name: Install containerd.io
-    apt:
-      name: containerd.io
-      state: present
+      name:
+      - jq
+      - curl
+      - apt-transport-https
+      - ca-certificates
+      - gnupg-agent
+      - software-properties-common
+      - docker-ce
+      - docker-ce-cli
+      - containerd.io
+      - bash-completion
+      - libcairo2-dev
+      - libjpeg-turbo8-dev
+      - libpng-dev
+      - libtool-bin
+      - libossp-uuid-dev
+      - libavcodec-dev
+      - libavformat-dev
+      - libavutil-dev
+      - libswscale-dev
+      - freerdp2-dev
+      - libpango1.0-dev
+      - libssh2-1-dev
+      - libtelnet-dev
+      - libvncserver-dev
+      - libwebsockets-dev
+      - libpulse-dev
+      - libssl-dev
+      - libvorbis-dev
+      - libwebp-dev
+      - build-essential
+      - autocutsel
+      - tightvncserver
+      - socat
+      - dbus-x11
+      - gnome-session
+      - ubuntu-gnome-desktop
+      - gnome-panel
+      - gdm3
+      - google-chrome-stable
+      - xfce4-terminal
+      - code
+      - python
+      - apache2-utils
+      - apt-transport-https
+      - helm
+      - emacs
+      - tomcat9
 
   - name: Add the solo user to the docker group
     user:
@@ -86,8 +114,10 @@
   - name: Read Kubernetes version
     command: cat /tmp/version
     register: kubernetes_version
+    changed_when: false
 
-  - debug:
+  - name: Print Kubernetes version
+    debug:
       msg: "Kubernetes version is {{ kubernetes_version.stdout }}"
 
   - name: Download kubectl
@@ -95,154 +125,42 @@
       url: "https://storage.googleapis.com/kubernetes-release/release/{{ kubernetes_version.stdout }}/bin/linux/amd64/kubectl"
       dest: /usr/local/bin/kubectl
       mode: '0755'
-
-  - name: Install bash-completion
-    apt:
-      name: bash-completion
-      state: present
-
+  
   - name: Enable kubectl autocompletion
     shell: kubectl completion bash > /etc/bash_completion.d/kubectl
-
-  - name: Install libcairo2-dev
-    apt:
-      name: libcairo2-dev
-      state: present
-
-  - name: Install libjpeg-turbo8-dev
-    apt:
-      name: libjpeg-turbo8-dev
-      state: present
-
-  - name: Install libpng-dev
-    apt:
-      name: libpng-dev
-      state: present
-
-  - name: Install libtool-bin
-    apt:
-      name: libtool-bin
-      state: present
-
-  - name: Install libossp-uuid-dev
-    apt:
-      name: libossp-uuid-dev
-      state: present
-
-  - name: Install libavcodec-dev
-    apt:
-      name: libavcodec-dev
-      state: present
-
-  - name: Install libavformat-dev
-    apt:
-      name: libavformat-dev
-      state: present
-
-  - name: Install libavutil-dev
-    apt:
-      name: libavutil-dev
-      state: present
-
-  - name: Install libswscale-dev
-    apt:
-      name: libswscale-dev
-      state: present
-
-  - name: Install freerdp2-dev
-    apt:
-      name: freerdp2-dev
-      state: present
-
-  - name: Install libpango1.0-dev
-    apt:
-      name: libpango1.0-dev
-      state: present
-
-  - name: Install libssh2-1-dev
-    apt:
-      name: libssh2-1-dev
-      state: present
-
-  - name: Install libtelnet-dev
-    apt:
-      name: libtelnet-dev
-      state: present
-
-  - name: Install libvncserver-dev
-    apt:
-      name: libvncserver-dev
-      state: present
-
-  - name: Install libwebsockets-dev
-    apt:
-      name: libwebsockets-dev
-      state: present
-
-  - name: Install libpulse-dev
-    apt:
-      name: libpulse-dev
-      state: present
-
-  - name: Install libssl-dev
-    apt:
-      name: libssl-dev
-      state: present
-
-  - name: Install libvorbis-dev
-    apt:
-      name: libvorbis-dev
-      state: present
-
-  - name: Install libwebp-dev
-    apt:
-      name: libwebp-dev
-      state: present
 
   - name: Unarchive guacamole
     unarchive:
       src: https://mirrors.ircam.fr/pub/apache/guacamole/1.2.0/source/guacamole-server-1.2.0.tar.gz
       dest: /
       remote_src: yes
+    when:
+    - "not ansible_facts.services is defined or not ansible_facts.services.guacd is defined or not ansible_facts.services.guacd.state == 'running'"
 
   - name: Configure guacamole
     shell: cd /guacamole-server-1.2.0 && ./configure --with-init-dir=/etc/init.d
-
-  - name: Install build-essential
-    apt:
-      name: build-essential
-      state: present
+    when:
+    - "not ansible_facts.services is defined or not ansible_facts.services.guacd is defined or not ansible_facts.services.guacd.state == 'running'"
 
   - name: Make guacamole
-    shell: cd /guacamole-server-1.2.0 && make
+    make:
+      chdir: /guacamole-server-1.2.0
+    when:
+    - "not ansible_facts.services is defined or not ansible_facts.services.guacd is defined or not ansible_facts.services.guacd.state == 'running'"
 
   - name: Make install guacamole
-    shell: cd /guacamole-server-1.2.0 && make install
-
-  - name: Install tomcat9
-    apt:
-      name: tomcat9
-      state: present
+    make:
+      chdir: /guacamole-server-1.2.0
+      target: install
+    when:
+    - "not ansible_facts.services is defined or not ansible_facts.services.guacd is defined or not ansible_facts.services.guacd.state == 'running'"
 
   - name: Download guacamole war
     get_url:
       url: https://mirrors.ircam.fr/pub/apache/guacamole/1.2.0/binary/guacamole-1.2.0.war
       dest: /var/lib/tomcat9/webapps/guacamole.war
-
-  - name: Install autocutsel
-    apt:
-      name: autocutsel
-      state: present
-
-  - name: Install tightvncserver
-    apt:
-      name: tightvncserver
-      state: present
-
-  - name: Install socat
-    apt:
-      name: socat
-      state: present
+    when:
+    - "not ansible_facts.services is defined or not ansible_facts.services.guacd is defined or not ansible_facts.services.guacd.state == 'running'"
 
   - name: Create the /home/solo/.vnc directory if it does not exist
     file:
@@ -258,7 +176,11 @@
       state: absent
 
   - name: Set VNC password
-    shell: echo password | vncpasswd -f > /home/solo/.vnc/passwd
+    shell: >
+      set -o pipefail && \
+        echo password | vncpasswd -f > /home/solo/.vnc/passwd
+    args:
+      executable: /bin/bash
     become_user: solo
     become_method: sudo
 
@@ -268,31 +190,6 @@
       owner: solo
       group: solo
       mode: '0600'
-
-  - name: Install dbus-x11
-    apt:
-      name: dbus-x11
-      state: present
-
-  - name: Install gnome-session
-    apt:
-      name: gnome-session
-      state: present
-
-  - name: Install ubuntu-gnome-desktop
-    apt:
-      name: ubuntu-gnome-desktop
-      state: present
-
-  - name: Install gnome-panel
-    apt:
-      name: gnome-panel
-      state: present
-
-  - name: Install gdm3
-    apt:
-      name: gdm3
-      state: present
 
   - name: Download the Solo background image
     get_url:
@@ -308,22 +205,9 @@
       mode: '0700'
 
   - name: Escape initial setup
-    shell: touch /home/solo/.config/gnome-initial-setup-done
-
-  - name: Add Google Chrome apt key
-    apt_key:
-      url: https://dl.google.com/linux/linux_signing_key.pub
-      state: present
-
-  - apt_repository:
-      repo: deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main
-      state: present
-
-  - name: Install Google Chrome
-    apt:
-      name: google-chrome-stable
-      state: present
-      update_cache: yes
+    file:
+      path: /home/solo/.config/gnome-initial-setup-done
+      state: touch
 
   - name: Create the /etc/opt/chrome/policies/managed directory if it does not exist
     file:
@@ -352,17 +236,34 @@
       group: solo
       mode: '0700'
 
-  - name: Install Xfce4 terminal
-    apt:
-      name: xfce4-terminal
-      state: present
-      update_cache: yes
-
   - name: Copy the Xfce4 terminal shortcut
-    shell: cp /usr/share/applications/xfce4-terminal.desktop /home/solo/Desktop/
+    copy:
+      src: /usr/share/applications/xfce4-terminal.desktop
+      dest: /home/solo/Desktop/
+      remote_src: yes
+      owner: solo
+      group: solo
+
+  - name: Create the /home/solo/.config/xfce4/terminal/ directory if it does not exist
+    file:
+      path: /home/solo/.config/xfce4/terminal
+      state: directory
+
+  - name: Set the /home/solo/.config/xfce4/terminal/terminalrc
+    copy:
+      content: |
+                [Configuration]
+                MiscShowUnsafePasteDialog=FALSE
+                TitleInitial={{ terminal_title }}
+      dest: /home/solo/.config/xfce4/terminal/terminalrc
 
   - name: Copy the Google Chrome shortcut
-    shell: cp /usr/share/applications/google-chrome.desktop /home/solo/Desktop/
+    copy:
+      src: /usr/share/applications/google-chrome.desktop
+      dest: /home/solo/Desktop/
+      remote_src: yes
+      owner: solo
+      group: solo
 
   - name: Set the /home/solo/.vnc/xstartup content
     copy:
@@ -388,10 +289,6 @@
                 gnome-panel &
                 metacity &
       dest: /home/solo/.vnc/xstartup
-
-  - name: Set the permissions of the /home/solo/.vnc/xstartup file
-    file:
-      path: /home/solo/.vnc/xstartup
       owner: solo
       group: solo
       mode: '0777'
@@ -462,37 +359,53 @@
                 [Install]
                 WantedBy=multi-user.target
       dest: /etc/systemd/system/socat.service
-  
+
   - name: Run ldconfig
-    shell: ldconfig
+    command: ldconfig
 
-  - name: Enable the vncserver service
-    service:
-      name: vncserver@:1
-      enabled: yes
- 
-  - name: Enable the guacd service
-    service:
-      name: guacd
-      enabled: yes
-
-  - name: Enable the tomcat9 service
-    service:
-      name: tomcat9
-      enabled: yes
-  
   - name: Stop the tomcat9 service
     systemd:
       name: tomcat9
       state: stopped
 
   - name: Update the tomcat9 configuration to use port 8888
-    shell: sed -i 's/8080/8888/g' /etc/tomcat9/server.xml
+    replace:
+      path: /etc/tomcat9/server.xml
+      regexp: '8080'
+      replace: '8888'
 
-  - name: Enable the socat service
+  - name: Enable services
     service:
-      name: socat
+      name: "{{ item }}"
       enabled: yes
+    loop:
+    - vncserver@:1
+    - tomcat9
+    - guacd
+    - socat
+
+  - name: Start services
+    service:
+      name: "{{ item }}"
+      enabled: yes
+      state: 'started'
+    loop:
+    - vncserver@:1
+    - tomcat9
+    - guacd
+    - socat
+    when: "not ( reboot_vm | bool )"
+
+  - name: Remove any existing directory from prior runs
+    file:
+      state: absent
+      path: /home/solo/workshops
+    when: "reset_repo | bool"
+
+  - name: Check the /home/solo/workshops has been cloned
+    stat:
+      path: /home/solo/workshops
+    register: workshop_folder
 
   - name: Clone the workshop repo
     git:
@@ -500,98 +413,142 @@
       dest: /home/solo/workshops
     become_user: solo
     become_method: sudo
-
-  - name: Enable clipboard when launching the terminal
-    shell: echo '/usr/bin/autocutsel -s CLIPBOARD -fork' >> /home/solo/.bashrc
-    become_user: solo
-    become_method: sudo
-
-  - name: Add VSCode apt key
-    apt_key:
-      url: https://packages.microsoft.com/keys/microsoft.asc
-      state: present
-
-  - apt_repository:
-      repo: deb [arch=amd64] https://packages.microsoft.com/repos/vscode stable main
-      state: present
-
-  - name: Install VSCode
-    apt:
-      name: code
-      state: present
-      update_cache: yes
+    when: not workshop_folder.stat.exists
 
   - name: Fix a known issue with VSCode
     shell: sed -i 's/BIG-REQUESTS/_IG-REQUESTS/' /usr/lib/x86_64-linux-gnu/libxcb.so.1.1.0
 
-  - name: Install python
-    apt:
-      name: python
-      state: present
-
-  - name: Install glooctl
-    shell: curl -sL https://run.solo.io/gloo/install | sh
+  - name: Get glooctl installer
+    get_url:
+      url: https://run.solo.io/gloo/install
+      dest: /home/solo/glooctl_install
+      mode: '0755'
     become_user: solo
     become_method: sudo
 
+  - name: Install glooctl
+    command: /home/solo/glooctl_install
+    become_user: solo
+    become_method: sudo
+
+  - name: Enable clipboard when launching the terminal
+    lineinfile:
+      path: /home/solo/.bashrc
+      line: 'usr/bin/autocutsel -s CLIPBOARD -fork'
+    become_user: solo
+    become_method: sudo
+  
   - name: Add glooctl to the path
-    shell: echo 'export PATH=$HOME/.gloo/bin:$PATH' >> /home/solo/.bashrc
+    lineinfile:
+      path: /home/solo/.bashrc
+      line: 'export PATH=$HOME/.gloo/bin:$PATH'
     become_user: solo
     become_method: sudo
 
   - name: Add LICENSE_KEY environment variable
-    shell: echo "export LICENSE_KEY={{ lookup('env','LICENSE_KEY') }}" >> /home/solo/.bashrc
+    lineinfile:
+      path: /home/solo/.bashrc
+      line: "export LICENSE_KEY={{ lookup('env','LICENSE_KEY') }}"
     become_user: solo
     become_method: sudo
+    no_log: true
 
   - name: Add GLOO_MESH_LICENSE_KEY environment variable
-    shell: echo "export GLOO_MESH_LICENSE_KEY={{ lookup('env','GLOO_MESH_LICENSE_KEY') }}" >> /home/solo/.bashrc
+    lineinfile:
+      path: /home/solo/.bashrc
+      line: "export GLOO_MESH_LICENSE_KEY={{ lookup('env','GLOO_MESH_LICENSE_KEY') }}"
     become_user: solo
     become_method: sudo
+    no_log: true
 
   - name: Add PORTAL_LICENSE_KEY environment variable
-    shell: echo "export PORTAL_LICENSE_KEY={{ lookup('env','PORTAL_LICENSE_KEY') }}" >> /home/solo/.bashrc
+    lineinfile:
+      path: /home/solo/.bashrc
+      line: "export PORTAL_LICENSE_KEY={{ lookup('env','PORTAL_LICENSE_KEY') }}"
     become_user: solo
     become_method: sudo
+    no_log: true
 
   - name: Create vimrc
     command: touch $HOME/.vimrc
+    become_user: solo
+    become_method: sudo
 
   - name: Turn on line numbers by default
-    command: echo "set number" >> $HOME/.vimrc
+    lineinfile:
+      path: /home/solo/.vimrc
+      line: 'set number'
+    become_user: solo
+    become_method: sudo
 
-  - name: Install apache2-utils
-    apt:
-      name: apache2-utils
-      state: present
+  - name: Set default keyring (path creation)
+    file:
+      path: /home/solo/.local/share/keyrings
+      state: directory
+    become_user: solo
+    become_method: sudo
 
-  - name: Add Helm apt key
-    apt_key:
-      url: https://baltocdn.com/helm/signing.asc
-      state: present
+  - name: Set default keyring (content)
+    copy:
+      content: |
+                [keyring]
+                display-name=Default keyring
+                ctime=1623227729
+                mtime=0
+                lock-on-idle=false
+                lock-after=false
 
-  - name: Install apt-transport-https
-    apt:
-      name: apt-transport-https
-      state: present
+                [2]
+                item-type=0
+                display-name=Chrome Safe Storage
+                secret=ucj3eCSYrBEifzVk3WB57A==
+                mtime=1623227729
+                ctime=1623227729
 
-  - apt_repository:
-      repo: deb https://baltocdn.com/helm/stable/debian/ all main
-      state: present
+                [2:attribute0]
+                name=application
+                type=string
+                value=chrome
 
-  - name: Install helm
-    apt:
-      name: helm
-      state: present
+                [2:attribute1]
+                name=xdg:schema
+                type=string
+                value=chrome_libsecret_os_crypt_password_v2
 
-  - name: Install emacs
-    apt:
-      name: emacs
-      state: present
+                [1]
+                item-type=0
+                display-name=Chrome Safe Storage Control
+                secret=The meaning of life
+                mtime=1623227729
+                ctime=1623227729
+
+                [1:attribute0]
+                name=explanation
+                type=string
+                value=Because of quirks in the gnome libsecret API, Chrome needs to store a dummy entry to guarantee that this keyring was properly unlocked. More details at http://crbug.com/660005.
+
+                [1:attribute1]
+                name=xdg:schema
+                type=string
+                value=_chrome_dummy_schema_for_unlocking
+      dest: /home/solo/.local/share/keyrings/Default_keyring.keyring
+      mode: '0600'
+    become_user: solo
+    become_method: sudo
+
+  - name: Set default keyring (pointer)
+    copy:
+      content: |
+                Default_keyring
+      dest: /home/solo/.local/share/keyrings/default
+      mode: '0644'
+    become_user: solo
+    become_method: sudo
 
   - name: Download and install step-cli
     apt:
-      deb: "https://github.com/smallstep/cli/releases/download/v0.15.3/step-cli_0.15.3_amd64.deb" 
-      
+      deb: "https://github.com/smallstep/cli/releases/download/v0.15.3/step-cli_0.15.3_amd64.deb"
+
   - name: Reboot VM
     reboot:
+    when: "reboot_vm | bool"

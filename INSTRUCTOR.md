@@ -64,7 +64,7 @@ terraform output -json | jq -r '.gce_public_ip.value[]' | while read ip; do echo
 Remove the SSH known hosts (optional, but recommended as Google Cloud reuses the same IP addresses quite often):
 
 ```
-echo > $HOME/.ssh/known_hosts
+terraform output -json | jq -r '.gce_public_ip.value[]' | while read ip; do ssh-keygen -R $ip; done
 ```
 
 All solo.io enterprise products require a license key.  If you'd like to preset limited-term keys on the student Virtual Machines, then set the `LICENSE_KEY` and `GLOO_MESH_LICENSE_KEY` and `PORTAL_LICENSE_KEY` environment variables on your workstation before running the `ansible-playbook` command.

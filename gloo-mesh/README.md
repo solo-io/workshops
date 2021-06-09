@@ -163,6 +163,7 @@ metadata:
 spec:
   profile: default
   meshConfig:
+    trustDomain: cluster1
     accessLogFile: /dev/stdout
     enableAutoMtls: true
     defaultConfig:
@@ -179,7 +180,6 @@ spec:
       meshID: mesh1
       multiCluster:
         clusterName: cluster1
-      trustDomain: cluster1
       network: network1
       meshNetworks:
         network1:
@@ -247,6 +247,7 @@ metadata:
 spec:
   profile: default
   meshConfig:
+    trustDomain: cluster2
     accessLogFile: /dev/stdout
     enableAutoMtls: true
     defaultConfig:
@@ -257,13 +258,12 @@ spec:
       proxyMetadata:
         ISTIO_META_DNS_CAPTURE: "true"
         ISTIO_META_DNS_AUTO_ALLOCATE: "true"
-        GLOO_MESH_CLUSTER_NAME: cluster1
+        GLOO_MESH_CLUSTER_NAME: cluster2
   values:
     global:
       meshID: mesh1
       multiCluster:
         clusterName: cluster2
-      trustDomain: cluster2
       network: network2
       meshNetworks:
         network2:
