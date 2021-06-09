@@ -1,0 +1,12 @@
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: web-api-gw-vs
+  namespace: istioinaction
+spec:
+  http:
+  - route:
+    - destination:
+        host: web-api.istioinaction.svc.cluster.local
+        port:
+          number: 8080

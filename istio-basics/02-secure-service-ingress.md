@@ -31,6 +31,8 @@ After running these commands, we should check the pods running in the istioinact
 kubectl get po -n istioinaction
 ```
 
+Wait a few seconds till all of them reach the `Running` status:
+
 ```
 NAME                                   READY   STATUS    RESTARTS   AGE
 purchase-history-v1-6c8cb7f8f8-wn4dr   1/1     Running   0          22s

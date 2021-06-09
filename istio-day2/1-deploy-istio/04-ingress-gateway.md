@@ -13,7 +13,7 @@ This lab builds on both lab 02 and 03 where we already installed Istio control p
 
 We will continue the approach of using separate installation files for Istio components. We will install the ingress gateway using the following approach. This allows us to separate upgrades/changes to the control plane from the ingress gateway. Since the ingress gateway is likely taking production traffic, we want to treat it separately from other components. Let's install it using the following approach:
 
-```bash
+```
 cat labs/04/ingress-gateways.yaml
 ```
 
@@ -57,7 +57,9 @@ istioctl install -y -n istio-ingress -f labs/04/ingress-gateways.yaml --revision
 ```
 
 We should check that the ingress gateway was correctly installed:
-
+<!--bash
+kubectl wait --for=condition=Ready pod --all -n istio-ingress
+-->
 ```bash
 kubectl get po -n istio-ingress
 ```
@@ -69,6 +71,12 @@ istio-ingressgateway-5686db779c-8nr5p   1/1     Running   0          78s
 
 The ingress gateway will create a Kubernetes Service of type `LoadBalancer`. Use this IP address to reach the gateway:
 
+<!--bash
+until [ $(kubectl get svc/istio-ingressgateway -n istio-ingress -o jsonpath="{.status.loadBalancer.ingress[0].ip}"|wc -c) -gt 5 ]
+do
+  sleep 1
+done
+-->
 ```bash
 kubectl get svc -n istio-ingress
 ```
@@ -99,13 +107,13 @@ kubectl -n istioinaction apply -f sample-apps/ingress/
 
 The ingress gateway will create new routes on the proxy that we should be able to call:
 
-```bash
+```
 curl -H "Host: istioinaction.io" http://$GATEWAY_IP
 ```
 
 We can query the gateway configuration using the `istioctl proxy-config` command:
 
-```bash
+```
 istioctl proxy-config routes deploy/istio-ingressgateway.istio-ingress
 ```
 
@@ -119,7 +127,7 @@ http.80     istioinaction.io     /*                     web-api-gw-vs.istioinact
 
 If we wanted to see an individual route, we can ask for its output as `json` like this:
 
-```bash
+```
 istioctl proxy-config routes deploy/istio-ingressgateway.istio-ingress --name http.80 -o json
 ```
 
@@ -134,12 +142,12 @@ kubectl create -n istio-ingress secret tls istioinaction-cert --key labs/04/cert
 
 We can update the gateway to use this cert:
 
-```bash
+```
 cat labs/04/web-api-gw-https.yaml
 ```
 
 ```yaml
-apiVersion: networking.istio.io/v1alpha3
+apiVersion: networking.istio.io/v1beta1
 kind: Gateway
 metadata:
   name: web-api-gateway
@@ -172,7 +180,7 @@ kubectl -n istioinaction apply -f labs/04/web-api-gw-https.yaml
 
 Example calling it:
 
-```bash
+```
 curl --cacert ./labs/04/certs/ca/root-ca.crt -H "Host: istioinaction.io" https://istioinaction.io --resolve istioinaction.io:443:$GATEWAY_IP
 ```
 
@@ -212,7 +220,9 @@ helm install cert-manager jetstack/cert-manager --namespace cert-manager --versi
 ```
 
 Verify things installed correctly:
-
+<!--bash
+kubectl wait --for=condition=Ready pod --all -n cert-manager
+-->
 ```bash
 kubectl get po -n cert-manager
 ```
@@ -259,7 +269,7 @@ kubectl delete secret -n istio-ingress istioinaction-cert
 
 We will ask ask cert-manager to issue us a secret with this config:
 
-```bash
+```
 cat labs/04/cert-manager/istioinaction-io-cert.yaml
 ```
 
@@ -294,10 +304,23 @@ spec:
 
 After reviewing the config, go ahead and apply it:
 
+<!--bash
+until kubectl apply -f labs/04/cert-manager/istioinaction-io-cert.yaml  >/dev/null 2>&1
+do
+  sleep 1
+done
+-->
+
 ```bash
 kubectl apply -f labs/04/cert-manager/istioinaction-io-cert.yaml 
 ```
 
+<!--bash
+until kubectl get secrets/istioinaction-cert -n istio-ingress >/dev/null 2>&1
+do
+  sleep 1
+done
+-->
 Let's make sure the certificate was recognized and issued:
 
 ```bash
@@ -317,7 +340,7 @@ kubectl get secret -n istio-ingress istioinaction-cert -o jsonpath="{.data['tls\
 
 Let's try call our gateway again to make sure the call still succeeds:
 
-```bash
+```
 curl --cacert ./labs/04/certs/ca/root-ca.crt -H "Host: istioinaction.io" https://istioinaction.io --resolve istioinaction.io:443:$GATEWAY_IP
 ```
 
@@ -328,7 +351,7 @@ In this section, we created the `Certificate` in the `istio-system` namespace. B
 By default, the ingress gateways will be configured with information about every service in the mesh and in fact every service that Istio's control plane has discovered. This is likely overkill for most large mesh deployments. With the gateway, we can scope down the number of backend services that get configured on the gateway to only those that have routing rules defined for them. For example, in our current status with the gateway, let's see what "clusters" it knows about:
 
 
-```bash
+```
 istioctl pc clusters deploy/istio-ingressgateway -n istio-ingress
 ```
 
@@ -342,6 +365,9 @@ istioctl install -y -n istio-system -f labs/04/control-plane-reduce-gw-config.ya
 
 Give a few moments for `istiod` to come back up. Then run the following to verify the setting `PILOT_FILTER_GATEWAY_CLUSTER_CONFIG` took effect: 
 
+<!--bash
+kubectl wait --for=condition=Ready pod --all -n istio-system
+-->
 ```bash
 kubectl get deploy/istiod-1-8-3 -n istio-system -o jsonpath="{.spec.template.spec.containers[].env[?(@.name=='PILOT_FILTER_GATEWAY_CLUSTER_CONFIG')]}";
 ```
@@ -354,7 +380,7 @@ You should see something like this:
 
 Let's check the ingress gateway again:
 
-```bash
+```
 istioctl pc clusters deploy/istio-ingressgateway -n istio-ingress
 ```
 
@@ -366,14 +392,14 @@ In this last section of this lab, we will see how to enable access logging for t
 
 Let's take a look at the configuration we'll use to configure access logging for the ingress gateway:
 
-```bash
+```
 cat labs/04/ingress-gw-access-logging.yaml
 ```
 
 We should see a file similar to this:
 
 ```yaml
-apiVersion: networking.istio.io/v1alpha3
+apiVersion: networking.istio.io/v1beta1
 kind: EnvoyFilter
 metadata:
   name: ingressgateway-access-logging
@@ -417,7 +443,7 @@ Recall how to get the ingress gateway IP:
 GATEWAY_IP=$(kubectl get svc -n istio-ingress istio-ingressgateway -o jsonpath="{.status.loadBalancer.ingress[0].ip}")
 ```
 
-```bash
+```
 curl --cacert ./labs/04/certs/ca/root-ca.crt -H "Host: istioinaction.io" https://istioinaction.io --resolve istioinaction.io:443:$GATEWAY_IP
 ```
 

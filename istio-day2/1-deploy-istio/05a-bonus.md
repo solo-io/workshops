@@ -13,7 +13,7 @@ cat labs/05/web-api-access-logging.yaml
 We should see a file similar to this:
 
 ```yaml
-apiVersion: networking.istio.io/v1alpha3
+apiVersion: networking.istio.io/v1beta1
 kind: EnvoyFilter
 metadata:
   name: web-api-access-logging
@@ -74,7 +74,7 @@ DestinationRule defines destination policies when client reaches its server and 
 Let us add `subset: v1` to the `web-api-gw-vs` virtual service resource:
 
 ```yaml
-apiVersion: networking.istio.io/v1alpha3
+apiVersion: networking.istio.io/v1beta1
 kind: VirtualService
 metadata:
   name: web-api-gw-vs
@@ -107,7 +107,7 @@ curl -H "Host: istioinaction.io" http://istioinaction.io/hello --resolve istioin
 You'll get an empty reply, because the istio-ingressgateway doesn't know how to reach web-api service v1.  Create a destination rule resource for web-api service v1.
 
 ```yaml
-apiVersion: networking.istio.io/v1alpha3
+apiVersion: networking.istio.io/v1beta1
 kind: DestinationRule
 metadata:
   name: web-api-dr

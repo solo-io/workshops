@@ -34,6 +34,9 @@ The purpose of this deployment is to not touch any of the existing services yet 
 
 Check the pods in this namespace:
 
+<!--bash
+kubectl wait --for=condition=Ready pod --all -n istioinaction
+-->
 ```bash
 kubectl get po -n istioinaction
 ```
@@ -51,8 +54,14 @@ web-api-canary-6d87d9c4-jx82w         2/2     Running   0          10s
 
 Now that we have our web-api pod up and running, we should be able to call it:
 
+<!--bash
+until kubectl exec deploy/sleep -- curl http://web-api.istioinaction:8080/ -sSL -m 1 >/dev/null 2>&1
+do
+  sleep 1
+done
+-->
 ```bash
-kubectl exec -it deploy/sleep -- curl http://web-api.istioinaction:8080/
+kubectl exec deploy/sleep -- curl http://web-api.istioinaction:8080/
 ```
 
 ```
@@ -111,6 +120,13 @@ kubectl apply -f labs/05/sleep-canary.yaml -n istioinaction
 
 Check that the canary workloads got the sidecar deployed:
 
+<!--bash
+until kubectl exec deploy/sleep -- curl http://web-api.istioinaction:8080/ -sSL -m 1 >/dev/null 2>&1
+do
+  sleep 1
+done
+-->
+
 ```bash
 kubectl get po -n istioinaction
 ```
@@ -118,7 +134,7 @@ kubectl get po -n istioinaction
 Let's send some more traffic to the `web-api` service:
 
 ```bash
-for i in {1..10}; do kubectl exec -it deploy/sleep -n default -- curl http://web-api.istioinaction:8080/; done
+for i in {1..10}; do kubectl exec deploy/sleep -n default -- curl http://web-api.istioinaction:8080/; done
 ```
 
 If everything looks good, we can introduce the sidecar to the rest of the services and delete the canary:
@@ -129,7 +145,6 @@ kubectl rollout restart deployment purchase-history-v1 -n istioinaction
 kubectl rollout restart deployment recommendation -n istioinaction
 kubectl rollout restart deployment sleep -n istioinaction
 ```
-
 
 ```bash
 kubectl delete deployment web-api-canary purchase-history-v1-canary recommendation-canary sleep-canary -n istioinaction
@@ -142,7 +157,7 @@ Congratulations! You have successfully added all of your services in the istioin
 
 Coming back to our services in the `istioinaction` namespace, let's take a look at some of the Envoy configuration for the sidecar proxies. We will use the `istioctl proxy-config` command to inspect the configuration of the `web-api` pod's proxy. For example, to see the listeners configured on the proxy run this command:
 
-```bash
+```
 istioctl proxy-config listener deploy/web-api.istioinaction 
 ```
 
@@ -163,7 +178,7 @@ ADDRESS       PORT  MATCH                                                       
 
 We can also see the clusters that have been configured:
 
-```bash
+```
 istioctl proxy-config clusters deploy/web-api.istioinaction
 ```
 
@@ -204,7 +219,7 @@ kiali-operator-metrics.kiali-operator.svc.cluster.local                         
 
 If we want to see more information about how the cluster for `recommendation.istioinaction` has been configured by Istio, run this command:
 
-```bash
+```
 istioctl proxy-config clusters deploy/web-api.istioinaction --fqdn recommendation.istioinaction.svc.cluster.local -o json
 ```
 

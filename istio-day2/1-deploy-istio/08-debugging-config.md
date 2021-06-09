@@ -133,7 +133,7 @@ As we've seen in previous labs, the `istioctl proxy-config` command can be used 
 
 The `istioctl proxy-config` command allows you to review the data plane configuration which effectively comes from the `/config_dump` endpoint on Envoy's admin module. We can go right to the admin API with the following command:
 
-```bash
+```
 istioctl dashboard envoy <pod-name[.namespace]>
 ```
 
@@ -156,6 +156,7 @@ istioctl proxy-config log deploy/web-api -n istioinaction --level debug
 To configure just a specific module for debug:
 
 ```bash
+istioctl proxy-config log deploy/web-api -n istioinaction --level info
 istioctl proxy-config log deploy/web-api -n istioinaction --level connection:debug,conn_handler:debug,filter:debug,router:debug,http:debug,upstream:debug
 ```
 
@@ -244,7 +245,7 @@ Some of the common subsections used to debug connection/routing issues are seen 
 Istio provides a nice `debug` interface on the Istio control plane. We can call it with the convenience command on the `pilot-discovery` like we did in the previous step. We could also call it from `curl` or any HTTP client like:
 
 ```bash
-kubectl exec -it deploy/sleep -- curl http://istiod.istio-system:15014/debug/registryz
+kubectl exec deploy/sleep -- curl http://istiod.istio-system:15014/debug/registryz
 ```
 
 Some additional paths that are definitely useful for debugging the control plane:
@@ -273,19 +274,19 @@ For example, to get the EDS debug info for the httpbin service proxy:
 
 ```bash
 export HTTPBIN_ID=$(kubectl get pod -l app=httpbin -o jsonpath='{.items[0].metadata.name}')
-kubectl exec -it deploy/sleep -- curl http://istiod.istio-system:15014/debug/edsz?proxyID=$HTTPBIN_ID
+kubectl exec deploy/sleep -- curl http://istiod.istio-system:15014/debug/edsz?proxyID=$HTTPBIN_ID
 ```
 
 To get Prometheus metrics for the `istiod` control plane:
 
 ```bash
-kubectl exec -it deploy/sleep -- curl http://istiod.istio-system:15014/metrics
+kubectl exec deploy/sleep -- curl http://istiod.istio-system:15014/metrics
 ```
 
 To get Istiod version:
 
 ```bash
-kubectl exec -it deploy/sleep -- curl http://istiod.istio-system:15014/version
+kubectl exec deploy/sleep -- curl http://istiod.istio-system:15014/version
 ```
 
 ### What about on the data plane?

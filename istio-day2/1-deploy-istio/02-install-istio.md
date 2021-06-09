@@ -151,7 +151,7 @@ istiod-1-8-3-78b88c997d-rpnck   1/1     Running   0          2m1s
 From here, we can query the Istio control plane's debug endpoints to see what services we have running and what Istio has discovered.
 
 ```bash
-kubectl exec -n istio-system -it deploy/istiod-1-8-3 -- pilot-discovery request GET /debug/registryz 
+kubectl exec -n istio-system deploy/istiod-1-8-3 -- pilot-discovery request GET /debug/registryz 
 ```
 
 The output of this command can be quite verbose as it lists all of the services in the Istio registry. Workloads are included in the Istio registry even if they are not officially part of the mesh (ie, have a sidecar deployed next to it). We leave it to the reader to grep for some of the previously deployed services (`web-api`, `recommendation` and `purchase-history` services).
