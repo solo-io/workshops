@@ -14,7 +14,7 @@ You have v2 of the `purchase-history` service ready in the `labs/05/purchase-his
 cat labs/05/purchase-history-v2.yaml
 ```
 
-The key change is the `purchase-history-v2` deployment name  and the `version:v2` labels, along with the `fake-service:v2` image and the `EXTERNAL_SERVICE_URL`:
+The main change is the `purchase-history-v2` deployment name  and the `version:v2` labels, along with the `fake-service:v2` image and the newly added `EXTERNAL_SERVICE_URL` environment variable:
 
 ```
 apiVersion: apps/v1
@@ -56,9 +56,70 @@ spec:
         imagePullPolicy: Always
 ```
 
-Should you deploy the `labs/05/purchase-history-v2.yaml` to your Kubernetes cluster?  How much percentage of the traffic will visit v1 and v2 of the `purchase-history` services? Because both of the deployments have `replicas: 1`, you will see 50% traffic goes to v1 and 50% traffic goes to v2.  This is not really what you wanted because you haven't had chance to test v2 yet in your Kubernetes cluster.
+Should you deploy the `labs/05/purchase-history-v2.yaml` to your Kubernetes cluster?  How much percentage of the traffic will visit v1 and v2 of the `purchase-history` services? Because both of the deployments have `replicas: 1`, you will see 50% traffic goes to v1 and 50% traffic goes to v2. This is not what you wanted because you haven't had chance to test v2 in your Kubernetes cluster yet.
 
-Deploy the istio configuration:
+You can use Istio's networking resources to dark launch the v2 of the `purchase-history` service. Virtual Service provides you with the ability to configure a list of routing rules that control how the Envoy proxies of the client routes requests to a given service within the service mesh. The client could be Istio's ingress gateway or any of your service in the mesh.  In lab 02, when the client is `istio-ingressgateway`, the virtual service is bound to the `web-api-gateway` gateway. If you recall the Kiali graph for our application from the prior labs, the client for the `purchase-history` service is the `recommendation` service.
+
+Destination rule allows you to define configurations of policies that are applied to a request after the routing rules are enforced as defined in the destination virtual service. In addition, destination rule is also used to define the set of Kubernetes pods that belong to a subset grouping, for example multiple versions of a service, which are called "subsets" in Istio.
+
+You can review the virtual service resource for the `purchase-history` service that configures all traffic to v1 of the `purchase-history` service:
+
+```bash
+cat labs/05/purchase-history-vs-all-v1.yaml
+```
+
+```
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: purchase-history-vs
+spec:
+  hosts:
+  - purchase-history.istioinaction.svc.cluster.local
+  http: 
+  - route:
+    - destination:
+        host: purchase-history.istioinaction.svc.cluster.local
+        subset: v1
+        port:
+          number: 8080
+      weight: 100
+```
+
+Also review the destination rule resource for the `purchase-history` service that defines the `v1` and `v2` subsets. Since `v2` is dark launched and no traffic will go to `v2`, it is not required to have `v2` subsets now but you will need it soon.
+
+```bash
+cat labs/05/purchase-history-dr.yaml
+```
+
+```
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: purchase-history-dr
+spec:
+  host: purchase-history.istioinaction.svc.cluster.local
+  subsets:
+  - name: v1
+    labels:
+      version: v1
+  - name: v2
+    labels:
+      version: v2
+```
+
+Apply the `purchase-history-vs` and `purchase-history-dr` resources:
+
+```bash
+kubectl apply -f labs/05/purchase-history-vs-all-v1.yaml -n istioinaction
+kubectl apply -f labs/05/purchase-history-dr.yaml -n istioinaction
+```
+
+After you have configured Istio to control 100% of traffic to `purchase-history` to v1 of the service, you can now deploy the v2:
+
+```bash
+kubectl apply -f labs/05/purchase-history-v2.yaml
+```
 
 Test the v2 service:
 
