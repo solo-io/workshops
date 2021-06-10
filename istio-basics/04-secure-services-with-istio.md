@@ -67,7 +67,7 @@ You should see the request succeed.
 
 Question: How can you check if a service or namespace is ready to enable the `STRICT` mtls mode?  What is the best practice to enable mTLS for your services? We'll cover this topic in our Istio essential workshop.
 
-### Visualize mTLS enforcement in Kiali
+## Visualize mTLS enforcement in Kiali
 
 You can visualize the services in the mesh in Kiali.  Launch Kiali using the command below:
 
@@ -90,7 +90,7 @@ You should observe the service interaction graph with some traffic animation and
 
 ![](./images/kiali-istioinaction-mtls-enforced.png)
 
-### Understand how mTLS works in Istio service mesh
+## Understand how mTLS works in Istio service mesh
 
 Inspect the key and/or certificates used by Istio for the `web-api` service in the `istioinaction` namespace:
 
@@ -146,7 +146,7 @@ You should see the identity of the `web-api` service. Note it is using the spiff
                 URI:spiffe://cluster.local/ns/istioinaction/sa/web-api
 ```
 
-#### Understand the SPIFFE format used by Istio
+### Understand the SPIFFE format used by Istio
 
 Where are the `cluster.local` and `web-api` values come from?  Check the `istio` configmap in the `istio-system` namespace:
 
@@ -173,7 +173,7 @@ metadata:
 ---
 ```
 
-#### How does the `web-api` service obtain the needed key and/or certificates?
+### How does the `web-api` service obtain the needed key and/or certificates?
 
 In lab 03, you reviewed the injected `istio-proxy` container for the `web-api` pod. Recall there are a few volumes mounted to the `istio-proxy` container.
 
@@ -215,7 +215,7 @@ The `istio-ca-cert` mounted volumn is from the `istio-ca-root-cert` configmap in
 
 You noticed earlier that the certificate expires in 24 hours.  What happens when the certificate expires? The Istio agent monitors the `web-api` certificate for expiration and repeats the CSR request process described above periodically to ensure each of your workload's certificate is valid.
 
-#### How is mTLS strict enforced?
+### How is mTLS strict enforced?
 
 When mTLS strict is enabled, you will find the Envoy configuration for the `istio-proxy` container actually has less lines of configurations.  This is because when mTLS strict is enabled, we would only allow mTLS traffic thus no need to have any filter chain configurations to allow any plain text traffic to services in the mesh (hint: search for `"transport_protocol": "raw_buffer"` in your Envoy configuration when `PERMISSIVE` mode is applied).  If you are curious to explore Envoy configuration for any of your pod, you can use the command below to view all of the Envoy proxy configuration for the `istio-proxy` container of the `web-api` pod.
 
