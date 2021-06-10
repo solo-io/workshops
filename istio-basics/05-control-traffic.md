@@ -184,7 +184,7 @@ Let us check out the logs for the v2 of the `purchase-history` pod:
 kubectl logs deploy/purchase-history-v2 -n istioinaction
 ```
 
-Note the `connection refused` error at the beginning of the log during the service initialization. 
+Note the `connection refused` error at the beginning of the log during the service initialization:
 
 ```
 2021-06-10T17:50:22.209Z [INFO]  Starting service: name=purchase-history-v2 upstreamURIs= upstreamWorkers=1 listenAddress=0.0.0.0:8080 service type=http
@@ -202,7 +202,7 @@ goroutine 15 [running]:
 net/http.(*conn).serve.func1(0xc000182aa0)
 ```
 
-Recall the `v2` of the `purchase-history` service adds some code to call the external service and requires the ability for the pod to connect to the external service during initialization. By default in Istio, the `istio-proxy` starts in pararrel with the application container (`purchase-history` here in our example) so it is possible that the application container reaches running before `istio-proxy` fully starts thus unable to connect to anything outside of the cluster.
+Recall the `v2` of the `purchase-history` service added some code to call the external service and requires the ability for the pod to connect to the external service during initialization. By default in Istio, the `istio-proxy` starts in parallel with the application container (`purchase-history` here in our example) so it is possible that the application container reaches running before `istio-proxy` fully starts thus unable to connect to anything outside of the cluster.
 
 How can we solve this problem and ensure the application container can connect to services outside of the cluster during the container start time? The `holdApplicationUntilProxyStarts` configuration is introduced in Istio to solve this problem.  Let us add this configuration to the pod annotation of v2 of the `purchase-history` to use it:
 
@@ -258,7 +258,7 @@ TODO: add header based routing
 
 You have dark launched and did some basic testing of the v2 of the `purchase-history` service. You want to canary test a small percentage of requests to the new version to determine whether ther are problems before routing all traffic to the new version. Canary tests are often performed to ensure the new version of the service not only functions properly but also doesn't cause any degradation in performance or reliability.
 
-### Shift 20% to v2
+### Shift 20% Traffic to v2
 
 Review the updated `purchase-history` virtual service resource:
 
@@ -298,13 +298,13 @@ Deploy the updated `purchase-history` virtual service resource:
 kubectl apply -f labs/05/purchase-history-vs-20-v2.yaml -n istioinaction
 ```
 
-Generate some load on the `web-api` service to check how many requests are served by v1 and v2 of the `purchase-history` service:
+Generate some load on the `web-api` service to check how many requests are served by v1 and v2 of the `purchase-history` service. You should see only a few from v2 while the rest from v1. You may be curious why you are not observe an exactly 80%/20% distribution among v1 and v2.  You likely need to have over 100 requests to get the desired 80%/20% weighted version distribution.
 
 ```bash
-for i in {1..10}; do curl --cacert ./labs/02/certs/ca/root-ca.crt -H "Host: istioinaction.io" https://istioinaction.io --resolve istioinaction.io:443:$GATEWAY_IP|grep "Hello From Purchase History"; done
+for i in {1..20}; do curl --cacert ./labs/02/certs/ca/root-ca.crt -H "Host: istioinaction.io" https://istioinaction.io --resolve istioinaction.io:443:$GATEWAY_IP|grep "Hello From Purchase History"; done
 ```
 
-### Shift 50% to v2
+### Shift 50% Traffic to v2
 
 Review the updated `purchase-history` virtual service resource:
 
@@ -344,13 +344,13 @@ Deploy the updated `purchase-history` virtual service resource:
 kubectl apply -f labs/05/purchase-history-vs-50-v2.yaml -n istioinaction
 ```
 
-Generate some load on the `web-api` service to check how many requests are served by v1 and v2 of the `purchase-history` service:
+Generate some load on the `web-api` service to check how many requests are served by v1 and v2 of the `purchase-history` service. You should observe *roughly* 50%/50% distribution among the v1 and v2 of the service.
 
 ```bash
-for i in {1..10}; do curl --cacert ./labs/02/certs/ca/root-ca.crt -H "Host: istioinaction.io" https://istioinaction.io --resolve istioinaction.io:443:$GATEWAY_IP|grep "Hello From Purchase History"; done
+for i in {1..20}; do curl --cacert ./labs/02/certs/ca/root-ca.crt -H "Host: istioinaction.io" https://istioinaction.io --resolve istioinaction.io:443:$GATEWAY_IP|grep "Hello From Purchase History"; done
 ```
 
-### Shift all traffic to v2
+### Shift All Traffic to v2
 Now you haven't observed any ill effect during your test, you can adjust the routing rules to direct all of the traffic to the canary deployment:
 
 Deploy the updated `purchase-history` virtual service resource:
@@ -359,13 +359,36 @@ Deploy the updated `purchase-history` virtual service resource:
 kubectl apply -f labs/05/purchase-history-vs-all-v2.yaml -n istioinaction
 ```
 
-Generate some load on the `web-api` service to check how many requests are served by v1 and v2 of the `purchase-history` service:
+Generate some load on the `web-api` service, you should only see traffic to the v2 of the `purchase-history` service.
 
 ```bash
-for i in {1..10}; do curl --cacert ./labs/02/certs/ca/root-ca.crt -H "Host: istioinaction.io" https://istioinaction.io --resolve istioinaction.io:443:$GATEWAY_IP|grep "Hello From Purchase History"; done
+for i in {1..20}; do curl --cacert ./labs/02/certs/ca/root-ca.crt -H "Host: istioinaction.io" https://istioinaction.io --resolve istioinaction.io:443:$GATEWAY_IP|grep "Hello From Purchase History"; done
 ```
 
 ## Resiliency and Chaos Testing
 
+When you build a distributed application, it is critical to ensure the services in your application are resilient to failures in the underlying platforms or the dependent services. Istio has support for retries, timeouts, circuit breakers and even injecting faults into your service calls to help you test and tune your timeouts. Similar as the dark launch and canary testing you explored earlier, you don't need to add these logic into your application code or redeploy your application when configuring these Istio features to increase the resiliency of your services.
+
+### Retries
+
+
+
+### Timeouts
+
+
+### Circuit Breakers
+
+### Fault Injection
+
+
 ## Controlling Outbound Traffic
 
+### Understand the Default Behavior
+
+### 
+
+Question: Do you want to securely restrict all other pods from accessing the external service? Do you always want traffic to external service go through the egress gateway? We will cover this in the Istio Expert workshop.
+
+## Conclusion
+
+A service mesh like Istio has the capabilities that enable you to manage traffic flows within the mesh as well as entering and leaving the mesh. These capabilities allow you to efficiently control rollout and access to new features, and make it possible to build resilient services without having to make complicated changes to your application code.
