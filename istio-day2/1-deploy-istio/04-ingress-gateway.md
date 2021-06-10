@@ -344,7 +344,7 @@ Let's try call our gateway again to make sure the call still succeeds:
 curl --cacert ./labs/04/certs/ca/root-ca.crt -H "Host: istioinaction.io" https://istioinaction.io --resolve istioinaction.io:443:$GATEWAY_IP
 ```
 
-In this section, we created the `Certificate` in the `istio-system` namespace. But if we don't have access to that namespace, what else could we do?
+In this section, we created the `Certificate` in the `istio-ingress` namespace. But if we don't have access to that namespace, what else could we do?
 
 ## Reduce Gateway Config for large meshes
 
