@@ -14,7 +14,7 @@ You have v2 of the `purchase-history` service ready in the `labs/05/purchase-his
 cat labs/05/purchase-history-v2.yaml
 ```
 
-The main change is the `purchase-history-v2` deployment name  and the `version:v2` labels, along with the `fake-service:v2` image and the newly added `EXTERNAL_SERVICE_URL` environment variable:
+The main change is the `purchase-history-v2` deployment name  and the `version:v2` labels, along with the `fake-service:v2` image and the newly added `EXTERNAL_SERVICE_URL` environment variable. The `purchase-history-v2` pod establishes the connection to the external service at startup time and obtain a random response from the external service when clients call the v2 of the `purchase-history` service.
 
 ```
 apiVersion: apps/v1
@@ -135,7 +135,7 @@ purchase-history-v1-55989d4c56-vv5d4   2/2     Running   0          2d4h
 purchase-history-v2-74886f799f-lgzfn   2/2     Running   0          4m
 ```
 
-Generate some load on the `web-api` service to ensure your users are not impacted by deploying of the v2 of `purchase-history` service:
+Generate some load on the `web-api` service to ensure your users are not impacted by deploying of the v2 of the `purchase-history` service:
 
 ```bash
 for i in {1..10}; do curl --cacert ./labs/02/certs/ca/root-ca.crt -H "Host: istioinaction.io" https://istioinaction.io --resolve istioinaction.io:443:$GATEWAY_IP|grep "Hello From Purchase History"; done
@@ -150,9 +150,6 @@ kubectl exec deploy/purchase-history-v2 -n istioinaction -c istio-proxy -- curl 
 You will notice the output is not good:
 
 ```
-  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
-                                 Dload  Upload   Total   Spent    Left  Speed
-  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0
 curl: (52) Empty reply from server
 command terminated with exit code 52
 ```
@@ -166,9 +163,7 @@ kubectl exec deploy/purchase-history-v1 -n istioinaction -c istio-proxy -- curl 
 You will get the following expected output:
 
 ```
-  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
-                                 Dload  Upload   Total   Spent    Left  Speed
-  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0{
+{
   "name": "purchase-history-v1",
   "uri": "/",
   "type": "HTTP",
@@ -181,7 +176,6 @@ You will get the following expected output:
   "body": "Hello From Purchase History (v1)!",
   "code": 200
 }
-100   289  100   289    0     0  57800      0 --:--:-- --:--:-- --:--:-- 57800
 ```
 
 Let us check out the logs for the v2 of the `purchase-history` pod:
@@ -229,11 +223,10 @@ Through the `holdApplicationUntilProxyStarts` annotation below, you have configu
     spec:
 ```
 
-Deploy the updated v2 of the `purchase-history`. Note, you are deleting the previous v2 and apply the updated v2 to ensure the pod are redeployed with the annotation in effect:
+Deploy the updated v2 of the `purchase-history`.
 
 ```bash
-kubectl delete -f labs/05/purchase-history-v2.yaml
-kubectl apply -f labs/05/purchase-history-v2-updated.yaml
+kubectl apply -f labs/05/purchase-history-v2-updated.yaml -n istioinaction
 ```
 
 Test the v2 service:
@@ -245,9 +238,6 @@ kubectl exec deploy/purchase-history-v2 -n istioinaction -c istio-proxy -- curl 
 Awesome! You are getting a valid response this time, from v2!
 
 ```
-  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
-                                 Dload  Upload   Total   Spent    Left  Speed
-100   395  100   395    0     0  65833      0 --:--:-- --:--:-- --:--:-- 65833
 {
   "name": "purchase-history-v2",
   "uri": "/",
@@ -263,11 +253,117 @@ Awesome! You are getting a valid response this time, from v2!
 }
 ```
 
+TODO: add header based routing
 ## Canary Testing
 
-Shift traffic 10% to v2
+You have dark launched and did some basic testing of the v2 of the `purchase-history` service. You want to canary test a small percentage of requests to the new version to determine whether ther are problems before routing all traffic to the new version. Canary tests are often performed to ensure the new version of the service not only functions properly but also doesn't cause any degradation in performance or reliability.
 
-Shift more traffic to v2
+### Shift 20% to v2
+
+Review the updated `purchase-history` virtual service resource:
+
+```bash
+cat labs/05/purchase-history-vs-20-v2.yaml
+```
+
+You will notice `subset: v2` is added which will get 20% of the traffic while `subset: v1` will get 80% of the traffic:
+
+```
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: purchase-history-vs
+spec:
+  hosts:
+  - purchase-history.istioinaction.svc.cluster.local
+  http: 
+  - route:
+    - destination:
+        host: purchase-history.istioinaction.svc.cluster.local
+        subset: v1
+        port:
+          number: 8080
+      weight: 80
+    - destination:
+        host: purchase-history.istioinaction.svc.cluster.local
+        subset: v2
+        port:
+          number: 8080
+      weight: 20
+```
+
+Deploy the updated `purchase-history` virtual service resource:
+
+```bash
+kubectl apply -f labs/05/purchase-history-vs-20-v2.yaml -n istioinaction
+```
+
+Generate some load on the `web-api` service to check how many requests are served by v1 and v2 of the `purchase-history` service:
+
+```bash
+for i in {1..10}; do curl --cacert ./labs/02/certs/ca/root-ca.crt -H "Host: istioinaction.io" https://istioinaction.io --resolve istioinaction.io:443:$GATEWAY_IP|grep "Hello From Purchase History"; done
+```
+
+### Shift 50% to v2
+
+Review the updated `purchase-history` virtual service resource:
+
+```bash
+cat labs/05/purchase-history-vs-50-v2.yaml
+```
+
+You will notice `subset: v2` is updated to get 50% of the traffic while `subset: v1` will get 50% of the traffic:
+
+```
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: purchase-history-vs
+spec:
+  hosts:
+  - purchase-history.istioinaction.svc.cluster.local
+  http: 
+  - route:
+    - destination:
+        host: purchase-history.istioinaction.svc.cluster.local
+        subset: v1
+        port:
+          number: 8080
+      weight: 50
+    - destination:
+        host: purchase-history.istioinaction.svc.cluster.local
+        subset: v2
+        port:
+          number: 8080
+      weight: 50
+```
+
+Deploy the updated `purchase-history` virtual service resource:
+
+```bash
+kubectl apply -f labs/05/purchase-history-vs-50-v2.yaml -n istioinaction
+```
+
+Generate some load on the `web-api` service to check how many requests are served by v1 and v2 of the `purchase-history` service:
+
+```bash
+for i in {1..10}; do curl --cacert ./labs/02/certs/ca/root-ca.crt -H "Host: istioinaction.io" https://istioinaction.io --resolve istioinaction.io:443:$GATEWAY_IP|grep "Hello From Purchase History"; done
+```
+
+### Shift all traffic to v2
+Now you haven't observed any ill effect during your test, you can adjust the routing rules to direct all of the traffic to the canary deployment:
+
+Deploy the updated `purchase-history` virtual service resource:
+
+```bash
+kubectl apply -f labs/05/purchase-history-vs-all-v2.yaml -n istioinaction
+```
+
+Generate some load on the `web-api` service to check how many requests are served by v1 and v2 of the `purchase-history` service:
+
+```bash
+for i in {1..10}; do curl --cacert ./labs/02/certs/ca/root-ca.crt -H "Host: istioinaction.io" https://istioinaction.io --resolve istioinaction.io:443:$GATEWAY_IP|grep "Hello From Purchase History"; done
+```
 
 ## Resiliency and Chaos Testing
 

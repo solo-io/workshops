@@ -1,0 +1,21 @@
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: purchase-history-vs
+spec:
+  hosts:
+  - purchase-history.istioinaction.svc.cluster.local
+  http: 
+  - route:
+    - destination:
+        host: purchase-history.istioinaction.svc.cluster.local
+        subset: v1
+        port:
+          number: 8080
+      weight: 80
+    - destination:
+        host: purchase-history.istioinaction.svc.cluster.local
+        subset: v2
+        port:
+          number: 8080
+      weight: 20
