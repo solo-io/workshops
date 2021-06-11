@@ -26,7 +26,9 @@ kubectl apply -n istioinaction -f sample-apps/sleep.yaml
 ```
 
 After running these commands, we should check the pods running in the istioinaction namespace:
-
+<!--bash
+kubectl wait --for=condition=Ready pod --all -n istioinaction
+-->
 ```bash
 kubectl get po -n istioinaction
 ```
@@ -62,7 +64,9 @@ We use the `GATEWAY_IP` environment variable in other parts of this lab.
 {% endhint %}
 
 ```bash
-GATEWAY_IP=$(kubectl get svc -n istio-system istio-ingressgateway -o jsonpath="{.status.loadBalancer.ingress[0].ip}")
+export GATEWAY_IP=$(kubectl get svc -n istio-system istio-ingressgateway -o jsonpath="{.status.loadBalancer.ingress[0].ip}")
+export INGRESS_PORT=80
+export SECURE_INGRESS_PORT=443
 ```
 
 {% hint style="info" %}
@@ -72,13 +76,13 @@ There is a known issue with MetalLB with MacOS. If you are running this lab on y
 {% hint style="info" %}
 If your Istio ingress gateway created a Kubernetes Service of type `NodePort`, use the following commands to set your `GATEWAY_IP`:
 
-```bash
+```
 export GATEWAY_IP=$(kubectl get po -l istio=ingressgateway -n istio-system -o jsonpath='{.items[0].status.hostIP}')
 ```
 
 Set the `INGRESS_PORT` and `SECURE_INGRESS_PORT`:
 
-```bash
+```
 export INGRESS_PORT=$(kubectl -n istio-system get service istio-ingressgateway -o jsonpath='{.spec.ports[?(@.name=="http2")].nodePort}')
 export SECURE_INGRESS_PORT=$(kubectl -n istio-system get service istio-ingressgateway -o jsonpath='{.spec.ports[?(@.name=="https")].nodePort}')
 ```
@@ -99,7 +103,7 @@ cat sample-apps/ingress/web-api-gw.yaml
 In addition to the `web-api-gateway` name of the gateway resource, we can configure that port `80` with protocol `HTTP` is exposed for the `istioinaction.io` host for our Istio ingress gateway selected by the `istio: ingressgateway` selector:
 
 ```yaml
-apiVersion: networking.istio.io/v1alpha3
+apiVersion: networking.istio.io/v1beta1
 kind: Gateway
 metadata:
   name: web-api-gateway
@@ -124,7 +128,7 @@ cat sample-apps/ingress/web-api-gw-vs.yaml
 We can configure that the virtual service is for the `istioinaction.io` host and the `web-api-gateway` gateway resource. When it is the `http` protocol, we want to route to port `8080` of our `web-api` service in the `istioinaction` namespace.
 
 ```yaml
-apiVersion: networking.istio.io/v1alpha3
+apiVersion: networking.istio.io/v1beta1
 kind: VirtualService
 metadata:
   name: web-api-gw-vs
@@ -162,17 +166,8 @@ kubectl -n istioinaction apply -f sample-apps/ingress/
 The Istio ingress gateway will create new routes on the proxy that we should be able to call it from outside of the Kubernetes cluster:
 
 ```bash
-curl -H "Host: istioinaction.io" http://$GATEWAY_IP
-```
-
-{% hint style="info" %}
-If your Istio ingress gateway created a Kubernetes Service of type `NodePort`, use below to call it:
-
-```bash
 curl -H "Host: istioinaction.io" http://$GATEWAY_IP:$INGRESS_PORT
 ```
-
-{% endhint %}
 
 We can query the gateway configuration using the `istioctl proxy-config` command:
 
@@ -208,7 +203,7 @@ cat labs/02/web-api-gw-https.yaml
 ```
 
 ```yaml
-apiVersion: networking.istio.io/v1alpha3
+apiVersion: networking.istio.io/v1beta1
 kind: Gateway
 metadata:
   name: web-api-gateway
@@ -234,28 +229,14 @@ kubectl -n istioinaction apply -f labs/02/web-api-gw-https.yaml
 ```
 
 Example calling it on the secure `443` port:
-
+<!--bash
+sleep 2
+-->
 ```bash
-curl --cacert ./labs/02/certs/ca/root-ca.crt -H "Host: istioinaction.io" https://istioinaction.io --resolve istioinaction.io:443:$GATEWAY_IP
+curl --cacert ./labs/02/certs/ca/root-ca.crt -H "Host: istioinaction.io" https://istioinaction.io:$SECURE_INGRESS_PORT --resolve istioinaction.io:$SECURE_INGRESS_PORT:$GATEWAY_IP
 ```
-
-{% hint style="info" %}
-If your Istio ingress gateway created a Kubernetes Service of type `NodePort`, use below to call it:
-
-```bash
-curl --cacert ./labs/02/certs/ca/root-ca.crt -H "Host: istioinaction.io" https://istioinaction.io --resolve istioinaction.io:$SECURE_INGRESS_PORT:$GATEWAY_IP
-```
-
-{% endhint %}
 
 If you call it on the `80` port with `http`, it will not work as we no longer configure the gateway resource to expose on port `80`.
-
-```bash
-curl -H "Host: istioinaction.io" http://$GATEWAY_IP
-```
-
-{% hint style="info" %}
-If your Istio ingress gateway created a Kubernetes Service of type `NodePort`, use below to call it:
 
 ```bash
 curl -H "Host: istioinaction.io" http://$GATEWAY_IP:$INGRESS_PORT

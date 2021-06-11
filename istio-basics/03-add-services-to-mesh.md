@@ -82,7 +82,12 @@ kubectl rollout restart deployment web-api -n istioinaction
 ```
 
 Validate the `web-api` pod has reached running status with Istio's default sidecar proxy injected:
-
+<!--bash
+sleep 4
+kubectl wait --for=condition=Ready pod -l app=web-api -n istioinaction
+GATEWAY_IP=$(kubectl get svc -n istio-system istio-ingressgateway -o jsonpath="{.status.loadBalancer.ingress[0].ip}")
+SECURE_INGRESS_PORT=443
+-->
 ```bash
 kubectl get pod -l app=web-api -n istioinaction
 ```
@@ -103,8 +108,7 @@ kubectl logs deploy/web-api -c web-api -n istioinaction
 Validate you can continue to call the `web-api` service securely:
 
 ```bash
-GATEWAY_IP=$(kubectl get svc -n istio-system istio-ingressgateway -o jsonpath="{.status.loadBalancer.ingress[0].ip}")
-curl --cacert ./labs/02/certs/ca/root-ca.crt -H "Host: istioinaction.io" https://istioinaction.io --resolve istioinaction.io:443:$GATEWAY_IP
+curl --cacert ./labs/02/certs/ca/root-ca.crt -H "Host: istioinaction.io" https://istioinaction.io:$SECURE_INGRESS_PORT --resolve istioinaction.io:$SECURE_INGRESS_PORT:$GATEWAY_IP
 ```
 
 ### Understand what happens
@@ -282,9 +286,12 @@ kubectl rollout restart deployment sleep -n istioinaction
 ```
 
 Validate you can continue to call the `web-api` service securely:
-
+<!--bash
+sleep 4
+kubectl wait --for=condition=Ready pod -n istioinaction --all
+-->
 ```bash
-curl --cacert ./labs/02/certs/ca/root-ca.crt -H "Host: istioinaction.io" https://istioinaction.io --resolve istioinaction.io:443:$GATEWAY_IP
+curl --cacert ./labs/02/certs/ca/root-ca.crt -H "Host: istioinaction.io" https://istioinaction.io:$SECURE_INGRESS_PORT --resolve istioinaction.io:$SECURE_INGRESS_PORT:$GATEWAY_IP
 ```
 
 ## What have you gained?
@@ -295,7 +302,7 @@ Congratulations on getting all services in the `istioinaction` namespace to the 
 
 You can visualize the services in the mesh in Kiali.  Launch Kiali using the command below:
 
-```bash
+```
 istioctl dashboard kiali
 ```
 
@@ -308,7 +315,7 @@ On the "Namespace" dropdown, select "istioinaction". On the "Display" drop down,
 Let's also generate some load to the data plane (by calling our `web-api` service) so that you can observe interactions among your services:
 
 ```bash
-for i in {1..10}; do curl --cacert ./labs/02/certs/ca/root-ca.crt -H "Host: istioinaction.io" https://istioinaction.io --resolve istioinaction.io:443:$GATEWAY_IP; done
+for i in {1..10}; do curl --cacert ./labs/02/certs/ca/root-ca.crt -H "Host: istioinaction.io" https://istioinaction.io:$SECURE_INGRESS_PORT --resolve istioinaction.io:$SECURE_INGRESS_PORT:$GATEWAY_IP; done
 ```
 
 You should observe the service interaction graph with some traffic animation and security badges like below:
@@ -325,14 +332,14 @@ While it is nice to see the communications are secured using mTLS, how do you en
 
 You can view distributed tracing information using the Jaeger dashboard. Press `ctrl+C` to end the prior `istioctl dashboard kiali` command and use the command below to launch the Jaeger dashboard: 
 
-```bash
+```
 istioctl dashboard jaeger
 ```
 
 Let's also generate some load to the data plane (by calling our `web-api` service) so that you can observe interactions among your services:
 
 ```bash
-for i in {1..10}; do curl --cacert ./labs/02/certs/ca/root-ca.crt -H "Host: istioinaction.io" https://istioinaction.io --resolve istioinaction.io:443:$GATEWAY_IP; done
+for i in {1..10}; do curl --cacert ./labs/02/certs/ca/root-ca.crt -H "Host: istioinaction.io" https://istioinaction.io:$SECURE_INGRESS_PORT --resolve istioinaction.io:$SECURE_INGRESS_PORT:$GATEWAY_IP; done
 ```
 
 Navigate to [http://localhost:16686](http://localhost:16686). On the "Service" dropdown, select "istio-ingressgateway". Click on the "Find Traces" button at the bottom. You should see 10 traces, which are for every single request to the `web-api` service through the Istio's ingress gateway.
@@ -347,7 +354,7 @@ Click on one of the traces to view the details of the distributed traces for tha
 
 You can also view various service metrics from the Grafana dashboard. Press `ctrl+C` to end the prior `istioctl dashboard jaeger` command and use the command below to launch the Grafana dashboard:
 
-```bash
+```
 istioctl dashboard grafana
 ```
 
@@ -364,7 +371,7 @@ Go back to the Istio dashboard folder, and select the "Istio Service Dashboard" 
 Let's also generate some load to the data plane (by calling our `web-api` service) so that you can observe interactions among your services:
 
 ```bash
-for i in {1..20}; do curl --cacert ./labs/02/certs/ca/root-ca.crt -H "Host: istioinaction.io" https://istioinaction.io --resolve istioinaction.io:443:$GATEWAY_IP; done
+for i in {1..20}; do curl --cacert ./labs/02/certs/ca/root-ca.crt -H "Host: istioinaction.io" https://istioinaction.io:$SECURE_INGRESS_PORT --resolve istioinaction.io:$SECURE_INGRESS_PORT:$GATEWAY_IP; done
 ```
 
 On the "Service" dropdown, select the "web-api.istioinaction.svc.cluster.local" service. You will notice the Istio service dashboard is updated with client and server request metrics. CLick on the "Refresh dashboard" button if needed. Expand the "Client workloads" and "Server Workloads" section to view details for each workload types. 
