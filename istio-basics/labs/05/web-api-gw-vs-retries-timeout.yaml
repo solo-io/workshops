@@ -13,7 +13,7 @@ spec:
         host: web-api.istioinaction.svc.cluster.local
         port:
           number: 8080
-  retries:
-    attempts: 3
-    perTryTimeout: 3s
-  timeout: 10s
+    retries:
+      attempts: 3
+      perTryTimeout: 3s
+    timeout: 10s

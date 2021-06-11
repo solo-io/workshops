@@ -13,5 +13,5 @@ spec:
         host: web-api.istioinaction.svc.cluster.local
         port:
           number: 8080
-  retries:
-    attempts: 0
+    retries:
+      attempts: 0

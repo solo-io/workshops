@@ -353,7 +353,30 @@ When you build a distributed application, it is critical to ensure the services 
 
 ### Retries
 
+Istio has support to program retries for your services in the mesh without you specifying any changes to your code. By default, client requests to each of your services in the mesh will be retried twice. What if you want a different retries per route for some of your virtual services? You can adjust the number of retries or disable them altogether when automatic retries don't make sense for your services. Display the content of the `web-api-gw-vs.yaml:
 
+```bash
+cat labs/05/web-api-gw-vs.yaml
+```
+
+Note the number of retries configuration is for this particular route, from the `istio-ingressgateway` to the `web-api` service on port `8080`:
+
+```
+  http:
+  - route:
+    - destination:
+        host: web-api.istioinaction.svc.cluster.local
+        port:
+          number: 8080
+  retries:
+    attempts: 0
+```
+
+Apply the virtual service resource to the `istio-system` namespace. Note: you don't deploy this resource to the `istioinaction` namespace because the referred gateway is `web-api-gateway` without any namespace scoping and the `web-api-gateway` gateway resource is deployed to the `istio-system` namespace. 
+
+```bash
+kubectl apply -f labs/05/web-api-gw-vs.yaml -n istio-system
+```
 
 ### Timeouts
 
