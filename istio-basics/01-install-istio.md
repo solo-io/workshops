@@ -16,7 +16,11 @@ Add istioctl client to your path:
 cd istio-1.10.0
 export PATH=$PWD/bin:$PATH
 ```
-
+<!--bash
+pushd /usr/local/bin
+  ln -s $(which istioctl)
+popd
+-->
 Check istioctl version:
 
 ```bash
@@ -46,14 +50,16 @@ istioctl install --set profile=demo -y
 {% hint style="info" %}
 If your Kubernetes environment can only support Kubernetes Service of type `NodePort`, configure your Istio ingress gateway to use type `NodePort`
 
-```bash
+```
 istioctl install --set profile=demo -y --set values.gateways.istio-ingressgateway.type=NodePort
 ```
 
 {% endhint %}
 
 Check out the resources installed by Istio:
-
+<!--bash
+kubectl wait --for=condition=Ready pod --all -n istio-system
+-->
 ```bash
 kubectl get all,cm,secrets -n istio-system
 ```
@@ -67,7 +73,7 @@ kubectl get crds -n istio-system
 Check out Istio resources installed by Istio and used by Istio internally:
 
 ```bash
-kubectl get istio-io -n istio-system
+istioctl verify-install
 ```
 
 ## Install Istio Telemetry Addons
@@ -77,7 +83,9 @@ Istio telemetry addons are shipped as samples because these addons are optimized
 ```bash
 kubectl apply -f samples/addons
 ```
-
+<!--bash
+kubectl wait --for=condition=Ready pod --all -n istio-system
+-->
 If you hit an error like below, rerun the above command to ensure the `samples/addons` are applied to your Kubernetes cluster. The error below could happen when you attempt to install any `MonitoringDashboard` custom resource before the `MonitoringDashboard` custom resource definition (CRD) is installed.
 
 ```
@@ -86,25 +94,25 @@ unable to recognize "samples/addons/kiali.yaml": no matches for kind "Monitoring
 
 Verify you can access the Prometheus dashboard:
 
-```bash
+```
 istioctl dashboard prometheus
 ```
 
 Verify you can access the Grafana dashboard:
 
-```bash
+```
 istioctl dashboard grafana
 ```
 
 Verify you can access the Jaeger dashboard:
 
-```bash
+```
 istioctl dashboard jaeger
 ```
 
 Verify you can access the Kiali dashboard:
 
-```bash
+```
 istioctl dashboard kiali
 ```
 

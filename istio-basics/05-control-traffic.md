@@ -122,7 +122,9 @@ kubectl apply -f labs/05/purchase-history-v2.yaml -n istioinaction
 ```
 
 Confirm the new v2 `purchase-history` pod has reached running:
-
+<!--bash
+kubectl wait --for=condition=Ready pod -l app=purchase-history -n istioinaction
+-->
 ```bash
 kubectl get pods -n istioinaction -l app=purchase-history
 ```
@@ -136,9 +138,12 @@ purchase-history-v2-74886f799f-lgzfn   2/2     Running   0          4m
 ```
 
 Generate some load on the `web-api` service to ensure your users are not impacted by deploying of the v2 of the `purchase-history` service:
-
+<!--bash
+GATEWAY_IP=$(kubectl get svc -n istio-system istio-ingressgateway -o jsonpath="{.status.loadBalancer.ingress[0].ip}")
+SECURE_INGRESS_PORT=443
+-->
 ```bash
-for i in {1..10}; do curl --cacert ./labs/02/certs/ca/root-ca.crt -H "Host: istioinaction.io" https://istioinaction.io --resolve istioinaction.io:443:$GATEWAY_IP|grep "Hello From Purchase History"; done
+for i in {1..10}; do curl --cacert ./labs/02/certs/ca/root-ca.crt -H "Host: istioinaction.io" https://istioinaction.io:$SECURE_INGRESS_PORT --resolve istioinaction.io:$SECURE_INGRESS_PORT:$GATEWAY_IP|grep "Hello From Purchase History"; done
 ```
 
 You will see all of the 10 responses from `purchase-history` are from v1 of the service.  This is great!  We introduced v2 of the service but it didn't impact any of the behavior of the existing requests.  Next, let us test the v2 of the service:
@@ -230,7 +235,9 @@ kubectl apply -f labs/05/purchase-history-v2-updated.yaml -n istioinaction
 ```
 
 Test the v2 service:
-
+<!--bash
+sleep 2
+-->
 ```bash
 kubectl exec deploy/purchase-history-v2 -n istioinaction -c istio-proxy -- curl localhost:8080
 ```
@@ -300,8 +307,11 @@ kubectl apply -f labs/05/purchase-history-vs-20-v2.yaml -n istioinaction
 
 Generate some load on the `web-api` service to check how many requests are served by v1 and v2 of the `purchase-history` service. You should see only a few from v2 while the rest from v1. You may be curious why you are not observe an exactly 80%/20% distribution among v1 and v2.  You likely need to have over 100 requests to get the desired 80%/20% weighted version distribution.
 
+<!--bash
+sleep 2
+-->
 ```bash
-for i in {1..20}; do curl --cacert ./labs/02/certs/ca/root-ca.crt -H "Host: istioinaction.io" https://istioinaction.io --resolve istioinaction.io:443:$GATEWAY_IP|grep "Hello From Purchase History"; done
+for i in {1..20}; do curl --cacert ./labs/02/certs/ca/root-ca.crt -H "Host: istioinaction.io" https://istioinaction.io:$SECURE_INGRESS_PORT --resolve istioinaction.io:$SECURE_INGRESS_PORT:$GATEWAY_IP|grep "Hello From Purchase History"; done
 ```
 
 ### Shift 50% Traffic to v2
@@ -346,8 +356,11 @@ kubectl apply -f labs/05/purchase-history-vs-50-v2.yaml -n istioinaction
 
 Generate some load on the `web-api` service to check how many requests are served by v1 and v2 of the `purchase-history` service. You should observe *roughly* 50%/50% distribution among the v1 and v2 of the service.
 
+<!--bash
+sleep 2
+-->
 ```bash
-for i in {1..20}; do curl --cacert ./labs/02/certs/ca/root-ca.crt -H "Host: istioinaction.io" https://istioinaction.io --resolve istioinaction.io:443:$GATEWAY_IP|grep "Hello From Purchase History"; done
+for i in {1..20}; do curl --cacert ./labs/02/certs/ca/root-ca.crt -H "Host: istioinaction.io" https://istioinaction.io:$SECURE_INGRESS_PORT --resolve istioinaction.io:$SECURE_INGRESS_PORT:$GATEWAY_IP|grep "Hello From Purchase History"; done
 ```
 
 ### Shift All Traffic to v2
@@ -361,8 +374,11 @@ kubectl apply -f labs/05/purchase-history-vs-all-v2.yaml -n istioinaction
 
 Generate some load on the `web-api` service, you should only see traffic to the v2 of the `purchase-history` service.
 
+<!--bash
+sleep 2
+-->
 ```bash
-for i in {1..20}; do curl --cacert ./labs/02/certs/ca/root-ca.crt -H "Host: istioinaction.io" https://istioinaction.io --resolve istioinaction.io:443:$GATEWAY_IP|grep "Hello From Purchase History"; done
+for i in {1..20}; do curl --cacert ./labs/02/certs/ca/root-ca.crt -H "Host: istioinaction.io" https://istioinaction.io:$SECURE_INGRESS_PORT --resolve istioinaction.io:$SECURE_INGRESS_PORT:$GATEWAY_IP|grep "Hello From Purchase History"; done
 ```
 
 ## Resiliency and Chaos Testing

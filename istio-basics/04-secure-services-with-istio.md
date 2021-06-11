@@ -52,15 +52,17 @@ kubectl apply -n default -f sample-apps/sleep.yaml
 ```
 
 Access the `web-api` service from the `sleep` pod in the default namespace:
-
+<!--bash
+kubectl wait --for=condition=Ready pod -n default --all
+-->
 ```bash
-kubectl exec -it deploy/sleep -n default -- curl http://web-api.istioinaction:8080/
+kubectl exec deploy/sleep -n default -- curl http://web-api.istioinaction:8080/
 ```
 
 The request will fail because the `web-api` service can only be accessed with mutual TLS. The `sleep` pod in the default namespace doesn't have the sidecar proxy so it doesn't have the needed keys and certificates to communicate to the `web-api` service via mutual TLS.  Run the same command from the `sleep` pod in the `istioinaction` namespace:
 
 ```bash
-kubectl exec -it deploy/sleep -n istioinaction -- curl http://web-api.istioinaction:8080/
+kubectl exec deploy/sleep -n istioinaction -- curl http://web-api.istioinaction:8080/
 ```
 
 You should see the request succeed.
@@ -71,7 +73,7 @@ Question: How can you check if a service or namespace is ready to enable the `ST
 
 You can visualize the services in the mesh in Kiali.  Launch Kiali using the command below:
 
-```bash
+```
 istioctl dashboard kiali
 ```
 
@@ -79,9 +81,18 @@ Navigate to [http://localhost:20001](http://localhost:20001) and select the Grap
 
 On the "Namespace" dropdown, select "istioinaction". On the "Display" drop down, select "Traffic Animation" and "Security". Let's also generate some load to the data plane (by calling our `web-api` service) so that you can observe interactions among your services:
 
-```bash
+<!--bash
+GATEWAY_IP=$(kubectl get svc -n istio-system istio-ingressgateway -o jsonpath="{.status.loadBalancer.ingress[0].ip}")
+SECURE_INGRESS_PORT=443
 for i in {1..200}; 
-  do curl --cacert ./labs/02/certs/ca/root-ca.crt -H "Host: istioinaction.io" https://istioinaction.io --resolve istioinaction.io:443:$GATEWAY_IP;
+  do curl --cacert ./labs/02/certs/ca/root-ca.crt -H "Host: istioinaction.io" https://istioinaction.io:$SECURE_INGRESS_PORT  --resolve istioinaction.io:$SECURE_INGRESS_PORT:$GATEWAY_IP;
+  echo "$i/200"
+done
+-->
+
+```
+for i in {1..200}; 
+  do curl --cacert ./labs/02/certs/ca/root-ca.crt -H "Host: istioinaction.io" https://istioinaction.io:$SECURE_INGRESS_PORT  --resolve istioinaction.io:$SECURE_INGRESS_PORT:$GATEWAY_IP;
   sleep 1;
 done
 ```
