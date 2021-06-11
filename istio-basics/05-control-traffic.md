@@ -137,53 +137,7 @@ purchase-history-v1-55989d4c56-vv5d4   2/2     Running   0          2d4h
 purchase-history-v2-74886f799f-lgzfn   2/2     Running   0          4m
 ```
 
-Generate some load on the `web-api` service to ensure your users are not impacted by deploying of the v2 of the `purchase-history` service:
-<!--bash
-GATEWAY_IP=$(kubectl get svc -n istio-system istio-ingressgateway -o jsonpath="{.status.loadBalancer.ingress[0].ip}")
-SECURE_INGRESS_PORT=443
--->
-```bash
-for i in {1..10}; do curl --cacert ./labs/02/certs/ca/root-ca.crt -H "Host: istioinaction.io" https://istioinaction.io:$SECURE_INGRESS_PORT --resolve istioinaction.io:$SECURE_INGRESS_PORT:$GATEWAY_IP|grep "Hello From Purchase History"; done
-```
-
-You will see all of the 10 responses from `purchase-history` are from v1 of the service.  This is great!  We introduced v2 of the service but it didn't impact any of the behavior of the existing requests.  Next, let us test the v2 of the service:
-
-```bash
-kubectl exec deploy/purchase-history-v2 -n istioinaction -c istio-proxy -- curl localhost:8080
-```
-
-You will notice the output is not good:
-
-```
-curl: (52) Empty reply from server
-command terminated with exit code 52
-```
-
-Run the same test on the v1 of the service:
-
-```bash
-kubectl exec deploy/purchase-history-v1 -n istioinaction -c istio-proxy -- curl localhost:8080
-```
-
-You will get the following expected output:
-
-```
-{
-  "name": "purchase-history-v1",
-  "uri": "/",
-  "type": "HTTP",
-  "ip_addresses": [
-    "10.42.0.18"
-  ],
-  "start_time": "2021-06-10T18:23:23.400270",
-  "end_time": "2021-06-10T18:23:23.400314",
-  "duration": "43.951µs",
-  "body": "Hello From Purchase History (v1)!",
-  "code": 200
-}
-```
-
-Let us check out the logs for the v2 of the `purchase-history` pod:
+Check the `purchase-history-v2` pod logs to see if there is any errors:
 
 ```bash
 kubectl logs deploy/purchase-history-v2 -n istioinaction
@@ -192,20 +146,20 @@ kubectl logs deploy/purchase-history-v2 -n istioinaction
 Note the `connection refused` error at the beginning of the log during the service initialization:
 
 ```
-2021-06-10T17:50:22.209Z [INFO]  Starting service: name=purchase-history-v2 upstreamURIs= upstreamWorkers=1 listenAddress=0.0.0.0:8080 service type=http
-Get "http://jsonplaceholder.typicode.com/posts?id=24": dial tcp 172.67.189.121:80: connect: connection refused
-2021-06-10T17:50:22.241Z [INFO]  Adding handler for UI static files
-2021-06-10T17:50:22.242Z [INFO]  Settings CORS options: allow_creds=false allow_headers=Accept,Accept-Language,Content-Language,Origin,Content-Type allow_origins=*
-2021-06-10T17:52:29.853Z [INFO]  Handle inbound request: request="GET / HTTP/1.1
-Host: localhost:8080
-user-agent: curl/7.58.0
-accept: */*"
-2021-06-10T17:52:29.854Z [INFO]  Sleeping for: duration=-179.485µs
-2021-06-10T17:52:29.854Z [INFO]  Finished handling request: duration=409.607µs
-2021/06/10 17:52:29 http: panic serving [::1]:50228: json: error calling MarshalJSON for type json.RawMessage: invalid character 'h' after top-level value
-goroutine 15 [running]:
-net/http.(*conn).serve.func1(0xc000182aa0)
+2021-06-11T17:47:59.776Z [INFO]  Starting service: name=purchase-history-v2 upstreamURIs= upstreamWorkers=1 listenAddress=0.0.0.0:8080 service type=http
+Unable to connect to the external service:  Get "https://jsonplaceholder.typicode.com/posts": dial tcp 104.21.41.57:443: connect: connection refused
+2021-06-11T17:47:59.804Z [INFO]  Adding handler for UI static files
+2021-06-11T17:47:59.804Z [INFO]  Settings CORS options: allow_creds=false allow_headers=Accept,Accept-Language,Content-Language,Origin,Content-Type allow_origins=*
+2021-06-11T17:48:32.473Z [INFO]  Handle inbound request: request="GET / HTTP/1.1
 ```
+
+hmm, we need to debug this problem!  Generate some load on the `web-api` service to ensure your users are not impacted by deploying of the v2 of the `purchase-history` service:
+
+```bash
+for i in {1..10}; do curl --cacert ./labs/02/certs/ca/root-ca.crt -H "Host: istioinaction.io" https://istioinaction.io:$SECURE_INGRESS_PORT --resolve istioinaction.io:$SECURE_INGRESS_PORT:$GATEWAY_IP|grep "Hello From Purchase History"; done
+```
+
+You will see all of the 10 responses from `purchase-history` are from v1 of the service.  This is great!  We introduced the problematic v2 of the service but thankfully it didn't impact any of the behavior of the existing requests.  
 
 Recall the `v2` of the `purchase-history` service added some code to call the external service and requires the ability for the pod to connect to the external service during initialization. By default in Istio, the `istio-proxy` starts in parallel with the application container (`purchase-history` here in our example) so it is possible that the application container reaches running before `istio-proxy` fully starts thus unable to connect to anything outside of the cluster.
 
@@ -234,6 +188,18 @@ Deploy the updated v2 of the `purchase-history`.
 kubectl apply -f labs/05/purchase-history-v2-updated.yaml -n istioinaction
 ```
 
+Check the `purchase-history-v2` pod logs to see to ensure there is no error this time:
+
+```bash
+kubectl logs deploy/purchase-history-v2 -n istioinaction
+```
+
+You will see we are able to connect to the external service in the log:
+
+```
+2021-06-11T18:13:03.573Z [INFO]  Able to connect to : https://jsonplaceholder.typicode.com/posts=<unknown>
+```
+
 Test the v2 service:
 <!--bash
 sleep 2
@@ -242,7 +208,7 @@ sleep 2
 kubectl exec deploy/purchase-history-v2 -n istioinaction -c istio-proxy -- curl localhost:8080
 ```
 
-Awesome! You are getting a valid response this time, from v2!
+Awesome! You are getting a valid response this time, from v2! If you rerun the above command, you will notice a slightly different body from `purchase-history-v2` each time.
 
 ```
 {

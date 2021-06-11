@@ -34,5 +34,5 @@ spec:
         - name: "MESSAGE"
           value: "Hello From Purchase History (v2)!"
         - name: "EXTERNAL_SERVICE_URL"
-          value: "http://jsonplaceholder.typicode.com/posts"
+          value: "https://jsonplaceholder.typicode.com/posts"
         imagePullPolicy: Always
