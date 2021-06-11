@@ -1,0 +1,13 @@
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: typicode-vs
+spec:
+  hosts:
+    - "jsonplaceholder.typicode.com"
+  https:
+  - timeout: 3s
+    route:
+      - destination:
+          host: "jsonplaceholder.typicode.com"
+        weight: 100
