@@ -567,7 +567,7 @@ EOF
 
 The rule means that a username can only contain letters.
 
-Click on the `Sign in` button and try to login with a user called `user1` (the password doesn't matter).
+Click on the `Sign in` button and try to login with a user named `user1` (the password doesn't matter).
 
 You should get the following error message:
 
