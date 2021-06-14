@@ -7,3 +7,4 @@ hosts
 env.sh
 ansible-playbook-hack.yml
 hack.sh
+.vagrant
