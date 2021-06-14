@@ -399,7 +399,7 @@ kubectl logs -n istioinaction deploy/web-api -c istio-proxy
 ```
 
 ```
-[2021-03-02T14:26:28.710Z] "GET / HTTP/1.1" 200 - "-" 0 1102 9 8 "-" cert: "By=spiffe://cluster.local/ns/istioinaction/sa/web-api;Hash=6db8be07ebcbaffdd88c7652e0cc34e264c0d6b484b98074ffa61a6e7cb1aec3;Subject="";URI=spiffe://cluster.local/ns/istioinaction/sa/sleep" audit_flag: "false"
+[2021-06-14T10:27:59.758Z] "GET / HTTP/1.1" 200 - "-" 0 1100 10 mTLS_Origin: "spiffe://cluster.local/ns/istioinaction/sa/sleep" mTLS_Destination: "spiffe://cluster.local/ns/istioinaction/sa/web-api" 10 "-" cert: "By=spiffe://cluster.local/ns/istioinaction/sa/web-api;Hash=cdd00c3f7a968b8a48d41d536839485fc8f3c049915794a7688dc595f114e18b;Subject="";URI=spiffe://cluster.local/ns/istioinaction/sa/sleep" audit_flag: "false"
 ```
 
 Notice the `X-Forwarded-Client-Cert` header and the `audit_flag` field.
@@ -413,7 +413,7 @@ kubectl exec -n default deploy/sleep -- curl web-api.istioinaction:8080
 Now if we check the access logging, we should see there is no X-F-C-C header and the `audit_flag` is `true`:
 
 ```
-[2021-03-02T14:27:12.765Z] "GET / HTTP/1.1" 200 - "-" 0 1102 9 8 "-" cert: "-" audit_flag: "true"
+[2021-06-14T10:29:53.284Z] "GET / HTTP/1.1" 200 - "-" 0 1100 10 10 "-" mTLS_Origin: "-" mTLS_Destination: "-" cert: "-" audit_flag: "true"
 ```
 
 We can scrape all of these access logs into Splunk or Elastic Search and determine whether it's safe to enable mTLS when there are no longer any calls without proper mTLS identity and credentials. 
