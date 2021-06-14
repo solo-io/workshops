@@ -49,6 +49,6 @@ resource "google_compute_machine_image" "image" {
   source_instance = google_compute_instance.vm.self_link
 
   provisioner "local-exec" {
-    command = "gcloud beta compute instances suspend ${self.name} --project ${var.project} --zone ${var.zone} --discard-local-ssd"
+    command = "gcloud beta compute instances suspend ${self.name} --project ${var.project} --zone ${var.zone} --discard-local-ssd --quiet || true"
   }
 }
