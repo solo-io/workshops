@@ -31,6 +31,14 @@ resource "google_compute_instance" "vm" {
     ssh-keys       = "solo:${file(local.ssh_file)}"
   }
 
+  lifecycle {
+    ignore_changes = [
+      machine_type,
+      zone,
+      tags
+    ]
+  }
+
   # Wait until ip is available
   provisioner "local-exec" {
     command = "echo 'waiting for ip ${self.network_interface.0.access_config.0.nat_ip}' && until nc -z ${self.network_interface.0.access_config.0.nat_ip} 22; do sleep 1; done && sleep 10"

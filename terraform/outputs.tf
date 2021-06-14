@@ -1,6 +1,13 @@
-output "gce_source_public_ip" {
+output "workshop_credentials" {
   value = {
-    for k, v in module.vm-image : k => v.gce_public_ip
+    user: "solo"
+    password: "Workshop1#"
+  }
+}
+
+output "gce_source_vm_name" {
+  value = {
+    for k, v in module.vm-image : k => v.gce_vm_name
   }
 }
 
