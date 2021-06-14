@@ -1286,9 +1286,9 @@ RBAC: access denied
 
 ### RBAC using OPA
 
-Gloo Edge can also be used to set RBAC rules based on [OPA (Open Plocy Agent)](https://www.openpolicyagent.org/) and its rego rules.
+Gloo Edge can also be used to set RBAC rules based on [OPA (Open Policy Agent)](https://www.openpolicyagent.org/) and its rego rules.
 
-This model allows you to obtain fine-grain control over the Authorization on your applications. As well, this model is well adopted by kubernetes community.
+This model allows you to obtain fine-grain control over the Authorization on your applications. As well, this model is well adopted by the kubernetes community.
 
 Let's delete the existing `AuthConfig` and create another one with two configurations:
 
@@ -1320,7 +1320,7 @@ spec:
 EOF
 ```
 
-As you can see, you keep the exiting keycloak configuration. And you create another config for OPA and its rego rule.
+As you can see, you keep the existing keycloak configuration. And you create another config for OPA and its rego rule.
 
 Now, let's create the rego rule in a `ConfigMap`, as follows:
 
@@ -1401,7 +1401,7 @@ curl -H "Authorization: Bearer ${KEYCLOAK_TOKEN}" -X PUT -H "Content-Type: appli
 # Add the group attribute in the JWT token returned by Keycloak
 curl -H "Authorization: Bearer ${KEYCLOAK_TOKEN}" -X POST -H "Content-Type: application/json" -d '{"name": "group", "protocol": "openid-connect", "protocolMapper": "oidc-usermodel-attribute-mapper", "config": {"claim.name": "group", "jsonType.label": "String", "user.attribute": "group", "id.token.claim": "true", "access.token.claim": "true"}}' $KEYCLOAK_URL/admin/realms/master/clients/${id}/protocol-mappers/models
 
-# Create a user
+# Create another user
 curl -H "Authorization: Bearer ${KEYCLOAK_TOKEN}" -X POST -H "Content-Type: application/json" -d '{"username": "user2", "email": "user2@example.com", "enabled": true, "attributes": {"group": "users"}, "credentials": [{"type": "password", "value": "password", "temporary": false}]}' $KEYCLOAK_URL/admin/realms/master/users
 ```
 
@@ -1414,7 +1414,7 @@ Let's take a look at what the application returns:
 If you login using `user1/password` credentials, you will be able to access since the user's email ends with `@solo.io`
 
 
-If you open the browser in incognito and login usng `user2/password` credentials, you will not be able to access since the user's email ends with `@example.com`:
+If you open the browser in incognito and login using `user2/password` credentials, you will not be able to access since the user's email ends with `@example.com`:
 
 ```
 /opt/google/chrome/chrome --incognito $(glooctl proxy url --port https)/get 
