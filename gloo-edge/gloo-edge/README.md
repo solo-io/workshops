@@ -315,7 +315,7 @@ Then, we need to configure it and create two users:
 - User1 credentials: `user1/password`
   Email: user1@solo.io
 
-- User2 creadentials: `user2/password`
+- User2 credentials: `user2/password`
   Email: user2@example.com
 
 ```bash
@@ -565,7 +565,7 @@ spec:
 EOF
 ```
 
-The rule means that a username can only contains letters.
+The rule means that a username can only contain letters.
 
 Click on the `Sign in` button and try to login with a user called `user1` (the password doesn't matter).
 
@@ -727,7 +727,7 @@ spec:
 EOF
 ```
 
-As you can see, in this case the security options remains in the `VirtualService` (and can be managed by the infrastructure team) whil the routing options are now in the `RouteTable` (and can be managed by the application team).
+As you can see, in this case the security options remains in the `VirtualService` (and can be managed by the infrastructure team) while the routing options are now in the `RouteTable` (and can be managed by the application team).
 
 ## Lab 5: Observability
 
@@ -735,7 +735,7 @@ As you can see, in this case the security options remains in the `VirtualService
 
 Gloo Edge automatically generates a Grafana dashboard for whole-cluster stats (overall request timing, aggregated response codes, etc.), and dynamically generates a more-specific dashboard for each upstream that is tracked.
 
-Let's run the following command to allow access ot the Grafana UI:
+Let's run the following command to allow access to the Grafana UI:
 
 ```
 kubectl port-forward -n gloo-system svc/glooe-grafana 8001:80
@@ -1400,7 +1400,7 @@ Let's take a look at what the application returns:
 
 If you login using `user1/password` credentials, you will be able to access since the user's email ends with `@solo.io`
 
-Let's try again in incognito window using the second user's creadentials:
+Let's try again in incognito window using the second user's credentials:
 
 ```
 /opt/google/chrome/chrome --incognito $(glooctl proxy url --port https)/get 
