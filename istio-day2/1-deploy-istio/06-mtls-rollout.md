@@ -276,6 +276,11 @@ tls_inspector.tls_not_found: 2
 
 We see that the `tls_not_found` stat incremented... (it incremented by 2, we'll explain this in the workshop).
 
+<details>
+  <summary>I can't wait to know!</summary>
+  As we already saw in lab2-bonus, all incoming traffic is goes to a listener in port 15006, and then our request makes it through the original destination. That means that we are hitting 2 listeners and increasing the tls_inspector stats once for each.
+</details>
+
 Let's check the listener stats:
 
 ```bash
@@ -372,10 +377,9 @@ spec:
             typed_config:
               "@type": "type.googleapis.com/envoy.extensions.access_loggers.file.v3.FileAccessLog"
               path: /dev/stdout
-              format: "[%START_TIME%] \"%REQ(:METHOD)% %REQ(X-ENVOY-ORIGINAL-PATH?:PATH)% %PROTOCOL%\" %RESPONSE_CODE% %RESPONSE_FLAGS% \"%UPSTREAM_TRANSPORT_FAILURE_REASON%\" %BYTES_RECEIVED% %BYTES_SENT% %DURATION% %RESP(X-ENVOY-UPSTREAM-SERVICE-TIME)% \"%REQ(X-FORWARDED-FOR)%\" cert: \"%REQ(X-FORWARDED-CLIENT-CERT)%\" audit_flag: \"%DYNAMIC_METADATA(envoy.common:access_log_hint)%\"\n"
+              format: "[%START_TIME%] \"%REQ(:METHOD)% %REQ(X-ENVOY-ORIGINAL-PATH?:PATH)% %PROTOCOL%\" %RESPONSE_CODE% %RESPONSE_FLAGS% \"%UPSTREAM_TRANSPORT_FAILURE_REASON%\" %BYTES_RECEIVED% %BYTES_SENT% %DURATION% %RESP(X-ENVOY-UPSTREAM-SERVICE-TIME)% \"%REQ(X-FORWARDED-FOR)%\" mTLS_Origin: \"%DOWNSTREAM_PEER_URI_SAN%\" mTLS_Destination: \"%DOWNSTREAM_LOCAL_URI_SAN%\" cert: \"%REQ(X-FORWARDED-CLIENT-CERT)%\" audit_flag: \"%DYNAMIC_METADATA(envoy.common:access_log_hint)%\"\n"
 
 ```
-
 The important bits of the access log are the `format` section. We added `%REQ(X-FORWARDED-CLIENT-CERT)%` and `%DYNAMIC_METADATA(envoy.common:access_log_hint)%` The former field will print out any TLS/mTLS cert information. For plaintext connections, this will be empty. The latter field is set to `true` when it triggers the `AUDIT` authorization policy from above. Let's apply this `EnvoyFilter` :
 
 ```bash
@@ -395,7 +399,7 @@ kubectl logs -n istioinaction deploy/web-api -c istio-proxy
 ```
 
 ```
-[2021-03-02T14:26:28.710Z] "GET / HTTP/1.1" 200 - "-" 0 1102 9 8 "-" cert: "By=spiffe://cluster.local/ns/istioinaction/sa/web-api;Hash=6db8be07ebcbaffdd88c7652e0cc34e264c0d6b484b98074ffa61a6e7cb1aec3;Subject="";URI=spiffe://cluster.local/ns/istioinaction/sa/sleep" audit_flag: "false"
+[2021-06-14T10:27:59.758Z] "GET / HTTP/1.1" 200 - "-" 0 1100 10 mTLS_Origin: "spiffe://cluster.local/ns/istioinaction/sa/sleep" mTLS_Destination: "spiffe://cluster.local/ns/istioinaction/sa/web-api" 10 "-" cert: "By=spiffe://cluster.local/ns/istioinaction/sa/web-api;Hash=cdd00c3f7a968b8a48d41d536839485fc8f3c049915794a7688dc595f114e18b;Subject="";URI=spiffe://cluster.local/ns/istioinaction/sa/sleep" audit_flag: "false"
 ```
 
 Notice the `X-Forwarded-Client-Cert` header and the `audit_flag` field.
@@ -409,7 +413,7 @@ kubectl exec -n default deploy/sleep -- curl web-api.istioinaction:8080
 Now if we check the access logging, we should see there is no X-F-C-C header and the `audit_flag` is `true`:
 
 ```
-[2021-03-02T14:27:12.765Z] "GET / HTTP/1.1" 200 - "-" 0 1102 9 8 "-" cert: "-" audit_flag: "true"
+[2021-06-14T10:29:53.284Z] "GET / HTTP/1.1" 200 - "-" 0 1100 10 10 "-" mTLS_Origin: "-" mTLS_Destination: "-" cert: "-" audit_flag: "true"
 ```
 
 We can scrape all of these access logs into Splunk or Elastic Search and determine whether it's safe to enable mTLS when there are no longer any calls without proper mTLS identity and credentials. 
