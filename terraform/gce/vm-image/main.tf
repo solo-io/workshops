@@ -1,6 +1,6 @@
 resource "google_compute_instance" "vm" {
   project      = var.project
-  name         = "${var.prefix}-source-image"
+  name         = "${terraform.workspace}-${var.prefix}-source-image"
   machine_type = var.machine_type
   zone         = var.zone
 
@@ -45,7 +45,7 @@ resource "google_compute_instance" "vm" {
 resource "google_compute_machine_image" "image" {
   provider        = google-beta
   project         = var.project
-  name            = "${var.prefix}-source-image"
+  name            = "${terraform.workspace}-${var.prefix}-source-image"
   source_instance = google_compute_instance.vm.self_link
 
   provisioner "local-exec" {
