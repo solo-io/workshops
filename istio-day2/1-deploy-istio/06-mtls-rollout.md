@@ -277,7 +277,7 @@ tls_inspector.tls_not_found: 2
 We see that the `tls_not_found` stat incremented... (it incremented by 2, we'll explain this in the workshop).
 
 <details>
-  <summary>I can't wait to know!</summary>
+  <summary>Answer:</summary>
   As we already saw in lab2-bonus, all incoming traffic is goes to a listener in port 15006, and then our request makes it through the original destination. That means that we are hitting 2 listeners and increasing the tls_inspector stats once for each.
 </details>
 
