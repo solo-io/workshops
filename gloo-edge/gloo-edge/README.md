@@ -310,7 +310,13 @@ If you see an issue with the readiness probe failing, then you will want to edit
 sleep 30
 -->
 
-Then, we need to configure it and create a user with the credentials `user1/password`:
+Then, we need to configure it and create two users:
+
+- User1 credentials: `user1/password`
+  Email: user1@solo.io
+
+- User2 creadentials: `user2/password`
+  Email: user2@example.com
 
 ```bash
 # Get Keycloak URL and token
@@ -329,8 +335,11 @@ curl -H "Authorization: Bearer ${KEYCLOAK_TOKEN}" -X PUT -H "Content-Type: appli
 # Add the group attribute in the JWT token returned by Keycloak
 curl -H "Authorization: Bearer ${KEYCLOAK_TOKEN}" -X POST -H "Content-Type: application/json" -d '{"name": "group", "protocol": "openid-connect", "protocolMapper": "oidc-usermodel-attribute-mapper", "config": {"claim.name": "group", "jsonType.label": "String", "user.attribute": "group", "id.token.claim": "true", "access.token.claim": "true"}}' $KEYCLOAK_URL/admin/realms/master/clients/${id}/protocol-mappers/models
 
-# Create a user
+# Create first user
 curl -H "Authorization: Bearer ${KEYCLOAK_TOKEN}" -X POST -H "Content-Type: application/json" -d '{"username": "user1", "email": "user1@solo.io", "enabled": true, "attributes": {"group": "users"}, "credentials": [{"type": "password", "value": "password", "temporary": false}]}' $KEYCLOAK_URL/admin/realms/master/users
+
+# Create second user
+curl -H "Authorization: Bearer ${KEYCLOAK_TOKEN}" -X POST -H "Content-Type: application/json" -d '{"username": "user2", "email": "user2@example.com", "enabled": true, "attributes": {"group": "users"}, "credentials": [{"type": "password", "value": "password", "temporary": false}]}' $KEYCLOAK_URL/admin/realms/master/users
 ```
 
 The architecture looks like this now:
@@ -1288,11 +1297,14 @@ RBAC: access denied
 
 Gloo Edge can also be used to set RBAC rules based on [OPA (Open Policy Agent)](https://www.openpolicyagent.org/) and its rego rules.
 
-This model allows you to obtain fine-grain control over the Authorization on your applications. As well, this model is well adopted by the kubernetes community.
+This model allows you to get fine-grained control over the Authorization on your applications. As well, this model is well adopted by the kubernetes community.
+
 
 Let's delete the existing `AuthConfig` and create another one with two configurations:
 
 ```bash
+kubectl delete authconfig keycloak-oauth -n gloo-system
+
 kubectl apply -f - <<EOF
 apiVersion: enterprise.gloo.solo.io/v1
 kind: AuthConfig
@@ -1314,7 +1326,7 @@ spec:
         - email
   - opa_auth:
       modules:
-      - name: allow-get-users
+      - name: allow-solo-email-users
         namespace: gloo-system
       query: "data.test.allow == true"
 EOF
@@ -1340,7 +1352,7 @@ data:
   
 kind: ConfigMap
 metadata:
-  name: allow-get-users
+  name: allow-solo-email-users
   namespace: gloo-system
 EOF
 ```
@@ -1380,31 +1392,6 @@ spec:
 EOF
 ```
 
-
-Now, let's create another a user with the credentials `user2/password` and email `user2@example.com`:
-
-
-```bash
-# Get Keycloak URL and token
-KEYCLOAK_URL=http://$(kubectl get service keycloak -o jsonpath='{.status.loadBalancer.ingress[0].ip}'):8080/auth
-KEYCLOAK_TOKEN=$(curl -d "client_id=admin-cli" -d "username=admin" -d "password=admin" -d "grant_type=password" "$KEYCLOAK_URL/realms/master/protocol/openid-connect/token" | jq -r .access_token)
-
-# Create initial token to register the client
-read -r client token <<<$(curl -H "Authorization: Bearer ${KEYCLOAK_TOKEN}" -X POST -H "Content-Type: application/json" -d '{"expiration": 0, "count": 1}' $KEYCLOAK_URL/admin/realms/master/clients-initial-access | jq -r '[.id, .token] | @tsv')
-
-# Register the client
-read -r id secret <<<$(curl -X POST -d "{ \"clientId\": \"${client}\" }" -H "Content-Type:application/json" -H "Authorization: bearer ${token}" ${KEYCLOAK_URL}/realms/master/clients-registrations/default| jq -r '[.id, .secret] | @tsv')
-
-# Add allowed redirect URIs
-curl -H "Authorization: Bearer ${KEYCLOAK_TOKEN}" -X PUT -H "Content-Type: application/json" -d '{"serviceAccountsEnabled": true, "authorizationServicesEnabled": true, "redirectUris": ["'${APP_URL}'/callback", "http://portal.example.com/callback"]}' $KEYCLOAK_URL/admin/realms/master/clients/${id}
-
-# Add the group attribute in the JWT token returned by Keycloak
-curl -H "Authorization: Bearer ${KEYCLOAK_TOKEN}" -X POST -H "Content-Type: application/json" -d '{"name": "group", "protocol": "openid-connect", "protocolMapper": "oidc-usermodel-attribute-mapper", "config": {"claim.name": "group", "jsonType.label": "String", "user.attribute": "group", "id.token.claim": "true", "access.token.claim": "true"}}' $KEYCLOAK_URL/admin/realms/master/clients/${id}/protocol-mappers/models
-
-# Create another user
-curl -H "Authorization: Bearer ${KEYCLOAK_TOKEN}" -X POST -H "Content-Type: application/json" -d '{"username": "user2", "email": "user2@example.com", "enabled": true, "attributes": {"group": "users"}, "credentials": [{"type": "password", "value": "password", "temporary": false}]}' $KEYCLOAK_URL/admin/realms/master/users
-```
-
 Let's take a look at what the application returns:
 
 ```
@@ -1413,12 +1400,14 @@ Let's take a look at what the application returns:
 
 If you login using `user1/password` credentials, you will be able to access since the user's email ends with `@solo.io`
 
-
-If you open the browser in incognito and login using `user2/password` credentials, you will not be able to access since the user's email ends with `@example.com`:
+Let's try again in incognito window using the second user's creadentials:
 
 ```
 /opt/google/chrome/chrome --incognito $(glooctl proxy url --port https)/get 
 ```
+
+If you open the browser in incognito and login using `user2/password` credentials, you will not be able to access since the user's email ends with `@example.com`:
+
 
 
 This is the end of the workshop. We hope you enjoyed it !
