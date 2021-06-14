@@ -276,6 +276,11 @@ tls_inspector.tls_not_found: 2
 
 We see that the `tls_not_found` stat incremented... (it incremented by 2, we'll explain this in the workshop).
 
+<details>
+  <summary>I can't wait to know!</summary>
+  As we already saw in lab2-bonus, all incoming traffic is goes to a listener in port 15006, and then our request makes it through the original destination. That means that we are hitting 2 listeners and increasing the tls_inspector stats once for each.
+</details>
+
 Let's check the listener stats:
 
 ```bash
@@ -372,10 +377,9 @@ spec:
             typed_config:
               "@type": "type.googleapis.com/envoy.extensions.access_loggers.file.v3.FileAccessLog"
               path: /dev/stdout
-              format: "[%START_TIME%] \"%REQ(:METHOD)% %REQ(X-ENVOY-ORIGINAL-PATH?:PATH)% %PROTOCOL%\" %RESPONSE_CODE% %RESPONSE_FLAGS% \"%UPSTREAM_TRANSPORT_FAILURE_REASON%\" %BYTES_RECEIVED% %BYTES_SENT% %DURATION% %RESP(X-ENVOY-UPSTREAM-SERVICE-TIME)% \"%REQ(X-FORWARDED-FOR)%\" cert: \"%REQ(X-FORWARDED-CLIENT-CERT)%\" audit_flag: \"%DYNAMIC_METADATA(envoy.common:access_log_hint)%\"\n"
+              format: "[%START_TIME%] \"%REQ(:METHOD)% %REQ(X-ENVOY-ORIGINAL-PATH?:PATH)% %PROTOCOL%\" %RESPONSE_CODE% %RESPONSE_FLAGS% \"%UPSTREAM_TRANSPORT_FAILURE_REASON%\" %BYTES_RECEIVED% %BYTES_SENT% %DURATION% %RESP(X-ENVOY-UPSTREAM-SERVICE-TIME)% \"%REQ(X-FORWARDED-FOR)%\" mTLS_Origin: \"%DOWNSTREAM_PEER_URI_SAN%\" mTLS_Destination: \"%DOWNSTREAM_LOCAL_URI_SAN%\" cert: \"%REQ(X-FORWARDED-CLIENT-CERT)%\" audit_flag: \"%DYNAMIC_METADATA(envoy.common:access_log_hint)%\"\n"
 
 ```
-
 The important bits of the access log are the `format` section. We added `%REQ(X-FORWARDED-CLIENT-CERT)%` and `%DYNAMIC_METADATA(envoy.common:access_log_hint)%` The former field will print out any TLS/mTLS cert information. For plaintext connections, this will be empty. The latter field is set to `true` when it triggers the `AUDIT` authorization policy from above. Let's apply this `EnvoyFilter` :
 
 ```bash
