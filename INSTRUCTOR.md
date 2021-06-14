@@ -137,13 +137,19 @@ cd terraform
 Run the following command to destroy all the replicas:
 
 ```
-terraform destroy -target=module.vm-replica -force
+terraform destroy -target=module.vm-replica
+```
+
+Run the following command to destroy some replicas:
+
+```
+terraform destroy -target=module.vm-replica[\"myname\"]
 ```
 
 Run the following command to destroy all the source images:
 
 ```
-terraform destroy -target=module.vm-image -force
+terraform destroy -target=module.vm-image
 ```
 
 Run the following command to destroy all:

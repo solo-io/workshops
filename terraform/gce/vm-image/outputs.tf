@@ -3,5 +3,5 @@ output "gce_public_ip" {
 }
 
 output "gce_vm_name" {
-  value = google_compute_machine_image.image.id
+  value = google_compute_image.image.name
 }
