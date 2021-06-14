@@ -50,8 +50,8 @@ resource "google_compute_instance" "vm" {
 }
 
 resource "google_compute_image" "image" {
-  project      = var.project
-  name = google_compute_instance.vm.name
+  project = var.project
+  name    = google_compute_instance.vm.name
 
   source_disk = "projects/${var.project}/zones/${var.zone}/disks/${google_compute_instance.vm.name}"
 }
