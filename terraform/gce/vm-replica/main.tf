@@ -1,6 +1,6 @@
 resource "google_compute_firewall" "default" {
   project = var.project
-  name    = "${var.prefix}-firewall"
+  name    = "${terraform.workspace}-${var.prefix}-firewall"
   network = "default"
 
   allow {
@@ -19,7 +19,7 @@ resource "google_compute_firewall" "default" {
 resource "google_compute_instance_from_machine_image" "tpl" {
   provider = google-beta
   count    = var.num_instances
-  name     = "${var.prefix}-${count.index + 1}"
+  name     = "${terraform.workspace}-${var.prefix}-${count.index + 1}"
   zone     = var.zone
 
   source_machine_image = var.source_machine_image
