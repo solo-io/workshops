@@ -275,8 +275,10 @@ EOF
 
 Now the application is securely exposed through TLS. To test the TLS configuration, run the following command to open the browser (note that now the traffic is served using https): 
 
-```
+```bash
 APP_URL=$(glooctl proxy url --port https | cut -d: -f1-2)
+```
+```
 /opt/google/chrome/chrome $APP_URL/productpage 
 ```
 
