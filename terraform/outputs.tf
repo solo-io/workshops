@@ -1,7 +1,7 @@
 output "workshop_credentials" {
   value = {
-    user: "solo"
-    password: "Workshop1#"
+    user : "solo"
+    password : "Workshop1#"
   }
 }
 

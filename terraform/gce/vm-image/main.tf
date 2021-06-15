@@ -13,11 +13,6 @@ resource "google_compute_instance" "vm" {
     }
   }
 
-  // Local SSD disk
-  scratch_disk {
-    interface = "SCSI"
-  }
-
   network_interface {
     network = "default"
 
@@ -34,7 +29,6 @@ resource "google_compute_instance" "vm" {
   lifecycle {
     ignore_changes = [
       machine_type,
-      zone,
       tags
     ]
   }
@@ -48,15 +42,16 @@ resource "google_compute_instance" "vm" {
   provisioner "local-exec" {
     command = "ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -u solo -i '${self.network_interface.0.access_config.0.nat_ip},' ansible-playbook.yml -v"
   }
+
+  # Stop machine
+  provisioner "local-exec" {
+    command = "gcloud compute instances stop ${self.name} --project ${var.project} --zone ${var.zone}"
+  }
 }
 
-resource "google_compute_machine_image" "image" {
-  provider        = google-beta
-  project         = var.project
-  name            = "${terraform.workspace}-${var.prefix}-source-image"
-  source_instance = google_compute_instance.vm.self_link
+resource "google_compute_image" "image" {
+  project = var.project
+  name    = google_compute_instance.vm.name
 
-  provisioner "local-exec" {
-    command = "gcloud beta compute instances suspend ${self.name} --project ${var.project} --zone ${var.zone} --discard-local-ssd --quiet || true"
-  }
+  source_disk = "projects/${var.project}/zones/${var.zone}/disks/${google_compute_instance.vm.name}"
 }

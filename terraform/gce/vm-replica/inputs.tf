@@ -21,3 +21,7 @@ variable "num_instances" {
 variable "source_machine_image" {
   type = string
 }
+
+locals {
+  ssh_file = "./lab.pub"
+}
