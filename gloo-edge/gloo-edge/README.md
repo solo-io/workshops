@@ -312,7 +312,13 @@ If you see an issue with the readiness probe failing, then you will want to edit
 sleep 30
 -->
 
-Then, we need to configure it and create a user with the credentials `user1/password`:
+Then, we need to configure it and create two users:
+
+- User1 credentials: `user1/password`
+  Email: user1@solo.io
+
+- User2 credentials: `user2/password`
+  Email: user2@example.com
 
 ```bash
 # Get Keycloak URL and token
@@ -331,8 +337,11 @@ curl -H "Authorization: Bearer ${KEYCLOAK_TOKEN}" -X PUT -H "Content-Type: appli
 # Add the group attribute in the JWT token returned by Keycloak
 curl -H "Authorization: Bearer ${KEYCLOAK_TOKEN}" -X POST -H "Content-Type: application/json" -d '{"name": "group", "protocol": "openid-connect", "protocolMapper": "oidc-usermodel-attribute-mapper", "config": {"claim.name": "group", "jsonType.label": "String", "user.attribute": "group", "id.token.claim": "true", "access.token.claim": "true"}}' $KEYCLOAK_URL/admin/realms/master/clients/${id}/protocol-mappers/models
 
-# Create a user
+# Create first user
 curl -H "Authorization: Bearer ${KEYCLOAK_TOKEN}" -X POST -H "Content-Type: application/json" -d '{"username": "user1", "email": "user1@solo.io", "enabled": true, "attributes": {"group": "users"}, "credentials": [{"type": "password", "value": "password", "temporary": false}]}' $KEYCLOAK_URL/admin/realms/master/users
+
+# Create second user
+curl -H "Authorization: Bearer ${KEYCLOAK_TOKEN}" -X POST -H "Content-Type: application/json" -d '{"username": "user2", "email": "user2@example.com", "enabled": true, "attributes": {"group": "users"}, "credentials": [{"type": "password", "value": "password", "temporary": false}]}' $KEYCLOAK_URL/admin/realms/master/users
 ```
 
 The architecture looks like this now:
@@ -558,9 +567,9 @@ spec:
 EOF
 ```
 
-The rule means that a username can only contains letters.
+The rule means that a username can only contain letters.
 
-Click on the `Sign in` button and try to login with a user called `user1` (the password doesn't matter).
+Click on the `Sign in` button and try to login with a user named `user1` (the password doesn't matter).
 
 You should get the following error message:
 
@@ -720,7 +729,7 @@ spec:
 EOF
 ```
 
-As you can see, in this case the security options remains in the `VirtualService` (and can be managed by the infrastructure team) whil the routing options are now in the `RouteTable` (and can be managed by the application team).
+As you can see, in this case the security options remains in the `VirtualService` (and can be managed by the infrastructure team) while the routing options are now in the `RouteTable` (and can be managed by the application team).
 
 ## Lab 5: Observability
 
@@ -728,7 +737,7 @@ As you can see, in this case the security options remains in the `VirtualService
 
 Gloo Edge automatically generates a Grafana dashboard for whole-cluster stats (overall request timing, aggregated response codes, etc.), and dynamically generates a more-specific dashboard for each upstream that is tracked.
 
-Let's run the following command to allow access ot the Grafana UI:
+Let's run the following command to allow access to the Grafana UI:
 
 ```
 kubectl port-forward -n gloo-system svc/glooe-grafana 8001:80
@@ -1088,7 +1097,7 @@ JWKS is a set of public keys that can be used to verify the JWT tokens.
 
 First, we need to assign the value to a variable of the keycloak master realm.   
 
-```
+```bash
 KEYCLOAK_MASTER_REALM_URL=http://$(kubectl get svc keycloak -ojsonpath='{.status.loadBalancer.ingress[0].ip}'):8080/auth/realms/master
 ```
 
@@ -1285,5 +1294,120 @@ But if you change the path to anything that doesn't start with `/get`, you shoul
 ```
 RBAC: access denied
 ```
+
+### RBAC using OPA
+
+Gloo Edge can also be used to set RBAC rules based on [OPA (Open Policy Agent)](https://www.openpolicyagent.org/) and its rego rules.
+
+This model allows you to get fine-grained control over the Authorization on your applications. As well, this model is well adopted by the kubernetes community.
+
+
+Let's delete the existing `AuthConfig` and create another one with two configurations:
+
+```bash
+kubectl apply -f - <<EOF
+apiVersion: enterprise.gloo.solo.io/v1
+kind: AuthConfig
+metadata:
+  name: keycloak-oauth
+  namespace: gloo-system
+spec:
+  configs:
+  - oauth2:
+      oidcAuthorizationCode:
+        appUrl: ${APP_URL}
+        callbackPath: /callback
+        clientId: ${client}
+        clientSecretRef:
+          name: keycloak-oauth
+          namespace: gloo-system
+        issuerUrl: "${KEYCLOAK_URL}/realms/master/"
+        scopes:
+        - email
+  - opa_auth:
+      modules:
+      - name: allow-solo-email-users
+        namespace: gloo-system
+      query: "data.test.allow == true"
+EOF
+```
+
+As you can see, you keep the existing keycloak configuration. And you create another config for OPA and its rego rule.
+
+Now, let's create the rego rule in a `ConfigMap`, as follows:
+
+```bash
+kubectl apply -f - <<EOF
+apiVersion: v1
+data:
+  policy.rego: |-
+    package test
+
+    default allow = false
+
+    allow {
+        [header, payload, signature] = io.jwt.decode(input.state.jwt)
+        endswith(payload["email"], "@solo.io")
+    }
+  
+kind: ConfigMap
+metadata:
+  name: allow-solo-email-users
+  namespace: gloo-system
+EOF
+```
+
+Notice that this rule will allow only users with email ending with `@solo.io`
+
+Finally, let's update the Virtual Service:
+
+```bash
+kubectl apply -f - <<EOF
+apiVersion: gateway.solo.io/v1
+kind: VirtualService
+metadata:
+  name: demo
+  namespace: gloo-system
+spec:
+  sslConfig:
+    secretRef:
+      name: upstream-tls
+      namespace: gloo-system
+  virtualHost:
+    options:
+      extauth:
+        configRef:
+          name: keycloak-oauth
+          namespace: gloo-system
+    domains:
+      - '*'
+    routes:
+      - matchers:
+          - prefix: /
+        routeAction:
+          single:
+            upstream:
+              name: default-httpbin-8000
+              namespace: gloo-system
+EOF
+```
+
+Let's take a look at what the application returns:
+
+```
+/opt/google/chrome/chrome $(glooctl proxy url --port https)/get 
+```
+
+If you login using `user1/password` credentials, you will be able to access since the user's email ends with `@solo.io`
+
+Let's try again in incognito window using the second user's credentials:
+
+```
+/opt/google/chrome/chrome --incognito $(glooctl proxy url --port https)/get 
+```
+
+If you open the browser in incognito and login using `user2/password` credentials, you will not be able to access since the user's email ends with `@example.com`:
+
+
 
 This is the end of the workshop. We hope you enjoyed it !
