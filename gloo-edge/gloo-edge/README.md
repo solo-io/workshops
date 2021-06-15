@@ -1303,13 +1303,11 @@ This model allows you to get fine-grained control over the Authorization on your
 Let's delete the existing `AuthConfig` and create another one with two configurations:
 
 ```bash
-kubectl delete authconfig keycloak-oauth -n gloo-system
-
 kubectl apply -f - <<EOF
 apiVersion: enterprise.gloo.solo.io/v1
 kind: AuthConfig
 metadata:
-  name: authz
+  name: keycloak-oauth
   namespace: gloo-system
 spec:
   configs:
@@ -1321,7 +1319,7 @@ spec:
         clientSecretRef:
           name: keycloak-oauth
           namespace: gloo-system
-        issuerUrl: "${KEYCLOAK_URL}/auth/realms/master/"
+        issuerUrl: "${KEYCLOAK_URL}/realms/master/"
         scopes:
         - email
   - opa_auth:
