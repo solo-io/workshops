@@ -275,8 +275,10 @@ EOF
 
 Now the application is securely exposed through TLS. To test the TLS configuration, run the following command to open the browser (note that now the traffic is served using https): 
 
-```
+```bash
 APP_URL=$(glooctl proxy url --port https | cut -d: -f1-2)
+```
+```
 /opt/google/chrome/chrome $APP_URL/productpage 
 ```
 
@@ -1095,7 +1097,7 @@ JWKS is a set of public keys that can be used to verify the JWT tokens.
 
 First, we need to assign the value to a variable of the keycloak master realm.   
 
-```
+```bash
 KEYCLOAK_MASTER_REALM_URL=http://$(kubectl get svc keycloak -ojsonpath='{.status.loadBalancer.ingress[0].ip}'):8080/auth/realms/master
 ```
 
@@ -1375,7 +1377,7 @@ spec:
     options:
       extauth:
         configRef:
-          name: authz
+          name: keycloak-oauth
           namespace: gloo-system
     domains:
       - '*'
