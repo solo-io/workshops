@@ -157,6 +157,8 @@ cluster2   23s
 > ```
 > #### Install the Helm charts
 > ```
+> SVC=$(kubectl --context ${MGMT} -n gloo-mesh get svc enterprise-networking -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+> 
 > helm repo add enterprise-agent https://storage.googleapis.com/gloo-mesh-enterprise/enterprise-agent
 > helm repo update
 > helm install enterprise-agent enterprise-agent/enterprise-agent \
