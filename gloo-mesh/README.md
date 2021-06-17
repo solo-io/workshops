@@ -142,18 +142,21 @@ cluster2   23s
 > ### Note that you can also register the remote clusters with Helm:
 > 
 > #### Get the value of the root CA certificate on the management cluster and create a secret in the remote clusters
+> ```
 > kubectl --context mgmt -n gloo-mesh get secret relay-root-tls-secret -o jsonpath='{.data.ca\.crt}' | base64 -d > ca.crt
 > kubectl --context cluster1 create ns gloo-mesh
 > kubectl --context cluster1 -n gloo-mesh create secret generic relay-root-tls-secret --from-file ca.crt=ca.crt
 > kubectl --context cluster2 create ns gloo-mesh
 > kubectl --context cluster2 -n gloo-mesh create secret generic relay-root-tls-secret --from-file ca.crt=ca.crt
-> 
+> ```
 > #### We also need to copy over the bootstrap token used for initial communication
+> ```
 > kubectl --context mgmt -n gloo-mesh get secret relay-identity-token-secret -o jsonpath='{.data.token}' | base64 -d > token
 > kubectl --context cluster1 -n gloo-mesh create secret generic relay-identity-token-secret --from-file token=token
 > kubectl --context cluster2 -n gloo-mesh create secret generic relay-identity-token-secret --from-file token=token
-> 
+> ```
 > #### Install the Helm charts
+> ```
 > helm repo add enterprise-agent https://storage.googleapis.com/gloo-mesh-enterprise/enterprise-agent
 > helm repo update
 > helm install enterprise-agent enterprise-agent/enterprise-agent \
@@ -169,8 +172,9 @@ cluster2   23s
 >   --set relay.cluster=cluster2 \
 >   --kube-context=cluster2 \
 >   --version 1.0.10
-> 
+> ```
 > #### Create the `KubernetesCluster` objects
+> ```
 > kubectl apply --context mgmt -f- <<EOF
 > apiVersion: multicluster.solo.io/v1alpha1
 > kind: KubernetesCluster
@@ -190,6 +194,7 @@ cluster2   23s
 > spec:
 >   clusterDomain: cluster.local
 > EOF
+> ```
 
 ## Lab 3 : Deploy Istio on both clusters {#lab3}
 
@@ -1520,7 +1525,7 @@ kubectl --context cluster1 logs -l app=reviews -c istio-proxy -f
 ```
 
 > ### Note that you can combine traffic shift with failover
-> 
+> ```
 > cat << EOF | kubectl --context mgmt apply -f -
 > apiVersion: networking.mesh.gloo.solo.io/v1
 > kind: TrafficPolicy
@@ -1554,6 +1559,7 @@ kubectl --context cluster1 logs -l app=reviews -c istio-proxy -f
 >               version: v2
 >           weight: 50
 > EOF
+> ```
 
 ## Lab 9 : Gloo Mesh Enterprise RBAC {#lab9}
 
