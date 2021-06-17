@@ -96,7 +96,7 @@ kubectl config use-context mgmt
 First of all, you need to install the *meshctl* CLI:
 
 ```bash
-curl -sL https://run.solo.io/meshctl/install | GLOO_MESH_VERSION=v1.0.3 sh -
+curl -sL https://run.solo.io/meshctl/install | GLOO_MESH_VERSION=v1.0.9 sh -
 export PATH=$HOME/.gloo-mesh/bin:$PATH
 ```
 
@@ -110,7 +110,7 @@ helm repo update
 kubectl --context mgmt create ns gloo-mesh 
 helm install gloo-mesh-enterprise gloo-mesh-enterprise/gloo-mesh-enterprise \
 --namespace gloo-mesh --kube-context mgmt \
---version=1.0.10 \
+--version=1.0.14 \
 --set licenseKey=${GLOO_MESH_LICENSE_KEY}
 
 kubectl --context mgmt -n gloo-mesh rollout status deploy/enterprise-networking
@@ -121,7 +121,7 @@ Then, you need to register the two other clusters:
 ```bash
 SVC=$(kubectl --context mgmt -n gloo-mesh get svc enterprise-networking -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
 
-meshctl cluster register --mgmt-context=mgmt --remote-context=cluster1 --relay-server-address=$SVC:9900 enterprise cluster1 --cluster-domain cluster.local
+meshctl cluster register --mgmt-context=mgmt --remote-context=cluster1 --relay-server-address=[$SVC]:9900 enterprise cluster1 --cluster-domain cluster.local
 meshctl cluster register --mgmt-context=mgmt --remote-context=cluster2 --relay-server-address=$SVC:9900 enterprise cluster2 --cluster-domain cluster.local
 ```
 
@@ -139,18 +139,70 @@ cluster1   27s
 cluster2   23s
 ```
 
+> ### Note that you can also register the remote clusters with Helm:
+> 
+> #### Get the value of the root CA certificate on the management cluster and create a secret in the remote clusters
+> kubectl --context mgmt -n gloo-mesh get secret relay-root-tls-secret -o jsonpath='{.data.ca\.crt}' | base64 -d > ca.crt
+> kubectl --context cluster1 create ns gloo-mesh
+> kubectl --context cluster1 -n gloo-mesh create secret generic relay-root-tls-secret --from-file ca.crt=ca.crt
+> kubectl --context cluster2 create ns gloo-mesh
+> kubectl --context cluster2 -n gloo-mesh create secret generic relay-root-tls-secret --from-file ca.crt=ca.crt
+> 
+> #### We also need to copy over the bootstrap token used for initial communication
+> kubectl --context mgmt -n gloo-mesh get secret relay-identity-token-secret -o jsonpath='{.data.token}' | base64 -d > token
+> kubectl --context cluster1 -n gloo-mesh create secret generic relay-identity-token-secret --from-file token=token
+> kubectl --context cluster2 -n gloo-mesh create secret generic relay-identity-token-secret --from-file token=token
+> 
+> #### Install the Helm charts
+> helm repo add enterprise-agent https://storage.googleapis.com/gloo-mesh-enterprise/enterprise-agent
+> helm repo update
+> helm install enterprise-agent enterprise-agent/enterprise-agent \
+>   --namespace gloo-mesh \
+>   --set relay.serverAddress=${SVC}:9900 \
+>   --set relay.cluster=cluster1 \
+>   --kube-context=cluster1 \
+>   --version 1.0.10
+> 
+> helm install enterprise-agent enterprise-agent/enterprise-agent \
+>   --namespace gloo-mesh \
+>   --set relay.serverAddress=${SVC}:9900 \
+>   --set relay.cluster=cluster2 \
+>   --kube-context=cluster2 \
+>   --version 1.0.10
+> 
+> #### Create the `KubernetesCluster` objects
+> kubectl apply --context mgmt -f- <<EOF
+> apiVersion: multicluster.solo.io/v1alpha1
+> kind: KubernetesCluster
+> metadata:
+>   name: cluster1
+>   namespace: gloo-mesh
+> spec:
+>   clusterDomain: cluster.local
+> EOF
+> 
+> kubectl apply --context mgmt -f- <<EOF
+> apiVersion: multicluster.solo.io/v1alpha1
+> kind: KubernetesCluster
+> metadata:
+>   name: cluster2
+>   namespace: gloo-mesh
+> spec:
+>   clusterDomain: cluster.local
+> EOF
+
 ## Lab 3 : Deploy Istio on both clusters {#lab3}
 
-Download istio 1.9.3:
+Download istio 1.10.0:
 
 ```bash
-curl -L https://istio.io/downloadIstio | ISTIO_VERSION=1.9.3 sh -
+curl -L https://istio.io/downloadIstio | ISTIO_VERSION=1.10.0 sh -
 ```
 
 Now let's deploy Istio on the first cluster:
 
 ```bash
-./istio-1.9.3/bin/istioctl --context cluster1 operator init
+./istio-1.10.0/bin/istioctl --context cluster1 operator init
 
 kubectl --context cluster1 create ns istio-system
 
@@ -234,7 +286,7 @@ EOF
 And deploy Istio on the second cluster:
 
 ```bash
-./istio-1.9.3/bin/istioctl --context cluster2 operator init
+./istio-1.10.0/bin/istioctl --context cluster2 operator init
 
 kubectl --context cluster2 create ns istio-system
 
@@ -1466,6 +1518,42 @@ Afer 2 minutes, you can validate that the requests are now handled by the first 
 ```
 kubectl --context cluster1 logs -l app=reviews -c istio-proxy -f
 ```
+
+> ### Note that you can combine traffic shift with failover
+> 
+> cat << EOF | kubectl --context mgmt apply -f -
+> apiVersion: networking.mesh.gloo.solo.io/v1
+> kind: TrafficPolicy
+> metadata:
+>   name: reviews-shift-failover
+>   namespace: gloo-mesh
+> spec:
+>   sourceSelector:
+>   - kubeWorkloadMatcher:
+>       namespaces:
+>       - default
+>   destinationSelector:
+>   - kubeServiceRefs:
+>       services:
+>         - clusterName: cluster1
+>           name: reviews
+>           namespace: default
+>   policy:
+>     trafficShift:
+>       destinations:
+>         - virtualDestination:
+>             name: reviews-global
+>             namespace: gloo-mesh
+>             subset:
+>               version: v1
+>           weight: 50
+>         - virtualDestination:
+>             name: reviews-global
+>             namespace: gloo-mesh
+>             subset:
+>               version: v2
+>           weight: 50
+> EOF
 
 ## Lab 9 : Gloo Mesh Enterprise RBAC {#lab9}
 
