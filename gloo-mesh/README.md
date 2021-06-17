@@ -419,11 +419,11 @@ Run the following commands to deploy the bookinfo app on `cluster1`:
 ```bash
 kubectl --context cluster1 label namespace default istio-injection=enabled
 # deploy bookinfo application components for all versions less than v3
-kubectl --context cluster1 apply -f https://raw.githubusercontent.com/istio/istio/1.8.2/samples/bookinfo/platform/kube/bookinfo.yaml -l 'app,version notin (v3)'
+kubectl --context cluster1 apply -f https://raw.githubusercontent.com/istio/istio/1.10.0/samples/bookinfo/platform/kube/bookinfo.yaml -l 'app,version notin (v3)'
 # deploy all bookinfo service accounts
-kubectl --context cluster1 apply -f https://raw.githubusercontent.com/istio/istio/1.8.2/samples/bookinfo/platform/kube/bookinfo.yaml -l 'account'
+kubectl --context cluster1 apply -f https://raw.githubusercontent.com/istio/istio/1.10.0/samples/bookinfo/platform/kube/bookinfo.yaml -l 'account'
 # configure ingress gateway to access bookinfo
-kubectl --context cluster1 apply -f https://raw.githubusercontent.com/istio/istio/1.8.2/samples/bookinfo/networking/bookinfo-gateway.yaml
+kubectl --context cluster1 apply -f https://raw.githubusercontent.com/istio/istio/1.10.0/samples/bookinfo/networking/bookinfo-gateway.yaml
 ```
 
 You can check that the app is running using `kubectl --context cluster1 get pods`:
@@ -444,9 +444,9 @@ Now, run the following commands to deploy the bookinfo app on `cluster2`:
 ```bash
 kubectl --context cluster2 label namespace default istio-injection=enabled
 # deploy all bookinfo service accounts and application components for all versions
-kubectl --context cluster2 apply -f https://raw.githubusercontent.com/istio/istio/1.8.2/samples/bookinfo/platform/kube/bookinfo.yaml
+kubectl --context cluster2 apply -f https://raw.githubusercontent.com/istio/istio/1.10.0/samples/bookinfo/platform/kube/bookinfo.yaml
 # configure ingress gateway to access bookinfo
-kubectl --context cluster2 apply -f https://raw.githubusercontent.com/istio/istio/1.8.2/samples/bookinfo/networking/bookinfo-gateway.yaml
+kubectl --context cluster2 apply -f https://raw.githubusercontent.com/istio/istio/1.10.0/samples/bookinfo/networking/bookinfo-gateway.yaml
 ```
 
 You can check that the app is running using `kubectl --context cluster2 get pods`:
