@@ -480,7 +480,11 @@ As you can see, it deployed all three versions of the `reviews` microservice.
 
 ![Initial setup](images/initial-setup.png)
 
-Open the <a href="http://172.18.2.1/productpage" target="_blank">bookinfo app</a> with your web browser.
+Get the URL to access the `productpage` service from your web browser using the following command:
+
+```
+echo http://$(kubectl --context ${CLUSTER1} -n istio-system get svc istio-ingressgateway -o jsonpath='{.status.loadBalancer.ingress[0].ip}')/productpage
+```
 
 ![Bookinfo working](images/bookinfo-working.png)
 
@@ -1209,8 +1213,6 @@ The Subject Alternative Name (SAN) is the most interesting part. It allows the s
 ## Lab 6 : Access Control {#lab6}
 
 In the previous guide, we federated multiple meshes and established a shared root CA for a shared identity domain. Now that we have a logical VirtualMesh, we need a way to establish access policies across the multiple meshes, without treating each of them individually. Gloo Mesh helps by establishing a single, unified API that understands the logical VirtualMesh construct.
-
-Open the <a href="http://172.18.2.1/productpage" target="_blank">bookinfo app</a> again with a web browser.
 
 The application works correctly because RBAC isn't enforced.
 
@@ -2319,7 +2321,7 @@ EOF
 Generate some traffic and run the command below to gather the latest access logs:
 
 ```bash
-curl -XPOST '172.18.1.1:8080/v0/observability/logs?pretty'
+curl -XPOST "$SVC:8080/v0/observability/logs?pretty"
 ```
 
 You should get an output similar to the following one:
