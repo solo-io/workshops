@@ -483,7 +483,7 @@ As you can see, it deployed all three versions of the `reviews` microservice.
 Get the URL to access the `productpage` service from your web browser using the following command:
 
 ```
-echo http://$(kubectl --context ${CLUSTER1} -n istio-system get svc istio-ingressgateway -o jsonpath='{.status.loadBalancer.ingress[0].ip}')/productpage
+echo "http://$(kubectl --context ${CLUSTER1} -n istio-system get svc istio-ingressgateway -o jsonpath='{.status.loadBalancer.ingress[0].ip}')/productpage"
 ```
 
 ![Bookinfo working](images/bookinfo-working.png)
@@ -2182,7 +2182,7 @@ Note that you can also deploy it on Gloo Edge.
 Run the following command to make `cluster1` the current cluster.
 
 ```bash
-kubectl config use-context cluster1
+kubectl config use-context ${CLUSTER1}
 ```
 
 You can deploy it using `meshctl wasm deploy`, but we now live in a Declarative world, so let's do it the proper way.
@@ -2321,7 +2321,7 @@ EOF
 Generate some traffic and run the command below to gather the latest access logs:
 
 ```bash
-curl -XPOST "$SVC:8080/v0/observability/logs?pretty"
+curl -XPOST "${SVC}:8080/v0/observability/logs?pretty"
 ```
 
 You should get an output similar to the following one:
@@ -2429,5 +2429,11 @@ You should get an output similar to the following one:
 ```
 
 Interesting, no ?
+
+Delete the `AccessLogRecord`:
+
+```bash
+kubectl --context ${MGMT} -n gloo-mesh delete accesslogrecords.observability.enterprise.mesh.gloo.solo.io access-log-reviews                 
+```
 
 This is the end of the workshop. We hope you enjoyed it !
