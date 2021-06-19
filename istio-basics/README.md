@@ -12,4 +12,4 @@ This workshop is intended for developers and operators. Anyone responsible for t
 
 This workshop also includes a certification option. This credential, offered by Solo.io with Credly, certifies that you possess the introductory skills, to install, secure services, add services to the Mesh, secure interservices communication, and control traffic. At the completion of the workshop, you will be able to take an assessment and a score 80% or higher earns the certification.
 
-![](../images/Solo_Workshop_Basics_Badge.png)
+![](./images/Solo_Workshop_Basics_Badge.png)
