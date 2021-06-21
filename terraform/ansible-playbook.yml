@@ -415,6 +415,25 @@
     become_method: sudo
     when: not workshop_folder.stat.exists
 
+  - name: Remove any existing directory from prior runs
+    file:
+      state: absent
+      path: /home/solo/istio-workshops
+    when: "reset_repo | bool"
+
+  - name: Check the /home/solo/istio-workshops has been cloned
+    stat:
+      path: /home/solo/istio-workshops
+    register: istio_workshop_folder
+
+  - name: Clone the workshop repo
+    git:
+      repo: https://github.com/solo-io/istio-workshops.git
+      dest: /home/solo/istio-workshops
+    become_user: solo
+    become_method: sudo
+    when: not istio_workshop_folder.stat.exists
+
   - name: Fix a known issue with VSCode
     shell: sed -i 's/BIG-REQUESTS/_IG-REQUESTS/' /usr/lib/x86_64-linux-gnu/libxcb.so.1.1.0
 
