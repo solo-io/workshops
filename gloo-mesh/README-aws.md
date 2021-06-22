@@ -10,6 +10,12 @@ The goal of this workshop is to show several unique features of the Gloo Mesh in
 - Multi-cluster traffic
 - Failover
 
+## Lab environment
+
+Gloo Mesh can be run in its own cluster or co-located with an existing mesh.  In this exercise, Gloo Mesh will run in its own dedicated management cluster, while the two managed Istio meshes will run in separate clusters.
+
+![Lab](images/lab.png)
+
 ## Table of contents
 
 * [Lab 1 - Deploy your Kubernetes clusters](#lab1)
@@ -25,6 +31,21 @@ The goal of this workshop is to show several unique features of the Gloo Mesh in
 * [Lab 11 - Exploring the Gloo Mesh Enterprise UI](#lab11)
 
 ## Lab 1 : Deploy your Kubernetes clusters {#lab1}
+
+Set the context environment variables:
+
+```bash
+export MGMT=mgmt
+export CLUSTER1=cluster1
+export CLUSTER2=cluster2
+```
+
+> Note that in case you can't have a Kubernetes cluster dedicated for the management plane, you would set the variables like that:
+> ```
+> export MGMT=cluster1
+> export CLUSTER1=cluster1
+> export CLUSTER2=cluster2
+> ```
 
 From the terminal go to the `/home/solo/workshops/gloo-mesh` directory:
 
@@ -57,7 +78,7 @@ kubectl config rename-context <context to rename> <new context name>
 Run the following command to make `mgmt` the current cluster.
 
 ```bash
-kubectl config use-context mgmt
+kubectl config use-context ${MGMT}
 ```
 
 ## Lab 2 : Deploy Gloo Mesh and register the clusters {#lab2}
@@ -65,7 +86,7 @@ kubectl config use-context mgmt
 First of all, you need to install the *meshctl* CLI:
 
 ```bash
-curl -sL https://run.solo.io/meshctl/install | GLOO_MESH_VERSION=v1.1.0-beta5 sh -
+curl -sL https://run.solo.io/meshctl/install | GLOO_MESH_VERSION=v1.0.9 sh -
 export PATH=$HOME/.gloo-mesh/bin:$PATH
 ```
 
@@ -76,22 +97,22 @@ Run the following commands to deploy Gloo Mesh Enterprise:
 ```bash
 helm repo add gloo-mesh-enterprise https://storage.googleapis.com/gloo-mesh-enterprise/gloo-mesh-enterprise 
 helm repo update
-kubectl --context mgmt create ns gloo-mesh 
+kubectl --context ${MGMT} create ns gloo-mesh 
 helm install gloo-mesh-enterprise gloo-mesh-enterprise/gloo-mesh-enterprise \
---namespace gloo-mesh --kube-context mgmt \
---version=1.1.0-beta6 \
+--namespace gloo-mesh --kube-context ${MGMT} \
+--version=1.0.14 \
 --set licenseKey=${GLOO_MESH_LICENSE_KEY}
 
-kubectl --context mgmt -n gloo-mesh rollout status deploy/enterprise-networking
+kubectl --context ${MGMT} -n gloo-mesh rollout status deploy/enterprise-networking
 ```
 
 Then, you need to register the two other clusters:
 
 ```bash
-SVC=$(kubectl --context mgmt -n gloo-mesh get svc enterprise-networking -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+SVC=$(kubectl --context ${MGMT} -n gloo-mesh get svc enterprise-networking -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
 
-meshctl cluster register --mgmt-context=mgmt --remote-context=cluster1 --relay-server-address=$SVC:9900 enterprise cluster1 --cluster-domain cluster.local
-meshctl cluster register --mgmt-context=mgmt --remote-context=cluster2 --relay-server-address=$SVC:9900 enterprise cluster2 --cluster-domain cluster.local
+meshctl cluster register --mgmt-context=${MGMT} --remote-context=${CLUSTER1} --relay-server-address=$SVC:9900 enterprise cluster1 --cluster-domain cluster.local
+meshctl cluster register --mgmt-context=${MGMT} --remote-context=${CLUSTER2} --relay-server-address=$SVC:9900 enterprise cluster2 --cluster-domain cluster.local
 ```
 
 You can list the registered cluster using the following command:
@@ -108,22 +129,81 @@ cluster1   27s
 cluster2   23s
 ```
 
+> ### Note that you can also register the remote clusters with Helm:
+> 
+> #### Get the value of the root CA certificate on the management cluster and create a secret in the remote clusters
+> ```
+> kubectl --context ${MGMT} -n gloo-mesh get secret relay-root-tls-secret -o jsonpath='{.data.ca\.crt}' | base64 -d > ca.crt
+> kubectl --context ${CLUSTER1} create ns gloo-mesh
+> kubectl --context ${CLUSTER1} -n gloo-mesh create secret generic relay-root-tls-secret --from-file ca.crt=ca.crt
+> kubectl --context ${CLUSTER2} create ns gloo-mesh
+> kubectl --context ${CLUSTER2} -n gloo-mesh create secret generic relay-root-tls-secret --from-file ca.crt=ca.crt
+> ```
+> #### We also need to copy over the bootstrap token used for initial communication
+> ```
+> kubectl --context ${MGMT} -n gloo-mesh get secret relay-identity-token-secret -o jsonpath='{.data.token}' | base64 -d > token
+> kubectl --context ${CLUSTER1} -n gloo-mesh create secret generic relay-identity-token-secret --from-file token=token
+> kubectl --context ${CLUSTER2} -n gloo-mesh create secret generic relay-identity-token-secret --from-file token=token
+> ```
+> #### Install the Helm charts
+> ```
+> SVC=$(kubectl --context ${MGMT} -n gloo-mesh get svc enterprise-networking -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+> 
+> helm repo add enterprise-agent https://storage.googleapis.com/gloo-mesh-enterprise/enterprise-agent
+> helm repo update
+> helm install enterprise-agent enterprise-agent/enterprise-agent \
+>   --namespace gloo-mesh \
+>   --set relay.serverAddress=${SVC}:9900 \
+>   --set relay.cluster=cluster1 \
+>   --kube-context=${CLUSTER1} \
+>   --version 1.0.10
+> 
+> helm install enterprise-agent enterprise-agent/enterprise-agent \
+>   --namespace gloo-mesh \
+>   --set relay.serverAddress=${SVC}:9900 \
+>   --set relay.cluster=cluster2 \
+>   --kube-context=${CLUSTER2} \
+>   --version 1.0.10
+> ```
+> #### Create the `KubernetesCluster` objects
+> ```
+> kubectl apply --context ${MGMT} -f- <<EOF
+> apiVersion: multicluster.solo.io/v1alpha1
+> kind: KubernetesCluster
+> metadata:
+>   name: cluster1
+>   namespace: gloo-mesh
+> spec:
+>   clusterDomain: cluster.local
+> EOF
+> 
+> kubectl apply --context ${MGMT} -f- <<EOF
+> apiVersion: multicluster.solo.io/v1alpha1
+> kind: KubernetesCluster
+> metadata:
+>   name: cluster2
+>   namespace: gloo-mesh
+> spec:
+>   clusterDomain: cluster.local
+> EOF
+> ```
+
 ## Lab 3 : Deploy Istio on both clusters {#lab3}
 
-Download istio 1.9.3:
+Download istio 1.10.0:
 
 ```bash
-curl -L https://istio.io/downloadIstio | ISTIO_VERSION=1.9.3 sh -
+curl -L https://istio.io/downloadIstio | ISTIO_VERSION=1.10.0 sh -
 ```
 
 Now let's deploy Istio on the first cluster:
 
 ```bash
-./istio-1.9.3/bin/istioctl --context cluster1 operator init
+./istio-1.10.0/bin/istioctl --context ${CLUSTER1} operator init
 
-kubectl --context cluster1 create ns istio-system
+kubectl --context ${CLUSTER1} create ns istio-system
 
-cat << EOF | kubectl --context cluster1 apply -f -
+cat << EOF | kubectl --context ${CLUSTER1} apply -f -
 apiVersion: install.istio.io/v1alpha1
 kind: IstioOperator
 metadata:
@@ -132,6 +212,7 @@ metadata:
 spec:
   profile: default
   meshConfig:
+    trustDomain: cluster1
     accessLogFile: /dev/stdout
     enableAutoMtls: true
     defaultConfig:
@@ -148,7 +229,6 @@ spec:
       meshID: mesh1
       multiCluster:
         clusterName: cluster1
-      trustDomain: cluster1
       network: network1
       meshNetworks:
         network1:
@@ -203,11 +283,11 @@ EOF
 And deploy Istio on the second cluster:
 
 ```bash
-./istio-1.9.3/bin/istioctl --context cluster2 operator init
+./istio-1.10.0/bin/istioctl --context ${CLUSTER2} operator init
 
-kubectl --context cluster2 create ns istio-system
+kubectl --context ${CLUSTER2} create ns istio-system
 
-cat << EOF | kubectl --context cluster2 apply -f -
+cat << EOF | kubectl --context ${CLUSTER2} apply -f -
 apiVersion: install.istio.io/v1alpha1
 kind: IstioOperator
 metadata:
@@ -216,6 +296,7 @@ metadata:
 spec:
   profile: default
   meshConfig:
+    trustDomain: cluster2
     accessLogFile: /dev/stdout
     enableAutoMtls: true
     defaultConfig:
@@ -226,13 +307,12 @@ spec:
       proxyMetadata:
         ISTIO_META_DNS_CAPTURE: "true"
         ISTIO_META_DNS_AUTO_ALLOCATE: "true"
-        GLOO_MESH_CLUSTER_NAME: cluster1
+        GLOO_MESH_CLUSTER_NAME: cluster2
   values:
     global:
       meshID: mesh1
       multiCluster:
         clusterName: cluster2
-      trustDomain: cluster2
       network: network2
       meshNetworks:
         network2:
@@ -285,22 +365,22 @@ EOF
 ```
 
 <!--bash
-until kubectl --context cluster1 get ns istio-system
+until kubectl --context ${CLUSTER1} get ns istio-system
 do
   sleep 1
 done
 
-until [ $(kubectl --context cluster1 -n istio-system get pods -o jsonpath='{range .items[*].status.containerStatuses[*]}{.ready}{"\n"}{end}' | grep true -c) -eq 2 ]; do
+until [ $(kubectl --context ${CLUSTER1} -n istio-system get pods -o jsonpath='{range .items[*].status.containerStatuses[*]}{.ready}{"\n"}{end}' | grep true -c) -eq 2 ]; do
   echo "Waiting for all the Istio pods to become ready"
   sleep 1
 done
 
-until kubectl --context cluster2 get ns istio-system
+until kubectl --context ${CLUSTER2} get ns istio-system
 do
   sleep 1
 done
 
-until [ $(kubectl --context cluster2 -n istio-system get pods -o jsonpath='{range .items[*].status.containerStatuses[*]}{.ready}{"\n"}{end}' | grep true -c) -eq 2 ]; do
+until [ $(kubectl --context ${CLUSTER2} -n istio-system get pods -o jsonpath='{range .items[*].status.containerStatuses[*]}{.ready}{"\n"}{end}' | grep true -c) -eq 2 ]; do
   echo "Waiting for all the Istio pods to become ready"
   sleep 1
 done
@@ -309,7 +389,7 @@ done
 Run the following command until all the Istio Pods are ready:
 
 ```
-kubectl --context cluster1 get pods -n istio-system
+kubectl --context ${CLUSTER1} get pods -n istio-system
 ```
 
 When they are ready, you should get this output:
@@ -320,23 +400,23 @@ istio-ingressgateway-5c7759c8cb-52r2j   1/1     Running   0          22s
 istiod-7884b57b4c-rvr2c                 1/1     Running   0          30s
 ```
 
-Check the status on the second cluster using `kubectl --context cluster2 get pods -n istio-system`
+Check the status on the second cluster using `kubectl --context ${CLUSTER2} get pods -n istio-system`
 
 ## Lab 4 : Deploy the Bookinfo demo app {#lab4}
 
 Run the following commands to deploy the bookinfo app on `cluster1`:
 
 ```bash
-kubectl --context cluster1 label namespace default istio-injection=enabled
+kubectl --context ${CLUSTER1} label namespace default istio-injection=enabled
 # deploy bookinfo application components for all versions less than v3
-kubectl --context cluster1 apply -f https://raw.githubusercontent.com/istio/istio/1.8.2/samples/bookinfo/platform/kube/bookinfo.yaml -l 'app,version notin (v3)'
+kubectl --context ${CLUSTER1} apply -f https://raw.githubusercontent.com/istio/istio/1.10.0/samples/bookinfo/platform/kube/bookinfo.yaml -l 'app,version notin (v3)'
 # deploy all bookinfo service accounts
-kubectl --context cluster1 apply -f https://raw.githubusercontent.com/istio/istio/1.8.2/samples/bookinfo/platform/kube/bookinfo.yaml -l 'account'
+kubectl --context ${CLUSTER1} apply -f https://raw.githubusercontent.com/istio/istio/1.10.0/samples/bookinfo/platform/kube/bookinfo.yaml -l 'account'
 # configure ingress gateway to access bookinfo
-kubectl --context cluster1 apply -f https://raw.githubusercontent.com/istio/istio/1.8.2/samples/bookinfo/networking/bookinfo-gateway.yaml
+kubectl --context ${CLUSTER1} apply -f https://raw.githubusercontent.com/istio/istio/1.10.0/samples/bookinfo/networking/bookinfo-gateway.yaml
 ```
 
-You can check that the app is running using `kubectl --context cluster1 get pods`:
+You can check that the app is running using `kubectl --context ${CLUSTER1} get pods`:
 
 ```
 NAME                              READY   STATUS    RESTARTS   AGE
@@ -352,14 +432,14 @@ As you can see, it deployed the `v1` and `v2` versions of the `reviews` microser
 Now, run the following commands to deploy the bookinfo app on `cluster2`:
 
 ```bash
-kubectl --context cluster2 label namespace default istio-injection=enabled
+kubectl --context ${CLUSTER2} label namespace default istio-injection=enabled
 # deploy all bookinfo service accounts and application components for all versions
-kubectl --context cluster2 apply -f https://raw.githubusercontent.com/istio/istio/1.8.2/samples/bookinfo/platform/kube/bookinfo.yaml
+kubectl --context ${CLUSTER2} apply -f https://raw.githubusercontent.com/istio/istio/1.10.0/samples/bookinfo/platform/kube/bookinfo.yaml
 # configure ingress gateway to access bookinfo
-kubectl --context cluster2 apply -f https://raw.githubusercontent.com/istio/istio/1.8.2/samples/bookinfo/networking/bookinfo-gateway.yaml
+kubectl --context ${CLUSTER2} apply -f https://raw.githubusercontent.com/istio/istio/1.10.0/samples/bookinfo/networking/bookinfo-gateway.yaml
 ```
 
-You can check that the app is running using `kubectl --context cluster2 get pods`:
+You can check that the app is running using `kubectl --context ${CLUSTER2} get pods`:
 
 ```
 NAME                              READY   STATUS    RESTARTS   AGE
@@ -375,10 +455,10 @@ As you can see, it deployed all three versions of the `reviews` microservice.
 
 ![Initial setup](images/initial-setup.png)
 
-Run the following command to get the URL you can use to access the Bookinfo application:
+Get the URL to access the `productpage` service from your web browser using the following command:
 
-```bash
-echo "http://$(kubectl --context cluster1 -n istio-system get svc istio-ingressgateway -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')/productpage"
+```
+echo "http://$(kubectl --context ${CLUSTER1} -n istio-system get svc istio-ingressgateway -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')/productpage"
 ```
 
 ![Bookinfo working](images/bookinfo-working.png)
@@ -386,12 +466,12 @@ echo "http://$(kubectl --context cluster1 -n istio-system get svc istio-ingressg
 As you can see, you can access the Bookinfo demo app.
 
 <!--bash
-until [ $(kubectl --context cluster1 get pods -o jsonpath='{range .items[*].status.containerStatuses[*]}{.ready}{"\n"}{end}' | grep false -c) -eq 0 ]; do
+until [ $(kubectl --context ${CLUSTER1} get pods -o jsonpath='{range .items[*].status.containerStatuses[*]}{.ready}{"\n"}{end}' | grep false -c) -eq 0 ]; do
   echo "Waiting for all the pods of the default namespace to become ready"
   sleep 1
 done
 
-until [ $(kubectl --context cluster2 get pods -o jsonpath='{range .items[*].status.containerStatuses[*]}{.ready}{"\n"}{end}' | grep false -c) -eq 0 ]; do
+until [ $(kubectl --context ${CLUSTER2} get pods -o jsonpath='{range .items[*].status.containerStatuses[*]}{.ready}{"\n"}{end}' | grep false -c) -eq 0 ]; do
   echo "Waiting for all the pods of the default namespace to become ready"
   sleep 1
 done
@@ -404,7 +484,7 @@ Gloo Mesh can help unify the root identity between multiple service mesh install
 Run this command to see how the communication between microservices occurs currently:
 
 ```bash
-kubectl --context cluster1 exec -t deploy/reviews-v1 -c istio-proxy \
+kubectl --context ${CLUSTER1} exec -t deploy/reviews-v1 -c istio-proxy \
 -- openssl s_client -showcerts -connect ratings:9080
 ```
 
@@ -437,7 +517,7 @@ It means that the traffic is currently not encrypted.
 Enable TLS on both clusters:
 
 ```bash
-kubectl --context cluster1 apply -f - <<EOF
+kubectl --context ${CLUSTER1} apply -f - <<EOF
 apiVersion: "security.istio.io/v1beta1"
 kind: "PeerAuthentication"
 metadata:
@@ -448,7 +528,7 @@ spec:
     mode: STRICT
 EOF
 
-kubectl --context cluster2 apply -f - <<EOF
+kubectl --context ${CLUSTER2} apply -f - <<EOF
 apiVersion: "security.istio.io/v1beta1"
 kind: "PeerAuthentication"
 metadata:
@@ -463,7 +543,7 @@ EOF
 Run the command again:
 
 ```bash
-kubectl --context cluster1 exec -t deploy/reviews-v1 -c istio-proxy \
+kubectl --context ${CLUSTER1} exec -t deploy/reviews-v1 -c istio-proxy \
 -- openssl s_client -showcerts -connect ratings:9080
 ```
 
@@ -537,7 +617,7 @@ As you can see, mTLS is now enabled.
 Now, run the same command on the second cluster:
 
 ```bash
-kubectl --context cluster2 exec -t deploy/reviews-v1 -c istio-proxy \
+kubectl --context ${CLUSTER2} exec -t deploy/reviews-v1 -c istio-proxy \
 -- openssl s_client -showcerts -connect ratings:9080
 ```
 
@@ -615,7 +695,7 @@ Creating a Virtual Mesh will unify these two CAs with a common root identity.
 Run the following command to create the *Virtual Mesh*:
 
 ```bash
-cat << EOF | kubectl --context mgmt apply -f -
+cat << EOF | kubectl --context ${MGMT} apply -f -
 apiVersion: networking.mesh.gloo.solo.io/v1
 kind: VirtualMesh
 metadata:
@@ -653,7 +733,7 @@ You can have a look at the Istio documentation [here](https://istio.io/latest/do
 Check that the secret containing the new Istio CA has been created in the istio namespace, on the first cluster:
 
 ```bash
-kubectl --context cluster1 get secret -n istio-system cacerts -o yaml
+kubectl --context ${CLUSTER1} get secret -n istio-system cacerts -o yaml
 ```
 
 Here is the expected output:
@@ -683,7 +763,7 @@ type: certificates.mesh.gloo.solo.io/issued_certificate
 Same operation on the second cluster:
 
 ```bash
-kubectl --context cluster2 get secret -n istio-system cacerts -o yaml
+kubectl --context ${CLUSTER2} get secret -n istio-system cacerts -o yaml
 ```
 
 Here is the expected output:
@@ -717,11 +797,11 @@ Have a look at the `VirtualMesh` object we've just created and notice the `autoR
 This is due to a limitation of Istio. The Istio control plane picks up the CA for Citadel and does not rotate it often enough.
 
 <!--bash
-until kubectl --context cluster1 get secret -n istio-system cacerts
+until kubectl --context ${CLUSTER1} get secret -n istio-system cacerts
 do
   sleep 1
 done
-until kubectl --context cluster2 get secret -n istio-system cacerts
+until kubectl --context ${CLUSTER2} get secret -n istio-system cacerts
 do
   sleep 1
 done
@@ -730,7 +810,7 @@ done
 Now, let's check what certificates we get when we run the same commands we ran before we created the Virtual Mesh:
 
 ```bash
-kubectl --context cluster1 exec -t deploy/reviews-v1 -c istio-proxy \
+kubectl --context ${CLUSTER1} exec -t deploy/reviews-v1 -c istio-proxy \
 -- openssl s_client -showcerts -connect ratings:9080
 ```
 
@@ -894,7 +974,7 @@ s4v2pEvaYg==
 And let's compare with what we get on the second cluster:
 
 ```bash
-kubectl --context cluster2 exec -t deploy/reviews-v1 -c istio-proxy \
+kubectl --context ${CLUSTER2} exec -t deploy/reviews-v1 -c istio-proxy \
 -- openssl s_client -showcerts -connect ratings:9080
 ```
 
@@ -1109,14 +1189,12 @@ The Subject Alternative Name (SAN) is the most interesting part. It allows the s
 
 In the previous guide, we federated multiple meshes and established a shared root CA for a shared identity domain. Now that we have a logical VirtualMesh, we need a way to establish access policies across the multiple meshes, without treating each of them individually. Gloo Mesh helps by establishing a single, unified API that understands the logical VirtualMesh construct.
 
-Open the <a href="http://172.18.2.1/productpage" target="_blank">bookinfo app</a> again with a web browser.
-
 The application works correctly because RBAC isn't enforced.
 
 Let's update the VirtualMesh to enable it:
 
 ```bash
-cat << EOF | kubectl --context mgmt apply -f -
+cat << EOF | kubectl --context ${MGMT} apply -f -
 apiVersion: networking.mesh.gloo.solo.io/v1
 kind: VirtualMesh
 metadata:
@@ -1149,7 +1227,7 @@ RBAC: access denied
 You need to create a Gloo Mesh Access Policy to allow the Istio Ingress Gateway to access the `productpage` microservice:
 
 ```bash
-cat << EOF | kubectl --context mgmt apply -f -
+cat << EOF | kubectl --context ${MGMT} apply -f -
 apiVersion: networking.mesh.gloo.solo.io/v1
 kind: AccessPolicy
 metadata:
@@ -1178,7 +1256,7 @@ Now, refresh the page again and you should be able to access the application, bu
 You can create another Gloo Mesh Access Policy to allow the `productpage` microservice to talk to these 2 microservices:
 
 ```bash
-cat << EOF | kubectl --context mgmt apply -f -
+cat << EOF | kubectl --context ${MGMT} apply -f -
 apiVersion: networking.mesh.gloo.solo.io/v1
 kind: AccessPolicy
 metadata:
@@ -1212,7 +1290,7 @@ If you refresh the page, you should be able to see the product `details` and the
 Create another AccessPolicy to fix the issue:
 
 ```bash
-cat << EOF | kubectl --context mgmt apply -f -
+cat << EOF | kubectl --context ${MGMT} apply -f -
 apiVersion: networking.mesh.gloo.solo.io/v1
 kind: AccessPolicy
 metadata:
@@ -1249,7 +1327,7 @@ On the first cluster, the `v3` version of the `reviews` microservice doesn't exi
 Let's create the following TrafficPolicy:
 
 ```bash
-cat << EOF | kubectl --context mgmt apply -f -
+cat << EOF | kubectl --context ${MGMT} apply -f -
 apiVersion: networking.mesh.gloo.solo.io/v1
 kind: TrafficPolicy
 metadata:
@@ -1302,7 +1380,7 @@ But as you can see, the `ratings` aren't available. That's because we only allow
 Let's update the AccessPolicy to fix the issue:
 
 ```bash
-cat << EOF | kubectl --context mgmt apply -f -
+cat << EOF | kubectl --context ${MGMT} apply -f -
 apiVersion: networking.mesh.gloo.solo.io/v1
 kind: AccessPolicy
 metadata:
@@ -1336,7 +1414,7 @@ If you refresh the page several times again, you'll see the `v3` version of the 
 First of all, let's delete the TrafficPolicy we've created in the previous lab:
 
 ```bash
-kubectl --context mgmt -n gloo-mesh delete trafficpolicy simple
+kubectl --context ${MGMT} -n gloo-mesh delete trafficpolicy simple
 ```
 
 If you refresh the web page several times, you should see only the versions `v1` (no stars) and `v2` (black stars), which means that all the requests are handled by the first cluster.
@@ -1350,7 +1428,7 @@ In this lab, we're going to configure a failover for the `reviews` service:
 Then, we create a VirtualDestination to define a new hostname (`reviews-global.default.global`) that will be backed by the `reviews` microservice runnings on both clusters. 
 
 ```bash
-cat << EOF | kubectl --context mgmt apply -f -
+cat << EOF | kubectl --context ${MGMT} apply -f -
 apiVersion: networking.enterprise.mesh.gloo.solo.io/v1beta1
 kind: VirtualDestination
 metadata:
@@ -1361,7 +1439,6 @@ spec:
   port:
     number: 9080
     protocol: http
-    targetNumber: 9080
   localized:
     outlierDetection:
       consecutiveErrors: 1
@@ -1381,7 +1458,7 @@ EOF
 Finally, we can define another TrafficPolicy to make sure all the requests for the `reviews` microservice on the local cluster will be handled by the VirtualDestination we've just created.
 
 ```bash
-cat << EOF | kubectl --context mgmt apply -f -
+cat << EOF | kubectl --context ${MGMT} apply -f -
 apiVersion: networking.mesh.gloo.solo.io/v1
 kind: TrafficPolicy
 metadata:
@@ -1410,8 +1487,8 @@ EOF
 We're going to make the `reviews` services unavailable on the first cluster.
 
 ```bash
-kubectl --context cluster1 patch deploy reviews-v1 --patch '{"spec": {"template": {"spec": {"containers": [{"name": "reviews","command": ["sleep", "20h"]}]}}}}'
-kubectl --context cluster1 patch deploy reviews-v2 --patch '{"spec": {"template": {"spec": {"containers": [{"name": "reviews","command": ["sleep", "20h"]}]}}}}'
+kubectl --context ${CLUSTER1} patch deploy reviews-v1 --patch '{"spec": {"template": {"spec": {"containers": [{"name": "reviews","command": ["sleep", "20h"]}]}}}}'
+kubectl --context ${CLUSTER1} patch deploy reviews-v2 --patch '{"spec": {"template": {"spec": {"containers": [{"name": "reviews","command": ["sleep", "20h"]}]}}}}'
 ```
 
 If you refresh the web page several times again, you should still see the `reviews` displayed while there's no `reviews` service available anymore on the first cluster.
@@ -1419,7 +1496,7 @@ If you refresh the web page several times again, you should still see the `revie
 You can use the following command to validate that the requests are handled by the second cluster:
 
 ```
-kubectl --context cluster2 logs -l app=reviews -c istio-proxy -f
+kubectl --context ${CLUSTER2} logs -l app=reviews -c istio-proxy -f
 ```
 
 You should see a line like below each time you refresh the web page:
@@ -1431,23 +1508,60 @@ You should see a line like below each time you refresh the web page:
 We're going to make the `reviews` services available again on the first cluster.
 
 ```bash
-kubectl --context cluster1 patch deployment reviews-v1  --type json   -p '[{"op": "remove", "path": "/spec/template/spec/containers/0/command"}]'
-kubectl --context cluster1 patch deployment reviews-v2  --type json   -p '[{"op": "remove", "path": "/spec/template/spec/containers/0/command"}]'
+kubectl --context ${CLUSTER1} patch deployment reviews-v1  --type json   -p '[{"op": "remove", "path": "/spec/template/spec/containers/0/command"}]'
+kubectl --context ${CLUSTER1} patch deployment reviews-v2  --type json   -p '[{"op": "remove", "path": "/spec/template/spec/containers/0/command"}]'
 ```
 
 Afer 2 minutes, you can validate that the requests are now handled by the first cluster using the following command:
 
 ```
-kubectl --context cluster1 logs -l app=reviews -c istio-proxy -f
+kubectl --context ${CLUSTER1} logs -l app=reviews -c istio-proxy -f
 ```
+
+> ### Note that you can combine traffic shift with failover
+> ```
+> cat << EOF | kubectl --context ${MGMT} apply -f -
+> apiVersion: networking.mesh.gloo.solo.io/v1
+> kind: TrafficPolicy
+> metadata:
+>   name: reviews-shift-failover
+>   namespace: gloo-mesh
+> spec:
+>   sourceSelector:
+>   - kubeWorkloadMatcher:
+>       namespaces:
+>       - default
+>   destinationSelector:
+>   - kubeServiceRefs:
+>       services:
+>         - clusterName: cluster1
+>           name: reviews
+>           namespace: default
+>   policy:
+>     trafficShift:
+>       destinations:
+>         - virtualDestination:
+>             name: reviews-global
+>             namespace: gloo-mesh
+>             subset:
+>               version: v1
+>           weight: 50
+>         - virtualDestination:
+>             name: reviews-global
+>             namespace: gloo-mesh
+>             subset:
+>               version: v2
+>           weight: 50
+> EOF
+> ```
 
 ## Lab 9 : Gloo Mesh Enterprise RBAC {#lab9}
 
 First of all, let's delete the Objects we've created in the failover lab:
 
 ```bash
-kubectl --context mgmt -n gloo-mesh delete virtualdestination reviews-global
-kubectl --context mgmt -n default delete trafficpolicy reviews-shift-failover
+kubectl --context ${MGMT} -n gloo-mesh delete virtualdestination reviews-global
+kubectl --context ${MGMT} -n default delete trafficpolicy reviews-shift-failover
 ```
 
 In large organizations, several teams are using the same Kubernetes cluster. They use Kubernetes RBAC to define who can do what and where.
@@ -1465,13 +1579,13 @@ When we deployed Gloo Mesh, we applied an `admin.yaml` file that has granted the
 Let's delete the corresponding `RoleBinding`:
 
 ```bash
-kubectl --context mgmt -n gloo-mesh delete rolebindings.rbac.enterprise.mesh.gloo.solo.io admin-role-binding
+kubectl --context ${MGMT} -n gloo-mesh delete rolebindings.rbac.enterprise.mesh.gloo.solo.io admin-role-binding
 ```
 
 Now, if you try to create the multi cluster Traffic Policy we used before, you shouldn't be allowed to do it.
 
 ```bash
-cat << EOF | kubectl --context mgmt apply -f -
+cat << EOF | kubectl --context ${MGMT} apply -f -
 apiVersion: networking.mesh.gloo.solo.io/v1
 kind: TrafficPolicy
 metadata:
@@ -1524,7 +1638,7 @@ Error from server (User kubernetes-admin does not have the permissions necessary
 Let's create a namespace admin Role:
 
 ```bash
-cat << EOF | kubectl --context mgmt apply -f -
+cat << EOF | kubectl --context ${MGMT} apply -f -
 apiVersion: rbac.enterprise.mesh.gloo.solo.io/v1
 kind: Role
 metadata:
@@ -1637,7 +1751,7 @@ With this role, a user can create policies on the `default` namespace (globally)
 Then, you need to create a Role Binding to grant this Role to the current user:
 
 ```bash
-cat << EOF | kubectl --context mgmt apply -f -
+cat << EOF | kubectl --context ${MGMT} apply -f -
 apiVersion: rbac.enterprise.mesh.gloo.solo.io/v1
 kind: RoleBinding
 metadata:
@@ -1658,7 +1772,7 @@ EOF
 You can try to create the Traffic Policy again:
 
 ```bash
-cat << EOF | kubectl --context mgmt apply -f -
+cat << EOF | kubectl --context ${MGMT} apply -f -
 apiVersion: networking.mesh.gloo.solo.io/v1
 kind: TrafficPolicy
 metadata:
@@ -1716,15 +1830,15 @@ We’ve covered a simple (but very common) use case, but as you can see in the R
 Let's delete the TrafficPolicy we've created in the previous lab:
 
 ```bash
-kubectl --context mgmt -n gloo-mesh delete trafficpolicy simple
+kubectl --context ${MGMT} -n gloo-mesh delete trafficpolicy simple
 ```
 
 We also need to grant the admin role back to the current user:
 
 ```bash
-kubectl --context mgmt -n gloo-mesh delete rolebindings.rbac.enterprise.mesh.gloo.solo.io default-namespace-admin-role-binding
+kubectl --context ${MGMT} -n gloo-mesh delete rolebindings.rbac.enterprise.mesh.gloo.solo.io default-namespace-admin-role-binding
 
-cat << EOF | kubectl --context mgmt apply -f -
+cat << EOF | kubectl --context ${MGMT} apply -f -
 apiVersion: rbac.enterprise.mesh.gloo.solo.io/v1
 kind: RoleBinding
 metadata:
@@ -1794,7 +1908,7 @@ In this lab, we won't focus on developing a filter, but on how to build, push an
 Our Envoy instances will fetch their wasm filters from an envoy cluster that must be defined in the static bootstrap config. We must therefore perform a one-time operation to add the wasm-agent as a cluster in the Envoy bootstrap:
 
 ```bash
-cat <<EOF | kubectl apply --context cluster1 -f -
+cat <<EOF | kubectl apply --context ${CLUSTER1} -f -
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -1852,7 +1966,7 @@ data:
     }
 EOF
 
-cat <<EOF | kubectl apply --context cluster2 -f -
+cat <<EOF | kubectl apply --context ${CLUSTER2} -f -
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -2043,7 +2157,7 @@ Note that you can also deploy it on Gloo Edge.
 Run the following command to make `cluster1` the current cluster.
 
 ```bash
-kubectl config use-context cluster1
+kubectl config use-context ${CLUSTER1}
 ```
 
 You can deploy it using `meshctl wasm deploy`, but we now live in a Declarative world, so let's do it the proper way.
@@ -2053,9 +2167,9 @@ Gloo Mesh Enteprise has a `WasmDeployment` CRD (Custom Resource Definition) for 
 To deploy your Wasm filter on all the Pods corresponding to the version v1 of the reviews service and running in the default namespace of the cluster1 cluster, use the following commands:
 
 ```bash
-kubectl patch deployment reviews-v1 --context cluster1 --patch='{"spec":{"template": {"metadata": {"annotations": {"sidecar.istio.io/bootstrapOverride": "gloo-mesh-custom-envoy-bootstrap"}}}}}' --type=merge
+kubectl patch deployment reviews-v1 --context ${CLUSTER1} --patch='{"spec":{"template": {"metadata": {"annotations": {"sidecar.istio.io/bootstrapOverride": "gloo-mesh-custom-envoy-bootstrap"}}}}}' --type=merge
 
-cat << EOF | kubectl --context mgmt apply -f-
+cat << EOF | kubectl --context ${MGMT} apply -f-
 apiVersion: networking.enterprise.mesh.gloo.solo.io/v1beta1
 kind: WasmDeployment
 metadata:
@@ -2117,7 +2231,7 @@ Very useful, no ?
 Delete the WasmDeployment:
 
 ```bash
-kubectl --context mgmt -n gloo-mesh delete wasmdeployment reviews-wasm
+kubectl --context ${MGMT} -n gloo-mesh delete wasmdeployment reviews-wasm
 ```
 
 ## Lab 11 : Exploring the Gloo Mesh Enterprise UI {#lab11}
@@ -2125,7 +2239,7 @@ kubectl --context mgmt -n gloo-mesh delete wasmdeployment reviews-wasm
 To access the UI, run the following command:
 
 ```
-kubectl --context mgmt port-forward -n gloo-mesh svc/dashboard 8090
+kubectl --context ${MGMT} port-forward -n gloo-mesh svc/dashboard 8090
 ```
 
 The UI is available at http://localhost:8090
@@ -2163,7 +2277,7 @@ Gloo Mesh can also be used to collect the access logs from any Pod running in an
 Create the following `AccessLogRecord` object to collect all the access logs of the `reviews` services running on any cluster:
 
 ```bash
-kubectl --context mgmt apply -f - <<EOF
+kubectl --context ${MGMT} apply -f - <<EOF
 apiVersion: observability.enterprise.mesh.gloo.solo.io/v1
 kind: AccessLogRecord
 metadata:
@@ -2182,7 +2296,7 @@ EOF
 Generate some traffic and run the command below to gather the latest access logs:
 
 ```bash
-curl -XPOST '172.18.1.1:8080/v0/observability/logs?pretty'
+curl -XPOST "${SVC}:8080/v0/observability/logs?pretty"
 ```
 
 You should get an output similar to the following one:
@@ -2290,5 +2404,11 @@ You should get an output similar to the following one:
 ```
 
 Interesting, no ?
+
+Delete the `AccessLogRecord`:
+
+```bash
+kubectl --context ${MGMT} -n gloo-mesh delete accesslogrecords.observability.enterprise.mesh.gloo.solo.io access-log-reviews                 
+```
 
 This is the end of the workshop. We hope you enjoyed it !

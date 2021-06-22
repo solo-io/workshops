@@ -1,20 +1,5 @@
 # Gloo Mesh workshop
 
-<!--bash
-#!/usr/bin/env bash
-
-restart_bookinfo_pods_in_context(){
-  printf "Delete and wait for all the pods of the default namespace to become ready in %s" "$@"
-  kubectl --context $@ delete pods -l app=reviews --wait=false &>/dev/null || true
-  kubectl --context $@ delete pods -l app=ratings --wait=false &>/dev/null || true
-  until [ $(kubectl --context $@ get pods -o jsonpath='{range .items[*].status.containerStatuses[*]}{.ready}{"\n"}{end}' | grep false -c) -eq 0 ]; do
-    printf "%s" "."
-    sleep 1
-  done
-  printf "\n"
-}
--->
-
 [Gloo Mesh](https://docs.solo.io/gloo-mesh/latest/) is a Kubernetes-native management plane that enables configuration and operational management of multiple heterogeneous service meshes across multiple clusters through a unified API. The Gloo Mesh API integrates with the leading service meshes and abstracts away differences between their disparate API's, allowing users to configure a set of different service meshes through a single API. Gloo Mesh is engineered with a focus on its utility as an operational management tool, providing both graphical and command line UIs, observability features, and debugging tools.
 
 The goal of this workshop is to show several unique features of the Gloo Mesh in action:
@@ -46,6 +31,7 @@ Gloo Mesh can be run in its own cluster or co-located with an existing mesh.  In
 * [Lab 11 - Exploring the Gloo Mesh Enterprise UI](#lab11)
 
 ## Lab 1 : Deploy your Kubernetes clusters {#lab1}
+
 Set the context environment variables:
 
 ```bash
@@ -125,16 +111,9 @@ kubectl config use-context ${MGMT}
 First of all, you need to install the *meshctl* CLI:
 
 ```bash
-export GLOO_MESH_VERSION=v1.0.9
-curl -sL https://run.solo.io/meshctl/install | sh -
+curl -sL https://run.solo.io/meshctl/install | GLOO_MESH_VERSION=v1.1.0-beta12 sh -
 export PATH=$HOME/.gloo-mesh/bin:$PATH
 ```
-<!--bash
-log_header "Test :: Test meshctl version"
-installedVersion=$(meshctl version | jq -r '.client.version')
-result_message="Installed version is $GLOO_MESH_VERSION"
-assert_eq "$GLOO_MESH_VERSION" "v$installedVersion" "$result_message" && log_success "$result_message"
--->
 
 Gloo Mesh Enterprise is adding unique features on top of Gloo Mesh Open Source (RBAC, UI, WASM, ...).
 
@@ -146,7 +125,7 @@ helm repo update
 kubectl --context ${MGMT} create ns gloo-mesh 
 helm install gloo-mesh-enterprise gloo-mesh-enterprise/gloo-mesh-enterprise \
 --namespace gloo-mesh --kube-context ${MGMT} \
---version=1.0.14 \
+--version=1.1.0-beta14 \
 --set licenseKey=${GLOO_MESH_LICENSE_KEY}
 
 kubectl --context ${MGMT} -n gloo-mesh rollout status deploy/enterprise-networking
@@ -174,13 +153,6 @@ NAME       AGE
 cluster1   27s
 cluster2   23s
 ```
-<!--bash
-log_header "Test :: Cluster registration"
-clusters_names=$(kubectl get kubernetescluster -A -o jsonpath='{.items..name}')
-expected_cluster_names="cluster1 cluster2"
-result_message="Clusters got registered"
-assert_eq "$clusters_names" "$expected_cluster_names" "$result_message" && log_success "$result_message"
--->
 
 > ### Note that you can also register the remote clusters with Helm:
 > 
@@ -201,7 +173,7 @@ assert_eq "$clusters_names" "$expected_cluster_names" "$result_message" && log_s
 > #### Install the Helm charts
 > ```
 > SVC=$(kubectl --context ${MGMT} -n gloo-mesh get svc enterprise-networking -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
-> 
+>
 > helm repo add enterprise-agent https://storage.googleapis.com/gloo-mesh-enterprise/enterprise-agent
 > helm repo update
 > helm install enterprise-agent enterprise-agent/enterprise-agent \
@@ -209,14 +181,14 @@ assert_eq "$clusters_names" "$expected_cluster_names" "$result_message" && log_s
 >   --set relay.serverAddress=${SVC}:9900 \
 >   --set relay.cluster=cluster1 \
 >   --kube-context=${CLUSTER1} \
->   --version 1.0.10
+>   --version 1.1.0-beta14
 > 
 > helm install enterprise-agent enterprise-agent/enterprise-agent \
 >   --namespace gloo-mesh \
 >   --set relay.serverAddress=${SVC}:9900 \
 >   --set relay.cluster=cluster2 \
 >   --kube-context=${CLUSTER2} \
->   --version 1.0.10
+>   --version 1.1.0-beta14
 > ```
 > #### Create the `KubernetesCluster` objects
 > ```
@@ -246,15 +218,8 @@ assert_eq "$clusters_names" "$expected_cluster_names" "$result_message" && log_s
 Download istio 1.10.0:
 
 ```bash
-export ISTIO_VERSION=1.10.0
-curl -L https://istio.io/downloadIstio | sh -
+curl -L https://istio.io/downloadIstio | ISTIO_VERSION=1.10.0 sh -
 ```
-<!--bash
-log_header "Test :: Istio version"
-expected_istio_client_version=$(istioctl version --remote=false)
-result_message="Installed version is $ISTIO_VERSION"
-assert_eq "$ISTIO_VERSION" "$expected_istio_client_version" "$result_message" && log_success "$result_message"
--->
 
 Now let's deploy Istio on the first cluster:
 
@@ -423,38 +388,27 @@ spec:
             value: "true"
 EOF
 ```
-<!--bash
-log_header "Test :: Istio operator"
 
+<!--bash
 until kubectl --context ${CLUSTER1} get ns istio-system
 do
   sleep 1
 done
 
-printf "Waiting for all the Istio pods to become ready."
 until [ $(kubectl --context ${CLUSTER1} -n istio-system get pods -o jsonpath='{range .items[*].status.containerStatuses[*]}{.ready}{"\n"}{end}' | grep true -c) -eq 2 ]; do
-  printf "%s" "."
+  echo "Waiting for all the Istio pods to become ready"
   sleep 1
 done
-printf "\n"
-log_success "Istio Operator and Istio installed in $CLUSTER1"
 
-printf "Waiting for istio-system to be created."
 until kubectl --context ${CLUSTER2} get ns istio-system
 do
-  printf "%s" "."
   sleep 1
 done
-printf "\n"
 
-printf "Waiting for all the Istio pods to become ready"
 until [ $(kubectl --context ${CLUSTER2} -n istio-system get pods -o jsonpath='{range .items[*].status.containerStatuses[*]}{.ready}{"\n"}{end}' | grep true -c) -eq 2 ]; do
-  printf "%s" "."
+  echo "Waiting for all the Istio pods to become ready"
   sleep 1
 done
-printf "\n"
-
-log_success "Istio Operator and Istio installed in $CLUSTER2"
 -->
 
 Run the following command until all the Istio Pods are ready:
@@ -472,7 +426,6 @@ istiod-7884b57b4c-rvr2c                 1/1     Running   0          30s
 ```
 
 Check the status on the second cluster using `kubectl --context ${CLUSTER2} get pods -n istio-system`
-
 
 ## Lab 4 : Deploy the Bookinfo demo app {#lab4}
 
@@ -538,21 +491,16 @@ echo "http://$(kubectl --context ${CLUSTER1} -n istio-system get svc istio-ingre
 As you can see, you can access the Bookinfo demo app.
 
 <!--bash
-printf "Waiting for all the pods of the default namespace to become ready in ${CLUSTER1}"
 until [ $(kubectl --context ${CLUSTER1} get pods -o jsonpath='{range .items[*].status.containerStatuses[*]}{.ready}{"\n"}{end}' | grep false -c) -eq 0 ]; do
-  printf "%s" "."
+  echo "Waiting for all the pods of the default namespace to become ready"
   sleep 1
 done
-printf "\n"
 
-printf "Waiting for all the pods of the default namespace to become ready in ${CLUSTER2}"
 until [ $(kubectl --context ${CLUSTER2} get pods -o jsonpath='{range .items[*].status.containerStatuses[*]}{.ready}{"\n"}{end}' | grep false -c) -eq 0 ]; do
-  printf "%s" "."
+  echo "Waiting for all the pods of the default namespace to become ready"
   sleep 1
 done
-printf "\n"
 -->
-
 
 ## Lab 5 : Create the Virtual Mesh {#lab5}
 
@@ -623,18 +571,6 @@ Run the command again:
 kubectl --context ${CLUSTER1} exec -t deploy/reviews-v1 -c istio-proxy \
 -- openssl s_client -showcerts -connect ratings:9080
 ```
-
-<!--bash
-log_header "Test :: Test Certificate under gloo mesh in ${CLUSTER1}"
-restart_bookinfo_pods_in_context ${CLUSTER1}
-
-output=$(kubectl --context ${CLUSTER1} exec -t deploy/reviews-v1 -c istio-proxy -- openssl s_client -showcerts -connect ratings:9080 2>&1)
-search="CONNECTED"
-result_message="Text found"
-assert_contain "$output" "$search" "$result_message" && log_success "$result_message"
-search="i:O = cluster1"
-assert_contain "$output" "$search" "$result_message" && log_success "$result_message"
--->
 
 Now, the output should be like that:
 
@@ -709,17 +645,6 @@ Now, run the same command on the second cluster:
 kubectl --context ${CLUSTER2} exec -t deploy/reviews-v1 -c istio-proxy \
 -- openssl s_client -showcerts -connect ratings:9080
 ```
-<!--bash
-log_header "Test :: Test Certificate under gloo mesh in ${CLUSTER2}"
-restart_bookinfo_pods_in_context ${CLUSTER2}
-output=$(kubectl --context ${CLUSTER2} exec -t deploy/reviews-v1 -c istio-proxy -- openssl s_client -showcerts -connect ratings:9080 2>&1)
-search="CONNECTED"
-result_message="Text found"
-assert_contain "$output" "$search" "$result_message" && log_success "$result_message"
-search="i:O = cluster2"
-assert_contain "$output" "$search" "$result_message" && log_success "$result_message"
--->
-
 
 The output should be like that:
 
@@ -807,7 +732,9 @@ spec:
     shared:
       rootCertificateAuthority:
         generated: {}
-  federation: {}
+  federation:
+    selectors:
+    - {}
   meshes:
   - name: istiod-istio-system-cluster1
     namespace: gloo-mesh
@@ -835,6 +762,7 @@ Check that the secret containing the new Istio CA has been created in the istio 
 ```bash
 kubectl --context ${CLUSTER1} get secret -n istio-system cacerts -o yaml
 ```
+
 Here is the expected output:
 
 ```
@@ -896,21 +824,14 @@ Have a look at the `VirtualMesh` object we've just created and notice the `autoR
 This is due to a limitation of Istio. The Istio control plane picks up the CA for Citadel and does not rotate it often enough.
 
 <!--bash
-printf "Waiting until secret is created in $CLUSTER1"
-until kubectl --context ${CLUSTER1} get secret -n istio-system cacerts &>/dev/null
+until kubectl --context ${CLUSTER1} get secret -n istio-system cacerts
 do
-  printf "%s" "."
   sleep 1
 done
-printf "\n"
-
-printf "Waiting until secret is created in $CLUSTER2"
-until kubectl --context ${CLUSTER2} get secret -n istio-system cacerts &>/dev/null
+until kubectl --context ${CLUSTER2} get secret -n istio-system cacerts
 do
-  printf "%s" "."
   sleep 1
 done
-printf "\n"
 -->
 
 Now, let's check what certificates we get when we run the same commands we ran before we created the Virtual Mesh:
@@ -919,17 +840,6 @@ Now, let's check what certificates we get when we run the same commands we ran b
 kubectl --context ${CLUSTER1} exec -t deploy/reviews-v1 -c istio-proxy \
 -- openssl s_client -showcerts -connect ratings:9080
 ```
-
-<!--bash
-log_header "Test :: Test gloo Mesh Certificate in ${CLUSTER1}"
-restart_bookinfo_pods_in_context ${CLUSTER1}
-output=$(kubectl --context ${CLUSTER1} exec -t deploy/reviews-v1 -c istio-proxy -- openssl s_client -showcerts -connect ratings:9080 2>&1)
-search="CONNECTED"
-result_message="Text found"
-assert_contain "$output" "$search" "$result_message" && log_success "$result_message"
-search="i:O = gloo-mesh"
-assert_contain "$output" "$search" "$result_message" && log_success "$result_message"
--->
 
 The output should be like that:
 
@@ -1094,16 +1004,6 @@ And let's compare with what we get on the second cluster:
 kubectl --context ${CLUSTER2} exec -t deploy/reviews-v1 -c istio-proxy \
 -- openssl s_client -showcerts -connect ratings:9080
 ```
-<!--bash
-log_header "Test :: Test Gloo Mesh Certificate in ${CLUSTER2}"
-restart_bookinfo_pods_in_context ${CLUSTER2}
-output=$(kubectl --context ${CLUSTER2} exec -t deploy/reviews-v1 -c istio-proxy -- openssl s_client -showcerts -connect ratings:9080 2>&1)
-search="CONNECTED"
-result_message="Text found"
-assert_contain "$output" "$search" "$result_message" && log_success "$result_message"
-search="i:O = gloo-mesh"
-assert_contain "$output" "$search" "$result_message" && log_success "$result_message"
--->
 
 The output should be like that:
 
@@ -1316,7 +1216,7 @@ The Subject Alternative Name (SAN) is the most interesting part. It allows the s
 
 In the previous guide, we federated multiple meshes and established a shared root CA for a shared identity domain. Now that we have a logical VirtualMesh, we need a way to establish access policies across the multiple meshes, without treating each of them individually. Gloo Mesh helps by establishing a single, unified API that understands the logical VirtualMesh construct.
 
-The application works correctly because RBAC isn't enforced.
+Open the <a href="http://172.18.2.1/productpage" target="_blank">bookinfo app</a> again with a web browser.
 
 Let's update the VirtualMesh to enable it:
 
@@ -1333,7 +1233,9 @@ spec:
     shared:
       rootCertificateAuthority:
         generated: {}
-  federation: {}
+  federation:
+    selectors:
+    - {}
   globalAccessPolicy: ENABLED
   meshes:
   - name: istiod-istio-system-cluster1
@@ -1342,26 +1244,6 @@ spec:
     namespace: gloo-mesh
 EOF
 ```
-<!--bash
-log_header "Test :: Test RBAC: access denied"
-
-kubectl --context ${MGMT} delete accesspolicy -n gloo-mesh istio-ingressgateway &>/dev/null || true
-kubectl --context ${MGMT} delete accesspolicy -n gloo-mesh productpage &>/dev/null || true
-sleep 3
-
-printf "Waiting for all the pods of the default namespace to become ready in ${CLUSTER2}"
-until [ $(kubectl --context ${CLUSTER2} get pods -o jsonpath='{range .items[*].status.containerStatuses[*]}{.ready}{"\n"}{end}' | grep false -c) -eq 0 ]; do
-  printf "%s" "."
-  sleep 1
-done
-printf "\n"
-
-product_page_ip=$(kubectl --context ${CLUSTER1} -n istio-system get svc istio-ingressgateway -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
-status_code=$(curl -s -o /dev/null -w "%{http_code}" http://$product_page_ip/productpage)
-expected_code=403
-result_message="expected status code $expected_code"
-assert_eq "$status_code" "$expected_code" "$result_message" && log_success "$result_message"
--->
 
 After a few seconds, if you refresh the web page, you should see that you don't have access to the application anymore.
 
@@ -1395,20 +1277,6 @@ spec:
         service: productpage
 EOF
 ```
-<!--bash
-restart_bookinfo_pods_in_context ${CLUSTER1}
-log_header "Test :: AccessPolicy only to productpage"
-product_page_ip=$(kubectl --context ${CLUSTER1} -n istio-system get svc istio-ingressgateway -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
-curl -s http://$product_page_ip/productpage | grep "Error fetching product details" &>/dev/null
-status=$?
-result_message="Details must be unreachable"
-assert_eq $status 0 "$result_message" && log_success "$result_message"
-
-curl -s http://172.18.2.1/productpage | grep "Error fetching product reviews" &>/dev/null
-status=$?
-result_message="Reviews must be unreachable"
-assert_eq $status 0 "$result_message" && log_success "$result_message"
--->
 
 Now, refresh the page again and you should be able to access the application, but neither the `details` nor the `reviews`:
 
@@ -1444,26 +1312,6 @@ spec:
 EOF
 ```
 
-<!--bash
-sleep 5
-product_page_ip=$(kubectl --context ${CLUSTER1} -n istio-system get svc istio-ingressgateway -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
-log_header "Test :: AccessPolicy to reviews and details but not ratings"
-curl -s http://$product_page_ip/productpage | grep "Error fetching product details" &>/dev/null
-status=$?
-result_message="Details must be reachable"
-assert_not_eq $status 0 "$result_message" && log_success "$result_message"
-
-curl -s http://$product_page_ip/productpage | grep "Error fetching product reviews" &>/dev/null
-status=$?
-result_message="Reviews must be reachable"
-assert_not_eq $status 0 "$result_message" && log_success "$result_message"
-
-curl -s http://$product_page_ip/productpage | grep "Ratings service is currently unavailable" &>/dev/null
-status=$?
-result_message="Reviews app must be unreachable"
-assert_eq $status 0 "$result_message" && log_success "$result_message"
--->
-
 If you refresh the page, you should be able to see the product `details` and the `reviews`, but the `reviews` microservice can't access the `ratings` microservice:
 
 ![Bookinfo RBAC 2](images/bookinfo-rbac2.png)
@@ -1493,26 +1341,6 @@ spec:
 EOF
 ```
 
-<!--bash
-sleep 5
-log_header "Test :: AccessPolicy all services work"
-product_page_ip=$(kubectl --context ${CLUSTER1} -n istio-system get svc istio-ingressgateway -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
-curl -s http://$product_page_ip/productpage | grep "Error fetching product details" &>/dev/null
-status=$?
-result_message="Details must be reachable"
-assert_not_eq $status 0 "$result_message" && log_success "$result_message"
-
-curl -s http://$product_page_ip/productpage | grep "Error fetching product reviews" &>/dev/null
-status=$?
-result_message="Reviews must be reachable"
-assert_not_eq $status 0 "$result_message" && log_success "$result_message"
-
-curl -s http://$product_page_ip/productpage | grep "Ratings service is currently unavailable" &>/dev/null
-status=$?
-result_message="Reviews app must be unreachable"
-assert_not_eq $status 0 "$result_message" && log_success "$result_message"
--->
-
 Refresh the page another time and all the services should now work:
 
 ![Bookinfo working](images/bookinfo-working.png)
@@ -1520,10 +1348,7 @@ Refresh the page another time and all the services should now work:
 If you refresh the web page several times, you should see only the versions `v1` (no stars) and `v2` (black stars), which means that all the requests are still handled by the first cluster.
 
 ## Lab 7 : Multi-cluster Traffic {#lab7}
-<!--bash
-  kubectl --context ${MGMT} delete trafficpolicy -n gloo-mesh simple &>/dev/null || true
-  kubectl --context ${MGMT} delete accesspolicy -n gloo-mesh reviews &>/dev/null || true
--->
+
 On the first cluster, the `v3` version of the `reviews` microservice doesn't exist, so we're going to redirect some of the traffic to the second cluster to make it available.
 
 ![Multicluster traffic](images/multicluster-traffic.png)
@@ -1574,55 +1399,6 @@ spec:
           weight: 10
 EOF
 ```
-<!--bash
-
-cat << EOF | kubectl --context ${MGMT} apply -f -
-apiVersion: networking.mesh.gloo.solo.io/v1
-kind: TrafficPolicy
-metadata:
-  namespace: gloo-mesh
-  name: simple
-spec:
-  sourceSelector:
-  - kubeWorkloadMatcher:
-      namespaces:
-      - default
-  destinationSelector:
-  - kubeServiceRefs:
-      services:
-        - clusterName: cluster1
-          name: reviews
-          namespace: default
-  policy:
-    trafficShift:
-      destinations:
-        - kubeService:
-            clusterName: cluster2
-            name: reviews
-            namespace: default
-            subset:
-              version: v3
-          weight: 100
-EOF
-
-
-log_header "Test :: See reviews v3 from cluster2 but not ratings"
-product_page_ip=$(kubectl --context ${CLUSTER1} -n istio-system get svc istio-ingressgateway -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
-rating_service_unvailable=false
-printf "Wait for reviews v3 to be available"
-for i in {1..20}; do
-  curl -s http://$product_page_ip/productpage | grep "Ratings service is currently unavailable" &>/dev/null
-  if [ $? == 0 ]; then
-    rating_service_unvailable=true
-    break
-  fi
-  printf "%s" "."
-  sleep 1
-done
-printf "\n"
-result_message="75% Reviews from cluster2 must be unavailable"
-assert_true $rating_service_unvailable "$result_message" && log_success "$result_message"
--->
 
 If you refresh the page several times, you'll see the `v3` version of the `reviews` microservice:
 
@@ -1657,25 +1433,6 @@ spec:
         service: ratings
 EOF
 ```
-
-<!--bash
-log_header "Test :: See v3 (red) of reviews and rating from cluster2"
-product_page_ip=$(kubectl --context ${CLUSTER1} -n istio-system get svc istio-ingressgateway -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
-is_red_star_visible=false
-printf "Wait for reviews v3 to be available"
-for i in {1..20}; do
-  curl -s http://$product_page_ip/productpage | grep "red" &>/dev/null
-  if [ $? == 0 ]; then
-    is_red_star_visible=true
-    break
-  fi
-  printf "%s" "."
-  sleep 1
-done
-printf "\n"
-result_message="Red stars (reviews v3) are visible"
-assert_true $is_red_star_visible "$result_message" && log_success "$result_message"
--->
 
 If you refresh the page several times again, you'll see the `v3` version of the `reviews` microservice with the red stars:
 
@@ -1763,22 +1520,6 @@ kubectl --context ${CLUSTER1} patch deploy reviews-v1 --patch '{"spec": {"templa
 kubectl --context ${CLUSTER1} patch deploy reviews-v2 --patch '{"spec": {"template": {"spec": {"containers": [{"name": "reviews","command": ["sleep", "20h"]}]}}}}'
 ```
 
-<!--bash
-log_header "Test :: Access review from cluster2 since te ones from cluster1 are in sleep mode"
-printf "Waiting for all the pods to become ready in ${CLUSTER1}."
-sleep 1
-until [ $(kubectl --context ${CLUSTER1} get pods -l app=reviews -o json | jq -r '[.items[].status.containerStatuses[].ready | select(. == true)] | length') -eq 4 ]; do
-  printf "%s" "."
-  sleep 1
-done
-printf "\n"
-count=$(kubectl get po --context ${CLUSTER1} -l app=reviews -o json | jq -r '[.items[].spec.containers[0].command[0] | select(. == "sleep")] | length')
-assert_eq $count 2 "Must be two pods with label app=reviews and 'sleep' command" && log_success "There are two pods with label app=reviews and 'sleep' command"
-product_page_ip=$(kubectl --context ${CLUSTER1} -n istio-system get svc istio-ingressgateway -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
-curl -s http://$product_page_ip/productpage | grep "Ratings service is currently unavailable" &>/dev/null
-([ $? != 0 ] && log_success "Reviews are still available") || log_failure "Reviews are still available"
--->
-
 If you refresh the web page several times again, you should still see the `reviews` displayed while there's no `reviews` service available anymore on the first cluster.
 
 You can use the following command to validate that the requests are handled by the second cluster:
@@ -1799,22 +1540,6 @@ We're going to make the `reviews` services available again on the first cluster.
 kubectl --context ${CLUSTER1} patch deployment reviews-v1  --type json   -p '[{"op": "remove", "path": "/spec/template/spec/containers/0/command"}]'
 kubectl --context ${CLUSTER1} patch deployment reviews-v2  --type json   -p '[{"op": "remove", "path": "/spec/template/spec/containers/0/command"}]'
 ```
-
-<!--bash
-log_header "Test :: Reviews from cluster1 back to their previous state"
-printf "Waiting for all the container to become ready."
-sleep 1
-until [ $(kubectl --context ${CLUSTER1} get pods -l app=reviews -o json | jq -r '[.items[].status.containerStatuses[].ready | select(. == true)] | length') -eq 4 ]; do
-  printf "%s" "."
-  sleep 1
-done
-printf "\n"
-count=$(kubectl get po --context ${CLUSTER1} -l app=reviews -o json | jq -r '[.items[].spec.containers[0].command[0] | select(. == "sleep")] | length')
-assert_eq $count 2 "Must be two pods with label app=reviews without 'sleep' command" && log_success "There are two pods with label app=reviews without 'sleep' command"
-product_page_ip=$(kubectl --context ${CLUSTER1} -n istio-system get svc istio-ingressgateway -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
-curl -s http://$product_page_ip/productpage | grep "Ratings service is currently unavailable" &>/dev/null
-([ $? != 0 ] && log_success "Reviews are still available") || log_failure "Reviews are still available"
--->
 
 Afer 2 minutes, you can validate that the requests are now handled by the first cluster using the following command:
 
@@ -1932,20 +1657,6 @@ spec:
           weight: 10
 EOF
 ```
-<!--bash
-log_header "Test :: Not enought permssions to create TrafficPolicy"
-cat << EOF | kubectl --context ${MGMT} apply -f -
-apiVersion: networking.mesh.gloo.solo.io/v1
-kind: TrafficPolicy
-metadata:
-  name: test
-  namespace: gloo-mesh
-EOF
-result=$?
-result_message="User cannot create TrafficPolicies"
-assert_not_eq $result 0 "$result_message" && log_success "$result_message"
--->
-
 
 Here is the expected output:
 
@@ -2133,14 +1844,6 @@ spec:
           weight: 10
 EOF
 ```
-
-<!--bash
-log_header "Test :: User has permssions to create TrafficPolicy"
-kubectl --context ${MGMT} get trafficpolicy simple -n gloo-mesh &>/dev/null
-result=$?
-result_message="User can create TrafficPolicies"
-assert_eq $result 0 "$result_message" && log_success "$result_message"
--->
 
 And this time it should work.
 
@@ -2351,18 +2054,6 @@ data:
 EOF
 ```
 
-<!--bash
-log_header "Test :: Configs are created"
-kubectl --context ${CLUSTER1} get cm gloo-mesh-custom-envoy-bootstrap &>/dev/null
-result=$?
-result_message="ConfigMap in ${CLUSTER1} exist"
-assert_eq $result 0 "$result_message" && log_success "$result_message"
-kubectl --context ${CLUSTER2} get cm gloo-mesh-custom-envoy-bootstrap &>/dev/null
-result=$?
-result_message="ConfigMap in ${CLUSTER2} exist"
-assert_eq $result 0 "$result_message" && log_success "$result_message"
--->
-
 ### Develop
 
 The Gloo Mesh CLI, meshctl can be used to create the skeleton for you.
@@ -2480,23 +2171,11 @@ To simplify the lab, we will use the image that has already been pushed.
 
 But note that the command to push the Image is the following one:
 
-```bash
-wasm_image=webassemblyhub.io/djannot/myfilter:0.2
 ```
-
-```
-meshctl wasm push $wasm_image
+meshctl wasm push webassemblyhub.io/djannot/myfilter:0.2
 ```
 
 Then, if you go to the Web Assembly Hub, you'll be able to see the Image of your Wasm filter
-
-<!--bash
-log_header "Test :: Check image webassembly"
-meshctl wasm pull $wasm_image &>/dev/null
-result=$?
-result_message="Image $wasm_image exists in the repository"
-assert_eq $result 0 "$result_message" && log_success "$result_message"
--->
 
 ### Deploy
 
@@ -2545,44 +2224,11 @@ spec:
 EOF
 ```
 
-<!--bash
-log_header "Test :: Create WasmDeployment"
-kubectl --context ${MGMT} get wasmdeployment reviews-wasm -n gloo-mesh
-result=$?
-result_message="wasmdeployment created in ${MGMT}"
-assert_eq $result 0 "$result_message" && log_success "$result_message"
-
-printf "Waiting for wasmdeployment to create envoyfilter"
-result_message="envoyfilter created in ${CLUSTER1}"
-result=false
-for i in {1..20}; do
-  kubectl --context ${CLUSTER1} get envoyfilter reviews-v1-wasm &>/dev/null
-  if [ $? == 0 ]; then
-    result=true
-    break
-  fi
-  printf "%s" "."
-  sleep 1
-done
-printf "\n"
-assert_true $result "$result_message" && log_success "$result_message"
-
--->
-
 Let's send a request from the `productpage` service to the `reviews` service:
 
 ```
 kubectl exec -it $(kubectl  get pods -l app=productpage -o jsonpath='{.items[0].metadata.name}') -- python -c "import requests; r = requests.get('http://reviews:9080/reviews/0'); print(r.headers)"
 ```
-
-<!--bash
-log_header "Test :: Get WasmDeployment log traces"
-output=$(kubectl exec -it $(kubectl  get pods -l app=productpage -o jsonpath='{.items[0].metadata.name}') -- python -c "import requests; r = requests.get('http://reviews:9080/reviews/0'); print(r.headers)")
-echo $output
-result_message="wasmdeployment prints log traces"
-assert_contain "$output" "x-powered-by" "$result_message" && log_success "$result_message"
-assert_contain "$output" "'server': 'envoy'" "$result_message" && log_success "$result_message"
--->
 
 You should get either:
 
@@ -2616,16 +2262,9 @@ Delete the WasmDeployment:
 ```bash
 kubectl --context ${MGMT} -n gloo-mesh delete wasmdeployment reviews-wasm
 ```
-<!--bash
-log_header "Test :: Delete wasmdeployment"
-kubectl --context ${MGMT} get wasmdeployment reviews-wasm -n gloo-mesh  &>/dev/null
-result=$?
-result_message="wasmdeployment has been deleted"
-assert_eq $result 0 "$result_message" && log_success "$result_message"
--->
-
 
 ## Lab 11 : Exploring the Gloo Mesh Enterprise UI {#lab11}
+
 To access the UI, run the following command:
 
 ```
@@ -2683,37 +2322,11 @@ spec:
 EOF
 ```
 
-<!--bash
-log_header "Test :: create AccessLogRecord"
-kubectl --context ${MGMT} get accesslogrecord access-log-reviews -n gloo-mesh  &>/dev/null
-result=$?
-result_message="accesslogrecord has been created"
-assert_eq $result 0 "$result_message" && log_success "$result_message"
--->
-
 Generate some traffic and run the command below to gather the latest access logs:
 
 ```bash
 curl -XPOST "${SVC}:8080/v0/observability/logs?pretty"
 ```
-
-<!--bash
-printf "Create some traffic"
-for i in {1..5}; do
-  curl -s http://$product_page_ip/productpage &>/dev/null
-  printf "%s" "."
-  sleep 1
-done
-printf "\n"
-output=$(curl -XPOST '${SVC}:8080/v0/observability/logs?pretty')
-search="httpAccessLog"
-result_message="Search '$search' text found"
-assert_contain "$output" "$search" "$result_message" && log_success "$result_message"
-search="workloadRef"
-result_message="Search '$search' text found"
-assert_contain "$output" "$search" "$result_message" && log_success "$result_message"
--->
-
 
 You should get an output similar to the following one:
 

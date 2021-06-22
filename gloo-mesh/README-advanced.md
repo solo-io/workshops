@@ -886,10 +886,9 @@ Let's deploy Gloo on the first cluster:
 
 ```bash
 kubectl config use-context cluster1
-glooctl upgrade --release=v1.7.3
+glooctl upgrade --release=v1.8.0-beta20
 helm repo add glooe http://storage.googleapis.com/gloo-ee-helm
-helm install gloo glooe/gloo-ee --namespace gloo-system --create-namespace --version=1.7.5 --set-string license_key=$LICENSE_KEY --set global.istioSDS.enabled=true --set gloo.gatewayProxies.gatewayProxy.istioMetaMeshId=mesh1 --set gloo.gatewayProxies.gatewayProxy.IstioMetaClusterId=cluster1
-# kubectl set env deployments/gateway-proxy -n gloo-system --containers=istio-proxy ISTIO_META_MESH_ID=mesh1 ISTIO_META_CLUSTER_ID=cluster1
+helm install gloo glooe/gloo-ee --namespace gloo-system --create-namespace --version=1.8.0-beta7 --set-string license_key=$LICENSE_KEY --set global.istioSDS.enabled=true --set gloo.gatewayProxies.gatewayProxy.istioMetaMeshId=mesh1 --set gloo.gatewayProxies.gatewayProxy.istioMetaClusterId=cluster1
 ```
 
 Use the following commands to wait for the Gloo components to be deployed:
