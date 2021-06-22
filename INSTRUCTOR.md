@@ -158,21 +158,6 @@ Run the following command to destroy all:
 terraform destroy -force
 ```
 
-# Troubleshooting
-```
-TASK [Gathering Facts] *************************
-fatal: [35.232.102.15]: UNREACHABLE! => {"changed": false, "msg": "Failed to connect to the host via ssh: solo@35.232.102.15: Permission denied (publickey).", "unreachable": true}
-```
-
-Check that you have the lab ssk_key added
-```
-ssh-add -L
-```
-Check the permissions of the private key, if they are too open it won't be accepted. chmod 400 suggested.
-```
-ls -la ~/.ssh
-```
-
 ## Additional reference
 
 You can use emoji's in GitHub markdown to signal additional callouts such as:
