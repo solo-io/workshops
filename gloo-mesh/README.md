@@ -4,17 +4,6 @@
 #!/usr/bin/env bash
 
 source ../assert.sh
-
-restart_bookinfo_pods_in_context(){
-  printf "Delete and wait for all the pods of the default namespace to become ready in %s" "$@"
-  kubectl --context $@ delete pods -l app=reviews --wait=false &>/dev/null || true
-  kubectl --context $@ delete pods -l app=ratings --wait=false &>/dev/null || true
-  until [ $(kubectl --context $@ get pods -o jsonpath='{range .items[*].status.containerStatuses[*]}{.ready}{"\n"}{end}' | grep false -c) -eq 0 ]; do
-    printf "%s" "."
-    sleep 1
-  done
-  printf "\n"
-}
 -->
 
 [Gloo Mesh](https://docs.solo.io/gloo-mesh/latest/) is a Kubernetes-native management plane that enables configuration and operational management of multiple heterogeneous service meshes across multiple clusters through a unified API. The Gloo Mesh API integrates with the leading service meshes and abstracts away differences between their disparate API's, allowing users to configure a set of different service meshes through a single API. Gloo Mesh is engineered with a focus on its utility as an operational management tool, providing both graphical and command line UIs, observability features, and debugging tools.
@@ -567,6 +556,27 @@ kubectl --context ${CLUSTER1} exec -t deploy/reviews-v1 -c istio-proxy \
 -- openssl s_client -showcerts -connect ratings:9080
 ```
 
+<!--bash
+log_header "Test :: No certificate issued in ${CLUSTER1}"
+printf "Waiting until no certificate is issued is $CLUSTER1"
+found=false
+search1="CONNECTED"
+search2="No client certificate CA names sent"
+while true
+do
+  output=$(kubectl --context ${CLUSTER1} exec -t deploy/reviews-v1 -c istio-proxy -- openssl s_client -showcerts -connect ratings:9080 2>&1)
+  if [ (echo $output | grep "$search1") && (echo $output | grep "$search2")]; then
+    found=true
+    break
+  fi
+  printf "%s" "."
+  sleep 1
+done
+printf "\n"
+result_message="No certificate issued in $CLUSTER1"
+log_success "$result_message"
+-->
+
 You should get something like that:
 
 ```
@@ -627,15 +637,24 @@ kubectl --context ${CLUSTER1} exec -t deploy/reviews-v1 -c istio-proxy \
 ```
 
 <!--bash
-log_header "Test :: Test Certificate under gloo mesh in ${CLUSTER1}"
-restart_bookinfo_pods_in_context ${CLUSTER1}
-
-output=$(kubectl --context ${CLUSTER1} exec -t deploy/reviews-v1 -c istio-proxy -- openssl s_client -showcerts -connect ratings:9080 2>&1)
-search="CONNECTED"
-result_message="Text found"
-assert_contain "$output" "$search" "$result_message" && log_success "$result_message"
-search="i:O = cluster1"
-assert_contain "$output" "$search" "$result_message" && log_success "$result_message"
+log_header "Test :: Certificate issued by Istio in ${CLUSTER1}"
+printf "Waiting until certificate issuer is $CLUSTER1"
+found=false
+search1="CONNECTED"
+search2="i:O = cluster1"
+while true
+do
+  output=$(kubectl --context ${CLUSTER1} exec -t deploy/reviews-v1 -c istio-proxy -- openssl s_client -showcerts -connect ratings:9080 2>&1)
+  if [ (echo $output | grep "$search1") && (echo $output | grep "$search2")]; then
+    found=true
+    break
+  fi
+  printf "%s" "."
+  sleep 1
+done
+printf "\n"
+result_message="Certificate issued in $CLUSTER1"
+log_success "$result_message"
 -->
 
 Now, the output should be like that:
@@ -712,14 +731,24 @@ kubectl --context ${CLUSTER2} exec -t deploy/reviews-v1 -c istio-proxy \
 -- openssl s_client -showcerts -connect ratings:9080
 ```
 <!--bash
-log_header "Test :: Test Certificate under gloo mesh in ${CLUSTER2}"
-restart_bookinfo_pods_in_context ${CLUSTER2}
-output=$(kubectl --context ${CLUSTER2} exec -t deploy/reviews-v1 -c istio-proxy -- openssl s_client -showcerts -connect ratings:9080 2>&1)
-search="CONNECTED"
-result_message="Text found"
-assert_contain "$output" "$search" "$result_message" && log_success "$result_message"
-search="i:O = cluster2"
-assert_contain "$output" "$search" "$result_message" && log_success "$result_message"
+log_header "Test :: Certificate issued by Istio in ${CLUSTER2}"
+printf "Waiting until certificate issuer is $CLUSTER2"
+found=false
+search1="CONNECTED"
+search2="i:O = cluster2"
+while true
+do
+  output=$(kubectl --context ${CLUSTER2} exec -t deploy/reviews-v1 -c istio-proxy -- openssl s_client -showcerts -connect ratings:9080 2>&1)
+  if [ (echo $output | grep "$search1") && (echo $output | grep "$search2")]; then
+    found=true
+    break
+  fi
+  printf "%s" "."
+  sleep 1
+done
+printf "\n"
+result_message="Certificate issued in $CLUSTER2"
+log_success "$result_message"
 -->
 
 
@@ -921,16 +950,25 @@ Now, let's check what certificates we get when we run the same commands we ran b
 kubectl --context ${CLUSTER1} exec -t deploy/reviews-v1 -c istio-proxy \
 -- openssl s_client -showcerts -connect ratings:9080
 ```
-
 <!--bash
-log_header "Test :: Test gloo Mesh Certificate in ${CLUSTER1}"
-restart_bookinfo_pods_in_context ${CLUSTER1}
-output=$(kubectl --context ${CLUSTER1} exec -t deploy/reviews-v1 -c istio-proxy -- openssl s_client -showcerts -connect ratings:9080 2>&1)
-search="CONNECTED"
-result_message="Text found"
-assert_contain "$output" "$search" "$result_message" && log_success "$result_message"
-search="i:O = gloo-mesh"
-assert_contain "$output" "$search" "$result_message" && log_success "$result_message"
+log_header "Test :: Certificate issued by GlooMesh in ${CLUSTER1}"
+printf "Waiting until certificate issuer is gloo-mesh in $CLUSTER1"
+found=false
+search1="CONNECTED"
+search2="i:O = gloo-mesh"
+while true
+do
+  output=$(kubectl --context ${CLUSTER1} exec -t deploy/reviews-v1 -c istio-proxy -- openssl s_client -showcerts -connect ratings:9080 2>&1)
+  if [ (echo $output | grep "$search1") && (echo $output | grep "$search2")]; then
+    found=true
+    break
+  fi
+  printf "%s" "."
+  sleep 1
+done
+printf "\n"
+result_message="Certificate issued by gloo-mesh in $CLUSTER2"
+log_success "$result_message"
 -->
 
 The output should be like that:
@@ -1097,14 +1135,22 @@ kubectl --context ${CLUSTER2} exec -t deploy/reviews-v1 -c istio-proxy \
 -- openssl s_client -showcerts -connect ratings:9080
 ```
 <!--bash
-log_header "Test :: Test Gloo Mesh Certificate in ${CLUSTER2}"
-restart_bookinfo_pods_in_context ${CLUSTER2}
-output=$(kubectl --context ${CLUSTER2} exec -t deploy/reviews-v1 -c istio-proxy -- openssl s_client -showcerts -connect ratings:9080 2>&1)
-search="CONNECTED"
-result_message="Text found"
-assert_contain "$output" "$search" "$result_message" && log_success "$result_message"
-search="i:O = gloo-mesh"
-assert_contain "$output" "$search" "$result_message" && log_success "$result_message"
+log_header "Test :: Certificate issued by GlooMesh in ${CLUSTER2}"
+printf "Waiting until certificate issuer is gloo-mesh in $CLUSTER2"
+search1="CONNECTED"
+search2="i:O = gloo-mesh"
+while true
+do
+  output=$(kubectl --context ${CLUSTER2} exec -t deploy/reviews-v1 -c istio-proxy -- openssl s_client -showcerts -connect ratings:9080 2>&1)
+  if [ (echo $output | grep "$search1") && (echo $output | grep "$search2")]; then
+    break
+  fi
+  printf "%s" "."
+  sleep 1
+done
+printf "\n"
+result_message="Certificate issued by gloo-mesh in $CLUSTER2"
+log_success "$result_message"
 -->
 
 The output should be like that:
@@ -1398,18 +1444,23 @@ spec:
 EOF
 ```
 <!--bash
-restart_bookinfo_pods_in_context ${CLUSTER1}
-log_header "Test :: AccessPolicy only to productpage"
 product_page_ip=$(kubectl --context ${CLUSTER1} -n istio-system get svc istio-ingressgateway -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
-curl -s http://$product_page_ip/productpage | grep "Error fetching product details" &>/dev/null
-status=$?
-result_message="Details must be unreachable"
-assert_eq $status 0 "$result_message" && log_success "$result_message"
 
-curl -s http://172.18.2.1/productpage | grep "Error fetching product reviews" &>/dev/null
-status=$?
-result_message="Reviews must be unreachable"
-assert_eq $status 0 "$result_message" && log_success "$result_message"
+log_header "Test :: AccessPolicy only for productpage"
+search1="Error fetching product details"
+search2="Error fetching product reviews"
+printf "Waiting for condition"
+while true
+do
+  $output(curl -s http://$product_page_ip/productpage &>/dev/null) 
+  if [ (echo $output | grep "$search1") && (echo $output | grep "$search2")]; then
+    break
+  fi
+  printf "%s" "."
+  sleep 1
+done
+result_message="Details and Reviews must be unavailable"
+log_success "$result_message"
 -->
 
 Now, refresh the page again and you should be able to access the application, but neither the `details` nor the `reviews`:
@@ -1447,23 +1498,25 @@ EOF
 ```
 
 <!--bash
-sleep 5
 product_page_ip=$(kubectl --context ${CLUSTER1} -n istio-system get svc istio-ingressgateway -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
-log_header "Test :: AccessPolicy to reviews and details but not ratings"
-curl -s http://$product_page_ip/productpage | grep "Error fetching product details" &>/dev/null
-status=$?
-result_message="Details must be reachable"
-assert_not_eq $status 0 "$result_message" && log_success "$result_message"
 
-curl -s http://$product_page_ip/productpage | grep "Error fetching product reviews" &>/dev/null
-status=$?
-result_message="Reviews must be reachable"
-assert_not_eq $status 0 "$result_message" && log_success "$result_message"
-
-curl -s http://$product_page_ip/productpage | grep "Ratings service is currently unavailable" &>/dev/null
-status=$?
-result_message="Reviews app must be unreachable"
-assert_eq $status 0 "$result_message" && log_success "$result_message"
+log_header "Test :: AccessPolicy for reviews and details but not for ratings"
+printf "Waiting for condition"
+search1="Error fetching product details"
+search2="Error fetching product reviews"
+search3="Ratings service is currently unavailable"
+while true
+do
+  output=$(curl -s http://$product_page_ip/productpage &>/dev/null)
+  if [ ! (echo $output | grep "$search1") && ! (echo $output | grep "$search2") && (echo $output | grep "$search2")]; then
+    break
+  fi
+  printf "%s" "."
+  sleep 1
+done
+log_success "Details must be available"
+log_success "Reviews must be available"
+log_success "Ratings must be unavailable"
 -->
 
 If you refresh the page, you should be able to see the product `details` and the `reviews`, but the `reviews` microservice can't access the `ratings` microservice:
@@ -1496,23 +1549,25 @@ EOF
 ```
 
 <!--bash
-sleep 5
-log_header "Test :: AccessPolicy all services work"
 product_page_ip=$(kubectl --context ${CLUSTER1} -n istio-system get svc istio-ingressgateway -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
-curl -s http://$product_page_ip/productpage | grep "Error fetching product details" &>/dev/null
-status=$?
-result_message="Details must be reachable"
-assert_not_eq $status 0 "$result_message" && log_success "$result_message"
 
-curl -s http://$product_page_ip/productpage | grep "Error fetching product reviews" &>/dev/null
-status=$?
-result_message="Reviews must be reachable"
-assert_not_eq $status 0 "$result_message" && log_success "$result_message"
-
-curl -s http://$product_page_ip/productpage | grep "Ratings service is currently unavailable" &>/dev/null
-status=$?
-result_message="Reviews app must be unreachable"
-assert_not_eq $status 0 "$result_message" && log_success "$result_message"
+log_header "Test :: AccessPolicy all services work"
+printf "Waiting for condition"
+search1="Error fetching product details"
+search2="Error fetching product reviews"
+search3="Ratings service is currently unavailable"
+while true
+do
+  output=$(curl -s http://$product_page_ip/productpage &>/dev/null)
+  if [ ! (echo $output | grep "$search1") && ! (echo $output | grep "$search2") && (echo $output | grep "$search2")]; then
+    break
+  fi
+  printf "%s" "."
+  sleep 1
+done
+log_success "Details must be available"
+log_success "Reviews must be available"
+log_success "Ratings must be unavailable"
 -->
 
 Refresh the page another time and all the services should now work:
@@ -1578,41 +1633,12 @@ EOF
 ```
 <!--bash
 
-cat << EOF | kubectl --context ${MGMT} apply -f -
-apiVersion: networking.mesh.gloo.solo.io/v1
-kind: TrafficPolicy
-metadata:
-  namespace: gloo-mesh
-  name: simple
-spec:
-  sourceSelector:
-  - kubeWorkloadMatcher:
-      namespaces:
-      - default
-  destinationSelector:
-  - kubeServiceRefs:
-      services:
-        - clusterName: cluster1
-          name: reviews
-          namespace: default
-  policy:
-    trafficShift:
-      destinations:
-        - kubeService:
-            clusterName: cluster2
-            name: reviews
-            namespace: default
-            subset:
-              version: v3
-          weight: 100
-EOF
-
-
 log_header "Test :: See reviews v3 from cluster2 but not ratings"
 product_page_ip=$(kubectl --context ${CLUSTER1} -n istio-system get svc istio-ingressgateway -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
 rating_service_unvailable=false
-printf "Wait for reviews v3 to be available"
-for i in {1..20}; do
+printf "Wait for condition"
+while true
+do
   curl -s http://$product_page_ip/productpage | grep "Ratings service is currently unavailable" &>/dev/null
   if [ $? == 0 ]; then
     rating_service_unvailable=true
@@ -1622,8 +1648,8 @@ for i in {1..20}; do
   sleep 1
 done
 printf "\n"
-result_message="75% Reviews from cluster2 must be unavailable"
-assert_true $rating_service_unvailable "$result_message" && log_success "$result_message"
+result_message="Ratings service is currently unavailable"
+log_success "$result_message"
 -->
 
 If you refresh the page several times, you'll see the `v3` version of the `reviews` microservice:
@@ -1664,8 +1690,9 @@ EOF
 log_header "Test :: See v3 (red) of reviews and rating from cluster2"
 product_page_ip=$(kubectl --context ${CLUSTER1} -n istio-system get svc istio-ingressgateway -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
 is_red_star_visible=false
-printf "Wait for reviews v3 to be available"
-for i in {1..20}; do
+printf "Wait for condition"
+while true
+do
   curl -s http://$product_page_ip/productpage | grep "red" &>/dev/null
   if [ $? == 0 ]; then
     is_red_star_visible=true
@@ -1675,8 +1702,7 @@ for i in {1..20}; do
   sleep 1
 done
 printf "\n"
-result_message="Red stars (reviews v3) are visible"
-assert_true $is_red_star_visible "$result_message" && log_success "$result_message"
+log_success "Red stars (reviews v3) are visible"
 -->
 
 If you refresh the page several times again, you'll see the `v3` version of the `reviews` microservice with the red stars:
