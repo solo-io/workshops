@@ -1,3 +1,5 @@
+#!/usr/bin/env bash
+
 number=$1
 name=$2
 region=$3
