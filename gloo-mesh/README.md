@@ -3,6 +3,8 @@
 <!--bash
 #!/usr/bin/env bash
 
+source ../assert.sh
+
 restart_bookinfo_pods_in_context(){
   printf "Delete and wait for all the pods of the default namespace to become ready in %s" "$@"
   kubectl --context $@ delete pods -l app=reviews --wait=false &>/dev/null || true
