@@ -10,6 +10,14 @@ variable "zone" {
   type = string
 }
 
+variable "azs_controlplane" {
+  type = list(string)
+}
+
+variable "azs_workers" {
+  type = list(string)
+}
+
 variable "vm_image" {
   type = string
 }
@@ -20,4 +28,16 @@ variable "num_instances" {
 
 variable "environments" {
   type = map(any)
+}
+
+variable "eks_clusters" {
+  type = map(any)
+}
+
+variable "eks_version" {
+  type = string
+}
+
+variable "node_instance_type" {
+  type = string
 }

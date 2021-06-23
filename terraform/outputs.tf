@@ -16,3 +16,9 @@ output "gce_replicas_public_ip" {
     for k, v in module.vm-replica : k => v.gce_public_ip
   }
 }
+
+output "eks_cluster" {
+  value = {
+    for k, v in module.eks-cluster : k => v.cluster_name
+  }
+}
