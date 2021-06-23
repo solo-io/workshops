@@ -27,11 +27,13 @@ variable "num_instances" {
 }
 
 variable "environments" {
-  type = map(any)
+  type    = map(any)
+  default = {}
 }
 
 variable "eks_clusters" {
-  type = map(any)
+  type    = map(any)
+  default = {}
 }
 
 variable "eks_version" {
