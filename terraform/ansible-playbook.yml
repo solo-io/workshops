@@ -10,6 +10,12 @@
     terminal_title: "solo.io workshops"
 
   roles:
+    - { role: repo,
+      repo_name: 'istio-workshops' ,
+      force: '{{ reset_repo | bool }}' }
+    - { role: repo,
+      repo_name: 'workshops' ,
+      force: '{{ reset_repo | bool }}' }
     - k9s
 
   tasks:
@@ -395,25 +401,6 @@
     - guacd
     - socat
     when: "not ( reboot_vm | bool )"
-
-  - name: Remove any existing directory from prior runs
-    file:
-      state: absent
-      path: /home/solo/workshops
-    when: "reset_repo | bool"
-
-  - name: Check the /home/solo/workshops has been cloned
-    stat:
-      path: /home/solo/workshops
-    register: workshop_folder
-
-  - name: Clone the workshop repo
-    git:
-      repo: https://github.com/solo-io/workshops.git
-      dest: /home/solo/workshops
-    become_user: solo
-    become_method: sudo
-    when: not workshop_folder.stat.exists
 
   - name: Fix a known issue with VSCode
     shell: sed -i 's/BIG-REQUESTS/_IG-REQUESTS/' /usr/lib/x86_64-linux-gnu/libxcb.so.1.1.0
