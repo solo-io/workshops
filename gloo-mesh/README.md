@@ -242,7 +242,7 @@ curl -L https://istio.io/downloadIstio | sh -
 ```
 <!--bash
 log_header "Test :: Istio version"
-expected_istio_client_version=$(istioctl version --remote=false)
+expected_istio_client_version=$(./istio-1.10.0/bin/istioctl version --remote=false)
 result_message="Installed version is $ISTIO_VERSION"
 assert_eq "$ISTIO_VERSION" "$expected_istio_client_version" "$result_message" && log_success "$result_message"
 -->
@@ -933,7 +933,7 @@ Have a look at the `VirtualMesh` object we've just created and notice the `autoR
 This is due to a limitation of Istio. The Istio control plane picks up the CA for Citadel and does not rotate it often enough.
 
 <!--bash
-printf "\nWaiting until secret is created in $CLUSTER1"
+printf "\nWaiting until the secret is created in $CLUSTER1"
 until kubectl --context ${CLUSTER1} get secret -n istio-system cacerts &>/dev/null
 do
   printf "%s" "."
@@ -941,7 +941,7 @@ do
 done
 printf "\n"
 
-printf "\nWaiting until secret is created in $CLUSTER2"
+printf "\nWaiting until the secret is created in $CLUSTER2"
 until kubectl --context ${CLUSTER2} get secret -n istio-system cacerts &>/dev/null
 do
   printf "%s" "."
@@ -1520,7 +1520,7 @@ EOF
 product_page_ip=$(kubectl --context ${CLUSTER1} -n istio-system get svc istio-ingressgateway -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
 
 log_header "Test :: AccessPolicy for reviews and details but not for ratings"
-printf "\nWaiting for condition"
+printf "\nWaiting for conditions"
 search1="Error fetching product details"
 search2="Error fetching product reviews"
 search3="Ratings service is currently unavailable"
@@ -1825,7 +1825,7 @@ kubectl --context ${CLUSTER1} patch deploy reviews-v2 --patch '{"spec": {"templa
 ```
 
 <!--bash
-log_header "Test :: Access review from cluster2 since te ones from cluster1 are in sleep mode"
+log_header "Test :: Access review from cluster2 since the ones from cluster1 are in sleep mode"
 printf "\nWaiting for all the pods to become ready in ${CLUSTER1}."
 sleep 1
 until [ $(kubectl --context ${CLUSTER1} get pods -l app=reviews -o json | jq -r '[.items[].status.containerStatuses[].ready | select(. == true)] | length') -eq 4 ]; do
@@ -1833,11 +1833,38 @@ until [ $(kubectl --context ${CLUSTER1} get pods -l app=reviews -o json | jq -r 
   sleep 1
 done
 printf "\n"
-count=$(kubectl get po --context ${CLUSTER1} -l app=reviews -o json | jq -r '[.items[].spec.containers[0].command[0] | select(. == "sleep")] | length')
-assert_eq $count 2 "Must be two pods with label app=reviews and 'sleep' command" && log_success "There are two pods with label app=reviews and 'sleep' command"
+
+
+printf "\nWaiting to have two pods with label app=reviews and 'sleep' command"
+while true
+do
+  count=$(kubectl get po --context ${CLUSTER1} -l app=reviews -o json | jq -r '[.items[].spec.containers[0].command[0] | select(. == "sleep")] | length')
+  if [ $count == 2 ]; then
+    break
+  fi
+  printf "%s" "."
+  sleep 1
+done
+printf "\n"
+log_success "There are two pods with label app=reviews and 'sleep' command"
+
 product_page_ip=$(kubectl --context ${CLUSTER1} -n istio-system get svc istio-ingressgateway -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
-curl -s http://$product_page_ip/productpage | grep "Ratings service is currently unavailable" &>/dev/null
-([ $? != 0 ] && log_success "Reviews are still available") || log_failure "Reviews are still available"
+
+printf "\nWaiting for Ratings service to be available"
+search1="Ratings service is currently unavailable"
+while true
+do
+  output=$(curl -s http://$product_page_ip/productpage 2>&1)
+  echo "$output" | grep "$search1" &>/dev/null
+  condition1=$?
+  if [ $condition1 != 0 ]; then
+    break
+  fi
+  printf "%s" "."
+  sleep 1
+done
+printf "\n"
+log_success "Reviews service is still available"
 -->
 
 If you refresh the web page several times again, you should still see the `reviews` displayed while there's no `reviews` service available anymore on the first cluster.
@@ -1863,18 +1890,44 @@ kubectl --context ${CLUSTER1} patch deployment reviews-v2  --type json   -p '[{"
 
 <!--bash
 log_header "Test :: Reviews from cluster1 back to their previous state"
-printf "\nWaiting for all the container to become ready."
+printf "\nWaiting for all the containers to become ready."
 sleep 1
 until [ $(kubectl --context ${CLUSTER1} get pods -l app=reviews -o json | jq -r '[.items[].status.containerStatuses[].ready | select(. == true)] | length') -eq 4 ]; do
   printf "%s" "."
   sleep 1
 done
 printf "\n"
-count=$(kubectl get po --context ${CLUSTER1} -l app=reviews -o json | jq -r '[.items[].spec.containers[0].command[0] | select(. == "sleep")] | length')
-assert_eq $count 2 "Must be two pods with label app=reviews without 'sleep' command" && log_success "There are two pods with label app=reviews without 'sleep' command"
+
+printf "\nWaiting to have two pods with label app=reviews without 'sleep' command"
+while true
+do
+  count=$(kubectl get po --context ${CLUSTER1} -l app=reviews -o json | jq -r '[.items[].spec.containers[0].command[0] | select(. == "sleep")] | length')
+  if [ $count == 0 ]; then
+    break
+  fi
+  printf "%s" "."
+  sleep 1
+done
+printf "\n"
+log_success "There are two pods with label app=reviews without 'sleep' command"
+
+
 product_page_ip=$(kubectl --context ${CLUSTER1} -n istio-system get svc istio-ingressgateway -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
-curl -s http://$product_page_ip/productpage | grep "Ratings service is currently unavailable" &>/dev/null
-([ $? != 0 ] && log_success "Reviews are still available") || log_failure "Reviews are still available"
+printf "\nWaiting for Reviews to be available"
+search1="Ratings service is currently unavailable"
+while true
+do
+  output=$(curl -s http://$product_page_ip/productpage 2>&1)
+  echo "$output" | grep "$search1" &>/dev/null
+  condition1=$?
+  if [ $condition1 != 0 ]; then
+    break
+  fi
+  printf "%s" "."
+  sleep 1
+done
+printf "\n"
+log_success "Reviews are still available"
 -->
 
 Afer 2 minutes, you can validate that the requests are now handled by the first cluster using the following command:
@@ -1994,7 +2047,7 @@ spec:
 EOF
 ```
 <!--bash
-log_header "Test :: Not enought permssions to create TrafficPolicy"
+log_header "Test :: Not enough permissions to create TrafficPolicy"
 cat << EOF | kubectl --context ${MGMT} apply -f -
 apiVersion: networking.mesh.gloo.solo.io/v1
 kind: TrafficPolicy
