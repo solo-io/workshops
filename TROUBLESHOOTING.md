@@ -2,7 +2,9 @@
 
 ## I can't install terraform v0.15.4+
 
-Install terraform:
+In this case, the recommended solution is a TF version manager that will in turn allow you to install more recent versions of tf than brew will allow on MacOS.
+
+In addition, you will have the possibility of having several versions of TF at the same time (only 1 active)
 
 ```
 install: https://github.com/tfutils/tfenv
@@ -31,12 +33,11 @@ https://www.terraform.io/docs/language/settings/backends/gcs.html#configuration-
 
 ## Trials licenses are not being exported to the final VMs
 
-All solo.io enterprise products require a license key.  If you'd like to preset limited-term keys on the student Virtual Machines, then set the `LICENSE_KEY` and `GLOO_MESH_LICENSE_KEY` and `PORTAL_LICENSE_KEY` environment variables on your workstation before running the `terraform` command.
+All solo.io enterprise products require a license key.  If you'd like to preset limited-term keys on the student Virtual Machines, then set the `LICENSE_KEY` and `GLOO_MESH_LICENSE_KEY` environment variables on your workstation before running the `terraform` command.
 
 ```
 export LICENSE_KEY=VeryLongKeyString
 export GLOO_MESH_LICENSE_KEY=AnotherVeryLongKeyString
-export PORTAL_LICENSE_KEY=AnotherVeryLongKeyString
 ```
 
 ## Create/Destroy only one environment
@@ -71,7 +72,7 @@ Remove the entry from your known_hosts:
 ssh-keygen -R 35.232.102.15
 ```
 
-Check that you have the lab ssk_key added
+Check that you have the lab ssh_key added
 ```
 ssh-add -L
 ```
@@ -88,7 +89,7 @@ ls -la ~/.ssh
 # Private repos can't be downloaded
 Private repos are downloaded using creadentials found in your local ssh agent. This is done to avoid embedding credentials in the final VMs
 
-Check that you have the gitlab ssk_key added
+Check that you have the gitlab ssh_key added
 ```
 ssh-add -L
 ```
