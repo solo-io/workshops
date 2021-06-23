@@ -422,7 +422,7 @@ do
   sleep 1
 done
 
-printf "Waiting for all the Istio pods to become ready."
+printf "\nWaiting for all the Istio pods to become ready."
 until [ $(kubectl --context ${CLUSTER1} -n istio-system get pods -o jsonpath='{range .items[*].status.containerStatuses[*]}{.ready}{"\n"}{end}' | grep true -c) -eq 2 ]; do
   printf "%s" "."
   sleep 1
@@ -430,7 +430,7 @@ done
 printf "\n"
 log_success "Istio Operator and Istio installed in $CLUSTER1"
 
-printf "Waiting for istio-system to be created."
+printf "\nWaiting for istio-system to be created."
 until kubectl --context ${CLUSTER2} get ns istio-system
 do
   printf "%s" "."
@@ -438,7 +438,7 @@ do
 done
 printf "\n"
 
-printf "Waiting for all the Istio pods to become ready"
+printf "\nWaiting for all the Istio pods to become ready"
 until [ $(kubectl --context ${CLUSTER2} -n istio-system get pods -o jsonpath='{range .items[*].status.containerStatuses[*]}{.ready}{"\n"}{end}' | grep true -c) -eq 2 ]; do
   printf "%s" "."
   sleep 1
@@ -529,14 +529,14 @@ echo "http://$(kubectl --context ${CLUSTER1} -n istio-system get svc istio-ingre
 As you can see, you can access the Bookinfo demo app.
 
 <!--bash
-printf "Waiting for all the pods of the default namespace to become ready in ${CLUSTER1}"
+printf "\nWaiting for all the pods of the default namespace to become ready in ${CLUSTER1}"
 until [ $(kubectl --context ${CLUSTER1} get pods -o jsonpath='{range .items[*].status.containerStatuses[*]}{.ready}{"\n"}{end}' | grep false -c) -eq 0 ]; do
   printf "%s" "."
   sleep 1
 done
 printf "\n"
 
-printf "Waiting for all the pods of the default namespace to become ready in ${CLUSTER2}"
+printf "\nWaiting for all the pods of the default namespace to become ready in ${CLUSTER2}"
 until [ $(kubectl --context ${CLUSTER2} get pods -o jsonpath='{range .items[*].status.containerStatuses[*]}{.ready}{"\n"}{end}' | grep false -c) -eq 0 ]; do
   printf "%s" "."
   sleep 1
@@ -558,15 +558,17 @@ kubectl --context ${CLUSTER1} exec -t deploy/reviews-v1 -c istio-proxy \
 
 <!--bash
 log_header "Test :: No certificate issued in ${CLUSTER1}"
-printf "Waiting until no certificate is issued is $CLUSTER1"
-found=false
+printf "\nWaiting until no certificate is issued in $CLUSTER1"
 search1="CONNECTED"
 search2="No client certificate CA names sent"
 while true
 do
   output=$(kubectl --context ${CLUSTER1} exec -t deploy/reviews-v1 -c istio-proxy -- openssl s_client -showcerts -connect ratings:9080 2>&1)
-  if [ (echo $output | grep "$search1") && (echo $output | grep "$search2")]; then
-    found=true
+  echo "$output" | grep "$search1" &>/dev/null
+  condition1=$?
+  echo "$output" | grep "$search2" &>/dev/null
+  condition2=$?
+  if [ $condition1 == 0 ] && [ $condition2 == 0 ]; then
     break
   fi
   printf "%s" "."
@@ -638,15 +640,17 @@ kubectl --context ${CLUSTER1} exec -t deploy/reviews-v1 -c istio-proxy \
 
 <!--bash
 log_header "Test :: Certificate issued by Istio in ${CLUSTER1}"
-printf "Waiting until certificate issuer is $CLUSTER1"
-found=false
+printf "\nWaiting until certificate issuer is $CLUSTER1"
 search1="CONNECTED"
 search2="i:O = cluster1"
 while true
 do
   output=$(kubectl --context ${CLUSTER1} exec -t deploy/reviews-v1 -c istio-proxy -- openssl s_client -showcerts -connect ratings:9080 2>&1)
-  if [ (echo $output | grep "$search1") && (echo $output | grep "$search2")]; then
-    found=true
+  echo "$output" | grep "$search1" &>/dev/null
+  condition1=$?
+  echo "$output" | grep "$search2" &>/dev/null
+  condition2=$?
+  if [ $condition1 == 0 ] && [ $condition2 == 0 ]; then
     break
   fi
   printf "%s" "."
@@ -732,15 +736,17 @@ kubectl --context ${CLUSTER2} exec -t deploy/reviews-v1 -c istio-proxy \
 ```
 <!--bash
 log_header "Test :: Certificate issued by Istio in ${CLUSTER2}"
-printf "Waiting until certificate issuer is $CLUSTER2"
-found=false
+printf "\nWaiting until certificate issuer is $CLUSTER2"
 search1="CONNECTED"
 search2="i:O = cluster2"
 while true
 do
   output=$(kubectl --context ${CLUSTER2} exec -t deploy/reviews-v1 -c istio-proxy -- openssl s_client -showcerts -connect ratings:9080 2>&1)
-  if [ (echo $output | grep "$search1") && (echo $output | grep "$search2")]; then
-    found=true
+  echo "$output" | grep "$search1" &>/dev/null
+  condition1=$?
+  echo "$output" | grep "$search2" &>/dev/null
+  condition2=$?
+  if [ $condition1 == 0 ] && [ $condition2 == 0 ]; then
     break
   fi
   printf "%s" "."
@@ -927,7 +933,7 @@ Have a look at the `VirtualMesh` object we've just created and notice the `autoR
 This is due to a limitation of Istio. The Istio control plane picks up the CA for Citadel and does not rotate it often enough.
 
 <!--bash
-printf "Waiting until secret is created in $CLUSTER1"
+printf "\nWaiting until secret is created in $CLUSTER1"
 until kubectl --context ${CLUSTER1} get secret -n istio-system cacerts &>/dev/null
 do
   printf "%s" "."
@@ -935,7 +941,7 @@ do
 done
 printf "\n"
 
-printf "Waiting until secret is created in $CLUSTER2"
+printf "\nWaiting until secret is created in $CLUSTER2"
 until kubectl --context ${CLUSTER2} get secret -n istio-system cacerts &>/dev/null
 do
   printf "%s" "."
@@ -952,14 +958,18 @@ kubectl --context ${CLUSTER1} exec -t deploy/reviews-v1 -c istio-proxy \
 ```
 <!--bash
 log_header "Test :: Certificate issued by GlooMesh in ${CLUSTER1}"
-printf "Waiting until certificate issuer is gloo-mesh in $CLUSTER1"
+printf "\nWaiting until certificate issuer is gloo-mesh in $CLUSTER1"
 found=false
 search1="CONNECTED"
 search2="i:O = gloo-mesh"
 while true
 do
   output=$(kubectl --context ${CLUSTER1} exec -t deploy/reviews-v1 -c istio-proxy -- openssl s_client -showcerts -connect ratings:9080 2>&1)
-  if [ (echo $output | grep "$search1") && (echo $output | grep "$search2")]; then
+  echo "$output" | grep "$search1" &>/dev/null
+  condition1=$?
+  echo "$output" | grep "$search2" &>/dev/null
+  condition2=$?
+  if [ $condition1 == 0 ] && [ $condition2 == 0 ]; then
     found=true
     break
   fi
@@ -1136,13 +1146,17 @@ kubectl --context ${CLUSTER2} exec -t deploy/reviews-v1 -c istio-proxy \
 ```
 <!--bash
 log_header "Test :: Certificate issued by GlooMesh in ${CLUSTER2}"
-printf "Waiting until certificate issuer is gloo-mesh in $CLUSTER2"
+printf "\nWaiting until certificate issuer is gloo-mesh in $CLUSTER2"
 search1="CONNECTED"
 search2="i:O = gloo-mesh"
 while true
 do
   output=$(kubectl --context ${CLUSTER2} exec -t deploy/reviews-v1 -c istio-proxy -- openssl s_client -showcerts -connect ratings:9080 2>&1)
-  if [ (echo $output | grep "$search1") && (echo $output | grep "$search2")]; then
+  echo "$output" | grep "$search1" &>/dev/null
+  condition1=$?
+  echo "$output" | grep "$search2" &>/dev/null
+  condition2=$?
+  if [ $condition1 == 0 ] && [ $condition2 == 0 ]; then
     break
   fi
   printf "%s" "."
@@ -1397,7 +1411,7 @@ kubectl --context ${MGMT} delete accesspolicy -n gloo-mesh istio-ingressgateway 
 kubectl --context ${MGMT} delete accesspolicy -n gloo-mesh productpage &>/dev/null || true
 sleep 3
 
-printf "Waiting for all the pods of the default namespace to become ready in ${CLUSTER2}"
+printf "\nWaiting for all the pods of the default namespace to become ready in ${CLUSTER2}"
 until [ $(kubectl --context ${CLUSTER2} get pods -o jsonpath='{range .items[*].status.containerStatuses[*]}{.ready}{"\n"}{end}' | grep false -c) -eq 0 ]; do
   printf "%s" "."
   sleep 1
@@ -1449,16 +1463,21 @@ product_page_ip=$(kubectl --context ${CLUSTER1} -n istio-system get svc istio-in
 log_header "Test :: AccessPolicy only for productpage"
 search1="Error fetching product details"
 search2="Error fetching product reviews"
-printf "Waiting for condition"
+printf "\nWaiting for condition"
 while true
 do
-  $output(curl -s http://$product_page_ip/productpage &>/dev/null) 
-  if [ (echo $output | grep "$search1") && (echo $output | grep "$search2")]; then
+  output=$(curl -s http://$product_page_ip/productpage 2>&1)
+  echo "$output" | grep "$search1" &>/dev/null
+  condition1=$?
+  echo "$output" | grep "$search2" &>/dev/null
+  condition2=$?
+  if [ $condition1 == 0 ] && [ $condition2 == 0 ]; then
     break
   fi
   printf "%s" "."
   sleep 1
 done
+printf "\n"
 result_message="Details and Reviews must be unavailable"
 log_success "$result_message"
 -->
@@ -1501,19 +1520,26 @@ EOF
 product_page_ip=$(kubectl --context ${CLUSTER1} -n istio-system get svc istio-ingressgateway -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
 
 log_header "Test :: AccessPolicy for reviews and details but not for ratings"
-printf "Waiting for condition"
+printf "\nWaiting for condition"
 search1="Error fetching product details"
 search2="Error fetching product reviews"
 search3="Ratings service is currently unavailable"
 while true
 do
-  output=$(curl -s http://$product_page_ip/productpage &>/dev/null)
-  if [ ! (echo $output | grep "$search1") && ! (echo $output | grep "$search2") && (echo $output | grep "$search2")]; then
+  output=$(curl -s http://$product_page_ip/productpage 2>&1)
+  echo "$output" | grep "$search1" &>/dev/null
+  condition1=$?
+  echo "$output" | grep "$search2" &>/dev/null
+  condition2=$?
+  echo "$output" | grep "$search3" &>/dev/null
+  condition3=$?
+  if [ $condition1 != 0 ] && [ $condition2 != 0 ] && [ $condition3 == 0 ]; then
     break
   fi
   printf "%s" "."
   sleep 1
 done
+printf "\n"
 log_success "Details must be available"
 log_success "Reviews must be available"
 log_success "Ratings must be unavailable"
@@ -1552,19 +1578,26 @@ EOF
 product_page_ip=$(kubectl --context ${CLUSTER1} -n istio-system get svc istio-ingressgateway -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
 
 log_header "Test :: AccessPolicy all services work"
-printf "Waiting for condition"
+printf "\nWaiting for condition"
 search1="Error fetching product details"
 search2="Error fetching product reviews"
 search3="Ratings service is currently unavailable"
 while true
 do
-  output=$(curl -s http://$product_page_ip/productpage &>/dev/null)
-  if [ ! (echo $output | grep "$search1") && ! (echo $output | grep "$search2") && (echo $output | grep "$search2")]; then
+  output=$(curl -s http://$product_page_ip/productpage 2>&1)
+  echo "$output" | grep "$search1" &>/dev/null
+  condition1=$?
+  echo "$output" | grep "$search2" &>/dev/null
+  condition2=$?
+  echo "$output" | grep "$search3" &>/dev/null
+  condition3=$?
+  if [ $condition1 != 0 ] && [ $condition2 != 0 ] && [ $condition3 != 0 ]; then
     break
   fi
   printf "%s" "."
   sleep 1
 done
+printf "\n"
 log_success "Details must be available"
 log_success "Reviews must be available"
 log_success "Ratings must be unavailable"
@@ -1636,7 +1669,7 @@ EOF
 log_header "Test :: See reviews v3 from cluster2 but not ratings"
 product_page_ip=$(kubectl --context ${CLUSTER1} -n istio-system get svc istio-ingressgateway -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
 rating_service_unvailable=false
-printf "Wait for condition"
+printf "\nWait for condition"
 while true
 do
   curl -s http://$product_page_ip/productpage | grep "Ratings service is currently unavailable" &>/dev/null
@@ -1690,7 +1723,7 @@ EOF
 log_header "Test :: See v3 (red) of reviews and rating from cluster2"
 product_page_ip=$(kubectl --context ${CLUSTER1} -n istio-system get svc istio-ingressgateway -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
 is_red_star_visible=false
-printf "Wait for condition"
+printf "\nWait for condition"
 while true
 do
   curl -s http://$product_page_ip/productpage | grep "red" &>/dev/null
@@ -1793,7 +1826,7 @@ kubectl --context ${CLUSTER1} patch deploy reviews-v2 --patch '{"spec": {"templa
 
 <!--bash
 log_header "Test :: Access review from cluster2 since te ones from cluster1 are in sleep mode"
-printf "Waiting for all the pods to become ready in ${CLUSTER1}."
+printf "\nWaiting for all the pods to become ready in ${CLUSTER1}."
 sleep 1
 until [ $(kubectl --context ${CLUSTER1} get pods -l app=reviews -o json | jq -r '[.items[].status.containerStatuses[].ready | select(. == true)] | length') -eq 4 ]; do
   printf "%s" "."
@@ -1830,7 +1863,7 @@ kubectl --context ${CLUSTER1} patch deployment reviews-v2  --type json   -p '[{"
 
 <!--bash
 log_header "Test :: Reviews from cluster1 back to their previous state"
-printf "Waiting for all the container to become ready."
+printf "\nWaiting for all the container to become ready."
 sleep 1
 until [ $(kubectl --context ${CLUSTER1} get pods -l app=reviews -o json | jq -r '[.items[].status.containerStatuses[].ready | select(. == true)] | length') -eq 4 ]; do
   printf "%s" "."
@@ -2580,7 +2613,7 @@ result=$?
 result_message="wasmdeployment created in ${MGMT}"
 assert_eq $result 0 "$result_message" && log_success "$result_message"
 
-printf "Waiting for wasmdeployment to create envoyfilter"
+printf "\nWaiting for wasmdeployment to create envoyfilter"
 result_message="envoyfilter created in ${CLUSTER1}"
 result=false
 for i in {1..20}; do
@@ -2606,7 +2639,6 @@ kubectl exec -it $(kubectl  get pods -l app=productpage -o jsonpath='{.items[0].
 <!--bash
 log_header "Test :: Get WasmDeployment log traces"
 output=$(kubectl exec -it $(kubectl  get pods -l app=productpage -o jsonpath='{.items[0].metadata.name}') -- python -c "import requests; r = requests.get('http://reviews:9080/reviews/0'); print(r.headers)")
-echo $output
 result_message="wasmdeployment prints log traces"
 assert_contain "$output" "x-powered-by" "$result_message" && log_success "$result_message"
 assert_contain "$output" "'server': 'envoy'" "$result_message" && log_success "$result_message"
@@ -2649,7 +2681,7 @@ log_header "Test :: Delete wasmdeployment"
 kubectl --context ${MGMT} get wasmdeployment reviews-wasm -n gloo-mesh  &>/dev/null
 result=$?
 result_message="wasmdeployment has been deleted"
-assert_eq $result 0 "$result_message" && log_success "$result_message"
+assert_not_eq $result 0 "$result_message" && log_success "$result_message"
 -->
 
 
@@ -2726,7 +2758,7 @@ curl -XPOST "${SVC}:8080/v0/observability/logs?pretty"
 ```
 
 <!--bash
-printf "Create some traffic"
+printf "\nCreate some traffic"
 for i in {1..5}; do
   curl -s http://$product_page_ip/productpage &>/dev/null
   printf "%s" "."
