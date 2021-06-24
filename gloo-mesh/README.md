@@ -2691,10 +2691,27 @@ kubectl exec -it $(kubectl  get pods -l app=productpage -o jsonpath='{.items[0].
 
 <!--bash
 log_header "Test :: Get WasmDeployment log traces"
-output=$(kubectl exec -it $(kubectl  get pods -l app=productpage -o jsonpath='{.items[0].metadata.name}') -- python -c "import requests; r = requests.get('http://reviews:9080/reviews/0'); print(r.headers)")
-result_message="wasmdeployment prints log traces"
-assert_contain "$output" "x-powered-by" "$result_message" && log_success "$result_message"
-assert_contain "$output" "'server': 'envoy'" "$result_message" && log_success "$result_message"
+printf "\nWaiting for log traces"
+search1="x-powered-by"
+search2="'server': 'envoy'"
+while true
+do
+  output=$(kubectl exec $(kubectl  get pods -l app=productpage -o jsonpath='{.items[0].metadata.name}') -- python -c "import requests; r = requests.get('http://reviews:9080/reviews/0'); print(r.headers)")
+  echo "$output" | grep "$search1" &>/dev/null
+  condition1=$?
+  echo "$output" | grep "$search2" &>/dev/null
+  condition2=$?
+  if [ $condition1 == 0 ] && [ $condition1 == 0 ]; then
+    break
+  fi
+  printf "%s" "."
+  sleep 1
+done
+printf "\n"
+log_success "wasmdeployment prints log traces"
+
+
+
 -->
 
 You should get either:
@@ -2731,10 +2748,18 @@ kubectl --context ${MGMT} -n gloo-mesh delete wasmdeployment reviews-wasm
 ```
 <!--bash
 log_header "Test :: Delete wasmdeployment"
-kubectl --context ${MGMT} get wasmdeployment reviews-wasm -n gloo-mesh  &>/dev/null
-result=$?
-result_message="wasmdeployment has been deleted"
-assert_not_eq $result 0 "$result_message" && log_success "$result_message"
+printf "\nWaiting for wasmdeployment to be deleted"
+while true
+do
+  kubectl --context ${MGMT} get wasmdeployment reviews-wasm -n gloo-mesh &>/dev/null
+  if [ $? != 0 ]; then
+    break
+  fi
+  printf "%s" "."
+  sleep 1
+done
+printf "\n"
+log_success "wasmdeployment has been deleted"
 -->
 
 
@@ -2798,10 +2823,18 @@ EOF
 
 <!--bash
 log_header "Test :: create AccessLogRecord"
-kubectl --context ${MGMT} get accesslogrecord access-log-reviews -n gloo-mesh  &>/dev/null
-result=$?
-result_message="accesslogrecord has been created"
-assert_eq $result 0 "$result_message" && log_success "$result_message"
+printf "\nWaiting for AccessLogRecord to be created"
+while true
+do
+  kubectl --context ${MGMT} get accesslogrecord access-log-reviews -n gloo-mesh &>/dev/null
+  if [ $? == 0 ]; then
+    break
+  fi
+  printf "%s" "."
+  sleep 1
+done
+printf "\n"
+log_success "Accesslogrecord has been created"
 -->
 
 Generate some traffic and run the command below to gather the latest access logs:
@@ -2818,13 +2851,26 @@ for i in {1..5}; do
   sleep 1
 done
 printf "\n"
-output=$(curl -XPOST '${SVC}:8080/v0/observability/logs?pretty')
-search="httpAccessLog"
-result_message="Search '$search' text found"
-assert_contain "$output" "$search" "$result_message" && log_success "$result_message"
-search="workloadRef"
-result_message="Search '$search' text found"
-assert_contain "$output" "$search" "$result_message" && log_success "$result_message"
+
+
+printf "\nWaiting for log traces"
+search1="httpAccessLog"
+search2="workloadRef"
+while true
+do
+  output=$(curl -XPOST "${SVC}:8080/v0/observability/logs?pretty" 2>&1)
+  echo "$output" | grep "$search1" &>/dev/null
+  condition1=$?
+  echo "$output" | grep "$search2" &>/dev/null
+  condition2=$?
+  if [ $condition1 == 0 ] && [ $condition1 == 0 ]; then
+    break
+  fi
+  printf "%s" "."
+  sleep 1
+done
+printf "\n"
+log_success "Log traces as expected"
 -->
 
 
@@ -2941,3 +2987,7 @@ kubectl --context ${MGMT} -n gloo-mesh delete accesslogrecords.observability.ent
 ```
 
 This is the end of the workshop. We hope you enjoyed it !
+
+<!--bash
+log_header "All tests passed. Workshop works OK"
+-->
