@@ -1418,11 +1418,22 @@ until [ $(kubectl --context ${CLUSTER2} get pods -o jsonpath='{range .items[*].s
 done
 printf "\n"
 
+
 product_page_ip=$(kubectl --context ${CLUSTER1} -n istio-system get svc istio-ingressgateway -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
-status_code=$(curl -s -o /dev/null -w "%{http_code}" http://$product_page_ip/productpage)
-expected_code=403
-result_message="expected status code $expected_code"
-assert_eq "$status_code" "$expected_code" "$result_message" && log_success "$result_message"
+printf "\nWaiting for error code 403"
+while true
+do
+  status_code=$(curl -s -o /dev/null -w "%{http_code}" http://$product_page_ip/productpage)
+  expected_code=403
+  if [ "$status_code" == "$expected_code" ]; then
+    break
+  fi
+  printf "%s" "."
+  sleep 1
+done
+printf "\n"
+result_message="Expected status code $expected_code"
+log_success "$result_message"
 -->
 
 After a few seconds, if you refresh the web page, you should see that you don't have access to the application anymore.
@@ -2692,8 +2703,8 @@ kubectl exec -it $(kubectl  get pods -l app=productpage -o jsonpath='{.items[0].
 <!--bash
 log_header "Test :: Get WasmDeployment log traces"
 printf "\nWaiting for log traces"
-search1="x-powered-by"
-search2="'server': 'envoy'"
+search1="hello"
+search2="Gloo Mesh Enterprise Beta"
 while true
 do
   output=$(kubectl exec $(kubectl  get pods -l app=productpage -o jsonpath='{.items[0].metadata.name}') -- python -c "import requests; r = requests.get('http://reviews:9080/reviews/0'); print(r.headers)")
@@ -2709,9 +2720,6 @@ do
 done
 printf "\n"
 log_success "wasmdeployment prints log traces"
-
-
-
 -->
 
 You should get either:
