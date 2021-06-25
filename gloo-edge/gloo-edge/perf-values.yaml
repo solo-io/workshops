@@ -1,0 +1,11 @@
+gloo:
+  gatewayProxies:
+    gatewayProxy:
+      antiAffinity: true
+      kind:
+        deployment:
+          replicas: 4
+      podTemplate:
+        resources:
+          requests:
+            cpu: "1"

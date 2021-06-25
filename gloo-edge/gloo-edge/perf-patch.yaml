@@ -1,0 +1,17 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: extauth
+  namespace: gloo-system
+spec:
+  replicas: 4
+  template:
+    spec:
+      containers:
+      - env:
+        - name: GOGC
+          value: "2000" 
+        name: extauth
+        resources:
+          requests:
+            cpu: "2"
