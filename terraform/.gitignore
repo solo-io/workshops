@@ -3,8 +3,10 @@ hosts
 **/*.tfstate
 *.tfstate.*
 .terraform
+.terraform.lock.hcl
 .env.sh
 env.sh
 ansible-playbook-hack.yml
 hack.sh
 .vagrant
+output
