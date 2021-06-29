@@ -1,3 +1,5 @@
+#!/usr/bin/env bash
+
 number=$1
 name=$2
 region=$3
@@ -12,7 +14,7 @@ if [ -z "$4" ]; then
   zone=us-east-1a
 fi
 
-if hostname -I; then
+if hostname -I 2>/dev/null; then
   myip=$(hostname -I | awk '{ print $1 }')
 else
   myip=$(ipconfig getifaddr en0)
