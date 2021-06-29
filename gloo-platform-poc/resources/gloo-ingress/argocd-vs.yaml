@@ -1,0 +1,17 @@
+apiVersion: gateway.solo.io/v1
+kind: VirtualService
+metadata:
+  name: argocd-vs
+  namespace: gloo-system
+spec:
+  virtualHost:
+    domains:
+    - 'argo.mesh.ceposta.solo.io'
+    routes:          
+    - matchers:
+      - prefix: /
+      routeAction:
+        single:
+          upstream:
+            name: argocd-argo-cd-argocd-server-80
+            namespace: gloo-system

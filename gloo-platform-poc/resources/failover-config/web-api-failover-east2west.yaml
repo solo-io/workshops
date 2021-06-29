@@ -1,0 +1,16 @@
+apiVersion: fed.solo.io/v1
+kind: FailoverScheme
+metadata:
+ name: web-api-failover-e2w
+ namespace: demo-config
+spec:
+ failoverGroups:
+ - priorityGroup:
+   - cluster: cluster-1
+     upstreams:
+     - name: istioinaction-web-api-8080 
+       namespace: gloo-system
+ primary:
+   clusterName: cluster-2
+   name: istioinaction-web-api-8080 
+   namespace: gloo-system

@@ -1,0 +1,35 @@
+apiVersion: networking.mesh.gloo.solo.io/v1
+kind: AccessPolicy
+metadata:
+  namespace: demo-config
+  name: web-api2recommendation-acp
+spec:
+  sourceSelector:
+  - kubeServiceAccountRefs:
+      serviceAccounts:
+        - name: web-api
+          namespace: istioinaction
+  destinationSelector:
+  - kubeServiceMatcher:
+      namespaces:
+      - istioinaction
+      labels:
+        app: recommendation
+---
+apiVersion: networking.mesh.gloo.solo.io/v1
+kind: AccessPolicy
+metadata:
+  namespace: demo-config
+  name: recommendation2purchhisttory-acp
+spec:
+  sourceSelector:
+  - kubeServiceAccountRefs:
+      serviceAccounts:
+        - name: recommendation
+          namespace: istioinaction
+  destinationSelector:
+  - kubeServiceMatcher:
+      namespaces:
+      - istioinaction
+      labels:
+        app: purchase-history

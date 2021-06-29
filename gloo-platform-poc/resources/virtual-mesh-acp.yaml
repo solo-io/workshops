@@ -1,0 +1,21 @@
+apiVersion: networking.mesh.gloo.solo.io/v1
+kind: VirtualMesh
+metadata:
+  name: your-virtual-mesh
+  namespace: gloo-mesh
+spec:
+  mtlsConfig:
+    autoRestartPods: true
+    shared:
+      rootCertificateAuthority:
+        generated: {}
+  federation:
+    # federate all Destinations to all external meshes
+    selectors:
+    - {}
+  globalAccessPolicy: ENABLED    
+  meshes:
+  - name: istiod-istio-system-cluster-1 
+    namespace: gloo-mesh
+  - name: istiod-istio-system-cluster-2
+    namespace: gloo-mesh

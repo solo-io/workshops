@@ -1,0 +1,29 @@
+gloo:
+  global:
+    istioSDS:
+      # leave this false until the chart is fixed to inject
+      # the right version of the proxy
+      enabled: true
+  gatewayProxies:
+    gatewayProxy:
+      failover: 
+        enabled: true
+      readConfig: true
+      service:
+        httpPort: 80
+        httpsPort: 443
+        type: LoadBalancer      
+        # if we change this on gcloud, we need to update
+        loadBalancerIP: 34.75.208.239
+
+        # because we want to preserve the client's IP address
+        # and disallow hops between cluster for k8s load balancing
+        # https://kubernetes.io/docs/tasks/access-application-cluster/create-external-load-balancer/
+        externalTrafficPolicy: Local
+      podTemplate:
+        probes: true
+      istioMetaClusterId: cluster-2
+  crds:
+    create: true
+devPortal:
+  enabled: true

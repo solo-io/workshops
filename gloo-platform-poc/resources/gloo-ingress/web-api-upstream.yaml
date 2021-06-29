@@ -1,0 +1,23 @@
+apiVersion: gloo.solo.io/v1
+kind: Upstream
+metadata:
+  annotations:
+    cloud.google.com/neg: '{"ingress":true}'
+  labels:
+    discovered_by: kubernetesplugin
+  name: istioinaction-web-api-8080
+  namespace: gloo-system
+spec:
+  outlierDetection:
+    consecutive5xx: 1
+    interval: 5s
+    baseEjectionTime: 60s
+  discoveryMetadata:
+    labels:
+      app: web-api
+  kube:
+    selector:
+      app: web-api
+    serviceName: web-api
+    serviceNamespace: istioinaction
+    servicePort: 8080

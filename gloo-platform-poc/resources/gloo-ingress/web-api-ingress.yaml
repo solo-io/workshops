@@ -1,0 +1,17 @@
+apiVersion: gateway.solo.io/v1
+kind: VirtualService
+metadata:
+  name: web-api-vs
+  namespace: gloo-system
+spec:
+  virtualHost:
+    domains:
+    - 'web-api.mesh.ceposta.solo.io'
+    routes:          
+    - matchers:
+      - prefix: /
+      routeAction:
+        single:
+          upstream:
+            name: istioinaction-web-api-8080 
+            namespace: gloo-system

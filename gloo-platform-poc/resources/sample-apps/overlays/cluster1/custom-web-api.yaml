@@ -1,0 +1,12 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web-api
+spec:
+  template:
+    spec:
+      containers:
+      - name: web-api
+        env:
+        - name: "MESSAGE"
+          value: "Hello From Web API - cluster 1 flavor"

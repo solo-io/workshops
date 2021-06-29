@@ -1,0 +1,12 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: recommendation
+spec:
+  template:
+    spec:
+      containers:
+      - name: recommendation
+        env:
+        - name: "MESSAGE"
+          value: "Hello From Recommendations cluster 2 flavor!"

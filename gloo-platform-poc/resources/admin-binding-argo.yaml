@@ -1,0 +1,19 @@
+apiVersion: rbac.enterprise.mesh.gloo.solo.io/v1
+kind: RoleBinding
+metadata:
+  annotations:
+    meta.helm.sh/release-name: gloo-mesh-enterprise
+    meta.helm.sh/release-namespace: gloo-mesh
+  labels:
+    app: gloo-mesh
+    app.kubernetes.io/managed-by: Helm
+  name: argo-admin-role-binding
+  namespace: gloo-mesh
+spec:
+  roleRef:
+    name: admin-role
+    namespace: gloo-mesh
+  subjects:
+  - kind: ServiceAccount
+    name: argocd-application-controller
+    namespace: argocd

@@ -1,0 +1,17 @@
+apiVersion: networking.mesh.gloo.solo.io/v1
+kind: AccessPolicy
+metadata:
+  namespace: demo-config
+  name: sleep2web-api-acp
+spec:
+  sourceSelector:
+  - kubeServiceAccountRefs:
+      serviceAccounts:
+        - name: sleep
+          namespace: sleep
+  destinationSelector:
+  - kubeServiceMatcher:
+      namespaces:
+      - istioinaction
+      labels:
+        app: web-api

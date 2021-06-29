@@ -1,0 +1,21 @@
+gloo:
+  gatewayProxies:
+    gatewayProxy:
+      readConfig: true
+      service:
+        httpPort: 80
+        httpsPort: 443
+        type: LoadBalancer      
+        # if we change this on gcloud, we need to update
+        loadBalancerIP: 34.134.94.165
+
+        # because we want to preserve the client's IP address
+        # and disallow hops between cluster for k8s load balancing
+        # https://kubernetes.io/docs/tasks/access-application-cluster/create-external-load-balancer/
+        externalTrafficPolicy: Local
+      podTemplate:
+        probes: true
+  crds:
+    create: true
+devPortal:
+  enabled: true

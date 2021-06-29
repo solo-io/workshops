@@ -1,0 +1,17 @@
+apiVersion: gateway.solo.io/v1
+kind: VirtualService
+metadata:
+  name: gogs-vs
+  namespace: gloo-system
+spec:
+  virtualHost:
+    domains:
+    - 'gogs.mesh.ceposta.solo.io'
+    routes:          
+    - matchers:
+      - prefix: /
+      routeAction:
+        single:
+          upstream:
+            name: gogs-gogs-80
+            namespace: gloo-system

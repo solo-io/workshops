@@ -1,0 +1,24 @@
+apiVersion: gloo.solo.io/v1
+kind: Upstream
+metadata:
+  annotations:
+    cloud.google.com/neg: '{"ingress":true}'
+    meta.helm.sh/release-name: gloo-mesh-enterprise
+    meta.helm.sh/release-namespace: gloo-mesh
+  labels:
+    discovered_by: kubernetesplugin
+  name: gloo-mesh-dashboard-8090
+  namespace: gloo-system
+spec:
+  useHttp2: true
+  discoveryMetadata:
+    labels:
+      app: gloo-mesh
+      gloo-mesh: dashboard
+  kube:
+    selector:
+      app: gloo-mesh
+      gloo-mesh: dashboard
+    serviceName: dashboard
+    serviceNamespace: gloo-mesh
+    servicePort: 8090
