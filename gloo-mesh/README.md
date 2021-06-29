@@ -181,14 +181,14 @@ cluster2   23s
 >   --set relay.serverAddress=${SVC}:9900 \
 >   --set relay.cluster=cluster1 \
 >   --kube-context=${CLUSTER1} \
->   --version 1.0.10
+>   --version 1.0.14
 > 
 > helm install enterprise-agent enterprise-agent/enterprise-agent \
 >   --namespace gloo-mesh \
 >   --set relay.serverAddress=${SVC}:9900 \
 >   --set relay.cluster=cluster2 \
 >   --kube-context=${CLUSTER2} \
->   --version 1.0.10
+>   --version 1.0.14
 > ```
 > #### Create the `KubernetesCluster` objects
 > ```

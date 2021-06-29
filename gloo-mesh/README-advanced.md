@@ -1141,7 +1141,7 @@ helm repo add gloo-mesh-enterprise https://storage.googleapis.com/gloo-mesh-ente
 helm repo update
 helm install gloo-mesh-enterprise gloo-mesh-enterprise/gloo-mesh-enterprise \
 --namespace gloo-mesh --kube-context mgmt \
---version=1.0.10 \
+--version=1.0.14 \
 --set licenseKey=${GLOO_MESH_LICENSE_KEY}
 
 kubectl --context mgmt -n gloo-mesh rollout status deploy/enterprise-networking
