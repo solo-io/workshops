@@ -71,15 +71,6 @@ The POC is conducted in three separate sections:
 
 ### POC Section 1: Set up Istio, Gloo Mesh, Gloo Edge
 
-Note: You will need license keys for gloo mesh and edge corresponding to these environment variables:
-
-```bash
-export GLOO_LICENSE=<key here>
-export GLOO_MESH_LICENSE=<key here>
-```
-
-Please reach out to your Solo.io account team to get these license keys before starting with Section 1 of the POC.
-
 * [Step 1 - Install Istio on both clusters](./section1/install-istio.md)
 * [Step 2 - Install Gloo Mesh Management Plane](./section1/install-gm.md)
 * [Step 3 - Register Istio meshes with Management Plane](./section1/register-clusters.md)
