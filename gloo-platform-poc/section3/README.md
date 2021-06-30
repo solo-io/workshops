@@ -1,1 +1,3 @@
-# Section 3: Set up POC 
+# Section 3: Validate POC success criteria
+
+In this section, we go through the various use cases and evaluate them for success.

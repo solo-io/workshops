@@ -1,10 +1,16 @@
 # Using Kind (Kubernetes in Docker)
 
-You may use Kind for this POC if you don't have access to an alternative platform/cloud provider Kubernetes. We recommend using a platform that can leverage LoadBalancers to expose Kubernetes services, but NodePort should work well too. We will capture NodePort scenarios in the POC document.
+You may use Kind for this POC if you don't have access to an alternative platform/cloud provider Kubernetes. We recommend using a platform that can leverage LoadBalancers to expose Kubernetes services and when using Kind we recommend metallb. 
+
+
+{% hint style="info" %}
+NodePort should work well too. We will capture NodePort scenarios in this POC document.
+{% endhint %}
+
 
 ## Setting up Kind using Workshop scripts
 
-In the Solo.io workshop material, we have scripts to help you quickly deploy clusters for testing purposes. We will use those scripts for setting up Kind in this section, but you may customize/use your own as you see fit. 
+In the [Solo.io workshop material](https://workshops.solo.io/gloo-workshops/), we have [scripts to help you quickly deploy clusters](https://github.com/solo-io/workshops/tree/master/scripts) for testing purposes. We will use those scripts for setting up Kind in this section, but you may customize/use your own as you see fit. 
 
 Using the following command lines from the $ROOT_DIR of the workshops, you can spin up two Kubernetes clusters using Kind that have metallb installed (used for LoadBalancers):
 
