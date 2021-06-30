@@ -36,3 +36,22 @@ module "eks" {
   node_ami_lookup    = "amazon-eks-node-${var.eks_version}*"
   eks_version        = var.eks_version
 }
+
+resource "null_resource" "eks-admin" {
+  count = var.num_instances
+
+  provisioner "local-exec" {
+    command = <<COMMAND
+      export KUBECONFIG=${path.root}/output/${module.eks[count.index].cluster_name}/kubeconfig-${module.eks[count.index].cluster_name} \
+      && kubectl apply -f ${path.module}/templates/eks-admin.yaml \
+      && TOKEN=$(kubectl describe -n kube-system secrets "$(kubectl describe -n kube-system serviceaccount eks-admin | grep -i Tokens | awk '{print $2}')" | grep token: | awk '{print $2}') \
+      && kubectl config set-credentials workshop --token=$TOKEN \
+      && kubectl config set-context workshop --cluster=${module.eks[count.index].cluster_name} --user=workshop \
+      && kubectl config use-context workshop
+    COMMAND
+  }
+
+  triggers = {
+    kubeconfig_rendered = module.eks[count.index].kubeconfig
+  }
+}
