@@ -22,3 +22,10 @@ output "eks_cluster" {
     for k, v in module.eks-cluster : k => v.cluster_name
   }
 }
+
+
+output "gke_cluster" {
+  value = {
+    for k, v in module.gke-cluster : k => v.cluster_name
+  }
+}

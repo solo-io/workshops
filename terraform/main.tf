@@ -32,3 +32,15 @@ module "eks-cluster" {
   eks_version        = lookup(each.value, "eks_version", var.eks_version)
   node_instance_type = lookup(each.value, "node_instance_type", var.node_instance_type)
 }
+
+module "gke-cluster" {
+  source   = "./gce/gke"
+  for_each = var.gke_clusters
+
+  prefix        = each.key
+  project       = lookup(each.value, "project", var.project)
+  region        = lookup(each.value, "region", var.region)
+  zone          = lookup(each.value, "zone", var.zone)
+  preemptible   = lookup(each.value, "preemptible", var.preemptible)
+  num_instances = lookup(each.value, "num_instances", var.num_instances)
+}

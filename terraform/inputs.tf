@@ -10,6 +10,10 @@ variable "zone" {
   type = string
 }
 
+variable "region" {
+  type = string
+}
+
 variable "azs_controlplane" {
   type = list(string)
 }
@@ -36,10 +40,19 @@ variable "eks_clusters" {
   default = {}
 }
 
+variable "gke_clusters" {
+  type    = map(any)
+  default = {}
+}
+
 variable "eks_version" {
   type = string
 }
 
 variable "node_instance_type" {
   type = string
+}
+
+variable "preemptible" {
+  type = bool
 }
