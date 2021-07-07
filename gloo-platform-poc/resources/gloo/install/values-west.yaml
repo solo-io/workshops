@@ -7,14 +7,12 @@ gloo:
   gatewayProxies:
     gatewayProxy:
       failover: 
-        enabled: true
+        enabled: true    
       readConfig: true
       service:
         httpPort: 80
         httpsPort: 443
         type: LoadBalancer      
-        # if we change this on gcloud, we need to update
-        loadBalancerIP: 34.75.208.239
 
         # because we want to preserve the client's IP address
         # and disallow hops between cluster for k8s load balancing
@@ -22,7 +20,7 @@ gloo:
         externalTrafficPolicy: Local
       podTemplate:
         probes: true
-      istioMetaClusterId: cluster-2
+      istioMetaClusterId: cluster-1
   crds:
     create: true
 devPortal:
