@@ -73,7 +73,6 @@ nodes:
   - containerPort: 6443
     hostPort: 70${twodigits}
 networking:
-  disableDefaultCNI: true
   serviceSubnet: "10.0${twodigits}.0.0/16"
   podSubnet: "10.1${twodigits}.0.0/16"
 kubeadmConfigPatches:
@@ -107,8 +106,6 @@ ipkind=$(docker inspect kind${number}-control-plane | jq -r '.[0].NetworkSetting
 networkkind=$(echo ${ipkind} | awk -F. '{ print $1"."$2 }')
 
 kubectl config set-cluster kind-kind${number} --server=https://${myip}:70${twodigits} --insecure-skip-tls-verify=true
-
-kubectl --context=kind-kind${number} apply -f https://docs.projectcalico.org/v3.18/manifests/calico.yaml
 
 kubectl --context=kind-kind${number} apply -f https://raw.githubusercontent.com/metallb/metallb/v0.9.3/manifests/namespace.yaml
 kubectl --context=kind-kind${number} apply -f https://raw.githubusercontent.com/metallb/metallb/v0.9.3/manifests/metallb.yaml

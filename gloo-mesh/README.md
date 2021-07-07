@@ -234,15 +234,15 @@ assert_eq "$clusters_names" "$expected_cluster_names" "$result_message" && log_s
 
 ## Lab 3 : Deploy Istio on both clusters {#lab3}
 
-Download istio 1.10.0:
+Download istio 1.10.2:
 
 ```bash
-export ISTIO_VERSION=1.10.0
+export ISTIO_VERSION=1.10.2
 curl -L https://istio.io/downloadIstio | sh -
 ```
 <!--bash
 log_header "Test :: Istio version"
-expected_istio_client_version=$(./istio-1.10.0/bin/istioctl version --remote=false)
+expected_istio_client_version=$(./istio-1.10.2/bin/istioctl version --remote=false)
 result_message="Installed version is $ISTIO_VERSION"
 assert_eq "$ISTIO_VERSION" "$expected_istio_client_version" "$result_message" && log_success "$result_message"
 -->
@@ -250,7 +250,7 @@ assert_eq "$ISTIO_VERSION" "$expected_istio_client_version" "$result_message" &&
 Now let's deploy Istio on the first cluster:
 
 ```bash
-./istio-1.10.0/bin/istioctl --context ${CLUSTER1} operator init
+./istio-1.10.2/bin/istioctl --context ${CLUSTER1} operator init
 
 kubectl --context ${CLUSTER1} create ns istio-system
 
@@ -334,7 +334,7 @@ EOF
 And deploy Istio on the second cluster:
 
 ```bash
-./istio-1.10.0/bin/istioctl --context ${CLUSTER2} operator init
+./istio-1.10.2/bin/istioctl --context ${CLUSTER2} operator init
 
 kubectl --context ${CLUSTER2} create ns istio-system
 
@@ -472,11 +472,11 @@ Run the following commands to deploy the bookinfo app on `cluster1`:
 ```bash
 kubectl --context ${CLUSTER1} label namespace default istio-injection=enabled
 # deploy bookinfo application components for all versions less than v3
-kubectl --context ${CLUSTER1} apply -f https://raw.githubusercontent.com/istio/istio/1.10.0/samples/bookinfo/platform/kube/bookinfo.yaml -l 'app,version notin (v3)'
+kubectl --context ${CLUSTER1} apply -f https://raw.githubusercontent.com/istio/istio/1.10.2/samples/bookinfo/platform/kube/bookinfo.yaml -l 'app,version notin (v3)'
 # deploy all bookinfo service accounts
-kubectl --context ${CLUSTER1} apply -f https://raw.githubusercontent.com/istio/istio/1.10.0/samples/bookinfo/platform/kube/bookinfo.yaml -l 'account'
+kubectl --context ${CLUSTER1} apply -f https://raw.githubusercontent.com/istio/istio/1.10.2/samples/bookinfo/platform/kube/bookinfo.yaml -l 'account'
 # configure ingress gateway to access bookinfo
-kubectl --context ${CLUSTER1} apply -f https://raw.githubusercontent.com/istio/istio/1.10.0/samples/bookinfo/networking/bookinfo-gateway.yaml
+kubectl --context ${CLUSTER1} apply -f https://raw.githubusercontent.com/istio/istio/1.10.2/samples/bookinfo/networking/bookinfo-gateway.yaml
 ```
 
 You can check that the app is running using `kubectl --context ${CLUSTER1} get pods`:
@@ -497,9 +497,9 @@ Now, run the following commands to deploy the bookinfo app on `cluster2`:
 ```bash
 kubectl --context ${CLUSTER2} label namespace default istio-injection=enabled
 # deploy all bookinfo service accounts and application components for all versions
-kubectl --context ${CLUSTER2} apply -f https://raw.githubusercontent.com/istio/istio/1.10.0/samples/bookinfo/platform/kube/bookinfo.yaml
+kubectl --context ${CLUSTER2} apply -f https://raw.githubusercontent.com/istio/istio/1.10.2/samples/bookinfo/platform/kube/bookinfo.yaml
 # configure ingress gateway to access bookinfo
-kubectl --context ${CLUSTER2} apply -f https://raw.githubusercontent.com/istio/istio/1.10.0/samples/bookinfo/networking/bookinfo-gateway.yaml
+kubectl --context ${CLUSTER2} apply -f https://raw.githubusercontent.com/istio/istio/1.10.2/samples/bookinfo/networking/bookinfo-gateway.yaml
 ```
 
 You can check that the app is running using `kubectl --context ${CLUSTER2} get pods`:
