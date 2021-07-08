@@ -10,3 +10,4 @@ ansible-playbook-hack.yml
 hack.sh
 .vagrant
 output
+configuration.auto.tfvars

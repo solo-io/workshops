@@ -56,3 +56,12 @@ variable "node_instance_type" {
 variable "preemptible" {
   type = bool
 }
+
+variable "include_vm" {
+  type    = map(any)
+  default = {}
+}
+
+variable "default_region" {
+  type = string
+}

@@ -23,6 +23,11 @@ output "eks_cluster" {
   }
 }
 
+output "eks_cluster_vm" {
+  value = {
+    for k, v in module.eks-cluster : k => v.gce_replicas_public_ip
+  }
+}
 
 output "gke_cluster" {
   value = {
