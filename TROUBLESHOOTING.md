@@ -97,3 +97,37 @@ If not, add it to the agent (the file can be found in shared drive)
 ```
 ssh-add ~/.ssh/rsa_solouser_github
 ```
+
+# Terraform apply error 'resource not found' 
+There are strong dependencies among the resources created by terraform, and sometimes the child can't get the parent ready before the timeout.
+
+Just run terraform apply again, with the same parameters, and terraform will resume the building
+```
+terraform apply
+```
+
+# Terraform is not working
+Make sure you have credentials in your system
+
+```
+# GCP
+# https://registry.terraform.io/providers/hashicorp/google/latest/docs/guides/getting_started#configuring-the-provider
+gcloud auth application-default login
+
+# AWS
+# https://registry.terraform.io/providers/hashicorp/aws/latest/docs#authentication
+aws configure
+````
+
+# Terraform is creating my resources in an undesired region/zone
+Make sure you have specified your preferences in file configuration.auto.tfvars
+
+```
+# GCP
+project = "solo-test-236622"
+region  = "europe-west4"
+zone    = "europe-west4-a"
+
+# AWS
+default_region = "eu-west-1"
+````
