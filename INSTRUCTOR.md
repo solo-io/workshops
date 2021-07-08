@@ -16,6 +16,20 @@ Install ansible:
 pip3 install ansible
 ```
 
+Provide credentials for both AWS and GCP:
+```
+# Authenticate with GCP. The easiest way to do this is to run
+gcloud auth application-default login
+# Authenticate with AWS. The easiest way to do this is to run
+aws configure
+```
+
+Configure region and zone for your remote resources:
+```
+# Create a file named configuration.auto.tfvars, you can use as template the one called configuration-example.auto.tfvars
+# This step is optional, but if you don't do it it will use default values from terraform.tfvars
+# Use this file to configure your desired resources too
+```
 ## Deploy
 
 Go to the terraform directory:
