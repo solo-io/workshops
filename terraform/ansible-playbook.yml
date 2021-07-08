@@ -421,7 +421,7 @@
   - name: Enable clipboard when launching the terminal
     lineinfile:
       path: /home/solo/.bashrc
-      line: 'usr/bin/autocutsel -s CLIPBOARD -fork'
+      line: '/usr/bin/autocutsel -s CLIPBOARD -fork'
     become_user: solo
     become_method: sudo
   
