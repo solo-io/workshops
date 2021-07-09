@@ -1,7 +1,7 @@
 resource "google_compute_instance" "vm" {
   project      = var.project
   count        = var.num_instances
-  name         = "${var.source_machine_image}-${count.index + 1}"
+  name         = "${terraform.workspace}-${var.prefix}-${count.index + 1}"
   machine_type = var.machine_type
   zone         = var.zone
 

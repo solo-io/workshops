@@ -5,7 +5,7 @@
 Install terraform:
 
 ```
-# Tested with terraform v0.15.4
+# Tested with terraform v0.15.4, v1.0.2
 brew install terraform
 ```
 
