@@ -75,7 +75,7 @@ module "vm-replica" {
   source = "../../gce/vm-replica"
   count  = ceil(var.num_instances / var.vm_merge_kubeconfig) > 0 ? 1 : 0
 
-  prefix               = var.prefix
+  prefix               = "${var.prefix}-eks"
   project              = var.vm_project
   machine_type         = var.vm_machine_type
   zone                 = var.vm_zone
