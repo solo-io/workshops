@@ -26,3 +26,11 @@ variable "num_instances" {
 variable "preemptible" {
   type = bool
 }
+
+locals {
+  common_tags = {
+    created_by = "terraform"
+    workspace  = terraform.workspace
+    prefix     = var.prefix
+  }
+}

@@ -7,6 +7,8 @@ resource "google_compute_instance" "vm" {
 
   tags = [var.prefix]
 
+  labels = local.common_tags
+
   boot_disk {
     initialize_params {
       image = var.source_machine_image

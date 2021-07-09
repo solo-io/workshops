@@ -9,9 +9,12 @@ module "vpc" {
   azs            = var.azs_controlplane
   public_subnets = ["10.0.1.0/24", "10.0.2.0/24", "10.0.3.0/24"]
 
-  tags = {
-    "kubernetes.io/cluster/${terraform.workspace}-${var.prefix}-${count.index + 1}" = "shared"
-  }
+  tags = merge(
+    {
+      "kubernetes.io/cluster/${terraform.workspace}-${var.prefix}-${count.index + 1}" = "shared"
+    },
+    local.common_tags,
+  )
 }
 
 data "aws_subnet_ids" "nodes" {

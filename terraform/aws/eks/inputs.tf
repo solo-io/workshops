@@ -41,3 +41,11 @@ variable "vm_project" {
 variable "vm_zone" {
   type = string
 }
+
+locals {
+  common_tags = {
+    created_by = "terraform"
+    workspace  = terraform.workspace
+    prefix     = var.prefix
+  }
+}

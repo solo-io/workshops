@@ -60,11 +60,7 @@ resource "google_container_node_pool" "primary_nodes" {
       "https://www.googleapis.com/auth/monitoring",
     ]
 
-    labels = {
-      workspace = terraform.workspace
-      prefix    = var.prefix
-      instance  = 1
-    }
+    labels = local.common_tags
 
     preemptible  = var.preemptible
     machine_type = "n1-standard-1"
