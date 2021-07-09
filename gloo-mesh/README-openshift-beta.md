@@ -6,6 +6,7 @@
 source ../assert.sh
 -->
 
+
 [Gloo Mesh](https://docs.solo.io/gloo-mesh/latest/) is a Kubernetes-native management plane that enables configuration and operational management of multiple heterogeneous service meshes across multiple clusters through a unified API. The Gloo Mesh API integrates with the leading service meshes and abstracts away differences between their disparate API's, allowing users to configure a set of different service meshes through a single API. Gloo Mesh is engineered with a focus on its utility as an operational management tool, providing both graphical and command line UIs, observability features, and debugging tools.
 
 The goal of this workshop is to show several unique features of the Gloo Mesh in action:
@@ -16,27 +17,10 @@ The goal of this workshop is to show several unique features of the Gloo Mesh in
 - Multi-cluster traffic
 - Failover
 
-## Lab environment
 
-Gloo Mesh can be run in its own cluster or co-located with an existing mesh.  In this exercise, Gloo Mesh will run in its own dedicated management cluster, while the two managed Istio meshes will run in separate clusters.
 
-![Lab](images/lab.png)
+# Lab 1 - Deploy Openshift clusters
 
-## Table of contents
-
-* [Lab 1 - Deploy your Kubernetes clusters](#lab1)
-* [Lab 2 - Deploy Gloo Mesh and register the clusters](#lab2)
-* [Lab 3 - Deploy Istio on both clusters](#lab3)
-* [Lab 4 - Deploy the Bookinfo demo app](#lab4)
-* [Lab 5 - Create the Virtual Mesh](#lab5)
-* [Lab 6 - Access Control](#lab6)
-* [Lab 7 - Multi-cluster Traffic](#lab7)
-* [Lab 8 - Traffic Failover](#lab8)
-* [Lab 9 - Gloo Mesh Enterprise RBAC](#lab9)
-* [Lab 10 - Extend Envoy with WebAssembly](#lab10)
-* [Lab 11 - Exploring the Gloo Mesh Enterprise UI](#lab11)
-
-## Lab 1 : Deploy your Kubernetes clusters {#lab1}
 Set the context environment variables:
 
 ```bash
@@ -58,51 +42,18 @@ From the terminal go to the `/home/solo/workshops/gloo-mesh` directory:
 cd /home/solo/workshops/gloo-mesh
 ```
 
-Run the following commands to deploy three Kubernetes clusters using [Kind](https://kind.sigs.k8s.io/):
+For this workshop, you need to deploy 3 Openshift clusters.
 
-```bash
-../scripts/deploy.sh 1 mgmt
-../scripts/deploy.sh 2 cluster1 us-west us-west-1
-../scripts/deploy.sh 3 cluster2 us-west us-west-2
-```
+All the instructions have been tested with Openshift 4.7.12 and each cluster was composed of 3 worker nodes with 4 CPUs and 16 GB of RAM each.
 
-Then run the following commands to wait for all the Pods to be ready:
+Gloo Mesh can be run in its own cluster or co-located with an existing mesh.  In this exercise, Gloo Mesh will run in its own dedicated management cluster, while the two managed Istio meshes will run in separate clusters.
 
-```bash
-../scripts/check.sh mgmt
-../scripts/check.sh cluster1 
-../scripts/check.sh cluster2 
-```
+You also need to rename the Kubernete contexts of each Openshift cluster to match `mgmt`, `cluster1` and `cluster2`.
 
-**Note:** If you run the `check.sh` script immediately after the `deploy.sh` script, you may see a jsonpath error. If that happens, simply wait a few seconds and try again.
-
-Once the `check.sh` script completes, when you execute the `kubectl get pods -A` command, you should see the following:
+Here is an example showing how to rename a Kubernetes context:
 
 ```
-NAMESPACE            NAME                                          READY   STATUS    RESTARTS   AGE
-kube-system          calico-kube-controllers-59d85c5c84-sbk4k      1/1     Running   0          4h26m
-kube-system          calico-node-przxs                             1/1     Running   0          4h26m
-kube-system          coredns-6955765f44-ln8f5                      1/1     Running   0          4h26m
-kube-system          coredns-6955765f44-s7xxx                      1/1     Running   0          4h26m
-kube-system          etcd-cluster1-control-plane                   1/1     Running   0          4h27m
-kube-system          kube-apiserver-cluster1-control-plane         1/1     Running   0          4h27m
-kube-system          kube-controller-manager-cluster1-control-plane1/1     Running   0          4h27m
-kube-system          kube-proxy-ksvzw                              1/1     Running   0          4h26m
-kube-system          kube-scheduler-cluster1-control-plane         1/1     Running   0          4h27m
-local-path-storage   local-path-provisioner-58f6947c7-lfmdx        1/1     Running   0          4h26m
-metallb-system       controller-5c9894b5cd-cn9x2                   1/1     Running   0          4h26m
-metallb-system       speaker-d7jkp                                 1/1     Running   0          4h26m
-```
-
-Note that this represents the output just for `cluster2`, although the pod footprint for all three clusters should look similar at this point.
-
-You can see that your currently connected to this cluster by executing the `kubectl config get-contexts` command:
-
-```
-CURRENT   NAME         CLUSTER         AUTHINFO   NAMESPACE  
-          cluster1     kind-cluster1   cluster1
-*         cluster2     kind-cluster2   cluster2
-          mgmt         kind-mgmt       kind-mgmt 
+kubectl config rename-context <context to rename> <new context name>
 ```
 
 Run the following command to make `mgmt` the current cluster.
@@ -111,15 +62,18 @@ Run the following command to make `mgmt` the current cluster.
 kubectl config use-context ${MGMT}
 ```
 
-## Lab 2 : Deploy Gloo Mesh and register the clusters {#lab2}
+
+# Lab 2 - Deploy and register Gloo Mesh
 
 First of all, you need to install the *meshctl* CLI:
 
 ```bash
-export GLOO_MESH_VERSION=v1.0.9
+export GLOO_MESH_VERSION=v1.1.0-beta16
 curl -sL https://run.solo.io/meshctl/install | sh -
 export PATH=$HOME/.gloo-mesh/bin:$PATH
 ```
+
+
 <!--bash
 log_header "Test :: Test meshctl version"
 installedVersion=$(meshctl version | jq -r '.client.version')
@@ -137,19 +91,46 @@ helm repo update
 kubectl --context ${MGMT} create ns gloo-mesh 
 helm install gloo-mesh-enterprise gloo-mesh-enterprise/gloo-mesh-enterprise \
 --namespace gloo-mesh --kube-context ${MGMT} \
---version=1.0.14 \
+--version=1.1.0-beta20 \
+--set rbac-webhook.enabled=true \
+--set gloo-mesh-ui.GlooMeshDashboard.apiserver.floatingUserId=true \
 --set licenseKey=${GLOO_MESH_LICENSE_KEY}
 
 kubectl --context ${MGMT} -n gloo-mesh rollout status deploy/enterprise-networking
 ```
 
-Then, you need to register the two other clusters:
+
+
+Update the default Gloo Mesh role binding to provide administrative privilege to the current user (it assumes you have only one user defined in your Kubernetes cluster):
 
 ```bash
-SVC=$(kubectl --context ${MGMT} -n gloo-mesh get svc enterprise-networking -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+cat > rolebinding-patch.yaml <<EOF
+spec:
+  roleRef:
+    name: admin-role
+    namespace: gloo-mesh
+  subjects:
+  - kind: User
+    name: $(kubectl --context ${MGMT} get user -o jsonpath='{.items[0].metadata.name}')
+EOF
 
-meshctl cluster register --mgmt-context=${MGMT} --remote-context=${CLUSTER1} --relay-server-address=$SVC:9900 enterprise cluster1 --cluster-domain cluster.local
-meshctl cluster register --mgmt-context=${MGMT} --remote-context=${CLUSTER2} --relay-server-address=$SVC:9900 enterprise cluster2 --cluster-domain cluster.local
+kubectl --context ${MGMT} -n gloo-mesh patch rolebindings.rbac.enterprise.mesh.gloo.solo.io admin-role-binding --type=merge --patch "$(cat rolebinding-patch.yaml)"
+```
+
+
+
+Then, you need to set the environment variable for the service of the Gloo Mesh Enterprise networking component:
+
+```bash
+SVC=$(kubectl --context ${MGMT} -n gloo-mesh get svc enterprise-networking -o jsonpath='{.status.loadBalancer.ingress[0].*}')
+```
+
+Finally, you need to register the two other clusters:
+
+```bash
+
+meshctl cluster register --mgmt-context=${MGMT} --remote-context=${CLUSTER1} --relay-server-address=$SVC:9900 enterprise cluster1 --cluster-domain cluster.local 
+meshctl cluster register --mgmt-context=${MGMT} --remote-context=${CLUSTER2} --relay-server-address=$SVC:9900 enterprise cluster2 --cluster-domain cluster.local 
 ```
 
 You can list the registered cluster using the following command:
@@ -165,6 +146,8 @@ NAME       AGE
 cluster1   27s
 cluster2   23s
 ```
+
+
 <!--bash
 log_header "Test :: Cluster registration"
 clusters_names=$(kubectl get kubernetescluster -A -o jsonpath='{.items..name}')
@@ -191,8 +174,6 @@ assert_eq "$clusters_names" "$expected_cluster_names" "$result_message" && log_s
 > ```
 > #### Install the Helm charts
 > ```
-> SVC=$(kubectl --context ${MGMT} -n gloo-mesh get svc enterprise-networking -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
-> 
 > helm repo add enterprise-agent https://storage.googleapis.com/gloo-mesh-enterprise/enterprise-agent
 > helm repo update
 > helm install enterprise-agent enterprise-agent/enterprise-agent \
@@ -200,14 +181,14 @@ assert_eq "$clusters_names" "$expected_cluster_names" "$result_message" && log_s
 >   --set relay.serverAddress=${SVC}:9900 \
 >   --set relay.cluster=cluster1 \
 >   --kube-context=${CLUSTER1} \
->   --version 1.0.14
+>   --version 1.1.0-beta20
 > 
 > helm install enterprise-agent enterprise-agent/enterprise-agent \
 >   --namespace gloo-mesh \
 >   --set relay.serverAddress=${SVC}:9900 \
 >   --set relay.cluster=cluster2 \
 >   --kube-context=${CLUSTER2} \
->   --version 1.0.14
+>   --version 1.1.0-beta20
 > ```
 > #### Create the `KubernetesCluster` objects
 > ```
@@ -232,7 +213,10 @@ assert_eq "$clusters_names" "$expected_cluster_names" "$result_message" && log_s
 > EOF
 > ```
 
-## Lab 3 : Deploy Istio on both clusters {#lab3}
+# Lab 3 - Deploy Istio
+
+Note that the few Openshift specific commands used in this lab are documented on the Istio website [here](https://istio.io/latest/docs/setup/platform-setup/openshift/).
+
 
 Download istio 1.10.2:
 
@@ -240,6 +224,8 @@ Download istio 1.10.2:
 export ISTIO_VERSION=1.10.2
 curl -L https://istio.io/downloadIstio | sh -
 ```
+
+
 <!--bash
 log_header "Test :: Istio version"
 expected_istio_client_version=$(./istio-1.10.2/bin/istioctl version --remote=false)
@@ -250,18 +236,25 @@ assert_eq "$ISTIO_VERSION" "$expected_istio_client_version" "$result_message" &&
 Now let's deploy Istio on the first cluster:
 
 ```bash
-./istio-1.10.2/bin/istioctl --context ${CLUSTER1} operator init
+oc --context ${CLUSTER1} adm policy add-scc-to-group anyuid system:serviceaccounts:istio-system
+oc --context ${CLUSTER1} adm policy add-scc-to-group anyuid system:serviceaccounts:istio-operator
+
+
+kubectl --context ${CLUSTER1} create ns istio-operator
+
+./istio-1.10.2/bin/istioctl --context ${CLUSTER1} operator init 
 
 kubectl --context ${CLUSTER1} create ns istio-system
 
 cat << EOF | kubectl --context ${CLUSTER1} apply -f -
+
 apiVersion: install.istio.io/v1alpha1
 kind: IstioOperator
 metadata:
   name: istiocontrolplane-default
   namespace: istio-system
 spec:
-  profile: default
+  profile: openshift
   meshConfig:
     trustDomain: cluster1
     accessLogFile: /dev/stdout
@@ -276,6 +269,19 @@ spec:
         ISTIO_META_DNS_AUTO_ALLOCATE: "true"
         GLOO_MESH_CLUSTER_NAME: cluster1
   values:
+    cni:
+      excludeNamespaces:
+       - istio-system
+       - kube-system
+       - metallb-system
+      logLevel: info
+      cniBinDir: /var/lib/cni/bin
+      cniConfDir: /etc/cni/multus/net.d
+      chained: false
+      cniConfFileName: "istio-cni.conf"
+    sidecarInjectorWebhook:
+      injectedAnnotations:
+        k8s.v1.cni.cncf.io/networks: istio-cni
     global:
       meshID: mesh1
       multiCluster:
@@ -290,6 +296,9 @@ spec:
             port: 443
         vm-network:
   components:
+    cni:
+      enabled: true
+      namespace: kube-system
     ingressGateways:
     - name: istio-ingressgateway
       label:
@@ -334,18 +343,25 @@ EOF
 And deploy Istio on the second cluster:
 
 ```bash
-./istio-1.10.2/bin/istioctl --context ${CLUSTER2} operator init
+oc --context ${CLUSTER2} adm policy add-scc-to-group anyuid system:serviceaccounts:istio-system
+oc --context ${CLUSTER2} adm policy add-scc-to-group anyuid system:serviceaccounts:istio-operator
+
+
+kubectl --context ${CLUSTER2} create ns istio-operator
+
+./istio-1.10.2/bin/istioctl --context ${CLUSTER2} operator init 
 
 kubectl --context ${CLUSTER2} create ns istio-system
 
 cat << EOF | kubectl --context ${CLUSTER2} apply -f -
+
 apiVersion: install.istio.io/v1alpha1
 kind: IstioOperator
 metadata:
   name: istiocontrolplane-default
   namespace: istio-system
 spec:
-  profile: default
+  profile: openshift
   meshConfig:
     trustDomain: cluster2
     accessLogFile: /dev/stdout
@@ -360,13 +376,26 @@ spec:
         ISTIO_META_DNS_AUTO_ALLOCATE: "true"
         GLOO_MESH_CLUSTER_NAME: cluster2
   values:
+    cni:
+      excludeNamespaces:
+       - istio-system
+       - kube-system
+       - metallb-system
+      logLevel: info
+      cniBinDir: /var/lib/cni/bin
+      cniConfDir: /etc/cni/multus/net.d
+      chained: false
+      cniConfFileName: "istio-cni.conf"
+    sidecarInjectorWebhook:
+      injectedAnnotations:
+        k8s.v1.cni.cncf.io/networks: istio-cni
     global:
       meshID: mesh1
       multiCluster:
         clusterName: cluster2
-      network: network2
+      network: network1
       meshNetworks:
-        network2:
+        network1:
           endpoints:
           - fromRegistry: cluster2
           gateways:
@@ -374,10 +403,13 @@ spec:
             port: 443
         vm-network:
   components:
+    cni:
+      enabled: true
+      namespace: kube-system
     ingressGateways:
     - name: istio-ingressgateway
       label:
-        topology.istio.io/network: network2
+        topology.istio.io/network: network1
       enabled: true
       k8s:
         env:
@@ -386,7 +418,7 @@ spec:
             value: "sni-dnat"
           # traffic through this gateway should be routed inside the network
           - name: ISTIO_META_REQUESTED_NETWORK_VIEW
-            value: network2
+            value: network1
         service:
           ports:
             - name: http2
@@ -414,6 +446,8 @@ spec:
             value: "true"
 EOF
 ```
+
+
 <!--bash
 log_header "Test :: Istio operator"
 
@@ -423,7 +457,7 @@ do
 done
 
 printf "\nWaiting for all the Istio pods to become ready."
-until [ $(kubectl --context ${CLUSTER1} -n istio-system get pods -o jsonpath='{range .items[*].status.containerStatuses[*]}{.ready}{"\n"}{end}' | grep true -c) -eq 2 ]; do
+until [ $(kubectl --context ${CLUSTER1} -n istio-system get pods -o jsonpath='{range .items[*].status.containerStatuses[*]}{.ready}{"\n"}{end}' | grep true -c) -gt 0 -a $(kubectl --context ${CLUSTER1} -n istio-system get pods -o jsonpath='{range .items[*].status.containerStatuses[*]}{.ready}{"\n"}{end}' | grep false -c) -eq 0 ]; do
   printf "%s" "."
   sleep 1
 done
@@ -439,7 +473,7 @@ done
 printf "\n"
 
 printf "\nWaiting for all the Istio pods to become ready"
-until [ $(kubectl --context ${CLUSTER2} -n istio-system get pods -o jsonpath='{range .items[*].status.containerStatuses[*]}{.ready}{"\n"}{end}' | grep true -c) -eq 2 ]; do
+until [ $(kubectl --context ${CLUSTER2} -n istio-system get pods -o jsonpath='{range .items[*].status.containerStatuses[*]}{.ready}{"\n"}{end}' | grep true -c) -gt 0 -a $(kubectl --context ${CLUSTER2} -n istio-system get pods -o jsonpath='{range .items[*].status.containerStatuses[*]}{.ready}{"\n"}{end}' | grep false -c) -eq 0 ]; do
   printf "%s" "."
   sleep 1
 done
@@ -464,17 +498,44 @@ istiod-7884b57b4c-rvr2c                 1/1     Running   0          30s
 
 Check the status on the second cluster using `kubectl --context ${CLUSTER2} get pods -n istio-system`
 
+Expose an OpenShift route for the ingress gateway on each cluster:
 
-## Lab 4 : Deploy the Bookinfo demo app {#lab4}
+```bash
+oc --context ${CLUSTER1} -n istio-system expose svc/istio-ingressgateway --port=http2
+oc --context ${CLUSTER2} -n istio-system expose svc/istio-ingressgateway --port=http2
+```
+
+Set the environment variable for the service of the Istio Ingress Gateway of cluster1:
+
+```bash
+SVC_GW_CLUSTER1=$(kubectl --context ${CLUSTER1} -n istio-system get svc istio-ingressgateway -o jsonpath='{.status.loadBalancer.ingress[0].*}')
+```
+
+# Lab 4 - Deploy the Bookinfo demo app
+
+Note that the few Openshift specific commands used in this lab are documented on the Istio website [here](https://istio.io/latest/docs/setup/platform-setup/openshift/).
+
+
 
 Run the following commands to deploy the bookinfo app on `cluster1`:
 
 ```bash
+oc --context ${CLUSTER1} adm policy add-scc-to-group anyuid system:serviceaccounts:default
+
+cat <<EOF | oc --context ${CLUSTER1} -n default create -f -
+apiVersion: "k8s.cni.cncf.io/v1"
+kind: NetworkAttachmentDefinition
+metadata:
+  name: istio-cni
+EOF
+
+
+bookinfo_yaml=https://raw.githubusercontent.com/istio/istio/1.10.2/samples/bookinfo/platform/kube/bookinfo.yaml
 kubectl --context ${CLUSTER1} label namespace default istio-injection=enabled
 # deploy bookinfo application components for all versions less than v3
-kubectl --context ${CLUSTER1} apply -f https://raw.githubusercontent.com/istio/istio/1.10.2/samples/bookinfo/platform/kube/bookinfo.yaml -l 'app,version notin (v3)'
+kubectl --context ${CLUSTER1} apply -f ${bookinfo_yaml} -l 'app,version notin (v3)'
 # deploy all bookinfo service accounts
-kubectl --context ${CLUSTER1} apply -f https://raw.githubusercontent.com/istio/istio/1.10.2/samples/bookinfo/platform/kube/bookinfo.yaml -l 'account'
+kubectl --context ${CLUSTER1} apply -f ${bookinfo_yaml} -l 'account'
 # configure ingress gateway to access bookinfo
 kubectl --context ${CLUSTER1} apply -f https://raw.githubusercontent.com/istio/istio/1.10.2/samples/bookinfo/networking/bookinfo-gateway.yaml
 ```
@@ -495,9 +556,19 @@ As you can see, it deployed the `v1` and `v2` versions of the `reviews` microser
 Now, run the following commands to deploy the bookinfo app on `cluster2`:
 
 ```bash
+oc --context ${CLUSTER2} adm policy add-scc-to-group anyuid system:serviceaccounts:default
+
+cat <<EOF | oc --context ${CLUSTER2} -n default create -f -
+apiVersion: "k8s.cni.cncf.io/v1"
+kind: NetworkAttachmentDefinition
+metadata:
+  name: istio-cni
+EOF
+
+
 kubectl --context ${CLUSTER2} label namespace default istio-injection=enabled
 # deploy all bookinfo service accounts and application components for all versions
-kubectl --context ${CLUSTER2} apply -f https://raw.githubusercontent.com/istio/istio/1.10.2/samples/bookinfo/platform/kube/bookinfo.yaml
+kubectl --context ${CLUSTER2} apply -f ${bookinfo_yaml}
 # configure ingress gateway to access bookinfo
 kubectl --context ${CLUSTER2} apply -f https://raw.githubusercontent.com/istio/istio/1.10.2/samples/bookinfo/networking/bookinfo-gateway.yaml
 ```
@@ -518,15 +589,18 @@ As you can see, it deployed all three versions of the `reviews` microservice.
 
 ![Initial setup](images/initial-setup.png)
 
+
+
 Get the URL to access the `productpage` service from your web browser using the following command:
 
 ```
-echo "http://$(kubectl --context ${CLUSTER1} -n istio-system get svc istio-ingressgateway -o jsonpath='{.status.loadBalancer.ingress[0].ip}')/productpage"
+echo "http://${SVC_GW_CLUSTER1}/productpage"
 ```
 
 ![Bookinfo working](images/bookinfo-working.png)
 
 As you can see, you can access the Bookinfo demo app.
+
 
 <!--bash
 printf "\nWaiting for all the pods of the default namespace to become ready in ${CLUSTER1}"
@@ -544,8 +618,7 @@ done
 printf "\n"
 -->
 
-
-## Lab 5 : Create the Virtual Mesh {#lab5}
+# Lab 5 - Create the Virtual Mesh
 
 Gloo Mesh can help unify the root identity between multiple service mesh installations so any intermediates are signed by the same Root CA and end-to-end mTLS between clusters and services can be established correctly.
 
@@ -555,6 +628,7 @@ Run this command to see how the communication between microservices occurs curre
 kubectl --context ${CLUSTER1} exec -t deploy/reviews-v1 -c istio-proxy \
 -- openssl s_client -showcerts -connect ratings:9080
 ```
+
 
 <!--bash
 log_header "Test :: No certificate issued in ${CLUSTER1}"
@@ -638,14 +712,15 @@ kubectl --context ${CLUSTER1} exec -t deploy/reviews-v1 -c istio-proxy \
 -- openssl s_client -showcerts -connect ratings:9080
 ```
 
+
 <!--bash
-log_header "Test :: Certificate issued by Istio in ${CLUSTER1}"
+log_header "Test :: Certificate issued by Istio in $CLUSTER1"
 printf "\nWaiting until certificate issuer is $CLUSTER1"
 search1="CONNECTED"
 search2="i:O = cluster1"
 while true
 do
-  output=$(kubectl --context ${CLUSTER1} exec -t deploy/reviews-v1 -c istio-proxy -- openssl s_client -showcerts -connect ratings:9080 2>&1)
+  output=$(kubectl --context $CLUSTER1 exec -t deploy/reviews-v1 -c istio-proxy -- openssl s_client -showcerts -connect ratings:9080 2>&1)
   echo "$output" | grep "$search1" &>/dev/null
   condition1=$?
   echo "$output" | grep "$search2" &>/dev/null
@@ -684,48 +759,6 @@ ugY=
 ...
 ```
 
-<!--
------BEGIN CERTIFICATE-----
-MIIDFzCCAf+gAwIBAgIRALsoWlroVcCc1n+VROhATrcwDQYJKoZIhvcNAQELBQAw
-EDEOMAwGA1UEChMFa2luZDIwHhcNMjAwOTE3MDgwNDIyWhcNMjAwOTE4MDgwNDIy
-WjAAMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAn+ajXJrFcz7HLwfV
-5O/P/2wKj6aocOMLsHlWZtoZD3IS0E/+5myNZ5TJg7vyoU0HpZ1B4tWPhfs0Z4Pp
-NVO8W9m15ZTtVFtoif3/Dq5KJoDAuzb5lx3ZHWXsERm/2kXyMh7cU7nXxZ9Ed8OX
-+18Mgp+Pw+lJUso8pleMzzqkbRChRqHJBEYswsPbutynLkdaytaeCS/c/9gWYLp3
-2GnVvuMcJgezJ8+NKDZv650DoIrZLXoudl1qNw6Q6D+e2WXJq0dE9PuDc5kgAkhy
-ngG/SeQppEac3M4uRvxz6QSnCp+1bxQCzRmGN8GlXC1q4pUHhgYWJcqgiKBgK9Fw
-iubjbwIDAQABo3wwejAOBgNVHQ8BAf8EBAMCBaAwHQYDVR0lBBYwFAYIKwYBBQUH
-AwEGCCsGAQUFBwMCMAwGA1UdEwEB/wQCMAAwOwYDVR0RAQH/BDEwL4Ytc3BpZmZl
-Oi8va2luZDIvbnMvZGVmYXVsdC9zYS9ib29raW5mby1yYXRpbmdzMA0GCSqGSIb3
-DQEBCwUAA4IBAQA2K0JgNjyTLjOehVIOyIZfmsizcIv6yn8QjuFe9viMh32/TEBt
-CcCzaZs4k83IeMoDx8y5OJl2kBaoXF7xS9uRM9Aqg/kjyno8D76iJyjHIBywBVK2
-bEjPyTXr21Dg0gNdpbtQsJsiFzKPrW+Z6RihDzobXLYlNDVzDALVqOZfEcmeNGmh
-9XoYQo14EKqwKqeKoL9THgsthT9UwIXJQHxc/6CH++zLo7w4JPwYNIH+CPn+ID7+
-HvPHTwXBM8P/ySJTVK4mNLvDZQQTV+2qPB+o+iTvy1+GyDMUuK4iEXHus01Zr33K
-BPiAYRMH5j0gyBqiZZEwCfzfQe1e6aAgie9T
------END CERTIFICATE-----
- 1 s:O = cluster1
-   i:O = cluster1
------BEGIN CERTIFICATE-----
-MIICzjCCAbagAwIBAgIRAKIx2hzMbAYzM74OC4Lj1FUwDQYJKoZIhvcNAQELBQAw
-EDEOMAwGA1UEChMFa2luZDIwHhcNMjAwOTE3MDgwMjEyWhcNMzAwOTE1MDgwMjEy
-WjAQMQ4wDAYDVQQKEwVraW5kMjCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoC
-ggEBAK96gkKK/kDcHrom4FJcOGpKzLIqvQRAIu/y3IKllNnDH+Av3fp4kNw+Bb6+
-1u6VgHe4LNmdpCXoOGHRPRJb4ZbUX/pzaEA1JugrGGFfblsC35COA5GyICoOrRve
-MX9GTlgWEZOM0JpFT64eBY6OGD+yyXVjNkBDBeU/fjX6FEva8/huIlqwTjWPkutt
-S+PjqgfdmCFB0NzT+kHnpBtkgSsL10sS4v0xwphR69pJuBKgEhYzGZvgX7pF+KgD
-hDcDQiU56FDczxDh6JmnpdFjuFCOZGNXOb5QByjjL9pTdEHa5n2rOY+7aSlxpNFd
-HxqEUkFP8z9wgesw+hrt/Rm8K90CAwEAAaMjMCEwDgYDVR0PAQH/BAQDAgIEMA8G
-A1UdEwEB/wQFMAMBAf8wDQYJKoZIhvcNAQELBQADggEBAIrnFX2M3CMn+b9LCiyi
-4mNpVhHSH6HpS1dBVokl1AGcX77YBA+tCDsdWDdMMPMCnELGZkqgeNotkGXSczLC
-voWSEA5Ac7BC+tv3MM/LOXxwFkl1JNkhMs4jfWb3iWM8jKXJvy8sxPGyWh8Z3ZmO
-KG1jIKUm6qT96b8I8LLeri2L0DzyX/b7zVVpgxLoqFh1Ck3VUNhJzL6quiJ8zbWW
-89kSU2xwYN6ZMIYEn+bhRyzjUOEZGWiBqlwac4ZP5yiZNlxgd+wywfivf4jN/E42
-uMTPjt7p/sv74fsLgrx8WMI0pVQ7+2plpjaiIZ8KvEK9ye/0Mx8uyzTG7bpmVVWo
-ugY=
------END CERTIFICATE-----
--->
-
 As you can see, mTLS is now enabled.
 
 Now, run the same command on the second cluster:
@@ -734,14 +767,16 @@ Now, run the same command on the second cluster:
 kubectl --context ${CLUSTER2} exec -t deploy/reviews-v1 -c istio-proxy \
 -- openssl s_client -showcerts -connect ratings:9080
 ```
+
+
 <!--bash
-log_header "Test :: Certificate issued by Istio in ${CLUSTER2}"
+log_header "Test :: Certificate issued by Istio in $CLUSTER2"
 printf "\nWaiting until certificate issuer is $CLUSTER2"
 search1="CONNECTED"
 search2="i:O = cluster2"
 while true
 do
-  output=$(kubectl --context ${CLUSTER2} exec -t deploy/reviews-v1 -c istio-proxy -- openssl s_client -showcerts -connect ratings:9080 2>&1)
+  output=$(kubectl --context $CLUSTER2 exec -t deploy/reviews-v1 -c istio-proxy -- openssl s_client -showcerts -connect ratings:9080 2>&1)
   echo "$output" | grep "$search1" &>/dev/null
   condition1=$?
   echo "$output" | grep "$search2" &>/dev/null
@@ -756,7 +791,6 @@ printf "\n"
 result_message="Certificate issued in $CLUSTER2"
 log_success "$result_message"
 -->
-
 
 The output should be like that:
 
@@ -781,48 +815,6 @@ GZRM4zV9BopZg745Tdk2LVoHiBR536QxQv/0h1P0CdN9hNLklAhGN/Yf9SbDgLTw
 ...
 ```
 
-<!--
------BEGIN CERTIFICATE-----
-MIIDFzCCAf+gAwIBAgIRALo1dmnbbP0hs1G82iBa2oAwDQYJKoZIhvcNAQELBQAw
-EDEOMAwGA1UEChMFa2luZDMwHhcNMjAwOTE3MDgwNDIzWhcNMjAwOTE4MDgwNDIz
-WjAAMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAuNw904yazsn+QM7w
-g7JKd25t9tNX6XLr508WA/sK6j8dEYYhn4G8BvsVJ8N7Px7gonblfVyY/PAhKOTY
-BBBjB+hMfsxENjtTpwTSve54Varld7+FrqdnC6BrLLLVVmfDGIC/mw9oQsAgaVVI
-xY3zXUP0xBQfzEj1DB2zXGZWziOmX5vEQarhIboamWMYbVBS5JcZ14Na8kQqX3mq
-5+sxPb2IM4W7IXcijryJ12gU5nds/sS+/avBQIaoqzyatZE2tJR4iGZz5CrWnNl8
-xfUYs+BGP6kKs8dYFGMzdphrkVSyBm/DK2JuPZOhhpVpZ9Z4WgZ8h2BgCLhImKxA
-qshSKwIDAQABo3wwejAOBgNVHQ8BAf8EBAMCBaAwHQYDVR0lBBYwFAYIKwYBBQUH
-AwEGCCsGAQUFBwMCMAwGA1UdEwEB/wQCMAAwOwYDVR0RAQH/BDEwL4Ytc3BpZmZl
-Oi8va2luZDMvbnMvZGVmYXVsdC9zYS9ib29raW5mby1yYXRpbmdzMA0GCSqGSIb3
-DQEBCwUAA4IBAQCKc82+rUNTFGKSqgIfUiUD+oW4t+W2KGsjqBz8FIrX8ZeCBXKa
-AjkDfFwVlRfVXM1egGT+0qAJ1TXCd1cb4k1h48FzAZfZ6G6n8I6wMF7z0WEjtIV+
-cfD75kq9NFswwxeNgjq8hPXuef6fpRrukZKxSh2YYtZooD/CCql/lFGOStsW4Du6
-vkMdO1Uo7m3jCLQjqW2rEFJnid/r1sFzlKsyueO3rTac56uYWZ3Jbyh9aebMhsK6
-N+kinIjTL2kb2YQmd6FErzki1TrG2QOxakaP1hWl/jxZzerSV8GsASTle3TowiOz
-YvDrZfKNOKwFWKMKKhCSi2rmCvLKuXXQJGhy
------END CERTIFICATE-----
- 1 s:O = cluster2
-   i:O = cluster2
------BEGIN CERTIFICATE-----
-MIICzjCCAbagAwIBAgIRAIjegnzq/hN/NbMm3dmllnYwDQYJKoZIhvcNAQELBQAw
-EDEOMAwGA1UEChMFa2luZDMwHhcNMjAwOTE3MDgwMjIzWhcNMzAwOTE1MDgwMjIz
-WjAQMQ4wDAYDVQQKEwVraW5kMzCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoC
-ggEBAOf6+HhHS0du9Jd6bSRg9Q/51qFM0oxQiqo07yqepEkiy7w7zF7JfJJEj20x
-LdCREAEWb+ZsDOiR2ZJYE1zRIOGNMO85p9wzD9y1gUnLh7v6R1nSh4zxuci/G0GF
-/o9DUQmmFETJ0jrcL9KQP11WY16FsI+D/elErW/xQ0Xh7NDPj8i8QD5X01ajDR3I
-NfuezViy+DJIwZ9j2LdeFr6F8flHQuK8d4D5IPjuWrJigdZ9K7qGhFJ3Yl9uW1/i
-255v5UWLoAVLrrKQewmRx89kbpctlDEG+cj2CnCpknrakjs9XlMvnKvisSkMYTuU
-aiV7Ck2ne/mWU4wRE3DBHTmYEoMCAwEAAaMjMCEwDgYDVR0PAQH/BAQDAgIEMA8G
-A1UdEwEB/wQFMAMBAf8wDQYJKoZIhvcNAQELBQADggEBANk+VQxiztsm6WCOQCpz
-kqDuOBwtGC4F8XbesdKVLn8WjE88LAdTVD1R1OKPuFc/rPs1+hlfswnZINY4Pi9v
-hTqYbJP1usgq/QLpR697zJ3y0fZP0A541WsM0RHtscf1Ukid9sfVFxEpOpykZtEI
-/at3Ecg+sb18iT034cCT8pRVAQuioCXd1QCBkvFSNV7vyZRWpx6LD4tNpaFoP1He
-pubLvwmmPS9SAPdlUTz30E6mOAqy/NZUQ83PyTt+TPWnnTBr7yh01MApxQB61okx
-GZRM4zV9BopZg745Tdk2LVoHiBR536QxQv/0h1P0CdN9hNLklAhGN/Yf9SbDgLTw
-6Sk=
------END CERTIFICATE-----
--->
-
 The first certificate in the chain is the certificate of the workload and the second one is the Istio CA’s signing (CA) certificate.
 
 As you can see, the Istio CA’s signing (CA) certificates are different in the 2 clusters, so one cluster can't validate certificates issued by the other cluster.
@@ -830,6 +822,8 @@ As you can see, the Istio CA’s signing (CA) certificates are different in the 
 Creating a Virtual Mesh will unify these two CAs with a common root identity.
 
 Run the following command to create the *Virtual Mesh*:
+
+
 
 ```bash
 cat << EOF | kubectl --context ${MGMT} apply -f -
@@ -844,7 +838,9 @@ spec:
     shared:
       rootCertificateAuthority:
         generated: {}
-  federation: {}
+  federation:
+    selectors:
+    - {}
   meshes:
   - name: istiod-istio-system-cluster1
     namespace: gloo-mesh
@@ -872,6 +868,7 @@ Check that the secret containing the new Istio CA has been created in the istio 
 ```bash
 kubectl --context ${CLUSTER1} get secret -n istio-system cacerts -o yaml
 ```
+
 Here is the expected output:
 
 ```
@@ -956,15 +953,86 @@ Now, let's check what certificates we get when we run the same commands we ran b
 kubectl --context ${CLUSTER1} exec -t deploy/reviews-v1 -c istio-proxy \
 -- openssl s_client -showcerts -connect ratings:9080
 ```
+
+
 <!--bash
-log_header "Test :: Certificate issued by GlooMesh in ${CLUSTER1}"
+log_header "Test :: Certificate issued by GlooMesh in $CLUSTER1"
 printf "\nWaiting until certificate issuer is gloo-mesh in $CLUSTER1"
 found=false
 search1="CONNECTED"
 search2="i:O = gloo-mesh"
 while true
 do
-  output=$(kubectl --context ${CLUSTER1} exec -t deploy/reviews-v1 -c istio-proxy -- openssl s_client -showcerts -connect ratings:9080 2>&1)
+  output=$(kubectl --context $CLUSTER1 exec -t deploy/reviews-v1 -c istio-proxy -- openssl s_client -showcerts -connect ratings:9080 2>&1)
+  echo "$output" | grep "$search1" &>/dev/null
+  condition1=$?
+  echo "$output" | grep "$search2" &>/dev/null
+  condition2=$?
+  if [ $condition1 == 0 ] && [ $condition2 == 0 ]; then
+    found=true
+    break
+  fi
+  printf "%s" "."
+  sleep 1
+done
+printf "\n"
+result_message="Certificate issued by gloo-mesh in $CLUSTER1"
+log_success "$result_message"
+-->
+
+The output should be like that:
+
+```
+...
+Certificate chain
+ 0 s:
+   i:
+-----BEGIN CERTIFICATE-----
+MIIEBzCCAe+gAwIBAgIRAK1yjsFkisSjNqm5tzmKQS8wDQYJKoZIhvcNAQELBQAw
+...
+T77lFKXx0eGtDNtWm/1IPiOutIMlFz/olVuN
+-----END CERTIFICATE-----
+ 1 s:
+   i:O = gloo-mesh
+-----BEGIN CERTIFICATE-----
+MIIFEDCCAvigAwIBAgIQPndD90z3xw+Xy0sc3fr4fzANBgkqhkiG9w0BAQsFADAb
+...
+hkZt8w==
+-----END CERTIFICATE-----
+ 2 s:O = gloo-mesh
+   i:O = gloo-mesh
+-----BEGIN CERTIFICATE-----
+MIIE4zCCAsugAwIBAgIQOiYmqFu1zCssGDECrNvpLjANBgkqhkiG9w0BAQsFADAb
+...
+s4v2pEvaYg==
+-----END CERTIFICATE-----
+ 3 s:O = gloo-mesh
+   i:O = gloo-mesh
+-----BEGIN CERTIFICATE-----
+MIIE4zCCAsugAwIBAgIQOiYmqFu1zCssGDECrNvpLjANBgkqhkiG9w0BAQsFADAb
+...
+s4v2pEvaYg==
+-----END CERTIFICATE-----
+...
+```
+
+And let's compare with what we get on the second cluster:
+
+```bash
+kubectl --context ${CLUSTER2} exec -t deploy/reviews-v1 -c istio-proxy \
+-- openssl s_client -showcerts -connect ratings:9080
+```
+
+
+<!--bash
+log_header "Test :: Certificate issued by GlooMesh in $CLUSTER2"
+printf "\nWaiting until certificate issuer is gloo-mesh in $CLUSTER2"
+found=false
+search1="CONNECTED"
+search2="i:O = gloo-mesh"
+while true
+do
+  output=$(kubectl --context $CLUSTER2 exec -t deploy/reviews-v1 -c istio-proxy -- openssl s_client -showcerts -connect ratings:9080 2>&1)
   echo "$output" | grep "$search1" &>/dev/null
   condition1=$?
   echo "$output" | grep "$search2" &>/dev/null
@@ -989,192 +1057,6 @@ Certificate chain
  0 s:
    i:
 -----BEGIN CERTIFICATE-----
-MIIEBzCCAe+gAwIBAgIRAK1yjsFkisSjNqm5tzmKQS8wDQYJKoZIhvcNAQELBQAw
-...
-T77lFKXx0eGtDNtWm/1IPiOutIMlFz/olVuN
------END CERTIFICATE-----
- 1 s:
-   i:O = gloo-mesh
------BEGIN CERTIFICATE-----
-MIIFEDCCAvigAwIBAgIQPndD90z3xw+Xy0sc3fr4fzANBgkqhkiG9w0BAQsFADAb
-...
-hkZt8w==
------END CERTIFICATE-----
- 2 s:O = gloo-mesh
-   i:O = gloo-mesh
------BEGIN CERTIFICATE-----
-MIIE4zCCAsugAwIBAgIQOiYmqFu1zCssGDECrNvpLjANBgkqhkiG9w0BAQsFADAb
-...
-s4v2pEvaYg==
------END CERTIFICATE-----
- 3 s:O = gloo-mesh
-   i:O = gloo-mesh
------BEGIN CERTIFICATE-----
-MIIE4zCCAsugAwIBAgIQOiYmqFu1zCssGDECrNvpLjANBgkqhkiG9w0BAQsFADAb
-...
-s4v2pEvaYg==
------END CERTIFICATE-----
-...
-```
-
-<!--
------BEGIN CERTIFICATE-----
-MIIEBzCCAe+gAwIBAgIRAK1yjsFkisSjNqm5tzmKQS8wDQYJKoZIhvcNAQELBQAw
-ADAeFw0yMDA5MTcwODIxMDRaFw0yMDA5MTgwODIxMDRaMAAwggEiMA0GCSqGSIb3
-DQEBAQUAA4IBDwAwggEKAoIBAQC+UHdZFEQiIEL4Rh8mtqSfAjtX5aCCKGqRu+8B
-dvKZ6dtXuVf+X2eyB92E6Btn26gjDXkfs7pTxx9u3vUlLzGicr7vkjWzxarXdKnr
-o91jBYmsQ0M1c7tHwsJLdZhun2ijqn/IsWNmBcYXtYKpX5fLCqgluH9Ah+HAWkJz
-xzWSv9PiQXURn8RcYtDzDVl0gv1zMsFBwmQ8MdgFiOATcfJY6tTtBUT+A8w9ZUnw
-3s+lDc/7Bqmy4Yl7omY4GHoxzgmU8kQcMcgmmXyRfHfGp0SgUM1RUFjpfoVvTbGp
-5wdupug8SJH/Ku6aioHX2+tgkwGYQ6dAH7FAfMqxOWR7UsQ/AgMBAAGjfDB6MA4G
-A1UdDwEB/wQEAwIFoDAdBgNVHSUEFjAUBggrBgEFBQcDAQYIKwYBBQUHAwIwDAYD
-VR0TAQH/BAIwADA7BgNVHREBAf8EMTAvhi1zcGlmZmU6Ly9raW5kMi9ucy9kZWZh
-dWx0L3NhL2Jvb2tpbmZvLXJhdGluZ3MwDQYJKoZIhvcNAQELBQADggIBAECxY/5K
-1uZKnGaMjPqKe7g0b48MZogEITY8iy0FEIuOv8RgYx6gRy2YC0YZHJf6z3pCoX2R
-/j0ua50dXWvAbEniQMY3dC/I9JtjrRNV/fC1og+OFDMaKADynrb06UyYDJ8OzRiZ
-MC3B0BTm1Ftvx5UbI0p6OHqgB7e/8ul93o1SAga3iU8vlJNfS08yWz0c6R0i888o
-GPgJ6/5JZysUYXoTjT7nX82OlCtcbbsAIg0Eeeoya1xFJdogyRw6+Kn7USbjJ9CF
-uQnQE3INcL3xSdCiI460q+0Tvmkwgv0815ypjx5FaSodXXk9dcwQNs49JNvyQzsf
-2vaUpkvPRfXHlPKBQMVnsdgk1BvIjHTGwi3IHN1n7xf6XfDw5A8pM//vyZ6DDFCf
-9cLXxonE/Sr0btOu9wZIiKWgBqLNL37aPIph5Qpgd6zT/0LhoBqkgksbvW5ekCJX
-UHjbezKkpNgtp1+K/q9Jp6VTEPTTbBaYB2zjPqWy5btKpAYlM8H/ntocJvkob0Dj
-zkOHosvRE0r+CIx+t2IbDdMV7/cICMtAO2w0mMvBdYD2KD1uw9rzEn0q7cSqjAcG
-8eVIdh5kVCrTiKSi7y8AD1yoqgWkF74nSKt0TkkadhhUpibP5wwZXSgNqvYXZ7g8
-T77lFKXx0eGtDNtWm/1IPiOutIMlFz/olVuN
------END CERTIFICATE-----
- 1 s:
-   i:O = gloo-mesh
------BEGIN CERTIFICATE-----
-MIIFEDCCAvigAwIBAgIQPndD90z3xw+Xy0sc3fr4fzANBgkqhkiG9w0BAQsFADAb
-MRkwFwYDVQQKExBzZXJ2aWNlLW1lc2gtaHViMB4XDTIwMDkxNzA4MjA0N1oXDTIx
-MDkxNzA4MjA0N1owADCCAiIwDQYJKoZIhvcNAQEBBQADggIPADCCAgoCggIBALPM
-0hVaQKskobsy4blkUhNASNbqZ7ALLoOtejvScNHjYWrLZlP3Q2B7K4nlf8WQxRm1
-OkKkieFpTiuwT07oDz31/E1dubtu6TBnRUII39Mw5Te/nwWgaw6Xy4hO7OKruOT2
-YL0JFBZwH0eu86GJQzYzaOhX5eYxOTHYRESb4kbWT2k2M+1a+Lg1QiuNWCuMvQYm
-9wXIFOyu9m3g0ICyDm6fmFVfp5B13/rnAO4wIMjhuU0wOwfT6cNIfiKTxsJaOX+z
-YSxf3OukAoPxF3vnZxnVNRHnXrnpfaqaAJ1ljAZFHw4jnDiKBzXNryk4Woc+0Cgp
-QL7UBvlxa/cth/IKBeNNK1oLo7zIYJulFLP/hC61RDPAy4bAnhdnuKGoNz7YFUtn
-4S2KlfQz71JZWGGOYHrFCebHOKRvtlbCrd4ORbAWf6wsgLL6yWdA3htywZUgis2y
-fy59WuAcp/manZ/2v0RGOceB7bTMfW5COHbKv178wOou0Mjju+NKCmn0b+nWuUp/
-6z375091G3YHfqUaa4EIjVqc7vRJa8/rUKm6NWbmpfgfC5VbecYk4uapMSLBK8PQ
-KD/NDw6r4D1SXwktOWJMzk0XOPNvYHMLcj51VqV3ga1qgeIbQ0NWOJWulN9Emd+p
-IlCgbNQYaXAVa1OxSTGe9RUQN34SYZA3QT/tVZ71AgMBAAGjazBpMA4GA1UdDwEB
-/wQEAwICBDAPBgNVHRMBAf8EBTADAQH/MEYGA1UdEQEB/wQ8MDqGOHNwaWZmZTov
-L2tpbmQyL25zL2lzdGlvLXN5c3RlbS9zYS9pc3Rpb2Qtc2VydmljZS1hY2NvdW50
-MA0GCSqGSIb3DQEBCwUAA4ICAQCo8QUhXPMkKNtrFhlqQceQlxkhMUFfvegP0e6j
-oBBf3klXQruXOHPaeoUjr+F74txegkSxwg20Ve+g/eW/yeRCHbaXw9yrAHzvJbjR
-eqBYN6jSmm8Y9o3LhN59CDqGy97VjaRQZTuBojJoYJEaS5+bjn3llHMrbjx+LfB/
-9AUOlKvuxqRAZiiUjNXdSBXIdKzm297wtDZy30nHkhtPrRSD6KALXVa8f9XUItm7
-sgujFD4UF72NAUOon5FYGvpU8O590WKLz01yC+Wj5/zKOg7ZP/pLG0sZfdTWC+mU
-xQB6bS79uWMTtsWWjb6jD5cGzPy1qDlULoGmzdUWOYTt8+Qlwx6b3X9SiWUH3Yuq
-wE/5i0RHRWHQ0yey9B4R4kzU3Gko6UwgmLK/W5pQSz7WMmWKjU2+E1VZAPmVojd+
-YZJjNwWSq97agIqbQR6jaVOg9FYKqrGguYiqkFuOp82PZUDetZeWA64l9yZxak+f
-kWtVuW8Ky18J+C5RqusGzUjIOF06qMjy1/x8lbxMJqJqaenllnmIb4oRwOXi8OcM
-qB7qHCxfjCLRQSK74bu9EpY+CApWhFVyw2szHCLy2CMlnrz1vg9t50OU7S/exn2N
-uV1cUv/Qtsnu8uP+WDyzcfvAc+mOJ1VVVmIiwJ//kCg4esY9/ewqHiS0PrX2fH5C
-hkZt8w==
------END CERTIFICATE-----
- 2 s:O = gloo-mesh
-   i:O = gloo-mesh
------BEGIN CERTIFICATE-----
-MIIE4zCCAsugAwIBAgIQOiYmqFu1zCssGDECrNvpLjANBgkqhkiG9w0BAQsFADAb
-MRkwFwYDVQQKExBzZXJ2aWNlLW1lc2gtaHViMB4XDTIwMDkxNzA4MjA0NFoXDTIx
-MDkxNzA4MjA0NFowGzEZMBcGA1UEChMQc2VydmljZS1tZXNoLWh1YjCCAiIwDQYJ
-KoZIhvcNAQEBBQADggIPADCCAgoCggIBANAckRi9JhNf84uTFjSLy0HodvvAAjrX
-UbboB9Gx5ctGghDzHk8eZYhj814z+eRI76geEW0A1V46gCs9ZgKXW0YdL7S2MZil
-z6cs4Vog57KRNcfw0K/u6QQhhl+cb2Zl78uRc07aR2LuuJo1teUbPoWUBzD/ruVg
-hB5HTq4edshLPZZSIGf9WkVx4eEdMW4Dgg5oT5hwQ0hnI+zq88oi2lJMg3UG/ENq
-165N2BeCb2eu/87KSUigBMxO8rL0CI1qYE5MsnWzswb8OMsAnlNNx3bobm9tefTI
-KSvJ3+eY0pM1qmnKV2TKHcvDvei9f7vhoNTEJ4TDaxDewrtK3a1du0M8IBUjTH6G
-/IhvCaMFTtgAU1jMMyr8Cff5uRAKV6Y8gYHW0M1H0l1CQlvGKNN71GmUtOGXyGLY
-TYwaXLMwzQRJ1z0o+dSgVqSSaFMPr3EDI1mWUXw0TKI2SR4Umlt5Le1BznQWxA49
-0jSscYYglgPLDJpT3MIgHh8YP3emXHgQdJE0BeV3ZemyHeMAsKThcsqmb0F6ijpX
-nRTHvA037Z3rtFsZWfYKvC+0GwH8Sv2dVwieaAzXDjYvPjK1FNeSwt8B/Bapz4hx
-AEHT+kaLVrAiB6wf72JN/KM9xYRqEYLlnzKXVkn7VE+aB+k9pYSZdKPyKEUO4lXR
-4oedrc1j5BrhAgMBAAGjIzAhMA4GA1UdDwEB/wQEAwICBDAPBgNVHRMBAf8EBTAD
-AQH/MA0GCSqGSIb3DQEBCwUAA4ICAQANQnm8rHAJq85IC/iPf/OvxqnnW5J1dMQH
-sgY+w0ig/DZjFg/iDt9fKHYSR2Ws9a6udW2o++mittAvMpVykXczmVlv/w84fBPf
-4WbRyJExsML+tdiGziuaiD3D9eba2jCwTUcRMT/HB4eOmhnh7OvLQzEaDdn8KD/a
-lV4EgBpgmxDDYh0LK5fsV9N6wHnA3IJx+ZMqohg8XOgaSn6MzFgldADURFoNOt/R
-Mqjh9xSqcsa/IbTDmqcO2Go2FIPQ5U5lUce1hRFkPlBUP3FZ7wmxyE4km1wMKdL3
-t5FgLCw5QX5A1ctt+EjVTCYI+c2aiwtU46WSzFs7P0QAAkYd67ZB80dK1P1O9iBu
-7KC1tN6o98LMVfjhc9kcen5tjG1b5KcwzPe54V2x7fI/dPDm5/jGJz5vB4fM4D0v
-cJVURfrfRNDDnBCalZwo8kuKu32277VljeqpoFQuJfV/X5P6MVd6UgnKKYnTg2S8
-ieB3W24btO9ZhmVe/AN/9PEORoYplCTlzZSr4GjOmfg+W641a0qOgtqEKWgD5W6n
-11wARLjgLAd/ei3NVqX/lWtJtDlQNZNbxaudHPTxdhAEMiEHKzrL+J2BkmaLFn9c
-JYn3Wkj35Y7kta4CDE/UtqDALzsAJvg1KEDxOd0ORGdXEmOBd0UP94+2B7Kc3kd7
-s4v2pEvaYg==
------END CERTIFICATE-----
- 3 s:O = gloo-mesh
-   i:O = gloo-mesh
------BEGIN CERTIFICATE-----
-MIIE4zCCAsugAwIBAgIQOiYmqFu1zCssGDECrNvpLjANBgkqhkiG9w0BAQsFADAb
-MRkwFwYDVQQKExBzZXJ2aWNlLW1lc2gtaHViMB4XDTIwMDkxNzA4MjA0NFoXDTIx
-MDkxNzA4MjA0NFowGzEZMBcGA1UEChMQc2VydmljZS1tZXNoLWh1YjCCAiIwDQYJ
-KoZIhvcNAQEBBQADggIPADCCAgoCggIBANAckRi9JhNf84uTFjSLy0HodvvAAjrX
-UbboB9Gx5ctGghDzHk8eZYhj814z+eRI76geEW0A1V46gCs9ZgKXW0YdL7S2MZil
-z6cs4Vog57KRNcfw0K/u6QQhhl+cb2Zl78uRc07aR2LuuJo1teUbPoWUBzD/ruVg
-hB5HTq4edshLPZZSIGf9WkVx4eEdMW4Dgg5oT5hwQ0hnI+zq88oi2lJMg3UG/ENq
-165N2BeCb2eu/87KSUigBMxO8rL0CI1qYE5MsnWzswb8OMsAnlNNx3bobm9tefTI
-KSvJ3+eY0pM1qmnKV2TKHcvDvei9f7vhoNTEJ4TDaxDewrtK3a1du0M8IBUjTH6G
-/IhvCaMFTtgAU1jMMyr8Cff5uRAKV6Y8gYHW0M1H0l1CQlvGKNN71GmUtOGXyGLY
-TYwaXLMwzQRJ1z0o+dSgVqSSaFMPr3EDI1mWUXw0TKI2SR4Umlt5Le1BznQWxA49
-0jSscYYglgPLDJpT3MIgHh8YP3emXHgQdJE0BeV3ZemyHeMAsKThcsqmb0F6ijpX
-nRTHvA037Z3rtFsZWfYKvC+0GwH8Sv2dVwieaAzXDjYvPjK1FNeSwt8B/Bapz4hx
-AEHT+kaLVrAiB6wf72JN/KM9xYRqEYLlnzKXVkn7VE+aB+k9pYSZdKPyKEUO4lXR
-4oedrc1j5BrhAgMBAAGjIzAhMA4GA1UdDwEB/wQEAwICBDAPBgNVHRMBAf8EBTAD
-AQH/MA0GCSqGSIb3DQEBCwUAA4ICAQANQnm8rHAJq85IC/iPf/OvxqnnW5J1dMQH
-sgY+w0ig/DZjFg/iDt9fKHYSR2Ws9a6udW2o++mittAvMpVykXczmVlv/w84fBPf
-4WbRyJExsML+tdiGziuaiD3D9eba2jCwTUcRMT/HB4eOmhnh7OvLQzEaDdn8KD/a
-lV4EgBpgmxDDYh0LK5fsV9N6wHnA3IJx+ZMqohg8XOgaSn6MzFgldADURFoNOt/R
-Mqjh9xSqcsa/IbTDmqcO2Go2FIPQ5U5lUce1hRFkPlBUP3FZ7wmxyE4km1wMKdL3
-t5FgLCw5QX5A1ctt+EjVTCYI+c2aiwtU46WSzFs7P0QAAkYd67ZB80dK1P1O9iBu
-7KC1tN6o98LMVfjhc9kcen5tjG1b5KcwzPe54V2x7fI/dPDm5/jGJz5vB4fM4D0v
-cJVURfrfRNDDnBCalZwo8kuKu32277VljeqpoFQuJfV/X5P6MVd6UgnKKYnTg2S8
-ieB3W24btO9ZhmVe/AN/9PEORoYplCTlzZSr4GjOmfg+W641a0qOgtqEKWgD5W6n
-11wARLjgLAd/ei3NVqX/lWtJtDlQNZNbxaudHPTxdhAEMiEHKzrL+J2BkmaLFn9c
-JYn3Wkj35Y7kta4CDE/UtqDALzsAJvg1KEDxOd0ORGdXEmOBd0UP94+2B7Kc3kd7
-s4v2pEvaYg==
------END CERTIFICATE-----
--->
-
-And let's compare with what we get on the second cluster:
-
-```bash
-kubectl --context ${CLUSTER2} exec -t deploy/reviews-v1 -c istio-proxy \
--- openssl s_client -showcerts -connect ratings:9080
-```
-<!--bash
-log_header "Test :: Certificate issued by GlooMesh in ${CLUSTER2}"
-printf "\nWaiting until certificate issuer is gloo-mesh in $CLUSTER2"
-search1="CONNECTED"
-search2="i:O = gloo-mesh"
-while true
-do
-  output=$(kubectl --context ${CLUSTER2} exec -t deploy/reviews-v1 -c istio-proxy -- openssl s_client -showcerts -connect ratings:9080 2>&1)
-  echo "$output" | grep "$search1" &>/dev/null
-  condition1=$?
-  echo "$output" | grep "$search2" &>/dev/null
-  condition2=$?
-  if [ $condition1 == 0 ] && [ $condition2 == 0 ]; then
-    break
-  fi
-  printf "%s" "."
-  sleep 1
-done
-printf "\n"
-result_message="Certificate issued by gloo-mesh in $CLUSTER2"
-log_success "$result_message"
--->
-
-The output should be like that:
-
-```
-...
-Certificate chain
- 0 s:
-   i:
------BEGIN CERTIFICATE-----
 MIIEBjCCAe6gAwIBAgIQfSeujXiz3KsbG01+zEcXGjANBgkqhkiG9w0BAQsFADAA
 ...
 EtTlhPLbyf2GwkUgzXhdcu2G8uf6o16b0qU=
@@ -1202,127 +1084,6 @@ s4v2pEvaYg==
 -----END CERTIFICATE-----
 ...
 ```
-
-<!--
------BEGIN CERTIFICATE-----
-MIIEBjCCAe6gAwIBAgIQfSeujXiz3KsbG01+zEcXGjANBgkqhkiG9w0BAQsFADAA
-MB4XDTIwMDkxNzA4MjEwOFoXDTIwMDkxODA4MjEwOFowADCCASIwDQYJKoZIhvcN
-AQEBBQADggEPADCCAQoCggEBALCbKeMGaj5YeIPYg8jS+h65JT0nGUzKeXyGX8Ta
-4+O7sgT24D9fNFsA0UbszZX9j4QMIuRcPmmwzgqZms/S62jVgRGVIFipzG9N8xqw
-iFUBeutGNfTiXx5e/oB2mcrdZZ49SjjVlpLNwuxsK865Vuf0UuXyEq8SDyZDJ3W0
-XpNP4TrCtktFHeWpd8ugN7YqrP5t6BIniBNthMEV5as95+ctG4mjWUay8QhT445l
-ADsMjjOmT8XK/k3tx2fMHytTo9ihUt8xnK/Hy1Yq2I8Prnmz9i8KfGu28hVB6a85
-b+ulx49FRGNqROT9U4JR4PsFI7jwXYiVmlNtpsdKkrCIY90CAwEAAaN8MHowDgYD
-VR0PAQH/BAQDAgWgMB0GA1UdJQQWMBQGCCsGAQUFBwMBBggrBgEFBQcDAjAMBgNV
-HRMBAf8EAjAAMDsGA1UdEQEB/wQxMC+GLXNwaWZmZTovL2tpbmQzL25zL2RlZmF1
-bHQvc2EvYm9va2luZm8tcmF0aW5nczANBgkqhkiG9w0BAQsFAAOCAgEAjqgmnwvj
-2Lqt+AtcMr+47HYJ3R8wiSaVKt5ZhJdFdsT/ziszOl4c3GgCFqKEOSwsyKeS/FLr
-+4dQc19ChcWdXlbrJbJF3z0Mu3IEtjmwkzzR1ybl+CtYkW1FGMh7jtCJBjnYjiQw
-bUEBf/3hC8gidMSpkpmz0EYqw/D6OfUxATNhSXXbodaVyyzrZjjx3M8EEF/Zo3qP
-C9JdNcfI0/OVKasTDB/zPa636e+2ee9YpwvP1YxB/nJZVklVyea1vvbFQk0NQyon
-AH/heU7S80BQttWwSObKr4NNxYI86HGicNLYCXTGQbzPqEjYkW5aiAcKVjZxvPBW
-LXuKQ5hZ+a6q6AU7QITHUEbLc46/FCEzaZ0G01eVjGuOJSPjX9UssUN+oICsSBm9
-QCyCGGASMBYjTZWhUQfxhD95aAEwF/nFPek4qHpfcEiP0sNnf/k7cdQXFLGd+Ccs
-/L8I/YKDNpM8rn9iFVBY7iFN5cQrJsUA6tUjeaaOB+D+HjmNAJOAVKb1tbyMiyQ3
-LYNO3dZzyPf0DrHfXMvIaeqQNNUGeYjv+hus+BZ5T2745BXy+nCxbNRvBmTT33J8
-pXtwLFGwPOZzrTlA1f2U1AyHsDh6bj+ytAFJHTHZaWi+MWHnqtT7WXiHxe9hiy49
-EtTlhPLbyf2GwkUgzXhdcu2G8uf6o16b0qU=
------END CERTIFICATE-----
- 1 s:
-   i:O = gloo-mesh
------BEGIN CERTIFICATE-----
-MIIFEDCCAvigAwIBAgIQYq5WobXXF3X0N9M/pXbCJzANBgkqhkiG9w0BAQsFADAb
-MRkwFwYDVQQKExBzZXJ2aWNlLW1lc2gtaHViMB4XDTIwMDkxNzA4MjA0N1oXDTIx
-MDkxNzA4MjA0N1owADCCAiIwDQYJKoZIhvcNAQEBBQADggIPADCCAgoCggIBANGz
-te0RSDDccfmC0QNKUYxXaJZkbqDbMdeRP6KSwmLhdaTyZsGhlOVuGnLoXvXD+2ld
-YZleQMdEWyq/e1Gnlrx+GuXV9t7PnAQA6WAsahIJE79Pixp3ULZ3zsCLAkoaTwb2
-/6Jb1AUFOIn32xcDs4RpxPKwKOhEVcSssESg2jeMoQ0xli7LNEbecW4axWxW7vFN
-uJj3n2r2sU2kXgIVJFfcCZRW5gchpUUhyFPNhMbWhb4JoAZBm/2d15N8M9uDJ51N
-pfUt1o/DffcxeO+rRVxTFWRsnME7YHadTPptlCdsnyT2mEGVBkHAICoSFIdZ7gEJ
-upX2jZSBJDcQe5///uJI8skH3qF3twgFKLi4iEAcjaqZwLoS1Ci6KckVOEf3Gc8p
-fb9m2b/POW9I+Lb9D855rFsNrAXLz2VRarxepfBtJlwXvL4z9mp+wDsIcZeCdG5E
-8aFPJpEAvyJQuSO0q53xd8Fo9TwEjxRgwSDUDWC9riSJoDgAU9pHpWyn9T+9dSHT
-vnYQBU6pby78xx7/hX8yHbXxCEC36jQe3H2sUGEONUaJCyB5qGwrP5EI3UJZVFSE
-2QPS08TG0FnyPZ4cem6qFub6HRneZ97tsSQNIpg1wVeuqhLlXuFgXWcgdLCmqbKb
-lXv+D7X5GKgQ47ZNLwyhud4rvTcQOAq1snWTtRqvAgMBAAGjazBpMA4GA1UdDwEB
-/wQEAwICBDAPBgNVHRMBAf8EBTADAQH/MEYGA1UdEQEB/wQ8MDqGOHNwaWZmZTov
-L2tpbmQzL25zL2lzdGlvLXN5c3RlbS9zYS9pc3Rpb2Qtc2VydmljZS1hY2NvdW50
-MA0GCSqGSIb3DQEBCwUAA4ICAQAN92vtwctk+TYTbFXhxiubCTaoVDGx+tB8VyA1
-HTm+Pm3VWiImoMpih9JfqUDWT/zy5arccwAbiuv/ozgSsXn+t91fJAvlTK7BEjMV
-E1ZlFgWrJqyc3eSxyFSArLbc7y505069CLE9Vc7nuS51Fg6ePxoS4IqaMduPny2A
-m/lcVeU7tImKl1ZFuQjqN3THALdp86jZ9PmQGn9OSf0rT6cO+w3Jm0gy8hz5AUB0
-HHJFF1hnDzdNDhcuk2pRD/1X7E7JFcddH4auGSKy9bCc/FUrJjIagGA7Hr1OIq6z
-murTphdHzdaGkDR4UIi5AZTCrqaCiHwXsf9oPNg6SIK/vK3g57qW4Zhf13hFup1h
-Ggho1hhJYUpCIQCuGkXEKe2LhxK9n6oG97CCs+PTagi+9kFT9Wqpc61Tz2pe2eiS
-1Qt8Zmr7Qx5BI/VWRlOiuYvVqoR2FFlgd35xmvs5CwKzRxkpYBbdS1b9io48+u+x
-ZASlV6vzTNpeEdvh1j7NZH56EO6gEeqUfe+fkMtxh4GYkWQWVduDGM9XP+9o1TZc
-1b53Tc94QNJDaRHG/vDaeK959DE/a4/5SsgJ+3VBAYXSXQKMYjAx7os3KJT0wnXw
-HSHk3V4kKnhgvyecl/TVWbk2OVu4yzjCTm+d06oXh26wROJ7PNSI99+GoJPq+iym
-FHzHUw==
------END CERTIFICATE-----
- 2 s:O = gloo-mesh
-   i:O = gloo-mesh
------BEGIN CERTIFICATE-----
-MIIE4zCCAsugAwIBAgIQOiYmqFu1zCssGDECrNvpLjANBgkqhkiG9w0BAQsFADAb
-MRkwFwYDVQQKExBzZXJ2aWNlLW1lc2gtaHViMB4XDTIwMDkxNzA4MjA0NFoXDTIx
-MDkxNzA4MjA0NFowGzEZMBcGA1UEChMQc2VydmljZS1tZXNoLWh1YjCCAiIwDQYJ
-KoZIhvcNAQEBBQADggIPADCCAgoCggIBANAckRi9JhNf84uTFjSLy0HodvvAAjrX
-UbboB9Gx5ctGghDzHk8eZYhj814z+eRI76geEW0A1V46gCs9ZgKXW0YdL7S2MZil
-z6cs4Vog57KRNcfw0K/u6QQhhl+cb2Zl78uRc07aR2LuuJo1teUbPoWUBzD/ruVg
-hB5HTq4edshLPZZSIGf9WkVx4eEdMW4Dgg5oT5hwQ0hnI+zq88oi2lJMg3UG/ENq
-165N2BeCb2eu/87KSUigBMxO8rL0CI1qYE5MsnWzswb8OMsAnlNNx3bobm9tefTI
-KSvJ3+eY0pM1qmnKV2TKHcvDvei9f7vhoNTEJ4TDaxDewrtK3a1du0M8IBUjTH6G
-/IhvCaMFTtgAU1jMMyr8Cff5uRAKV6Y8gYHW0M1H0l1CQlvGKNN71GmUtOGXyGLY
-TYwaXLMwzQRJ1z0o+dSgVqSSaFMPr3EDI1mWUXw0TKI2SR4Umlt5Le1BznQWxA49
-0jSscYYglgPLDJpT3MIgHh8YP3emXHgQdJE0BeV3ZemyHeMAsKThcsqmb0F6ijpX
-nRTHvA037Z3rtFsZWfYKvC+0GwH8Sv2dVwieaAzXDjYvPjK1FNeSwt8B/Bapz4hx
-AEHT+kaLVrAiB6wf72JN/KM9xYRqEYLlnzKXVkn7VE+aB+k9pYSZdKPyKEUO4lXR
-4oedrc1j5BrhAgMBAAGjIzAhMA4GA1UdDwEB/wQEAwICBDAPBgNVHRMBAf8EBTAD
-AQH/MA0GCSqGSIb3DQEBCwUAA4ICAQANQnm8rHAJq85IC/iPf/OvxqnnW5J1dMQH
-sgY+w0ig/DZjFg/iDt9fKHYSR2Ws9a6udW2o++mittAvMpVykXczmVlv/w84fBPf
-4WbRyJExsML+tdiGziuaiD3D9eba2jCwTUcRMT/HB4eOmhnh7OvLQzEaDdn8KD/a
-lV4EgBpgmxDDYh0LK5fsV9N6wHnA3IJx+ZMqohg8XOgaSn6MzFgldADURFoNOt/R
-Mqjh9xSqcsa/IbTDmqcO2Go2FIPQ5U5lUce1hRFkPlBUP3FZ7wmxyE4km1wMKdL3
-t5FgLCw5QX5A1ctt+EjVTCYI+c2aiwtU46WSzFs7P0QAAkYd67ZB80dK1P1O9iBu
-7KC1tN6o98LMVfjhc9kcen5tjG1b5KcwzPe54V2x7fI/dPDm5/jGJz5vB4fM4D0v
-cJVURfrfRNDDnBCalZwo8kuKu32277VljeqpoFQuJfV/X5P6MVd6UgnKKYnTg2S8
-ieB3W24btO9ZhmVe/AN/9PEORoYplCTlzZSr4GjOmfg+W641a0qOgtqEKWgD5W6n
-11wARLjgLAd/ei3NVqX/lWtJtDlQNZNbxaudHPTxdhAEMiEHKzrL+J2BkmaLFn9c
-JYn3Wkj35Y7kta4CDE/UtqDALzsAJvg1KEDxOd0ORGdXEmOBd0UP94+2B7Kc3kd7
-s4v2pEvaYg==
------END CERTIFICATE-----
- 3 s:O = gloo-mesh
-   i:O = gloo-mesh
------BEGIN CERTIFICATE-----
-MIIE4zCCAsugAwIBAgIQOiYmqFu1zCssGDECrNvpLjANBgkqhkiG9w0BAQsFADAb
-MRkwFwYDVQQKExBzZXJ2aWNlLW1lc2gtaHViMB4XDTIwMDkxNzA4MjA0NFoXDTIx
-MDkxNzA4MjA0NFowGzEZMBcGA1UEChMQc2VydmljZS1tZXNoLWh1YjCCAiIwDQYJ
-KoZIhvcNAQEBBQADggIPADCCAgoCggIBANAckRi9JhNf84uTFjSLy0HodvvAAjrX
-UbboB9Gx5ctGghDzHk8eZYhj814z+eRI76geEW0A1V46gCs9ZgKXW0YdL7S2MZil
-z6cs4Vog57KRNcfw0K/u6QQhhl+cb2Zl78uRc07aR2LuuJo1teUbPoWUBzD/ruVg
-hB5HTq4edshLPZZSIGf9WkVx4eEdMW4Dgg5oT5hwQ0hnI+zq88oi2lJMg3UG/ENq
-165N2BeCb2eu/87KSUigBMxO8rL0CI1qYE5MsnWzswb8OMsAnlNNx3bobm9tefTI
-KSvJ3+eY0pM1qmnKV2TKHcvDvei9f7vhoNTEJ4TDaxDewrtK3a1du0M8IBUjTH6G
-/IhvCaMFTtgAU1jMMyr8Cff5uRAKV6Y8gYHW0M1H0l1CQlvGKNN71GmUtOGXyGLY
-TYwaXLMwzQRJ1z0o+dSgVqSSaFMPr3EDI1mWUXw0TKI2SR4Umlt5Le1BznQWxA49
-0jSscYYglgPLDJpT3MIgHh8YP3emXHgQdJE0BeV3ZemyHeMAsKThcsqmb0F6ijpX
-nRTHvA037Z3rtFsZWfYKvC+0GwH8Sv2dVwieaAzXDjYvPjK1FNeSwt8B/Bapz4hx
-AEHT+kaLVrAiB6wf72JN/KM9xYRqEYLlnzKXVkn7VE+aB+k9pYSZdKPyKEUO4lXR
-4oedrc1j5BrhAgMBAAGjIzAhMA4GA1UdDwEB/wQEAwICBDAPBgNVHRMBAf8EBTAD
-AQH/MA0GCSqGSIb3DQEBCwUAA4ICAQANQnm8rHAJq85IC/iPf/OvxqnnW5J1dMQH
-sgY+w0ig/DZjFg/iDt9fKHYSR2Ws9a6udW2o++mittAvMpVykXczmVlv/w84fBPf
-4WbRyJExsML+tdiGziuaiD3D9eba2jCwTUcRMT/HB4eOmhnh7OvLQzEaDdn8KD/a
-lV4EgBpgmxDDYh0LK5fsV9N6wHnA3IJx+ZMqohg8XOgaSn6MzFgldADURFoNOt/R
-Mqjh9xSqcsa/IbTDmqcO2Go2FIPQ5U5lUce1hRFkPlBUP3FZ7wmxyE4km1wMKdL3
-t5FgLCw5QX5A1ctt+EjVTCYI+c2aiwtU46WSzFs7P0QAAkYd67ZB80dK1P1O9iBu
-7KC1tN6o98LMVfjhc9kcen5tjG1b5KcwzPe54V2x7fI/dPDm5/jGJz5vB4fM4D0v
-cJVURfrfRNDDnBCalZwo8kuKu32277VljeqpoFQuJfV/X5P6MVd6UgnKKYnTg2S8
-ieB3W24btO9ZhmVe/AN/9PEORoYplCTlzZSr4GjOmfg+W641a0qOgtqEKWgD5W6n
-11wARLjgLAd/ei3NVqX/lWtJtDlQNZNbxaudHPTxdhAEMiEHKzrL+J2BkmaLFn9c
-JYn3Wkj35Y7kta4CDE/UtqDALzsAJvg1KEDxOd0ORGdXEmOBd0UP94+2B7Kc3kd7
-s4v2pEvaYg==
------END CERTIFICATE-----
--->
 
 You can see that the last certificate in the chain is now identical on both clusters. It's the new root certificate.
 
@@ -1374,13 +1135,16 @@ EtTlhPLbyf2GwkUgzXhdcu2G8uf6o16b0qU=
 
 The Subject Alternative Name (SAN) is the most interesting part. It allows the sidecar proxy of the `reviews` service to validate that it talks to the sidecar proxy of the `rating` service.
 
-## Lab 6 : Access Control {#lab6}
+
+# Lab 6 - Access control
 
 In the previous guide, we federated multiple meshes and established a shared root CA for a shared identity domain. Now that we have a logical VirtualMesh, we need a way to establish access policies across the multiple meshes, without treating each of them individually. Gloo Mesh helps by establishing a single, unified API that understands the logical VirtualMesh construct.
 
 The application works correctly because RBAC isn't enforced.
 
 Let's update the VirtualMesh to enable it:
+
+
 
 ```bash
 cat << EOF | kubectl --context ${MGMT} apply -f -
@@ -1395,7 +1159,9 @@ spec:
     shared:
       rootCertificateAuthority:
         generated: {}
-  federation: {}
+  federation:
+    selectors:
+    - {}
   globalAccessPolicy: ENABLED
   meshes:
   - name: istiod-istio-system-cluster1
@@ -1404,26 +1170,15 @@ spec:
     namespace: gloo-mesh
 EOF
 ```
+
+
 <!--bash
-log_header "Test :: Test RBAC: access denied"
+log_header "Test :: Access should be denied"
 
-kubectl --context ${MGMT} delete accesspolicy -n gloo-mesh istio-ingressgateway &>/dev/null || true
-kubectl --context ${MGMT} delete accesspolicy -n gloo-mesh productpage &>/dev/null || true
-sleep 3
-
-printf "\nWaiting for all the pods of the default namespace to become ready in ${CLUSTER2}"
-until [ $(kubectl --context ${CLUSTER2} get pods -o jsonpath='{range .items[*].status.containerStatuses[*]}{.ready}{"\n"}{end}' | grep false -c) -eq 0 ]; do
-  printf "%s" "."
-  sleep 1
-done
-printf "\n"
-
-
-product_page_ip=$(kubectl --context ${CLUSTER1} -n istio-system get svc istio-ingressgateway -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
 printf "\nWaiting for error code 403"
 while true
 do
-  status_code=$(curl -s -o /dev/null -w "%{http_code}" http://$product_page_ip/productpage)
+  status_code=$(curl -s -o /dev/null -w "%{http_code}" "http://${SVC_GW_CLUSTER1}/productpage")
   expected_code=403
   if [ "$status_code" == "$expected_code" ]; then
     break
@@ -1468,16 +1223,16 @@ spec:
         service: productpage
 EOF
 ```
-<!--bash
-product_page_ip=$(kubectl --context ${CLUSTER1} -n istio-system get svc istio-ingressgateway -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
 
-log_header "Test :: AccessPolicy only for productpage"
+
+<!--bash
+log_header "Test :: Only productpage should be accessible"
 search1="Error fetching product details"
 search2="Error fetching product reviews"
 printf "\nWaiting for condition"
 while true
 do
-  output=$(curl -s http://$product_page_ip/productpage 2>&1)
+  output=$(curl -s "http://${SVC_GW_CLUSTER1}/productpage" 2>&1)
   echo "$output" | grep "$search1" &>/dev/null
   condition1=$?
   echo "$output" | grep "$search2" &>/dev/null
@@ -1489,7 +1244,7 @@ do
   sleep 1
 done
 printf "\n"
-result_message="Details and Reviews must be unavailable"
+result_message="Details and reviews must be unavailable"
 log_success "$result_message"
 -->
 
@@ -1527,17 +1282,16 @@ spec:
 EOF
 ```
 
-<!--bash
-product_page_ip=$(kubectl --context ${CLUSTER1} -n istio-system get svc istio-ingressgateway -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
 
-log_header "Test :: AccessPolicy for reviews and details but not for ratings"
+<!--bash
+log_header "Test :: Reviews and details should also be accessible, but ratings shouldn't"
 printf "\nWaiting for conditions"
 search1="Error fetching product details"
 search2="Error fetching product reviews"
 search3="Ratings service is currently unavailable"
 while true
 do
-  output=$(curl -s http://$product_page_ip/productpage 2>&1)
+  output=$(curl -s "http://${SVC_GW_CLUSTER1}/productpage" 2>&1)
   echo "$output" | grep "$search1" &>/dev/null
   condition1=$?
   echo "$output" | grep "$search2" &>/dev/null
@@ -1585,9 +1339,8 @@ spec:
 EOF
 ```
 
-<!--bash
-product_page_ip=$(kubectl --context ${CLUSTER1} -n istio-system get svc istio-ingressgateway -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
 
+<!--bash
 log_header "Test :: AccessPolicy all services work"
 printf "\nWaiting for condition"
 search1="Error fetching product details"
@@ -1595,7 +1348,7 @@ search2="Error fetching product reviews"
 search3="Ratings service is currently unavailable"
 while true
 do
-  output=$(curl -s http://$product_page_ip/productpage 2>&1)
+  output=$(curl -s "http://${SVC_GW_CLUSTER1}/productpage" 2>&1)
   echo "$output" | grep "$search1" &>/dev/null
   condition1=$?
   echo "$output" | grep "$search2" &>/dev/null
@@ -1611,7 +1364,7 @@ done
 printf "\n"
 log_success "Details must be available"
 log_success "Reviews must be available"
-log_success "Ratings must be unavailable"
+log_success "Ratings must be available"
 -->
 
 Refresh the page another time and all the services should now work:
@@ -1620,11 +1373,8 @@ Refresh the page another time and all the services should now work:
 
 If you refresh the web page several times, you should see only the versions `v1` (no stars) and `v2` (black stars), which means that all the requests are still handled by the first cluster.
 
-## Lab 7 : Multi-cluster Traffic {#lab7}
-<!--bash
-  kubectl --context ${MGMT} delete trafficpolicy -n gloo-mesh simple &>/dev/null || true
-  kubectl --context ${MGMT} delete accesspolicy -n gloo-mesh reviews &>/dev/null || true
--->
+# Lab 7 - Multi-cluster Traffic
+
 On the first cluster, the `v3` version of the `reviews` microservice doesn't exist, so we're going to redirect some of the traffic to the second cluster to make it available.
 
 ![Multicluster traffic](images/multicluster-traffic.png)
@@ -1675,15 +1425,15 @@ spec:
           weight: 10
 EOF
 ```
-<!--bash
 
+
+<!--bash
 log_header "Test :: See reviews v3 from cluster2 but not ratings"
-product_page_ip=$(kubectl --context ${CLUSTER1} -n istio-system get svc istio-ingressgateway -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
 rating_service_unvailable=false
 printf "\nWait for condition"
 while true
 do
-  curl -s http://$product_page_ip/productpage | grep "Ratings service is currently unavailable" &>/dev/null
+  curl -s "http://${SVC_GW_CLUSTER1}/productpage" | grep "Ratings service is currently unavailable" &>/dev/null
   if [ $? == 0 ]; then
     rating_service_unvailable=true
     break
@@ -1730,14 +1480,14 @@ spec:
 EOF
 ```
 
+
 <!--bash
 log_header "Test :: See v3 (red) of reviews and rating from cluster2"
-product_page_ip=$(kubectl --context ${CLUSTER1} -n istio-system get svc istio-ingressgateway -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
 is_red_star_visible=false
 printf "\nWait for condition"
 while true
 do
-  curl -s http://$product_page_ip/productpage | grep "red" &>/dev/null
+  curl -s "http://${SVC_GW_CLUSTER1}/productpage" | grep "red" &>/dev/null
   if [ $? == 0 ]; then
     is_red_star_visible=true
     break
@@ -1753,13 +1503,13 @@ If you refresh the page several times again, you'll see the `v3` version of the 
 
 ![Bookinfo v3](images/bookinfo-v3.png)
 
-## Lab 8 : Traffic Failover {#lab8}
-
-First of all, let's delete the TrafficPolicy we've created in the previous lab:
+Let's delete the TrafficPolicy:
 
 ```bash
 kubectl --context ${MGMT} -n gloo-mesh delete trafficpolicy simple
 ```
+
+# Lab 8 - Traffic failover
 
 If you refresh the web page several times, you should see only the versions `v1` (no stars) and `v2` (black stars), which means that all the requests are handled by the first cluster.
 
@@ -1835,6 +1585,7 @@ kubectl --context ${CLUSTER1} patch deploy reviews-v1 --patch '{"spec": {"templa
 kubectl --context ${CLUSTER1} patch deploy reviews-v2 --patch '{"spec": {"template": {"spec": {"containers": [{"name": "reviews","command": ["sleep", "20h"]}]}}}}'
 ```
 
+
 <!--bash
 log_header "Test :: Access review from cluster2 since the ones from cluster1 are in sleep mode"
 printf "\nWaiting for all the pods to become ready in ${CLUSTER1}."
@@ -1859,13 +1610,11 @@ done
 printf "\n"
 log_success "There are two pods with label app=reviews and 'sleep' command"
 
-product_page_ip=$(kubectl --context ${CLUSTER1} -n istio-system get svc istio-ingressgateway -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
-
 printf "\nWaiting for Ratings service to be available"
 search1="Ratings service is currently unavailable"
 while true
 do
-  output=$(curl -s http://$product_page_ip/productpage 2>&1)
+  output=$(curl -s "http://${SVC_GW_CLUSTER1}/productpage" 2>&1)
   echo "$output" | grep "$search1" &>/dev/null
   condition1=$?
   if [ $condition1 != 0 ]; then
@@ -1899,52 +1648,20 @@ kubectl --context ${CLUSTER1} patch deployment reviews-v1  --type json   -p '[{"
 kubectl --context ${CLUSTER1} patch deployment reviews-v2  --type json   -p '[{"op": "remove", "path": "/spec/template/spec/containers/0/command"}]'
 ```
 
-<!--bash
-log_header "Test :: Reviews from cluster1 back to their previous state"
-printf "\nWaiting for all the containers to become ready."
-sleep 1
-until [ $(kubectl --context ${CLUSTER1} get pods -l app=reviews -o json | jq -r '[.items[].status.containerStatuses[].ready | select(. == true)] | length') -eq 4 ]; do
-  printf "%s" "."
-  sleep 1
-done
-printf "\n"
-
-printf "\nWaiting to have two pods with label app=reviews without 'sleep' command"
-while true
-do
-  count=$(kubectl get po --context ${CLUSTER1} -l app=reviews -o json | jq -r '[.items[].spec.containers[0].command[0] | select(. == "sleep")] | length')
-  if [ $count == 0 ]; then
-    break
-  fi
-  printf "%s" "."
-  sleep 1
-done
-printf "\n"
-log_success "There are two pods with label app=reviews without 'sleep' command"
 
 
-product_page_ip=$(kubectl --context ${CLUSTER1} -n istio-system get svc istio-ingressgateway -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
-printf "\nWaiting for Reviews to be available"
-search1="Ratings service is currently unavailable"
-while true
-do
-  output=$(curl -s http://$product_page_ip/productpage 2>&1)
-  echo "$output" | grep "$search1" &>/dev/null
-  condition1=$?
-  if [ $condition1 != 0 ]; then
-    break
-  fi
-  printf "%s" "."
-  sleep 1
-done
-printf "\n"
-log_success "Reviews are still available"
--->
 
 Afer 2 minutes, you can validate that the requests are now handled by the first cluster using the following command:
 
 ```
 kubectl --context ${CLUSTER1} logs -l app=reviews -c istio-proxy -f
+```
+
+Let's delete the VirtualDestination and the TrafficPolicy:
+
+```bash
+kubectl --context ${MGMT} -n gloo-mesh delete virtualdestination reviews-global
+kubectl --context ${MGMT} -n default delete trafficpolicy reviews-shift-failover
 ```
 
 > ### Note that you can combine traffic shift with failover
@@ -1984,14 +1701,7 @@ kubectl --context ${CLUSTER1} logs -l app=reviews -c istio-proxy -f
 > EOF
 > ```
 
-## Lab 9 : Gloo Mesh Enterprise RBAC {#lab9}
-
-First of all, let's delete the Objects we've created in the failover lab:
-
-```bash
-kubectl --context ${MGMT} -n gloo-mesh delete virtualdestination reviews-global
-kubectl --context ${MGMT} -n default delete trafficpolicy reviews-shift-failover
-```
+# Lab 9 - Gloo Mesh Enterprise RBAC
 
 In large organizations, several teams are using the same Kubernetes cluster. They use Kubernetes RBAC to define who can do what and where.
 
@@ -2057,8 +1767,10 @@ spec:
           weight: 10
 EOF
 ```
+
+
 <!--bash
-log_header "Test :: Not enough permissions to create TrafficPolicy"
+log_header "Test :: Not enough permissions to create the TrafficPolicy"
 cat << EOF | kubectl --context ${MGMT} apply -f -
 apiVersion: networking.mesh.gloo.solo.io/v1
 kind: TrafficPolicy
@@ -2067,10 +1779,9 @@ metadata:
   namespace: gloo-mesh
 EOF
 result=$?
-result_message="User cannot create TrafficPolicies"
+result_message="User cannot create the TrafficPolicy"
 assert_not_eq $result 0 "$result_message" && log_success "$result_message"
 -->
-
 
 Here is the expected output:
 
@@ -2259,11 +1970,12 @@ spec:
 EOF
 ```
 
+
 <!--bash
-log_header "Test :: User has permssions to create TrafficPolicy"
+log_header "Test :: User is allowed to create the TrafficPolicy"
 kubectl --context ${MGMT} get trafficpolicy simple -n gloo-mesh &>/dev/null
 result=$?
-result_message="User can create TrafficPolicies"
+result_message="User can create the TrafficPolicy"
 assert_eq $result 0 "$result_message" && log_success "$result_message"
 -->
 
@@ -2303,11 +2015,11 @@ spec:
     namespace: gloo-mesh
   subjects:
     - kind: User
-      name: kubernetes-admin
+      name: $(kubectl --context ${MGMT} get user -o jsonpath='{.items[0].metadata.name}')
 EOF
 ```
 
-## Lab 10 : Extend Envoy with WebAssembly {#lab10}
+# Lab 10 - Extend Envoy with WebAssembly
 
 WebAssembly (WASM) is the future of cloud-native infrastructure extensibility.
 
@@ -2476,8 +2188,9 @@ data:
 EOF
 ```
 
+
 <!--bash
-log_header "Test :: Configs are created"
+log_header "Test :: ConfigMaps are created"
 kubectl --context ${CLUSTER1} get cm gloo-mesh-custom-envoy-bootstrap &>/dev/null
 result=$?
 result_message="ConfigMap in ${CLUSTER1} exist"
@@ -2615,6 +2328,7 @@ meshctl wasm push $wasm_image
 
 Then, if you go to the Web Assembly Hub, you'll be able to see the Image of your Wasm filter
 
+
 <!--bash
 log_header "Test :: Check image webassembly"
 meshctl wasm pull $wasm_image &>/dev/null
@@ -2670,8 +2384,9 @@ spec:
 EOF
 ```
 
+
 <!--bash
-log_header "Test :: Create WasmDeployment"
+log_header "Test :: Check WasmDeployment"
 kubectl --context ${MGMT} get wasmdeployment reviews-wasm -n gloo-mesh
 result=$?
 result_message="wasmdeployment created in ${MGMT}"
@@ -2691,7 +2406,6 @@ for i in {1..20}; do
 done
 printf "\n"
 assert_true $result "$result_message" && log_success "$result_message"
-
 -->
 
 Let's send a request from the `productpage` service to the `reviews` service:
@@ -2699,6 +2413,7 @@ Let's send a request from the `productpage` service to the `reviews` service:
 ```
 kubectl exec -it $(kubectl  get pods -l app=productpage -o jsonpath='{.items[0].metadata.name}') -- python -c "import requests; r = requests.get('http://reviews:9080/reviews/0'); print(r.headers)"
 ```
+
 
 <!--bash
 log_header "Test :: Get WasmDeployment log traces"
@@ -2754,24 +2469,9 @@ Delete the WasmDeployment:
 ```bash
 kubectl --context ${MGMT} -n gloo-mesh delete wasmdeployment reviews-wasm
 ```
-<!--bash
-log_header "Test :: Delete wasmdeployment"
-printf "\nWaiting for wasmdeployment to be deleted"
-while true
-do
-  kubectl --context ${MGMT} get wasmdeployment reviews-wasm -n gloo-mesh &>/dev/null
-  if [ $? != 0 ]; then
-    break
-  fi
-  printf "%s" "."
-  sleep 1
-done
-printf "\n"
-log_success "wasmdeployment has been deleted"
--->
 
+# Lab 11 - Exploring the Gloo Mesh Enterprise UI
 
-## Lab 11 : Exploring the Gloo Mesh Enterprise UI {#lab11}
 To access the UI, run the following command:
 
 ```
@@ -2806,7 +2506,7 @@ And you can even see the workloads were a Wasm filter has been deployed on:
 
 Take the time to explore the `Policies` and `Debug` tab to see what other information is available.
 
-## Lab 12 : Observability
+# Lab 12 - Observability
 
 Gloo Mesh can also be used to collect the access logs from any Pod running in any cluster.
 
@@ -2828,6 +2528,7 @@ spec:
         app: reviews
 EOF
 ```
+
 
 <!--bash
 log_header "Test :: create AccessLogRecord"
@@ -2851,35 +2552,7 @@ Generate some traffic and run the command below to gather the latest access logs
 curl -XPOST "${SVC}:8080/v0/observability/logs?pretty"
 ```
 
-<!--bash
-printf "\nCreate some traffic"
-for i in {1..5}; do
-  curl -s http://$product_page_ip/productpage &>/dev/null
-  printf "%s" "."
-  sleep 1
-done
-printf "\n"
 
-
-printf "\nWaiting for log traces"
-search1="httpAccessLog"
-search2="workloadRef"
-while true
-do
-  output=$(curl -XPOST "${SVC}:8080/v0/observability/logs?pretty" 2>&1)
-  echo "$output" | grep "$search1" &>/dev/null
-  condition1=$?
-  echo "$output" | grep "$search2" &>/dev/null
-  condition2=$?
-  if [ $condition1 == 0 ] && [ $condition1 == 0 ]; then
-    break
-  fi
-  printf "%s" "."
-  sleep 1
-done
-printf "\n"
-log_success "Log traces as expected"
--->
 
 
 You should get an output similar to the following one:
@@ -2999,3 +2672,4 @@ This is the end of the workshop. We hope you enjoyed it !
 <!--bash
 log_header "All tests passed. Workshop works OK"
 -->
+
