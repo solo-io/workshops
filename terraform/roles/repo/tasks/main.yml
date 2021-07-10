@@ -1,60 +1,34 @@
 ---
-- name: Check the repo folder has been already cloned
-  stat:
+# Currently only vagrant is getting ssh-agent forwards
+# Thus working directory and permissions set separately
+- name: Create working directories
+  ansible.builtin.file: 
     path: /home/solo/{{ repo_name }}
-  register: workshop_folder
+    state: directory
+    mode: 0775
+    owner: solo
+    group: solo
+- name: Download the repo content locally
+  ansible.builtin.git:
+    repo: "git@github.com:solo-io/{{ repo_name }}"
+    dest: /home/solo/{{ repo_name }}
+    separate_git_dir: /home/vagrant/{{ repo_name }}.git
+    version: master
+    single_branch: yes
+    depth: 1
+    force: yes
+    accept_hostkey: yes
+  # ssh-agent doesn't allow key to pass through remote sudo commands.
+  become: no
+  environment:
+    GIT_TERMINAL_PROMPT: 0
 
-- when: "not workshop_folder.stat.exists or force | bool"
-  block:
-    - name: Remove any existing directory from prior runs
-      file:
-        state: absent
-        path: /tmp/{{ repo_name }}/
-
-    - name: Remove prior clones repo
-      file:
-        state: absent
-        path: /tmp/git-{{ repo_name }}/
-
-    - name: Download the repo content locally
-      shell: |
-        if (echo a version 1.9.1; git --version) | sort -Vk3 | tail -1 | grep -q git
-        then
-            echo "Modern git version"
-            git clone -b master --single-branch --no-tags --depth 1 https://github.com/solo-io/{{ repo_name }}.git /tmp/git-{{ repo_name }}
-        else
-            echo "Legacy git version"
-            git clone https://github.com/solo-io/{{ repo_name }}.git /tmp/git-{{ repo_name }}
-        fi
-        mkdir -p /tmp/{{ repo_name }}
-        cd /tmp/git-{{ repo_name }}
-        git archive --format tgz --output /tmp/{{ repo_name }}/repo.tgz master 
-        exit 0
-      delegate_to: localhost
-      become: no
-
-    - name: Copy compressed repo snapshot to remote
-      copy:
-        src: /tmp/{{ repo_name }}/repo.tgz
-        dest: /tmp/{{ repo_name }}-repo.tgz
-        owner: solo
-        group: solo
-        mode: 0644
-
-    - name: Remove any existing directory from prior runs
-      file:
-        state: absent
-        path: /home/solo/{{ repo_name }}/
-
-    - name: Create destination directory
-      file:
-        state: directory
-        path: /home/solo/{{ repo_name }}/
-
-    - name: Unarchive the compressed repo that is already on the remote machine
-      unarchive:
-        src: /tmp/{{ repo_name }}-repo.tgz
-        dest: /home/solo/{{ repo_name }}
-        owner: solo
-        group: solo
-        remote_src: yes
+- name: Change vagrant ownership of repo to solo
+  ansible.builtin.file: 
+    path: /home/solo/{{ repo_name }}
+    state: directory
+    recurse: yes
+    mode: 0775
+    owner: solo
+    group: solo
+  become: yes
