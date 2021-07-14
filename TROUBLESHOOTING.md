@@ -106,6 +106,37 @@ Just run terraform apply again, with the same parameters, and terraform will res
 terraform apply
 ```
 
+# Terraform apply failed
+Run the same command again, terraform will complete the creation
+
+# Terraform says it is locked
+This can happen when a running apply is unexepctely closed, if you are sure there is not terraform process running
+```
+terraform force-unlock <lockid>
+```
+
+# Terraform is very slow
+For a large number of resources (example 150 eks cluster => 4900 resources)
+
+Increase the default level of parallelism (10) to a higher number. Be aware that too high numbers can cause rate-limit in cloud api and high cpu usage.
+```
+terraform apply -parallelism=150
+```
+
+Another, maybe better, alternative is to use different workspaces to build the same object in different namespaces.
+These 3 commands can run in parallel, and every terraform process will deal with a portion of the final setup
+```
+TF_WORKSPACE=wkr-eks1 TF_REGISTRY_CLIENT_TIMEOUT=60 time terraform apply -parallelism=51 -auto-approve
+TF_WORKSPACE=wkr-eks2 TF_REGISTRY_CLIENT_TIMEOUT=60 time terraform apply -parallelism=51 -auto-approve
+TF_WORKSPACE=wkr-eks3 TF_REGISTRY_CLIENT_TIMEOUT=60 time terraform apply -parallelism=51 -auto-approve
+```
+
+# Terraform says the maximum number of resources are created
+```
+https://eu-west-1.console.aws.amazon.com/servicequotas
+https://console.cloud.google.com/iam-admin/quotas?project=solo-test-236622
+```
+
 # Terraform is not working
 Make sure you have credentials in your system
 

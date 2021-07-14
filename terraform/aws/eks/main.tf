@@ -49,7 +49,7 @@ resource "null_resource" "eks-admin" {
       && export KUBECONFIG=${path.root}/output/${module.eks[count.index].cluster_name}/full-kubeconfig \
       && kubectl apply -f ${path.module}/templates/eks-admin.yaml \
       && TOKEN=$(kubectl describe -n kube-system secrets "$(kubectl describe -n kube-system serviceaccount eks-admin | grep -i Tokens | awk '{print $2}')" | grep token: | awk '{print $2}') \
-      && kubectl config delete-user ${module.eks[count.index].cluster_name} || true \
+      && kubectl config unset users.${module.eks[count.index].cluster_name} \
       && kubectl config set-credentials ${module.eks[count.index].cluster_name} --token=$TOKEN \
       && kubectl config set-context ${module.eks[count.index].cluster_name} --cluster=${module.eks[count.index].cluster_name} --user=${module.eks[count.index].cluster_name} \
       && kubectl config use-context ${module.eks[count.index].cluster_name} \

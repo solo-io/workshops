@@ -54,13 +54,14 @@
 #include_vm         = {}
 #
 #eks_clusters = {
-#  workshop-eks-20210721 = {
-#    num_instances      = 6
-#    azs_workers        = ["eu-west-1a", "eu-west-1b", "eu-west-1c"]
+#  eks-batch1 = {
+#    num_instances      = 3
 #    node_instance_type = "t3.micro"
 #    include_vm = {
 #      machine_type         = "n1-standard-1"
 #      source_machine_image = "jesus-test-personal1-source-image"
+#      region               = "europe-west1"
+#      zone                 = "europe-west1-d"
 #    }
 #  }
 #}

@@ -51,7 +51,7 @@ terraform workspace list
 terraform workspace select <workspace_name> || terraform workspace new <workspace_name>
 ```
 
-Edit the `terraform.tfvars` file to adapt it to your needs:
+Edit the `configuration.auto.tfvars` file to adapt it to your needs:
 
 - Add as many entries to `environment` as desired (or none). Every entry can be considered an isolated unit from the others
 - Inside an `environment` all parameters are optional, and default values are defined in the same file
@@ -83,7 +83,8 @@ If you don't already have the `lab` private key available locally, retrieve it f
 ---
 
 ```
-ssh-add lab
+eval "$(ssh-agent -s)"
+ssh-add ~/.ssh/id_workshop
 ```
 
 All solo.io enterprise products require a license key.  If you'd like to preset limited-term keys on the student Virtual Machines, then set the `LICENSE_KEY` and `GLOO_MESH_LICENSE_KEY` and `PORTAL_LICENSE_KEY` environment variables on your workstation before running the `ansible-playbook` command.
@@ -99,6 +100,9 @@ Run the following command to deploy the Virtual Machines:
 ```
 terraform apply -auto-approve
 ```
+---
+**NOTE**  
+Check TROUBLESHOOTING.md file in case you see errors
 
 # Manual provisioning
 
