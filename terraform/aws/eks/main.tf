@@ -26,6 +26,25 @@ data "aws_subnet_ids" "nodes" {
   }
 }
 
+resource "null_resource" "output" {
+  count = var.num_instances
+
+  provisioner "local-exec" {
+    command = "mkdir -p ${path.root}/output/${terraform.workspace}-${var.prefix}-${count.index + 1}"
+  }
+
+  provisioner "local-exec" {
+    when       = destroy
+    on_failure = continue
+    command    = "rm ${path.root}/output/${terraform.workspace}-${var.prefix}-${count.index + 1}"
+  }
+
+  triggers = {
+    cluster_name        = module.eks[count.index].cluster_name
+    kubeconfig_rendered = module.eks[count.index].kubeconfig
+  }
+}
+
 module "eks" {
   source  = "howdio/eks/aws"
   version = "v2.0.2"
