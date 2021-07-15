@@ -33,12 +33,6 @@ resource "null_resource" "output" {
     command = "mkdir -p ${path.root}/output/${terraform.workspace}-${var.prefix}-${count.index + 1}"
   }
 
-  provisioner "local-exec" {
-    when       = destroy
-    on_failure = continue
-    command    = "rm ${path.root}/output/${terraform.workspace}-${var.prefix}-${count.index + 1}"
-  }
-
   triggers = {
     cluster_name        = module.eks[count.index].cluster_name
     kubeconfig_rendered = module.eks[count.index].kubeconfig
