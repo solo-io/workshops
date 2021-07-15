@@ -126,9 +126,23 @@ terraform apply -parallelism=150
 Another, maybe better, alternative is to use different workspaces to build the same object in different namespaces.
 These 3 commands can run in parallel, and every terraform process will deal with a portion of the final setup
 ```
-TF_WORKSPACE=wkr-eks1 TF_REGISTRY_CLIENT_TIMEOUT=60 time terraform apply -parallelism=51 -auto-approve
-TF_WORKSPACE=wkr-eks2 TF_REGISTRY_CLIENT_TIMEOUT=60 time terraform apply -parallelism=51 -auto-approve
-TF_WORKSPACE=wkr-eks3 TF_REGISTRY_CLIENT_TIMEOUT=60 time terraform apply -parallelism=51 -auto-approve
+TF_WORKSPACE=wkr-eks1 time terraform apply -parallelism=51 -auto-approve
+TF_WORKSPACE=wkr-eks2 time terraform apply -parallelism=51 -auto-approve
+TF_WORKSPACE=wkr-eks3 time terraform apply -parallelism=51 -auto-approve
+```
+
+After all commands are successful (you may need to retry some of them, as TF is not great handling large graphs of dependencies), you can see the outputs
+```
+TF_WORKSPACE=wkr-eks1 time terraform output eks_cluster_vm
+TF_WORKSPACE=wkr-eks2 time terraform output eks_cluster_vm
+TF_WORKSPACE=wkr-eks3 time terraform output eks_cluster_vm
+```
+
+And finally destroy them
+```
+TF_WORKSPACE=wkr-eks1 time terraform destroy -parallelism=51 -auto-approve -refresh=false
+TF_WORKSPACE=wkr-eks2 time terraform destroy -parallelism=51 -auto-approve -refresh=false
+TF_WORKSPACE=wkr-eks3 time terraform destroy -parallelism=51 -auto-approve -refresh=false
 ```
 
 # Terraform says the maximum number of resources are created
