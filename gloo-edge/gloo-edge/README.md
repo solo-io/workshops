@@ -296,17 +296,6 @@ Let's start by installing Keycloak:
 kubectl create -f https://raw.githubusercontent.com/keycloak/keycloak-quickstarts/12.0.4/kubernetes-examples/keycloak.yaml
 kubectl rollout status deploy/keycloak
 ```
-**Troubleshooting Tip**
-
-Make sure that the KeyCloak deployment worked correctly by executing the following.
-
-`kubectl describe pod keycloak`
-
-If you see an issue with the readiness probe failing, then you will want to edit the deployment and add the following values under the readinessProbe.
-
-`kubectl patch deployment keycloak --type='json' -p='[{"op": "replace", "path": "/spec/template/spec/containers/0/readinessProbe/timeoutSeconds", "value":10}]'`
-
-`kubectl patch deployment keycloak --type='json' -p='[{"op": "add", "path": "/spec/template/spec/containers/0/readinessProbe/initialDelaySeconds", "value":10 }]'`
 
 <!--bash
 sleep 30
