@@ -18,6 +18,8 @@
 
     - name: Download the repo content locally
       shell: |
+        rm -rf /tmp/git-{{ repo_name }}
+        rm -rf /tmp/{{ repo_name }}
         if (echo a version 1.9.1; git --version) | sort -Vk3 | tail -1 | grep -q git
         then
             echo "Modern git version"
