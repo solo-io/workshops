@@ -25,3 +25,11 @@ variable "source_machine_image" {
 locals {
   ssh_file = "./lab.pub"
 }
+
+locals {
+  common_tags = {
+    created_by = "terraform"
+    workspace  = terraform.workspace
+    prefix     = var.prefix
+  }
+}

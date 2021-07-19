@@ -5,7 +5,7 @@
 Install terraform:
 
 ```
-# Tested with terraform v0.15.4
+# Tested with terraform v0.15.4, v1.0.2
 brew install terraform
 ```
 
@@ -16,6 +16,20 @@ Install ansible:
 pip3 install ansible
 ```
 
+Provide credentials for both AWS and GCP:
+```
+# Authenticate with GCP. The easiest way to do this is to run
+gcloud auth application-default login
+# Authenticate with AWS. The easiest way to do this is to run
+aws configure
+```
+
+Configure region and zone for your remote resources:
+```
+# Create a file named configuration.auto.tfvars, you can use as template the one called configuration-example.auto.tfvars
+# This step is optional, but if you don't do it it will use default values from terraform.tfvars
+# Use this file to configure your desired resources too
+```
 ## Deploy
 
 Go to the terraform directory:
@@ -37,7 +51,7 @@ terraform workspace list
 terraform workspace select <workspace_name> || terraform workspace new <workspace_name>
 ```
 
-Edit the `terraform.tfvars` file to adapt it to your needs:
+Edit the `configuration.auto.tfvars` file to adapt it to your needs:
 
 - Add as many entries to `environment` as desired (or none). Every entry can be considered an isolated unit from the others
 - Inside an `environment` all parameters are optional, and default values are defined in the same file
@@ -69,7 +83,8 @@ If you don't already have the `lab` private key available locally, retrieve it f
 ---
 
 ```
-ssh-add lab
+eval "$(ssh-agent -s)"
+ssh-add ~/.ssh/id_workshop
 ```
 
 All solo.io enterprise products require a license key.  If you'd like to preset limited-term keys on the student Virtual Machines, then set the `LICENSE_KEY` and `GLOO_MESH_LICENSE_KEY` and `PORTAL_LICENSE_KEY` environment variables on your workstation before running the `ansible-playbook` command.
@@ -85,6 +100,9 @@ Run the following command to deploy the Virtual Machines:
 ```
 terraform apply -auto-approve
 ```
+---
+**NOTE**  
+Check TROUBLESHOOTING.md file in case you see errors
 
 # Manual provisioning
 
