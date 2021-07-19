@@ -69,11 +69,11 @@ done
 
 ## Lab 1: Traffic Management
 
-### Routing to a Kubernetes Service 
+### Deploy Demo Services
 
-In this step we will expose a demo service to the outside world using Gloo Edge.
+In this step we will expose two demo services to the outside world using Gloo Edge.
 
-First let's deploy a demo application called bookinfo:
+First let's deploy a demo application called bookinfo in `bookinfo` namespace:
 
 ```bash
 kubectl create ns bookinfo 
@@ -113,7 +113,96 @@ It should return the discovered upstream with an `Accepted` status:
 +---------------------------+------------+----------+----------------------------+
 ```
 
-Now that the Upstream CRD has been created, we need to create a Gloo Edge Virtual Service that routes traffic to it:
+Now, let's deploy the second application, called httpbin in `team1` namespace:
+
+```bash
+kubectl create ns team1
+
+
+kubectl apply -f - <<EOF
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: httpbin
+  namespace: team1
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: httpbin
+  namespace: team1
+  labels:
+    app: httpbin
+spec:
+  ports:
+  - name: http
+    port: 8000
+    targetPort: 80
+  selector:
+    app: httpbin
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: httpbin
+  namespace: team1
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: httpbin
+      version: v1
+  template:
+    metadata:
+      labels:
+        app: httpbin
+        version: v1
+    spec:
+      serviceAccountName: httpbin
+      containers:
+      - image: docker.io/kennethreitz/httpbin
+        imagePullPolicy: IfNotPresent
+        name: httpbin
+        ports:
+        - containerPort: 80
+EOF
+```
+
+The httpbin application is very useful to debug requests and responses. The online version of it can be found [here](http://httpbin.org/).
+
+![Gloo Edge with Httpbin](images/httpbin.png)
+
+To verify that the Upstream was created properly, run the following command: 
+
+```bash
+until glooctl get upstream team1-httpbin-8000 2> /dev/null
+do
+    echo waiting for upstream team1-httpbin-8000 to be discovered
+    sleep 3
+done
+```
+
+It should return the discovered upstream with an `Accepted` status: 
+
+```
++--------------------+------------+----------+------------------------+
+|      UPSTREAM      |    TYPE    |  STATUS  |        DETAILS         |
++--------------------+------------+----------+------------------------+
+| team1-httpbin-8000 | Kubernetes | Accepted | svc name:      httpbin |
+|                    |            |          | svc namespace: team1   |
+|                    |            |          | port:          8000    |
+|                    |            |          |                        |
++--------------------+------------+----------+------------------------+
+```
+
+
+### Routing to a Kubernetes Service 
+
+Now that your two Upstream CR have been created, you need to create the resources to route the traffic to them.
+
+First, you create a Virtual Service. For bookinfo under `/` and for httpbin under `/secured`.
+
+Please, notice that the oder matters.
 
 ```bash
 kubectl apply -f - <<EOF
@@ -127,6 +216,15 @@ spec:
     domains:
       - '*'
     routes:
+      - matchers:
+          - prefix: /secured
+        routeAction:
+          single:
+            upstream:
+              name: team1-httpbin-8000
+              namespace: gloo-system
+        options:
+          prefixRewrite: '/'
       - matchers:
           - prefix: /
         routeAction:
@@ -148,6 +246,164 @@ We can access the application using the web browser by running the following com
 It should return the bookinfo application webpage. Note that the review stars are black (v2).
 
 ![Bookinfo Web Interface](images/1.png)
+
+And to access the httpbin application:
+
+```
+/opt/google/chrome/chrome $(glooctl proxy url)/secured/get
+```
+
+It should return the a json object with details regarding the request:
+
+```
+{
+  "args": {},
+  "headers": {
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9",
+    "Accept-Encoding": "gzip, deflate",
+    "Accept-Language": "en-GB,en;q=0.9,es-ES;q=0.8,es;q=0.7,sk-SK;q=0.6,sk;q=0.5,en-US;q=0.4",
+    "Cache-Control": "max-age=0",
+    "Host": "x.x.x.x",
+    "Upgrade-Insecure-Requests": "1",
+    "User-Agent": "xxxx",
+    "X-Envoy-Expected-Rq-Timeout-Ms": "15000",
+    "X-Envoy-Original-Path": "/secured/get"
+  },
+  "origin": "x.x.x.x",
+  "url": "http://x.x.x.x/get"
+}
+```
+
+### Delegation
+
+Gloo Edge provides a feature referred to as delegation. Delegation allows a complete routing configuration to be assembled from separate config objects. The root config object delegates responsibility to other objects, forming a tree of config objects. The tree always has a Virtual Service as its root, which delegates to any number of Route Tables. Route Tables can further delegate to other Route Tables.
+
+Use cases for delegation include:
+
+- Allowing multiple tenants to own add, remove, and update routes without requiring shared access to the root-level Virtual Service
+- Sharing route configuration between Virtual Services
+- Simplifying blue-green routing configurations by swapping the target Route Table for a delegated route.
+- Simplifying very large routing configurations for a single Virtual Service
+- Restricting ownership of routing configuration for a tenant to a subset of the whole Virtual Service.
+
+Let's rewrite our Virtual Service to delegate the routing to a Route Table.
+
+First, the Route Table:
+
+```bash
+kubectl apply -f - <<EOF
+apiVersion: gateway.solo.io/v1
+kind: RouteTable
+metadata:
+  name: httpbin-routetable
+  namespace: team1
+spec:
+  routes:
+    - matchers:
+        - prefix: /secured
+      options:
+        prefixRewrite: '/'
+      routeAction:
+          single:
+            upstream:
+              name: team1-httpbin-8000
+              namespace: gloo-system
+EOF
+```
+
+And now, the Virtual Service. Notice that there is a new `delegateAction` pointing to the just created Route Table.
+
+
+```bash
+kubectl apply -f - <<EOF
+apiVersion: gateway.solo.io/v1
+kind: VirtualService
+metadata:
+  name: demo
+  namespace: gloo-system
+spec:
+  virtualHost:
+    domains:
+      - '*'
+    routes:
+      - matchers:
+          - prefix: /secured
+# -------------Delegation by reference------------------
+        delegateAction:
+          ref:
+            name: 'httpbin-routetable'
+            namespace: 'team1'
+# ------------------------------------------------------
+      - matchers:
+          - prefix: /
+        routeAction:
+          single:
+            upstream:
+              name: bookinfo-productpage-9080
+              namespace: gloo-system
+EOF
+```
+
+### Delegation With Label
+
+Another way to delegate is to use labels. This approach frees the direct dependency with strict name references. Let's update our Route Table to add a label which, then, it will be configured by the Virtual Service.
+
+Let's make both changes:
+
+```bash
+kubectl apply -f - <<EOF
+apiVersion: gateway.solo.io/v1
+kind: RouteTable
+metadata:
+  name: httpbin-routetable
+  namespace: team1
+# -------------Delegation by reference------------------
+  labels:
+    application-owner: team1
+# ------------------------------------------------------
+spec:
+  routes:
+    - matchers:
+        - prefix: /secured
+      options:
+        prefixRewrite: '/'
+      routeAction:
+          single:
+            upstream:
+              name: team1-httpbin-8000
+              namespace: gloo-system
+
+---
+
+apiVersion: gateway.solo.io/v1
+kind: VirtualService
+metadata:
+  name: demo
+  namespace: gloo-system
+spec:
+  virtualHost:
+    domains:
+      - '*'
+    routes:
+      - matchers:
+          - prefix: /secured
+# -------------Delegation by label selector ------------
+        delegateAction:
+          selector:
+            namespaces:
+              - team1
+            labels:
+              application-owner: team1
+# ------------------------------------------------------
+      - matchers:
+          - prefix: /
+        routeAction:
+          single:
+            upstream:
+              name: bookinfo-productpage-9080
+              namespace: gloo-system
+EOF
+```
 
 
 ### Routing to Multiple Upstreams
