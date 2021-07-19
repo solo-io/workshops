@@ -70,24 +70,9 @@ Now you should be able to run `istioctl` commands from any directory:
 istioctl version
 ```
 
-
-
 ### Start the lab!
 
-Now go to the directory that has the workshop material:
-
-```
-cd /home/solo/workshops/istio-day2/1-deploy-istio/
-```
-
-* [Lab 1 - Run Envoy Proxy](./01-run-envoy.md)
-* [Lab 2 - Installing Istio](./02-install-istio.md)
-* [Lab 3 - Connecting to observability systems](./03-observability.md)
-* [Lab 4 - Using ingress gateways across teams](./04-ingress-gateway.md)
-* [Lab 5 - Onboarding services to the mesh](./05-app-rollout.md)
-* [Lab 6 - Rolling out mTLS for services in a controlled manner](./06-mtls-rollout.md)
-* [Lab 7 - Controlling configuration](./07-controlling-config.md)
-* [Lab 8 - Debugging networking configurations](./08-debugging-config.md)
+Interested in running the lab?  [Sign up](https://www.solo.io/events-webinars/) for one of our upcoming `deploy Istio to production` workshop! This workshop also includes a certification option. This credential, offered by Solo.io with Credly, certifies that you possess the essential skills to deploy, configure, debug, secure, and operationalize Istio for your organization. At the completion of the workshop, you will be able to take an assessment and a score 80% or higher earns the certification.
 
 ### Additional tools needed to install on the workshop VMs:
 
