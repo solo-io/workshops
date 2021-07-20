@@ -14,31 +14,18 @@ source ./scripts/assert.sh
 
 ## Table of Contents
 * [Introduction](#introduction)
-
 * [Lab 1 - Deploy EKS clusters](#Lab-1)
-
 * [Lab 2 - Deploy and register Gloo Mesh](#Lab-2)
-
 * [Lab 3 - Deploy Istio](#Lab-3)
-
 * [Lab 4 - Deploy the Bookinfo demo app](#Lab-4)
-
 * [Lab 5 - Create the Virtual Mesh](#Lab-5)
-
 * [Lab 6 - Access control](#Lab-6)
-
 * [Lab 7 - Multi-cluster Traffic](#Lab-7)
-
 * [Lab 8 - Traffic failover](#Lab-8)
-
 * [Lab 9 - Gloo Mesh Enterprise RBAC](#Lab-9)
-
 * [Lab 10 - Exploring the Gloo Mesh Enterprise UI](#Lab-10)
-
 * [Lab 11 - Observability](#Lab-11)
-
 * [Lab 12 - Extend Envoy with WebAssembly](#Lab-12)
-
 <div class="page-break"></div>
 
 
