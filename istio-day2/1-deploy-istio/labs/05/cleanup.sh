@@ -1,1 +1,0 @@
-kubectl delete ns istioinaction
