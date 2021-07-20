@@ -50,7 +50,7 @@ Gloo Mesh is facilitating the adoption of Istio and the management of multiple I
 
 ![Gloo Mesh](images/gloo-mesh.png)
 
-## Istio support
+### Istio support
 
 The Gloo Mesh Enterprise subscription includes end to end Istio support:
 
@@ -64,7 +64,7 @@ The Gloo Mesh Enterprise subscription includes end to end Istio support:
 - Architecture and operational guidance, 
 best practices
 
-## Service discovery
+### Service discovery
 
 One of the common problems related to cross cluster communication with Istio is the discovery.
 
@@ -76,7 +76,7 @@ Istio Endpoint Discovery Service (EDS) requires each Istio control plane to have
 
 Gloo Mesh is solving these problems. An agent running on each cluster is watching the local Kubernetes API server and passes the information to the Gloo Mesh management plane through a secured gRPC channel. Gloo Mesh is then telling the agents to create the Istio ServiceEntries corresponding to the workloads discovered on the other clusters.
 
-## Observability
+### Observability
 
 Gloo Mesh is also using these agents to consolidate all the metrics and access logs from the different clusters. Graphs can then be used to monitor all the communication happening globally.
 
@@ -86,7 +86,7 @@ And you can view the access logs on demand:
 
 ![Gloo Mesh access logs](images/gloo-mesh-access-logs.png)
 
-## Zero trust
+### Zero trust
 
 Gloo Mesh makes it very easy for you to implement a zero trust model where, by defaut, no communication is allowed.
 
@@ -122,7 +122,7 @@ And what makes Gloo Mesh really unique is that you can then go to the UI and che
 
 ![Gloo Mesh accesspolicy](images/gloo-mesh-accesspolicy.png)
 
-## Multi-cluster traffic and failover
+### Multi-cluster traffic and failover
 
 Gloo Makes also provides an abstraction called **TrafficPolicies** that makes it very easy for you to define how services behave and interract globally. Here is an example:
 
@@ -203,7 +203,7 @@ spec:
 
 Gloo Mesh **VirtualDestinations** are translating into Istio ** DestinationRules** and **ServiceEntries** in the different clusters.
 
-## RBAC
+### RBAC
 
 Gloo Mesh is simplifying the way users consume the Service Mesh globally by providing all the abstractions described previously (**AccessPolicies**, **TrafficPolicies**, ...).
 
@@ -220,7 +220,7 @@ Here are a few examples about what you can do with Gloo Mesh RBAC:
 
 One common use case is to create a role corresponding to a global namespace admin.
 
-## Wants to learn more about Gloo Mesh
+### Wants to learn more about Gloo Mesh
 
 You can find more information about Gloo Mesh in the official documentation:
 
