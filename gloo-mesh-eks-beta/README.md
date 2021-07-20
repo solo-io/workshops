@@ -12,38 +12,37 @@ source ./scripts/assert.sh
 <div class="page-break"></div>
 
 
-# Table of Contents
-## [Introduction](#introduction)
-## Labs
+## Table of Contents
+* [Introduction](#introduction)
 
-### [Lab 1 - Deploy EKS clusters](#Lab-1)
+* [Lab 1 - Deploy EKS clusters](#Lab-1)
 
-### [Lab 2 - Deploy and register Gloo Mesh](#Lab-2)
+* [Lab 2 - Deploy and register Gloo Mesh](#Lab-2)
 
-### [Lab 3 - Deploy Istio](#Lab-3)
+* [Lab 3 - Deploy Istio](#Lab-3)
 
-### [Lab 4 - Deploy the Bookinfo demo app](#Lab-4)
+* [Lab 4 - Deploy the Bookinfo demo app](#Lab-4)
 
-### [Lab 5 - Create the Virtual Mesh](#Lab-5)
+* [Lab 5 - Create the Virtual Mesh](#Lab-5)
 
-### [Lab 6 - Access control](#Lab-6)
+* [Lab 6 - Access control](#Lab-6)
 
-### [Lab 7 - Multi-cluster Traffic](#Lab-7)
+* [Lab 7 - Multi-cluster Traffic](#Lab-7)
 
-### [Lab 8 - Traffic failover](#Lab-8)
+* [Lab 8 - Traffic failover](#Lab-8)
 
-### [Lab 9 - Gloo Mesh Enterprise RBAC](#Lab-9)
+* [Lab 9 - Gloo Mesh Enterprise RBAC](#Lab-9)
 
-### [Lab 10 - Exploring the Gloo Mesh Enterprise UI](#Lab-10)
+* [Lab 10 - Exploring the Gloo Mesh Enterprise UI](#Lab-10)
 
-### [Lab 11 - Observability](#Lab-11)
+* [Lab 11 - Observability](#Lab-11)
 
-### [Lab 12 - Extend Envoy with WebAssembly](#Lab-12)
+* [Lab 12 - Extend Envoy with WebAssembly](#Lab-12)
 
 <div class="page-break"></div>
 
 
-# Introduction <a name="introduction"></a>
+## Introduction <a name="introduction"></a>
 
 At Solo.io, we have built a Management Plane for Service Mesh (especially Istio) called [Gloo Mesh](https://docs.solo.io/gloo-mesh/latest/).
 
@@ -228,9 +227,8 @@ You can find more information about Gloo Mesh in the official documentation:
 [https://docs.solo.io/gloo-mesh/latest/](https://docs.solo.io/gloo-mesh/latest/)
 <div class="page-break"></div>
 
-## Labs
 
-### Lab 1 - Deploy EKS clusters <a name="Lab-1"></a>
+## Lab 1 - Deploy EKS clusters <a name="Lab-1"></a>
 
 Set the context environment variables:
 
@@ -275,7 +273,7 @@ kubectl config use-context ${MGMT}
 
 <div class="page-break"></div>
 
-### Lab 2 - Deploy and register Gloo Mesh <a name="Lab-2"></a>
+## Lab 2 - Deploy and register Gloo Mesh <a name="Lab-2"></a>
 
 First of all, you need to install the *meshctl* CLI:
 
@@ -426,7 +424,7 @@ assert_eq "$clusters_names" "$expected_cluster_names" "$result_message" && log_s
 
 <div class="page-break"></div>
 
-### Lab 3 - Deploy Istio <a name="Lab-3"></a>
+## Lab 3 - Deploy Istio <a name="Lab-3"></a>
 
 
 
@@ -684,7 +682,7 @@ SVC_GW_CLUSTER1=$(kubectl --context ${CLUSTER1} -n istio-system get svc istio-in
 
 <div class="page-break"></div>
 
-### Lab 4 - Deploy the Bookinfo demo app <a name="Lab-4"></a>
+## Lab 4 - Deploy the Bookinfo demo app <a name="Lab-4"></a>
 
 
 
@@ -781,7 +779,7 @@ log_success "Bookinfo ready in $CLUSTER2"
 
 <div class="page-break"></div>
 
-### Lab 5 - Create the Virtual Mesh <a name="Lab-5"></a>
+## Lab 5 - Create the Virtual Mesh <a name="Lab-5"></a>
 
 Gloo Mesh can help unify the root identity between multiple service mesh installations so any intermediates are signed by the same Root CA and end-to-end mTLS between clusters and services can be established correctly.
 
@@ -1301,7 +1299,7 @@ The Subject Alternative Name (SAN) is the most interesting part. It allows the s
 
 <div class="page-break"></div>
 
-### Lab 6 - Access control <a name="Lab-6"></a>
+## Lab 6 - Access control <a name="Lab-6"></a>
 
 In the previous guide, we federated multiple meshes and established a shared root CA for a shared identity domain. Now that we have a logical VirtualMesh, we need a way to establish access policies across the multiple meshes, without treating each of them individually. Gloo Mesh helps by establishing a single, unified API that understands the logical VirtualMesh construct.
 
@@ -1540,7 +1538,7 @@ If you refresh the web page several times, you should see only the versions `v1`
 
 <div class="page-break"></div>
 
-### Lab 7 - Multi-cluster Traffic <a name="Lab-7"></a>
+## Lab 7 - Multi-cluster Traffic <a name="Lab-7"></a>
 
 On the first cluster, the `v3` version of the `reviews` microservice doesn't exist, so we're going to redirect some of the traffic to the second cluster to make it available.
 
@@ -1677,7 +1675,7 @@ kubectl --context ${MGMT} -n gloo-mesh delete trafficpolicy simple
 
 <div class="page-break"></div>
 
-### Lab 8 - Traffic failover <a name="Lab-8"></a>
+## Lab 8 - Traffic failover <a name="Lab-8"></a>
 
 If you refresh the web page several times, you should see only the versions `v1` (no stars) and `v2` (black stars), which means that all the requests are handled by the first cluster.
 
@@ -1867,7 +1865,7 @@ kubectl --context ${MGMT} -n default delete trafficpolicy reviews-shift-failover
 
 <div class="page-break"></div>
 
-### Lab 9 - Gloo Mesh Enterprise RBAC <a name="Lab-9"></a>
+## Lab 9 - Gloo Mesh Enterprise RBAC <a name="Lab-9"></a>
 
 In large organizations, several teams are using the same Kubernetes cluster. They use Kubernetes RBAC to define who can do what and where.
 
@@ -2187,7 +2185,7 @@ EOF
 
 <div class="page-break"></div>
 
-### Lab 10 - Exploring the Gloo Mesh Enterprise UI <a name="Lab-10"></a>
+## Lab 10 - Exploring the Gloo Mesh Enterprise UI <a name="Lab-10"></a>
 
 To access the UI, run the following command:
 
@@ -2225,7 +2223,7 @@ Take the time to explore the `Policies` and `Debug` tab to see what other inform
 
 <div class="page-break"></div>
 
-### Lab 11 - Observability <a name="Lab-11"></a>
+## Lab 11 - Observability <a name="Lab-11"></a>
 
 Gloo Mesh can also be used to collect the access logs from any Pod running in any cluster.
 
@@ -2414,7 +2412,7 @@ log_header "All tests passed. Workshop works OK"
 
 <div class="page-break"></div>
 
-### Lab 12 - Extend Envoy with WebAssembly <a name="Lab-12"></a>
+## Lab 12 - Extend Envoy with WebAssembly <a name="Lab-12"></a>
 
 WebAssembly (WASM) is the future of cloud-native infrastructure extensibility.
 

@@ -28,3 +28,22 @@ azs_workers        = ["eu-west-1a", "eu-west-1b", "eu-west-1c"]
 eks_version        = "1.20"
 node_instance_type = "t3.small"
 include_vm         = {}
+
+environments = {
+  eks-workshop-base = {
+    num_instances = 0
+  }
+}
+
+eks_clusters = {
+  eks-1 = {
+    num_instances      = 3
+    node_instance_type = "t3.large"
+    include_vm = {
+      machine_type         = "n1-standard-1"
+      source_machine_image = "denis-eks-workshop-base-source-image"
+      region               = "europe-west1"
+      zone                 = "europe-west1-d"
+    }
+  }
+}
