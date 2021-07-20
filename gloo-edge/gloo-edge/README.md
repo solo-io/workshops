@@ -850,11 +850,177 @@ spec:
 # -------- Rate limit config by authenticated and anonymous -------
       ratelimitBasic:
         anonymousLimits:
-          requestsPerUnit: 10
-          unit: MINUTE
-        authorizedLimits:
           requestsPerUnit: 5
           unit: MINUTE
+        authorizedLimits:
+          requestsPerUnit: 20
+          unit: MINUTE
+# -----------------------------------------------------------------
+    routes:
+      - matchers:
+          - prefix: /not-secured
+        delegateAction:
+          selector:
+            namespaces:
+              - team1
+            labels:
+              application-owner: team1
+      - matchers:
+          - prefix: /
+        options:
+          extauth:
+            configRef:
+              name: keycloak-oauth
+              namespace: gloo-system
+        routeAction:
+            multi:
+                destinations:
+                - weight: 5
+                  destination:
+                      upstream:
+                          name: bookinfo-productpage-9080
+                          namespace: gloo-system
+                - weight: 5
+                  destination:
+                      upstream:
+                          name: bookinfo-beta-productpage-9080
+                          namespace: gloo-system
+EOF
+```
+
+Refresh the httpbin application and after 5 times, you will retrieve a 429 error. This is because you are an anonymous user.
+
+```
+/opt/google/chrome/chrome $(glooctl proxy url --port https)/not-secured/get
+```
+
+Try it with the bookinfo application, and the number of requests will be limited to 20 as you are an Authenticated user. Notice that the requests for static content also counts.
+
+```
+/opt/google/chrome/chrome $(glooctl proxy url --port https)/productpage
+```
+
+### Web Application Firewall (WAF)
+
+A web application firewall (WAF) protects web applications by monitoring, filtering and blocking potentially harmful traffic and attacks that can overtake or exploit them.
+
+Gloo Edge Enterprise includes the ability to enable the ModSecurity Web Application Firewall for any incoming and outgoing HTTP connections. 
+
+Let's update the Virtual Service to restrict requests with huge payload to avoid Large Payload Post DDoS Attack. The intention of this DDoS attack is abuse on the amount of memory to decode the payload
+
+```bash
+kubectl apply -f - <<EOF
+apiVersion: gateway.solo.io/v1
+kind: VirtualService
+metadata:
+  name: demo
+  namespace: gloo-system
+spec:
+  sslConfig:
+    secretRef:
+      name: upstream-tls
+      namespace: gloo-system  
+  virtualHost:
+    domains:
+      - '*'
+    options:
+      ratelimitBasic:
+        anonymousLimits:
+          requestsPerUnit: 5
+          unit: MINUTE
+        authorizedLimits:
+          requestsPerUnit: 20
+          unit: MINUTE
+# ---------------- Web Application Firewall -----------
+      waf:
+        customInterventionMessage: "Payload sizes above 1KB not allowed"
+        ruleSets:
+        - ruleStr: |
+            SecRuleEngine On
+            SecRequestBodyLimit 1
+            SecRequestBodyLimitAction Reject
+#------------------------------------------------------
+    routes:
+      - matchers:
+          - prefix: /not-secured
+        delegateAction:
+          selector:
+            namespaces:
+              - team1
+            labels:
+              application-owner: team1
+      - matchers:
+          - prefix: /
+        options:
+          extauth:
+            configRef:
+              name: keycloak-oauth
+              namespace: gloo-system
+        routeAction:
+            multi:
+                destinations:
+                - weight: 5
+                  destination:
+                      upstream:
+                          name: bookinfo-productpage-9080
+                          namespace: gloo-system
+                - weight: 5
+                  destination:
+                      upstream:
+                          name: bookinfo-beta-productpage-9080
+                          namespace: gloo-system
+EOF
+```
+
+The rule means that a body's size cannot be greater than 1KB.
+
+Run following command to test it:
+
+```
+curl -k $(glooctl proxy url --port https)/not-secured/post -d "<note><heading>Reminder</heading><body>are you sure this is a huge payload???</body></note>" -H "Content-Type: application/xml"
+```
+
+You should get the following error message:
+
+```
+Payload sizes above 1KB not allowed
+```
+
+
+#### WAF Block well-known User-Agents
+
+Another kind of attack is done by some recognized User-Agents
+
+```bash
+kubectl apply -f - <<EOF
+apiVersion: gateway.solo.io/v1
+kind: VirtualService
+metadata:
+  name: demo
+  namespace: gloo-system
+spec:
+  sslConfig:
+    secretRef:
+      name: upstream-tls
+      namespace: gloo-system  
+  virtualHost:
+    domains:
+      - '*'
+    options:
+      ratelimitBasic:
+        anonymousLimits:
+          requestsPerUnit: 5
+          unit: MINUTE
+        authorizedLimits:
+          requestsPerUnit: 20
+          unit: MINUTE
+# -------- Web Application Firewall - Check User-Agent  -----------
+      waf:
+        customInterventionMessage: "Blocked Scammer"
+        ruleSets:
+        - ruleStr: |
+            SecRuleEngine On
+            SecRule REQUEST_HEADERS:User-Agent "scammer" "deny,status:403,id:107,phase:1,msg:'blocked scammer'"
 #-------------------------------------------------------------------
     routes:
       - matchers:
@@ -888,78 +1054,18 @@ spec:
 EOF
 ```
 
-Refresh the httpbin application and after 10 times, you will retrieve a 429 error. This is because you are an anonymous user. 
+The rule means an well known scammer User-Agent will be blocked.
 
-Try it with the bookinfo application, and the number of requests will be limited to 5 as you are an Authenticated user. Notice that the requests for static content also counts.
+Run following command to test it:
 
-### Web Application Firewall (WAF)
-
-A web application firewall (WAF) protects web applications by monitoring, filtering and blocking potentially harmful traffic and attacks that can overtake or exploit them.
-
-Gloo Edge Enterprise includes the ability to enable the ModSecurity Web Application Firewall for any incoming and outgoing HTTP connections. 
-
-Let's update our Virtual Service to restrict the characters allowed for usernames.
-
-```bash
-kubectl apply -f - <<EOF
-apiVersion: gateway.solo.io/v1
-kind: VirtualService
-metadata:
-  name: demo
-  namespace: gloo-system
-spec:
-  sslConfig:
-    secretRef:
-      name: upstream-tls
-      namespace: gloo-system  
-  virtualHost:
-    options:
-      extauth:
-        configRef:
-          name: keycloak-oauth
-          namespace: gloo-system
-      rateLimitConfigs:
-        refs:
-        - name: global-limit
-          namespace: gloo-system
-# ---------------- Web Application Firewall -----------
-      waf:
-        customInterventionMessage: 'Username should only contain letters'
-        ruleSets:
-        - ruleStr: |
-            # Turn rule engine on
-            SecRuleEngine On
-            SecRule ARGS:/username/ "[^a-zA-Z]" "t:none,phase:2,deny,id:6,log,msg:'allow only letters in username'"
-#------------------------------------------------------
-    domains:
-      - '*'
-    routes:
-      - matchers:
-          - prefix: /
-        routeAction:
-            multi:
-                destinations:
-                - weight: 5
-                  destination:
-                      upstream:
-                          name: bookinfo-productpage-9080
-                          namespace: gloo-system
-                - weight: 5
-                  destination:
-                      upstream:
-                          name: bookinfo-beta-productpage-9080
-                          namespace: gloo-system
-EOF
 ```
-
-The rule means that a username can only contain letters.
-
-Click on the `Sign in` button and try to login with a user named `user1` (the password doesn't matter).
+curl -k https://34.141.86.2/not-secured/get -H "Content-Type: application/xml" -H 'User-Agent: scammer'
+```
 
 You should get the following error message:
 
 ```
-Username should only contain letters
+Blocked Scammer
 ```
 
 ## Lab 3: Data Transformation
