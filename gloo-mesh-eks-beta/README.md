@@ -6,24 +6,41 @@ source ./scripts/assert.sh
 -->
 
 
-<style>
-
-table {
-    width: 100%;
-}
-table th:first-of-type {
-    width: 20%;
-}
-table th:nth-of-type(2) {
-    width: 80%;
-}
-</style>
-
 
 ![Gloo Mesh Enterprise](images/gloo-mesh-enterprise.png)
 # <center>Gloo Mesh Workshop on AWS</center>
 <div class="page-break"></div>
 
+
+# Table of Contents
+## [Introduction](#introduction)
+## Labs
+
+### [Lab 1 - Deploy EKS clusters](#Lab-1)
+
+### [Lab 2 - Deploy and register Gloo Mesh](#Lab-2)
+
+### [Lab 3 - Deploy Istio](#Lab-3)
+
+### [Lab 4 - Deploy the Bookinfo demo app](#Lab-4)
+
+### [Lab 5 - Create the Virtual Mesh](#Lab-5)
+
+### [Lab 6 - Access control](#Lab-6)
+
+### [Lab 7 - Multi-cluster Traffic](#Lab-7)
+
+### [Lab 8 - Traffic failover](#Lab-8)
+
+### [Lab 9 - Gloo Mesh Enterprise RBAC](#Lab-9)
+
+### [Lab 10 - Exploring the Gloo Mesh Enterprise UI](#Lab-10)
+
+### [Lab 11 - Observability](#Lab-11)
+
+### [Lab 12 - Extend Envoy with WebAssembly](#Lab-12)
+
+<div class="page-break"></div>
 
 
 # Introduction <a name="introduction"></a>
