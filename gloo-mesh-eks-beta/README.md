@@ -1,10 +1,21 @@
-
 <!--bash
 #!/usr/bin/env bash
 
 source ./scripts/assert.sh
 -->
 
+
+<style>
+table {
+    width: 100%;
+}
+table th:first-of-type {
+    width: 20%;
+}
+table th:nth-of-type(2) {
+    width: 80%;
+}
+</style>
 
 
 ![Gloo Mesh Enterprise](images/gloo-mesh-enterprise.png)
