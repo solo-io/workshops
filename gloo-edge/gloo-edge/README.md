@@ -200,7 +200,7 @@ It should return the discovered upstream with an `Accepted` status:
 
 Now that your two Upstream CR have been created, you need to create the resources to route the traffic to them.
 
-First, you create a Virtual Service. For bookinfo under `/` and for httpbin under `/secured`.
+First, you create a Virtual Service. For bookinfo under `/` and for httpbin under `/not-secured`.
 
 Please, notice that the oder matters.
 
@@ -216,15 +216,6 @@ spec:
     domains:
       - '*'
     routes:
-      - matchers:
-          - prefix: /secured
-        routeAction:
-          single:
-            upstream:
-              name: team1-httpbin-8000
-              namespace: gloo-system
-        options:
-          prefixRewrite: '/'
       - matchers:
           - prefix: /
         routeAction:
@@ -247,13 +238,48 @@ It should return the bookinfo application webpage. Note that the review stars ar
 
 ![Bookinfo Web Interface](images/1.png)
 
+Now, let's enable the httpbin route to be matched before bookinfo:
+
+```bash
+kubectl apply -f - <<EOF
+apiVersion: gateway.solo.io/v1
+kind: VirtualService
+metadata:
+  name: demo
+  namespace: gloo-system
+spec:
+  virtualHost:
+    domains:
+      - '*'
+    routes:
+# ------------- Another route which is parsed before ------------------
+      - matchers:
+          - prefix: /not-secured
+        routeAction:
+          single:
+            upstream:
+              name: team1-httpbin-8000
+              namespace: gloo-system
+        options:
+          prefixRewrite: '/'
+# ----------------------------------------------------------------------
+      - matchers:
+          - prefix: /
+        routeAction:
+          single:
+            upstream:
+              name: bookinfo-productpage-9080
+              namespace: gloo-system
+EOF
+```
+
 And to access the httpbin application:
 
 ```
-/opt/google/chrome/chrome $(glooctl proxy url)/secured/get
+/opt/google/chrome/chrome $(glooctl proxy url)/not-secured/get
 ```
 
-It should return the a json object with details regarding the request:
+It should return the a json object with details regarding your own request. Something similar to:
 
 ```
 {
@@ -267,7 +293,7 @@ It should return the a json object with details regarding the request:
     "Upgrade-Insecure-Requests": "1",
     "User-Agent": "xxxx",
     "X-Envoy-Expected-Rq-Timeout-Ms": "15000",
-    "X-Envoy-Original-Path": "/secured/get"
+    "X-Envoy-Original-Path": "/not-secured/get"
   },
   "origin": "x.x.x.x",
   "url": "http://x.x.x.x/get"
@@ -300,7 +326,7 @@ metadata:
 spec:
   routes:
     - matchers:
-        - prefix: /secured
+        - prefix: /not-secured
       options:
         prefixRewrite: '/'
       routeAction:
@@ -327,7 +353,7 @@ spec:
       - '*'
     routes:
       - matchers:
-          - prefix: /secured
+          - prefix: /not-secured
 # -------------Delegation by reference------------------
         delegateAction:
           ref:
@@ -364,7 +390,7 @@ metadata:
 spec:
   routes:
     - matchers:
-        - prefix: /secured
+        - prefix: /not-secured
       options:
         prefixRewrite: '/'
       routeAction:
@@ -386,7 +412,7 @@ spec:
       - '*'
     routes:
       - matchers:
-          - prefix: /secured
+          - prefix: /not-secured
 # -------------Delegation by label selector ------------
         delegateAction:
           selector:
@@ -446,9 +472,17 @@ spec:
       - '*'
     routes:
       - matchers:
+          - prefix: /not-secured
+        delegateAction:
+          selector:
+            namespaces:
+              - team1
+            labels:
+              application-owner: team1
+      - matchers:
           - prefix: /
         routeAction:
-        # ----------------------- Multi Destination ----------------------
+# ----------------------- Multi Destination ---------------------------
             multi:
                 destinations:
                 - weight: 5
@@ -461,10 +495,11 @@ spec:
                       upstream:
                           name: bookinfo-beta-productpage-9080
                           namespace: gloo-system
+# ----------------------------------------------------------------------
 EOF
 ```
 
-We should see either the black star reviews (v2) or the new red star reviews (v3) when refreshing the page.
+We should see either the **black** star reviews (v2) or the new **red** star reviews (v3) when refreshing the page.
 
 ![Bookinfo Web Interface](images/2.png)
 
@@ -512,6 +547,14 @@ spec:
       - '*'
     routes:
       - matchers:
+          - prefix: /not-secured
+        delegateAction:
+          selector:
+            namespaces:
+              - team1
+            labels:
+              application-owner: team1
+      - matchers:
           - prefix: /
         routeAction:
             multi:
@@ -552,17 +595,6 @@ Let's start by installing Keycloak:
 kubectl create -f https://raw.githubusercontent.com/keycloak/keycloak-quickstarts/12.0.4/kubernetes-examples/keycloak.yaml
 kubectl rollout status deploy/keycloak
 ```
-**Troubleshooting Tip**
-
-Make sure that the KeyCloak deployment worked correctly by executing the following.
-
-`kubectl describe pod keycloak`
-
-If you see an issue with the readiness probe failing, then you will want to edit the deployment and add the following values under the readinessProbe.
-
-`kubectl patch deployment keycloak --type='json' -p='[{"op": "replace", "path": "/spec/template/spec/containers/0/readinessProbe/timeoutSeconds", "value":10}]'`
-
-`kubectl patch deployment keycloak --type='json' -p='[{"op": "add", "path": "/spec/template/spec/containers/0/readinessProbe/initialDelaySeconds", "value":10 }]'`
 
 <!--bash
 sleep 30
@@ -575,6 +607,8 @@ Then, we need to configure it and create two users:
 
 - User2 credentials: `user2/password`
   Email: user2@example.com
+
+> **Note:** One of the following commands retrieves a token which expires quite soon. If you get a *Not Authorized* error, please, re-run the second command to retrieve another token (the one starting with `KEYCLOAK_TOKEN=`)
 
 ```bash
 # Get Keycloak URL and token
@@ -635,7 +669,7 @@ spec:
 EOF
 ```
 
-Finally we activate the authentication on the Virtual Service by referencing the AuthConfig:
+Finally we activate the authentication on the Route Table by referencing the AuthConfig:
 
 ```bash
 kubectl apply -f - <<EOF
@@ -650,18 +684,26 @@ spec:
       name: upstream-tls
       namespace: gloo-system  
   virtualHost:
-# ------------------- OIDC -------------------
-    options:
-      extauth:
-        configRef:
-          name: keycloak-oauth
-          namespace: gloo-system
-#---------------------------------------------          
     domains:
       - '*'
     routes:
       - matchers:
+          - prefix: /not-secured
+        delegateAction:
+          selector:
+            namespaces:
+              - team1
+            labels:
+              application-owner: team1
+      - matchers:
           - prefix: /
+# ------------------- OIDC -------------------
+        options:
+          extauth:
+            configRef:
+              name: keycloak-oauth
+              namespace: gloo-system
+# --------------------------------------------
         routeAction:
             multi:
                 destinations:
@@ -675,20 +717,25 @@ spec:
                       upstream:
                           name: bookinfo-beta-productpage-9080
                           namespace: gloo-system
+
 EOF
 ```
 
-To test the authentication, refresh the web browser.
+To test the authentication, try to access httpbin application. You will see that Authentication is not required.
+
+On the other hand, if you refresh the web browser for the bookinfo application, you will be redirected to the authentication challenge.
 
 If you login as the `user1` user with the password `password`, Gloo should redirect you to the application.
 
 ![Keycloak Authentication Dialog](images/3.png)
 
+
+
 ### Rate Limiting
 
 In this step, we are going to use rate limiting to protect our demo application.
 
-To enable rate limiting on our Virtual Service, we will first create a RateLimitConfig CRD:
+To enable rate limiting on our Virtual Service, we will first create a RateLimitConfig CR:
 
 ```bash
 kubectl apply -f - << EOF
@@ -727,22 +774,30 @@ spec:
       name: upstream-tls
       namespace: gloo-system  
   virtualHost:
-    options:
-      extauth:
-        configRef:
-          name: keycloak-oauth
-          namespace: gloo-system
-# ---------------- Rate limit config ------------------
-      rateLimitConfigs:
-        refs:
-        - name: global-limit
-          namespace: gloo-system
-#------------------------------------------------------
     domains:
       - '*'
     routes:
       - matchers:
+          - prefix: /not-secured
+        delegateAction:
+          selector:
+            namespaces:
+              - team1
+            labels:
+              application-owner: team1
+      - matchers:
           - prefix: /
+        options:
+          extauth:
+            configRef:
+              name: keycloak-oauth
+              namespace: gloo-system
+# ---------------- Rate limit config ------------------
+          rateLimitConfigs:
+            refs:
+            - name: global-limit
+              namespace: gloo-system
+#------------------------------------------------------
         routeAction:
             multi:
                 destinations:
@@ -762,6 +817,80 @@ EOF
 To test rate limiting, refresh the browser until you see a 429 message. 
 
 ![Browser 429 Too Many Requests Interface](images/4.png)
+
+
+### Rate Limiting For Authenticated Users
+
+Now, let's change the Rate Limit to be only applied for Authenticated Users. But this time, you will apply the changes directly in the Virtual Service.
+
+First, let's delete the Rate Limit Configuration you have created before:
+
+```bash
+kubectl delete ratelimitconfig global-limit -n gloo-system
+```
+
+And now, let's update your Virtual Service to add the Rate Limit Configuration directly in there:
+
+```bash
+kubectl apply -f - <<EOF
+apiVersion: gateway.solo.io/v1
+kind: VirtualService
+metadata:
+  name: demo
+  namespace: gloo-system
+spec:
+  sslConfig:
+    secretRef:
+      name: upstream-tls
+      namespace: gloo-system  
+  virtualHost:
+    domains:
+      - '*'
+    options:
+# -------- Rate limit config by authenticated and anonymous -------
+      ratelimitBasic:
+        anonymousLimits:
+          requestsPerUnit: 10
+          unit: MINUTE
+        authorizedLimits:
+          requestsPerUnit: 5
+          unit: MINUTE
+#-------------------------------------------------------------------
+    routes:
+      - matchers:
+          - prefix: /not-secured
+        delegateAction:
+          selector:
+            namespaces:
+              - team1
+            labels:
+              application-owner: team1
+      - matchers:
+          - prefix: /
+        options:
+          extauth:
+            configRef:
+              name: keycloak-oauth
+              namespace: gloo-system
+        routeAction:
+            multi:
+                destinations:
+                - weight: 5
+                  destination:
+                      upstream:
+                          name: bookinfo-productpage-9080
+                          namespace: gloo-system
+                - weight: 5
+                  destination:
+                      upstream:
+                          name: bookinfo-beta-productpage-9080
+                          namespace: gloo-system
+EOF
+```
+
+Refresh the httpbin application and after 10 times, you will retrieve a 429 error. This is because you are an anonymous user. 
+
+Try it with the bookinfo application, and the number of requests will be limited to 5 as you are an Authenticated user. Notice that the requests for static content also counts.
 
 ### Web Application Firewall (WAF)
 
