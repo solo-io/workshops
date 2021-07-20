@@ -2,17 +2,17 @@ terraform {
   required_providers {
     aws = {
       source  = "hashicorp/aws"
-      version = "~> 3.48.0"
+      version = "~> 3.50.0"
     }
-    helm = {
+    gcp = {
       source  = "hashicorp/google"
-      version = "~> 3.74.0"
+      version = "~> 3.76.0"
     }
-    kubernetes = {
+    null-provider = {
       source  = "hashicorp/null"
       version = "~> 3.1.0"
     }
-    mysql = {
+    local-provider = {
       source  = "hashicorp/local"
       version = "~> 2.1.0"
     }

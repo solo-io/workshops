@@ -78,6 +78,18 @@ resource "null_resource" "eks-admin" {
     COMMAND
   }
 
+  provisioner "local-exec" {
+    when       = destroy
+    on_failure = continue
+    # Delete all pv,pvc, and non essential services
+    command = <<COMMAND
+      export KUBECONFIG=${path.root}/output/${self.triggers.cluster_name}/kubeconfig-${self.triggers.cluster_name} \
+      && kubectl delete pvc -A --all --timeout=5m\
+      && kubectl delete pv -A --all --timeout=5m\
+      && kubectl delete svc -A --selector='!provider,!kubernetes.io/cluster-service' --timeout=5m
+    COMMAND
+  }
+
   triggers = {
     cluster_name        = module.eks[count.index].cluster_name
     kubeconfig_rendered = module.eks[count.index].kubeconfig
