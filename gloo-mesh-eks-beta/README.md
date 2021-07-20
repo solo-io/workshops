@@ -232,12 +232,6 @@ export CLUSTER2=cluster2
 > export CLUSTER2=cluster2
 > ```
 
-From the terminal go to the `/home/solo/workshops/gloo-mesh` directory:
-
-```
-cd /home/solo/workshops/gloo-mesh
-```
-
 For this workshop, you need to deploy 3 EKS clusters.
 
 All the instructions have been tested with each EKS cluster composed of 3 `t3.large` instances (2 CPUs and 8 GB of RAM).
