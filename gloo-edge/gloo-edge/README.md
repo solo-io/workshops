@@ -587,7 +587,14 @@ The browser will warn you that your connection is not private due to the self-si
 
 ### OIDC Support
 
-In many use cases, we need to restrict the access to our applications to authenticated users. In this step, we will secure our application using an OIDC Identity Provider.
+In many use cases, we need to restrict the access to our applications to authenticated users. 
+
+OIDC (OpenID Connect) is an identity layer on top of the OAuth 2.0 protocol. In OAuth 2.0 flows, authentication is performed by an external Identity Provider (IdP) which, in case of success, returns an Access Token representing the user identity. The protocol does not define the contents and structure of the Access Token, which greatly reduces the portability of OAuth 2.0 implementations.
+
+The goal of OIDC is to address this ambiguity by additionally requiring Identity Providers to return a well-defined ID Token. OIDC ID tokens follow the JSON Web Token standard and contain specific fields that your applications can expect and handle. This standardization allows you to switch between Identity Providers – or support multiple ones at the same time – with minimal, if any, changes to your downstream services; it also allows you to consistently apply additional security measures like Role-based Access Control (RBAC) based on the identity of your users, i.e. the contents of their ID token.
+
+
+In this step, we will secure our application using an OIDC Identity Provider.
 
 Let's start by installing Keycloak:
 
@@ -1250,361 +1257,8 @@ You will see the headers which arrive to the service, including your new transfo
 }
 ```
 
-## Lab 4: Delegation
 
-Gloo Edge provides a feature referred to as delegation. Delegation allows a complete routing configuration to be assembled from separate config objects. The root config object delegates responsibility to other objects, forming a tree of config objects. The tree always has a Virtual Service as its root, which delegates to any number of Route Tables. Route Tables can further delegate to other Route Tables.
-
-Use cases for delegation include:
-
-- Allowing multiple tenants to own add, remove, and update routes without requiring shared access to the root-level Virtual Service
-- Sharing route configuration between Virtual Services
-- Simplifying blue-green routing configurations by swapping the target Route Table for a delegated route.
-- Simplifying very large routing configurations for a single Virtual Service
-- Restricting ownership of routing configuration for a tenant to a subset of the whole Virtual Service.
-
-Let's rewrite our Virtual Service to delegate the routing to a Route Table:
-
-```bash
-kubectl apply -f - <<EOF
-apiVersion: gateway.solo.io/v1
-kind: RouteTable
-metadata:
-  name: demo
-  namespace: gloo-system
-spec:
-  routes:
-    - matchers:
-        - prefix: /
-      routeAction:
-          multi:
-              destinations:
-              - weight: 5
-                destination:
-                    upstream:
-                        name: bookinfo-productpage-9080
-                        namespace: gloo-system
-              - weight: 5
-                destination:
-                    upstream:
-                        name: bookinfo-beta-productpage-9080
-                        namespace: gloo-system
----
-apiVersion: gateway.solo.io/v1
-kind: VirtualService
-metadata:
-  name: demo
-  namespace: gloo-system
-spec:
-  sslConfig:
-    secretRef:
-      name: upstream-tls
-      namespace: gloo-system  
-  virtualHost:
-    options:
-      extauth:
-        configRef:
-          name: keycloak-oauth
-          namespace: gloo-system
-      rateLimitConfigs:
-        refs:
-        - name: global-limit
-          namespace: gloo-system
-      waf:
-        customInterventionMessage: 'Username should only contain letters'
-        ruleSets:
-        - ruleStr: |
-            # Turn rule engine on
-            SecRuleEngine On
-            SecRule ARGS:/username/ "[^a-zA-Z]" "t:none,phase:2,deny,id:6,log,msg:'allow only letters in username'"
-      transformations:
-        responseTransformation:
-          transformationTemplate:
-            parseBodyBehavior: DontParse
-            body: 
-              text: '{% if header(":status") == "429" %}<html><body style="background-color:powderblue;"><h1>Too many Requests!</h1><p>Try again after 10 seconds</p></body></html>{% else %}{{ body() }}{% endif %}'
-    domains:
-      - '*'
-    routes:
-      - matchers:
-          - prefix: /
-        delegateAction:
-          ref:
-            name: 'demo'
-            namespace: 'gloo-system'
-EOF
-```
-
-As you can see, in this case the security options remains in the `VirtualService` (and can be managed by the infrastructure team) while the routing options are now in the `RouteTable` (and can be managed by the application team).
-
-## Lab 5: Observability
-
-### Metrics
-
-Gloo Edge automatically generates a Grafana dashboard for whole-cluster stats (overall request timing, aggregated response codes, etc.), and dynamically generates a more-specific dashboard for each upstream that is tracked.
-
-Let's run the following command to allow access to the Grafana UI:
-
-```
-kubectl port-forward -n gloo-system svc/glooe-grafana 8001:80
-```
-
-You can now access the Grafana UI at http://localhost:8001 and login with `admin/admin`.
-
-You can take a look at the `Gloo -> Envoy Statistics` Dashboard that provides global statistics:
-
-![Grafana Envoy Statistics](images/grafana1.png)
-
-You can also see that Gloo is dynamically generating a Dashboard for each Upstream:
-
-![Grafana Upstream](images/grafana2.png)
-
-You can run the following command to see the default template used to generate these templates:
-
-```
-kubectl -n gloo-system get cm gloo-observability-config -o yaml
-```
-
-If you want to customize how these per-upstream dashboards look, you can provide your own template to use by writing a Grafana dashboard JSON representation to that config map key. 
-
-### Access Logging
-
-Access logs are important to check if a system is behaving correctly and for debugging purposes. Log aggregators like Datadog and Splunk use agents deployed on the Kubernetes clusters to collect logs.  
-
-Lets first enable access logging on the gateway: 
-
-```bash
-kubectl apply -f - <<EOF
-apiVersion: gateway.solo.io/v1
-kind: Gateway
-metadata:
-  labels:
-    app: gloo
-  name: gateway-proxy-ssl
-  namespace: gloo-system
-spec:
-  bindAddress: '::'
-  bindPort: 8443
-  httpGateway: {}
-  proxyNames:
-  - gateway-proxy
-  ssl: true
-  useProxyProto: false
-  options:
-    accessLoggingService:
-      accessLog:
-      - fileSink:
-          jsonFormat:
-            # HTTP method name
-            httpMethod: '%REQ(:METHOD)%'
-            # Protocol. Currently either HTTP/1.1 or HTTP/2.
-            protocol: '%PROTOCOL%'
-            # HTTP response code. Note that a response code of ‘0’ means that the server never sent the
-            # beginning of a response. This generally means that the (downstream) client disconnected.
-            responseCode: '%RESPONSE_CODE%'
-            # Total duration in milliseconds of the request from the start time to the last byte out
-            clientDuration: '%DURATION%'
-            # Total duration in milliseconds of the request from the start time to the first byte read from the upstream host
-            targetDuration: '%RESPONSE_DURATION%'
-            # Value of the "x-envoy-original-path" header (falls back to "path" header if not present)
-            path: '%REQ(X-ENVOY-ORIGINAL-PATH?:PATH)%'
-            # Upstream cluster to which the upstream host belongs to
-            upstreamName: '%UPSTREAM_CLUSTER%'
-            # Request start time including milliseconds.
-            systemTime: '%START_TIME%'
-            # Unique tracking ID
-            requestId: '%REQ(X-REQUEST-ID)%'
-            # Response flags; will contain RL if the request was rate-limited
-            responseFlags: '%RESPONSE_FLAGS%'
-            # We rate-limit on the x-type header
-            messageType: '%REQ(x-type)%'
-            # We rate-limit on the x-number header
-            number: '%REQ(x-number)%'
-          path: /dev/stdout
-EOF
-```
-
-NOTE:  You can safely ignore the following warning when you run the above command:
-
-```
-Warning: kubectl apply should be used on resource created by either kubectl create --save-config or kubectl apply
-```
-
-Refresh your browser a couple times to generate some traffic.
-
-Check the access logs running the following command:
-
-```bash
-kubectl logs -n gloo-system deployment/gateway-proxy | grep '^{' | jq
-```
-
-If you refresh the browser to send additional requests until the rate limiting threshold is exceeded, then you will see both `200 OK` and `429 Too Many Requests` responses in the access logs, as in the example below.
-
-```
-{
-  "messageType": null,
-  "requestId": "06c54299-de6b-463e-8035-aebd3e530cb5",
-  "httpMethod": "GET",
-  "systemTime": "2020-10-22T21:38:18.316Z",
-  "path": "/productpage",
-  "targetDuration": 31,
-  "protocol": "HTTP/2",
-  "responseFlags": "-",
-  "number": null,
-  "clientDuration": 31,
-  "upstreamName": "bookinfo-beta-productpage-9080_gloo-system",
-  "responseCode": 200
-}
-{
-  "httpMethod": "GET",
-  "systemTime": "2020-10-22T21:38:19.168Z",
-  "targetDuration": null,
-  "path": "/productpage",
-  "protocol": "HTTP/2",
-  "responseFlags": "-",
-  "clientDuration": 3,
-  "number": null,
-  "responseCode": 429,
-  "upstreamName": null,
-  "messageType": null,
-  "requestId": "494c3cc7-e476-4414-8c50-499f3619f84c"
-}
-```
-
-These logs can now be collected by the Log aggregator agents and potentially forwarded to your favorite enterprise logging service. 
-
-The following labs are optional. The instructor will go through them.
-
-## Lab 6: Advanced Authentication Workflows
-
-As you've seen in the previous lab, Gloo Edge supports authentication via OpenID Connect (OIDC). OIDC is an identity layer on top of the OAuth 2.0 protocol. In OAuth 2.0 flows, authentication is performed by an external Identity Provider (IdP) which, in case of success, returns an Access Token representing the user identity. The protocol does not define the contents and structure of the Access Token, which greatly reduces the portability of OAuth 2.0 implementations.
-
-The goal of OIDC is to address this ambiguity by additionally requiring Identity Providers to return a well-defined ID Token. OIDC ID tokens follow the JSON Web Token standard and contain specific fields that your applications can expect and handle. This standardization allows you to switch between Identity Providers – or support multiple ones at the same time – with minimal, if any, changes to your downstream services; it also allows you to consistently apply additional security measures like Role-based Access Control (RBAC) based on the identity of your users, i.e. the contents of their ID token.
-
-As explained above, Keycloak will return a JWT token, so we’ll use Gloo to extract some claims from this token and to create new headers corresponding to these claims.
-
-Finally, we’ll see how Gloo Edge RBAC rules can be created to leverage the claims contained in the JWT token.
-
-First of all, let's deploy a new application that returns information about the requests it receives:
-
-```bash
-kubectl apply -f - <<EOF
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: httpbin
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: httpbin
-  labels:
-    app: httpbin
-spec:
-  ports:
-  - name: http
-    port: 8000
-    targetPort: 80
-  selector:
-    app: httpbin
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: httpbin
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: httpbin
-      version: v1
-  template:
-    metadata:
-      labels:
-        app: httpbin
-        version: v1
-    spec:
-      serviceAccountName: httpbin
-      containers:
-      - image: docker.io/kennethreitz/httpbin
-        imagePullPolicy: IfNotPresent
-        name: httpbin
-        ports:
-        - containerPort: 80
-EOF
-```
-
-Let’s modify the Virtual Service using the yaml below:
-
-```bash
-kubectl apply -f - <<EOF
-apiVersion: gateway.solo.io/v1
-kind: VirtualService
-metadata:
-  name: demo
-  namespace: gloo-system
-spec:
-  sslConfig:
-    secretRef:
-      name: upstream-tls
-      namespace: gloo-system  
-  virtualHost:
-    options:
-      extauth:
-        configRef:
-          name: keycloak-oauth
-          namespace: gloo-system
-    domains:
-      - '*'
-    routes:
-      - matchers:
-          - prefix: /
-        routeAction:
-            single:
-              upstream:
-                name: default-httpbin-8000
-                namespace: gloo-system
-EOF
-```
-
-Let's take a look at what the application returns:
-
-```
-/opt/google/chrome/chrome $(glooctl proxy url --port https)/get 
-```
-
-You should get the following output:
-
-```
-{
-  "args": {}, 
-  "headers": {
-    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9", 
-    "Accept-Encoding": "gzip, deflate, br", 
-    "Accept-Language": "en-US,en;q=0.9", 
-    "Content-Length": "0", 
-    "Cookie": "id_token=eyJhbGciOiJSUzI1NiIsInR5cCIgOiAiSldUIiwia2lkIiA6ICJZd18zVTBoOFFkbGpsODBiSkQxUDhzbUtud0ZYYkVJZE0xZjlMU3R1N2E0In0.eyJleHAiOjE2MDc0MTkxNjksImlhdCI6MTYwNzQxOTEwOSwiYXV0aF90aW1lIjoxNjA3NDE4NzQ5LCJqdGkiOiI0NzMyNjU5Mi0xY2Q0LTQzNjItODA5ZS01NzA2YzU5MTU2MzYiLCJpc3MiOiJodHRwOi8vMTcyLjE4LjAuMjExOjgwODAvYXV0aC9yZWFsbXMvbWFzdGVyIiwiYXVkIjoiZjg3YzAzOWQtNTdiZi00NTQzLWExZjAtOGIyMmZjNmY5ZTYwIiwic3ViIjoiN2Q0N2I2YmYtOTcyYi00OGRjLWI3YjctM2U5N2NlZGM4NjM1IiwidHlwIjoiSUQiLCJhenAiOiJmODdjMDM5ZC01N2JmLTQ1NDMtYTFmMC04YjIyZmM2ZjllNjAiLCJzZXNzaW9uX3N0YXRlIjoiOGJmNjAzMTYtY2NmYi00ZWZkLWFiNDgtOTc5MmQzNTkzNzBhIiwiYXRfaGFzaCI6InJxZHVfVEVucHZaUElDSm1SblMwM0EiLCJhY3IiOiIwIiwiZW1haWxfdmVyaWZpZWQiOmZhbHNlLCJwcmVmZXJyZWRfdXNlcm5hbWUiOiJ1c2VyMSIsImVtYWlsIjoidXNlcjFAc29sby5pbyIsImdyb3VwIjoidXNlcnMifQ.FnuiURxT6Y8NZGKcFxlud0jgz9QieZiYx5zB0VXeIMeTrKvcmWxkFEViIF22MvaGh2jYRSoSCCqiR3JwMgmMTtDU2NPuAL6FyLbeeOOxOw6h7zc4XRKHzzwPH4p8l6Np4GLgHEPzlP_ZGochgieeYGA5kKzV2r6BrFFoKAbHTio5waJlnyDQQ6_EbBfHngrgiW8ngrMD5RiryhJ-idaNae_bM0KrXTow0xVFpOlo59E03N_QamJeegAPZnwpm5meEMN1w8uHm2WRe3NtUxb2sLBoQoJIKZj-7AsRNPzfJ5kbUQ250Sdbeeo4t6mmO5Vf472DkxzyPho3gf-avLINLg; access_token=eyJhbGciOiJSUzI1NiIsInR5cCIgOiAiSldUIiwia2lkIiA6ICJZd18zVTBoOFFkbGpsODBiSkQxUDhzbUtud0ZYYkVJZE0xZjlMU3R1N2E0In0.eyJleHAiOjE2MDc0MTkxNjksImlhdCI6MTYwNzQxOTEwOSwiYXV0aF90aW1lIjoxNjA3NDE4NzQ5LCJqdGkiOiJhNmI5MDk5MC0zYjBhLTQwZjItYmI0Yy0yMTc0NTlmZjUyMjQiLCJpc3MiOiJodHRwOi8vMTcyLjE4LjAuMjExOjgwODAvYXV0aC9yZWFsbXMvbWFzdGVyIiwiYXVkIjoiYWNjb3VudCIsInN1YiI6IjdkNDdiNmJmLTk3MmItNDhkYy1iN2I3LTNlOTdjZWRjODYzNSIsInR5cCI6IkJlYXJlciIsImF6cCI6ImY4N2MwMzlkLTU3YmYtNDU0My1hMWYwLThiMjJmYzZmOWU2MCIsInNlc3Npb25fc3RhdGUiOiI4YmY2MDMxNi1jY2ZiLTRlZmQtYWI0OC05NzkyZDM1OTM3MGEiLCJhY3IiOiIwIiwicmVhbG1fYWNjZXNzIjp7InJvbGVzIjpbIm9mZmxpbmVfYWNjZXNzIiwidW1hX2F1dGhvcml6YXRpb24iXX0sInJlc291cmNlX2FjY2VzcyI6eyJhY2NvdW50Ijp7InJvbGVzIjpbIm1hbmFnZS1hY2NvdW50IiwibWFuYWdlLWFjY291bnQtbGlua3MiLCJ2aWV3LXByb2ZpbGUiXX19LCJzY29wZSI6Im9wZW5pZCBlbWFpbCBwcm9maWxlIiwiZW1haWxfdmVyaWZpZWQiOmZhbHNlLCJwcmVmZXJyZWRfdXNlcm5hbWUiOiJ1c2VyMSIsImVtYWlsIjoidXNlcjFAc29sby5pbyIsImdyb3VwIjoidXNlcnMifQ.NT4_BFfaDvngCKkg2X1_8eIiyA76sCwIbNo0nFdnelg9wr1PBCW1mFLh8PvD4NQjy26KuYZswMoGtwP5y-6PAuHzoH9Pxe2peeLEGuWhhDfhjE9RknG9qFxVS1jV3-i3rTewoPMJKHFP29Ocmkl9CB31zShOyhsj19YTYWy7wB9Da_GMH7kRjmvYaiZOsNdZ8LVNBeFTp0QYz1xTss-KABBXJNbC164aokWGDwe2wDPyNPf9ZYoEQ4zwjX4Qt5-hBaBnMIH6Je4hei05pjZikiuDcW4KvGOEAfFR6xPWLW0pfxfmuKghAigYhpq5BmLIisgByN0jsfVGRcKkD1_gXQ", 
-    "Host": "172.18.1.1", 
-    "Sec-Fetch-Dest": "document", 
-    "Sec-Fetch-Mode": "navigate", 
-    "Sec-Fetch-Site": "none", 
-    "Sec-Fetch-User": "?1", 
-    "Upgrade-Insecure-Requests": "1", 
-    "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.88 Safari/537.36", 
-    "X-Envoy-Expected-Rq-Timeout-Ms": "15000", 
-    "X-User-Id": "http://172.18.1.2:8080/auth/realms/master;7d47b6bf-972b-48dc-b7b7-3e97cedc8635"
-  }, 
-  "origin": "192.168.149.15", 
-  "url": "https://172.18.1.1/get"
-}
-```
-
-As you can see, the browser has sent the cookie as a header in the HTTP request.
-
-### Request transformation
-
-Gloo is able to perform advanced transformations of the request and response.
-
-Let’s modify the Virtual Service using the yaml below:
+### Obtain a value from the token
 
 ```bash
 kubectl apply -f - <<EOF
@@ -1658,6 +1312,25 @@ EOF
 ```
 
 This transformation is using a regular expression to extract the JWT token from the `cookie` header, creates a new `jwt` header that contains the token and removes the `cookie` header.
+
+As explained in previous Labs, Keycloak will return a JWT token, so we’ll use Gloo to extract some claims from this token and to create new headers corresponding to these claims.
+
+Finally, we’ll see how Gloo Edge RBAC rules can be created to leverage the claims contained in the JWT token.
+
+
+As you can see, the browser has sent the cookie as a header in the HTTP request.
+
+
+### Getting more details from token
+
+
+
+
+Gloo is able to perform advanced transformations of the request and response.
+
+Let’s modify the Virtual Service using the yaml below:
+
+
 
 Here is the output you should get if you refresh the web page:
 
@@ -2012,6 +1685,148 @@ Let's try again in incognito window using the second user's credentials:
 ```
 
 If you open the browser in incognito and login using `user2/password` credentials, you will not be able to access since the user's email ends with `@example.com`:
+
+
+## Lab 5: Observability
+
+### Metrics
+
+Gloo Edge automatically generates a Grafana dashboard for whole-cluster stats (overall request timing, aggregated response codes, etc.), and dynamically generates a more-specific dashboard for each upstream that is tracked.
+
+Let's run the following command to allow access to the Grafana UI:
+
+```
+kubectl port-forward -n gloo-system svc/glooe-grafana 8001:80
+```
+
+You can now access the Grafana UI at http://localhost:8001 and login with `admin/admin`.
+
+You can take a look at the `Gloo -> Envoy Statistics` Dashboard that provides global statistics:
+
+![Grafana Envoy Statistics](images/grafana1.png)
+
+You can also see that Gloo is dynamically generating a Dashboard for each Upstream:
+
+![Grafana Upstream](images/grafana2.png)
+
+You can run the following command to see the default template used to generate these templates:
+
+```
+kubectl -n gloo-system get cm gloo-observability-config -o yaml
+```
+
+If you want to customize how these per-upstream dashboards look, you can provide your own template to use by writing a Grafana dashboard JSON representation to that config map key. 
+
+### Access Logging
+
+Access logs are important to check if a system is behaving correctly and for debugging purposes. Log aggregators like Datadog and Splunk use agents deployed on the Kubernetes clusters to collect logs.  
+
+Lets first enable access logging on the gateway: 
+
+```bash
+kubectl apply -f - <<EOF
+apiVersion: gateway.solo.io/v1
+kind: Gateway
+metadata:
+  labels:
+    app: gloo
+  name: gateway-proxy-ssl
+  namespace: gloo-system
+spec:
+  bindAddress: '::'
+  bindPort: 8443
+  httpGateway: {}
+  proxyNames:
+  - gateway-proxy
+  ssl: true
+  useProxyProto: false
+  options:
+    accessLoggingService:
+      accessLog:
+      - fileSink:
+          jsonFormat:
+            # HTTP method name
+            httpMethod: '%REQ(:METHOD)%'
+            # Protocol. Currently either HTTP/1.1 or HTTP/2.
+            protocol: '%PROTOCOL%'
+            # HTTP response code. Note that a response code of ‘0’ means that the server never sent the
+            # beginning of a response. This generally means that the (downstream) client disconnected.
+            responseCode: '%RESPONSE_CODE%'
+            # Total duration in milliseconds of the request from the start time to the last byte out
+            clientDuration: '%DURATION%'
+            # Total duration in milliseconds of the request from the start time to the first byte read from the upstream host
+            targetDuration: '%RESPONSE_DURATION%'
+            # Value of the "x-envoy-original-path" header (falls back to "path" header if not present)
+            path: '%REQ(X-ENVOY-ORIGINAL-PATH?:PATH)%'
+            # Upstream cluster to which the upstream host belongs to
+            upstreamName: '%UPSTREAM_CLUSTER%'
+            # Request start time including milliseconds.
+            systemTime: '%START_TIME%'
+            # Unique tracking ID
+            requestId: '%REQ(X-REQUEST-ID)%'
+            # Response flags; will contain RL if the request was rate-limited
+            responseFlags: '%RESPONSE_FLAGS%'
+            # We rate-limit on the x-type header
+            messageType: '%REQ(x-type)%'
+            # We rate-limit on the x-number header
+            number: '%REQ(x-number)%'
+          path: /dev/stdout
+EOF
+```
+
+NOTE:  You can safely ignore the following warning when you run the above command:
+
+```
+Warning: kubectl apply should be used on resource created by either kubectl create --save-config or kubectl apply
+```
+
+Refresh your browser a couple times to generate some traffic.
+
+Check the access logs running the following command:
+
+```bash
+kubectl logs -n gloo-system deployment/gateway-proxy | grep '^{' | jq
+```
+
+If you refresh the browser to send additional requests until the rate limiting threshold is exceeded, then you will see both `200 OK` and `429 Too Many Requests` responses in the access logs, as in the example below.
+
+```
+{
+  "messageType": null,
+  "requestId": "06c54299-de6b-463e-8035-aebd3e530cb5",
+  "httpMethod": "GET",
+  "systemTime": "2020-10-22T21:38:18.316Z",
+  "path": "/productpage",
+  "targetDuration": 31,
+  "protocol": "HTTP/2",
+  "responseFlags": "-",
+  "number": null,
+  "clientDuration": 31,
+  "upstreamName": "bookinfo-beta-productpage-9080_gloo-system",
+  "responseCode": 200
+}
+{
+  "httpMethod": "GET",
+  "systemTime": "2020-10-22T21:38:19.168Z",
+  "targetDuration": null,
+  "path": "/productpage",
+  "protocol": "HTTP/2",
+  "responseFlags": "-",
+  "clientDuration": 3,
+  "number": null,
+  "responseCode": 429,
+  "upstreamName": null,
+  "messageType": null,
+  "requestId": "494c3cc7-e476-4414-8c50-499f3619f84c"
+}
+```
+
+These logs can now be collected by the Log aggregator agents and potentially forwarded to your favorite enterprise logging service. 
+
+The following labs are optional. The instructor will go through them.
+
+
+
 
 
 
