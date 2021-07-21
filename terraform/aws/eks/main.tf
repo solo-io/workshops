@@ -90,6 +90,14 @@ resource "null_resource" "eks-admin" {
     COMMAND
   }
 
+  provisioner "local-exec" {
+    when       = destroy
+    on_failure = continue
+    command    = <<COMMAND
+      aws ec2 describe-security-groups --filters Name=tag:aws:eks:cluster-name,Values=${self.triggers.cluster_name} --query "SecurityGroups[*].GroupId" | jq -r '.[]' | xargs -L1 aws ec2 delete-security-group --group-id
+    COMMAND
+  }
+
   triggers = {
     cluster_name        = module.eks[count.index].cluster_name
     kubeconfig_rendered = module.eks[count.index].kubeconfig

@@ -418,43 +418,30 @@
     become_user: solo
     become_method: sudo
 
-  - name: Enable clipboard when launching the terminal
+  - name: Add some required variables (sensitive)
     lineinfile:
-      path: /home/solo/.bashrc
-      line: '/usr/bin/autocutsel -s CLIPBOARD -fork'
-    become_user: solo
-    become_method: sudo
-  
-  - name: Add glooctl to the path
-    lineinfile:
-      path: /home/solo/.bashrc
-      line: 'export PATH=$HOME/.gloo/bin:$PATH'
-    become_user: solo
-    become_method: sudo
-
-  - name: Add LICENSE_KEY environment variable
-    lineinfile:
-      path: /home/solo/.bashrc
-      line: "export LICENSE_KEY={{ lookup('env','LICENSE_KEY') }}"
+      dest: /home/solo/.bashrc
+      line: "{{ item }}"
+    loop:
+      - "export LICENSE_KEY={{ lookup('env','LICENSE_KEY') }}"
+      - "export GLOO_MESH_LICENSE_KEY={{ lookup('env','GLOO_MESH_LICENSE_KEY') }}"
+      - "export PORTAL_LICENSE_KEY={{ lookup('env','PORTAL_LICENSE_KEY') }}"
     become_user: solo
     become_method: sudo
     no_log: true
 
-  - name: Add GLOO_MESH_LICENSE_KEY environment variable
+  - name: Add some required variables
     lineinfile:
-      path: /home/solo/.bashrc
-      line: "export GLOO_MESH_LICENSE_KEY={{ lookup('env','GLOO_MESH_LICENSE_KEY') }}"
+      dest: /home/solo/.bashrc
+      line: "{{ item }}"
+    loop:
+      - "/usr/bin/autocutsel -s CLIPBOARD -fork"
+      - "export PATH=$HOME/.gloo/bin:$PATH"
+      - "export MGMT=mgmt"
+      - "export CLUSTER1=cluster1"
+      - "export CLUSTER2=cluster2"
     become_user: solo
     become_method: sudo
-    no_log: true
-
-  - name: Add PORTAL_LICENSE_KEY environment variable
-    lineinfile:
-      path: /home/solo/.bashrc
-      line: "export PORTAL_LICENSE_KEY={{ lookup('env','PORTAL_LICENSE_KEY') }}"
-    become_user: solo
-    become_method: sudo
-    no_log: true
 
   - name: Create vimrc
     command: touch $HOME/.vimrc
