@@ -9,7 +9,6 @@ source ./scripts/assert.sh
 
 ![Gloo Mesh Enterprise](images/gloo-mesh-enterprise.png)
 # <center>Gloo Mesh Workshop on AWS</center>
-<div class="page-break"></div>
 
 
 ## Table of Contents
@@ -26,7 +25,6 @@ source ./scripts/assert.sh
 * [Lab 10 - Exploring the Gloo Mesh Enterprise UI](#Lab-10)
 * [Lab 11 - Observability](#Lab-11)
 * [Lab 12 - Extend Envoy with WebAssembly](#Lab-12)
-<div class="page-break"></div>
 
 
 ## Introduction <a name="introduction"></a>
@@ -212,7 +210,6 @@ One common use case is to create a role corresponding to a global namespace admi
 You can find more information about Gloo Mesh in the official documentation:
 
 [https://docs.solo.io/gloo-mesh/latest/](https://docs.solo.io/gloo-mesh/latest/)
-<div class="page-break"></div>
 
 
 ## Lab 1 - Deploy EKS clusters <a name="Lab-1"></a>
@@ -252,7 +249,6 @@ Run the following command to make `mgmt` the current cluster.
 kubectl config use-context ${MGMT}
 ```
 
-<div class="page-break"></div>
 
 ## Lab 2 - Deploy and register Gloo Mesh <a name="Lab-2"></a>
 
@@ -403,7 +399,6 @@ assert_eq "$clusters_names" "$expected_cluster_names" "$result_message" && log_s
 > EOF
 > ```
 
-<div class="page-break"></div>
 
 ## Lab 3 - Deploy Istio <a name="Lab-3"></a>
 
@@ -661,7 +656,6 @@ Set the environment variable for the service of the Istio Ingress Gateway of clu
 SVC_GW_CLUSTER1=$(kubectl --context ${CLUSTER1} -n istio-system get svc istio-ingressgateway -o jsonpath='{.status.loadBalancer.ingress[0].*}')
 ```
 
-<div class="page-break"></div>
 
 ## Lab 4 - Deploy the Bookinfo demo app <a name="Lab-4"></a>
 
@@ -758,7 +752,6 @@ printf "\n"
 log_success "Bookinfo ready in $CLUSTER2"
 -->
 
-<div class="page-break"></div>
 
 ## Lab 5 - Create the Virtual Mesh <a name="Lab-5"></a>
 
@@ -1278,7 +1271,6 @@ EtTlhPLbyf2GwkUgzXhdcu2G8uf6o16b0qU=
 The Subject Alternative Name (SAN) is the most interesting part. It allows the sidecar proxy of the `reviews` service to validate that it talks to the sidecar proxy of the `rating` service.
 
 
-<div class="page-break"></div>
 
 ## Lab 6 - Access control <a name="Lab-6"></a>
 
@@ -1517,7 +1509,6 @@ Refresh the page another time and all the services should now work:
 
 If you refresh the web page several times, you should see only the versions `v1` (no stars) and `v2` (black stars), which means that all the requests are still handled by the first cluster.
 
-<div class="page-break"></div>
 
 ## Lab 7 - Multi-cluster Traffic <a name="Lab-7"></a>
 
@@ -1654,7 +1645,6 @@ Let's delete the TrafficPolicy:
 kubectl --context ${MGMT} -n gloo-mesh delete trafficpolicy simple
 ```
 
-<div class="page-break"></div>
 
 ## Lab 8 - Traffic failover <a name="Lab-8"></a>
 
@@ -1844,7 +1834,6 @@ kubectl --context ${MGMT} -n default delete trafficpolicy reviews-shift-failover
 > EOF
 > ```
 
-<div class="page-break"></div>
 
 ## Lab 9 - Gloo Mesh Enterprise RBAC <a name="Lab-9"></a>
 
@@ -2164,7 +2153,6 @@ spec:
 EOF
 ```
 
-<div class="page-break"></div>
 
 ## Lab 10 - Exploring the Gloo Mesh Enterprise UI <a name="Lab-10"></a>
 
@@ -2202,7 +2190,6 @@ And you can even see the workloads were a Wasm filter has been deployed on:
 
 Take the time to explore the `Policies` and `Debug` tab to see what other information is available.
 
-<div class="page-break"></div>
 
 ## Lab 11 - Observability <a name="Lab-11"></a>
 
@@ -2391,7 +2378,6 @@ This is the end of the workshop. We hope you enjoyed it !
 log_header "All tests passed. Workshop works OK"
 -->
 
-<div class="page-break"></div>
 
 ## Lab 12 - Extend Envoy with WebAssembly <a name="Lab-12"></a>
 
@@ -2844,4 +2830,3 @@ Delete the WasmDeployment:
 kubectl --context ${MGMT} -n gloo-mesh delete wasmdeployment reviews-wasm
 ```
 
-<div class="page-break"></div>
