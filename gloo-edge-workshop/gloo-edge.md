@@ -1,4 +1,4 @@
-# Gloo Edge Workshop
+# Gloo Edge Gateway
 
 Gloo Edge is a feature-rich, Kubernetes-native ingress controller, and next-generation API gateway. Gloo is exceptional in its function-level routing; its support for legacy apps, microservices and serverless; its discovery capabilities; its numerous features; and its tight integration with leading open-source projects. Gloo is uniquely designed to support hybrid applications, in which multiple technologies, architectures, protocols, and clouds can coexist.
 
@@ -9,7 +9,8 @@ The goal of this workshop is to expose some key features of Gloo API Gateway, li
 The lab environment consists of a Kubernetes environment deployed locally using kind.
 
 In this workshop we will:
-* Deploy a demo application (Istio's [bookinfo](https://istio.io/latest/docs/examples/bookinfo/) demo app) on a k8s cluster and expose it through Gloo Edge
+
+* Deploy a demo application \(Istio's [bookinfo](https://istio.io/latest/docs/examples/bookinfo/) demo app\) on a k8s cluster and expose it through Gloo Edge
 * Deploy a second version of the demo app and route traffic to both versions
 * Secure the demo app using TLS
 * Secure the demo app using OIDC
@@ -22,7 +23,7 @@ In this workshop we will:
 
 Go to the `/home/solo/workshops/gloo-edge/gloo-edge` directory:
 
-```
+```text
 cd /home/solo/workshops/gloo-edge/gloo-edge
 ```
 
@@ -34,12 +35,13 @@ Deploy a local Kubernetes cluster using this command:
 ../../scripts/deploy.sh 1 gloo-edge
 ```
 
-Then verify that your Kubernetes cluster is ready: 
+Then verify that your Kubernetes cluster is ready:
 
 ```bash
 ../../scripts/check.sh gloo-edge
 ```
-The `check.sh` script will return immediately with no output if the cluster is ready.  Otherwise, it will output a series of periodic "waiting" messages until the cluster is up.
+
+The `check.sh` script will return immediately with no output if the cluster is ready. Otherwise, it will output a series of periodic "waiting" messages until the cluster is up.
 
 ### Install Gloo Edge Enterprise
 
@@ -69,7 +71,7 @@ done
 
 ## Lab 1: Traffic Management
 
-### Routing to a Kubernetes Service 
+### Routing to a Kubernetes Service
 
 In this step we will expose a demo service to the outside world using Gloo Edge.
 
@@ -80,17 +82,16 @@ kubectl create ns bookinfo
 kubectl -n bookinfo  apply -f https://raw.githubusercontent.com/istio/istio/1.7.3/samples/bookinfo/platform/kube/bookinfo.yaml
 kubectl delete deployment reviews-v1 reviews-v3 -n bookinfo
 ```
- 
-![Gloo Edge with Bookinfo](images/bookinfo-v2.png)
 
-The bookinfo app has 3 versions of a microservice called reviews.  We will keep only the version 2 of the reviews microservice for this step and will add the other versions later.  An easy way to distinguish among the different versions in the web interface is to look at the stars: v1 displays no stars in the reviews, v2 displays black stars, and v3 displays red stars.
+![Gloo Edge with Bookinfo](../.gitbook/assets/bookinfo-v2.png)
 
+The bookinfo app has 3 versions of a microservice called reviews. We will keep only the version 2 of the reviews microservice for this step and will add the other versions later. An easy way to distinguish among the different versions in the web interface is to look at the stars: v1 displays no stars in the reviews, v2 displays black stars, and v3 displays red stars.
 
 Gloo Edge uses a discovery mechanism to create Upstreams automatically, but Upstreams can be also created manually using Kubernetes CRDs.
 
-After a few seconds, Gloo Edge will discover the newly created service and create an Upstream called  `bookinfo-productpage-9080` (Gloo Edge uses the convention `namespace-service-port` for the discovered Upstreams).
+After a few seconds, Gloo Edge will discover the newly created service and create an Upstream called `bookinfo-productpage-9080` \(Gloo Edge uses the convention `namespace-service-port` for the discovered Upstreams\).
 
-To verify that the Upstream was created properly, run the following command: 
+To verify that the Upstream was created properly, run the following command:
 
 ```bash
 until glooctl get upstream bookinfo-productpage-9080 2> /dev/null
@@ -100,9 +101,9 @@ do
 done
 ```
 
-It should return the discovered upstream with an `Accepted` status: 
+It should return the discovered upstream with an `Accepted` status:
 
-```
+```text
 +---------------------------+------------+----------+----------------------------+
 |         UPSTREAM          |    TYPE    |  STATUS  |          DETAILS           |
 +---------------------------+------------+----------+----------------------------+
@@ -141,20 +142,19 @@ The creation of the Virtual Service exposes the Kubernetes service through the g
 
 We can access the application using the web browser by running the following command:
 
-```
+```text
 /opt/google/chrome/chrome $(glooctl proxy url)/productpage
 ```
 
-It should return the bookinfo application webpage. Note that the review stars are black (v2).
+It should return the bookinfo application webpage. Note that the review stars are black \(v2\).
 
-![Bookinfo Web Interface](images/1.png)
-
+![Bookinfo Web Interface](../.gitbook/assets/1.png)
 
 ### Routing to Multiple Upstreams
 
 In many cases, we need to route traffic to two different versions of an application to test a new feature. In this step, we are going to update the Virtual Service to route traffic to two different Upstreams:
 
-The first step is to create a new deployment of the demo application, this time with the version 3 of the reviews microservice: 
+The first step is to create a new deployment of the demo application, this time with the version 3 of the reviews microservice:
 
 ```bash
 kubectl create ns bookinfo-beta 
@@ -162,10 +162,9 @@ kubectl -n bookinfo-beta apply -f https://raw.githubusercontent.com/istio/istio/
 kubectl delete deployment reviews-v1 reviews-v2 -n bookinfo-beta
 ```
 
-![Weighted Routing Diagram](images/bookinfo-v3.png)
+![Weighted Routing Diagram](../.gitbook/assets/bookinfo-v3.png)
 
-Verify that the Upstream for the beta application was created, using the following command: 
-
+Verify that the Upstream for the beta application was created, using the following command:
 
 ```bash
 until glooctl get upstream bookinfo-beta-productpage-9080 2> /dev/null
@@ -175,7 +174,7 @@ do
 done
 ```
 
-Now we can route to multiple Upstreams by updating the Virtual Service as follow: 
+Now we can route to multiple Upstreams by updating the Virtual Service as follow:
 
 ```bash
 kubectl apply -f - <<EOF
@@ -208,13 +207,13 @@ spec:
 EOF
 ```
 
-We should see either the black star reviews (v2) or the new red star reviews (v3) when refreshing the page.
+We should see either the black star reviews \(v2\) or the new red star reviews \(v3\) when refreshing the page.
 
-![Bookinfo Web Interface](images/2.png)
+![Bookinfo Web Interface](../.gitbook/assets/2.png)
 
 ## Lab 2: Security
 
-In this lab, we will explore some Gloo Edge features related to security. 
+In this lab, we will explore some Gloo Edge features related to security.
 
 ### Network Encryption - Server TLS
 
@@ -273,18 +272,19 @@ spec:
 EOF
 ```
 
-Now the application is securely exposed through TLS. To test the TLS configuration, run the following command to open the browser (note that now the traffic is served using https): 
+Now the application is securely exposed through TLS. To test the TLS configuration, run the following command to open the browser \(note that now the traffic is served using https\):
 
 ```bash
 APP_URL=$(glooctl proxy url --port https | cut -d: -f1-2)
 ```
-```
-/opt/google/chrome/chrome $APP_URL/productpage 
+
+```text
+/opt/google/chrome/chrome $APP_URL/productpage
 ```
 
-The browser will warn you that your connection is not private due to the self-signed certificate.  Click through the `Advanced` button and the subsequent link to proceed to the "unsafe" destination.  Then the bookinfo interface should display as expected, although the address bar may continue to warn you that the destination is "Not Secure."  Don't worry; this is expected behavior given the self-signed certificate.
+The browser will warn you that your connection is not private due to the self-signed certificate. Click through the `Advanced` button and the subsequent link to proceed to the "unsafe" destination. Then the bookinfo interface should display as expected, although the address bar may continue to warn you that the destination is "Not Secure." Don't worry; this is expected behavior given the self-signed certificate.
 
-![Self-Signed Certificate Warning](images/self-signed-cert-error.png)
+![Self-Signed Certificate Warning](../.gitbook/assets/self-signed-cert-error.png)
 
 ### OIDC Support
 
@@ -296,6 +296,7 @@ Let's start by installing Keycloak:
 kubectl create -f https://raw.githubusercontent.com/keycloak/keycloak-quickstarts/12.0.4/kubernetes-examples/keycloak.yaml
 kubectl rollout status deploy/keycloak
 ```
+
 **Troubleshooting Tip**
 
 Make sure that the KeyCloak deployment worked correctly by executing the following.
@@ -308,17 +309,10 @@ If you see an issue with the readiness probe failing, then you will want to edit
 
 `kubectl patch deployment keycloak --type='json' -p='[{"op": "add", "path": "/spec/template/spec/containers/0/readinessProbe/initialDelaySeconds", "value":10 }]'`
 
-<!--bash
-sleep 30
--->
-
 Then, we need to configure it and create two users:
 
-- User1 credentials: `user1/password`
-  Email: user1@solo.io
-
-- User2 credentials: `user2/password`
-  Email: user2@example.com
+* User1 credentials: `user1/password` Email: user1@solo.io
+* User2 credentials: `user2/password` Email: user2@example.com
 
 ```bash
 # Get Keycloak URL and token
@@ -346,7 +340,7 @@ curl -H "Authorization: Bearer ${KEYCLOAK_TOKEN}" -X POST -H "Content-Type: appl
 
 The architecture looks like this now:
 
-![Bookinfo with OIDC](images/bookinfo-oidc.png)
+![Bookinfo with OIDC](../.gitbook/assets/bookinfo-oidc.png)
 
 The next step is to configure the authentication in the Virtual Service. For this we will have to create a Kubernetes Secret that contains the OIDC secret:
 
@@ -354,7 +348,7 @@ The next step is to configure the authentication in the Virtual Service. For thi
 glooctl create secret oauth --namespace gloo-system --name keycloak-oauth --client-secret ${secret}
 ```
 
-Then we will create an AuthConfig, which is a Gloo Edge CRD that contains authentication information: 
+Then we will create an AuthConfig, which is a Gloo Edge CRD that contains authentication information:
 
 ```bash
 kubectl apply -f - <<EOF
@@ -426,7 +420,7 @@ To test the authentication, refresh the web browser.
 
 If you login as the `user1` user with the password `password`, Gloo should redirect you to the application.
 
-![Keycloak Authentication Dialog](images/3.png)
+![Keycloak Authentication Dialog](../.gitbook/assets/3.png)
 
 ### Rate Limiting
 
@@ -456,7 +450,7 @@ spec:
 EOF
 ```
 
-Now let's update our Virtual Service to use the bookinfo application with the new rate limit enforced: 
+Now let's update our Virtual Service to use the bookinfo application with the new rate limit enforced:
 
 ```bash
 kubectl apply -f - <<EOF
@@ -503,15 +497,15 @@ spec:
 EOF
 ```
 
-To test rate limiting, refresh the browser until you see a 429 message. 
+To test rate limiting, refresh the browser until you see a 429 message.
 
-![Browser 429 Too Many Requests Interface](images/4.png)
+![Browser 429 Too Many Requests Interface](../.gitbook/assets/4.png)
 
-### Web Application Firewall (WAF)
+### Web Application Firewall \(WAF\)
 
-A web application firewall (WAF) protects web applications by monitoring, filtering and blocking potentially harmful traffic and attacks that can overtake or exploit them.
+A web application firewall \(WAF\) protects web applications by monitoring, filtering and blocking potentially harmful traffic and attacks that can overtake or exploit them.
 
-Gloo Edge Enterprise includes the ability to enable the ModSecurity Web Application Firewall for any incoming and outgoing HTTP connections. 
+Gloo Edge Enterprise includes the ability to enable the ModSecurity Web Application Firewall for any incoming and outgoing HTTP connections.
 
 Let's update our Virtual Service to restrict the characters allowed for usernames.
 
@@ -569,11 +563,11 @@ EOF
 
 The rule means that a username can only contain letters.
 
-Click on the `Sign in` button and try to login with a user named `user1` (the password doesn't matter).
+Click on the `Sign in` button and try to login with a user named `user1` \(the password doesn't matter\).
 
 You should get the following error message:
 
-```
+```text
 Username should only contain letters
 ```
 
@@ -583,7 +577,7 @@ In this section we will explore how to transform requests using Gloo Edge.
 
 ### Response Transformation
 
-The following example demonstrates how to modify a response using Gloo Edge. We are going to return a basic html page when the response code is 429 (rate limited).  
+The following example demonstrates how to modify a response using Gloo Edge. We are going to return a basic html page when the response code is 429 \(rate limited\).
 
 ```bash
 kubectl apply -f - <<EOF
@@ -643,7 +637,7 @@ spec:
 EOF
 ```
 
-Refreshing your browser a couple times, you should be able to see a styled HTML page indicating that you reached the limit. 
+Refreshing your browser a couple times, you should be able to see a styled HTML page indicating that you reached the limit.
 
 ## Lab 4: Delegation
 
@@ -651,11 +645,11 @@ Gloo Edge provides a feature referred to as delegation. Delegation allows a comp
 
 Use cases for delegation include:
 
-- Allowing multiple tenants to own add, remove, and update routes without requiring shared access to the root-level Virtual Service
-- Sharing route configuration between Virtual Services
-- Simplifying blue-green routing configurations by swapping the target Route Table for a delegated route.
-- Simplifying very large routing configurations for a single Virtual Service
-- Restricting ownership of routing configuration for a tenant to a subset of the whole Virtual Service.
+* Allowing multiple tenants to own add, remove, and update routes without requiring shared access to the root-level Virtual Service
+* Sharing route configuration between Virtual Services
+* Simplifying blue-green routing configurations by swapping the target Route Table for a delegated route.
+* Simplifying very large routing configurations for a single Virtual Service
+* Restricting ownership of routing configuration for a tenant to a subset of the whole Virtual Service.
 
 Let's rewrite our Virtual Service to delegate the routing to a Route Table:
 
@@ -729,43 +723,43 @@ spec:
 EOF
 ```
 
-As you can see, in this case the security options remains in the `VirtualService` (and can be managed by the infrastructure team) while the routing options are now in the `RouteTable` (and can be managed by the application team).
+As you can see, in this case the security options remains in the `VirtualService` \(and can be managed by the infrastructure team\) while the routing options are now in the `RouteTable` \(and can be managed by the application team\).
 
 ## Lab 5: Observability
 
 ### Metrics
 
-Gloo Edge automatically generates a Grafana dashboard for whole-cluster stats (overall request timing, aggregated response codes, etc.), and dynamically generates a more-specific dashboard for each upstream that is tracked.
+Gloo Edge automatically generates a Grafana dashboard for whole-cluster stats \(overall request timing, aggregated response codes, etc.\), and dynamically generates a more-specific dashboard for each upstream that is tracked.
 
 Let's run the following command to allow access to the Grafana UI:
 
-```
+```text
 kubectl port-forward -n gloo-system svc/glooe-grafana 8001:80
 ```
 
-You can now access the Grafana UI at http://localhost:8001 and login with `admin/admin`.
+You can now access the Grafana UI at [http://localhost:8001](http://localhost:8001) and login with `admin/admin`.
 
 You can take a look at the `Gloo -> Envoy Statistics` Dashboard that provides global statistics:
 
-![Grafana Envoy Statistics](images/grafana1.png)
+![Grafana Envoy Statistics](../.gitbook/assets/grafana1.png)
 
 You can also see that Gloo is dynamically generating a Dashboard for each Upstream:
 
-![Grafana Upstream](images/grafana2.png)
+![Grafana Upstream](../.gitbook/assets/grafana2.png)
 
 You can run the following command to see the default template used to generate these templates:
 
-```
+```text
 kubectl -n gloo-system get cm gloo-observability-config -o yaml
 ```
 
-If you want to customize how these per-upstream dashboards look, you can provide your own template to use by writing a Grafana dashboard JSON representation to that config map key. 
+If you want to customize how these per-upstream dashboards look, you can provide your own template to use by writing a Grafana dashboard JSON representation to that config map key.
 
 ### Access Logging
 
-Access logs are important to check if a system is behaving correctly and for debugging purposes. Log aggregators like Datadog and Splunk use agents deployed on the Kubernetes clusters to collect logs.  
+Access logs are important to check if a system is behaving correctly and for debugging purposes. Log aggregators like Datadog and Splunk use agents deployed on the Kubernetes clusters to collect logs.
 
-Lets first enable access logging on the gateway: 
+Lets first enable access logging on the gateway:
 
 ```bash
 kubectl apply -f - <<EOF
@@ -818,9 +812,9 @@ spec:
 EOF
 ```
 
-NOTE:  You can safely ignore the following warning when you run the above command:
+NOTE: You can safely ignore the following warning when you run the above command:
 
-```
+```text
 Warning: kubectl apply should be used on resource created by either kubectl create --save-config or kubectl apply
 ```
 
@@ -834,7 +828,7 @@ kubectl logs -n gloo-system deployment/gateway-proxy | grep '^{' | jq
 
 If you refresh the browser to send additional requests until the rate limiting threshold is exceeded, then you will see both `200 OK` and `429 Too Many Requests` responses in the access logs, as in the example below.
 
-```
+```text
 {
   "messageType": null,
   "requestId": "06c54299-de6b-463e-8035-aebd3e530cb5",
@@ -865,15 +859,15 @@ If you refresh the browser to send additional requests until the rate limiting t
 }
 ```
 
-These logs can now be collected by the Log aggregator agents and potentially forwarded to your favorite enterprise logging service. 
+These logs can now be collected by the Log aggregator agents and potentially forwarded to your favorite enterprise logging service.
 
 The following labs are optional. The instructor will go through them.
 
 ## Lab 6: Advanced Authentication Workflows
 
-As you've seen in the previous lab, Gloo Edge supports authentication via OpenID Connect (OIDC). OIDC is an identity layer on top of the OAuth 2.0 protocol. In OAuth 2.0 flows, authentication is performed by an external Identity Provider (IdP) which, in case of success, returns an Access Token representing the user identity. The protocol does not define the contents and structure of the Access Token, which greatly reduces the portability of OAuth 2.0 implementations.
+As you've seen in the previous lab, Gloo Edge supports authentication via OpenID Connect \(OIDC\). OIDC is an identity layer on top of the OAuth 2.0 protocol. In OAuth 2.0 flows, authentication is performed by an external Identity Provider \(IdP\) which, in case of success, returns an Access Token representing the user identity. The protocol does not define the contents and structure of the Access Token, which greatly reduces the portability of OAuth 2.0 implementations.
 
-The goal of OIDC is to address this ambiguity by additionally requiring Identity Providers to return a well-defined ID Token. OIDC ID tokens follow the JSON Web Token standard and contain specific fields that your applications can expect and handle. This standardization allows you to switch between Identity Providers – or support multiple ones at the same time – with minimal, if any, changes to your downstream services; it also allows you to consistently apply additional security measures like Role-based Access Control (RBAC) based on the identity of your users, i.e. the contents of their ID token.
+The goal of OIDC is to address this ambiguity by additionally requiring Identity Providers to return a well-defined ID Token. OIDC ID tokens follow the JSON Web Token standard and contain specific fields that your applications can expect and handle. This standardization allows you to switch between Identity Providers – or support multiple ones at the same time – with minimal, if any, changes to your downstream services; it also allows you to consistently apply additional security measures like Role-based Access Control \(RBAC\) based on the identity of your users, i.e. the contents of their ID token.
 
 As explained above, Keycloak will return a JWT token, so we’ll use Gloo to extract some claims from this token and to create new headers corresponding to these claims.
 
@@ -963,13 +957,13 @@ EOF
 
 Let's take a look at what the application returns:
 
-```
-/opt/google/chrome/chrome $(glooctl proxy url --port https)/get 
+```text
+/opt/google/chrome/chrome $(glooctl proxy url --port https)/get
 ```
 
 You should get the following output:
 
-```
+```text
 {
   "args": {}, 
   "headers": {
@@ -1056,7 +1050,7 @@ This transformation is using a regular expression to extract the JWT token from 
 
 Here is the output you should get if you refresh the web page:
 
-```
+```text
 {
   "args": {}, 
   "headers": {
@@ -1087,20 +1081,19 @@ You can see that the `Jwt` header has been added to the request while the cookie
 
 The JWT token contains a number of claims that we can use to drive RBAC decisions and potentially to provide other input to our upstream systems.
 
-In this case, let's take a closer look at the claims that the Keycloak-generated JWT provides us.  Paste the text of the `Jwt` header into the `Encoded` block at [jwt.io](https://jwt.io), and it will show you the full set of claims available.
+In this case, let's take a closer look at the claims that the Keycloak-generated JWT provides us. Paste the text of the `Jwt` header into the `Encoded` block at [jwt.io](https://jwt.io), and it will show you the full set of claims available.
 
-![JWT Claims](images/jwt-claims.png)
+![JWT Claims](../.gitbook/assets/jwt-claims.png)
 
 ### Extract information from the JWT token
 
 JWKS is a set of public keys that can be used to verify the JWT tokens.
 
-First, we need to assign the value to a variable of the keycloak master realm.   
+First, we need to assign the value to a variable of the keycloak master realm.
 
 ```bash
 KEYCLOAK_MASTER_REALM_URL=http://$(kubectl get svc keycloak -ojsonpath='{.status.loadBalancer.ingress[0].ip}'):8080/auth/realms/master
 ```
-
 
 Now, we can update the Virtual Service to validate the token, extract claims from the token and create new headers based on these claims.
 
@@ -1173,7 +1166,7 @@ EOF
 
 Here is the output you should get if you refresh the web page:
 
-```
+```text
 {
   "args": {}, 
   "headers": {
@@ -1291,16 +1284,15 @@ If you refresh the web page, you should still get the same response you got befo
 
 But if you change the path to anything that doesn't start with `/get`, you should get the following response:
 
-```
+```text
 RBAC: access denied
 ```
 
 ### RBAC using OPA
 
-Gloo Edge can also be used to set RBAC rules based on [OPA (Open Policy Agent)](https://www.openpolicyagent.org/) and its rego rules.
+Gloo Edge can also be used to set RBAC rules based on [OPA \(Open Policy Agent\)](https://www.openpolicyagent.org/) and its rego rules.
 
 This model allows you to get fine-grained control over the Authorization on your applications. As well, this model is well adopted by the kubernetes community.
-
 
 Let's delete the existing `AuthConfig` and create another one with two configurations:
 
@@ -1349,7 +1341,7 @@ data:
         [header, payload, signature] = io.jwt.decode(input.state.jwt)
         endswith(payload["email"], "@solo.io")
     }
-  
+
 kind: ConfigMap
 metadata:
   name: allow-solo-email-users
@@ -1394,20 +1386,19 @@ EOF
 
 Let's take a look at what the application returns:
 
-```
-/opt/google/chrome/chrome $(glooctl proxy url --port https)/get 
+```text
+/opt/google/chrome/chrome $(glooctl proxy url --port https)/get
 ```
 
 If you login using `user1/password` credentials, you will be able to access since the user's email ends with `@solo.io`
 
 Let's try again in incognito window using the second user's credentials:
 
-```
-/opt/google/chrome/chrome --incognito $(glooctl proxy url --port https)/get 
+```text
+/opt/google/chrome/chrome --incognito $(glooctl proxy url --port https)/get
 ```
 
 If you open the browser in incognito and login using `user2/password` credentials, you will not be able to access since the user's email ends with `@example.com`:
 
-
-
 This is the end of the workshop. We hope you enjoyed it !
+

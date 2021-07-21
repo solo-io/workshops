@@ -1,10 +1,10 @@
-# workshops
+# Introduction
 
 To make sure anyone can easily perform the different tasks, we have provisioned a Virtual Machine for each of you.
 
-You'll be able to deploy several Kubernetes clusters on this machine using *Kind*.
+You'll be able to deploy several Kubernetes clusters on this machine using _Kind_.
 
-*MetalLB* has been deployed to expose the Load Balancer services you'll create on your Kubernetes clusters.
+_MetalLB_ has been deployed to expose the Load Balancer services you'll create on your Kubernetes clusters.
 
 All the prerequisites have already been deployed on your machine.
 
@@ -22,14 +22,15 @@ The URL is `http://<ip address provided by the instructor>/guacamole/`
 
 The user is `solo` and the password is `Workshop1#`
 
-![Desktop](images/desktop.png)
+![Desktop](.gitbook/assets/desktop.png)
 
 > If you have an issue with the keyboard layout, click on the `Applications` button on the top left corner, select `Settings` and then `Keyboard`.
 >
 > In the `Layout` tab, you can add the layout you want to use and delete the default one:
 >
-> <img src="images/keyboard.png" alt="keyboard" width="300"/>
+> ![keyboard](.gitbook/assets/keyboard.png)
 
 You can find the list of the available workshops using the link below:
 
-[Workshops](WORKSHOPS.md)
+[Workshops](https://github.com/solo-io/workshops/tree/49e2e8fd70fdfc18b2df64ac41d88ec41b0ff713/WORKSHOPS.md)
+

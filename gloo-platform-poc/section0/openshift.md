@@ -1,1 +1,2 @@
-# Using Openshift 4.x Platform
+# Openshift
+
