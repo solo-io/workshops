@@ -1074,67 +1074,181 @@ In this section we will explore how to transform requests using Gloo Edge.
 
 ### Response Transformation
 
+Before, it was mentioned that httpbin is a good tool to debug and test things out. In this section, you will use that application to easily spot results.
+
 The following example demonstrates how to modify a response using Gloo Edge. We are going to return a basic html page when the response code is 429 (rate limited).  
 
 ```bash
 kubectl apply -f - <<EOF
 apiVersion: gateway.solo.io/v1
-kind: VirtualService
+kind: RouteTable
 metadata:
-  name: demo
-  namespace: gloo-system
+  name: httpbin-routetable
+  namespace: team1
+  labels:
+    application-owner: team1
 spec:
-  sslConfig:
-    secretRef:
-      name: upstream-tls
-      namespace: gloo-system  
-  virtualHost:
-    options:
-      extauth:
-        configRef:
-          name: keycloak-oauth
-          namespace: gloo-system
-      rateLimitConfigs:
-        refs:
-        - name: global-limit
-          namespace: gloo-system
-      waf:
-        customInterventionMessage: 'Username should only contain letters'
-        ruleSets:
-        - ruleStr: |
-            # Turn rule engine on
-            SecRuleEngine On
-            SecRule ARGS:/username/ "[^a-zA-Z]" "t:none,phase:2,deny,id:6,log,msg:'allow only letters in username'"
+  routes:
+    - matchers:
+        - prefix: /not-secured
+      options:
+        prefixRewrite: '/'
 # ---------------- Transformation ------------------          
-      transformations:
-        responseTransformation:
-          transformationTemplate:
-            parseBodyBehavior: DontParse
-            body: 
-              text: '{% if header(":status") == "429" %}<html><body style="background-color:powderblue;"><h1>Too many Requests!</h1><p>Try again after 10 seconds</p></body></html>{% else %}{{ body() }}{% endif %}'    
+        transformations:
+          responseTransformation:
+            transformationTemplate:
+              parseBodyBehavior: DontParse
+              body: 
+                text: '{% if header(":status") == "429" %}<html><body style="background-color:powderblue;"><h1>Too many Requests!</h1><p>Try again after 1 minute</p></body></html>{% else %}{{ body() }}{% endif %}'
 #---------------------------------------------------
-    domains:
-      - '*'
-    routes:
-      - matchers:
-          - prefix: /
-        routeAction:
-            multi:
-                destinations:
-                - weight: 5
-                  destination:
-                      upstream:
-                          name: bookinfo-productpage-9080
-                          namespace: gloo-system
-                - weight: 5
-                  destination:
-                      upstream:
-                          name: bookinfo-beta-productpage-9080
-                          namespace: gloo-system
+      routeAction:
+          single:
+            upstream:
+              name: team1-httpbin-8000
+              namespace: gloo-system
 EOF
 ```
 
-Refreshing your browser a couple times, you should be able to see a styled HTML page indicating that you reached the limit. 
+Refreshing your browser more than 5 times, you should be able to see a styled HTML page indicating that you reached the limit you have configured before. 
+
+```
+/opt/google/chrome/chrome $(glooctl proxy url --port https)/not-secured/get
+```
+
+### Manipulate the response when a 401 Not Authorized is returned
+
+The following example shows how to create a transformation taking a value from the header and adding it to a response body:
+
+
+```bash
+kubectl apply -f - <<EOF
+apiVersion: gateway.solo.io/v1
+kind: RouteTable
+metadata:
+  name: httpbin-routetable
+  namespace: team1
+  labels:
+    application-owner: team1
+spec:
+  routes:
+    - matchers:
+        - prefix: /not-secured
+      options:
+        prefixRewrite: '/'
+# ---------------- Transformation ------------------          
+        stagedTransformations:
+          early:
+            responseTransforms:
+            - responseTransformation:
+                transformationTemplate:
+                  parseBodyBehavior: DontParse
+                  headers:
+                    Content-type: 
+                      text: "application/json"
+                  body:
+                      text: |
+                            {% if header(":status") == "401" %} 
+                            Hold the horses! You are not authenticated
+                            {% else %}{{ body() }}{% endif %}
+#---------------------------------------------------
+      routeAction:
+          single:
+            upstream:
+              name: team1-httpbin-8000
+              namespace: gloo-system
+EOF
+```
+
+With httbin application, you can simulate that the server returns a 401 status code. Let's run it and see that calling `/status/401`, the returned body is what we expected
+
+```
+curl -v -k $(glooctl proxy url --port https)/not-secured/status/401
+```
+
+And any other status code, returns the expected body:
+
+```
+curl -v -k $(glooctl proxy url --port https)/not-secured/status/get
+```
+
+### Manipulate the response when a 401 Not Authorized is returned
+
+You can also extract information from one header with regular expressions and inject them into another header:
+
+```bash
+kubectl apply -f - <<EOF
+apiVersion: gateway.solo.io/v1
+kind: RouteTable
+metadata:
+  name: httpbin-routetable
+  namespace: team1
+  labels:
+    application-owner: team1
+spec:
+  routes:
+    - matchers:
+        - prefix: /not-secured
+      options:
+        prefixRewrite: '/'
+        stagedTransformations:
+          early:
+            responseTransforms:
+            - responseTransformation:
+                transformationTemplate:
+                  parseBodyBehavior: DontParse
+                  headers:
+                    Content-type: 
+                      text: "application/json"
+                  body:
+                      text: |
+                            {% if header(":status") == "401" %} 
+                            Hold the horses! You are not authenticated
+                            {% else %}{{ body() }}{% endif %}
+# ---------------- Transformation with regex ------------------   
+            requestTransforms:       
+            - requestTransformation:
+                transformationTemplate:
+                  extractors:
+                    apiKey:
+                      header: 'x-my-initial-header'
+                      regex: '^Bearer (.*)$'
+                      subgroup: 1
+                  headers:
+                    x-my-final-header:
+                      text: '{{ apiKey }}'
+#--------------------------------------------------------------
+      routeAction:
+          single:
+            upstream:
+              name: team1-httpbin-8000
+              namespace: gloo-system
+EOF
+```
+
+With httbin application, calling `/get`, you can debug the request headers. since you are transforming it to add a new header, after running:
+
+```
+curl -k https://34.141.86.2/not-secured/get -H "x-my-initial-header: Bearer this_is_my_token_for_test"
+```
+
+You will see the headers which arrive to the service, including your new transformed one `x-my-final-header` with the specific content after regular expression matching.
+
+```
+{
+  "args": {}, 
+  "headers": {
+    "Accept": "*/*", 
+    "Host": "x.x.x.x", 
+    "User-Agent": "curl/7.64.1", 
+    "X-Envoy-Expected-Rq-Timeout-Ms": "15000", 
+    "X-Envoy-Original-Path": "/not-secured/get", 
+    "X-My-Final-Header": "this_is_my_token_for_test", 
+    "X-My-Initial-Header": "Bearer this_is_my_token_for_test"
+  }, 
+  "origin": "x.x.x.x", 
+  "url": "xxxxxxxxx"
+}
+```
 
 ## Lab 4: Delegation
 
