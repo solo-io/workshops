@@ -1,16 +1,18 @@
-# Kind
+# Using Kind (Kubernetes in Docker)
 
-You may use Kind for this POC if you don't have access to an alternative platform/cloud provider Kubernetes. We recommend using a platform that can leverage LoadBalancers to expose Kubernetes services and when using Kind we recommend metallb.
+You may use Kind for this POC if you don't have access to an alternative platform/cloud provider Kubernetes. We recommend using a platform that can leverage LoadBalancers to expose Kubernetes services and when using Kind we recommend metallb. 
+
 
 {% hint style="info" %}
 NodePort should work well too. We will capture NodePort scenarios in this POC document.
 {% endhint %}
 
+
 ## Setting up Kind using Workshop scripts
 
-In the [Solo.io workshop material](https://workshops.solo.io/gloo-workshops/), we have [scripts to help you quickly deploy clusters](https://github.com/solo-io/workshops/tree/master/scripts) for testing purposes. We will use those scripts for setting up Kind in this section, but you may customize/use your own as you see fit.
+In the [Solo.io workshop material](https://workshops.solo.io/gloo-workshops/), we have [scripts to help you quickly deploy clusters](https://github.com/solo-io/workshops/tree/master/scripts) for testing purposes. We will use those scripts for setting up Kind in this section, but you may customize/use your own as you see fit. 
 
-Using the following command lines from the $ROOT\_DIR of the workshops, you can spin up two Kubernetes clusters using Kind that have metallb installed \(used for LoadBalancers\):
+Using the following command lines from the $ROOT_DIR of the workshops, you can spin up two Kubernetes clusters using Kind that have metallb installed (used for LoadBalancers):
 
 ```bash
 ./scripts/deploy.sh 1 gloo-mesh-1 us-west us-west-1
@@ -34,8 +36,6 @@ Note that we've named our Kubernetes clusters `gloo-mesh-1` and `gloo-mesh-2`. T
 ```bash
 kubectl config get-contexts
 ```
-
 ## Setting up Kind yourself
 
-You are free to set up Kind yourself and customize the Kubernetes bootstrap yourself. Please refer to the `deploy.sh` script in the $ROOT\_DIR/scripts folder for more detail about how the clusters are set up and you can modify accordingly.
-
+You are free to set up Kind yourself and customize the Kubernetes bootstrap yourself. Please refer to the `deploy.sh` script in the $ROOT_DIR/scripts folder for more detail about how the clusters are set up and you can modify accordingly.

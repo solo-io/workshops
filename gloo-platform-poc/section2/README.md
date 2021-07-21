@@ -4,7 +4,7 @@ We will be using sample apps based on [fakeservice](https://github.com/nicholasj
 
 The flow of the calls is similar to the following:
 
-Ingress --&gt; Web-API --&gt; Recommendation --&gt; Purchase History
+Ingress --> Web-API --> Recommendation --> Purchase History
 
-for Ingress it could be Istio ingress gateway or it could be Gloo Edge Gateway, just depending on what's needed for the edge.
+for Ingress it could be Istio ingress gateway or it could be Gloo Edge Gateway, just depending on what's needed for the edge. 
 

@@ -1,2 +1,1 @@
-# Verify connectivity between services
-
+# Verify connectivity
