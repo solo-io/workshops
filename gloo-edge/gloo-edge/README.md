@@ -9,6 +9,7 @@ The goal of this workshop is to expose some key features of Gloo API Gateway, li
 The lab environment consists of a Kubernetes environment deployed locally using kind.
 
 In this workshop we will:
+TODO: Redo summary
 * Deploy a demo application (Istio's [bookinfo](https://istio.io/latest/docs/examples/bookinfo/) demo app) on a k8s cluster and expose it through Gloo Edge
 * Deploy a second version of the demo app and route traffic to both versions
 * Secure the demo app using TLS
@@ -73,7 +74,7 @@ done
 
 In this step we will expose two demo services to the outside world using Gloo Edge.
 
-First let's deploy a demo application called bookinfo in `bookinfo` namespace:
+First let's deploy a demo application called **bookinfo** in `bookinfo` namespace:
 
 ```bash
 kubectl create ns bookinfo 
@@ -113,7 +114,9 @@ It should return the discovered upstream with an `Accepted` status:
 +---------------------------+------------+----------+----------------------------+
 ```
 
-Now, let's deploy the second application, called httpbin in `team1` namespace:
+Now, let's deploy the second application, called **httpbin** in the namespace `team1`.
+
+This application is very useful when you have to debug routing, headers in requests, responses, status codes, etc. The public online version of it can be found [here](http://httpbin.org/).
 
 ```bash
 kubectl create ns team1
@@ -167,8 +170,6 @@ spec:
         - containerPort: 80
 EOF
 ```
-
-The httpbin application is very useful to debug requests and responses. The online version of it can be found [here](http://httpbin.org/).
 
 ![Gloo Edge with Httpbin](images/httpbin.png)
 
@@ -314,10 +315,12 @@ Use cases for delegation include:
 
 Let's rewrite our Virtual Service to delegate the routing to a Route Table.
 
-First, the Route Table:
+First resource is the delegated Route Table. Second resource is a Virtual Service. Notice that there is a new `delegateAction` referencing the just created Route Table.
+
 
 ```bash
 kubectl apply -f - <<EOF
+# ------------- Delegation resource ------------------
 apiVersion: gateway.solo.io/v1
 kind: RouteTable
 metadata:
@@ -334,14 +337,10 @@ spec:
             upstream:
               name: team1-httpbin-8000
               namespace: gloo-system
-EOF
-```
+# ------------------------------------------------------
 
-And now, the Virtual Service. Notice that there is a new `delegateAction` pointing to the just created Route Table.
+---
 
-
-```bash
-kubectl apply -f - <<EOF
 apiVersion: gateway.solo.io/v1
 kind: VirtualService
 metadata:
@@ -354,12 +353,12 @@ spec:
     routes:
       - matchers:
           - prefix: /not-secured
-# -------------Delegation by reference------------------
+# ------------- Delegation action by reference ------------------
         delegateAction:
           ref:
             name: 'httpbin-routetable'
             namespace: 'team1'
-# ------------------------------------------------------
+# ---------------------------------------------------------------
       - matchers:
           - prefix: /
         routeAction:
@@ -370,9 +369,9 @@ spec:
 EOF
 ```
 
-### Delegation With Label
+### Delegation By Label Selector
 
-Another way to delegate is to use labels. This approach frees the direct dependency with strict name references. Let's update our Route Table to add a label which, then, it will be configured by the Virtual Service.
+Another way to delegate is to use labels. This approach helps you to create dynamic references. Let's update your Route Table to add a label. Then, the label will be used in the Virtual Service resource.
 
 Let's make both changes:
 
@@ -383,10 +382,10 @@ kind: RouteTable
 metadata:
   name: httpbin-routetable
   namespace: team1
-# -------------Delegation by reference------------------
+# ------------- Label to use as dynamic reference ------------------
   labels:
     application-owner: team1
-# ------------------------------------------------------
+# ------------------------------------------------------------------
 spec:
   routes:
     - matchers:
@@ -413,14 +412,14 @@ spec:
     routes:
       - matchers:
           - prefix: /not-secured
-# -------------Delegation by label selector ------------
+# ------------- Delegation by label selector ------------
         delegateAction:
           selector:
             namespaces:
               - team1
             labels:
               application-owner: team1
-# ------------------------------------------------------
+# -------------------------------------------------------
       - matchers:
           - prefix: /
         routeAction:
@@ -457,10 +456,31 @@ do
 done
 ```
 
-Now we can route to multiple Upstreams by updating the Virtual Service as follow: 
+Now you can route to multiple Upstreams by updating the Virtual Service as follow: 
 
 ```bash
 kubectl apply -f - <<EOF
+apiVersion: gateway.solo.io/v1
+kind: RouteTable
+metadata:
+  name: httpbin-routetable
+  namespace: team1
+  labels:
+    application-owner: team1
+spec:
+  routes:
+    - matchers:
+        - prefix: /not-secured
+      options:
+        prefixRewrite: '/'
+      routeAction:
+          single:
+            upstream:
+              name: team1-httpbin-8000
+              namespace: gloo-system
+
+---
+
 apiVersion: gateway.solo.io/v1
 kind: VirtualService
 metadata:
@@ -503,45 +523,65 @@ We should see either the **black** star reviews (v2) or the new **red** star rev
 
 ![Bookinfo Web Interface](images/2.png)
 
-## Lab 2: Security
+## Lab 2: Security And Authentication
 
-In this lab, we will explore some Gloo Edge features related to security. 
+In this lab, you will explore some Gloo Edge features related to security and Authentication. 
 
 ### Network Encryption - Server TLS
 
-In this step we are going to secure our demo application using TLS.
+In this step you are going to secure you demo application using TLS.
 
-Let's first create a private key and a self-signed certificate to use in our demo Virtual Service:
+Let's first create a private key and a self-signed certificate to use in your demo Virtual Service:
 
 ```bash
 openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
    -keyout tls.key -out tls.crt -subj "/CN=*"
 ```
 
-Then we have store them in a Kubernetes secret running the following command:
+Then, you have to store them in a Kubernetes secret running the following command:
 
 ```bash
 kubectl create secret tls upstream-tls --key tls.key \
    --cert tls.crt --namespace gloo-system
 ```
 
-To setup TLS we have to add the SSL config to the Virtual Service:
+To setup TLS you have to add the SSL config to the Virtual Service:
 
 ```bash
 kubectl apply -f - <<EOF
+apiVersion: gateway.solo.io/v1
+kind: RouteTable
+metadata:
+  name: httpbin-routetable
+  namespace: team1
+  labels:
+    application-owner: team1
+spec:
+  routes:
+    - matchers:
+        - prefix: /not-secured
+      options:
+        prefixRewrite: '/'
+      routeAction:
+          single:
+            upstream:
+              name: team1-httpbin-8000
+              namespace: gloo-system
+
+---
+
 apiVersion: gateway.solo.io/v1
 kind: VirtualService
 metadata:
   name: demo
   namespace: gloo-system
 spec:
-  # The SSL config below activate TLS on the Virtual Service
-  # ------------
+# ---------------- SSL config ---------------------------
   sslConfig:
     secretRef:
       name: upstream-tls
       namespace: gloo-system
-  # ------------    
+# -------------------------------------------------------    
   virtualHost:
     domains:
       - '*'
@@ -575,8 +615,11 @@ EOF
 Now the application is securely exposed through TLS. To test the TLS configuration, run the following command to open the browser (note that now the traffic is served using https): 
 
 ```bash
-APP_URL=$(glooctl proxy url --port https | cut -d: -f1-2)
+export APP_URL=$(glooctl proxy url --port https | cut -d: -f1-2)
 ```
+
+Let's check **bookinfo**:
+
 ```
 /opt/google/chrome/chrome $APP_URL/productpage 
 ```
@@ -585,16 +628,24 @@ The browser will warn you that your connection is not private due to the self-si
 
 ![Self-Signed Certificate Warning](images/self-signed-cert-error.png)
 
-### OIDC Support
 
-In many use cases, we need to restrict the access to our applications to authenticated users. 
+And **httpbin**:
+
+> Since you are using self-signed certificates, you need to allow insecure sever connection when using SSL with *-k*
+
+```
+curl -k $APP_URL/not-secured/get
+```
+### Authentication with OIDC (OpenID Connect)
+
+In many use cases, you need to restrict the access to your applications to authenticated users. 
 
 OIDC (OpenID Connect) is an identity layer on top of the OAuth 2.0 protocol. In OAuth 2.0 flows, authentication is performed by an external Identity Provider (IdP) which, in case of success, returns an Access Token representing the user identity. The protocol does not define the contents and structure of the Access Token, which greatly reduces the portability of OAuth 2.0 implementations.
 
 The goal of OIDC is to address this ambiguity by additionally requiring Identity Providers to return a well-defined ID Token. OIDC ID tokens follow the JSON Web Token standard and contain specific fields that your applications can expect and handle. This standardization allows you to switch between Identity Providers – or support multiple ones at the same time – with minimal, if any, changes to your downstream services; it also allows you to consistently apply additional security measures like Role-based Access Control (RBAC) based on the identity of your users, i.e. the contents of their ID token.
 
 
-In this step, we will secure our application using an OIDC Identity Provider.
+In this step, you will secure **bookinfo** application using an OIDC Identity Provider.
 
 Let's start by installing Keycloak:
 
@@ -615,7 +666,13 @@ Then, we need to configure it and create two users:
 - User2 credentials: `user2/password`
   Email: user2@example.com
 
-> **Note:** One of the following commands retrieves a token which expires quite soon. If you get a *Not Authorized* error, please, re-run the second command to retrieve another token (the one starting with `KEYCLOAK_TOKEN=`)
+> **Note:** One of the following commands retrieves a token which expires quite soon. If you get a *Not Authorized* error, please, re-run this command:
+
+```
+KEYCLOAK_TOKEN=$(curl -d "client_id=admin-cli" -d "username=admin" -d "password=admin" -d "grant_type=password" "$KEYCLOAK_URL/realms/master/protocol/openid-connect/token" | jq -r .access_token)
+```
+
+Let's create the users:
 
 ```bash
 # Get Keycloak URL and token
@@ -651,7 +708,7 @@ The next step is to configure the authentication in the Virtual Service. For thi
 glooctl create secret oauth --namespace gloo-system --name keycloak-oauth --client-secret ${secret}
 ```
 
-Then we will create an AuthConfig, which is a Gloo Edge CRD that contains authentication information: 
+Then you will create an AuthConfig, which is a Gloo Edge CRD that contains authentication information: 
 
 ```bash
 kubectl apply -f - <<EOF
@@ -676,10 +733,33 @@ spec:
 EOF
 ```
 
-Finally we activate the authentication on the Route Table by referencing the AuthConfig:
+Finally you activate the authentication on the Virtual Service by referencing the AuthConfig:
+
+> Notice that this only applies to a specif route, because it is configured within a **matcher**
 
 ```bash
 kubectl apply -f - <<EOF
+apiVersion: gateway.solo.io/v1
+kind: RouteTable
+metadata:
+  name: httpbin-routetable
+  namespace: team1
+  labels:
+    application-owner: team1
+spec:
+  routes:
+    - matchers:
+        - prefix: /not-secured
+      options:
+        prefixRewrite: '/'
+      routeAction:
+          single:
+            upstream:
+              name: team1-httpbin-8000
+              namespace: gloo-system
+
+---
+
 apiVersion: gateway.solo.io/v1
 kind: VirtualService
 metadata:
@@ -704,13 +784,13 @@ spec:
               application-owner: team1
       - matchers:
           - prefix: /
-# ------------------- OIDC -------------------
+# ------------------- OIDC - Only applied to this matcher -------------------
         options:
           extauth:
             configRef:
               name: keycloak-oauth
               namespace: gloo-system
-# --------------------------------------------
+# ---------------------------------------------------------------------------
         routeAction:
             multi:
                 destinations:
@@ -728,21 +808,28 @@ spec:
 EOF
 ```
 
-To test the authentication, try to access httpbin application. You will see that Authentication is not required.
+To test the Authentication, try first to access **httpbin** application. You will see that Authentication is NOT required.
 
-On the other hand, if you refresh the web browser for the bookinfo application, you will be redirected to the authentication challenge.
+```
+curl -k $APP_URL/not-secured/get
+```
 
-If you login as the `user1` user with the password `password`, Gloo should redirect you to the application.
+On the other hand, if you refresh the web browser for the **bookinfo** application, you will be redirected to the authentication challenge.
+
+```
+/opt/google/chrome/chrome $APP_URL/productpage 
+```
+
+If you use username: `user1`; and password: `password`; Gloo should redirect you back to the **bookinfo** application.
 
 ![Keycloak Authentication Dialog](images/3.png)
 
 
+## Lab 3: Rate Limiting
 
-### Rate Limiting
+In this lab, you are going to use rate limiting to protect only **bookinfo** applications.
 
-In this step, we are going to use rate limiting to protect our demo application.
-
-To enable rate limiting on our Virtual Service, we will first create a RateLimitConfig CR:
+To enable rate limiting on your Virtual Service, you will first create a RateLimitConfig resource:
 
 ```bash
 kubectl apply -f - << EOF
@@ -766,10 +853,31 @@ spec:
 EOF
 ```
 
-Now let's update our Virtual Service to use the bookinfo application with the new rate limit enforced: 
+Now let's update your Virtual Service to use the **bookinfo** application with the new rate limit enforced. The changes affect only one **matcher** (the one for **bookinfo**):
 
 ```bash
 kubectl apply -f - <<EOF
+apiVersion: gateway.solo.io/v1
+kind: RouteTable
+metadata:
+  name: httpbin-routetable
+  namespace: team1
+  labels:
+    application-owner: team1
+spec:
+  routes:
+    - matchers:
+        - prefix: /not-secured
+      options:
+        prefixRewrite: '/'
+      routeAction:
+          single:
+            upstream:
+              name: team1-httpbin-8000
+              namespace: gloo-system
+
+---
+
 apiVersion: gateway.solo.io/v1
 kind: VirtualService
 metadata:
@@ -825,10 +933,14 @@ To test rate limiting, refresh the browser until you see a 429 message.
 
 ![Browser 429 Too Many Requests Interface](images/4.png)
 
+```
+/opt/google/chrome/chrome $APP_URL/productpage 
+```
+
 
 ### Rate Limiting For Authenticated Users
 
-Now, let's change the Rate Limit to be only applied for Authenticated Users. But this time, you will apply the changes directly in the Virtual Service.
+Now, let's change the Rate Limit to be only applied for Authenticated Users. But this time, you will apply the changes directly in the Virtual Service. This will affect all routes.
 
 First, let's delete the Rate Limit Configuration you have created before:
 
@@ -836,10 +948,31 @@ First, let's delete the Rate Limit Configuration you have created before:
 kubectl delete ratelimitconfig global-limit -n gloo-system
 ```
 
-And now, let's update your Virtual Service to add the Rate Limit Configuration directly in there:
+And now, let's update your Virtual Service to add the Rate Limit Configuration directly in the Virtual Service resource:
 
 ```bash
 kubectl apply -f - <<EOF
+apiVersion: gateway.solo.io/v1
+kind: RouteTable
+metadata:
+  name: httpbin-routetable
+  namespace: team1
+  labels:
+    application-owner: team1
+spec:
+  routes:
+    - matchers:
+        - prefix: /not-secured
+      options:
+        prefixRewrite: '/'
+      routeAction:
+          single:
+            upstream:
+              name: team1-httpbin-8000
+              namespace: gloo-system
+
+---
+
 apiVersion: gateway.solo.io/v1
 kind: VirtualService
 metadata:
@@ -895,28 +1028,53 @@ spec:
 EOF
 ```
 
-Refresh the httpbin application and after 5 times, you will retrieve a 429 error. This is because you are an anonymous user.
+Refresh the **httpbin** application and after 5 times, you will retrieve a **429 error**. This is because you are an anonymous user.
 
 ```
 /opt/google/chrome/chrome $(glooctl proxy url --port https)/not-secured/get
 ```
 
-Try it with the bookinfo application, and the number of requests will be limited to 20 as you are an Authenticated user. Notice that the requests for static content also counts.
+Now, try it with the **bookinfo** application, and the number of requests will be limited to 20 as you are an Authenticated user. 
+
+> Notice that the requests for static content also count since they share the route `/`.
+> `/productpage`
+> `/static/`
 
 ```
 /opt/google/chrome/chrome $(glooctl proxy url --port https)/productpage
 ```
 
-### Web Application Firewall (WAF)
+## Lab 4: Web Application Firewall (WAF)
 
 A web application firewall (WAF) protects web applications by monitoring, filtering and blocking potentially harmful traffic and attacks that can overtake or exploit them.
 
 Gloo Edge Enterprise includes the ability to enable the ModSecurity Web Application Firewall for any incoming and outgoing HTTP connections. 
 
-Let's update the Virtual Service to restrict requests with huge payload to avoid Large Payload Post DDoS Attack. The intention of this DDoS attack is abuse on the amount of memory to decode the payload
+Let's update the Virtual Service to restrict requests with huge payload to avoid *Large Payload Post DDoS Attack*. The intention of this DDoS attack is abuse on the amount of memory used to decode the payload bringing the server down.
 
 ```bash
 kubectl apply -f - <<EOF
+apiVersion: gateway.solo.io/v1
+kind: RouteTable
+metadata:
+  name: httpbin-routetable
+  namespace: team1
+  labels:
+    application-owner: team1
+spec:
+  routes:
+    - matchers:
+        - prefix: /not-secured
+      options:
+        prefixRewrite: '/'
+      routeAction:
+          single:
+            upstream:
+              name: team1-httpbin-8000
+              namespace: gloo-system
+
+---
+
 apiVersion: gateway.solo.io/v1
 kind: VirtualService
 metadata:
@@ -979,7 +1137,7 @@ spec:
 EOF
 ```
 
-The rule means that a body's size cannot be greater than 1KB.
+The rule means that the request body's size cannot be greater than 1KB.
 
 Run following command to test it:
 
@@ -994,12 +1152,35 @@ Payload sizes above 1KB not allowed
 ```
 
 
-#### WAF Block well-known User-Agents
+#### WAF Blocks well-known harmful User-Agents
 
-Another kind of attack is done by some recognized User-Agents
+Another kind of attack is done by some recognized User-Agents.
+
+In this step, you will block `scammer`:
 
 ```bash
 kubectl apply -f - <<EOF
+apiVersion: gateway.solo.io/v1
+kind: RouteTable
+metadata:
+  name: httpbin-routetable
+  namespace: team1
+  labels:
+    application-owner: team1
+spec:
+  routes:
+    - matchers:
+        - prefix: /not-secured
+      options:
+        prefixRewrite: '/'
+      routeAction:
+          single:
+            upstream:
+              name: team1-httpbin-8000
+              namespace: gloo-system
+
+---
+
 apiVersion: gateway.solo.io/v1
 kind: VirtualService
 metadata:
@@ -1061,12 +1242,12 @@ spec:
 EOF
 ```
 
-The rule means an well known scammer User-Agent will be blocked.
+The rule means a well known `scammer` User-Agent will be blocked.
 
 Run following command to test it:
 
 ```
-curl -k https://34.141.86.2/not-secured/get -H "Content-Type: application/xml" -H 'User-Agent: scammer'
+curl -k $(glooctl proxy url --port https)/not-secured/get -H "Content-Type: application/xml" -H 'User-Agent: scammer'
 ```
 
 You should get the following error message:
@@ -1075,15 +1256,15 @@ You should get the following error message:
 Blocked Scammer
 ```
 
-## Lab 3: Data Transformation
+## Lab 5: Data Transformation
 
-In this section we will explore how to transform requests using Gloo Edge.
+In this section you will explore how to transform requests and responses using Gloo Edge.
 
 ### Response Transformation
 
-Before, it was mentioned that httpbin is a good tool to debug and test things out. In this section, you will use that application to easily spot results.
+Before, it was mentioned that **httpbin** is a good tool to debug and test things out. In this section, you will use that application to easily spot the results.
 
-The following example demonstrates how to modify a response using Gloo Edge. We are going to return a basic html page when the response code is 429 (rate limited).  
+Following example demonstrates how to modify a response using Gloo Edge. We are going to return a basic html page when the response code is 429 (rate limited).  
 
 ```bash
 kubectl apply -f - <<EOF
@@ -1113,10 +1294,69 @@ spec:
             upstream:
               name: team1-httpbin-8000
               namespace: gloo-system
+
+---
+
+apiVersion: gateway.solo.io/v1
+kind: VirtualService
+metadata:
+  name: demo
+  namespace: gloo-system
+spec:
+  sslConfig:
+    secretRef:
+      name: upstream-tls
+      namespace: gloo-system  
+  virtualHost:
+    domains:
+      - '*'
+    options:
+      ratelimitBasic:
+        anonymousLimits:
+          requestsPerUnit: 5
+          unit: MINUTE
+        authorizedLimits:
+          requestsPerUnit: 20
+          unit: MINUTE
+      waf:
+        customInterventionMessage: "Blocked Scammer"
+        ruleSets:
+        - ruleStr: |
+            SecRuleEngine On
+            SecRule REQUEST_HEADERS:User-Agent "scammer" "deny,status:403,id:107,phase:1,msg:'blocked scammer'"
+    routes:
+      - matchers:
+          - prefix: /not-secured
+        delegateAction:
+          selector:
+            namespaces:
+              - team1
+            labels:
+              application-owner: team1
+      - matchers:
+          - prefix: /
+        options:
+          extauth:
+            configRef:
+              name: keycloak-oauth
+              namespace: gloo-system
+        routeAction:
+            multi:
+                destinations:
+                - weight: 5
+                  destination:
+                      upstream:
+                          name: bookinfo-productpage-9080
+                          namespace: gloo-system
+                - weight: 5
+                  destination:
+                      upstream:
+                          name: bookinfo-beta-productpage-9080
+                          namespace: gloo-system
 EOF
 ```
 
-Refreshing your browser more than 5 times, you should be able to see a styled HTML page indicating that you reached the limit you have configured before. 
+Refreshing your browser more than 5 times, you should be able to see a styled HTML page indicating that you have reached the limit you had configured before. 
 
 ```
 /opt/google/chrome/chrome $(glooctl proxy url --port https)/not-secured/get
@@ -1124,7 +1364,15 @@ Refreshing your browser more than 5 times, you should be able to see a styled HT
 
 ### Manipulate the response when a 401 Not Authorized is returned
 
-The following example shows how to create a transformation taking a value from the header and adding it to a response body:
+The following example shows how to create a transformation which modifies the body when the error code is 401 Not Authorized.
+
+This transformation applies to a scenario where you use ExtAuth. Now, you will only simulate the 401.
+
+In Gloo, you can define transformations to happen: 
+- In an `early` stage. Before all filters.
+- In a `regular` stage. After all filters.
+
+> Notice that the response transformation is flagged as `early`. The reason is that an Auth Server returning 401 will cancel any filter or transformation designed to happen after that (`regular` stage). Therefore, you need to prepare the response transformation before the Auth Server filter happens in an `early` stage.
 
 
 ```bash
@@ -1163,6 +1411,65 @@ spec:
             upstream:
               name: team1-httpbin-8000
               namespace: gloo-system
+
+---
+
+apiVersion: gateway.solo.io/v1
+kind: VirtualService
+metadata:
+  name: demo
+  namespace: gloo-system
+spec:
+  sslConfig:
+    secretRef:
+      name: upstream-tls
+      namespace: gloo-system  
+  virtualHost:
+    domains:
+      - '*'
+    options:
+      ratelimitBasic:
+        anonymousLimits:
+          requestsPerUnit: 5
+          unit: MINUTE
+        authorizedLimits:
+          requestsPerUnit: 20
+          unit: MINUTE
+      waf:
+        customInterventionMessage: "Blocked Scammer"
+        ruleSets:
+        - ruleStr: |
+            SecRuleEngine On
+            SecRule REQUEST_HEADERS:User-Agent "scammer" "deny,status:403,id:107,phase:1,msg:'blocked scammer'"
+    routes:
+      - matchers:
+          - prefix: /not-secured
+        delegateAction:
+          selector:
+            namespaces:
+              - team1
+            labels:
+              application-owner: team1
+      - matchers:
+          - prefix: /
+        options:
+          extauth:
+            configRef:
+              name: keycloak-oauth
+              namespace: gloo-system
+        routeAction:
+            multi:
+                destinations:
+                - weight: 5
+                  destination:
+                      upstream:
+                          name: bookinfo-productpage-9080
+                          namespace: gloo-system
+                - weight: 5
+                  destination:
+                      upstream:
+                          name: bookinfo-beta-productpage-9080
+                          namespace: gloo-system
 EOF
 ```
 
@@ -1178,7 +1485,7 @@ And any other status code, returns the expected body:
 curl -v -k $(glooctl proxy url --port https)/not-secured/status/get
 ```
 
-### Manipulate the response when a 401 Not Authorized is returned
+### Early response transformation
 
 You can also extract information from one header with regular expressions and inject them into another header:
 
@@ -1232,13 +1539,13 @@ spec:
 EOF
 ```
 
-With httbin application, calling `/get`, you can debug the request headers. since you are transforming it to add a new header, after running:
+> With httbin application, calling `/get`, you can debug the request headers. since you are transforming it to add a new header, after running:
 
 ```
-curl -k https://34.141.86.2/not-secured/get -H "x-my-initial-header: Bearer this_is_my_token_for_test"
+curl -k $(glooctl proxy url --port https)/not-secured/get -H "x-my-initial-header: Bearer this_is_my_token_for_test"
 ```
 
-You will see the headers which arrive to the service, including your new transformed one `x-my-final-header` with the specific content after regular expression matching.
+You can see all the request headers which arrive to the service, including your new transformed one `x-my-final-header` with the specific content after regular expression matching.
 
 ```
 {
@@ -1258,10 +1565,43 @@ You will see the headers which arrive to the service, including your new transfo
 ```
 
 
-### Obtain a value from the token
+### Obtain a token from the cookie
+
+In the scenarios when you expose a website, like **bookinfo**, to secure the token (i.e. JWT token in OIDC), you wrap the token with in the cookie.
+
+In this step, you will obtain a token from the cookie:
 
 ```bash
 kubectl apply -f - <<EOF
+apiVersion: gateway.solo.io/v1
+kind: RouteTable
+metadata:
+  name: httpbin-routetable
+  namespace: team1
+  labels:
+    application-owner: team1
+spec:
+  routes:
+    - matchers:
+        - prefix: /not-secured
+      options:
+        prefixRewrite: '/'
+# ---------------- Transformation ------------------          
+        transformations:
+          responseTransformation:
+            transformationTemplate:
+              parseBodyBehavior: DontParse
+              body: 
+                text: '{% if header(":status") == "429" %}<html><body style="background-color:powderblue;"><h1>Too many Requests!</h1><p>Try again after 1 minute</p></body></html>{% else %}{{ body() }}{% endif %}'
+#---------------------------------------------------
+      routeAction:
+          single:
+            upstream:
+              name: team1-httpbin-8000
+              namespace: gloo-system
+
+---
+
 apiVersion: gateway.solo.io/v1
 kind: VirtualService
 metadata:
@@ -1314,6 +1654,8 @@ EOF
 This transformation is using a regular expression to extract the JWT token from the `cookie` header, creates a new `jwt` header that contains the token and removes the `cookie` header.
 
 As explained in previous Labs, Keycloak will return a JWT token, so we’ll use Gloo to extract some claims from this token and to create new headers corresponding to these claims.
+
+TODO: HEREEEEEEEEEEEEEE
 
 Finally, we’ll see how Gloo Edge RBAC rules can be created to leverage the claims contained in the JWT token.
 
