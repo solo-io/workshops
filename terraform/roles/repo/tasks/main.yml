@@ -4,23 +4,13 @@
     path: /home/solo/{{ repo_name }}
   register: workshop_folder
 
-- name: Just ensuring the repo checkout exists
-  git:
-    repo: https://github.com/solo-io/{{ repo_name }}.git
-    dest: /home/solo/{{ repo_name }}
-    update: no
-  become: yes
-  become_user: solo
-  become_method: sudo
-  register: is_repo
-
 - name: Clone of master branch
   git:
     repo: https://github.com/solo-io/{{ repo_name }}.git
     dest: /home/solo/{{ repo_name }}
     single_branch: yes
     depth: 1
-    version: master
+    version: '{{ repo_branch }}'
   environment:
     GIT_TERMINAL_PROMPT: 0 # reports "terminal prompts disabled" on missing password
   become: yes

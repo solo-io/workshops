@@ -1,3 +1,3 @@
 ---
-force: False
-repo_name: "istio-workshops"
+repo_name: istio-workshops
+repo_branch: master

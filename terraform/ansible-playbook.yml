@@ -1,4 +1,8 @@
 ---
+# This playbook is used for provisioning of gce/vm-image, gce/vm-replica, and vagrant
+# To execute it directly to a running machine, just use this command with the ip:
+# ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -u solo -i '1.2.3.4,' ansible-playbook.yml -v
+
 - hosts: all
   remote_user: solo
   become: yes
@@ -6,13 +10,12 @@
   become_method: sudo
   vars:
     reboot_vm: yes # reboot machine at the end of the playbook
-    reset_repo: no # force overwrite of local changes
     terminal_title: "solo.io workshops"
 
   roles:
     - role: repo
       repo_name: workshops
-      force: '{{ reset_repo | bool }}'
+      repo_branch: master
     - role: k9s
     - role: software_install
     - role: vm_configuration
@@ -22,5 +25,5 @@
   tasks:
   - name: Print parameters
     debug:
-      msg: 'reboot_vm={{ reboot_vm | bool }} reset_repo={{ reset_repo | bool }} terminal_title={{ terminal_title }}'
+      msg: 'reboot_vm={{ reboot_vm | bool }} terminal_title={{ terminal_title }}'
 
