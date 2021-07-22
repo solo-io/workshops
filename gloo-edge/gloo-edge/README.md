@@ -9,15 +9,15 @@ The goal of this workshop is to expose some key features of Gloo API Gateway, li
 The lab environment consists of a Kubernetes environment deployed locally using kind.
 
 In this workshop we will:
-TODO: Redo summary
-* Deploy a demo application (Istio's [bookinfo](https://istio.io/latest/docs/examples/bookinfo/) demo app) on a k8s cluster and expose it through Gloo Edge
-* Deploy a second version of the demo app and route traffic to both versions
-* Secure the demo app using TLS
-* Secure the demo app using OIDC
-* Rate limit the traffic going to the demo app
-* Transform a response using Gloo transformations
+* Deploy two applications (Istio's **[bookinfo](https://istio.io/latest/docs/examples/bookinfo/)** and **[httpbin](https://github.com/istio/istio/blob/master/samples/httpbin/httpbin.yaml)**) on a k8s cluster and expose it through Gloo Edge
+* Deploy a second version of the **bookinfo** app and route traffic to both versions
+* Secure apps using TLS
+* Apply Authentication using OIDC
+* Rate limit the traffic going to the apps
+* Apply rules for the Web Application Firewall (WAF)
+* Transform requests, responses and bodies using Gloo transformations
+* Apply Authorization using RBAC and OPA (Open Policy Agent)
 * Configure access logs
-* Use several of these features together to configure an advanced OIDC workflow
 
 ## Lab 0: Demo Environment Creation
 
@@ -70,11 +70,11 @@ done
 
 ## Lab 1: Traffic Management
 
-### Deploy Demo Services
+### Deploy Services
 
-In this step we will expose two demo services to the outside world using Gloo Edge.
+In this step you will expose two services to the outside world using Gloo Edge.
 
-First let's deploy a demo application called **bookinfo** in `bookinfo` namespace:
+First let's deploy an application called **bookinfo** in `bookinfo` namespace:
 
 ```bash
 kubectl create ns bookinfo 
@@ -84,7 +84,7 @@ kubectl delete deployment reviews-v1 reviews-v3 -n bookinfo
  
 ![Gloo Edge with Bookinfo](images/bookinfo-v2.png)
 
-The bookinfo app has 3 versions of a microservice called reviews.  We will keep only the version 2 of the reviews microservice for this step and will add the other versions later.  An easy way to distinguish among the different versions in the web interface is to look at the stars: v1 displays no stars in the reviews, v2 displays black stars, and v3 displays red stars.
+The bookinfo app has 3 versions of a microservice called reviews.  You will keep only the version 2 of the reviews microservice for this step and will add the other versions later.  An easy way to distinguish among the different versions in the web interface is to look at the stars: v1 displays no stars in the reviews, v2 displays black stars, and v3 displays red stars.
 
 
 Gloo Edge uses a discovery mechanism to create Upstreams automatically, but Upstreams can be also created manually using Kubernetes CRDs.
@@ -203,7 +203,7 @@ Now that your two Upstream CR have been created, you need to create the resource
 
 First, you create a Virtual Service. For bookinfo under `/` and for httpbin under `/not-secured`.
 
-Please, notice that the oder matters.
+Please, notice that the order matters.
 
 ```bash
 kubectl apply -f - <<EOF
@@ -229,7 +229,7 @@ EOF
 
 The creation of the Virtual Service exposes the Kubernetes service through the gateway.
 
-We can access the application using the web browser by running the following command:
+You can access the application using the web browser by running the following command:
 
 ```
 /opt/google/chrome/chrome $(glooctl proxy url)/productpage
@@ -280,7 +280,7 @@ And to access the httpbin application:
 /opt/google/chrome/chrome $(glooctl proxy url)/not-secured/get
 ```
 
-It should return the a json object with details regarding your own request. Something similar to:
+It should return a json object with details regarding your own request. Something similar to:
 
 ```
 {
@@ -313,7 +313,7 @@ Use cases for delegation include:
 - Simplifying very large routing configurations for a single Virtual Service
 - Restricting ownership of routing configuration for a tenant to a subset of the whole Virtual Service.
 
-Let's rewrite our Virtual Service to delegate the routing to a Route Table.
+Let's rewrite your Virtual Service to delegate the routing to a Route Table.
 
 First resource is the delegated Route Table. Second resource is a Virtual Service. Notice that there is a new `delegateAction` referencing the just created Route Table.
 
@@ -433,9 +433,9 @@ EOF
 
 ### Routing to Multiple Upstreams
 
-In many cases, we need to route traffic to two different versions of an application to test a new feature. In this step, we are going to update the Virtual Service to route traffic to two different Upstreams:
+In many cases, you need to route traffic to two different versions of an application to test a new feature. In this step, you are going to update the Virtual Service to route traffic to two different Upstreams:
 
-The first step is to create a new deployment of the demo application, this time with the version 3 of the reviews microservice: 
+The first step is to create a new deployment of the **bookinfo** application, this time with the version 3 of the reviews microservice: 
 
 ```bash
 kubectl create ns bookinfo-beta 
@@ -519,7 +519,7 @@ spec:
 EOF
 ```
 
-We should see either the **black** star reviews (v2) or the new **red** star reviews (v3) when refreshing the page.
+You should see either the **black** star reviews (v2) or the new **red** star reviews (v3) when refreshing the page.
 
 ![Bookinfo Web Interface](images/2.png)
 
@@ -529,9 +529,9 @@ In this lab, you will explore some Gloo Edge features related to security and Au
 
 ### Network Encryption - Server TLS
 
-In this step you are going to secure you demo application using TLS.
+In this step you are going to secure your application using TLS.
 
-Let's first create a private key and a self-signed certificate to use in your demo Virtual Service:
+Let's first create a private key and a self-signed certificate to use in your Virtual Service:
 
 ```bash
 openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
@@ -631,7 +631,7 @@ The browser will warn you that your connection is not private due to the self-si
 
 And **httpbin**:
 
-> Since you are using self-signed certificates, you need to allow insecure sever connection when using SSL with *-k*
+> Since you are using self-signed certificates, you need to allow insecure server connection when using SSL with *-k*
 
 ```
 curl -k $APP_URL/not-secured/get
@@ -645,7 +645,7 @@ OIDC (OpenID Connect) is an identity layer on top of the OAuth 2.0 protocol. In 
 The goal of OIDC is to address this ambiguity by additionally requiring Identity Providers to return a well-defined ID Token. OIDC ID tokens follow the JSON Web Token standard and contain specific fields that your applications can expect and handle. This standardization allows you to switch between Identity Providers – or support multiple ones at the same time – with minimal, if any, changes to your downstream services; it also allows you to consistently apply additional security measures like Role-based Access Control (RBAC) based on the identity of your users, i.e. the contents of their ID token.
 
 
-In this step, you will secure **bookinfo** application using an OIDC Identity Provider.
+In this step, you will secure the **bookinfo** application using an OIDC Identity Provider.
 
 Let's start by installing Keycloak:
 
@@ -658,7 +658,7 @@ kubectl rollout status deploy/keycloak
 sleep 30
 -->
 
-Then, we need to configure it and create two users:
+Then, you need to configure it and create two users:
 
 - User1 credentials: `user1/password`
   Email: user1@solo.io
@@ -702,10 +702,10 @@ The architecture looks like this now:
 
 ![Bookinfo with OIDC](images/bookinfo-oidc.png)
 
-The next step is to configure the authentication in the Virtual Service. For this we will have to create a Kubernetes Secret that contains the OIDC secret:
+The next step is to configure the authentication in the Virtual Service. For this, you will have to create a Kubernetes Secret that contains the OIDC secret:
 
 ```bash
-glooctl create secret oauth --namespace gloo-system --name keycloak-oauth --client-secret ${secret}
+glooctl create secret oauth --namespace gloo-system --name oauth --client-secret ${secret}
 ```
 
 Then you will create an AuthConfig, which is a Gloo Edge CRD that contains authentication information: 
@@ -715,7 +715,7 @@ kubectl apply -f - <<EOF
 apiVersion: enterprise.gloo.solo.io/v1
 kind: AuthConfig
 metadata:
-  name: keycloak-oauth
+  name: oauth
   namespace: gloo-system
 spec:
   configs:
@@ -725,7 +725,7 @@ spec:
         callbackPath: /callback
         clientId: ${client}
         clientSecretRef:
-          name: keycloak-oauth
+          name: oauth
           namespace: gloo-system
         issuerUrl: "${KEYCLOAK_URL}/realms/master/"
         scopes:
@@ -735,7 +735,7 @@ EOF
 
 Finally you activate the authentication on the Virtual Service by referencing the AuthConfig:
 
-> Notice that this only applies to a specif route, because it is configured within a **matcher**
+> Notice that this only applies to a specific route, because it is configured within a **matcher**
 
 ```bash
 kubectl apply -f - <<EOF
@@ -788,7 +788,7 @@ spec:
         options:
           extauth:
             configRef:
-              name: keycloak-oauth
+              name: oauth
               namespace: gloo-system
 # ---------------------------------------------------------------------------
         routeAction:
@@ -808,7 +808,7 @@ spec:
 EOF
 ```
 
-To test the Authentication, try first to access **httpbin** application. You will see that Authentication is NOT required.
+To test the Authentication, try first to access the **httpbin** application. You will see that Authentication is NOT required.
 
 ```
 curl -k $APP_URL/not-secured/get
@@ -905,7 +905,7 @@ spec:
         options:
           extauth:
             configRef:
-              name: keycloak-oauth
+              name: oauth
               namespace: gloo-system
 # ---------------- Rate limit config ------------------
           rateLimitConfigs:
@@ -1010,7 +1010,7 @@ spec:
         options:
           extauth:
             configRef:
-              name: keycloak-oauth
+              name: oauth
               namespace: gloo-system
         routeAction:
             multi:
@@ -1050,7 +1050,7 @@ A web application firewall (WAF) protects web applications by monitoring, filter
 
 Gloo Edge Enterprise includes the ability to enable the ModSecurity Web Application Firewall for any incoming and outgoing HTTP connections. 
 
-Let's update the Virtual Service to restrict requests with huge payload to avoid *Large Payload Post DDoS Attack*. The intention of this DDoS attack is abuse on the amount of memory used to decode the payload bringing the server down.
+Let's update the Virtual Service to restrict requests with huge payloads to avoid *Large Payload Post DDoS Attacks*. The intention of this DDoS attack is abuse of the amount of memory used to decode the payload bringing the server down.
 
 ```bash
 kubectl apply -f - <<EOF
@@ -1119,7 +1119,7 @@ spec:
         options:
           extauth:
             configRef:
-              name: keycloak-oauth
+              name: oauth
               namespace: gloo-system
         routeAction:
             multi:
@@ -1137,7 +1137,7 @@ spec:
 EOF
 ```
 
-The rule means that the request body's size cannot be greater than 1KB.
+The rule means that the request body size cannot be greater than 1KB.
 
 Run following command to test it:
 
@@ -1224,7 +1224,7 @@ spec:
         options:
           extauth:
             configRef:
-              name: keycloak-oauth
+              name: oauth
               namespace: gloo-system
         routeAction:
             multi:
@@ -1264,7 +1264,7 @@ In this section you will explore how to transform requests and responses using G
 
 Before, it was mentioned that **httpbin** is a good tool to debug and test things out. In this section, you will use that application to easily spot the results.
 
-Following example demonstrates how to modify a response using Gloo Edge. We are going to return a basic html page when the response code is 429 (rate limited).  
+Following example demonstrates how to modify a response using Gloo Edge. You are going to return a basic html page when the response code is 429 (rate limited).  
 
 ```bash
 kubectl apply -f - <<EOF
@@ -1338,7 +1338,7 @@ spec:
         options:
           extauth:
             configRef:
-              name: keycloak-oauth
+              name: oauth
               namespace: gloo-system
         routeAction:
             multi:
@@ -1455,7 +1455,7 @@ spec:
         options:
           extauth:
             configRef:
-              name: keycloak-oauth
+              name: oauth
               namespace: gloo-system
         routeAction:
             multi:
@@ -1473,7 +1473,7 @@ spec:
 EOF
 ```
 
-With httbin application, you can simulate that the server returns a 401 status code. Let's run it and see that calling `/status/401`, the returned body is what we expected
+With the **httbin** application, you can simulate that the server returns a 401 status code. Let's run it and see that calling `/status/401`, the returned body is what you expected
 
 ```
 curl -v -k $(glooctl proxy url --port https)/not-secured/status/401
@@ -1536,40 +1536,97 @@ spec:
             upstream:
               name: team1-httpbin-8000
               namespace: gloo-system
+
+---
+
+apiVersion: gateway.solo.io/v1
+kind: VirtualService
+metadata:
+  name: demo
+  namespace: gloo-system
+spec:
+  sslConfig:
+    secretRef:
+      name: upstream-tls
+      namespace: gloo-system  
+  virtualHost:
+    domains:
+      - '*'
+    options:
+      ratelimitBasic:
+        anonymousLimits:
+          requestsPerUnit: 5
+          unit: MINUTE
+        authorizedLimits:
+          requestsPerUnit: 20
+          unit: MINUTE
+      waf:
+        customInterventionMessage: "Blocked Scammer"
+        ruleSets:
+        - ruleStr: |
+            SecRuleEngine On
+            SecRule REQUEST_HEADERS:User-Agent "scammer" "deny,status:403,id:107,phase:1,msg:'blocked scammer'"
+    routes:
+      - matchers:
+          - prefix: /not-secured
+        delegateAction:
+          selector:
+            namespaces:
+              - team1
+            labels:
+              application-owner: team1
+      - matchers:
+          - prefix: /
+        options:
+          extauth:
+            configRef:
+              name: oauth
+              namespace: gloo-system
+        routeAction:
+            multi:
+                destinations:
+                - weight: 5
+                  destination:
+                      upstream:
+                          name: bookinfo-productpage-9080
+                          namespace: gloo-system
+                - weight: 5
+                  destination:
+                      upstream:
+                          name: bookinfo-beta-productpage-9080
+                          namespace: gloo-system
 EOF
 ```
 
-> With httbin application, calling `/get`, you can debug the request headers. since you are transforming it to add a new header, after running:
+> With the **httbin** application, calling `/get`, you can debug the request headers. since you are transforming it to add a new header, after running:
 
 ```
 curl -k $(glooctl proxy url --port https)/not-secured/get -H "x-my-initial-header: Bearer this_is_my_token_for_test"
 ```
 
-You can see all the request headers which arrive to the service, including your new transformed one `x-my-final-header` with the specific content after regular expression matching.
+You can see the new `X-My-Final-Header` header only with the token:
 
 ```
 {
-  "args": {}, 
   "headers": {
-    "Accept": "*/*", 
-    "Host": "x.x.x.x", 
-    "User-Agent": "curl/7.64.1", 
-    "X-Envoy-Expected-Rq-Timeout-Ms": "15000", 
-    "X-Envoy-Original-Path": "/not-secured/get", 
+[...]
     "X-My-Final-Header": "this_is_my_token_for_test", 
     "X-My-Initial-Header": "Bearer this_is_my_token_for_test"
   }, 
-  "origin": "x.x.x.x", 
-  "url": "xxxxxxxxx"
+[...]
 }
 ```
 
 
 ### Obtain a token from the cookie
 
-In the scenarios when you expose a website, like **bookinfo**, to secure the token (i.e. JWT token in OIDC), you wrap the token with in the cookie.
+In the scenarios when you expose a website, like **bookinfo**, to secure the token (i.e. JWT token in OIDC), you wrap the token within the cookie.
 
-In this step, you will obtain a token from the cookie:
+In this step, you will obtain a token from the cookie.
+
+For the purpose of the demo, you will apply this transformation in the general location. That means that the transformation will be applied for all the routes. In your case, the applications you have deployed.
+
+> Notice that the previous transformations have been commented out. The reason is that transformations in lower levels like at Route Table are prioritized to the more general ones like the one in the Virtual Service.
 
 ```bash
 kubectl apply -f - <<EOF
@@ -1586,14 +1643,33 @@ spec:
         - prefix: /not-secured
       options:
         prefixRewrite: '/'
-# ---------------- Transformation ------------------          
-        transformations:
-          responseTransformation:
-            transformationTemplate:
-              parseBodyBehavior: DontParse
-              body: 
-                text: '{% if header(":status") == "429" %}<html><body style="background-color:powderblue;"><h1>Too many Requests!</h1><p>Try again after 1 minute</p></body></html>{% else %}{{ body() }}{% endif %}'
-#---------------------------------------------------
+# ------------- Commenting transformations ------------------
+        # stagedTransformations:
+        #   early:
+        #     responseTransforms:
+        #     - responseTransformation:
+        #         transformationTemplate:
+        #           parseBodyBehavior: DontParse
+        #           headers:
+        #             Content-type: 
+        #               text: "application/json"
+        #           body:
+        #               text: |
+        #                     {% if header(":status") == "401" %} 
+        #                     Hold the horses! You are not authenticated
+        #                     {% else %}{{ body() }}{% endif %}
+        #     requestTransforms:       
+        #     - requestTransformation:
+        #         transformationTemplate:
+        #           extractors:
+        #             apiKey:
+        #               header: 'x-my-initial-header'
+        #               regex: '^Bearer (.*)$'
+        #               subgroup: 1
+        #           headers:
+        #             x-my-final-header:
+        #               text: '{{ apiKey }}'
+#------------------------------------------------------------- 
       routeAction:
           single:
             upstream:
@@ -1613,12 +1689,23 @@ spec:
       name: upstream-tls
       namespace: gloo-system  
   virtualHost:
+    domains:
+      - '*'
     options:
-      extauth:
-        configRef:
-          name: keycloak-oauth
-          namespace: gloo-system
-# -------------Extract Token------------------
+      ratelimitBasic:
+        anonymousLimits:
+          requestsPerUnit: 5
+          unit: MINUTE
+        authorizedLimits:
+          requestsPerUnit: 20
+          unit: MINUTE
+      waf:
+        customInterventionMessage: "Blocked Scammer"
+        ruleSets:
+        - ruleStr: |
+            SecRuleEngine On
+            SecRule REQUEST_HEADERS:User-Agent "scammer" "deny,status:403,id:107,phase:1,msg:'blocked scammer'"
+# ------------- Transformation to Extract Token ------------------
       stagedTransformations:
         early:
           requestTransforms:
@@ -1633,99 +1720,120 @@ spec:
                     jwt:
                       text: '{{ token }}'
 #--------------------------------------------- 
-#--------------Remove Header------------------ 
+#-------------- Remove Cookie Header ------------------ 
       headerManipulation:
         requestHeadersToRemove:
         - "cookie"
 #--------------------------------------------- 
-    domains:
-      - '*'
     routes:
       - matchers:
+          - prefix: /not-secured
+        delegateAction:
+          selector:
+            namespaces:
+              - team1
+            labels:
+              application-owner: team1
+      - matchers:
           - prefix: /
+        options:
+          extauth:
+            configRef:
+              name: oauth
+              namespace: gloo-system
         routeAction:
-            single:
-              upstream:
-                name: default-httpbin-8000
-                namespace: gloo-system
+            multi:
+                destinations:
+                - weight: 5
+                  destination:
+                      upstream:
+                          name: bookinfo-productpage-9080
+                          namespace: gloo-system
+                - weight: 5
+                  destination:
+                      upstream:
+                          name: bookinfo-beta-productpage-9080
+                          namespace: gloo-system
 EOF
 ```
 
 This transformation is using a regular expression to extract the JWT token from the `cookie` header, creates a new `jwt` header that contains the token and removes the `cookie` header.
 
-As explained in previous Labs, Keycloak will return a JWT token, so we’ll use Gloo to extract some claims from this token and to create new headers corresponding to these claims.
+As explained in previous Labs, Keycloak will return a JWT token, so you’ll use Gloo to extract some claims from this token and to create new headers corresponding to these claims.
 
-TODO: HEREEEEEEEEEEEEEE
+To test this, first you will need to obtain a valid token through your **bookinfo** application:
 
-Finally, we’ll see how Gloo Edge RBAC rules can be created to leverage the claims contained in the JWT token.
+```
+/opt/google/chrome/chrome $(glooctl proxy url)/productpage
+```
 
+After refreshing, and maybe signing in, you will access the application again, which means that you will have the valid token in a cookie.
 
-As you can see, the browser has sent the cookie as a header in the HTTP request.
-
-
-### Getting more details from token
-
-
+Now, let's verify the transformation using the debugging **httpbin** application. This time, in the browser:
 
 
-Gloo is able to perform advanced transformations of the request and response.
+```
+/opt/google/chrome/chrome $(glooctl proxy url)/not-secured/get
+```
 
-Let’s modify the Virtual Service using the yaml below:
-
-
-
-Here is the output you should get if you refresh the web page:
+As you can see, the browser has sent the cookie as a header in the HTTP request. And after transformation, your debugging application shows you that there is a new header with the token. Something like this:
 
 ```
 {
-  "args": {}, 
-  "headers": {
-    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9", 
-    "Accept-Encoding": "gzip, deflate, br", 
-    "Accept-Language": "en-US,en;q=0.9", 
-    "Cache-Control": "max-age=0", 
-    "Content-Length": "0", 
-    "Host": "172.18.1.1", 
-    "Jwt": "eyJhbGciOiJSUzI1NiIsInR5cCIgOiAiSldUIiwia2lkIiA6ICJZd18zVTBoOFFkbGpsODBiSkQxUDhzbUtud0ZYYkVJZE0xZjlMU3R1N2E0In0.eyJleHAiOjE2MDc0MTkyOTMsImlhdCI6MTYwNzQxOTIzMywiYXV0aF90aW1lIjoxNjA3NDE4NzQ5LCJqdGkiOiI2NWExYzM0Ni0wNTY5LTQwNWUtYTNmZi0wOTVjZGE3MGRiYmMiLCJpc3MiOiJodHRwOi8vMTcyLjE4LjAuMjExOjgwODAvYXV0aC9yZWFsbXMvbWFzdGVyIiwiYXVkIjoiZjg3YzAzOWQtNTdiZi00NTQzLWExZjAtOGIyMmZjNmY5ZTYwIiwic3ViIjoiN2Q0N2I2YmYtOTcyYi00OGRjLWI3YjctM2U5N2NlZGM4NjM1IiwidHlwIjoiSUQiLCJhenAiOiJmODdjMDM5ZC01N2JmLTQ1NDMtYTFmMC04YjIyZmM2ZjllNjAiLCJzZXNzaW9uX3N0YXRlIjoiOGJmNjAzMTYtY2NmYi00ZWZkLWFiNDgtOTc5MmQzNTkzNzBhIiwiYXRfaGFzaCI6IkV5ZUtXbjhELWdZQlIxOWhpaEg2YXciLCJhY3IiOiIwIiwiZW1haWxfdmVyaWZpZWQiOmZhbHNlLCJwcmVmZXJyZWRfdXNlcm5hbWUiOiJ1c2VyMSIsImVtYWlsIjoidXNlcjFAc29sby5pbyIsImdyb3VwIjoidXNlcnMifQ.nrwvo8F1jKjyQCED95gLYAvYi9TxRRDW6_Z8WC8c61WU1hHUMsHJG77G-CG0T8NwORG2cB7dlP3iu_M_e9BaONCsCZsUZUCpwV5w7ZsFxbbMy4jWSuQyd38kTnoFyMHQGxCXGI0VS02TqsAaO6oQIjwoC6Ib_6MKxsgYNrIGhp7FihO7D1rfBW-Ggvqx88INFSMCKWOft6xzYvBS6JQcDjLXMAkc4TOmTBFZkfXpepsKlDjFxW5DreaDZXv1zIUM-dG-1MRk_N5CPg_OWgnjiF4gKWTqCG8hJd__QPwo4RO7FqM5BM8o0u_lugNbgHlB-09GjO7NTZiZHiQB3HxWVw", 
-    "Sec-Fetch-Dest": "document", 
-    "Sec-Fetch-Mode": "navigate", 
-    "Sec-Fetch-Site": "none", 
-    "Sec-Fetch-User": "?1", 
-    "Upgrade-Insecure-Requests": "1", 
-    "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.88 Safari/537.36", 
-    "X-Envoy-Expected-Rq-Timeout-Ms": "15000", 
-    "X-User-Id": "http://172.18.1.2:8080/auth/realms/master;7d47b6bf-972b-48dc-b7b7-3e97cedc8635"
-  }, 
-  "origin": "192.168.149.15", 
-  "url": "https://172.18.1.1/get"
+"args": {},
+"headers": {
+[...]
+"X-Envoy-Original-Path": "/not-secured/get",
+"Jwt": "eyJhbGciOiJSUzI1NiIsInR5cCIgOiAiSldUIiwia2lkIiA6ICJMN3duMjIwNEVGbUVOanpTRkxzUl85SWVvT3BHQTdCYl9rbTZqRGo1OHVZIn0.eyJleHAiOjE2MjY5NTkxMDUsImlhdCI6MTYyNjk1OTA0NSwiYXV0aF90aW1lIjoxNjI2OTU3NjU5LCJqdGkiOiI4M2Y3MDM5MS1mNWUzLTRmM2QtYjEzNi05YzZiZjZmYjYxODUiLCJpc3MiOiJodHRwOi8vMzQuMTQxLjk5LjYyOjgwODAvYXV0aC9yZWFsbXMvbWFzdGVyIiwiYXVkIjoiYjdkN2VjNWEtNDQ0Mi00OTM5LTg4NDMtMGJkYjlhNWM1MTQyIiwic3ViIjoiOThlMTM3ZWYtNTM2YS00NTkwLWE2NDctNDU1MmZiMmU3OThhIiwidHlwIjoiSUQiLCJhenAiOiJiN2Q3ZWM1YS00NDQyLTQ5MzktODg0My0wYmRiOWE1YzUxNDIiLCJzZXNzaW9uX3N0YXRlIjoiODRlMDQzMjgtNjAyZC00MmRkLWJiMmMtOGFkYWUzODk5ZThlIiwiYXRfaGFzaCI6IlpiWGdIMGZjdlVfTWJibC16ZmFOTVEiLCJhY3IiOiIwIiwiZW1haWxfdmVyaWZpZWQiOmZhbHNlLCJwcmVmZXJyZWRfdXNlcm5hbWUiOiJ1c2VyMSIsImVtYWlsIjoidXNlcjFAc29sby5pbyIsImdyb3VwIjoidXNlcnMifQ.auGfDKVg7ULeAVj5HVVNhoW-o-0jh3dzS4_ZOZC_YiP7tD5ku4ul9Ay8Qv9tERNKRyXSOegR43uAxE9fRXagqgbFplgUwQmF0bOUr-0tPukDT94_Qxf4OlL4znTEYWXWnSLPosTpSqvRZOrDq87OZv_KFcEVu97Bj04quMQVhOQMw1znv_jctKKZfBE32hDY7NkgJPWHRJ7etNPYrZmFVk2PYmycI_nwCFerm6zs7jEsiweLbnvUjVe8nNbjngoGsZyzfz3dV5nBWJ0ibkNY_Sea-hK691p_MCZn7IR5mCxkuXA93Vcw4olkAV45bACfRebBP9eUY_rojkBgYC843A"
+},
+[...]
 }
 ```
 
-You can see that the `Jwt` header has been added to the request while the cookie header has been removed.
+Also notice that there is no `cookie` header sent to the back-end anymore.
 
-### Inspect the JWT token claims
 
-The JWT token contains a number of claims that we can use to drive RBAC decisions and potentially to provide other input to our upstream systems.
+### Extract information from the JWT token
+
+The JWT token contains a number of claims that you can use to drive RBAC decisions and potentially to provide other input to your upstream systems.
 
 In this case, let's take a closer look at the claims that the Keycloak-generated JWT provides us.  Paste the text of the `Jwt` header into the `Encoded` block at [jwt.io](https://jwt.io), and it will show you the full set of claims available.
 
 ![JWT Claims](images/jwt-claims.png)
 
-### Extract information from the JWT token
+Let's obtain those claims.
 
-JWKS is a set of public keys that can be used to verify the JWT tokens.
-
-First, we need to assign the value to a variable of the keycloak master realm.   
+First, you need to assign the value to a variable of the keycloak master realm.   
 
 ```bash
 KEYCLOAK_MASTER_REALM_URL=http://$(kubectl get svc keycloak -ojsonpath='{.status.loadBalancer.ingress[0].ip}'):8080/auth/realms/master
 ```
 
-
-Now, we can update the Virtual Service to validate the token, extract claims from the token and create new headers based on these claims.
+Now, you can update the resources to validate the token, extract claims from the token and create new headers based on these claims.
 
 ```bash
 kubectl apply -f - <<EOF
+apiVersion: gateway.solo.io/v1
+kind: RouteTable
+metadata:
+  name: httpbin-routetable
+  namespace: team1
+  labels:
+    application-owner: team1
+spec:
+  routes:
+    - matchers:
+        - prefix: /not-secured
+      options:
+        prefixRewrite: '/'
+      routeAction:
+          single:
+            upstream:
+              name: team1-httpbin-8000
+              namespace: gloo-system
+
+---
+
 apiVersion: gateway.solo.io/v1
 kind: VirtualService
 metadata:
@@ -1737,11 +1845,22 @@ spec:
       name: upstream-tls
       namespace: gloo-system  
   virtualHost:
+    domains:
+      - '*'
     options:
-      extauth:
-        configRef:
-          name: keycloak-oauth
-          namespace: gloo-system
+      ratelimitBasic:
+        anonymousLimits:
+          requestsPerUnit: 5
+          unit: MINUTE
+        authorizedLimits:
+          requestsPerUnit: 20
+          unit: MINUTE
+      waf:
+        customInterventionMessage: "Blocked Scammer"
+        ruleSets:
+        - ruleStr: |
+            SecRuleEngine On
+            SecRule REQUEST_HEADERS:User-Agent "scammer" "deny,status:403,id:107,phase:1,msg:'blocked scammer'"
       stagedTransformations:
         early:
           requestTransforms:
@@ -1763,9 +1882,10 @@ spec:
         providers:
           keycloak:
             issuer: ${KEYCLOAK_MASTER_REALM_URL}
+            keepToken: true
             tokenSource:
               headers:
-              - header: Jwt
+              - header: jwt
             claimsToHeaders:
             - claim: email
               header: x-solo-claim-email
@@ -1778,17 +1898,48 @@ spec:
                   name: default-keycloak-8080
                   namespace: gloo-system
 #--------------------------------------------- 
-    domains:
-      - '*'
     routes:
       - matchers:
+          - prefix: /not-secured
+        delegateAction:
+          selector:
+            namespaces:
+              - team1
+            labels:
+              application-owner: team1
+      - matchers:
           - prefix: /
+        options:
+          extauth:
+            configRef:
+              name: oauth
+              namespace: gloo-system
         routeAction:
-            single:
-              upstream:
-                name: default-httpbin-8000
-                namespace: gloo-system
+            multi:
+                destinations:
+                - weight: 5
+                  destination:
+                      upstream:
+                          name: bookinfo-productpage-9080
+                          namespace: gloo-system
+                - weight: 5
+                  destination:
+                      upstream:
+                          name: bookinfo-beta-productpage-9080
+                          namespace: gloo-system
 EOF
+```
+
+Once again, you need to refresh your **bookinfo** application to refresh the token in case it expires.
+
+```
+/opt/google/chrome/chrome $(glooctl proxy url)/productpage
+```
+
+And now, let's see the results with the fresh token:
+
+```
+/opt/google/chrome/chrome $(glooctl proxy url)/not-secured/get
 ```
 
 Here is the output you should get if you refresh the web page:
@@ -1797,25 +1948,12 @@ Here is the output you should get if you refresh the web page:
 {
   "args": {}, 
   "headers": {
-    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9", 
-    "Accept-Encoding": "gzip, deflate, br", 
-    "Accept-Language": "en-US,en;q=0.9", 
-    "Cache-Control": "max-age=0", 
-    "Content-Length": "0", 
-    "Host": "172.18.1.1", 
-    "Sec-Fetch-Dest": "document", 
-    "Sec-Fetch-Mode": "navigate", 
-    "Sec-Fetch-Site": "cross-site", 
-    "Sec-Fetch-User": "?1", 
-    "Upgrade-Insecure-Requests": "1", 
-    "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.88 Safari/537.36", 
-    "X-Envoy-Expected-Rq-Timeout-Ms": "15000", 
+[...]
     "X-Solo-Claim-Email": "user1@solo.io", 
     "X-Solo-Claim-Email-Verified": "false", 
-    "X-User-Id": "http://172.18.1.2:8080/auth/realms/master;7d47b6bf-972b-48dc-b7b7-3e97cedc8635"
+[...]
   }, 
-  "origin": "192.168.149.15", 
-  "url": "https://172.18.1.1/get"
+[...]
 }
 ```
 
@@ -1823,14 +1961,41 @@ As you can see, Gloo Edge has added the `x-solo-claim-email` and `x-solo-claim-e
 
 It will allow the application to know the user's email identity and if that email has been verified.
 
+## Lab 6: Authorization
+
+Gloo can also integrate with different mechanisms to provide Authorization level.
+
 ### RBAC using the claims of the JWT token
 
-Gloo Edge can also be used to set RBAC rules based on the claims of the JWT token returned by the identity provider.
+You can set RBAC rules based on the claims of the JWT token returned by the identity provider.
 
-Let’s update the Virtual Service as follow:
+In the following example, you are going to configure RBAC policies for all routes. But you are going to disable it for the **bookinfo** application.
+
+Thus, the RBAC policies will be applied to the **httpbin** application.
 
 ```bash
 kubectl apply -f - <<EOF
+apiVersion: gateway.solo.io/v1
+kind: RouteTable
+metadata:
+  name: httpbin-routetable
+  namespace: team1
+  labels:
+    application-owner: team1
+spec:
+  routes:
+    - matchers:
+        - prefix: /not-secured
+      options:
+        prefixRewrite: '/'
+      routeAction:
+          single:
+            upstream:
+              name: team1-httpbin-8000
+              namespace: gloo-system
+
+---
+
 apiVersion: gateway.solo.io/v1
 kind: VirtualService
 metadata:
@@ -1842,11 +2007,22 @@ spec:
       name: upstream-tls
       namespace: gloo-system  
   virtualHost:
+    domains:
+      - '*'
     options:
-      extauth:
-        configRef:
-          name: keycloak-oauth
-          namespace: gloo-system
+      ratelimitBasic:
+        anonymousLimits:
+          requestsPerUnit: 5
+          unit: MINUTE
+        authorizedLimits:
+          requestsPerUnit: 20
+          unit: MINUTE
+      waf:
+        customInterventionMessage: "Blocked Scammer"
+        ruleSets:
+        - ruleStr: |
+            SecRuleEngine On
+            SecRule REQUEST_HEADERS:User-Agent "scammer" "deny,status:403,id:107,phase:1,msg:'blocked scammer'"
       stagedTransformations:
         early:
           requestTransforms:
@@ -1865,11 +2041,12 @@ spec:
         - "cookie"
       jwt:
         providers:
-          dex:
+          keycloak:
             issuer: ${KEYCLOAK_MASTER_REALM_URL}
+            keepToken: true
             tokenSource:
               headers:
-              - header: Jwt
+              - header: jwt
             claimsToHeaders:
             - claim: email
               header: x-solo-claim-email
@@ -1881,55 +2058,89 @@ spec:
                 upstreamRef:
                   name: default-keycloak-8080
                   namespace: gloo-system
-#--------------Add RBAC rule------------------
+#-------------- Add RBAC rule for all routes ------------------
       rbac:
         policies:
           viewer:
             permissions:
               methods:
               - GET
-              pathPrefix: /get
+              pathPrefix: /not-secured/get
             principals:
             - jwtPrincipal:
                 claims:
                   email: user1@solo.io
-#--------------------------------------------- 
-    domains:
-      - '*'
+#----------------------------------------------- 
     routes:
       - matchers:
+          - prefix: /not-secured
+        delegateAction:
+          selector:
+            namespaces:
+              - team1
+            labels:
+              application-owner: team1
+      - matchers:
           - prefix: /
+        options:
+#-------------- Disable RBAC for this route ------------------
+          rbac:
+            disable: true
+#-------------------------------------------------------------
+          extauth:
+            configRef:
+              name: oauth
+              namespace: gloo-system
         routeAction:
-            single:
-              upstream:
-                name: default-httpbin-8000
-                namespace: gloo-system
+            multi:
+                destinations:
+                - weight: 5
+                  destination:
+                      upstream:
+                          name: bookinfo-productpage-9080
+                          namespace: gloo-system
+                - weight: 5
+                  destination:
+                      upstream:
+                          name: bookinfo-beta-productpage-9080
+                          namespace: gloo-system
 EOF
 ```
 
-If you refresh the web page, you should still get the same response you got before.
+If you refresh the **bookinfo** web page, you should still get the same response you got before.
 
-But if you change the path to anything that doesn't start with `/get`, you should get the following response:
+But if you access the **httpbin** and change the path to anything that doesn't start with `/not-secured/get`, you should get the following response.
 
 ```
 RBAC: access denied
 ```
 
+Let's compare:
+
+```
+/opt/google/chrome/chrome $(glooctl proxy url)/not-secured/get
+```
+
+```
+/opt/google/chrome/chrome $(glooctl proxy url)/not-secured/anything
+```
+
+
+
 ### RBAC using OPA
 
 Gloo Edge can also be used to set RBAC rules based on [OPA (Open Policy Agent)](https://www.openpolicyagent.org/) and its rego rules.
 
-This model allows you to get fine-grained control over the Authorization on your applications. As well, this model is well adopted by the kubernetes community.
+This model allows you to get fine-grained control over the Authorization in your applications. As well, this model is well adopted by the kubernetes community.
 
-
-Let's delete the existing `AuthConfig` and create another one with two configurations:
+Let's add another configuration to the `AuthConfig` you created in previous Labs:
 
 ```bash
 kubectl apply -f - <<EOF
 apiVersion: enterprise.gloo.solo.io/v1
 kind: AuthConfig
 metadata:
-  name: keycloak-oauth
+  name: oauth
   namespace: gloo-system
 spec:
   configs:
@@ -1939,12 +2150,12 @@ spec:
         callbackPath: /callback
         clientId: ${client}
         clientSecretRef:
-          name: keycloak-oauth
+          name: oauth
           namespace: gloo-system
         issuerUrl: "${KEYCLOAK_URL}/realms/master/"
         scopes:
         - email
-  - opa_auth:
+  - opaAuth:
       modules:
       - name: allow-solo-email-users
         namespace: gloo-system
@@ -1979,10 +2190,31 @@ EOF
 
 Notice that this rule will allow only users with email ending with `@solo.io`
 
-Finally, let's update the Virtual Service:
+Finally, let's update the resources. You will disable RBAC to not interfere with this authorization mechanism:
 
 ```bash
 kubectl apply -f - <<EOF
+apiVersion: gateway.solo.io/v1
+kind: RouteTable
+metadata:
+  name: httpbin-routetable
+  namespace: team1
+  labels:
+    application-owner: team1
+spec:
+  routes:
+    - matchers:
+        - prefix: /not-secured
+      options:
+        prefixRewrite: '/'
+      routeAction:
+          single:
+            upstream:
+              name: team1-httpbin-8000
+              namespace: gloo-system
+
+---
+
 apiVersion: gateway.solo.io/v1
 kind: VirtualService
 metadata:
@@ -1992,30 +2224,103 @@ spec:
   sslConfig:
     secretRef:
       name: upstream-tls
-      namespace: gloo-system
+      namespace: gloo-system  
   virtualHost:
-    options:
-      extauth:
-        configRef:
-          name: keycloak-oauth
-          namespace: gloo-system
     domains:
       - '*'
+    options:
+      ratelimitBasic:
+        anonymousLimits:
+          requestsPerUnit: 5
+          unit: MINUTE
+        authorizedLimits:
+          requestsPerUnit: 20
+          unit: MINUTE
+      waf:
+        customInterventionMessage: "Blocked Scammer"
+        ruleSets:
+        - ruleStr: |
+            SecRuleEngine On
+            SecRule REQUEST_HEADERS:User-Agent "scammer" "deny,status:403,id:107,phase:1,msg:'blocked scammer'"
+      stagedTransformations:
+        early:
+          requestTransforms:
+            - requestTransformation:
+                transformationTemplate:
+                  extractors:
+                    token:
+                      header: 'cookie'
+                      regex: 'id_token=(.*); .*'
+                      subgroup: 1
+                  headers:
+                    jwt:
+                      text: '{{ token }}'
+      headerManipulation:
+        requestHeadersToRemove:
+        - "cookie"
+      jwt:
+        providers:
+          keycloak:
+            issuer: ${KEYCLOAK_MASTER_REALM_URL}
+            keepToken: true
+            tokenSource:
+              headers:
+              - header: jwt
+            claimsToHeaders:
+            - claim: email
+              header: x-solo-claim-email
+            - claim: email_verified
+              header: x-solo-claim-email-verified
+            jwks:
+              remote:
+                url: http://keycloak.default.svc:8080/auth/realms/master/protocol/openid-connect/certs
+                upstreamRef:
+                  name: default-keycloak-8080
+                  namespace: gloo-system
+#-------------- RBAC is disabled to not interfere with OPA ------------------
+      rbac:
+        disable: true
+#-------------------------------------------------------------------------- 
     routes:
       - matchers:
+          - prefix: /not-secured
+        delegateAction:
+          selector:
+            namespaces:
+              - team1
+            labels:
+              application-owner: team1
+      - matchers:
           - prefix: /
-        routeAction:
-          single:
-            upstream:
-              name: default-httpbin-8000
+        options:
+#-------------- RBAC is disabled to not interfere with OPA ------------------
+          rbac:
+            disable: true
+#------------------------------------------------------------------------
+          extauth:
+            configRef:
+              name: oauth
               namespace: gloo-system
+        routeAction:
+            multi:
+                destinations:
+                - weight: 5
+                  destination:
+                      upstream:
+                          name: bookinfo-productpage-9080
+                          namespace: gloo-system
+                - weight: 5
+                  destination:
+                      upstream:
+                          name: bookinfo-beta-productpage-9080
+                          namespace: gloo-system
 EOF
 ```
 
 Let's take a look at what the application returns:
 
 ```
-/opt/google/chrome/chrome $(glooctl proxy url --port https)/get 
+/opt/google/chrome/chrome $(glooctl proxy url --port https)/productpage 
 ```
 
 If you login using `user1/password` credentials, you will be able to access since the user's email ends with `@solo.io`
@@ -2023,13 +2328,13 @@ If you login using `user1/password` credentials, you will be able to access sinc
 Let's try again in incognito window using the second user's credentials:
 
 ```
-/opt/google/chrome/chrome --incognito $(glooctl proxy url --port https)/get 
+/opt/google/chrome/chrome --incognito $(glooctl proxy url --port https)/productpage 
 ```
 
-If you open the browser in incognito and login using `user2/password` credentials, you will not be able to access since the user's email ends with `@example.com`:
+If you open the browser in incognito and login using `user2`  /  `password` credentials, you will not be able to access since the user's email ends with `@example.com`:
 
 
-## Lab 5: Observability
+## Lab 7: Observability
 
 ### Metrics
 
