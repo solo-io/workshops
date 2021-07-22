@@ -1,0 +1,33 @@
+---
+- name: Add the user 'solo' with a primary group of 'vagrant'
+  user:
+    name: solo
+    comment: Solo.io
+    group: vagrant
+
+- name: Make sure we have a 'wheel' group
+  group:
+    name: wheel
+    state: present
+
+- name: Allow 'wheel' group to have passwordless sudo
+  lineinfile:
+    dest: /etc/sudoers
+    state: present
+    regexp: '^%wheel'
+    line: '%wheel ALL=(ALL) NOPASSWD: ALL'
+    validate: visudo -cf %s
+
+- name: Add solo to wheel group
+  user:
+    name: solo
+    groups: wheel
+    append: yes
+
+- name: Copy ssh and change ownership
+  copy:
+    src: /home/vagrant/.ssh
+    remote_src: yes
+    dest: /home/solo/
+    owner: solo
+    group: vagrant

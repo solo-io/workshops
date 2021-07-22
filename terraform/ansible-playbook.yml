@@ -11,8 +11,11 @@
   vars:
     reboot_vm_machine: yes # reboot machine at the end of the playbook
     terminal_custom_title: "solo.io workshops"
+    vagrant: no
 
   roles:
+    - role: vagrant
+      when: vagrant | bool
     - role: repo
       repo_name: workshops
       repo_branch: master
