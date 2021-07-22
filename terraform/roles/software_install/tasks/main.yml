@@ -1,0 +1,142 @@
+---
+
+- name: Add apt keys
+  apt_key:
+    url: "{{ item }}"
+    state: present
+  loop:
+  - https://download.docker.com/linux/ubuntu/gpg
+  - https://dl.google.com/linux/linux_signing_key.pub
+  - https://packages.microsoft.com/keys/microsoft.asc
+  - https://baltocdn.com/helm/signing.asc
+
+- name: Add apt repositories
+  apt_repository:
+    repo: "{{ item }}"
+    state: present
+  loop:
+  - deb [arch=amd64] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable
+  - deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main
+  - deb [arch=amd64] https://packages.microsoft.com/repos/vscode stable main
+  - deb https://baltocdn.com/helm/stable/debian/ all main
+
+- name: Install baseline software
+  apt:
+    state: present
+    update_cache: yes
+    name:
+    - jq
+    - curl
+    - apt-transport-https
+    - ca-certificates
+    - gnupg-agent
+    - software-properties-common
+    - docker-ce
+    - docker-ce-cli
+    - containerd.io
+    - bash-completion
+    - libcairo2-dev
+    - libjpeg-turbo8-dev
+    - libpng-dev
+    - libtool-bin
+    - libossp-uuid-dev
+    - libavcodec-dev
+    - libavformat-dev
+    - libavutil-dev
+    - libswscale-dev
+    - freerdp2-dev
+    - libpango1.0-dev
+    - libssh2-1-dev
+    - libtelnet-dev
+    - libvncserver-dev
+    - libwebsockets-dev
+    - libpulse-dev
+    - libssl-dev
+    - libvorbis-dev
+    - libwebp-dev
+    - build-essential
+    - autocutsel
+    - tightvncserver
+    - socat
+    - dbus-x11
+    - gnome-session
+    - ubuntu-gnome-desktop
+    - gnome-panel
+    - gdm3
+    - google-chrome-stable
+    - xfce4-terminal
+    - code
+    - python
+    - apache2-utils
+    - apt-transport-https
+    - helm
+    - emacs
+    - tomcat9
+
+- name: Add the solo user to the docker group
+  user:
+    name: solo
+    groups: docker
+    append: yes
+
+- name: Download kind
+  get_url:
+    url: https://kind.sigs.k8s.io/dl/v0.8.1/kind-linux-amd64
+    dest: /usr/local/bin/kind
+    mode: '0755'
+
+- name: Get Latest Kubernetes Version
+  get_url:
+    url: https://storage.googleapis.com/kubernetes-release/release/stable.txt
+    dest: /tmp/version
+
+- name: Read Kubernetes version
+  command: cat /tmp/version
+  register: kubernetes_version
+  changed_when: false
+
+- name: Print Kubernetes version
+  debug:
+    msg: "Kubernetes version is {{ kubernetes_version.stdout }}"
+
+- name: Download kubectl
+  get_url:
+    url: "https://storage.googleapis.com/kubernetes-release/release/{{ kubernetes_version.stdout }}/bin/linux/amd64/kubectl"
+    dest: /usr/local/bin/kubectl
+    mode: '0755'
+
+- name: Enable kubectl autocompletion
+  shell: kubectl completion bash > /etc/bash_completion.d/kubectl
+
+- name: Unarchive guacamole
+  unarchive:
+    src: https://mirrors.ircam.fr/pub/apache/guacamole/1.2.0/source/guacamole-server-1.2.0.tar.gz
+    dest: /
+    remote_src: yes
+  when:
+  - "not ansible_facts.services is defined or not ansible_facts.services.guacd is defined or not ansible_facts.services.guacd.state == 'running'"
+
+- name: Configure guacamole
+  shell: cd /guacamole-server-1.2.0 && ./configure --with-init-dir=/etc/init.d
+  when:
+  - "not ansible_facts.services is defined or not ansible_facts.services.guacd is defined or not ansible_facts.services.guacd.state == 'running'"
+
+- name: Make guacamole
+  make:
+    chdir: /guacamole-server-1.2.0
+  when:
+  - "not ansible_facts.services is defined or not ansible_facts.services.guacd is defined or not ansible_facts.services.guacd.state == 'running'"
+
+- name: Make install guacamole
+  make:
+    chdir: /guacamole-server-1.2.0
+    target: install
+  when:
+  - "not ansible_facts.services is defined or not ansible_facts.services.guacd is defined or not ansible_facts.services.guacd.state == 'running'"
+
+- name: Download guacamole war
+  get_url:
+    url: https://mirrors.ircam.fr/pub/apache/guacamole/1.2.0/binary/guacamole-1.2.0.war
+    dest: /var/lib/tomcat9/webapps/guacamole.war
+  when:
+  - "not ansible_facts.services is defined or not ansible_facts.services.guacd is defined or not ansible_facts.services.guacd.state == 'running'"
