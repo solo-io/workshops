@@ -20,7 +20,7 @@
     - role: software_install
     - role: vm_configuration
       reboot_vm: '{{ reboot_vm | bool }}'
-      terminal_title: '{{ terminal_title | bool }}'
+      terminal_title: '{{ terminal_title }}'
 
   tasks:
   - name: Print parameters
