@@ -14,6 +14,7 @@
 - name: Add solo user to the sudoers
   copy:
     dest: "/etc/sudoers.d/solo"
+    mode: '0440'
     content: "solo  ALL=(ALL)  NOPASSWD: ALL"
 
 - name: Copy ssh and change ownership
@@ -22,4 +23,5 @@
     remote_src: yes
     dest: /home/solo/
     owner: solo
-    group: vagrant
+    group: solo
+    mode: '0700'
