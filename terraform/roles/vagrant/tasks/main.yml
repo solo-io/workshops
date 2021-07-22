@@ -1,9 +1,14 @@
 ---
-- name: Add the user 'solo' with a primary group of 'vagrant'
+- name: Ensure group 'solo' exists
+  group:
+    name: solo
+
+- name: Add the user 'solo' with a primary group of 'solo'
   user:
     name: solo
     comment: Solo.io
-    group: vagrant
+    group: solo
+    groups: vagrant
 
 - name: Make sure we have a 'wheel' group
   group:
