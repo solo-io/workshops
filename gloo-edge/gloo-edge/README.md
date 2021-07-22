@@ -1473,7 +1473,7 @@ spec:
 EOF
 ```
 
-With the **httbin** application, you can simulate that the server returns a 401 status code. Let's run it and see that calling `/status/401`, the returned body is what you expected
+With the **httpbin** application, you can simulate that the server returns a 401 status code. Let's run it and see that calling `/status/401`, the returned body is what you expected
 
 ```
 curl -v -k $(glooctl proxy url --port https)/not-secured/status/401
@@ -1598,7 +1598,7 @@ spec:
 EOF
 ```
 
-> With the **httbin** application, calling `/get`, you can debug the request headers. since you are transforming it to add a new header, after running:
+> With the **httpbin** application, calling `/get`, you can debug the request headers. since you are transforming it to add a new header, after running:
 
 ```
 curl -k $(glooctl proxy url --port https)/not-secured/get -H "x-my-initial-header: Bearer this_is_my_token_for_test"
