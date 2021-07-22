@@ -7,27 +7,14 @@
   user:
     name: solo
     comment: Solo.io
+    shell: /bin/bash
     group: solo
     groups: vagrant
 
-- name: Make sure we have a 'wheel' group
-  group:
-    name: wheel
-    state: present
-
-- name: Allow 'wheel' group to have passwordless sudo
-  lineinfile:
-    dest: /etc/sudoers
-    state: present
-    regexp: '^%wheel'
-    line: '%wheel ALL=(ALL) NOPASSWD: ALL'
-    validate: visudo -cf %s
-
-- name: Add solo to wheel group
-  user:
-    name: solo
-    groups: wheel
-    append: yes
+- name: Add solo user to the sudoers
+  copy:
+    dest: "/etc/sudoers.d/solo"
+    content: "solo  ALL=(ALL)  NOPASSWD: ALL"
 
 - name: Copy ssh and change ownership
   copy:
