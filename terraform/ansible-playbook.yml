@@ -9,8 +9,8 @@
   become_user: root
   become_method: sudo
   vars:
-    reboot_vm: yes # reboot machine at the end of the playbook
-    terminal_title: "solo.io workshops"
+    reboot_vm_machine: yes # reboot machine at the end of the playbook
+    terminal_custom_title: "solo.io workshops"
 
   roles:
     - role: repo
@@ -19,11 +19,10 @@
     - role: k9s
     - role: software_install
     - role: vm_configuration
-      reboot_vm: '{{ reboot_vm | bool }}'
-      terminal_title: '{{ terminal_title }}'
+      reboot_vm: '{{ reboot_vm_machine | bool }}'
+      terminal_title: '{{ terminal_custom_title }}'
 
   tasks:
   - name: Print parameters
     debug:
-      msg: 'reboot_vm={{ reboot_vm | bool }} terminal_title={{ terminal_title }}'
-
+      msg: 'reboot_vm={{ reboot_vm_machine | bool }} terminal_title={{ terminal_custom_title }}'
