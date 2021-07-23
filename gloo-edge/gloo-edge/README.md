@@ -743,7 +743,7 @@ On the other hand, if you refresh the web browser for the **bookinfo** applicati
 /opt/google/chrome/chrome $APP_URL/productpage 
 ```
 
-If you use username: `user1`; and password: `password`; Gloo should redirect you back to the **bookinfo** application.
+If you use username: `user1` and password: `password` Gloo should redirect you back to the **bookinfo** application.
 
 ![Keycloak Authentication Dialog](images/3.png)
 
