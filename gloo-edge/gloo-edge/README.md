@@ -16,7 +16,7 @@ In this workshop we will:
 * Rate limit the traffic going to the apps
 * Apply rules for the Web Application Firewall (WAF)
 * Transform requests, responses and bodies using Gloo transformations
-* Apply Authorization using RBAC and OPA (Open Policy Agent)
+* Apply Authorization OPA (Open Policy Agent)
 * Configure access logs
 
 ## Lab 0: Demo Environment Creation
