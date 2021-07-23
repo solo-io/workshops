@@ -1100,7 +1100,7 @@ EOF
 Refreshing your browser more than 5 times, you should be able to see a styled HTML page indicating that you have reached the limit you had configured before. 
 
 ```
-/opt/google/chrome/chrome $(glooctl proxy url --port https)/productpage
+/opt/google/chrome/chrome $(glooctl proxy url --port https)/not-secured/get
 ```
 
 ### Manipulate the response when a 401 Not Authorized is returned
