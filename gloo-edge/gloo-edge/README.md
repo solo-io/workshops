@@ -832,9 +832,9 @@ To test rate limiting, refresh the browser until you see a 429 message.
 ```
 
 
-### Rate Limiting For Authenticated Users
+### Different Rate Limiting For Authenticated And Anonymous Users
 
-Now, let's change the Rate Limit to be only applied for Authenticated Users. But this time, you will apply the changes directly in the Virtual Service. This will affect all routes.
+Following example of Rate Limit shows how you can specify different rate limiting for Authenticated users and for Anonymous users.
 
 First, let's delete the Rate Limit Configuration you have created before:
 
