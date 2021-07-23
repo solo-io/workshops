@@ -1072,6 +1072,15 @@ spec:
         - prefix: /not-secured
       options:
         prefixRewrite: '/'
+# -------- Rate limit config by authenticated and anonymous -------
+        ratelimitBasic:
+          anonymousLimits:
+            requestsPerUnit: 5
+            unit: MINUTE
+          authorizedLimits:
+            requestsPerUnit: 20
+            unit: MINUTE
+# -----------------------------------------------------------------
 # ---------------- Transformation ------------------          
         transformations:
           responseTransformation:
@@ -1091,7 +1100,7 @@ EOF
 Refreshing your browser more than 5 times, you should be able to see a styled HTML page indicating that you have reached the limit you had configured before. 
 
 ```
-/opt/google/chrome/chrome $(glooctl proxy url --port https)/not-secured/get
+/opt/google/chrome/chrome $(glooctl proxy url --port https)/productpage
 ```
 
 ### Manipulate the response when a 401 Not Authorized is returned
