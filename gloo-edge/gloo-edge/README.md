@@ -1164,7 +1164,7 @@ curl -v -k $(glooctl proxy url --port https)/not-secured/status/401
 And any other status code, returns the expected body:
 
 ```
-curl -v -k $(glooctl proxy url --port https)/not-secured/status/get
+curl -v -k $(glooctl proxy url --port https)/not-secured/status/200
 ```
 
 ### Early response transformation
