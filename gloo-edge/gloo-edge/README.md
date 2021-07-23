@@ -1068,7 +1068,10 @@ metadata:
     application-owner: team1
 spec:
   routes:
-    - matchers:
+# -------- Rate limit at route level requires to give a name -------
+    - name: "not-secured"
+# ------------------------------------------------------------------
+      matchers:
         - prefix: /not-secured
       options:
         prefixRewrite: '/'
