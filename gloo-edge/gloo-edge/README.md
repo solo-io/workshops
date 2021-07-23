@@ -1248,6 +1248,8 @@ KEYCLOAK_MASTER_REALM_URL=http://$(kubectl get svc keycloak -ojsonpath='{.status
 
 Now, you can update the resources to validate the token, extract claims from the token and create new headers based on these claims.
 
+Notice that you will move the `extauth` block to a global location in the resource so that it affects all routes. You want to test this with **httpbin**.
+
 ```bash
 kubectl apply -f - <<EOF
 apiVersion: gateway.solo.io/v1
@@ -1264,6 +1266,12 @@ spec:
     domains:
       - '*'
     options:
+#-------------- Moved from specific route to a global place -----------------    
+      extauth:
+        configRef:
+          name: oauth
+          namespace: gloo-system
+#----------------------------------------------------------------------------
 #--------------Extract claims-----------------
       jwt:
         providers:
@@ -1296,11 +1304,6 @@ spec:
               application-owner: team1
       - matchers:
           - prefix: /
-        options:
-          extauth:
-            configRef:
-              name: oauth
-              namespace: gloo-system
         routeAction:
           single:
             upstream:
