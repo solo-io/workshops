@@ -1075,15 +1075,12 @@ spec:
         - prefix: /not-secured
       options:
         prefixRewrite: '/'
-# -------- Rate limit config by authenticated and anonymous -------
+# -------- Rate limit as you saw before ------------
         ratelimitBasic:
           anonymousLimits:
             requestsPerUnit: 5
             unit: MINUTE
-          authorizedLimits:
-            requestsPerUnit: 20
-            unit: MINUTE
-# -----------------------------------------------------------------
+# --------------------------------------------------
 # ---------------- Transformation ------------------          
         transformations:
           responseTransformation:
