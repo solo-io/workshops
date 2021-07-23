@@ -616,12 +616,6 @@ Then, you need to configure it and create two users:
 - User2 credentials: `user2/password`
   Email: user2@example.com
 
-> **Note:** One of the following commands retrieves a token which expires quite soon. If you get a *Not Authorized* error, please, re-run this command:
-
-```
-KEYCLOAK_TOKEN=$(curl -d "client_id=admin-cli" -d "username=admin" -d "password=admin" -d "grant_type=password" "$KEYCLOAK_URL/realms/master/protocol/openid-connect/token" | jq -r .access_token)
-```
-
 Let's create the users:
 
 ```bash
@@ -647,6 +641,15 @@ curl -H "Authorization: Bearer ${KEYCLOAK_TOKEN}" -X POST -H "Content-Type: appl
 # Create second user
 curl -H "Authorization: Bearer ${KEYCLOAK_TOKEN}" -X POST -H "Content-Type: application/json" -d '{"username": "user2", "email": "user2@example.com", "enabled": true, "attributes": {"group": "users"}, "credentials": [{"type": "password", "value": "password", "temporary": false}]}' $KEYCLOAK_URL/admin/realms/master/users
 ```
+
+> **Note:** If you get a *Not Authorized* error, please, re-run this command and continue from the command started to fail:
+
+```
+KEYCLOAK_TOKEN=$(curl -d "client_id=admin-cli" -d "username=admin" -d "password=admin" -d "grant_type=password" "$KEYCLOAK_URL/realms/master/protocol/openid-connect/token" | jq -r .access_token)
+```
+
+
+
 
 The architecture looks like this now:
 
