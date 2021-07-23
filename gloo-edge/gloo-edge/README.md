@@ -461,27 +461,6 @@ Now you can route to multiple Upstreams by updating the Virtual Service as follo
 ```bash
 kubectl apply -f - <<EOF
 apiVersion: gateway.solo.io/v1
-kind: RouteTable
-metadata:
-  name: httpbin-routetable
-  namespace: team1
-  labels:
-    application-owner: team1
-spec:
-  routes:
-    - matchers:
-        - prefix: /not-secured
-      options:
-        prefixRewrite: '/'
-      routeAction:
-          single:
-            upstream:
-              name: team1-httpbin-8000
-              namespace: gloo-system
-
----
-
-apiVersion: gateway.solo.io/v1
 kind: VirtualService
 metadata:
   name: demo
@@ -550,27 +529,6 @@ To setup TLS you have to add the SSL config to the Virtual Service:
 ```bash
 kubectl apply -f - <<EOF
 apiVersion: gateway.solo.io/v1
-kind: RouteTable
-metadata:
-  name: httpbin-routetable
-  namespace: team1
-  labels:
-    application-owner: team1
-spec:
-  routes:
-    - matchers:
-        - prefix: /not-secured
-      options:
-        prefixRewrite: '/'
-      routeAction:
-          single:
-            upstream:
-              name: team1-httpbin-8000
-              namespace: gloo-system
-
----
-
-apiVersion: gateway.solo.io/v1
 kind: VirtualService
 metadata:
   name: demo
@@ -597,18 +555,10 @@ spec:
       - matchers:
           - prefix: /
         routeAction:
-            multi:
-                destinations:
-                - weight: 5
-                  destination:
-                      upstream:
-                          name: bookinfo-productpage-9080
-                          namespace: gloo-system
-                - weight: 5
-                  destination:
-                      upstream:
-                          name: bookinfo-beta-productpage-9080
-                          namespace: gloo-system
+          single:
+            upstream:
+              name: bookinfo-productpage-9080
+              namespace: gloo-system
 EOF
 ```
 
@@ -740,27 +690,6 @@ Finally you activate the authentication on the Virtual Service by referencing th
 ```bash
 kubectl apply -f - <<EOF
 apiVersion: gateway.solo.io/v1
-kind: RouteTable
-metadata:
-  name: httpbin-routetable
-  namespace: team1
-  labels:
-    application-owner: team1
-spec:
-  routes:
-    - matchers:
-        - prefix: /not-secured
-      options:
-        prefixRewrite: '/'
-      routeAction:
-          single:
-            upstream:
-              name: team1-httpbin-8000
-              namespace: gloo-system
-
----
-
-apiVersion: gateway.solo.io/v1
 kind: VirtualService
 metadata:
   name: demo
@@ -792,19 +721,10 @@ spec:
               namespace: gloo-system
 # ---------------------------------------------------------------------------
         routeAction:
-            multi:
-                destinations:
-                - weight: 5
-                  destination:
-                      upstream:
-                          name: bookinfo-productpage-9080
-                          namespace: gloo-system
-                - weight: 5
-                  destination:
-                      upstream:
-                          name: bookinfo-beta-productpage-9080
-                          namespace: gloo-system
-
+          single:
+            upstream:
+              name: bookinfo-productpage-9080
+              namespace: gloo-system
 EOF
 ```
 
@@ -858,27 +778,6 @@ Now let's update your Virtual Service to use the **bookinfo** application with t
 ```bash
 kubectl apply -f - <<EOF
 apiVersion: gateway.solo.io/v1
-kind: RouteTable
-metadata:
-  name: httpbin-routetable
-  namespace: team1
-  labels:
-    application-owner: team1
-spec:
-  routes:
-    - matchers:
-        - prefix: /not-secured
-      options:
-        prefixRewrite: '/'
-      routeAction:
-          single:
-            upstream:
-              name: team1-httpbin-8000
-              namespace: gloo-system
-
----
-
-apiVersion: gateway.solo.io/v1
 kind: VirtualService
 metadata:
   name: demo
@@ -914,18 +813,10 @@ spec:
               namespace: gloo-system
 #------------------------------------------------------
         routeAction:
-            multi:
-                destinations:
-                - weight: 5
-                  destination:
-                      upstream:
-                          name: bookinfo-productpage-9080
-                          namespace: gloo-system
-                - weight: 5
-                  destination:
-                      upstream:
-                          name: bookinfo-beta-productpage-9080
-                          namespace: gloo-system
+          single:
+            upstream:
+              name: bookinfo-productpage-9080
+              namespace: gloo-system
 EOF
 ```
 
@@ -952,27 +843,6 @@ And now, let's update your Virtual Service to add the Rate Limit Configuration d
 
 ```bash
 kubectl apply -f - <<EOF
-apiVersion: gateway.solo.io/v1
-kind: RouteTable
-metadata:
-  name: httpbin-routetable
-  namespace: team1
-  labels:
-    application-owner: team1
-spec:
-  routes:
-    - matchers:
-        - prefix: /not-secured
-      options:
-        prefixRewrite: '/'
-      routeAction:
-          single:
-            upstream:
-              name: team1-httpbin-8000
-              namespace: gloo-system
-
----
-
 apiVersion: gateway.solo.io/v1
 kind: VirtualService
 metadata:
@@ -1013,18 +883,10 @@ spec:
               name: oauth
               namespace: gloo-system
         routeAction:
-            multi:
-                destinations:
-                - weight: 5
-                  destination:
-                      upstream:
-                          name: bookinfo-productpage-9080
-                          namespace: gloo-system
-                - weight: 5
-                  destination:
-                      upstream:
-                          name: bookinfo-beta-productpage-9080
-                          namespace: gloo-system
+          single:
+            upstream:
+              name: bookinfo-productpage-9080
+              namespace: gloo-system
 EOF
 ```
 
@@ -1054,27 +916,6 @@ Let's update the Virtual Service to restrict requests with huge payloads to avoi
 
 ```bash
 kubectl apply -f - <<EOF
-apiVersion: gateway.solo.io/v1
-kind: RouteTable
-metadata:
-  name: httpbin-routetable
-  namespace: team1
-  labels:
-    application-owner: team1
-spec:
-  routes:
-    - matchers:
-        - prefix: /not-secured
-      options:
-        prefixRewrite: '/'
-      routeAction:
-          single:
-            upstream:
-              name: team1-httpbin-8000
-              namespace: gloo-system
-
----
-
 apiVersion: gateway.solo.io/v1
 kind: VirtualService
 metadata:
@@ -1122,18 +963,10 @@ spec:
               name: oauth
               namespace: gloo-system
         routeAction:
-            multi:
-                destinations:
-                - weight: 5
-                  destination:
-                      upstream:
-                          name: bookinfo-productpage-9080
-                          namespace: gloo-system
-                - weight: 5
-                  destination:
-                      upstream:
-                          name: bookinfo-beta-productpage-9080
-                          namespace: gloo-system
+          single:
+            upstream:
+              name: bookinfo-productpage-9080
+              namespace: gloo-system
 EOF
 ```
 
@@ -1160,27 +993,6 @@ In this step, you will block `scammer`:
 
 ```bash
 kubectl apply -f - <<EOF
-apiVersion: gateway.solo.io/v1
-kind: RouteTable
-metadata:
-  name: httpbin-routetable
-  namespace: team1
-  labels:
-    application-owner: team1
-spec:
-  routes:
-    - matchers:
-        - prefix: /not-secured
-      options:
-        prefixRewrite: '/'
-      routeAction:
-          single:
-            upstream:
-              name: team1-httpbin-8000
-              namespace: gloo-system
-
----
-
 apiVersion: gateway.solo.io/v1
 kind: VirtualService
 metadata:
@@ -1227,18 +1039,10 @@ spec:
               name: oauth
               namespace: gloo-system
         routeAction:
-            multi:
-                destinations:
-                - weight: 5
-                  destination:
-                      upstream:
-                          name: bookinfo-productpage-9080
-                          namespace: gloo-system
-                - weight: 5
-                  destination:
-                      upstream:
-                          name: bookinfo-beta-productpage-9080
-                          namespace: gloo-system
+          single:
+            upstream:
+              name: bookinfo-productpage-9080
+              namespace: gloo-system
 EOF
 ```
 
@@ -1294,65 +1098,6 @@ spec:
             upstream:
               name: team1-httpbin-8000
               namespace: gloo-system
-
----
-
-apiVersion: gateway.solo.io/v1
-kind: VirtualService
-metadata:
-  name: demo
-  namespace: gloo-system
-spec:
-  sslConfig:
-    secretRef:
-      name: upstream-tls
-      namespace: gloo-system  
-  virtualHost:
-    domains:
-      - '*'
-    options:
-      ratelimitBasic:
-        anonymousLimits:
-          requestsPerUnit: 5
-          unit: MINUTE
-        authorizedLimits:
-          requestsPerUnit: 20
-          unit: MINUTE
-      waf:
-        customInterventionMessage: "Blocked Scammer"
-        ruleSets:
-        - ruleStr: |
-            SecRuleEngine On
-            SecRule REQUEST_HEADERS:User-Agent "scammer" "deny,status:403,id:107,phase:1,msg:'blocked scammer'"
-    routes:
-      - matchers:
-          - prefix: /not-secured
-        delegateAction:
-          selector:
-            namespaces:
-              - team1
-            labels:
-              application-owner: team1
-      - matchers:
-          - prefix: /
-        options:
-          extauth:
-            configRef:
-              name: oauth
-              namespace: gloo-system
-        routeAction:
-            multi:
-                destinations:
-                - weight: 5
-                  destination:
-                      upstream:
-                          name: bookinfo-productpage-9080
-                          namespace: gloo-system
-                - weight: 5
-                  destination:
-                      upstream:
-                          name: bookinfo-beta-productpage-9080
-                          namespace: gloo-system
 EOF
 ```
 
@@ -1411,65 +1156,6 @@ spec:
             upstream:
               name: team1-httpbin-8000
               namespace: gloo-system
-
----
-
-apiVersion: gateway.solo.io/v1
-kind: VirtualService
-metadata:
-  name: demo
-  namespace: gloo-system
-spec:
-  sslConfig:
-    secretRef:
-      name: upstream-tls
-      namespace: gloo-system  
-  virtualHost:
-    domains:
-      - '*'
-    options:
-      ratelimitBasic:
-        anonymousLimits:
-          requestsPerUnit: 5
-          unit: MINUTE
-        authorizedLimits:
-          requestsPerUnit: 20
-          unit: MINUTE
-      waf:
-        customInterventionMessage: "Blocked Scammer"
-        ruleSets:
-        - ruleStr: |
-            SecRuleEngine On
-            SecRule REQUEST_HEADERS:User-Agent "scammer" "deny,status:403,id:107,phase:1,msg:'blocked scammer'"
-    routes:
-      - matchers:
-          - prefix: /not-secured
-        delegateAction:
-          selector:
-            namespaces:
-              - team1
-            labels:
-              application-owner: team1
-      - matchers:
-          - prefix: /
-        options:
-          extauth:
-            configRef:
-              name: oauth
-              namespace: gloo-system
-        routeAction:
-            multi:
-                destinations:
-                - weight: 5
-                  destination:
-                      upstream:
-                          name: bookinfo-productpage-9080
-                          namespace: gloo-system
-                - weight: 5
-                  destination:
-                      upstream:
-                          name: bookinfo-beta-productpage-9080
-                          namespace: gloo-system
 EOF
 ```
 
@@ -1536,65 +1222,6 @@ spec:
             upstream:
               name: team1-httpbin-8000
               namespace: gloo-system
-
----
-
-apiVersion: gateway.solo.io/v1
-kind: VirtualService
-metadata:
-  name: demo
-  namespace: gloo-system
-spec:
-  sslConfig:
-    secretRef:
-      name: upstream-tls
-      namespace: gloo-system  
-  virtualHost:
-    domains:
-      - '*'
-    options:
-      ratelimitBasic:
-        anonymousLimits:
-          requestsPerUnit: 5
-          unit: MINUTE
-        authorizedLimits:
-          requestsPerUnit: 20
-          unit: MINUTE
-      waf:
-        customInterventionMessage: "Blocked Scammer"
-        ruleSets:
-        - ruleStr: |
-            SecRuleEngine On
-            SecRule REQUEST_HEADERS:User-Agent "scammer" "deny,status:403,id:107,phase:1,msg:'blocked scammer'"
-    routes:
-      - matchers:
-          - prefix: /not-secured
-        delegateAction:
-          selector:
-            namespaces:
-              - team1
-            labels:
-              application-owner: team1
-      - matchers:
-          - prefix: /
-        options:
-          extauth:
-            configRef:
-              name: oauth
-              namespace: gloo-system
-        routeAction:
-            multi:
-                destinations:
-                - weight: 5
-                  destination:
-                      upstream:
-                          name: bookinfo-productpage-9080
-                          namespace: gloo-system
-                - weight: 5
-                  destination:
-                      upstream:
-                          name: bookinfo-beta-productpage-9080
-                          namespace: gloo-system
 EOF
 ```
 
@@ -1628,6 +1255,8 @@ For the purpose of the demo, you will apply this transformation in the general l
 
 > Notice that the previous transformations have been commented out. The reason is that transformations in lower levels like at Route Table are prioritized to the more general ones like the one in the Virtual Service.
 
+First, let's remove current transformations at the Route Table resource.
+
 ```bash
 kubectl apply -f - <<EOF
 apiVersion: gateway.solo.io/v1
@@ -1643,41 +1272,20 @@ spec:
         - prefix: /not-secured
       options:
         prefixRewrite: '/'
-# ------------- Commenting transformations ------------------
-        # stagedTransformations:
-        #   early:
-        #     responseTransforms:
-        #     - responseTransformation:
-        #         transformationTemplate:
-        #           parseBodyBehavior: DontParse
-        #           headers:
-        #             Content-type: 
-        #               text: "application/json"
-        #           body:
-        #               text: |
-        #                     {% if header(":status") == "401" %} 
-        #                     Hold the horses! You are not authenticated
-        #                     {% else %}{{ body() }}{% endif %}
-        #     requestTransforms:       
-        #     - requestTransformation:
-        #         transformationTemplate:
-        #           extractors:
-        #             apiKey:
-        #               header: 'x-my-initial-header'
-        #               regex: '^Bearer (.*)$'
-        #               subgroup: 1
-        #           headers:
-        #             x-my-final-header:
-        #               text: '{{ apiKey }}'
-#------------------------------------------------------------- 
+# ------------- No transformation applied ------------------
       routeAction:
           single:
             upstream:
               name: team1-httpbin-8000
               namespace: gloo-system
+EOF
+```
 
----
 
+Now, let's apply this transformation globally to the Virtual Service:
+
+```bash
+kubectl apply -f - <<EOF
 apiVersion: gateway.solo.io/v1
 kind: VirtualService
 metadata:
@@ -1813,27 +1421,6 @@ Now, you can update the resources to validate the token, extract claims from the
 
 ```bash
 kubectl apply -f - <<EOF
-apiVersion: gateway.solo.io/v1
-kind: RouteTable
-metadata:
-  name: httpbin-routetable
-  namespace: team1
-  labels:
-    application-owner: team1
-spec:
-  routes:
-    - matchers:
-        - prefix: /not-secured
-      options:
-        prefixRewrite: '/'
-      routeAction:
-          single:
-            upstream:
-              name: team1-httpbin-8000
-              namespace: gloo-system
-
----
-
 apiVersion: gateway.solo.io/v1
 kind: VirtualService
 metadata:
@@ -1975,27 +1562,6 @@ Thus, the RBAC policies will be applied to the **httpbin** application.
 
 ```bash
 kubectl apply -f - <<EOF
-apiVersion: gateway.solo.io/v1
-kind: RouteTable
-metadata:
-  name: httpbin-routetable
-  namespace: team1
-  labels:
-    application-owner: team1
-spec:
-  routes:
-    - matchers:
-        - prefix: /not-secured
-      options:
-        prefixRewrite: '/'
-      routeAction:
-          single:
-            upstream:
-              name: team1-httpbin-8000
-              namespace: gloo-system
-
----
-
 apiVersion: gateway.solo.io/v1
 kind: VirtualService
 metadata:
@@ -2194,27 +1760,6 @@ Finally, let's update the resources. You will disable RBAC to not interfere with
 
 ```bash
 kubectl apply -f - <<EOF
-apiVersion: gateway.solo.io/v1
-kind: RouteTable
-metadata:
-  name: httpbin-routetable
-  namespace: team1
-  labels:
-    application-owner: team1
-spec:
-  routes:
-    - matchers:
-        - prefix: /not-secured
-      options:
-        prefixRewrite: '/'
-      routeAction:
-          single:
-            upstream:
-              name: team1-httpbin-8000
-              namespace: gloo-system
-
----
-
 apiVersion: gateway.solo.io/v1
 kind: VirtualService
 metadata:
