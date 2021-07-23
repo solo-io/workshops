@@ -97,3 +97,82 @@ If not, add it to the agent (the file can be found in shared drive)
 ```
 ssh-add ~/.ssh/rsa_solouser_github
 ```
+
+# Terraform apply error 'resource not found' 
+There are strong dependencies among the resources created by terraform, and sometimes the child can't get the parent ready before the timeout.
+
+Just run terraform apply again, with the same parameters, and terraform will resume the building
+```
+terraform apply
+```
+
+# Terraform apply failed
+Run the same command again, terraform will complete the creation
+
+# Terraform says it is locked
+This can happen when a running apply is unexepctely closed, if you are sure there is not terraform process running
+```
+terraform force-unlock <lockid>
+```
+
+# Terraform is very slow
+For a large number of resources (example 150 eks cluster => 4900 resources)
+
+Increase the default level of parallelism (10) to a higher number. Be aware that too high numbers can cause rate-limit in cloud api and high cpu usage.
+```
+terraform apply -parallelism=150
+```
+
+Another, maybe better, alternative is to use different workspaces to build the same object in different namespaces.
+These 3 commands can run in parallel, and every terraform process will deal with a portion of the final setup
+```
+TF_WORKSPACE=wkr-eks1 time terraform apply -parallelism=51 -auto-approve
+TF_WORKSPACE=wkr-eks2 time terraform apply -parallelism=51 -auto-approve
+TF_WORKSPACE=wkr-eks3 time terraform apply -parallelism=51 -auto-approve
+```
+
+After all commands are successful (you may need to retry some of them, as TF is not great handling large graphs of dependencies), you can see the outputs
+```
+TF_WORKSPACE=wkr-eks1 time terraform output eks_cluster_vm
+TF_WORKSPACE=wkr-eks2 time terraform output eks_cluster_vm
+TF_WORKSPACE=wkr-eks3 time terraform output eks_cluster_vm
+```
+
+And finally destroy them
+```
+TF_WORKSPACE=wkr-eks1 time terraform destroy -parallelism=51 -auto-approve -refresh=false
+TF_WORKSPACE=wkr-eks2 time terraform destroy -parallelism=51 -auto-approve -refresh=false
+TF_WORKSPACE=wkr-eks3 time terraform destroy -parallelism=51 -auto-approve -refresh=false
+```
+
+# Terraform says the maximum number of resources are created
+```
+https://eu-west-1.console.aws.amazon.com/servicequotas
+https://console.cloud.google.com/iam-admin/quotas?project=solo-test-236622
+```
+
+# Terraform is not working
+Make sure you have credentials in your system
+
+```
+# GCP
+# https://registry.terraform.io/providers/hashicorp/google/latest/docs/guides/getting_started#configuring-the-provider
+gcloud auth application-default login
+
+# AWS
+# https://registry.terraform.io/providers/hashicorp/aws/latest/docs#authentication
+aws configure
+````
+
+# Terraform is creating my resources in an undesired region/zone
+Make sure you have specified your preferences in file configuration.auto.tfvars
+
+```
+# GCP
+project = "solo-test-236622"
+region  = "europe-west4"
+zone    = "europe-west4-a"
+
+# AWS
+default_region = "eu-west-1"
+````

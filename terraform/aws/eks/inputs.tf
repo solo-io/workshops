@@ -21,3 +21,31 @@ variable "eks_version" {
 variable "node_instance_type" {
   type = string
 }
+
+variable "vm_merge_kubeconfig" {
+  type = string
+}
+
+variable "vm_machine_type" {
+  type = string
+}
+
+variable "vm_source_machine_image" {
+  type = string
+}
+
+variable "vm_project" {
+  type = string
+}
+
+variable "vm_zone" {
+  type = string
+}
+
+locals {
+  common_tags = {
+    created_by = "terraform"
+    workspace  = terraform.workspace
+    prefix     = var.prefix
+  }
+}
