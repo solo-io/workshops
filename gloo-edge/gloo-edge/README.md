@@ -1310,13 +1310,13 @@ EOF
 Once again, you need to refresh your **bookinfo** application to refresh the token in case it expires.
 
 ```
-/opt/google/chrome/chrome $(glooctl proxy url)/productpage
+/opt/google/chrome/chrome $(glooctl proxy url --port https)/productpage
 ```
 
 And now, let's see the results with the fresh token:
 
 ```
-/opt/google/chrome/chrome $(glooctl proxy url)/not-secured/get
+/opt/google/chrome/chrome $(glooctl proxy url --port https)/not-secured/get
 ```
 
 Here is the output you should get if you refresh the web page:
@@ -1437,11 +1437,11 @@ RBAC: access denied
 Let's compare:
 
 ```
-/opt/google/chrome/chrome $(glooctl proxy url)/not-secured/get
+/opt/google/chrome/chrome $(glooctl proxy url --port https)/not-secured/get
 ```
 
 ```
-/opt/google/chrome/chrome $(glooctl proxy url)/not-secured/anything
+/opt/google/chrome/chrome $(glooctl proxy url --port https)/not-secured/anything
 ```
 
 
