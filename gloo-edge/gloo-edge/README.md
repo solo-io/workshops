@@ -1479,6 +1479,8 @@ spec:
         issuerUrl: "${KEYCLOAK_URL}/realms/master/"
         scopes:
         - email
+        headers:
+          idTokenHeader: jwt
   - opaAuth:
       modules:
       - name: allow-solo-email-users
