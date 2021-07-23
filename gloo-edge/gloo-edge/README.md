@@ -931,13 +931,6 @@ spec:
     domains:
       - '*'
     options:
-      ratelimitBasic:
-        anonymousLimits:
-          requestsPerUnit: 5
-          unit: MINUTE
-        authorizedLimits:
-          requestsPerUnit: 20
-          unit: MINUTE
 # ---------------- Web Application Firewall -----------
       waf:
         customInterventionMessage: "Payload sizes above 1KB not allowed"
@@ -1008,13 +1001,6 @@ spec:
     domains:
       - '*'
     options:
-      ratelimitBasic:
-        anonymousLimits:
-          requestsPerUnit: 5
-          unit: MINUTE
-        authorizedLimits:
-          requestsPerUnit: 20
-          unit: MINUTE
 # -------- Web Application Firewall - Check User-Agent  -----------
       waf:
         customInterventionMessage: "Blocked Scammer"
@@ -1193,18 +1179,6 @@ spec:
         prefixRewrite: '/'
         stagedTransformations:
           early:
-            responseTransforms:
-            - responseTransformation:
-                transformationTemplate:
-                  parseBodyBehavior: DontParse
-                  headers:
-                    Content-type: 
-                      text: "application/json"
-                  body:
-                      text: |
-                            {% if header(":status") == "401" %} 
-                            Hold the horses! You are not authenticated
-                            {% else %}{{ body() }}{% endif %}
 # ---------------- Transformation with regex ------------------   
             requestTransforms:       
             - requestTransformation:
@@ -1279,19 +1253,6 @@ spec:
     domains:
       - '*'
     options:
-      ratelimitBasic:
-        anonymousLimits:
-          requestsPerUnit: 5
-          unit: MINUTE
-        authorizedLimits:
-          requestsPerUnit: 20
-          unit: MINUTE
-      waf:
-        customInterventionMessage: "Blocked Scammer"
-        ruleSets:
-        - ruleStr: |
-            SecRuleEngine On
-            SecRule REQUEST_HEADERS:User-Agent "scammer" "deny,status:403,id:107,phase:1,msg:'blocked scammer'"
 #--------------Extract claims-----------------
       jwt:
         providers:
@@ -1330,18 +1291,10 @@ spec:
               name: oauth
               namespace: gloo-system
         routeAction:
-            multi:
-                destinations:
-                - weight: 5
-                  destination:
-                      upstream:
-                          name: bookinfo-productpage-9080
-                          namespace: gloo-system
-                - weight: 5
-                  destination:
-                      upstream:
-                          name: bookinfo-beta-productpage-9080
-                          namespace: gloo-system
+          single:
+            upstream:
+              name: bookinfo-productpage-9080
+              namespace: gloo-system
 EOF
 ```
 
@@ -1404,19 +1357,6 @@ spec:
     domains:
       - '*'
     options:
-      ratelimitBasic:
-        anonymousLimits:
-          requestsPerUnit: 5
-          unit: MINUTE
-        authorizedLimits:
-          requestsPerUnit: 20
-          unit: MINUTE
-      waf:
-        customInterventionMessage: "Blocked Scammer"
-        ruleSets:
-        - ruleStr: |
-            SecRuleEngine On
-            SecRule REQUEST_HEADERS:User-Agent "scammer" "deny,status:403,id:107,phase:1,msg:'blocked scammer'"
       jwt:
         providers:
           keycloak:
@@ -1470,18 +1410,10 @@ spec:
               name: oauth
               namespace: gloo-system
         routeAction:
-            multi:
-                destinations:
-                - weight: 5
-                  destination:
-                      upstream:
-                          name: bookinfo-productpage-9080
-                          namespace: gloo-system
-                - weight: 5
-                  destination:
-                      upstream:
-                          name: bookinfo-beta-productpage-9080
-                          namespace: gloo-system
+          single:
+            upstream:
+              name: bookinfo-productpage-9080
+              namespace: gloo-system
 EOF
 ```
 
@@ -1586,19 +1518,6 @@ spec:
     domains:
       - '*'
     options:
-      ratelimitBasic:
-        anonymousLimits:
-          requestsPerUnit: 5
-          unit: MINUTE
-        authorizedLimits:
-          requestsPerUnit: 20
-          unit: MINUTE
-      waf:
-        customInterventionMessage: "Blocked Scammer"
-        ruleSets:
-        - ruleStr: |
-            SecRuleEngine On
-            SecRule REQUEST_HEADERS:User-Agent "scammer" "deny,status:403,id:107,phase:1,msg:'blocked scammer'"
       jwt:
         providers:
           keycloak:
@@ -1618,10 +1537,6 @@ spec:
                 upstreamRef:
                   name: default-keycloak-8080
                   namespace: gloo-system
-#-------------- RBAC is disabled to not interfere with OPA ------------------
-      rbac:
-        disable: true
-#-------------------------------------------------------------------------- 
     routes:
       - matchers:
           - prefix: /not-secured
@@ -1634,27 +1549,15 @@ spec:
       - matchers:
           - prefix: /
         options:
-#-------------- RBAC is disabled to not interfere with OPA ------------------
-          rbac:
-            disable: true
-#------------------------------------------------------------------------
           extauth:
             configRef:
               name: oauth
               namespace: gloo-system
         routeAction:
-            multi:
-                destinations:
-                - weight: 5
-                  destination:
-                      upstream:
-                          name: bookinfo-productpage-9080
-                          namespace: gloo-system
-                - weight: 5
-                  destination:
-                      upstream:
-                          name: bookinfo-beta-productpage-9080
-                          namespace: gloo-system
+          single:
+            upstream:
+              name: bookinfo-productpage-9080
+              namespace: gloo-system
 EOF
 ```
 
