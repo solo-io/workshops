@@ -1587,7 +1587,7 @@ Check the access logs running the following command:
 kubectl logs -n gloo-system deployment/gateway-proxy | grep '^{' | jq
 ```
 
-If you refresh the browser to send additional requests until the rate limiting threshold is exceeded, then you will see both `200 OK` and `429 Too Many Requests` responses in the access logs, as in the example below.
+If you refresh the browser to send additional requests, then you will see both `200 OK` responses in the access logs, as in the example below.
 
 ```
 {
@@ -1603,20 +1603,6 @@ If you refresh the browser to send additional requests until the rate limiting t
   "clientDuration": 31,
   "upstreamName": "bookinfo-beta-productpage-9080_gloo-system",
   "responseCode": 200
-}
-{
-  "httpMethod": "GET",
-  "systemTime": "2020-10-22T21:38:19.168Z",
-  "targetDuration": null,
-  "path": "/productpage",
-  "protocol": "HTTP/2",
-  "responseFlags": "-",
-  "clientDuration": 3,
-  "number": null,
-  "responseCode": 429,
-  "upstreamName": null,
-  "messageType": null,
-  "requestId": "494c3cc7-e476-4414-8c50-499f3619f84c"
 }
 ```
 
