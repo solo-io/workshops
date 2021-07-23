@@ -171,8 +171,6 @@ spec:
 EOF
 ```
 
-![Gloo Edge with Httpbin](images/httpbin.png)
-
 To verify that the Upstream was created properly, run the following command: 
 
 ```bash
@@ -1247,163 +1245,6 @@ You can see the new `X-My-Final-Header` header only with the token:
 }
 ```
 
-
-### Obtain a token from the cookie
-
-In the scenarios when you expose a website, like **bookinfo**, to secure the token (i.e. JWT token in OIDC), you wrap the token within the cookie.
-
-In this step, you will obtain a token from the cookie.
-
-For the purpose of the demo, you will apply this transformation in the general location. That means that the transformation will be applied for all the routes. In your case, the applications you have deployed.
-
-> Notice that the previous transformations have been commented out. The reason is that transformations in lower levels like at Route Table are prioritized to the more general ones like the one in the Virtual Service.
-
-First, let's remove current transformations at the Route Table resource.
-
-```bash
-kubectl apply -f - <<EOF
-apiVersion: gateway.solo.io/v1
-kind: RouteTable
-metadata:
-  name: httpbin-routetable
-  namespace: team1
-  labels:
-    application-owner: team1
-spec:
-  routes:
-    - matchers:
-        - prefix: /not-secured
-      options:
-        prefixRewrite: '/'
-# ------------- No transformation applied ------------------
-      routeAction:
-          single:
-            upstream:
-              name: team1-httpbin-8000
-              namespace: gloo-system
-EOF
-```
-
-
-Now, let's apply this transformation globally to the Virtual Service:
-
-```bash
-kubectl apply -f - <<EOF
-apiVersion: gateway.solo.io/v1
-kind: VirtualService
-metadata:
-  name: demo
-  namespace: gloo-system
-spec:
-  sslConfig:
-    secretRef:
-      name: upstream-tls
-      namespace: gloo-system  
-  virtualHost:
-    domains:
-      - '*'
-    options:
-      ratelimitBasic:
-        anonymousLimits:
-          requestsPerUnit: 5
-          unit: MINUTE
-        authorizedLimits:
-          requestsPerUnit: 20
-          unit: MINUTE
-      waf:
-        customInterventionMessage: "Blocked Scammer"
-        ruleSets:
-        - ruleStr: |
-            SecRuleEngine On
-            SecRule REQUEST_HEADERS:User-Agent "scammer" "deny,status:403,id:107,phase:1,msg:'blocked scammer'"
-# ------------- Transformation to Extract Token ------------------
-      stagedTransformations:
-        early:
-          requestTransforms:
-            - requestTransformation:
-                transformationTemplate:
-                  extractors:
-                    token:
-                      header: 'cookie'
-                      regex: 'id_token=(.*); .*'
-                      subgroup: 1
-                  headers:
-                    jwt:
-                      text: '{{ token }}'
-#--------------------------------------------- 
-#-------------- Remove Cookie Header ------------------ 
-      headerManipulation:
-        requestHeadersToRemove:
-        - "cookie"
-#--------------------------------------------- 
-    routes:
-      - matchers:
-          - prefix: /not-secured
-        delegateAction:
-          selector:
-            namespaces:
-              - team1
-            labels:
-              application-owner: team1
-      - matchers:
-          - prefix: /
-        options:
-          extauth:
-            configRef:
-              name: oauth
-              namespace: gloo-system
-        routeAction:
-            multi:
-                destinations:
-                - weight: 5
-                  destination:
-                      upstream:
-                          name: bookinfo-productpage-9080
-                          namespace: gloo-system
-                - weight: 5
-                  destination:
-                      upstream:
-                          name: bookinfo-beta-productpage-9080
-                          namespace: gloo-system
-EOF
-```
-
-This transformation is using a regular expression to extract the JWT token from the `cookie` header, creates a new `jwt` header that contains the token and removes the `cookie` header.
-
-As explained in previous Labs, Keycloak will return a JWT token, so you’ll use Gloo to extract some claims from this token and to create new headers corresponding to these claims.
-
-To test this, first you will need to obtain a valid token through your **bookinfo** application:
-
-```
-/opt/google/chrome/chrome $(glooctl proxy url)/productpage
-```
-
-After refreshing, and maybe signing in, you will access the application again, which means that you will have the valid token in a cookie.
-
-Now, let's verify the transformation using the debugging **httpbin** application. This time, in the browser:
-
-
-```
-/opt/google/chrome/chrome $(glooctl proxy url)/not-secured/get
-```
-
-As you can see, the browser has sent the cookie as a header in the HTTP request. And after transformation, your debugging application shows you that there is a new header with the token. Something like this:
-
-```
-{
-"args": {},
-"headers": {
-[...]
-"X-Envoy-Original-Path": "/not-secured/get",
-"Jwt": "eyJhbGciOiJSUzI1NiIsInR5cCIgOiAiSldUIiwia2lkIiA6ICJMN3duMjIwNEVGbUVOanpTRkxzUl85SWVvT3BHQTdCYl9rbTZqRGo1OHVZIn0.eyJleHAiOjE2MjY5NTkxMDUsImlhdCI6MTYyNjk1OTA0NSwiYXV0aF90aW1lIjoxNjI2OTU3NjU5LCJqdGkiOiI4M2Y3MDM5MS1mNWUzLTRmM2QtYjEzNi05YzZiZjZmYjYxODUiLCJpc3MiOiJodHRwOi8vMzQuMTQxLjk5LjYyOjgwODAvYXV0aC9yZWFsbXMvbWFzdGVyIiwiYXVkIjoiYjdkN2VjNWEtNDQ0Mi00OTM5LTg4NDMtMGJkYjlhNWM1MTQyIiwic3ViIjoiOThlMTM3ZWYtNTM2YS00NTkwLWE2NDctNDU1MmZiMmU3OThhIiwidHlwIjoiSUQiLCJhenAiOiJiN2Q3ZWM1YS00NDQyLTQ5MzktODg0My0wYmRiOWE1YzUxNDIiLCJzZXNzaW9uX3N0YXRlIjoiODRlMDQzMjgtNjAyZC00MmRkLWJiMmMtOGFkYWUzODk5ZThlIiwiYXRfaGFzaCI6IlpiWGdIMGZjdlVfTWJibC16ZmFOTVEiLCJhY3IiOiIwIiwiZW1haWxfdmVyaWZpZWQiOmZhbHNlLCJwcmVmZXJyZWRfdXNlcm5hbWUiOiJ1c2VyMSIsImVtYWlsIjoidXNlcjFAc29sby5pbyIsImdyb3VwIjoidXNlcnMifQ.auGfDKVg7ULeAVj5HVVNhoW-o-0jh3dzS4_ZOZC_YiP7tD5ku4ul9Ay8Qv9tERNKRyXSOegR43uAxE9fRXagqgbFplgUwQmF0bOUr-0tPukDT94_Qxf4OlL4znTEYWXWnSLPosTpSqvRZOrDq87OZv_KFcEVu97Bj04quMQVhOQMw1znv_jctKKZfBE32hDY7NkgJPWHRJ7etNPYrZmFVk2PYmycI_nwCFerm6zs7jEsiweLbnvUjVe8nNbjngoGsZyzfz3dV5nBWJ0ibkNY_Sea-hK691p_MCZn7IR5mCxkuXA93Vcw4olkAV45bACfRebBP9eUY_rojkBgYC843A"
-},
-[...]
-}
-```
-
-Also notice that there is no `cookie` header sent to the back-end anymore.
-
-
 ### Extract information from the JWT token
 
 The JWT token contains a number of claims that you can use to drive RBAC decisions and potentially to provide other input to your upstream systems.
@@ -1451,22 +1292,6 @@ spec:
         - ruleStr: |
             SecRuleEngine On
             SecRule REQUEST_HEADERS:User-Agent "scammer" "deny,status:403,id:107,phase:1,msg:'blocked scammer'"
-      stagedTransformations:
-        early:
-          requestTransforms:
-            - requestTransformation:
-                transformationTemplate:
-                  extractors:
-                    token:
-                      header: 'cookie'
-                      regex: 'id_token=(.*); .*'
-                      subgroup: 1
-                  headers:
-                    jwt:
-                      text: '{{ token }}'
-      headerManipulation:
-        requestHeadersToRemove:
-        - "cookie"
 #--------------Extract claims-----------------
       jwt:
         providers:
@@ -1592,22 +1417,6 @@ spec:
         - ruleStr: |
             SecRuleEngine On
             SecRule REQUEST_HEADERS:User-Agent "scammer" "deny,status:403,id:107,phase:1,msg:'blocked scammer'"
-      stagedTransformations:
-        early:
-          requestTransforms:
-            - requestTransformation:
-                transformationTemplate:
-                  extractors:
-                    token:
-                      header: 'cookie'
-                      regex: 'id_token=(.*); .*'
-                      subgroup: 1
-                  headers:
-                    jwt:
-                      text: '{{ token }}'
-      headerManipulation:
-        requestHeadersToRemove:
-        - "cookie"
       jwt:
         providers:
           keycloak:
@@ -1790,22 +1599,6 @@ spec:
         - ruleStr: |
             SecRuleEngine On
             SecRule REQUEST_HEADERS:User-Agent "scammer" "deny,status:403,id:107,phase:1,msg:'blocked scammer'"
-      stagedTransformations:
-        early:
-          requestTransforms:
-            - requestTransformation:
-                transformationTemplate:
-                  extractors:
-                    token:
-                      header: 'cookie'
-                      regex: 'id_token=(.*); .*'
-                      subgroup: 1
-                  headers:
-                    jwt:
-                      text: '{{ token }}'
-      headerManipulation:
-        requestHeadersToRemove:
-        - "cookie"
       jwt:
         providers:
           keycloak:
