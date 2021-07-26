@@ -893,10 +893,13 @@ spec:
 EOF
 ```
 
-Refresh the **httpbin** application and after 5 times, you will retrieve a **429 error**. This is because you are an anonymous user.
+Access the **httpbin** application 10 times. After reaching the Rate Limit, you will retrieve a **429 error**. This is because you are an anonymous user in that application.
 
 ```
-/opt/google/chrome/chrome $(glooctl proxy url --port https)/not-secured/get
+for i in {1..10}
+do
+curl -k -s -o /dev/null -w "%{http_code}" $(glooctl proxy url --port https)/not-secured/get; echo
+done
 ```
 
 Now, try it with the **bookinfo** application, and the number of requests will be limited to 20 as you are an Authenticated user. 
