@@ -37,7 +37,9 @@ The ansible script will be automatically executed.
 
 When it's done, Guacamole is available at http://localhost:8888/guacamole
 
-You can also access the shell by running `vagrant ssh`. In this case, don't forget to switch to the `solo` user using `sudo su - solo` once you are in the vagrant ssh terminal. *If you get an `Error: Can't open display:` error, ignore it as the user is switched to the `solo` user.*
+You can also access the shell by running `vagrant ssh`. *If you get an `Error: Can't open display:` error, ignore it as the user is switched to the `solo` user.*
+
+In case you want to execute the ansible script again (maybe to update it) just run `vagrant provision`
 
 ## Access Docker from your laptop
 

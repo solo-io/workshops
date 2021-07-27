@@ -4,59 +4,15 @@
     path: /home/solo/{{ repo_name }}
   register: workshop_folder
 
-- when: "not workshop_folder.stat.exists or force | bool"
-  block:
-    - name: Remove any existing directory from prior runs
-      file:
-        state: absent
-        path: /tmp/{{ repo_name }}/
-
-    - name: Remove prior clones repo
-      file:
-        state: absent
-        path: /tmp/git-{{ repo_name }}/
-
-    - name: Download the repo content locally
-      shell: |
-        rm -rf /tmp/git-{{ repo_name }}
-        rm -rf /tmp/{{ repo_name }}
-        if (echo a version 1.9.1; git --version) | sort -Vk3 | tail -1 | grep -q git
-        then
-            echo "Modern git version"
-            git clone -b master --single-branch --no-tags --depth 1 https://github.com/solo-io/{{ repo_name }}.git /tmp/git-{{ repo_name }}
-        else
-            echo "Legacy git version"
-            git clone https://github.com/solo-io/{{ repo_name }}.git /tmp/git-{{ repo_name }}
-        fi
-        mkdir -p /tmp/{{ repo_name }}
-        cd /tmp/git-{{ repo_name }}
-        git archive --format tgz --output /tmp/{{ repo_name }}/repo.tgz master 
-        exit 0
-      delegate_to: localhost
-      become: no
-
-    - name: Copy compressed repo snapshot to remote
-      copy:
-        src: /tmp/{{ repo_name }}/repo.tgz
-        dest: /tmp/{{ repo_name }}-repo.tgz
-        owner: solo
-        group: solo
-        mode: 0644
-
-    - name: Remove any existing directory from prior runs
-      file:
-        state: absent
-        path: /home/solo/{{ repo_name }}/
-
-    - name: Create destination directory
-      file:
-        state: directory
-        path: /home/solo/{{ repo_name }}/
-
-    - name: Unarchive the compressed repo that is already on the remote machine
-      unarchive:
-        src: /tmp/{{ repo_name }}-repo.tgz
-        dest: /home/solo/{{ repo_name }}
-        owner: solo
-        group: solo
-        remote_src: yes
+- name: Clone of master branch
+  git:
+    repo: https://github.com/solo-io/{{ repo_name }}.git
+    dest: /home/solo/{{ repo_name }}
+    single_branch: yes
+    depth: 1
+    version: '{{ repo_branch }}'
+  environment:
+    GIT_TERMINAL_PROMPT: 0 # reports "terminal prompts disabled" on missing password
+  become: yes
+  become_user: solo
+  become_method: sudo

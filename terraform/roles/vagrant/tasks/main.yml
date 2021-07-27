@@ -1,0 +1,27 @@
+---
+- name: Ensure group 'solo' exists
+  group:
+    name: solo
+
+- name: Add the user 'solo' with a primary group of 'solo'
+  user:
+    name: solo
+    comment: Solo.io
+    shell: /bin/bash
+    group: solo
+    groups: vagrant
+
+- name: Add solo user to the sudoers
+  copy:
+    dest: "/etc/sudoers.d/solo"
+    mode: '0440'
+    content: "solo  ALL=(ALL)  NOPASSWD: ALL"
+
+- name: Copy ssh and change ownership
+  copy:
+    src: /home/vagrant/.ssh
+    remote_src: yes
+    dest: /home/solo/
+    owner: solo
+    group: solo
+    mode: '0700'

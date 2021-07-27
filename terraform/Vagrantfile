@@ -8,12 +8,18 @@ Vagrant.configure("2") do |config|
     vb.memory = "16384"
   end
 
-  config.vm.provision "shell", inline: <<-SHELL
-    adduser --disabled-password --gecos "" solo
-    echo "solo ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/solo
-  SHELL
+  VAGRANT_COMMAND = ARGV[0]
+  if VAGRANT_COMMAND == "ssh"
+      config.ssh.forward_agent = true
+      config.ssh.username = 'solo'
+  end
 
   config.vm.provision "ansible" do |ansible|
+    ansible.verbose = "v"
     ansible.playbook = "ansible-playbook.yml"
+    ansible.compatibility_mode = "2.0"
+    ansible.extra_vars = {
+      vagrant: "yes"
+    }
   end
 end
