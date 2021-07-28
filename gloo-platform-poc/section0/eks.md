@@ -1,1 +1,0 @@
-# EKS (AWS) Set up
