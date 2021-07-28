@@ -1,23 +1,31 @@
 
 
-# download meshctl
+## Prerequisites
 
-Gloo Mesh
-curl -sL https://run.solo.io/meshctl/install | GLOO_MESH_VERSION=v1.1.0-beta12 sh
+Please see the assumptions we make about the environment [for this section](./README.md).
 
-# set up ingress IP
+# download glooctl
 
-MGMT_INGRESS_ADDRESS=$(kubectl --context $MGMT_CONTEXT get svc -n gloo-mesh enterprise-networking -o jsonpath="{.status.loadBalancer.ingress[0].ip}")
-RELAY_ADDRESS=${MGMT_INGRESS_ADDRESS}:9900
+curl -sL https://run.solo.io/gloo/install | GLOO_VERSION=v1.7.11 sh
+export PATH=$HOME/.gloo/bin:$PATH
 
-# cluster 1
-echo "Registering cluster..."
-echo "Using Relay: $RELAY_ADDRESS"
-meshctl cluster register enterprise --remote-context=$CLUSTER_1  --relay-server-address $RELAY_ADDRESS $CLUSTER_1_NAME
+# register cluster 1
 
-# cluster 2
+# Register cluster for gloo federation
+# unfortunately, glooctl doesn't allow for context passing, so we ahve to switch to it
+kubectl config use-context $MGMT_CONTEXT
+glooctl cluster register --cluster-name cluster-1 --remote-context $CLUSTER_1
+kubectl --context $CLUSTER_1 apply -f ./gloo/certs/secrets/edge-west-failover-downstream.yaml
+kubectl --context $CLUSTER_1 apply -f ./gloo/certs/secrets/edge-west-failover-upstream.yaml
+kubectl --context $CLUSTER_1 apply -f ./resources/gloo-ingress/web-api-ingress.yaml
+kubectl --context $CLUSTER_1 apply -f ./resources/gloo-ingress/web-api-upstream-istio-mtls.yaml
 
-echo "Registering cluster..."
-echo "Using Relay: $RELAY_ADDRESS"
-meshctl cluster register enterprise --remote-context=$CLUSTER_2  --relay-server-address $RELAY_ADDRESS $CLUSTER_2_NAME
 
+# register cluster 2
+
+kubectl config use-context $MGMT_CONTEXT
+glooctl cluster register --cluster-name cluster-2 --remote-context $CLUSTER_2
+kubectl --context $CLUSTER_2 apply -f ./gloo/certs/secrets/edge-east-failover-downstream.yaml
+kubectl --context $CLUSTER_2 apply -f ./gloo/certs/secrets/edge-east-failover-upstream.yaml
+kubectl --context $CLUSTER_2 apply -f ./resources/gloo-ingress/web-api-ingress.yaml
+kubectl --context $CLUSTER_2 apply -f ./resources/gloo-ingress/web-api-upstream-istio-mtls.yaml
