@@ -4,22 +4,18 @@ Gloo Portal provides a framework for managing API definitions, API client identi
 
 This workshop aims to expose some key features of the Gloo Portal like API lifecycle, authentication, and branding.
 
-## OpenAPI vs Swagger
-
-OpenAPI is a specification, while Swagger is a toolset for implementing the OpenAPI specification.
-
-The OpenAPI Specification (OAS) defines a standard, language-agnostic interface to RESTful APIs, which allows both humans and computers to discover and understand the service's capabilities without access to source code, documentation, or through network traffic inspection. When properly defined, a consumer can understand and interact with the remote service with minimal implementation logic.
-
-Swagger is the name associated with some of the most well-known and widely used tools for implementing the OpenAPI specification. The Swagger toolset includes a mix of open-source, free, and commercial tools, which can be used at different stages of the API lifecycle.
 
 ## Lab Environment
 
 The Lab environment consists of a Virtual Machine where you will deploy a Kubernetes cluster using [kind](https://kind.sigs.k8s.io/). \
 You will then deploy Gloo Edge and Gloo Portal on this Kubernetes cluster.
 
-## Lab 0: Deploy a Kubernetes Cluster and Keycloak
+
+## Lab 0: Deploy a Kubernetes Cluster, Gloo Edge and Gloo Portal
 
 Go to the `/home/solo/workshops/gloo-portal` directory:
+
+### Deploy a local Kubernetes cluster, with KinD
 
 ```
 cd /home/solo/workshops/gloo-portal
@@ -38,12 +34,487 @@ Then verify that your Kubernetes cluster is ready:
 ```
 The `check.sh` script will return immediately with no output if the cluster is ready.  Otherwise, it will output a series of periodic "waiting" messages until the cluster is up.
 
+
+# ================================================
+# ================ DRAFT START ===================
+# ================================================
+
+
+### Deploying Gloo Edge
+
+```bash
+cat << EOF > values.yaml
+EOF
+
+helm repo update
+helm upgrade -i gloo glooe/gloo-ee --namespace gloo-system --version 1.8.1 \
+  --create-namespace --set-string license_key="$LICENSE_KEY" -f values.yaml
+```
+
+### Deploying Gloo Portal
+```bash
+cat << EOF > portal-values.yaml
+glooEdge:
+  enabled: true
+licenseKey:
+  secretRef:
+    name: license
+    namespace: gloo-system
+    key: license-key
+EOF
+
+helm repo add gloo-portal https://storage.googleapis.com/dev-portal-helm
+helm repo update
+helm install gloo-portal gloo-portal/gloo-portal -n gloo-portal --values portal-values.yaml --version=1.0.1 --create-namespace
+```
+
+
+## Lab 1: Deploy a few applications
+
+We'll start by deploying the well-known petstore app, twice. This will simulate the two versions of it, accessible behind two different Kubernetes Services.
+
+
+### 2 deployments of the Petstore app
+
+```bash
+kubectl apply -f - <<EOF
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: petstore-v1
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: petstore
+      version: v1
+  template:
+    metadata:
+      labels:
+        app: petstore
+        version: v1
+    spec:
+      containers:
+        - name: petstore
+          image: swaggerapi/petstore
+          # env:
+          # - name: SWAGGER_BASE_PATH
+          #   value: /v1
+          imagePullPolicy: Always
+          ports:
+            - name: http
+              containerPort: 8080
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: petstore-v1
+spec:
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http
+      protocol: TCP
+  selector:
+    app: petstore
+    version: v1
+EOF
+
+kubectl apply -f - <<EOF
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: petstore-v2
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: petstore
+      version: v2
+  template:
+    metadata:
+      labels:
+        app: petstore
+        version: v2
+    spec:
+      containers:
+        - name: petstore
+          image: swaggerapi/petstore
+          # env:
+          # - name: SWAGGER_BASE_PATH
+          #   value: /v2
+          imagePullPolicy: Always
+          ports:
+            - name: http
+              containerPort: 8080
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: petstore-v2
+spec:
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http
+      protocol: TCP
+  selector:
+    app: petstore
+    version: v2
+EOF
+```
+
+Now, let's check if Gloo Edge has created 2 `Upstream` CRs for these 2 services:
+
+```bash
+kubectl -n gloo-system get upstreams
+```
+
+The output should be like:
+```text
+...
+default-petstore-v1-8080                               5h9m
+default-petstore-v2-8080                               5h9m
+...
+```
+Great!
+
+### 1 deployment of the Httpbin app
+
+```bash
+kubectl apply -f -<<EOF
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: httpbin
+  namespace: default
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: httpbin
+  namespace: default
+  labels:
+    app: httpbin
+spec:
+  ports:
+  - name: http
+    port: 8000
+    targetPort: 80
+  selector:
+    app: httpbin
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: httpbin
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: httpbin
+      version: v1
+  template:
+    metadata:
+      labels:
+        app: httpbin
+        version: v1
+    spec:
+      serviceAccountName: httpbin
+      containers:
+      - image: docker.io/kennethreitz/httpbin
+        imagePullPolicy: IfNotPresent
+        name: httpbin
+        ports:
+        - containerPort: 80
+EOF
+```
+
+### Building our first Gloo Portal Custom Resources
+
+Below are 4 versions of the Petstore OpenAPI spec:
+
+Users only:
+
+![Users only](images/OAI-snapshot-users-only.png)
+
+Pets only:
+
+![Pets only](images/OAI-snapshot-pets-only.png)
+
+Pets and Users:
+
+![Pets only](images/OAI-snapshot-pets-and-users.png)
+
+All combined, with stores:
+
+![All combined](images/OAI-snapshot-pets-full.png)
+
+First, we will create 4 APIDocs from these different OpenAPI specifications, stored locally:
+
+```bash
+for i in petstore-openapi-v1-pets petstore-openapi-v1-users petstore-openapi-v1-pets-and-users petstore-openapi-v2-full; do
+encoded=$(cat /home/solo/workshops/gloo-portal/$i.json | base64 | sed 's/^/    /')
+
+k delete apidoc $i
+k delete cm $i
+
+cat <<EOF | kubectl apply -f -
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: $i
+  namespace: default
+binaryData:
+  doc: |
+${encoded}
+EOF
+
+cat <<EOF | kubectl apply -f -
+apiVersion: portal.gloo.solo.io/v1beta1
+kind: APIDoc
+metadata:
+  name: $i
+  namespace: default
+spec:
+  openApi:
+    content:
+      configMap:
+        name: $i
+        namespace: default
+        key: doc
+EOF
+; done
+```
+
+Now, let's combine these `APIDocs` together, into a single `APIProduct`
+
+![APIProducts](images/apiproduct-apidocs.png)
+
+Let's create this APIProduct:
+
+```bash
+cat << EOF | kubectl apply -f -
+apiVersion: portal.gloo.solo.io/v1beta1
+kind: APIProduct
+metadata:
+  name: petstore-product
+  namespace: default
+  labels:
+    app: petstore
+spec:
+  displayInfo: 
+    title: Petstore Product
+    description: Fabulous API product for the Petstore
+  usagePlans:
+    - apiKey
+    - oidc
+  versions:
+  - name: v1
+    apis:
+      - apiDoc:
+          name: petstore-openapi-v1-pets
+          namespace: default
+      - apiDoc:
+          name: petstore-openapi-v1-users
+          namespace: default
+    gatewayConfig:
+      route:
+        inlineRoute:
+          backends:
+            - upstream:
+                name: default-petstore-v1-8080
+                namespace: gloo-system
+          options:
+            headerManipulation:
+              requestHeadersToAdd:
+                - header:
+                    key: headerAddedByApiProduct
+                    value: "foo"
+  - name: v2
+    apis:
+    - apiDoc:
+        name: petstore-openapi-v2-full
+        namespace: default
+    gatewayConfig:
+      route:
+        inlineRoute:
+          backends:
+            - upstream:
+                name: default-petstore-v2-8080
+                namespace: gloo-system
+EOF
+```
+
+Remarks: the `APIProduct` is named "petstore-product". It's avaible in 2 versions:
+- v1 is built upon 2 APIDocs, containing operations for Pets on one side, and Users on the other side
+- v2 is build upon 1 APIDoc, containing all the operations
+
+As you can see, we have overriden the `Routes`, so that v1 targets our `Upstream` called "default-petstore-v1-8080",
+and v2 targets our `Upstream` called "default-petstore-v2-8080".
+
+
+### Deploying the APIs
+
+Let's publish our APIs on a gateway, Gloo Edge in this case. We need to prepare an `Environment` where we will set the domain(s) and, optionally, some security options, like authentication or rate-limiting rules:
+
+![Environment](images/env-to-apiproducts.png)
+
+```bash
+cat << EOF > env.yaml
+apiVersion: portal.gloo.solo.io/v1beta1
+kind: Environment
+metadata:
+  name: dev
+  namespace: default
+spec:
+  domains:
+    - api.mycompany.corp
+  displayInfo:
+    description: This environment is meant for developers to deploy and test their APIs.
+    displayName: Development
+  basePath: /ecommerce
+  apiProducts:
+    - namespaces:
+      - "*" 
+      labels:
+      - key: app
+        operator: In
+        values:
+        - petstore
+      versions:
+        names:
+        - v1
+        - v2
+      usagePlans:
+        - apiKey
+        - oidc
+      basePath: "{%version%}"
+  gatewayConfig:
+    disableRoutes: false
+  parameters:
+    usagePlans:
+      oidc:
+        displayName: "OIDC"
+        # rateLimit:
+        #   unit: SECOND
+        #   requestPerUnit: 5
+        authPolicy:
+          oauth:
+            authorizationUrl: https://dev-5ejxys8g.eu.auth0.com/authorize
+            tokenUrl: https://dev-5ejxys8g.eu.auth0.com/oauth/token
+            jwtValidation:
+              issuer: "https://dev-5ejxys8g.eu.auth0.com/"
+              remoteJwks:
+                url: https://dev-5ejxys8g.eu.auth0.com/.well-known/jwks.json
+                refreshInterval: 60s
+            scopes:
+              openid:
+                required: true
+                description: "user info claims"
+              profile:
+                required: false
+                description: "more claims"
+      apiKey:
+        displayName: "api-key"
+        # rateLimit:
+        #   unit: SECOND
+        #   requestPerUnit: 5
+        authPolicy:
+          apiKey: {}
+EOF
+
+kubectl apply -f env.yaml
+```
+
+This `Environment`CR is watched by the Gloo Portal controller. 
+It will generate a Gloo Edge VirtualService, as despicted in the schema:
+
+![Environment controller](images/env-controller.png)
+
+### Publishing the APIs
+
+You need a `Portal` Custom Resource to expose your APIs to developers. That will configure a developer portal, which is fully brandable.
+
+```bash
+cat <<EOF | kubectl apply -f -
+apiVersion: portal.gloo.solo.io/v1beta1
+kind: Portal
+metadata:
+  name: ecommerce-portal
+  namespace: default
+spec:
+  displayName: E-commerce Portal
+  description: The Gloo Portal for the Petstore API and much more!
+  banner:
+    fetchUrl: https://i.imgur.com/EXbBN1a.jpg
+  favicon:
+    fetchUrl: https://i.imgur.com/QQwlQG3.png
+  primaryLogo:
+    fetchUrl: https://i.imgur.com/hjgPMNP.png
+  customStyling: {}
+  staticPages: []
+
+  domains:
+  # If you are using Gloo Edge and the Gateway is listening on a port other than 80, 
+  # you need to include a domain in this format: <DOMAIN>:<INGRESS_PORT> as we do below
+  - portal.mycompany.corp
+
+  # This will include all API product of the environment in the portal
+  publishedEnvironments:
+  - name: dev
+    namespace: default
+
+  allApisPublicViewable: true
+  portalUrlPrefix: /callback
+EOF
+```
+
+![Portal controller](images/portal-controller.png)
+
+### Securing the access to the Portal web app for developers
+
+One easy way to go is to create User CRs:
+
+```bash
+pass=$(htpasswd -bnBC 10 "" super-password2 | tr -d ':\n')
+kubectl create secret generic user2-password \
+  -n default --type=opaque \
+  --from-literal=password=$pass
+
+kubectl apply -f -<<EOF
+apiVersion: portal.gloo.solo.io/v1beta1
+kind: User
+metadata:
+  name: user2
+  namespace: default
+spec:
+  accessLevel:
+    portals:
+    - name: ecommerce-portal
+      namespace: default
+  basicAuth:
+    passwordSecretKey: password
+    passwordSecretName: user2-password
+    passwordSecretNamespace: default
+  email: foo2@solo.io
+  username: user2
+EOF
+```
+
+# ==============================================
+# ================ DRAFT END ===================
+# ==============================================
+
+
+
 [Keycloak](https://keycloak.org) is an open-source identity management platform that we will use to secure access to the Gloo Portal.
 
 First, let's deploy a Keycloak instance to our Kubernetes cluster:
 
 ```bash
-kubectl create -f https://raw.githubusercontent.com/keycloak/keycloak-quickstarts/latest/kubernetes-examples/keycloak.yaml
+kubectl create -f https://raw.githubusercontent.com/keycloak/keycloak-quickstarts/12.0.4/kubernetes-examples/keycloak.yaml
 kubectl rollout status deploy/keycloak
 ```
 
@@ -74,189 +545,18 @@ curl -H "Authorization: Bearer ${KEYCLOAK_TOKEN}" -X POST -H "Content-Type: appl
 curl -H "Authorization: Bearer ${KEYCLOAK_TOKEN}" -X POST -H "Content-Type: application/json" -d '{"username": "user1", "email": "user1@solo.io", "enabled": true, "attributes": {"group": "users"}, "credentials": [{"type": "password", "value": "password", "temporary": false}]}' $KEYCLOAK_URL/admin/realms/master/users
 ```
 
-## Lab 1: Build an application from an OpenAPI document
-
-As explained above, Swagger is a set of tools and one of the Swagger tools is called [Swagger Codegen](https://github.com/swagger-api/swagger-codegen).
-
-It allows generation of API client libraries (SDK generation), server stubs and documentation automatically given an OpenAPI Spec.
-
-In this lab, we'll use it to create a demo application from an OpenAPI document. But we won't even need to deploy `Swagger Codegen` because it's available online on a service called  [Swagger Generator](https://generator.swagger.io/).
-
-![Swagger Generator](images/swagger-generator.png)
-
-And the demo application we will build is called the [Swagger Petstore](https://github.com/swagger-api/swagger-petstore).
-
-The OpenAPI document of the `Petstore` application is available [here](https://petstore.swagger.io/v2/swagger.json).
-
-Run the following command to see the beginning of the document, formatted using `jq`:
-
-```
-curl -s https://petstore.swagger.io/v2/swagger.json | jq . | head -25
-```
-
-The output should be similar to this:
-
-```
-{
-  "swagger": "2.0",
-  "info": {
-    "description": "This is a sample server Petstore server.  You can find out more about Swagger at [http://swagger.io](http://swagger.io) or on [irc.freenode.net, #swagger](http://swagger.io/irc/).  For this sample, you can use the api key `special-key` to test the authorization filters.",
-    "version": "1.0.5",
-    "title": "Swagger Petstore",
-    "termsOfService": "http://swagger.io/terms/",
-    "contact": {
-      "email": "apiteam@swagger.io"
-    },
-    "license": {
-      "name": "Apache 2.0",
-      "url": "http://www.apache.org/licenses/LICENSE-2.0.html"
-    }
-  },
-  "host": "petstore.swagger.io",
-  "basePath": "/v2",
-  "tags": [
-    {
-      "name": "pet",
-      "description": "Everything about your Pets",
-      "externalDocs": {
-        "description": "Find out more",
-        "url": "http://swagger.io"
-      }
-```
-
-You can see a key called `basePath` with a value `v2`.
-
-Including the version of an API in the `basePath` is a common way to manage the lifecycle of an application, even if there is no standard. Other approaches exist (like using a header, a different host, etc.).
-
-There are 2 OpenAPI documents in the current directory:
-
-- swagger-petstore-v1.json
-- swagger-petstore-v2.json
-
-Run the following command to see the different between the 2 files:
-
-```
-diff swagger-petstore-v1.json swagger-petstore-v2.json
-```
-
-Here is the expected output:
-
-```
-17c17
-<   "basePath": "/v1",
----
->   "basePath": "/v2",
-910c910,911
-<         "name"
----
->         "name",
->         "photoUrls"
-922a924,935
->         },
->         "photoUrls": {
->           "type": "array",
->           "xml": {
->             "wrapped": true
->           },
->           "items": {
->             "type": "string",
->             "xml": {
->               "name": "photoUrl"
->             }
->           }
-```
-
-The v1 is just missing an attribute, named `photoUrls`, on the `Pet` object.
 
 
-### Generate a Go skeleton from the v1
 
-Run the command below to generate the application code using the `swagger-petstore-v1.json`:
 
-```bash
-wget -O petstore-v1.zip $(curl -X POST --header 'Content-Type: application/json' --header 'Accept: application/json' -d '{
-  "swaggerUrl": "https://github.com/solo-io/workshops/raw/master/gloo-portal/swagger-petstore-v1.json"
-}' 'https://generator.swagger.io/api/gen/servers/go-server' | jq -r .link)
-```
 
-Uncompress the archive:
 
-```bash
-rm -rf petstore-v1
-unzip petstore-v1.zip -d petstore-v1
-```
 
-Go to the `petstore-v1/go-server-server` directory:
 
-```bash
-cd petstore-v1/go-server-server
-```
-
-Take a look at the content of the `go/api_pet.go` file:
-
-```
-/*
- * Swagger Petstore
- *
- * This is a sample server Petstore server.  You can find out more about Swagger at [http://swagger.io](http://swagger.io) or on [irc.freenode.net, #swagger](http://swagger.io/irc/).  For this sample, you can use the api key `special-key` to test the authorization filters.
- *
- * API version: 1.0.5
- * Contact: apiteam@swagger.io
- * Generated by: Swagger Codegen (https://github.com/swagger-api/swagger-codegen.git)
- */
-
-package swagger
-
-import (
-	"net/http"
-)
-
-func AddPet(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
-	w.WriteHeader(http.StatusOK)
-}
-
-func DeletePet(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
-	w.WriteHeader(http.StatusOK)
-}
-
-func FindPetsByStatus(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
-	w.WriteHeader(http.StatusOK)
-}
-
-func FindPetsByTags(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
-	w.WriteHeader(http.StatusOK)
-}
-
-func GetPetById(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
-	w.WriteHeader(http.StatusOK)
-}
-
-func UpdatePet(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
-	w.WriteHeader(http.StatusOK)
-}
-
-func UpdatePetWithForm(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
-	w.WriteHeader(http.StatusOK)
-}
-
-func UploadFile(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
-	w.WriteHeader(http.StatusOK)
-}
-```
-
-As you can see, `Swagger Generator` has created the skeleton for our application, but we would still need to write all the logic around creating objects, updating objects, ...
-
-We won't implement this logic here. Instead we're going to use the `swaggerapi/petstore` Docker image. Luckily, an environment variable called `SWAGGER_BASE_PATH` can be set to define the base path we want to use. We'll use it to simulate the deployment of 2 versions of the `Petstore` application.
 
 ### Deploy the 2 versions
+
+We're going to use the `swaggerapi/petstore` Docker image. Luckily, an environment variable called `SWAGGER_BASE_PATH` can be set to define the base path we want to use. We'll use it to simulate the deployment of 2 versions of the `Petstore` application.
 
 Use the following snippet to deploy the 2 versions of the application:
 
