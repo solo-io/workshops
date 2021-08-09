@@ -176,3 +176,16 @@ zone    = "europe-west4-a"
 # AWS
 default_region = "eu-west-1"
 ````
+
+# VM provisioning fails with Ansible github single_branch error
+
+If you see an error in your Ansible output like this...
+```
+TASK [repo : Clone of master branch] *******************************************
+fatal: [34.91.88.120]: FAILED! => {"changed": false, "msg": "Unsupported parameters for (git) module:
+single_branch 
+Supported parameters include: accept_hostkey, archive, archive_prefix, bare, clone, depth,
+dest, executable, force, gpg_whitelist, key_file, recursive, reference, refspec, remote, repo,
+separate_git_dir, ssh_opts, track_submodules, umask, update, verify_commit, version"}
+```
+...then check your version of Ansible. Versions older than 2.11 do not support the `single_branch` option. Upgrade your workstation to Ansible 2.11 or higher.
