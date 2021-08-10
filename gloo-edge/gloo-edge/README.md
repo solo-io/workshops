@@ -938,7 +938,7 @@ spec:
     options:
 # ---------------- Web Application Firewall -----------
       waf:
-        customInterventionMessage: "Payload sizes above 1KB not allowed"
+        customInterventionMessage: "Payload sizes above 1 byte not allowed"
         ruleSets:
         - ruleStr: |
             SecRuleEngine On
@@ -969,7 +969,7 @@ spec:
 EOF
 ```
 
-The rule means that the request body size cannot be greater than 1KB.
+The rule means that the request body size cannot be greater than 1 byte.
 
 Run following command to test it:
 
@@ -980,7 +980,7 @@ curl -k $(glooctl proxy url --port https)/not-secured/post -d "<note><heading>Re
 You should get the following error message:
 
 ```
-Payload sizes above 1KB not allowed
+Payload sizes above 1 byte not allowed
 ```
 
 
@@ -1610,12 +1610,5 @@ If you refresh the browser to send additional requests, then you will see both `
 ```
 
 These logs can now be collected by the Log aggregator agents and potentially forwarded to your favorite enterprise logging service. 
-
-The following labs are optional. The instructor will go through them.
-
-
-
-
-
 
 This is the end of the workshop. We hope you enjoyed it !
