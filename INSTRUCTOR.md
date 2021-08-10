@@ -13,6 +13,7 @@ Install ansible:
 
 ```
 # Tested with ansible v2.11.1 / python 3.9.5
+# Fails with ansible versions < 2.11
 pip3 install ansible
 ```
 
