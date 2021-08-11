@@ -31,6 +31,9 @@ Configure region and zone for your remote resources:
 # This step is optional, but if you don't do it it will use default values from terraform.tfvars
 # Use this file to configure your desired resources too
 ```
+
+When hosting the Livestorm workshop, it is recommeded to use [Chrome browser](https://support.livestorm.co/article/19-technical-requirements-livestorm#browsers).
+
 ## Deploy
 
 Go to the terraform directory:
