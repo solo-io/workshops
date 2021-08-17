@@ -197,7 +197,7 @@ It should return the discovered upstream with an `Accepted` status:
 
 ### Routing to a Kubernetes Service 
 
-Now that your two Upstream CR have been created, you need to create the resources to route the traffic to them.
+Now that your two Upstream CRs have been created, you need to create the resources to route the traffic to them.
 
 First, you create a Virtual Service. For bookinfo under `/` and for httpbin under `/not-secured`.
 
@@ -237,7 +237,9 @@ It should return the bookinfo application webpage. Note that the review stars ar
 
 ![Bookinfo Web Interface](images/1.png)
 
-Now, let's enable the httpbin route to be matched before bookinfo:
+Now, let's modify our Virtual Service to add a route for httpbin that matches it ahead of the bookinfo route. The httpbin route matches all requests that are prefixed with `/not-secured`. Then all other traffic (requests prefixed with `/`) is routed to bookinfo.
+
+Take special note of the fact that the order of the matchers is significant. If the `/` prefix route were placed first instead of `/not-secured`, then the `/not-secured` route would be unreachable.
 
 ```bash
 kubectl apply -f - <<EOF
@@ -251,7 +253,7 @@ spec:
     domains:
       - '*'
     routes:
-# ------------- Another route which is parsed before ------------------
+# ------------ Add a new route that is evaluated first -----------------
       - matchers:
           - prefix: /not-secured
         routeAction:
@@ -272,13 +274,13 @@ spec:
 EOF
 ```
 
-And to access the httpbin application:
+Launch a new Chrome tab to access the httpbin application:
 
 ```
 /opt/google/chrome/chrome $(glooctl proxy url)/not-secured/get
 ```
 
-It should return a json object with details regarding your own request. Something similar to:
+It should return a json object with details regarding your own request, something similar to this:
 
 ```
 {
