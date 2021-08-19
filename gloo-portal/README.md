@@ -1,29 +1,25 @@
 # Gloo Portal Workshop
 
+Gloo Portal is a Kubernetes native solution aiming to facilitate API publication and API consumption for developers.
+
+More technically, Gloo Portal adheres to the Operator pattern and transforms Custom Resources into customized and ready-to-use developer portals. These portals are fully brandable and secured web applications.
+
 Gloo Portal provides a framework for managing API definitions, API client identity, and API policies on top of Gloo Edge or Istio Ingress Gateway. Vendors of API products can leverage Gloo Portal to secure, manage, and publish their APIs independently of the operations used to manage networking infrastructure.
 
 This workshop aims to expose some key features of the Gloo Portal like API lifecycle, authentication, and branding.
 
 
-## Lab Environment
+## Your workshop environment
 
-The Lab environment consists of a Virtual Machine where you will deploy a Kubernetes cluster using [kind](https://kind.sigs.k8s.io/). \
+The Lab environment consists of a Virtual Machine where you will deploy a Kubernetes cluster using [kind](https://kind.sigs.k8s.io/).  
 You will then deploy Gloo Edge and Gloo Portal on this Kubernetes cluster.
 
+### Init step 1
 
-## Lab 0: Deploy a Kubernetes Cluster, Gloo Edge and Gloo Portal
-
-Go to the `/home/solo/workshops/gloo-portal` directory:
-
-### Deploy a local Kubernetes cluster, with KinD
-
-```
-cd /home/solo/workshops/gloo-portal
-```
-
-Deploy a local Kubernetes cluster using this command:
+Navigate to the work directory and create local Kubernetes cluster with KinD:
 
 ```bash
+cd /home/solo/workshops/gloo-portal
 ../scripts/deploy.sh 1 gloo-portal
 ```
 
@@ -32,26 +28,26 @@ Then verify that your Kubernetes cluster is ready:
 ```bash
 ../scripts/check.sh gloo-portal
 ```
+
 The `check.sh` script will return immediately with no output if the cluster is ready.  Otherwise, it will output a series of periodic "waiting" messages until the cluster is up.
 
 
-# ================================================
-# ================ DRAFT START ===================
-# ================================================
+### Init step 2
 
-
-### Deploying Gloo Edge
+Let's deploy **Gloo Edge**:
 
 ```bash
-cat << EOF > values.yaml
-EOF
-
 helm repo update
-helm upgrade -i gloo glooe/gloo-ee --namespace gloo-system --version 1.8.1 \
-  --create-namespace --set-string license_key="$LICENSE_KEY" -f values.yaml
+
+helm upgrade -i gloo glooe/gloo-ee --namespace gloo-system --version 1.8.5 --create-namespace --set-string license_key="$LICENSE_KEY" -f values.yaml
 ```
 
-### Deploying Gloo Portal
+NOTE: Gloo Portal requires a subscription to Gloo Edge Enterprise or to Gloo Mesh Enterprise.
+
+### Init step 3
+
+Finally, let's deploy **Gloo Portal**:
+
 ```bash
 cat << EOF > portal-values.yaml
 glooEdge:
@@ -65,41 +61,63 @@ EOF
 
 helm repo add gloo-portal https://storage.googleapis.com/dev-portal-helm
 helm repo update
-helm install gloo-portal gloo-portal/gloo-portal -n gloo-portal --values portal-values.yaml --version=1.0.1 --create-namespace
+helm install gloo-portal gloo-portal/gloo-portal -n gloo-portal --values portal-values.yaml --version=1.1.0-beta4 --create-namespace
 ```
 
 
-## Lab 1: Deploy a few applications
+## Lab 1: Crafting your first API Product
 
-We'll start by deploying the well-known petstore app, twice. This will simulate the two versions of it, accessible behind two different Kubernetes Services.
+First, some conceptual elements to better understand how the Gloo Portal CRDs work together.
 
+You will define `APIDocs` Custom Resources, standing for references to OpenAPI (or gRPC) specifications. 
 
-### 2 deployments of the Petstore app
+![APIDocs](images/apidoc.png)
+
+Then, you will combine these `APIDocs` into a single `APIProduct`.
+
+![APIProducts](images/apiproduct-apidocs.png)
+
+In this workshop, we will combine 2 small `APIDoc`s into the `v1` of our Petstore `APIProduct` 
+And one larger `APIDoc` as the `v2` of our Petstore `APIProduct`.  
+See:
+
+![APIProduct composition](images/petstore-apiproduct-apidocs.png)
+
+The `APIProduct` comes with two versions of it:
+- `/v1` will expose endpoints for the `/pets/*` and `/users/*` endpoints, and it will route requests to the `petstore-v1` application
+- `/v2` will expose all of the endpoints, including `/pets/*`, `/users/*` and also `/store/*`, and it will route requests to the `petstore-v2` application
+
+We'll start by deploying the well-known Petstore app, twice. This will simulate the two versions of it, accessible behind two different Kubernetes Services.
+
+### Step 1.1
+
+Create two deployments of the Petstore app
 
 ```bash
+for i in {1..2}; do
 kubectl apply -f - <<EOF
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: petstore-v1
+  name: petstore-v$i
 spec:
   replicas: 1
   selector:
     matchLabels:
       app: petstore
-      version: v1
+      version: v$i
   template:
     metadata:
       labels:
         app: petstore
-        version: v1
+        version: v$i
     spec:
       containers:
         - name: petstore
           image: swaggerapi/petstore
           # env:
           # - name: SWAGGER_BASE_PATH
-          #   value: /v1
+          #   value: /v$i
           imagePullPolicy: Always
           ports:
             - name: http
@@ -108,7 +126,7 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: petstore-v1
+  name: petstore-v$i
 spec:
   ports:
     - name: http
@@ -117,54 +135,12 @@ spec:
       protocol: TCP
   selector:
     app: petstore
-    version: v1
+    version: v$i
 EOF
-
-kubectl apply -f - <<EOF
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: petstore-v2
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: petstore
-      version: v2
-  template:
-    metadata:
-      labels:
-        app: petstore
-        version: v2
-    spec:
-      containers:
-        - name: petstore
-          image: swaggerapi/petstore
-          # env:
-          # - name: SWAGGER_BASE_PATH
-          #   value: /v2
-          imagePullPolicy: Always
-          ports:
-            - name: http
-              containerPort: 8080
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: petstore-v2
-spec:
-  ports:
-    - name: http
-      port: 8080
-      targetPort: http
-      protocol: TCP
-  selector:
-    app: petstore
-    version: v2
-EOF
+; done
 ```
 
-Now, let's check if Gloo Edge has created 2 `Upstream` CRs for these 2 services:
+Now, let's check if Gloo Edge has automatically created 2 `Upstream` CRs for these 2 services:
 
 ```bash
 kubectl -n gloo-system get upstreams
@@ -173,103 +149,22 @@ kubectl -n gloo-system get upstreams
 The output should be like:
 ```text
 ...
-default-petstore-v1-8080                               5h9m
-default-petstore-v2-8080                               5h9m
+default-petstore-v1-8080                               1m
+default-petstore-v2-8080                               1m
 ...
 ```
 Great!
 
-### 1 deployment of the Httpbin app
+
+### Step 1.2
+
+Create the APIDoc from our 3 OpenApi specs:
+
+![Pets only](images/OAI-snapshot-pets-only.png) ![Users only](images/OAI-snapshot-users-only.png) ![All combined](images/OAI-snapshot-pets-full.png)
+
 
 ```bash
-kubectl apply -f -<<EOF
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: httpbin
-  namespace: default
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: httpbin
-  namespace: default
-  labels:
-    app: httpbin
-spec:
-  ports:
-  - name: http
-    port: 8000
-    targetPort: 80
-  selector:
-    app: httpbin
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: httpbin
-  namespace: default
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: httpbin
-      version: v1
-  template:
-    metadata:
-      labels:
-        app: httpbin
-        version: v1
-    spec:
-      serviceAccountName: httpbin
-      containers:
-      - image: docker.io/kennethreitz/httpbin
-        imagePullPolicy: IfNotPresent
-        name: httpbin
-        ports:
-        - containerPort: 80
-EOF
-```
-
-### Building our first Gloo Portal Custom Resources
-
-Below are 4 versions of the Petstore OpenAPI spec:
-
-Users only:
-
-![Users only](images/OAI-snapshot-users-only.png)
-
-Pets only:
-
-![Pets only](images/OAI-snapshot-pets-only.png)
-
-Pets and Users:
-
-![Pets only](images/OAI-snapshot-pets-and-users.png)
-
-All combined, with stores:
-
-![All combined](images/OAI-snapshot-pets-full.png)
-
-First, we will create 4 APIDocs from these different OpenAPI specifications, stored locally:
-
-```bash
-for i in petstore-openapi-v1-pets petstore-openapi-v1-users petstore-openapi-v1-pets-and-users petstore-openapi-v2-full; do
-encoded=$(cat /home/solo/workshops/gloo-portal/$i.json | base64 | sed 's/^/    /')
-
-k delete apidoc $i
-k delete cm $i
-
-cat <<EOF | kubectl apply -f -
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: $i
-  namespace: default
-binaryData:
-  doc: |
-${encoded}
-EOF
+for i in petstore-openapi-v1-pets petstore-openapi-v1-users petstore-openapi-v2-full; do
 
 cat <<EOF | kubectl apply -f -
 apiVersion: portal.gloo.solo.io/v1beta1
@@ -280,19 +175,12 @@ metadata:
 spec:
   openApi:
     content:
-      configMap:
-        name: $i
-        namespace: default
-        key: doc
+      fetchUrl: https://raw.githubusercontent.com/solo-io/workshops/master/gloo-portal/openapi-specs/$i.json
 EOF
 ; done
 ```
 
-Now, let's combine these `APIDocs` together, into a single `APIProduct`
-
-![APIProducts](images/apiproduct-apidocs.png)
-
-Let's create this APIProduct:
+Finally, let's create the `APIProduct`, with its 2 versions:
 
 ```bash
 cat << EOF | kubectl apply -f -
@@ -307,9 +195,6 @@ spec:
   displayInfo: 
     title: Petstore Product
     description: Fabulous API product for the Petstore
-  usagePlans:
-    - apiKey
-    - oidc
   versions:
   - name: v1
     apis:
@@ -326,12 +211,6 @@ spec:
             - upstream:
                 name: default-petstore-v1-8080
                 namespace: gloo-system
-          options:
-            headerManipulation:
-              requestHeadersToAdd:
-                - header:
-                    key: headerAddedByApiProduct
-                    value: "foo"
   - name: v2
     apis:
     - apiDoc:
@@ -347,17 +226,20 @@ spec:
 EOF
 ```
 
-Remarks: the `APIProduct` is named "petstore-product". It's avaible in 2 versions:
+Reminder: the `APIProduct` is named `petstore-product`. It is avaible in 2 different versions:
 - v1 is built upon 2 APIDocs, containing operations for Pets on one side, and Users on the other side
 - v2 is build upon 1 APIDoc, containing all the operations
 
-As you can see, we have overriden the `Routes`, so that v1 targets our `Upstream` called "default-petstore-v1-8080",
-and v2 targets our `Upstream` called "default-petstore-v2-8080".
+As you can see, we have configured different routes for the two version, so that `/v1` targets our `Upstream` called `default-petstore-v1-8080`  
+and `/v2` targets our `Upstream` called `default-petstore-v2-8080`.
 
 
-### Deploying the APIs
+## Lab 2: deploying the API
 
-Let's publish our APIs on a gateway, Gloo Edge in this case. We need to prepare an `Environment` where we will set the domain(s) and, optionally, some security options, like authentication or rate-limiting rules:
+### Step 2.1
+
+Let's publish our API on a Gateway! In this case, and in order to leverage advanced API Gateway features, we will rely on Gloo Edge (the option option being an Istio Gateway).  
+We need to prepare an `Environment` CR, where we will set the domain(s) and, optionally, some security options like authentication or rate-limiting rules:
 
 ![Environment](images/env-to-apiproducts.png)
 
@@ -370,12 +252,12 @@ metadata:
   namespace: default
 spec:
   domains:
-    - api.mycompany.corp
+    - api.mycompany.corp # the domain name where the API will be exposed
   displayInfo:
     description: This environment is meant for developers to deploy and test their APIs.
     displayName: Development
-  basePath: /ecommerce
-  apiProducts:
+  basePath: /ecommerce # a global basepath for our APIs
+  apiProducts: # we will select our APIProduct using a selector and the 2 version of it
     - namespaces:
       - "*" 
       labels:
@@ -390,16 +272,16 @@ spec:
       usagePlans:
         - apiKey
         - oidc
-      basePath: "{%version%}"
+      basePath: "{%version%}" # this will dynamically prefix the API with the version names
   gatewayConfig:
-    disableRoutes: false
+    disableRoutes: false # we actually want to expose the APIs on a Gateway (optional)
   parameters:
-    usagePlans:
-      oidc:
+    usagePlans: # let's define usage plans
+      oidc: # this UsagePlan will allow Client requests containing a valid JWT in the Authorization header
         displayName: "OIDC"
         # rateLimit:
         #   unit: SECOND
-        #   requestPerUnit: 5
+        #   requestPerUnit: 10
         authPolicy:
           oauth:
             authorizationUrl: https://dev-5ejxys8g.eu.auth0.com/authorize
@@ -416,7 +298,7 @@ spec:
               profile:
                 required: false
                 description: "more claims"
-      apiKey:
+      apiKey: # this UsagePlan will allow Client requests containing an api-key
         displayName: "api-key"
         # rateLimit:
         #   unit: SECOND
@@ -428,12 +310,14 @@ EOF
 kubectl apply -f env.yaml
 ```
 
-This `Environment`CR is watched by the Gloo Portal controller. 
-It will generate a Gloo Edge VirtualService, as despicted in the schema:
+This `Environment` CR is watched by the Gloo Portal controller. 
+It will generate a Gloo Edge `VirtualService`, as shown in this schema:
 
 ![Environment controller](images/env-controller.png)
 
-### Publishing the APIs
+
+
+## Lab 3 - Publishing the APIs on a developer portal
 
 You need a `Portal` Custom Resource to expose your APIs to developers. That will configure a developer portal, which is fully brandable.
 
@@ -2064,3 +1948,127 @@ metadata:
 The `binaryData.dynamic` value is the content of the content of the `dynamic.html` file encoded in base64.
 
 This is the end of the workshop. We hope you enjoyed it !
+
+
+
+
+
+
+
+
+
+
+
+### Step 1.2
+
+1 deployment of the Httpbin app
+
+```bash
+kubectl apply -f -<<EOF
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: httpbin
+  namespace: default
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: httpbin
+  namespace: default
+  labels:
+    app: httpbin
+spec:
+  ports:
+  - name: http
+    port: 8000
+    targetPort: 80
+  selector:
+    app: httpbin
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: httpbin
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: httpbin
+      version: v1
+  template:
+    metadata:
+      labels:
+        app: httpbin
+        version: v1
+    spec:
+      serviceAccountName: httpbin
+      containers:
+      - image: docker.io/kennethreitz/httpbin
+        imagePullPolicy: IfNotPresent
+        name: httpbin
+        ports:
+        - containerPort: 80
+EOF
+```
+
+
+
+
+### Step 1.2
+
+WithBelow are 4 versions of the Petstore OpenAPI spec:
+
+Users only:
+
+![Users only](images/OAI-snapshot-users-only.png)
+
+Pets only:
+
+![Pets only](images/OAI-snapshot-pets-only.png)
+
+Pets and Users:
+
+![Pets only](images/OAI-snapshot-pets-and-users.png)
+
+All combined, with stores:
+
+![All combined](images/OAI-snapshot-pets-full.png)
+
+First, we will create 4 `APIDocs` from these different OpenAPI specifications, stored locally:
+
+```bash
+for i in petstore-openapi-v1-pets petstore-openapi-v1-users petstore-openapi-v1-pets-and-users petstore-openapi-v2-full; do
+encoded=$(cat /home/solo/workshops/gloo-portal/openapi-specs/$i.json | base64 | sed 's/^/    /')
+
+#k delete apidoc $i
+#k delete cm $i
+
+cat <<EOF | kubectl apply -f -
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: $i
+  namespace: default
+binaryData:
+  doc: |
+${encoded}
+EOF
+
+cat <<EOF | kubectl apply -f -
+apiVersion: portal.gloo.solo.io/v1beta1
+kind: APIDoc
+metadata:
+  name: $i
+  namespace: default
+spec:
+  openApi:
+    content:
+      configMap:
+        name: $i
+        namespace: default
+        key: doc
+EOF
+; done
+```
