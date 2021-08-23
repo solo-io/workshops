@@ -565,37 +565,102 @@ Then, open http://localhost:8080 and you should find this webapp:
 
 Explore the menus and find your `APIProduct`, `Environment` and `Portal` resources.
 
+We will use the ADmin UI to secure the access to the developer Portal.  
+And, later on, we will use CRDs to secure the access to the APIs.  
+Both are feasible your preferred way!
 
 
-### Securing the access to the Portal web app for developers
+## Lab 5: Securing the access to the developer Portal
 
-One easy way to go is to create User CRs:
+There are 2 options to secure the access to a developer Portal:
+- basic auth, using the `User` and `Group` CRDs
+- OpenID Connect ([see also](https://www.solo.io/blog/self-service-user-registration-with-gloo-portal-and-okta/))
+
+In this lab, we will secure the access with basic auth.
+
+### Option A - Using the admin portal web UI
+In the "Access Control" section of the dashboard, click the "Create a Group" button...  
+
+![group creation - step 1a](images/basic-auth-create-group-1a.png)
+
+... and give it a name:
+
+![group creation - step 1](images/basic-auth-create-group-1.png)
+
+Click "Next step" and then click "Create Group".  
+
+let's configure our developer Portal so that it is accessible to the __"ecommerce developers"__ `Group`.  
+Click the __Manage__ link under "Portal Access", next to the group name:
+
+![edit group](images/basic-auth-add-portal-to-group.png)
+
+Then add the "E-commerce..." Portal to the list of allowed Portal for this Group:
+
+![add portal](images/group-portal-ac.png)
+
+Now, let's create a User with the same method:
+
+![user creation - step 1](images/basic-auth-create-user-1.png)
+
+Then, give it a name and a password:
+
+![user creation - step 2](images/basic-auth-create-user-2.png)
+
+Finally, make it a member of the Group defined above: 
+
+![user creation - step 3](images/basic-auth-create-user-3.png)
+
+
+Finally, you should see a configuration like this:
+
+![user group config overview](images/basic-auth-config-overview.png)
+
+### (OPTIONAL!) Option B - Using CRDs
+Another way of working is by using Custom Resources:
 
 ```bash
 pass=$(htpasswd -bnBC 10 "" super-password2 | tr -d ':\n')
-kubectl create secret generic user2-password \
-  -n default --type=opaque \
+kubectl create secret generic dev2-password \
+  -n gloo-portal --type=opaque \
   --from-literal=password=$pass
 
 kubectl apply -f -<<EOF
 apiVersion: portal.gloo.solo.io/v1beta1
 kind: User
 metadata:
-  name: user2
-  namespace: default
+  name: dev2
+  namespace: gloo-portal
+  labels:
+    groups.portal.gloo.solo.io/gloo-portal.developers: "true"
 spec:
-  accessLevel:
-    portals:
-    - name: ecommerce-portal
-      namespace: default
   basicAuth:
     passwordSecretKey: password
-    passwordSecretName: user2-password
-    passwordSecretNamespace: default
-  email: foo2@solo.io
-  username: user2
+    passwordSecretName: dev2-password
+    passwordSecretNamespace: gloo-portal
+  username: dev2
 EOF
 ```
+
+The Access Control page will automatically be updated with our new User:
+
+![user dev2 from CRD](images/basic-auth-dev2-crd.png)
+
+As always with Solo.io products, everything is GitOps friendly!
+
+
+### Connecting to the Portal, as a developer
+
+Let's now git it a try, with one of our users.  
+
+Navigate to your developer portal: http://portal.mycompany.corp/ and click the "Log In" button in the upper right corner.
+
+![login basic auth](images/basic-auth-login-portal.png)
+
+Since it's the first connection with your `User`, you may be requested to change the default password for a new one.  
+If you have any issue while logging in, please double check the password and the permission on the `Group` to access the `Portal`.
+
+Once logged in, you should be able to browse the API catalog and see your Petstore (API) product.  
+
 
 # ==============================================
 # ================ DRAFT END ===================
