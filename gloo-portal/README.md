@@ -39,7 +39,7 @@ Let's deploy **Gloo Edge**:
 ```bash
 helm repo update
 
-helm upgrade -i gloo glooe/gloo-ee --namespace gloo-system --version 1.8.5 --create-namespace --set-string license_key="$LICENSE_KEY" -f values.yaml
+helm upgrade -i gloo glooe/gloo-ee --namespace gloo-system --version 1.8.5 --create-namespace --set-string license_key="$LICENSE_KEY"
 ```
 
 NOTE: Gloo Portal requires a subscription to Gloo Edge Enterprise or to Gloo Mesh Enterprise.
@@ -116,8 +116,8 @@ spec:
         - name: petstore
           image: swaggerapi/petstore
           # env:
-          # - name: SWAGGER_BASE_PATH
-          #   value: /v$i
+          #   - name: SWAGGER_BASE_PATH
+          #     value: /
           imagePullPolicy: Always
           ports:
             - name: http
@@ -149,8 +149,8 @@ kubectl -n gloo-system get upstreams
 The output should be like:
 ```text
 ...
-default-petstore-v1-8080                               1m
-default-petstore-v2-8080                               1m
+default-petstore-v1-8080                               9s
+default-petstore-v2-8080                               8s
 ...
 ```
 Great!
@@ -158,7 +158,7 @@ Great!
 
 ### Step 1.2
 
-Create the APIDoc from our 3 OpenApi specs:
+Create the `APIDoc`s from our 3 OpenApi specs:
 
 ![Pets only](images/OAI-snapshot-pets-only.png) ![Users only](images/OAI-snapshot-users-only.png) ![All combined](images/OAI-snapshot-pets-full.png)
 
@@ -179,6 +179,61 @@ spec:
 EOF
 ; done
 ```
+
+Let's be curious and take a look at the status of one these `APIDoc`s:
+```bash
+kubectl get apidoc
+kubectl get apidoc petstore-openapi-v1-pets -o yaml
+```
+
+The output is something like that:
+```yaml
+...
+status:
+  description: 'This is a sample server Petstore server.  You can find out more about
+    Swagger at [http://swagger.io](http://swagger.io) or on [irc.freenode.net, #swagger](http://swagger.io/irc/).  For
+    this sample, you can use the api key `special-key` to test the authorization filters.'
+  displayName: Swagger Petstore
+  observedGeneration: 1
+  openApi:
+    operations:
+    - operationId: addPet
+      path: /api/pet
+      summary: Add a new pet to the store
+      verb: POST
+    - operationId: deletePet
+      path: /api/pet/{petId}
+      summary: Deletes a pet
+      verb: DELETE
+    - operationId: findPetsByStatus
+      path: /api/pet/findByStatus
+      summary: Finds Pets by status
+      verb: GET
+    - operationId: findPetsByTags
+      path: /api/pet/findByTags
+      summary: Finds Pets by tags
+      verb: GET
+    - operationId: getPetById
+      path: /api/pet/{petId}
+      summary: Find pet by ID
+      verb: GET
+    - operationId: updatePet
+      path: /api/pet
+      summary: Update an existing pet
+      verb: PUT
+    - operationId: updatePetWithForm
+      path: /api/pet/{petId}
+      summary: Updates a pet in the store with form data
+      verb: POST
+    - operationId: uploadFile
+      path: /api/pet/{petId}/uploadImage
+      summary: uploads an image
+      verb: POST
+  state: Succeeded
+  version: 1.0.5
+  ```
+
+As you can see, the different endpoints of the OpenAPI spec have been parsed by the Gloo Portal controller.
 
 Finally, let's create the `APIProduct`, with its 2 versions:
 
@@ -238,7 +293,7 @@ and `/v2` targets our `Upstream` called `default-petstore-v2-8080`.
 
 ### Step 2.1
 
-Let's publish our API on a Gateway! In this case, and in order to leverage advanced API Gateway features, we will rely on Gloo Edge (the option option being an Istio Gateway).  
+Let's publish our API on a Gateway! In this workshop, and in order to leverage advanced API Gateway features, we will rely on Gloo Edge (the other option being an Istio Gateway).  
 We need to prepare an `Environment` CR, where we will set the domain(s) and, optionally, some security options like authentication or rate-limiting rules:
 
 ![Environment](images/env-to-apiproducts.png)
@@ -269,42 +324,9 @@ spec:
         names:
         - v1
         - v2
-      usagePlans:
-        - apiKey
-        - oidc
       basePath: "{%version%}" # this will dynamically prefix the API with the version names
   gatewayConfig:
     disableRoutes: false # we actually want to expose the APIs on a Gateway (optional)
-  parameters:
-    usagePlans: # let's define usage plans
-      oidc: # this UsagePlan will allow Client requests containing a valid JWT in the Authorization header
-        displayName: "OIDC"
-        # rateLimit:
-        #   unit: SECOND
-        #   requestPerUnit: 10
-        authPolicy:
-          oauth:
-            authorizationUrl: https://dev-5ejxys8g.eu.auth0.com/authorize
-            tokenUrl: https://dev-5ejxys8g.eu.auth0.com/oauth/token
-            jwtValidation:
-              issuer: "https://dev-5ejxys8g.eu.auth0.com/"
-              remoteJwks:
-                url: https://dev-5ejxys8g.eu.auth0.com/.well-known/jwks.json
-                refreshInterval: 60s
-            scopes:
-              openid:
-                required: true
-                description: "user info claims"
-              profile:
-                required: false
-                description: "more claims"
-      apiKey: # this UsagePlan will allow Client requests containing an api-key
-        displayName: "api-key"
-        # rateLimit:
-        #   unit: SECOND
-        #   requestPerUnit: 5
-        authPolicy:
-          apiKey: {}
 EOF
 
 kubectl apply -f env.yaml
@@ -316,10 +338,153 @@ It will generate a Gloo Edge `VirtualService`, as shown in this schema:
 ![Environment controller](images/env-controller.png)
 
 
+You can then check the status of the `Environment` using the following command:
+
+```bash
+kubectl get environments.portal.gloo.solo.io dev -o yaml
+```
+
+The output is pretty big but it should end with:
+
+```
+state: Succeeded
+```
+
+### Step 2.2
+
+As explained above, Gloo Portal will configure Gloo Edge to expose our APIs.  
+Using the command below, you'll see the Gloo Edge `VirtualService` created by Gloo Portal:
+
+```bash
+kubectl get virtualservice dev -o yaml
+```
+
+You should see something like this:
+```yaml
+...
+spec:
+  displayName: Development
+  virtualHost:
+    domains:
+    - api.mycompany.corp
+    routes:
+    - delegateAction:
+        selector:
+          labels:
+            apiproducts.portal.gloo.solo.io: petstore-product.default
+            apiproducts.portal.gloo.solo.io/version: v2
+            environments.portal.gloo.solo.io: dev.default
+      matchers:
+      - prefix: /
+      name: petstore-product.v2
+      options:
+        regexRewrite:
+          pattern:
+            regex: ^/ecommerce/v2/(.*)$
+          substitution: /\1
+    - delegateAction:
+        selector:
+          labels:
+            apiproducts.portal.gloo.solo.io: petstore-product.default
+            apiproducts.portal.gloo.solo.io/version: v1
+            environments.portal.gloo.solo.io: dev.default
+      matchers:
+      - prefix: /
+      name: petstore-product.v1
+      options:
+        regexRewrite:
+          pattern:
+            regex: ^/ecommerce/v1/(.*)$
+          substitution: /\1
+status:
+  reportedBy: gateway
+  state: 1
+  subresourceStatuses:
+    '*v1.Proxy.gloo-system.gateway-proxy':
+      reportedBy: gloo
+      state: 1
+```
+
+As you can see, the `Environment` CR has been declined into a `VirtualService` CR and also some `RouteTables` CRs.  
+Let's have a closer look to `RouteTables`:
+
+```bash
+kubectl get routetable
+```
+
+```
+NAME                      AGE
+dev.petstore-product.v1   10m
+dev.petstore-product.v2   10m
+```
+
+```bash
+kubectl get routetable dev.petstore-product.v1 -o yaml
+```
+
+Extract:
+```yaml
+...
+  - matchers:
+    - methods:
+      - GET
+      - OPTIONS
+      regex: /ecommerce/v1/api/pet/[^/]+?
+    name: petstore-product.default.petstore-openapi-v1-pets.default.getPetById
+    options:
+      stagedTransformations:
+        early:
+          requestTransforms:
+          - matcher:
+              prefix: /
+            requestTransformation:
+              transformationTemplate:
+                dynamicMetadataValues:
+                - key: environment
+                  value:
+                    text: dev.default
+                - key: api_product
+                  value:
+                    text: petstore-product.default
+                passthrough: {}
+    routeAction:
+      multi:
+        destinations:
+        - destination:
+            upstream:
+              name: default-petstore-v1-8080
+              namespace: gloo-system
+          weight: 1
+...
+```
+
+The combination of these CRs will generate the expected configuration for Envoy.
+
+### Step 2.3
+
+Now let's consume the API!
+
+```bash
+# v1
+# one of the /pet endpoint
+curl -s $(glooctl proxy url)/ecommerce/v1/api/pet/1 -H "Host: api.mycompany.corp" | jq
+# one of the /user endpoint
+curl -s -X POST $(glooctl proxy url)/ecommerce/v2/api/user/createWithList -H "Host: api.mycompany.corp" -d '[{"id":0,"username":"jdoe","firstName":"John","lastName":"Doe","email":"john@doe.me","password":"string","phone":"string","userStatus":0}]' -H "Content-type: application/json"
+curl -s $(glooctl proxy url)/ecommerce/v2/api/user/jdoe -H "Host: api.mycompany.corp" | jq
+
+# v2
+# one of the /store endpoint
+curl -s $(glooctl proxy url)/ecommerce/v2/api/store/order/1 -H "Host: api.mycompany.corp" | jq
+
+```
+
 
 ## Lab 3 - Publishing the APIs on a developer portal
 
-You need a `Portal` Custom Resource to expose your APIs to developers. That will configure a developer portal, which is fully brandable.
+You need a `Portal` Custom Resource to expose your APIs to developers. That will configure a developer portal webapp, which is fully brandable.
+
+![Portal controller](images/portal-controller.png)
+
 
 ```bash
 cat <<EOF | kubectl apply -f -
@@ -341,21 +506,66 @@ spec:
   staticPages: []
 
   domains:
-  # If you are using Gloo Edge and the Gateway is listening on a port other than 80, 
-  # you need to include a domain in this format: <DOMAIN>:<INGRESS_PORT> as we do below
   - portal.mycompany.corp
 
-  # This will include all API product of the environment in the portal
   publishedEnvironments:
   - name: dev
     namespace: default
 
   allApisPublicViewable: true
-  portalUrlPrefix: /callback
 EOF
 ```
 
-![Portal controller](images/portal-controller.png)
+To access it, you need to override the domain name on your machine:
+
+```bash
+cat <<EOF | sudo tee -a /etc/hosts
+$(kubectl -n gloo-system get service gateway-proxy -o jsonpath='{.status.loadBalancer.ingress[0].ip}') portal.mycompany.corp
+$(kubectl -n gloo-system get service gateway-proxy -o jsonpath='{.status.loadBalancer.ingress[0].ip}') api.mycompany.corp
+EOF
+```
+
+The developer Portal we have created is now available at http://portal.mycompany.corp/
+
+```bash
+open http://portal.mycompany.corp/
+```
+
+![Developer Portal](images/petstore-portal-homepage.png)
+
+Take a few minutes to browse the developer portal.  
+Under the **APIs** menu, you will find the 2 version of our `APIProduct`:
+
+![APIs](images/petstore-portal-apis.png)
+
+Click the 1st line with 'v1', and you are now able to use the ' try-it-out' feature:
+
+![try-it-out](images/petstore-portal-tryitout.png)
+
+Later in this workshop, you will secure the access to the developer portal and also the access to the APIs.
+
+# Lab 4: Explore the Admin UI
+
+On top of these developer portal web UIs, Gloo Portal comes with an additional Admin-centric web UI, so that you can have a global overview of all the Gloo Portal resources:
+- APIDocs
+- APIProducts
+- Environments
+- Portals
+- Users and Groups
+
+You can access this admin UI using a port-forward:
+
+```bash
+kubectl -n gloo-portal port-forward svc/gloo-portal-admin-server 8080
+```
+
+Then, open http://localhost:8080 and you should find this webapp:
+
+![Admin UI Homepage](images/admin-homepage.png)
+
+Explore the menus and find your `APIProduct`, `Environment` and `Portal` resources.
+
+
 
 ### Securing the access to the Portal web app for developers
 
