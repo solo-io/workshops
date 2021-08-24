@@ -335,7 +335,7 @@ helm install gloo-mesh-enterprise gloo-mesh-enterprise/gloo-mesh-enterprise \
 --set gloo-mesh-ui.redis.redis.floatingUserId=true \
 --set licenseKey=${GLOO_MESH_LICENSE_KEY} \
 --set "rbac-webhook.adminSubjects[0].kind=User" \
---set "rbac-webhook.adminSubjects[0].name=$(kubectl --context ${MGMT} get user -o jsonpath='{.items[0].metadata.name}')"
+--set "rbac-webhook.adminSubjects[0].name=$(oc whoami)"
 kubectl --context ${MGMT} -n gloo-mesh rollout status deploy/enterprise-networking
 ```
 
