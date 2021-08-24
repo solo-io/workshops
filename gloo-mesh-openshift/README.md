@@ -332,7 +332,8 @@ helm install gloo-mesh-enterprise gloo-mesh-enterprise/gloo-mesh-enterprise \
 --set enterprise-networking.enterpriseNetworking.floatingUserId=true \
 --set rbac-webhook.rbacWebhook.floatingUserId=true \
 --set gloo-mesh-ui.dashboard.floatingUserId=true \
---set gloo-mesh-ui.redis.redis.floatingUserId=true \
+--set gloo-mesh-ui.redis-dashboard.redisDashboard.floatingUserId=true \
+--set enterprise-networking.prometheus.server.securityContext=false \
 --set licenseKey=${GLOO_MESH_LICENSE_KEY} \
 --set "rbac-webhook.adminSubjects[0].kind=User" \
 --set "rbac-webhook.adminSubjects[0].name=$(oc whoami)"
