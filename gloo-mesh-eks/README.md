@@ -3123,7 +3123,7 @@ Then, we will configure it and create two users:
 
 ```bash
 # Get Keycloak URL and token
-KEYCLOAK_URL=http://$(kubectl --context ${CLUSTER1} -n keycloak get service keycloak -o jsonpath='{.status.loadBalancer.ingress[0].ip}'):8080/auth
+KEYCLOAK_URL=http://$(kubectl --context ${CLUSTER1} -n keycloak get service keycloak -o jsonpath='{.status.loadBalancer.ingress[0].*}'):8080/auth
 KEYCLOAK_TOKEN=$(curl -d "client_id=admin-cli" -d "username=admin" -d "password=admin" -d "grant_type=password" "$KEYCLOAK_URL/realms/master/protocol/openid-connect/token" | jq -r .access_token)
 
 # Create initial token to register the client
@@ -3310,6 +3310,23 @@ spec:
         - istio-system
 EOF
 ```
+
+
+The Load Balancer created on AWS for the Service Type Load Balancer corresponding to the Istio Ingress Gateway has a health check port configured to use the HTTP port.
+
+The Gloo Mesh Gateway is now configuring the Istio Ingress Gateway to listen on HTTPS, so we need to patch the Kubernetes Service as follow.
+
+```bash
+cat << EOF > svc-patch.yaml
+spec:
+  ports:
+  - port: 80
+    targetPort: 8443
+EOF
+
+kubectl --context ${CLUSTER1} patch -n istio-system svc istio-ingressgateway -p "$(cat svc-patch.yaml)"
+```
+
 
 Get the URL to securely access the `productpage` service from your web browser using the following command:
 
