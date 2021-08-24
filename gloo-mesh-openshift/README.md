@@ -294,7 +294,7 @@ kubectl config use-context ${MGMT}
 First of all, you need to install the *meshctl* CLI:
 
 ```bash
-export GLOO_MESH_VERSION=v1.1.0-rc3
+export GLOO_MESH_VERSION=v1.1.0
 curl -sL https://run.solo.io/meshctl/install | sh -
 export PATH=$HOME/.gloo-mesh/bin:$PATH
 ```
@@ -327,7 +327,7 @@ helm repo update
 kubectl --context ${MGMT} create ns gloo-mesh 
 helm install gloo-mesh-enterprise gloo-mesh-enterprise/gloo-mesh-enterprise \
 --namespace gloo-mesh --kube-context ${MGMT} \
---version=1.1.0-rc2 \
+--version=1.1.0 \
 --set rbac-webhook.enabled=true \
 --set enterprise-networking.enterpriseNetworking.floatingUserId=true \
 --set rbac-webhook.rbacWebhook.floatingUserId=true \
@@ -413,7 +413,7 @@ assert_eq "$clusters_names" "$expected_cluster_names" "$result_message" && log_s
 >   --set relay.cluster=cluster1 \
 >   --kube-context=${CLUSTER1} \
 >   --set enterpriseAgent.floatingUserId=true \
->   --version 1.1.0-rc2
+>   --version 1.1.0
 > 
 > helm install enterprise-agent enterprise-agent/enterprise-agent \
 >   --namespace gloo-mesh \
@@ -421,7 +421,7 @@ assert_eq "$clusters_names" "$expected_cluster_names" "$result_message" && log_s
 >   --set relay.cluster=cluster2 \
 >   --kube-context=${CLUSTER2} \
 >   --set enterpriseAgent.floatingUserId=true \
->   --version 1.1.0-rc2
+>   --version 1.1.0
 > ```
 > #### Create the `KubernetesCluster` objects
 > ```
@@ -482,8 +482,8 @@ Then, you can deploy the addons using Helm:
 ```bash
 helm repo add enterprise-agent https://storage.googleapis.com/gloo-mesh-enterprise/enterprise-agent
 helm repo update
-helm install enterprise-agent-addons enterprise-agent/enterprise-agent --kube-context=${CLUSTER1} --version=1.1.0-rc2 --namespace gloo-mesh-addons --set enterpriseAgent.enabled=false --set rate-limiter.enabled=true --set ext-auth-service.enabled=true
-helm install enterprise-agent-addons enterprise-agent/enterprise-agent --kube-context=${CLUSTER2} --version=1.1.0-rc2 --namespace gloo-mesh-addons --set enterpriseAgent.enabled=false --set rate-limiter.enabled=true --set ext-auth-service.enabled=true
+helm install enterprise-agent-addons enterprise-agent/enterprise-agent --kube-context=${CLUSTER1} --version=1.1.0 --namespace gloo-mesh-addons --set enterpriseAgent.enabled=false --set rate-limiter.enabled=true --set ext-auth-service.enabled=true
+helm install enterprise-agent-addons enterprise-agent/enterprise-agent --kube-context=${CLUSTER2} --version=1.1.0 --namespace gloo-mesh-addons --set enterpriseAgent.enabled=false --set rate-limiter.enabled=true --set ext-auth-service.enabled=true
 ```
 
 Finally, we need to create an `AccessPolicy` for the Istio Ingress Gateways to communicate with the addons and for the addons to communicate together:
@@ -2629,9 +2629,9 @@ Install or upgrade the accesslog meshctl plugin:
 
 ```bash
 if meshctl accesslog --help; then
-  meshctl plugin upgrade accesslog@v1.1.0-rc2
+  meshctl plugin upgrade accesslog@v1.1.0
 else
-  meshctl plugin install accesslog@v1.1.0-rc2
+  meshctl plugin install accesslog@v1.1.0
 fi
 ```
 
