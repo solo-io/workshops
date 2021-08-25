@@ -4635,7 +4635,72 @@ If you refresh the web browser, you will be redirected to the authentication pag
 /opt/google/chrome/chrome https://$SVC_GW_CLUSTER1/productpage 
 ```
 
-If you use username: `user1` and password: `password` Gloo should redirect you back to the `productpage` application.
+If you use the username `user1` and the password `password` Gloo should redirect you back to the `productpage` application.
+
+You can also perform authorization using OPA.
+
+First, you need to create a `ConfigMap` with the policy written in rego:
+
+```bash
+kubectl --context ${CLUSTER1} apply -f - <<EOF
+apiVersion: v1
+data:
+  policy.rego: |-
+    package test
+
+    default allow = false
+
+    allow {
+        [header, payload, signature] = io.jwt.decode(input.state.jwt)
+        endswith(payload["email"], "@solo.io")
+    }
+
+kind: ConfigMap
+metadata:
+  name: allow-solo-email-users
+  namespace: gloo-mesh
+EOF
+```
+
+Then, you need to update the `AuthConfig` object to add the authorization step:
+
+```bash
+kubectl --context ${CLUSTER1} apply -f - <<EOF
+apiVersion: enterprise.gloo.solo.io/v1
+kind: AuthConfig
+metadata:
+  name: oauth
+  namespace: gloo-mesh
+spec:
+  configs:
+  - oauth2:
+      oidcAuthorizationCode:
+        appUrl: https://${SVC_GW_CLUSTER1}
+        callbackPath: /callback
+        clientId: ${client}
+        clientSecretRef:
+          name: oauth
+          namespace: gloo-mesh
+        issuerUrl: "${KEYCLOAK_URL}/realms/master/"
+        scopes:
+        - email
+        headers:
+          idTokenHeader: jwt
+  - opaAuth:
+      modules:
+      - name: allow-solo-email-users
+        namespace: gloo-mesh
+      query: "data.test.allow == true"
+EOF
+```
+
+Let's try again in incognito window using the second user's credentials:
+
+```
+/opt/google/chrome/chrome --incognito $(glooctl proxy url --port https)/productpage
+```
+
+If you open the browser in incognito and login using the username `user2` and the password `password`, you will not be able to access since the user's email ends with `@example.com`.
 
 Let's apply the original `RouteTable` yaml:
 
