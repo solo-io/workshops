@@ -2036,18 +2036,24 @@ WebAssembly Hub is a meeting place for the community to share and consume WebAss
 
 Gloo Mesh Enterprise CLI comes with all the features you need to develop, build, push and deploy your Wasm filters on Istio.
 
-Install the Gloo Mesh Enterprise CLI plugin manager if it's not already installed:
+Install or update the Gloo Mesh Enterprise CLI plugin manager :
 
 ```bash
-if ! meshctl plugin; then
+if meshctl plugin; then
+  meshctl plugin update
+else
   meshctl init-plugin-manager
 fi
 ```
 
-Install the WASM meshctl plugin:
+Install or upgrade the accesslog meshctl plugin:
 
 ```bash
-meshctl plugin install wasm
+if meshctl accesslog --help; then
+  meshctl plugin upgrade wasm@v1.1.0
+else
+  meshctl plugin install wasm@v1.1.0
+fi
 ```
 
 The main advantage of building a Wasm Envoy filter is that you can manipulate requests (and responses) exactly the way it makes sense for your specific use cases.
