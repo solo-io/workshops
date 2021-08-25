@@ -366,6 +366,7 @@ kubectl --context ${MGMT} create ns gloo-mesh
 helm install gloo-mesh-enterprise gloo-mesh-enterprise/gloo-mesh-enterprise \
 --namespace gloo-mesh --kube-context ${MGMT} \
 --version=1.1.0 \
+--set gloo-mesh-ui.relayClientAuthority=enterprise-networking.gloo-mesh \
 --set rbac-webhook.enabled=true \
 --set licenseKey=${GLOO_MESH_LICENSE_KEY} \
 --set "rbac-webhook.adminSubjects[0].kind=Group" \
