@@ -3113,6 +3113,16 @@ kubectl --context ${CLUSTER1} -n keycloak rollout status deploy/keycloak
 sleep 30
 -->
 
+
+<!--bash
+fqdn=$(kubectl --context ${CLUSTER1} -n keycloak get service keycloak -o jsonpath='{.status.loadBalancer.ingress[0].*}')
+until nslookup ${fqdn} 1>/dev/null; do
+  printf "%s" "."
+  sleep 1
+done
+-->
+
+
 Then, we will configure it and create two users:
 
 - User1 credentials: `user1/password`
@@ -3493,9 +3503,11 @@ Now, run the following command several times.
 curl -k https://$SVC_GW_CLUSTER1/reviews/0
 ```
 
-You should get .
+You should get responses from `v3` 75% of the time:
 
-If you refresh the page several times again, you'll see the `v3` version of the `reviews` microservice with the red stars:
+```
+{"id": "0","reviews": [{  "reviewer": "Reviewer1",  "text": "An extremely entertaining play by Shakespeare. The slapstick humour is refreshing!", "rating": {"stars": 5, "color": "red"}},{  "reviewer": "Reviewer2",  "text": "Absolutely fun and entertaining. The play lacks thematic depth when compared to other plays by Shakespeare.", "rating": {"stars": 4, "color": "red"}}]}
+```
 
 Let's delete the TrafficPolicy:
 
