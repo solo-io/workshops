@@ -505,17 +505,17 @@ EOF
 
 
 
-Download istio 1.10.3:
+Download istio 1.10.4:
 
 ```bash
-export ISTIO_VERSION=1.10.3
+export ISTIO_VERSION=1.10.4
 curl -L https://istio.io/downloadIstio | sh -
 ```
 
 
 <!--bash
 log_header "Test :: Istio version"
-expected_istio_client_version=$(./istio-1.10.3/bin/istioctl version --remote=false)
+expected_istio_client_version=$(./istio-1.10.4/bin/istioctl version --remote=false)
 result_message="Installed version is $ISTIO_VERSION"
 assert_eq "$ISTIO_VERSION" "$expected_istio_client_version" "$result_message" && log_success "$result_message"
 -->
@@ -527,7 +527,7 @@ Now let's deploy Istio on the first cluster:
 
 kubectl --context ${CLUSTER1} create ns istio-operator
 
-./istio-1.10.3/bin/istioctl --context ${CLUSTER1} operator init 
+./istio-1.10.4/bin/istioctl --context ${CLUSTER1} operator init 
 
 kubectl --context ${CLUSTER1} create ns istio-system
 
@@ -616,7 +616,7 @@ And deploy Istio on the second cluster:
 
 kubectl --context ${CLUSTER2} create ns istio-operator
 
-./istio-1.10.3/bin/istioctl --context ${CLUSTER2} operator init 
+./istio-1.10.4/bin/istioctl --context ${CLUSTER2} operator init 
 
 kubectl --context ${CLUSTER2} create ns istio-system
 
@@ -770,14 +770,14 @@ Run the following commands to deploy the bookinfo app on `cluster1`:
 ```bash
 
 
-bookinfo_yaml=https://raw.githubusercontent.com/istio/istio/1.10.3/samples/bookinfo/platform/kube/bookinfo.yaml
+bookinfo_yaml=https://raw.githubusercontent.com/istio/istio/1.10.4/samples/bookinfo/platform/kube/bookinfo.yaml
 kubectl --context ${CLUSTER1} label namespace default istio-injection=enabled
 # deploy bookinfo application components for all versions less than v3
 kubectl --context ${CLUSTER1} apply -f ${bookinfo_yaml} -l 'app,version notin (v3)'
 # deploy all bookinfo service accounts
 kubectl --context ${CLUSTER1} apply -f ${bookinfo_yaml} -l 'account'
 # configure ingress gateway to access bookinfo
-kubectl --context ${CLUSTER1} apply -f https://raw.githubusercontent.com/istio/istio/1.10.3/samples/bookinfo/networking/bookinfo-gateway.yaml
+kubectl --context ${CLUSTER1} apply -f https://raw.githubusercontent.com/istio/istio/1.10.4/samples/bookinfo/networking/bookinfo-gateway.yaml
 ```
 
 You can check that the app is running using `kubectl --context ${CLUSTER1} get pods`:
@@ -801,7 +801,7 @@ kubectl --context ${CLUSTER2} label namespace default istio-injection=enabled
 # deploy all bookinfo service accounts and application components for all versions
 kubectl --context ${CLUSTER2} apply -f ${bookinfo_yaml}
 # configure ingress gateway to access bookinfo
-kubectl --context ${CLUSTER2} apply -f https://raw.githubusercontent.com/istio/istio/1.10.3/samples/bookinfo/networking/bookinfo-gateway.yaml
+kubectl --context ${CLUSTER2} apply -f https://raw.githubusercontent.com/istio/istio/1.10.4/samples/bookinfo/networking/bookinfo-gateway.yaml
 ```
 
 You can check that the app is running using `kubectl --context ${CLUSTER2} get pods`:
@@ -1454,6 +1454,9 @@ spec:
         - name: istio-ingressgateway-service-account
           namespace: istio-system
           clusterName: cluster1
+        - name: istio-ingressgateway-service-account
+          namespace: istio-system
+          clusterName: cluster2
   destinationSelector:
   - kubeServiceMatcher:
       namespaces:
@@ -3228,7 +3231,7 @@ Use the istioctl x workload entry command to generate:
 - hosts: An addendum to /etc/hosts that the proxy will use to reach istiod for xDS.*
 
 ```bash
-./istio-1.10.3/bin/istioctl --context ${CLUSTER1} x workload entry configure -f workloadgroup.yaml -o "${WORK_DIR}" --clusterID "${CLUSTER}"
+./istio-1.10.4/bin/istioctl --context ${CLUSTER1} x workload entry configure -f workloadgroup.yaml -o "${WORK_DIR}" --clusterID "${CLUSTER}"
 ```
 
 Run a Docker container that we'll use to simulate a VM:
@@ -3277,7 +3280,7 @@ docker exec vm1 cp /vm/istio-token /var/run/secrets/tokens/istio-token
 Install the deb package containing the Istio virtual machine integration runtime:
 
 ```bash
-docker exec vm1 curl -LO https://storage.googleapis.com/istio-release/releases/1.10.3/deb/istio-sidecar.deb
+docker exec vm1 curl -LO https://storage.googleapis.com/istio-release/releases/1.10.4/deb/istio-sidecar.deb
 docker exec vm1 dpkg -i istio-sidecar.deb
 ```
 
@@ -3658,7 +3661,7 @@ EOF
 Deploy a new version of the ratings service that is using the database and scale down the current version:
 
 ```bash
-kubectl --context ${CLUSTER1} apply -f ./istio-1.10.3/samples/bookinfo/platform/kube/bookinfo-ratings-v2-mysql-vm.yaml
+kubectl --context ${CLUSTER1} apply -f ./istio-1.10.4/samples/bookinfo/platform/kube/bookinfo-ratings-v2-mysql-vm.yaml
 kubectl --context ${CLUSTER1} set env deploy/ratings-v2-mysql-vm MYSQL_DB_HOST=mysqldb.virtualmachines.svc.cluster.local
 kubectl --context ${CLUSTER1} set serviceaccount deploy/ratings-v2-mysql-vm bookinfo-ratings
 pod=$(kubectl --context ${CLUSTER1} get pods -l "app=ratings,version=v1" -o jsonpath='{.items[0].metadata.name}')
@@ -3811,7 +3814,8 @@ In this step, we're going to expose the `productpage` through a Gateway using Gl
 First of all, let's delete the Istio `VirtualService` and `Gateway` objects we've created when we deployed the `bookinfo` application:
 
 ```bash
-kubectl --context ${CLUSTER1} delete -f https://raw.githubusercontent.com/istio/istio/1.10.3/samples/bookinfo/networking/bookinfo-gateway.yaml
+kubectl --context ${CLUSTER1} delete -f https://raw.githubusercontent.com/istio/istio/1.10.4/samples/bookinfo/networking/bookinfo-gateway.yaml
+kubectl --context ${CLUSTER2} delete -f https://raw.githubusercontent.com/istio/istio/1.10.4/samples/bookinfo/networking/bookinfo-gateway.yaml
 ```
 
 Then, we need to create a Gloo Mesh `VirtualGateway`.
@@ -3838,6 +3842,7 @@ spec:
     - kubeServiceMatcher:
         clusters:
         - cluster1
+        - cluster2
         labels:
           istio: ingressgateway
         namespaces:
@@ -3915,10 +3920,14 @@ openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
    -keyout tls.key -out tls.crt -subj "/CN=*"
 ```
 
-Then, you have to store them in a Kubernetes secret running the following command:
+Then, you have to store them in a Kubernetes secrets running the following commands:
 
 ```bash
 kubectl --context ${CLUSTER1} -n istio-system create secret generic tls-secret \
+--from-file=tls.key=tls.key \
+--from-file=tls.crt=tls.crt
+
+kubectl --context ${CLUSTER2} -n istio-system create secret generic tls-secret \
 --from-file=tls.key=tls.key \
 --from-file=tls.crt=tls.crt
 ```
@@ -3953,6 +3962,7 @@ spec:
     - kubeServiceMatcher:
         clusters:
         - cluster1
+        - cluster2
         labels:
           istio: ingressgateway
         namespaces:
@@ -3966,6 +3976,12 @@ Get the URL to securely access the `productpage` service from your web browser u
 
 ```
 echo "https://${SVC_GW_CLUSTER1}/productpage"
+```
+
+But you can also access it using the gateway of the second cluster:
+
+```
+echo "https://${SVC_GW_CLUSTER2}/productpage"
 ```
 
 
@@ -4088,6 +4104,9 @@ spec:
         - name: istio-ingressgateway-service-account
           namespace: istio-system
           clusterName: cluster1
+        - name: istio-ingressgateway-service-account
+          namespace: istio-system
+          clusterName: cluster2
   destinationSelector:
   - kubeServiceMatcher:
       namespaces:
@@ -4266,6 +4285,9 @@ spec:
         - name: istio-ingressgateway-service-account
           namespace: istio-system
           clusterName: cluster1
+        - name: istio-ingressgateway-service-account
+          namespace: istio-system
+          clusterName: cluster2
   destinationSelector:
   - kubeServiceMatcher:
       namespaces:

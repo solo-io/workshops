@@ -329,7 +329,7 @@ kubectl config use-context ${MGMT}
 First of all, you need to install the *meshctl* CLI:
 
 ```bash
-export GLOO_MESH_VERSION=v1.1.0
+export GLOO_MESH_VERSION=v1.1.1
 curl -sL https://run.solo.io/meshctl/install | sh -
 export PATH=$HOME/.gloo-mesh/bin:$PATH
 ```
@@ -362,7 +362,7 @@ helm repo update
 kubectl --context ${MGMT} create ns gloo-mesh 
 helm install gloo-mesh-enterprise gloo-mesh-enterprise/gloo-mesh-enterprise \
 --namespace gloo-mesh --kube-context ${MGMT} \
---version=1.1.0 \
+--version=1.1.1 \
 --set rbac-webhook.enabled=true \
 --set licenseKey=${GLOO_MESH_LICENSE_KEY} \
 --set "rbac-webhook.adminSubjects[0].kind=Group" \
@@ -434,14 +434,14 @@ assert_eq "$clusters_names" "$expected_cluster_names" "$result_message" && log_s
 >   --set relay.serverAddress=${SVC}:9900 \
 >   --set relay.cluster=cluster1 \
 >   --kube-context=${CLUSTER1} \
->   --version 1.1.0
+>   --version 1.1.1
 > 
 > helm install enterprise-agent enterprise-agent/enterprise-agent \
 >   --namespace gloo-mesh \
 >   --set relay.serverAddress=${SVC}:9900 \
 >   --set relay.cluster=cluster2 \
 >   --kube-context=${CLUSTER2} \
->   --version 1.1.0
+>   --version 1.1.1
 > ```
 > #### Create the `KubernetesCluster` objects
 > ```
@@ -485,8 +485,8 @@ Then, you can deploy the addons using Helm:
 ```bash
 helm repo add enterprise-agent https://storage.googleapis.com/gloo-mesh-enterprise/enterprise-agent
 helm repo update
-helm install enterprise-agent-addons enterprise-agent/enterprise-agent --kube-context=${CLUSTER1} --version=1.1.0 --namespace gloo-mesh-addons --set enterpriseAgent.enabled=false --set rate-limiter.enabled=true --set ext-auth-service.enabled=true
-helm install enterprise-agent-addons enterprise-agent/enterprise-agent --kube-context=${CLUSTER2} --version=1.1.0 --namespace gloo-mesh-addons --set enterpriseAgent.enabled=false --set rate-limiter.enabled=true --set ext-auth-service.enabled=true
+helm install enterprise-agent-addons enterprise-agent/enterprise-agent --kube-context=${CLUSTER1} --version=1.1.1 --namespace gloo-mesh-addons --set enterpriseAgent.enabled=false --set rate-limiter.enabled=true --set ext-auth-service.enabled=true
+helm install enterprise-agent-addons enterprise-agent/enterprise-agent --kube-context=${CLUSTER2} --version=1.1.1 --namespace gloo-mesh-addons --set enterpriseAgent.enabled=false --set rate-limiter.enabled=true --set ext-auth-service.enabled=true
 ```
 
 Finally, we need to create an `AccessPolicy` for the Istio Ingress Gateways to communicate with the addons and for the addons to communicate together:
@@ -526,17 +526,17 @@ EOF
 
 
 
-Download istio 1.10.3:
+Download istio 1.10.4:
 
 ```bash
-export ISTIO_VERSION=1.10.3
+export ISTIO_VERSION=1.10.4
 curl -L https://istio.io/downloadIstio | sh -
 ```
 
 
 <!--bash
 log_header "Test :: Istio version"
-expected_istio_client_version=$(./istio-1.10.3/bin/istioctl version --remote=false)
+expected_istio_client_version=$(./istio-1.10.4/bin/istioctl version --remote=false)
 result_message="Installed version is $ISTIO_VERSION"
 assert_eq "$ISTIO_VERSION" "$expected_istio_client_version" "$result_message" && log_success "$result_message"
 -->
@@ -548,7 +548,7 @@ Now let's deploy Istio on the first cluster:
 
 kubectl --context ${CLUSTER1} create ns istio-operator
 
-./istio-1.10.3/bin/istioctl --context ${CLUSTER1} operator init 
+./istio-1.10.4/bin/istioctl --context ${CLUSTER1} operator init 
 
 kubectl --context ${CLUSTER1} create ns istio-system
 
@@ -637,7 +637,7 @@ And deploy Istio on the second cluster:
 
 kubectl --context ${CLUSTER2} create ns istio-operator
 
-./istio-1.10.3/bin/istioctl --context ${CLUSTER2} operator init 
+./istio-1.10.4/bin/istioctl --context ${CLUSTER2} operator init 
 
 kubectl --context ${CLUSTER2} create ns istio-system
 
@@ -791,14 +791,14 @@ Run the following commands to deploy the bookinfo app on `cluster1`:
 ```bash
 
 
-bookinfo_yaml=https://raw.githubusercontent.com/istio/istio/1.10.3/samples/bookinfo/platform/kube/bookinfo.yaml
+bookinfo_yaml=https://raw.githubusercontent.com/istio/istio/1.10.4/samples/bookinfo/platform/kube/bookinfo.yaml
 kubectl --context ${CLUSTER1} label namespace default istio-injection=enabled
 # deploy bookinfo application components for all versions less than v3
 kubectl --context ${CLUSTER1} apply -f ${bookinfo_yaml} -l 'app,version notin (v3)'
 # deploy all bookinfo service accounts
 kubectl --context ${CLUSTER1} apply -f ${bookinfo_yaml} -l 'account'
 # configure ingress gateway to access bookinfo
-kubectl --context ${CLUSTER1} apply -f https://raw.githubusercontent.com/istio/istio/1.10.3/samples/bookinfo/networking/bookinfo-gateway.yaml
+kubectl --context ${CLUSTER1} apply -f https://raw.githubusercontent.com/istio/istio/1.10.4/samples/bookinfo/networking/bookinfo-gateway.yaml
 ```
 
 You can check that the app is running using `kubectl --context ${CLUSTER1} get pods`:
@@ -822,7 +822,7 @@ kubectl --context ${CLUSTER2} label namespace default istio-injection=enabled
 # deploy all bookinfo service accounts and application components for all versions
 kubectl --context ${CLUSTER2} apply -f ${bookinfo_yaml}
 # configure ingress gateway to access bookinfo
-kubectl --context ${CLUSTER2} apply -f https://raw.githubusercontent.com/istio/istio/1.10.3/samples/bookinfo/networking/bookinfo-gateway.yaml
+kubectl --context ${CLUSTER2} apply -f https://raw.githubusercontent.com/istio/istio/1.10.4/samples/bookinfo/networking/bookinfo-gateway.yaml
 ```
 
 You can check that the app is running using `kubectl --context ${CLUSTER2} get pods`:
@@ -1475,6 +1475,9 @@ spec:
         - name: istio-ingressgateway-service-account
           namespace: istio-system
           clusterName: cluster1
+        - name: istio-ingressgateway-service-account
+          namespace: istio-system
+          clusterName: cluster2
   destinationSelector:
   - kubeServiceMatcher:
       namespaces:
@@ -2119,9 +2122,9 @@ Install or upgrade the accesslog meshctl plugin:
 
 ```bash
 if meshctl accesslog --help; then
-  meshctl plugin upgrade accesslog@v1.1.0
+  meshctl plugin upgrade accesslog@v1.1.1
 else
-  meshctl plugin install accesslog@v1.1.0
+  meshctl plugin install accesslog@v1.1.1
 fi
 ```
 
@@ -2430,7 +2433,8 @@ In this step, we're going to expose the `productpage` through a Gateway using Gl
 First of all, let's delete the Istio `VirtualService` and `Gateway` objects we've created when we deployed the `bookinfo` application:
 
 ```bash
-kubectl --context ${CLUSTER1} delete -f https://raw.githubusercontent.com/istio/istio/1.10.3/samples/bookinfo/networking/bookinfo-gateway.yaml
+kubectl --context ${CLUSTER1} delete -f https://raw.githubusercontent.com/istio/istio/1.10.4/samples/bookinfo/networking/bookinfo-gateway.yaml
+kubectl --context ${CLUSTER2} delete -f https://raw.githubusercontent.com/istio/istio/1.10.4/samples/bookinfo/networking/bookinfo-gateway.yaml
 ```
 
 Then, we need to create a Gloo Mesh `VirtualGateway`.
@@ -2457,6 +2461,7 @@ spec:
     - kubeServiceMatcher:
         clusters:
         - cluster1
+        - cluster2
         labels:
           istio: ingressgateway
         namespaces:
@@ -2534,10 +2539,14 @@ openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
    -keyout tls.key -out tls.crt -subj "/CN=*"
 ```
 
-Then, you have to store them in a Kubernetes secret running the following command:
+Then, you have to store them in a Kubernetes secrets running the following commands:
 
 ```bash
 kubectl --context ${CLUSTER1} -n istio-system create secret generic tls-secret \
+--from-file=tls.key=tls.key \
+--from-file=tls.crt=tls.crt
+
+kubectl --context ${CLUSTER2} -n istio-system create secret generic tls-secret \
 --from-file=tls.key=tls.key \
 --from-file=tls.crt=tls.crt
 ```
@@ -2572,6 +2581,7 @@ spec:
     - kubeServiceMatcher:
         clusters:
         - cluster1
+        - cluster2
         labels:
           istio: ingressgateway
         namespaces:
@@ -2585,6 +2595,12 @@ Get the URL to securely access the `productpage` service from your web browser u
 
 ```
 echo "https://${SVC_GW_CLUSTER1}/productpage"
+```
+
+But you can also access it using the gateway of the second cluster:
+
+```
+echo "https://${SVC_GW_CLUSTER2}/productpage"
 ```
 
 
@@ -2707,6 +2723,9 @@ spec:
         - name: istio-ingressgateway-service-account
           namespace: istio-system
           clusterName: cluster1
+        - name: istio-ingressgateway-service-account
+          namespace: istio-system
+          clusterName: cluster2
   destinationSelector:
   - kubeServiceMatcher:
       namespaces:
@@ -2885,6 +2904,9 @@ spec:
         - name: istio-ingressgateway-service-account
           namespace: istio-system
           clusterName: cluster1
+        - name: istio-ingressgateway-service-account
+          namespace: istio-system
+          clusterName: cluster2
   destinationSelector:
   - kubeServiceMatcher:
       namespaces:
