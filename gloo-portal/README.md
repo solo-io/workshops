@@ -2589,8 +2589,136 @@ helm install postgres bitnami/postgresql -n gloo-system \
 --set initdbScriptsConfigMap=postgres-schema
 ```
 
+### Monetization configuration
 
+Configure the secret and configmap so that Gloo Edge can access PostgreSQL:
 
+```bash
+cat <<EOF | kubectl apply -n gloo-system -f -
+apiVersion: v1
+kind: Secret
+metadata:
+  name: monetization-secret
+type: kubernetes.io/basic-auth
+stringData:
+  username: postgres-user
+  password: postgres-password
+EOF
+```
 
+```bash
+cat <<EOF | kubectl apply -n gloo-system -f -
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: monetization-config
+data:
+  storage-type: "postgres"
+  config.yaml: | # Edge and Portal will mount this volume and read this field as a YAML file
+    secretpath: /etc/monetization/secret
+    host: postgres-postgresql.gloo-system.svc.cluster.local
+    db: postgres-db
+    port: 5432
+EOF
+```
 
+Copy these resources to the GLoo Portal namespace:
+
+```bash 
+kubectl get secret monetization-secret -n gloo-system -o yaml | sed 's/namespace: .*/namespace: gloo-portal/' | kubectl apply -f -
+
+kubectl get cm monetization-config -n gloo-system -o yaml | sed 's/namespace: .*/namespace: gloo-portal/' | kubectl apply -f -
+```
+
+Patch the Gloo Edge deployment:
+
+```bash
+cat << EOF > glooe-monetization-values.yaml
+global:
+  extensions:
+    extAuth:
+      deployment:
+        # Specify the monetization config and secret as volumes for the extauth deployment
+        extraVolume:
+        - name: monetization-config
+          configMap:
+            name: monetization-config
+        - name: monetization-secret
+          secret:
+            secretName: monetization-secret
+        # Mount the volumes
+        extraVolumeMount:
+        - name: monetization-config
+          mountPath: /etc/monetization/storage-config
+          readOnly: true
+        - name: monetization-secret
+          mountPath: /etc/monetization/secret
+          readOnly: true
+        # Set this env to enable monetization
+        customEnv:
+        - name: MONETIZATION_ENABLED
+          value: "true"
+gloo:
+  gatewayProxies:
+    gatewayProxy:
+      gatewaySettings:
+        # Configure envoy to stream access logs to the "extauth" cluster
+        accessLoggingService:
+          accessLog: 
+          - grpcService:
+              logName: "monetization-log"
+              staticClusterName: "extauth"
+      # Access log clusters need to be static, so let's add "extauth" as a static cluster
+      envoyStaticClusters:
+      - name: extauth # we use the extauth server as an access log service to enable monetization
+        connect_timeout: 5.000s
+        type: STRICT_DNS
+        typed_extension_protocol_options:
+          envoy.extensions.upstreams.http.v3.HttpProtocolOptions:
+            "@type": type.googleapis.com/envoy.extensions.upstreams.http.v3.HttpProtocolOptions
+            # Explicitly require HTTP/2
+            explicit_http_config:
+              http2_protocol_options: { }
+        lb_policy: ROUND_ROBIN
+        load_assignment:
+          cluster_name: extauth
+          endpoints:
+          - lb_endpoints:
+            - endpoint:
+                address:
+                  socket_address:
+                    address: extauth.gloo-system.svc.cluster.local
+                    port_value: 8083
+EOF
+
+helm upgrade -n gloo-system gloo glooe/gloo-ee --values=glooe-monetization-values.yaml --set license_key=$LICENSE_KEY
+```
+
+### Configure Gloo Portal
+
+Patch the deployment:
+
+```bash
+cat << EOF > portal-values.yaml
+# Values from the setup guide of the docs
+glooEdge:
+  enabled: true
+licenseKey:
+  secretRef:
+    name: license
+    namespace: gloo-system
+    key: license-key
+# Monetization configuration values
+monetization:
+  enabled: true
+  configMapName: monetization-config
+  secretName: monetization-secret
+EOF
+
+helm upgrade gloo-portal gloo-portal/gloo-portal -n gloo-system --values portal-values.yaml
+```
+
+Reload the Gloo Portal admin UI and navigate to the new **API Usage** menu:
+
+![try-it-out](images/monetization-api-usage-graph.png)
 
