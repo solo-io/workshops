@@ -39,7 +39,7 @@ Let's deploy **Gloo Edge**:
 ```bash
 helm repo update
 
-helm upgrade -i gloo glooe/gloo-ee --namespace gloo-system --version 1.8.5 --create-namespace --set-string license_key="$LICENSE_KEY"
+helm upgrade -i gloo glooe/gloo-ee --namespace gloo-system --version 1.8.6 --create-namespace --set-string license_key="$LICENSE_KEY"
 ```
 
 NOTE: Gloo Portal requires a subscription to Gloo Edge Enterprise or to Gloo Mesh Enterprise.
@@ -61,7 +61,7 @@ EOF
 
 helm repo add gloo-portal https://storage.googleapis.com/dev-portal-helm
 helm repo update
-helm install gloo-portal gloo-portal/gloo-portal -n gloo-portal --values portal-values.yaml --version=1.1.0-beta4 --create-namespace
+helm install gloo-portal gloo-portal/gloo-portal -n gloo-portal --values portal-values.yaml --version=1.1.0-beta6 --create-namespace
 
 kubectl -n gloo-portal wait pod --all --for condition=Ready --timeout -1s
 ```
@@ -117,7 +117,61 @@ curl -H "Authorization: Bearer ${KEYCLOAK_TOKEN}" -X POST -H "Content-Type: appl
 
 For curious ones, the Keycloak admin web UI is available at `$KEYCLOAK_URL/admin`
 
+### Init step 5: HTTPBIN
 
+Finally, at some point in the workshop, we will need a backend service mirroring the headers.
+
+So, let's just deploy the **httpbin** app:
+
+```bash
+kubectl apply -f -<<EOF
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: httpbin
+  namespace: default
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: httpbin
+  namespace: default
+  labels:
+    app: httpbin
+spec:
+  ports:
+  - name: http
+    port: 8000
+    targetPort: 80
+  selector:
+    app: httpbin
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: httpbin
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: httpbin
+      version: v1
+  template:
+    metadata:
+      labels:
+        app: httpbin
+        version: v1
+    spec:
+      serviceAccountName: httpbin
+      containers:
+      - image: docker.io/kennethreitz/httpbin
+        imagePullPolicy: IfNotPresent
+        name: httpbin
+        ports:
+        - containerPort: 80
+EOF
+```
 
 ## Lab 1: Crafting your first API Product
 
@@ -580,7 +634,7 @@ spec:
   - name: dev
     namespace: default
 
-  allApisPublicViewable: true
+  allApisPublicViewable: true # this will make APIs visible by unauthenticated users
 EOF
 ```
 
@@ -601,39 +655,30 @@ open http://portal.mycompany.corp/
 
 ![Developer Portal](images/petstore-portal-homepage.png)
 
+Note that we explicetly set the APIs visiblity to public in the `Portal` config (see above: `allApisPublicViewable: true`)
+
 Take a few minutes to browse the developer portal.  
-Under the **APIs** menu, you will find the 2 version of our `APIProduct`:
+Under the **APIs** menu, you will find the two versions of our `APIProduct`:
 
 ![APIs](images/petstore-portal-apis.png)
 
-Note that we explicetly set the APIs visiblity to public in the `Portal` config (see above: `allApisPublicViewable: true`)
+Click the line with the **v1** to observe the list of aggregated endpoints for this version.
 
-Click the 2nd line with 'v2', and you are now able to use the _*try-it-out*_ feature:
-
-![try-it-out](images/petstore-portal-tryitout.png)
-
-Scroll down and click on the `GET /api/store/inventory` API call.
-
-Click on `Try it out` and then on the `Execute` button.
-
-You should get a 200 response:
-
-![User Developer Portal API call OK](images/dev-portal-api-call-ok.png)
-
-Later in this workshop, you will secure the access to the developer portal and also the access to the APIs.
+Based on the OpenAPI specifications, these endpoints require authentication. We will override this with Gloo Portal _Custom Resources_ later in this workshop.  Below, there is a section where you will secure the access to the developer portal and also the access to the APIs.
 
 ## Lab 4: Explore the Admin UI
 
 On top of these developer portal web UIs, Gloo Portal comes with an additional Admin-centric web UI, so that you can see and configure all of the Gloo Portal resources:
-- APIDocs and APIProducts
-- Environments
-- Portals
-- Users and Groups
+- `APIDocs` and `APIProducts`
+- `Routes`
+- `Environments`
+- `Portals`
+- `Users` and `Groups`
 
 You can access this admin UI using a port-forward:
 
 ```bash
-kubectl -n gloo-portal port-forward svc/gloo-portal-admin-server 8080
+kubectl -n gloo-portal port-forward svc/gloo-portal-admin-server 8080 &
 ```
 
 Then, open http://localhost:8080 and you should find this webapp:
@@ -653,25 +698,25 @@ There are 2 options to secure the access to a developer Portal:
 - basic auth, using the `User` and `Group` CRDs
 - OpenID Connect ([see also](https://www.solo.io/blog/self-service-user-registration-with-gloo-portal-and-okta/))
 
-In this **lab**, we will secure the access to a developer `Portal` with basic auth.
+In this **lab #5**, we will secure the access to a developer `Portal` with basic auth.
 
 ### Option A - Using the admin portal web UI
 In the "Access Control" section of the dashboard, click the "Create a Group" button...  
 
 ![group creation - step 1a](images/basic-auth-create-group-1a.png)
 
-... and give it a name:
+... and give it a name, here `developers` and display name, here `ecommerce developers`:
 
 ![group creation - step 1](images/basic-auth-create-group-1.png)
 
 Click "Next step" and then click "Create Group".  
 
-Now, let's configure our developer `Portal` so that it is accessible to the __"ecommerce developers"__ `Group`.  
+Now, let's configure access control so that the __"ecommerce developers"__ `Group` can access the developer `Portal`.  
 Click the __Manage__ link under "Portal Access", next to the group name:
 
 ![edit group](images/basic-auth-add-portal-to-group.png)
 
-Then add the "E-commerce..." Portal to the list of allowed Portal for this Group:
+Then add the "E-commerce Portal" `Portal` to the list of allowed Portal for this Group:
 
 ![add portal](images/group-portal-ac.png)
 
@@ -679,11 +724,11 @@ Now, let's create a User with the same method:
 
 ![user creation - step 1](images/basic-auth-create-user-1.png)
 
-Then, give it a name and a password:
+Then, give it a name, here `dev1` and a password:
 
 ![user creation - step 2](images/basic-auth-create-user-2.png)
 
-Finally, make it a member of the Group defined above: 
+Finally, add it as a member of the `Group` defined above: 
 
 ![user creation - step 3](images/basic-auth-create-user-3.png)
 
@@ -692,8 +737,8 @@ Finally, you should see a configuration like this:
 
 ![user group config overview](images/basic-auth-config-overview.png)
 
-### (OPTIONAL!) Option B - Using CRDs
-Another way of working is by using Custom Resources:
+### Option B - Using CRDs
+Another way of working is by using the Gloo Portal _Custom Resources_:
 
 ```bash
 pass=$(htpasswd -bnBC 10 "" super-password2 | tr -d ':\n')
@@ -741,7 +786,7 @@ Once logged in, you should be able to browse the API catalog and see your Petsto
 
 ## Lab 6: Securing the access to the developer Portal with OIDC
 
-Let's change the plans and secure our developer Portal with OpenID Connect.  
+Let's secure our developer Portal with OpenID Connect.  
 We will rely on our Keycloak instance as the OpenID Provider and the few users and group we have created at the beginning.
 
 Overview of the in-memory users & group in Keycloak:
@@ -1032,6 +1077,8 @@ Let's make some tests!
 
 #### Testing the JWT based plan
 
+Let's fetch an `access_token` JWT from the IdP:
+
 ```bash
 token=$(curl -s -d "client_id=admin-cli" -d "username=user1" -d "password=password" -d "grant_type=password" "$KEYCLOAK_URL/realms/master/protocol/openid-connect/token" | jq -r .access_token)
 ```
@@ -1179,7 +1226,9 @@ spec:
 EOF
 ```
 
-We also update the petstore `APIProduct` so that is it accessible with either the `basic` plan or the `trusted` plan.
+Don't pay attention to the warning message.
+
+We also update the petstore `APIProduct` so that is it accessible with both the `basic` plan and the `trusted` plan.
 
 ```bash
 cat << EOF | kubectl apply -f -
@@ -1230,11 +1279,49 @@ spec:
 EOF
 ```
 
-Let's make some more tests!
+Let's do some more tests!
 
 #### Testing the basic auth plan
 
-Without providing any proof of identoty, you should get a 403 error:
+Logout from `user1@solo.io` and log back in with the `dev1` user credentials.
+
+Click on `dev1` on the top right corner and select `API Keys`.
+
+Click on `API Keys` again and then click "Add an API Key".
+
+![User Developer Portal API Key](images/dev-portal-api-key.png)
+
+You can click on the key to copy the value to the clipboard.
+
+Let's try it out in the Portal UI at first.
+
+Navigate back to your API and click the 2nd line with 'v2', and you are now able to use the _*try-it-out*_ feature.
+
+First, click the **Authorize** button:
+
+![try-it-out](images/try-it-landing-page.png)
+
+Paste the API key and click **Authorize** again, then **Close**.
+
+![try-it-out](images/try-it-authorize.png)
+
+Scroll down and click on the `GET /api/store/inventory` API call.
+
+![try-it-out](images/try-it-request.png)
+
+Click on `Try it out` and then on the `Execute` button.
+
+![try-it-out](images/try-it-result.png)
+
+You should get a 200 response:
+
+![User Developer Portal API call OK](images/dev-portal-api-call-ok.png)
+
+-------------
+
+You can also test it with curl.
+
+Without providing any proof of identity, you should get a 403 error:
 
 ```bash
 curl -s $(glooctl proxy url)/ecommerce/v1/api/pet/1 -H "Host: api.mycompany.corp" -v
@@ -1249,24 +1336,22 @@ curl -s $(glooctl proxy url)/ecommerce/v1/api/pet/1 -H "Host: api.mycompany.corp
 ...
 ```
 
-Click on `dev1` on the top right corner and select `API Keys`.
-
-Click on `API Keys` again and Add an API Key.
-
-![User Developer Portal API Key](images/dev-portal-api-key.png)
-
-You can click on the key to copy the value to the clipboard and `Authorize` the call through the UI, but this time we are going to use curl.
-
 So, we need to retrieve the API key first:
 
 ```bash
 kubectl get secret -n default
 ```
 
-<img>
-
+```text
+NAME                                                           TYPE                                  DATA   AGE
+default-token-hnwcq                                            kubernetes.io/service-account-token   3      5h3m
+petstore-portal-oidc-secret                                    Opaque                                1      29m
+petstore-product-basic2-35c38c86-04aa-ffa1-7899-d767324721ab   extauth.solo.io/apikey                5      20m
 ```
-kubectl get secret petstore-product-basic2-a2b5bfea-9dd4-98ad-611b-ee7467b8aa3e -o yaml
+
+Get more info of the secret type `extauth.solo.io/apikey`:   
+```bash
+kubectl get secret -l apiproducts.portal.gloo.solo.io=petstore-product.default -l environments.portal.gloo.solo.io=dev.default -l usageplans.portal.gloo.solo.io=basic2 -o yaml
 ```
 
 ```yaml
@@ -1348,7 +1433,7 @@ As soon as you reach the rate limit, you should get the following output:
 * Closing connection 0
 ```
 
-Congratulations! you just secured you API with Basic Auth!
+Congratulations! you just secured you API with Basic Auth and rate limiting!
 
 
 
@@ -1897,7 +1982,7 @@ EOF
 kubectl apply -f env.yaml
 ```
 
-Check the admin UI out:
+Check the admin UI out; navigate to the Environment and drill down to the v3 of the **Petstore Product**:
 
 ![Environment with v3 gRPC](images/env-with-v3-grpc.png)
 
@@ -1918,7 +2003,7 @@ token=$(curl -d "client_id=admin-cli" -d "username=user1" -d "password=password"
 Then, we can run the following command:
 
 ```bash
-./grpcurl -plaintext -H "Authorization: Bearer ${token}" -authority api.mycompany.corp $(glooctl proxy address) test.solo.io.PetStore/ListPets
+./grpcurl -plaintext -H "Authorization: Bearer ${token}" -authority api.mycompany.corp $(glooctl proxy address) test.solo.io.PetStore/ListPets | jq
 ```
 
 You should get a result similar to:
@@ -1941,10 +2026,350 @@ You should get a result similar to:
 }
 ```
 
+## Lab 11 - Routing deep dive
 
-## Lab 11 - More enterprise capabilities
+### A flexible architecture
 
-### WAF
+In the previous versions of Gloo Portal, you were able to define _inline routes_ to Kubernetes services.
+
+Gloo Portal 1.0 comes with support all of the other kind of destination offered by Gloo Edge `Upstreams`, like static upstreams and AWS Lambdas.
+
+Earlier in the workshop, we have defined inline routes for each version of the __Petstore__ `APIProduct`, respectively targetting the petstore-v1 Deployment and the petstore-v1 Deployment.
+
+You can absolutely override these routes at the OpenAPI Operation level, i.e. for each endpoint.
+
+Also, we have added `options` to the `Route` CRD, allowing for more features at the route level. 
+
+Reminder: you can define _routes_ using the `Route` CRD. These objects can then be referenced in `Environment` or `APIProduct` _Custom Resources_.
+
+There is also an edge case where routes are defined inside an `Environment` CR and referenced from `APIProduct` CRs. This permits to avoid duplication in the route definitions.
+
+All of this offers a lot a flexibility in your routing design and strategy. 
+
+
+
+### Overriding a route
+
+We will define a `Route` CR that target the **HTTPBIN** backend.
+
+```bash
+kubectl apply -f - <<EOF
+apiVersion: portal.gloo.solo.io/v1beta1
+kind: Route
+metadata:
+  name: httpbin
+  namespace: default
+spec:
+  backends:
+  - upstream:
+      name: default-httpbin-8000
+      namespace: gloo-system
+EOF
+```
+
+And now, we reference this Route at the `Environment` level, so that any `APIProduct` could eventually use it.
+
+```bash
+KEYCLOAK_URL=http://$(kubectl get service keycloak -o jsonpath='{.status.loadBalancer.ingress[0].ip}'):8080/auth
+
+cat << EOF > env.yaml
+apiVersion: portal.gloo.solo.io/v1beta1
+kind: Environment
+metadata:
+  name: dev
+  namespace: default
+spec:
+  domains:
+    - api.mycompany.corp # the domain name where the API will be exposed
+  displayInfo:
+    description: This environment is meant for developers to deploy and test their APIs.
+    displayName: Development
+  basePath: /ecommerce # a global basepath for our APIs
+  apiProducts: # we will select our APIProduct using a selector and the 2 version of it
+    - namespaces:
+      - "*" 
+      labels:
+      - key: app
+        operator: In
+        values:
+        - petstore
+      versions:
+        names:
+        - v1
+        - v2
+        - v3
+      basePath: "{%version%}" # this will dynamically prefix the API with the version names
+      usagePlans:
+        - basic2
+        - trusted
+  gatewayConfig:
+    disableRoutes: false # we actually want to expose the APIs on a Gateway (optional)
+  parameters:
+    usagePlans:
+      basic2:
+        authPolicy:
+          apiKey: {}
+        displayName: api-keys based plan
+        rateLimit:
+          requestsPerUnit: 5
+          unit: MINUTE
+      trusted:
+        displayName: trusted plan
+        rateLimit:
+          unit: MINUTE
+          requestsPerUnit: 10
+        authPolicy:
+          oauth:
+            authorizationUrl: ${KEYCLOAK_URL}/realms/master/protocol/openid-connect/auth
+            tokenUrl: ${KEYCLOAK_URL}/realms/master/protocol/openid-connect/token
+            jwtValidation:
+              issuer: ${KEYCLOAK_URL}/realms/master
+              remoteJwks:
+                refreshInterval: 60s
+                url: ${KEYCLOAK_URL}/realms/master/protocol/openid-connect/certs
+    # ------------------------ NEW ----------------------------
+    routes:
+      httpbin:
+        routeRef:
+          name: httpbin
+          namespace: default
+    # ---------------------------------------------------------
+EOF
+
+kubectl apply -f env.yaml
+```
+
+And now, we update our `APIProduct` to do some fine-grained routing on the `/api/store/inventory` endpoint, for v2:
+
+```bash
+cat << EOF | kubectl apply -f -
+apiVersion: portal.gloo.solo.io/v1beta1
+kind: APIProduct
+metadata:
+  name: petstore-product
+  namespace: default
+  labels:
+    app: petstore
+spec:
+  displayInfo: 
+    title: Petstore Product
+    description: Fabulous API product for the Petstore
+  usagePlans:
+    - basic2
+    - trusted
+  versions:
+  - name: v1
+    apis:
+      - apiDoc:
+          name: petstore-openapi-v1-pets
+          namespace: default
+      - apiDoc:
+          name: petstore-openapi-v1-users
+          namespace: default
+    gatewayConfig:
+      route:
+        inlineRoute:
+          backends:
+            - upstream:
+                name: default-petstore-v1-8080
+                namespace: gloo-system
+  - name: v2
+    apis:
+    - apiDoc:
+        name: petstore-openapi-v2-full
+        namespace: default
+      # ---------------------- NEW ----------------------------------
+      openApi:
+        operations:
+          - id: getInventory
+            gatewayConfig:
+              route:
+                environmentRoute: httpbin # referencing the Route defined in the Environment
+      # -------------------------------------------------------------
+    gatewayConfig:
+      route:
+        inlineRoute:
+          backends:
+            - upstream:
+                name: default-petstore-v2-8080
+                namespace: gloo-system
+  - name: v3
+    apis:
+    - apiDoc:
+        name: petstore-grpc-doc
+        namespace: default
+    gatewayConfig:
+      route:
+        inlineRoute:
+          backends:
+          - kube:
+              name: petstore-grpc
+              namespace: default
+              port: 8080
+  # ----------------------------------------------------------
+EOF
+```
+
+Now, we run a hacky test:
+
+```bash
+apikey=$(kubectl -n default get secret -l apiproducts.portal.gloo.solo.io=petstore-product.default -l environments.portal.gloo.solo.io=dev.default -l usageplans.portal.gloo.solo.io=basic2 -o "jsonpath={.items[0].data['api-key']}" | base64 -d)
+
+curl -H "api-key: $apikey" -s $(glooctl proxy url)/ecommerce/v2/api/store/inventory -H "Host: api.mycompany.corp"
+```
+
+Well, you will see a 404 because this `/api/store/inventory` endpoint does not exist in the httpbin backend.
+
+See the httpbin logs:
+
+```
+[2021-08-27 13:11:51 +0000] [1] [INFO] Starting gunicorn 19.9.0
+[2021-08-27 13:11:51 +0000] [1] [INFO] Listening at: http://0.0.0.0:80 (1)
+[2021-08-27 13:11:51 +0000] [1] [INFO] Using worker: gevent
+[2021-08-27 13:11:51 +0000] [11] [INFO] Booting worker with pid: 11
+10.79.208.6 [27/Aug/2021:13:12:05 +0000] GET /api/store/inventory HTTP/1.1 404 Host: api.mycompany.corp}
+```
+
+So, let's fix that!
+
+## Lab 12 - Advanced policies - transformations
+
+Let's hack a bit the `Route` defined above and give it a transformation template that will change the request path on the fly.
+
+This time, we will use the admin web UI. Find the **httpbin** Route and click the edit icon, then click on the **Options** tab in the left-hand sidebar:
+
+![route transformation](images/route-transfo-path.png)
+
+Paste this config:
+
+```yaml
+stagedTransformations:
+  regular:
+    requestTransforms:
+      - matcher:
+          prefix: /
+        requestTransformation:
+          transformationTemplate:
+            passthrough: {}
+            headers:
+              ":path":
+                text: "/headers"
+```
+
+And click the "Update Route" button.
+
+Let's curl it again:
+
+```bash
+apikey=$(kubectl -n default get secret -l apiproducts.portal.gloo.solo.io=petstore-product.default -l environments.portal.gloo.solo.io=dev.default -l usageplans.portal.gloo.solo.io=basic2 -o "jsonpath={.items[0].data['api-key']}" | base64 -d)
+
+curl -H "api-key: $apikey" -s $(glooctl proxy url)/ecommerce/v2/api/store/inventory -H "Host: api.mycompany.corp"
+```
+
+The output is now a nice JSON payload, returned by the `/headers` endpoint:
+
+```json
+{
+  "headers": {
+    "Accept": "*/*",
+    "Api-Key": "ZDk0NjkyMjYtODIxYy1mNDIwLWIzYjEtMGZlYjUxZTUwOGY0",
+    "Host": "api.mycompany.corp",
+    "User-Agent": "curl/7.64.1",
+    "X-Envoy-Expected-Rq-Timeout-Ms": "15000",
+    "X-Envoy-Original-Path": "/headers",
+    "X-Solo-Plan": "basic2",
+    "X-User-Id": "petstore-product-basic2-be459939-e990-6050-9522-26f063de0ecc"
+  }
+}
+```
+
+## Lab 13 - Advanced policies - JWT
+
+In this lab, we will extract a JWT claim from the request and add it as a new header for the upstream server.
+
+Our Keycloack IdP is returning a few claims in the access_tokens. Take a look:
+
+```bash
+token=$(curl -s -d "client_id=admin-cli" -d "username=user1" -d "password=password" -d "grant_type=password" "$KEYCLOAK_URL/realms/master/protocol/openid-connect/token" | jq -r .access_token)
+
+echo $token | cut -d'.' -f2 | base64 -d | jq
+```
+
+Output:
+
+```json
+{
+  "exp": 1630072561,
+  "iat": 1630072501,
+  "jti": "b1d6f21b-773f-4ae1-9e04-41ab4ae0ddd1",
+  "iss": "http://34.79.146.82:8080/auth/realms/master",
+  "sub": "bde71411-d4ad-4041-b18c-83402cbd0bdc",
+  "typ": "Bearer",
+  "azp": "admin-cli",
+  "session_state": "bab04077-99dd-40b5-b2a8-71ce4f347f88",
+  "acr": "1",
+  "scope": "email profile",
+  "email_verified": false,
+  "preferred_username": "user1",
+  "email": "user1@solo.io"
+}
+```
+
+Let's extract the `email` claim and pass it to the upstream server into a new header.
+
+Find your `Environment` and click the "Edit Gateway Configuration" icon, under the "Gateway Options" tab:
+
+![edit gateway](images/env-edit-gw.png)
+
+Paste this config block:
+
+```yaml
+jwtStaged:
+  afterExtAuth:
+    providers:
+      keycloack:
+        claimsToHeaders:
+        - claim: email
+          header: x-gloo-email
+        tokenSource:
+          headers:
+          - header: authorization
+            prefix: 'Bearer '
+        jwks:
+          remote:
+            url: http://keycloak.default.svc:8080/auth/realms/master/protocol/openid-connect/certs
+            upstreamRef:
+              name: default-keycloak-8080
+              namespace: gloo-system
+
+```
+
+And now the test:
+
+```bash
+token=$(curl -s -d "client_id=admin-cli" -d "username=user1" -d "password=password" -d "grant_type=password" "$KEYCLOAK_URL/realms/master/protocol/openid-connect/token" | jq -r .access_token)
+
+curl -H "Authorization: Bearer $token" -s $(glooctl proxy url)/ecommerce/v2/api/store/inventory -H "Host: api.mycompany.corp"
+```
+
+You should find the new header as shown here:
+
+```json
+{
+  "headers": {
+    "Accept": "*/*",
+    "Host": "api.mycompany.corp",
+    "User-Agent": "curl/7.64.1",
+    "X-Envoy-Expected-Rq-Timeout-Ms": "15000",
+    "X-Envoy-Original-Path": "/headers",
+    "X-Gloo-Email": "user1@solo.io",
+    "X-User-Id": "bde71411-d4ad-4041-b18c-83402cbd0bdc"
+  }
+}
+```
+
+
+## Lab 14 - Advanced policies - WAF
 
 You can add ModSecurity rules at the VirtualService level by modifying the `Environment` CR:
 
@@ -1983,14 +2408,31 @@ spec:
         - trusted
   gatewayConfig:
     disableRoutes: false # we actually want to expose the APIs on a Gateway (optional)
-    # ------------------------- NEW --------------------------------
     options:
+      jwtStaged:
+          afterExtAuth:
+            providers:
+              keycloack:
+                claimsToHeaders:
+                - claim: email
+                  header: x-gloo-email
+                jwks:
+                  remote:
+                    upstreamRef:
+                      name: default-keycloak-8080
+                      namespace: gloo-system
+                    url: http://keycloak.default.svc:8080/auth/realms/master/protocol/openid-connect/certs
+                tokenSource:
+                  headers:
+                  - header: authorization
+                    prefix: 'Bearer '
+      # ------------------------- NEW --------------------------------
       waf:
         ruleSets:
         - ruleStr: |
             SecRuleEngine On
             SecRule REMOTE_ADDR "!@ipMatch 93.23.0.0/16" "phase:1,deny,status:403,id:1,msg:'block ip'"
-    # --------------------------------------------------------------
+      # --------------------------------------------------------------
   parameters:
     usagePlans:
       basic2:
@@ -2014,6 +2456,11 @@ spec:
               remoteJwks:
                 refreshInterval: 60s
                 url: ${KEYCLOAK_URL}/realms/master/protocol/openid-connect/certs
+    routes:
+      httpbin:
+        routeRef:
+          name: httpbin
+          namespace: default
 EOF
 
 kubectl apply -f env.yaml
@@ -2043,6 +2490,7 @@ spec:
 Verify it works:
 ```bash
 apikey=$(kubectl -n default get secret -l apiproducts.portal.gloo.solo.io=petstore-product.default -l environments.portal.gloo.solo.io=dev.default -l usageplans.portal.gloo.solo.io=basic2 -o "jsonpath={.items[0].data['api-key']}" | base64 -d)
+
 curl -H "api-key: $apikey" -s $(glooctl proxy url)/ecommerce/v1/api/pet/1 -H "Host: api.mycompany.corp" -v
 ```
 
@@ -2065,5 +2513,84 @@ Output:
 ModSecurity: intervention occurred* Closing connection 0
 ...
 ```
+
+You can also manage the gateway from the Admin web UI:
+
+![admin UI - gateway options](images/admin-gw-options.png)
+
+## Lab 15 - Monetization
+
+It is now possible to configure Gloo Portal and GLoo Edge so that it get metrics of the API consumption.
+
+We have a nice step-by-step guide in this section of the doc: https://docs.solo.io/gloo-portal/main/guides/portal_features/monetization/
+
+Here is a summary for the sake of this workshop completeness.
+
+### Database setup
+
+Create the DB schema:
+
+```bash 
+cat << EOF | kubectl apply -f -
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-schema
+  namespace: gloo-system
+data:
+  init-schema.sql: |
+    CREATE TABLE public.requests
+    (
+        id          bigint                   NOT NULL,
+        user_id     text                     NOT NULL,
+        route       text                     NOT NULL,
+        api_product text                     NOT NULL,
+        environment text                     NOT NULL,
+        status      integer                  NOT NULL,
+        request_ts  timestamp with time zone NOT NULL,
+        method      text                     NOT NULL,
+        request_id  text                     NOT NULL
+    );
+
+    ALTER TABLE public.requests
+        OWNER TO "postgres-user";
+
+    CREATE SEQUENCE public.requests_id_seq
+        AS bigint
+        START WITH 1
+        INCREMENT BY 1
+        NO MINVALUE
+        NO MAXVALUE
+        CACHE 1;
+
+    ALTER TABLE public.requests_id_seq
+        OWNER TO "postgres-user";
+
+    ALTER SEQUENCE public.requests_id_seq OWNED BY public.requests.id;
+
+    ALTER TABLE ONLY public.requests
+        ALTER COLUMN id SET DEFAULT nextval('public.requests_id_seq'::regclass);
+
+    ALTER TABLE ONLY public.requests
+        ADD CONSTRAINT requests_pkey PRIMARY KEY (id);
+EOF
+```
+
+Deploy postgresql:
+
+```bash
+helm repo add bitnami https://charts.bitnami.com/bitnami
+helm repo update
+helm install postgres bitnami/postgresql -n gloo-system \
+--set global.postgresql.postgresqlDatabase=postgres-db \
+--set global.postgresql.postgresqlUsername=postgres-user \
+--set global.postgresql.postgresqlPassword=postgres-password \
+--set global.postgresql.servicePort=5432 \
+--set initdbScriptsConfigMap=postgres-schema
+```
+
+
+
+
 
 
