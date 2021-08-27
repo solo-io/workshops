@@ -8,7 +8,7 @@
       // the embedded page listens for a message event to receive data from the Portal
       window.addEventListener("message", function onMsg(msg) {
         // we must check the origin of the message to protect against XSS attacks
-        if (msg.origin === "http://portal.petstore.com" && msg && msg.data) {
+        if (msg.origin === "http://portal.mycompany.corp" && msg && msg.data) {
           let header = document.getElementById("user");
           let headerText = document.createTextNode(
             "the current user is: " + msg.data.currentUser
