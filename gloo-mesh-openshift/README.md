@@ -1782,7 +1782,7 @@ If you refresh the page several times, you'll see an error message telling that 
 
 ![Bookinfo v3](images/steps/traffic-policy/reviews-unavailable.png)
 
-Let's delete the TrafficPolicied:
+Let's delete the TrafficPolicies:
 
 ```bash
 kubectl --context ${MGMT} -n gloo-mesh delete trafficpolicy ratings-fault-injection
@@ -2654,6 +2654,7 @@ echo "https://${SVC_GW_CLUSTER1}/productpage"
 But you can also access it using the gateway of the second cluster:
 
 ```
+SVC_GW_CLUSTER2=$(kubectl --context ${CLUSTER2} -n istio-system get svc istio-ingressgateway -o jsonpath='{.status.loadBalancer.ingress[0].*}')
 echo "https://${SVC_GW_CLUSTER2}/productpage"
 ```
 

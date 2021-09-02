@@ -1707,7 +1707,7 @@ If you refresh the page several times, you'll see an error message telling that 
 
 ![Bookinfo v3](images/steps/traffic-policy/reviews-unavailable.png)
 
-Let's delete the TrafficPolicied:
+Let's delete the TrafficPolicies:
 
 ```bash
 kubectl --context ${MGMT} -n gloo-mesh delete trafficpolicy ratings-fault-injection
@@ -2237,7 +2237,7 @@ assert_eq $result 0 "$result_message" && log_success "$result_message"
 
 The Gloo Mesh CLI, meshctl can be used to create the skeleton for you.
 
-Let's take a look at the help of the meshctl wasme option:
+Let's take a look at the help of the meshctl wasm option:
 
 ```
 meshctl wasm
@@ -3045,7 +3045,7 @@ Let's delete the TrafficPolicy we've created in the previous lab:
 kubectl --context ${MGMT} -n gloo-mesh delete trafficpolicy simple
 ```
 
-We also need to grant the admin role back to the current user:
+We also need to grant the admin role back to the current user (that was granted through a Group as you can check in the Helm's parameters we used in Lab2):
 
 ```bash
 kubectl --context ${MGMT} -n gloo-mesh delete rolebindings.rbac.enterprise.mesh.gloo.solo.io default-namespace-admin-role-binding
@@ -3063,8 +3063,8 @@ spec:
     name: admin-role
     namespace: gloo-mesh
   subjects:
-    - kind: User
-      name: kubernetes-admin
+    - kind: Group
+      name: system:masters
 EOF
 ```
 
@@ -3099,7 +3099,7 @@ Expose the port 15012 and 15017 of istiod through the Istio Ingress Gateway:
 
 ```bash
 kubectl --context ${CLUSTER1} apply -f - <<EOF
-apiVersion: networking.istio.io/v1alpha3
+apiVersion: networking.istio.io/v1beta1
 kind: Gateway
 metadata:
   name: istiod-gateway
@@ -3121,7 +3121,7 @@ spec:
       hosts:
         - "*"
 ---
-apiVersion: networking.istio.io/v1alpha3
+apiVersion: networking.istio.io/v1beta1
 kind: VirtualService
 metadata:
   name: istiod-vs
@@ -3147,7 +3147,7 @@ spec:
         port:
           number: 443
 ---
-apiVersion: networking.istio.io/v1alpha3
+apiVersion: networking.istio.io/v1beta1
 kind: DestinationRule
 metadata:
   name: istiod-dr
@@ -3171,7 +3171,7 @@ Create a Gateway resource that allows application traffic from the VMs to route 
 
 ```bash
 kubectl --context ${CLUSTER1} apply -f - <<EOF
-apiVersion: networking.istio.io/v1alpha3
+apiVersion: networking.istio.io/v1beta1
 kind: Gateway
 metadata:
   name: cross-network-gateway
@@ -3981,6 +3981,7 @@ echo "https://${SVC_GW_CLUSTER1}/productpage"
 But you can also access it using the gateway of the second cluster:
 
 ```
+SVC_GW_CLUSTER2=$(kubectl --context ${CLUSTER2} -n istio-system get svc istio-ingressgateway -o jsonpath='{.status.loadBalancer.ingress[0].*}')
 echo "https://${SVC_GW_CLUSTER2}/productpage"
 ```
 
