@@ -1,0 +1,22 @@
+const chaiExec = require("@jsdevtools/chai-exec");
+var chai = require('chai');
+var expect = chai.expect;
+chai.use(chaiExec);
+
+describe("Certificate issued by Gloo Mesh", () => {
+  var expectedOutput = "i:O = gloo-mesh";
+  
+  it('Gloo mesh is the organization for ' + process.env.CLUSTER1 + ' certificate', () => {
+    let cli = chaiExec("kubectl --context " + process.env.CLUSTER1 + " exec -t deploy/reviews-v1 -c istio-proxy -- openssl s_client -showcerts -connect ratings:9080");
+
+    expect(cli).stdout.to.contain(expectedOutput);
+    expect(cli).stderr.to.not.be.empty;
+  });
+
+  it('Gloo mesh is the organization for ' + process.env.CLUSTER2 + ' certificate', () => {
+    let cli = chaiExec("kubectl --context " + process.env.CLUSTER2 + " exec -t deploy/reviews-v1 -c istio-proxy -- openssl s_client -showcerts -connect ratings:9080");
+
+    expect(cli).stdout.to.contain(expectedOutput);
+    expect(cli).stderr.to.not.be.empty;
+  });
+});

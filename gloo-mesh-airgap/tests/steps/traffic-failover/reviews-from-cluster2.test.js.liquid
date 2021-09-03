@@ -1,0 +1,37 @@
+const chaiExec = require("@jsdevtools/chai-exec");
+const helpersHttp = require('./tests/chai-http');
+const chai = require("chai");
+const expect = chai.expect;
+
+describe("Access reviews from cluster2 since the ones from cluster1 are in sleep mode", () => {
+  const _getJSONAppReviews = () => {
+    let command = "kubectl --context " + process.env.CLUSTER1 + " get pods -l app=reviews -o json";
+    let cli = chaiExec(command);
+
+    let j = JSON.parse(cli.stdout);
+    return j.items;
+  };
+  const allPodsAreReady = () => {
+    let containersWithReadyStatus = _getJSONAppReviews()
+      .map(x => x.status.containerStatuses)
+      .flat()
+      .filter(x => x.ready)
+      .length;
+    expect(containersWithReadyStatus).to.equal(4);
+  };
+  const twoPodsAreAsleep = () => {
+    let podsWithSleepCommand = _getJSONAppReviews()
+      .map(x => x.spec.containers)
+      .flat()
+      .filter(x => x.command && x.command[0] == "sleep")
+      .length;
+    expect(podsWithSleepCommand).to.equal(2);
+  };
+
+  it('All pods are ready in ' + process.env.CLUSTER1, () => allPodsAreReady());
+  it('There are two pods with label app=reviews and \'sleep\' command in ' + process.env.CLUSTER1, () => twoPodsAreAsleep());
+});
+
+describe("Reviews service is still available", () => {
+  it('Checking text \'product reviews are currently unavailable\' in ' + process.env.CLUSTER1, () => helpersHttp.checkBody({ host: 'http://' + process.env.ENDPOINT_HTTP_GW_CLUSTER1, path: '/productpage', body: 'product reviews are currently unavailable', match: false }));
+})
