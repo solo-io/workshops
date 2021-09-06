@@ -2729,6 +2729,14 @@ Restart the port-forward to the Admin web UI:
 kubectl -n gloo-portal port-forward svc/gloo-portal-admin-server 8080 &
 ```
 
+Generate some traffic:
+
+```bash
+apikey=$(kubectl -n default get secret -l apiproducts.portal.gloo.solo.io=petstore-product.default -l environments.portal.gloo.solo.io=dev.default -l usageplans.portal.gloo.solo.io=basic2 -o "jsonpath={.items[0].data['api-key']}" | base64 -d)
+
+curl -H "api-key: $apikey" -s $(glooctl proxy url)/ecommerce/v1/api/pet/1 -H "Host: api.mycompany.corp" -v
+```
+
 Then, navigate to the new **API Usage** menu:
 
 ![try-it-out](images/monetization-api-usage-graph.png)
