@@ -37,9 +37,14 @@ The `check.sh` script will return immediately with no output if the cluster is r
 Let's deploy **Gloo Edge**:
 
 ```bash
+helm repo add glooe https://storage.googleapis.com/gloo-ee-helm
 helm repo update
 
-helm upgrade -i gloo glooe/gloo-ee --namespace gloo-system --version 1.8.6 --create-namespace --set-string license_key="$LICENSE_KEY"
+helm upgrade -i gloo glooe/gloo-ee --namespace gloo-system --version 1.8.9 --create-namespace --set-string license_key="$LICENSE_KEY"
+
+sleep 1
+
+kubectl -n gloo-system wait po --for condition=Ready --timeout -1s --all
 ```
 
 NOTE: Gloo Portal requires a subscription to Gloo Edge Enterprise or to Gloo Mesh Enterprise.
@@ -650,7 +655,7 @@ EOF
 The developer Portal we have created is now available at http://portal.mycompany.corp/
 
 ```bash
-open http://portal.mycompany.corp/
+/opt/google/chrome/chrome http://portal.mycompany.corp/
 ```
 
 ![Developer Portal](images/petstore-portal-homepage.png)
@@ -2622,7 +2627,7 @@ data:
 EOF
 ```
 
-Copy these resources to the GLoo Portal namespace:
+Copy these resources to the Gloo Portal namespace:
 
 ```bash 
 kubectl get secret monetization-secret -n gloo-system -o yaml | sed 's/namespace: .*/namespace: gloo-portal/' | kubectl apply -f -
@@ -2715,10 +2720,16 @@ monetization:
   secretName: monetization-secret
 EOF
 
-helm upgrade gloo-portal gloo-portal/gloo-portal -n gloo-system --values portal-values.yaml
+helm upgrade gloo-portal gloo-portal/gloo-portal -n gloo-portal --values portal-values.yaml
 ```
 
-Reload the Gloo Portal admin UI and navigate to the new **API Usage** menu:
+Restart the port-forward to the Admin web UI:
+
+```bash
+kubectl -n gloo-portal port-forward svc/gloo-portal-admin-server 8080 &
+```
+
+Then, navigate to the new **API Usage** menu:
 
 ![try-it-out](images/monetization-api-usage-graph.png)
 
