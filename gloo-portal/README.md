@@ -252,7 +252,7 @@ spec:
     app: petstore
     version: v$i
 EOF
-; done
+done
 ```
 
 Now, let's check if Gloo Edge has automatically created 2 `Upstream` CRs for these 2 services:
@@ -301,7 +301,7 @@ spec:
     content:
       fetchUrl: https://raw.githubusercontent.com/solo-io/workshops/master/gloo-portal/openapi-specs/$i.json
 EOF
-; done
+done
 ```
 
 Let's be curious and take a look at the status of one these `APIDoc`s:
