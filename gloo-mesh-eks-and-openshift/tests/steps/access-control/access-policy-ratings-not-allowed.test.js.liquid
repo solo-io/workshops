@@ -1,0 +1,7 @@
+const helpers = require('./tests/chai-http');
+
+describe("Reviews and details should be accessible, but ratings shouldn't", () => {
+  it("Checking text 'Error fetching product details' in cluster1", () => helpers.checkBody({ host: 'http://' + process.env.ENDPOINT_HTTP_GW_CLUSTER1, path: '/productpage', body: 'Error fetching product details', match: false }));
+  it("Checking text 'Error fetching product reviews' in cluster1", () => helpers.checkBody({ host: 'http://' + process.env.ENDPOINT_HTTP_GW_CLUSTER1, path: '/productpage', body: 'Error fetching product reviews', match: false }));
+  it("Checking text 'Ratings service is currently unavailable' in cluster1", () => helpers.checkBody({ host: 'http://' + process.env.ENDPOINT_HTTP_GW_CLUSTER1, path: '/productpage', body: 'Ratings service is currently unavailable', match: true }));
+})

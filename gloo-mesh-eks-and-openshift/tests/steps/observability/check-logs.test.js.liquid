@@ -1,0 +1,27 @@
+const chaiExec = require("@jsdevtools/chai-exec");
+var chai = require('chai');
+var expect = chai.expect;
+chai.use(chaiExec);
+
+const search1 = "httpAccessLog";
+const search2 = "workloadRef";
+
+describe("Check access logs", function() {
+  this.timeout(5000); // The test needs more than default (2secs)
+  
+  it("Create traffic", () => {
+    expect(process.env.ENDPOINT_HTTP_GW_CLUSTER1).to.not.be.empty;
+    let cli = chaiExec("curl -s http://" + process.env.ENDPOINT_HTTP_GW_CLUSTER1 + "/productpage");
+    expect(cli).to.exit.with.code(0);
+  });
+
+  it("Access Logs contain " + search1 + " and " + search2 + " in " + process.env.MGMT, () => {
+    expect(process.env.ENDPOINT_HTTP_GW_CLUSTER1).to.not.be.empty;
+    chaiExec("curl -s http://" + process.env.ENDPOINT_HTTP_GW_CLUSTER1 + "/productpage");
+    let command = "meshctl accesslog --kubecontext " + process.env.MGMT + " -o json";
+    let cli = chaiExec(command);
+    expect(cli).to.exit.with.code(0);
+    expect(cli).output.to.contain("httpAccessLog");
+    expect(cli).output.to.contain("workloadRef");
+  });
+})

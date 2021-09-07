@@ -1,0 +1,6 @@
+const helpers = require('./tests/chai-http');
+
+describe("Access should be denied with 403 code", () => {
+  it('Waiting for error code 403 in cluster1', () => helpers.checkURL({ host: 'http://' + process.env.ENDPOINT_HTTP_GW_CLUSTER1, path: '/productpage', retCode: 403 }));
+  it('Waiting for error code 403 in cluster2', () => helpers.checkURL({ host: 'http://' + process.env.ENDPOINT_HTTP_GW_CLUSTER1, path: '/productpage', retCode: 403 }));
+})
