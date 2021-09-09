@@ -37,9 +37,14 @@ The `check.sh` script will return immediately with no output if the cluster is r
 Let's deploy **Gloo Edge**:
 
 ```bash
+helm repo add glooe https://storage.googleapis.com/gloo-ee-helm
 helm repo update
 
-helm upgrade -i gloo glooe/gloo-ee --namespace gloo-system --version 1.8.6 --create-namespace --set-string license_key="$LICENSE_KEY"
+helm upgrade -i gloo glooe/gloo-ee --namespace gloo-system --version 1.8.9 --create-namespace --set-string license_key="$LICENSE_KEY"
+
+sleep 1
+
+kubectl -n gloo-system wait po --for condition=Ready --timeout -1s --all
 ```
 
 NOTE: Gloo Portal requires a subscription to Gloo Edge Enterprise or to Gloo Mesh Enterprise.
@@ -247,7 +252,7 @@ spec:
     app: petstore
     version: v$i
 EOF
-; done
+done
 ```
 
 Now, let's check if Gloo Edge has automatically created 2 `Upstream` CRs for these 2 services:
@@ -296,7 +301,7 @@ spec:
     content:
       fetchUrl: https://raw.githubusercontent.com/solo-io/workshops/master/gloo-portal/openapi-specs/$i.json
 EOF
-; done
+done
 ```
 
 Let's be curious and take a look at the status of one these `APIDoc`s:
@@ -650,7 +655,7 @@ EOF
 The developer Portal we have created is now available at http://portal.mycompany.corp/
 
 ```bash
-open http://portal.mycompany.corp/
+/opt/google/chrome/chrome http://portal.mycompany.corp/
 ```
 
 ![Developer Portal](images/petstore-portal-homepage.png)
@@ -2287,7 +2292,7 @@ The output is now a nice JSON payload, returned by the `/headers` endpoint:
 
 In this lab, we will extract a JWT claim from the request and add it as a new header for the upstream server.
 
-Our Keycloack IdP is returning a few claims in the access_tokens. Take a look:
+Our Keycloak IdP is returning a few claims in the access_tokens. Take a look:
 
 ```bash
 token=$(curl -s -d "client_id=admin-cli" -d "username=user1" -d "password=password" -d "grant_type=password" "$KEYCLOAK_URL/realms/master/protocol/openid-connect/token" | jq -r .access_token)
@@ -2327,7 +2332,7 @@ Paste this config block:
 jwtStaged:
   afterExtAuth:
     providers:
-      keycloack:
+      keycloak:
         claimsToHeaders:
         - claim: email
           header: x-gloo-email
@@ -2412,7 +2417,7 @@ spec:
       jwtStaged:
           afterExtAuth:
             providers:
-              keycloack:
+              keycloak:
                 claimsToHeaders:
                 - claim: email
                   header: x-gloo-email
@@ -2622,7 +2627,7 @@ data:
 EOF
 ```
 
-Copy these resources to the GLoo Portal namespace:
+Copy these resources to the Gloo Portal namespace:
 
 ```bash 
 kubectl get secret monetization-secret -n gloo-system -o yaml | sed 's/namespace: .*/namespace: gloo-portal/' | kubectl apply -f -
@@ -2715,10 +2720,24 @@ monetization:
   secretName: monetization-secret
 EOF
 
-helm upgrade gloo-portal gloo-portal/gloo-portal -n gloo-system --values portal-values.yaml
+helm upgrade gloo-portal gloo-portal/gloo-portal -n gloo-portal --values portal-values.yaml
 ```
 
-Reload the Gloo Portal admin UI and navigate to the new **API Usage** menu:
+Restart the port-forward to the Admin web UI:
+
+```bash
+kubectl -n gloo-portal port-forward svc/gloo-portal-admin-server 8080 &
+```
+
+Generate some traffic:
+
+```bash
+apikey=$(kubectl -n default get secret -l apiproducts.portal.gloo.solo.io=petstore-product.default -l environments.portal.gloo.solo.io=dev.default -l usageplans.portal.gloo.solo.io=basic2 -o "jsonpath={.items[0].data['api-key']}" | base64 -d)
+
+curl -H "api-key: $apikey" -s $(glooctl proxy url)/ecommerce/v1/api/pet/1 -H "Host: api.mycompany.corp" -v
+```
+
+Then, navigate to the new **API Usage** menu:
 
 ![try-it-out](images/monetization-api-usage-graph.png)
 
