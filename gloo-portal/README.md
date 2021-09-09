@@ -2292,7 +2292,7 @@ The output is now a nice JSON payload, returned by the `/headers` endpoint:
 
 In this lab, we will extract a JWT claim from the request and add it as a new header for the upstream server.
 
-Our Keycloack IdP is returning a few claims in the access_tokens. Take a look:
+Our Keycloak IdP is returning a few claims in the access_tokens. Take a look:
 
 ```bash
 token=$(curl -s -d "client_id=admin-cli" -d "username=user1" -d "password=password" -d "grant_type=password" "$KEYCLOAK_URL/realms/master/protocol/openid-connect/token" | jq -r .access_token)
@@ -2332,7 +2332,7 @@ Paste this config block:
 jwtStaged:
   afterExtAuth:
     providers:
-      keycloack:
+      keycloak:
         claimsToHeaders:
         - claim: email
           header: x-gloo-email
@@ -2417,7 +2417,7 @@ spec:
       jwtStaged:
           afterExtAuth:
             providers:
-              keycloack:
+              keycloak:
                 claimsToHeaders:
                 - claim: email
                   header: x-gloo-email
