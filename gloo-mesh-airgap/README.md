@@ -333,9 +333,9 @@ Pull and push locally the Docker images needed:
 #sudo chmod +x /usr/local/bin/yq
 
 cat <<EOF > images.txt
-docker.io/istio/operator:1.10.4
-gcr.io/istio-enterprise/pilot:1.10.4
-gcr.io/istio-enterprise/proxyv2:1.10.4
+gcr.io/istio-enterprise/operator:1.11.1-solo
+gcr.io/istio-enterprise/pilot:1.11.1-solo
+gcr.io/istio-enterprise/proxyv2:1.11.1-solo
 docker.io/istio/examples-bookinfo-productpage-v1:1.16.2
 docker.io/istio/examples-bookinfo-reviews-v1:1.16.2
 docker.io/istio/examples-bookinfo-reviews-v2:1.16.2
@@ -344,13 +344,13 @@ docker.io/istio/examples-bookinfo-details-v1:1.16.2
 docker.io/istio/examples-bookinfo-ratings-v1:1.16.2
 EOF
 
-wget https://storage.googleapis.com/gloo-mesh-enterprise/enterprise-agent/enterprise-agent-1.1.1.tgz
+wget https://storage.googleapis.com/gloo-mesh-enterprise/enterprise-agent/enterprise-agent-1.1.3.tgz
 tar zxvf enterprise-agent-1.1.1.tgz
 find enterprise-agent -name "values.yaml" | while read file; do
   cat $file | yq eval -j | jq -r '.. | .image? | select(. != null) | (if .registry then (if .registry == "docker.io" then "docker.io/library" else .registry end) + "/" else "" end) + .repository + ":" + (.tag | tostring)'
 done | sort -u >> images.txt
 
-wget https://storage.googleapis.com/gloo-mesh-enterprise/gloo-mesh-enterprise/gloo-mesh-enterprise-1.1.1.tgz
+wget https://storage.googleapis.com/gloo-mesh-enterprise/gloo-mesh-enterprise/gloo-mesh-enterprise-1.1.3.tgz
 tar zxvf gloo-mesh-enterprise-1.1.1.tgz
 find gloo-mesh-enterprise -name "values.yaml" | while read file; do
   cat $file | yq eval -j | jq -r '.. | .image? | select(. != null) | (if .registry then (if .registry == "docker.io" then "docker.io/library" else .registry end) + "/" else "" end) + .repository + ":" + (.tag | tostring)'
