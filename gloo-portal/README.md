@@ -283,7 +283,7 @@ Users only:
 
 ![Users only](images/OAI-snapshot-users-only.png) 
 
-Pets, users ans stores:
+Pets, users and stores:
 
 ![All combined](images/OAI-snapshot-pets-full.png)
 
@@ -416,7 +416,7 @@ As you can see, we have configured different routes for the two versions, so tha
 
 ### Step 2.1
 
-Let's publish our API on a Gateway! quick reminder, we need to create an `Environment` CR, that will select one or more `APIProduct(s)`. 
+Let's publish our API on a Gateway! First we need to create an `Environment` CR, that will select one or more `APIProduct(s)`. 
 
 ![Environment](images/env-to-apiproducts.png)
 
@@ -424,7 +424,7 @@ Once the `Environment` is created, Gloo Portal will configure an API Gateway:
 
 ![Environment](images/env-gw-generation.png)
 
-In this workshop, and in order to leverage advanced API Gateway features, we will rely on Gloo Edge. The other option being an **Gloo Mesh Gateway**, built on top on the Istio Gateway.
+In this workshop, and in order to leverage advanced API Gateway features, we will rely on Gloo Edge. The other option is to have Portal configure **Gloo Mesh Gateway**, built on top on the Istio Gateway.
 
 
 We need to prepare an `Environment` CR, where we will set the domain(s) and, optionally, some security options like authentication or rate-limiting rules:
@@ -531,8 +531,8 @@ status:
 ```
 
 There are two things to note here:
-- Gloo Portal used the **version** names of your `APIProduct` as prefixes for your endpoints. Meaning the endpoints of the version called 'v1' are now accessible over `/ecommerce/v1/...`, etc. This is kind of an automatic version-based routing
-- the `Environment` CR has been declined into a `VirtualService` CR and also some `RouteTables` CRs.  
+- Gloo Portal used the **version** names of your `APIProduct` as prefixes for your endpoints. Meaning the endpoints of the version called 'v1' are now accessible over `/ecommerce/v1/...`, etc. This represents automatic version-based routing.
+- The `Environment` CR has been used to generate a `VirtualService` CR and also some `RouteTables` CRs.  
 Let's have a closer look at the `RouteTables`:
 
 ```bash
@@ -593,14 +593,14 @@ Now let's consume the API!
 
 ```bash
 # v1
-# one of the /pet endpoint
+# one of the /pet endpoints
 curl -s $(glooctl proxy url)/ecommerce/v1/api/pet/1 -H "Host: api.mycompany.corp" | jq
-# one of the /user endpoint
+# one of the /user endpoints
 curl -s -X POST $(glooctl proxy url)/ecommerce/v2/api/user/createWithList -H "Host: api.mycompany.corp" -d '[{"id":0,"username":"jdoe","firstName":"John","lastName":"Doe","email":"john@doe.me","password":"string","phone":"string","userStatus":0}]' -H "Content-type: application/json"
 curl -s $(glooctl proxy url)/ecommerce/v2/api/user/jdoe -H "Host: api.mycompany.corp" | jq
 
 # v2
-# one of the /store endpoint
+# one of the /store endpoints
 curl -s $(glooctl proxy url)/ecommerce/v2/api/store/order/1 -H "Host: api.mycompany.corp" | jq
 
 ```
@@ -694,14 +694,14 @@ Explore the menus and find your `APIProduct`, `Environment` and `Portal` resourc
 
 We will use the Admin UI to secure the access to the developer Portal.  
 And, later on, we will use CRDs to secure the access to the APIs.  
-Both are feasible the way you prefer, using Custom Resources or the Admin web UI.
+You can achieve the same results either way, using Custom Resources or the Admin web UI.
 
 
 ## Lab 5: Securing the access to the developer Portal with basic auth
 
 There are 2 options to secure the access to a developer Portal:
 - basic auth, using the `User` and `Group` CRDs
-- OpenID Connect ([see also](https://www.solo.io/blog/self-service-user-registration-with-gloo-portal-and-okta/))
+- OpenID Connect ([Portal docs](https://www.solo.io/blog/self-service-user-registration-with-gloo-portal-and-okta/))
 
 In this **lab #5**, we will secure the access to a developer `Portal` with basic auth.
 
@@ -906,7 +906,7 @@ And voilà!
 ![logged in](images/portal-oidc-logged-in.png)
 
 
-If you are interested in the integration with SaaS based OIDC service, check out this blog post: https://www.solo.io/blog/self-service-user-registration-with-gloo-portal-and-okta/
+If you are interested in the integration with SaaS based OIDC service, check out [this blog post](https://www.solo.io/blog/self-service-user-registration-with-gloo-portal-and-okta/).
 
 
 ## Lab 7 - Securing your APIs
@@ -1231,7 +1231,7 @@ spec:
 EOF
 ```
 
-Don't pay attention to the warning message.
+You may see a warning message when applying this `Group` change. It is benign; you can safely ignore it.
 
 We also update the petstore `APIProduct` so that is it accessible with both the `basic` plan and the `trusted` plan.
 
