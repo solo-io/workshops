@@ -1727,7 +1727,7 @@ metadata:
 ...
 ```
 
-The `binaryData.dynamic` value is the content of the content of the `dynamic.html` file encoded in base64.
+The `binaryData.dynamic-page` value is the content of the `dynamic.html` file encoded in base64.
 
 
 ## Lab 10: gRPC
