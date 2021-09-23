@@ -1,4 +1,5 @@
 .vscode/
+.idea/
 
 # Add temporary files created in gloo-edge tutorial
 gloo-edge/gloo-edge/kind1.yaml
