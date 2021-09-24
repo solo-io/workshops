@@ -69,7 +69,7 @@
     - python
     - apache2-utils
     - apt-transport-https
-    - helm
+    - helm=3.6.*
     - emacs
     - tomcat9
 
