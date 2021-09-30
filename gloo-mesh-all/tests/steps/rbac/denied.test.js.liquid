@@ -1,0 +1,13 @@
+const chaiExec = require("@jsdevtools/chai-exec");
+var chai = require('chai');
+var expect = chai.expect;
+chai.use(chaiExec);
+
+describe("User is NOT allowed to create the TrafficPolicy", () => {
+    it("User can NOT create the TrafficPolicy in " + process.env.MGMT, () => 
+    {
+      let command = "kubectl --context " + process.env.MGMT + " get trafficpolicy simple -n gloo-mesh"
+      let cli = chaiExec(command);
+      expect(cli).to.not.exit.with.code(0);
+    });
+  });

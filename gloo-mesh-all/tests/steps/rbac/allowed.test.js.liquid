@@ -1,0 +1,5 @@
+const helpers = require('./tests/chai-exec');
+
+describe("User is allowed to create the TrafficPolicy", () => {
+    it("User can create the TrafficPolicy in " + process.env.MGMT, () => helpers.genericCommand({ command: "kubectl --context " + process.env.MGMT + " get trafficpolicy simple -n gloo-mesh" }));
+});

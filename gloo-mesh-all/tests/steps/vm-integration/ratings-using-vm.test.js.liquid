@@ -1,0 +1,5 @@
+const helpers = require('./tests/chai-http');
+
+describe("The ratings service should be use the database running on the VM", () => {
+  it('Got reviews v2 with ratings in cluster1', () => helpers.checkBody({ host: 'http://' + process.env.ENDPOINT_HTTP_GW_CLUSTER1, path: '/productpage', body: 'color="black"', match: true }));
+})

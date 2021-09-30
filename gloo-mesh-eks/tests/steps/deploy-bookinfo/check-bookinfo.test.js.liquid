@@ -1,0 +1,15 @@
+const helpers = require('./tests/chai-exec');
+
+describe("Bookinfo app", () => {
+  const clusters = [process.env.CLUSTER1, process.env.CLUSTER2];
+  const deployments = ["productpage-v1", "ratings-v1", "details-v1", "reviews-v1", "reviews-v2"];
+  const istioDeployments = ["istiod", "istio-ingressgateway"];
+  clusters.forEach(cluster => {
+    istioDeployments.forEach(deploy => {
+      it(deploy + ' pods are ready in ' + cluster, () => helpers.checkDeployment({ context: cluster, namespace: "istio-system", k8sObj: deploy }));
+    });
+    deployments.forEach(deploy => {
+      it(deploy + ' pods are ready in ' + cluster, () => helpers.checkDeployment({ context: cluster, namespace: "default", k8sObj: deploy }));
+    });
+  });
+});

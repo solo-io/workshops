@@ -1,0 +1,5 @@
+const helpers = require('./tests/chai-http');
+
+describe("Verify Authentication", () => {
+  it('Bookinfo returns 302 redirecting to Auth server', () => helpers.checkURL({ host: 'https://' + process.env.ENDPOINT_HTTPS_GW_CLUSTER1, path: '/productpage', retCode: 302 }));
+})

@@ -6,6 +6,5 @@
 * [Gloo Mesh Workshop airgap](./gloo-mesh-airgap/README.md)
 * [Gloo Mesh Workshop on EKS](./gloo-mesh-eks/README.md)
 * [Gloo Mesh Workshop on Openshift](./gloo-mesh-openshift/README.md)
-* [Gloo Mesh Workshop on EKS and Openshift](./gloo-mesh-eks-and-openshift/README.md)
 * [Gloo Mesh Workshop full version](./gloo-mesh-all/README.md)
 * [Gloo Portal Workshop](./gloo-portal/README.md)

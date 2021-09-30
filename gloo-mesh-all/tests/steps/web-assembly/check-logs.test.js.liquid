@@ -1,0 +1,10 @@
+const helpers = require('./tests/chai-exec');
+
+describe("Get WasmDeployment log traces", () => {
+  const podName = helpers.getOutputForCommand({ command: "kubectl get pods -l app=productpage -o jsonpath='{.items[0].metadata.name}' --context " + process.env.CLUSTER1 }).replaceAll("'", "");
+  const command = "kubectl exec " + podName + " --context " + process.env.CLUSTER1 + " -- python -c \"import requests; r = requests.get('http://reviews:9080/reviews/0'); print(r.headers)\"";
+  const searches = ["hello", "Gloo Mesh Enterprise"];
+  searches.forEach(search => {
+    it('Got the new header "' + search + '"', () => helpers.genericCommand({ command: command, responseContains: search }));
+  });
+});

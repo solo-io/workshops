@@ -1,0 +1,57 @@
+const chaiExec = require("@jsdevtools/chai-exec");
+var chai = require('chai');
+var expect = chai.expect;
+chai.use(chaiExec);
+
+describe("Istio installation", function() {
+  it('Istiod is deployed in the clusters ' + process.env.CLUSTER1, function () {
+    let command = "kubectl --context " + process.env.CLUSTER1 + " -n istio-system rollout status deployment istiod"
+    let cli = chaiExec(command);
+    expect(cli).to.exit.with.code(0);
+    expect(cli).output.to.contain("successfully rolled out");
+  })
+
+
+  it('Istiod is deployed in ' + process.env.CLUSTER2, function () {
+    let command = "kubectl --context " + process.env.CLUSTER2 + " -n istio-system rollout status deployment istiod"
+    let cli = chaiExec(command);
+    expect(cli).to.exit.with.code(0);
+    expect(cli).output.to.contain("successfully rolled out");
+  })
+  
+
+  it('All the Istio pods to become ready in cluster: ' + process.env.CLUSTER1 +'.', function () {
+    let command = "kubectl --context " + process.env.CLUSTER1 + " -n istio-system get pods -o jsonpath='{range .items[*].status.containerStatuses[*]}{.ready}{\"\\\\n\"}{end}'"
+    let cli = chaiExec(command);
+    expect(cli).to.exit.with.code(0);
+    let count = (cli.output.match(/true/g) || []).length;
+    expect(count).greaterThan(0);
+    expect(cli).output.to.not.contain("false");
+  })
+
+
+  it('All the Istio pods to become ready in cluster: ' + process.env.CLUSTER2 +'.', function () {
+    let command = "kubectl --context " + process.env.CLUSTER2 + " -n istio-system get pods -o jsonpath='{range .items[*].status.containerStatuses[*]}{.ready}{\"\\\\n\"}{end}'"
+    let cli = chaiExec(command);
+    expect(cli).to.exit.with.code(0);
+    let count = (cli.output.match(/true/g) || []).length;
+    expect(count).greaterThan(0);
+    expect(cli).output.to.not.contain("false");
+  })
+
+  describe("Ingress gateway has an ip attached in cluster: " + process.env.CLUSTER1, () => {
+    it("A value for load-balancing has been assigned", () => {
+      let cli = chaiExec("kubectl --context " + process.env.CLUSTER1 + " -n istio-system get svc istio-ingressgateway  -o jsonpath='{.status.loadBalancer}'");
+      expect(cli).to.exit.with.code(0);
+      expect(cli).output.to.contain('"ingress"');
+    });
+  });
+
+  describe("Ingress gateway has an ip attached in cluster: " + process.env.CLUSTER2, () => {
+    it("A value for load-balancing has been assigned", () => {
+      let cli = chaiExec("kubectl --context " + process.env.CLUSTER2 + " -n istio-system get svc istio-ingressgateway  -o jsonpath='{.status.loadBalancer}'");
+      expect(cli).to.exit.with.code(0);
+      expect(cli).output.to.contain('"ingress"');
+    });
+  });
+});

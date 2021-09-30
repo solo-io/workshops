@@ -1,0 +1,5 @@
+const helpers = require('./tests/chai-exec');
+
+describe("AccessLogRecord is created", () => {
+    it("Accesslogrecord has been created in " + process.env.MGMT, () => helpers.genericCommand({ command: "kubectl --context " + process.env.MGMT + " get accesslogrecord access-log-reviews -n gloo-mesh" }));
+});

@@ -292,17 +292,34 @@ kubectl config use-context ${MGMT}
 First of all, you need to install the *meshctl* CLI:
 
 ```bash
-export GLOO_MESH_VERSION=v1.1.1
+export GLOO_MESH_VERSION=v1.1.5
 curl -sL https://run.solo.io/meshctl/install | sh -
 export PATH=$HOME/.gloo-mesh/bin:$PATH
 ```
 
-
 <!--bash
-log_header "Test :: Test meshctl version"
-installedVersion=$(meshctl version | jq -r '.client.version')
-result_message="Installed version is $GLOO_MESH_VERSION"
-assert_eq "$GLOO_MESH_VERSION" "v$installedVersion" "$result_message" && log_success "$result_message"
+cat <<'EOF' > ./test.js
+const chaiExec = require("@jsdevtools/chai-exec");
+var chai = require('chai');
+var expect = chai.expect;
+chai.use(chaiExec);
+
+describe("Check meshctl version", () => {
+
+  it("GLOO_MESH_VERSION environment variable exists", () => {
+    expect(process.env.GLOO_MESH_VERSION).to.not.be.empty;
+    expect(process.env.GLOO_MESH_VERSION).to.be.a('string').and.satisfy(msg => msg.startsWith('v'));
+  });
+
+  it("cli version matches the required version: " + process.env.GLOO_MESH_VERSION, () => {
+    let cli = chaiExec('meshctl version');
+    expect(cli).to.exit.with.code(0);
+    expect(cli).stdout.to.contain('"version": "' + process.env.GLOO_MESH_VERSION.substring(1) + '"');
+    expect(cli).stderr.to.be.empty;
+  });
+});
+EOF
+mocha ./test.js --retries=500 2> /dev/null
 -->
 
 Gloo Mesh Enterprise is adding unique features on top of Gloo Mesh Open Source (RBAC, UI, WASM, ...).
@@ -311,21 +328,42 @@ Run the following commands to deploy Gloo Mesh Enterprise:
 
 
 
-
 <!--bash
-log_header "Test :: Verify license"
+cat <<'EOF' > ./test.js
+var chai = require('chai');
+var expect = chai.expect;
 
-assert_not_empty "$GLOO_MESH_LICENSE_KEY" "Environment variable GLOO_MESH_LICENSE_KEY cannot be empty"
-log_success "Gloo License exist"
+describe("Required environment variables should contain value", () => {
+  afterEach(function(done){
+    if(this.currentTest.currentRetry() > 0){
+      process.stdout.write(".");
+       setTimeout(done, 1000);
+    } else {
+      done();
+    }
+  });
+
+  it("Context environment variables should not be empty", () => {
+    expect(process.env.MGMT).to.not.be.empty
+    expect(process.env.CLUSTER1).to.not.be.empty
+    expect(process.env.CLUSTER2).to.not.be.empty
+  });
+
+  it("Gloo Mesh licence environment variables should not be empty", () => {
+    expect(process.env.GLOO_MESH_LICENSE_KEY).to.not.be.empty
+  });
+});
+EOF
+mocha ./test.js --retries=500 2> /dev/null
 -->
 
 ```bash
 helm repo add gloo-mesh-enterprise https://storage.googleapis.com/gloo-mesh-enterprise/gloo-mesh-enterprise 
 helm repo update
 kubectl --context ${MGMT} create ns gloo-mesh 
-helm install gloo-mesh-enterprise gloo-mesh-enterprise/gloo-mesh-enterprise \
+helm upgrade --install gloo-mesh-enterprise gloo-mesh-enterprise/gloo-mesh-enterprise \
 --namespace gloo-mesh --kube-context ${MGMT} \
---version=1.1.1 \
+--version=1.1.5 \
 --set rbac-webhook.enabled=true \
 --set enterprise-networking.enterpriseNetworking.floatingUserId=true \
 --set rbac-webhook.rbacWebhook.floatingUserId=true \
@@ -351,16 +389,56 @@ EOF
 
 Then, you need to set the environment variable for the service of the Gloo Mesh Enterprise networking component:
 
+<!--bash
+cat <<'EOF' > ./test.js
+const chaiExec = require("@jsdevtools/chai-exec");
+var chai = require('chai');
+var expect = chai.expect;
+chai.use(chaiExec);
+
+describe("Retrieve enterprise-networking ip", () => {
+  it("A value for load-balancing has been assigned", () => {
+    let cli = chaiExec("kubectl --context " + process.env.MGMT + " -n gloo-mesh get svc enterprise-networking -o jsonpath='{.status.loadBalancer}'");
+    expect(cli).to.exit.with.code(0);
+    expect(cli).output.to.contain('"ingress"');
+  });
+});
+EOF
+mocha ./test.js --retries=500 2> /dev/null
+-->
+
 ```bash
-SVC=$(kubectl --context ${MGMT} -n gloo-mesh get svc enterprise-networking -o jsonpath='{.status.loadBalancer.ingress[0].*}')
+export ENDPOINT_GLOO_MESH=$(kubectl --context ${MGMT} -n gloo-mesh get svc enterprise-networking -o jsonpath='{.status.loadBalancer.ingress[0].*}'):9900
+export HOST_GLOO_MESH=$(echo ${ENDPOINT_GLOO_MESH} | cut -d: -f1)
 ```
+
+<!--bash
+cat <<'EOF' > ./test.js
+const dns = require('dns');
+const chaiHttp = require("chai-http");
+const chai = require("chai");
+const expect = chai.expect;
+chai.use(chaiHttp);
+const { waitOnFailedTest } = require('./tests/utils');
+
+describe("Address '" + process.env.HOST_GLOO_MESH + "' can be resolved in DNS", () => {
+    it(process.env.HOST_GLOO_MESH + ' can be resolved', (done) => {
+        return dns.lookup(process.env.HOST_GLOO_MESH, (err, address, family) => {
+            expect(address).to.be.an.ip;
+            done();
+        });
+    });
+});
+EOF
+mocha ./test.js --retries=500 2> /dev/null
+-->
 
 Finally, you need to register the two other clusters:
 
 ```bash
 
-meshctl cluster register --mgmt-context=${MGMT} --remote-context=${CLUSTER1} --relay-server-address=$SVC:9900 enterprise cluster1 --cluster-domain cluster.local --enterprise-agent-chart-values /tmp/enterprise-agent-values.yaml
-meshctl cluster register --mgmt-context=${MGMT} --remote-context=${CLUSTER2} --relay-server-address=$SVC:9900 enterprise cluster2 --cluster-domain cluster.local --enterprise-agent-chart-values /tmp/enterprise-agent-values.yaml
+meshctl cluster register --mgmt-context=${MGMT} --remote-context=${CLUSTER1} --relay-server-address=${ENDPOINT_GLOO_MESH} enterprise cluster1 --cluster-domain cluster.local --enterprise-agent-chart-values /tmp/enterprise-agent-values.yaml
+meshctl cluster register --mgmt-context=${MGMT} --remote-context=${CLUSTER2} --relay-server-address=${ENDPOINT_GLOO_MESH} enterprise cluster2 --cluster-domain cluster.local --enterprise-agent-chart-values /tmp/enterprise-agent-values.yaml
 ```
 
 You can list the registered cluster using the following command:
@@ -377,13 +455,31 @@ cluster1   27s
 cluster2   23s
 ```
 
-
 <!--bash
-log_header "Test :: Cluster registration"
-clusters_names=$(kubectl --context ${MGMT} get kubernetescluster -A -o jsonpath='{.items..name}')
-expected_cluster_names="cluster1 cluster2"
-result_message="Clusters got registered"
-assert_eq "$clusters_names" "$expected_cluster_names" "$result_message" && log_success "$result_message"
+cat <<'EOF' > ./test.js
+const chaiExec = require("@jsdevtools/chai-exec");
+var chai = require('chai');
+var expect = chai.expect;
+chai.use(chaiExec);
+
+var cluster1Name = "cluster1";
+var cluster2Name = "cluster2";
+
+describe("Cluster registration", () => {
+  it("relay-server-address is known", () => {
+    expect(process.env.ENDPOINT_GLOO_MESH).to.not.be.empty;
+  });
+
+  it(cluster1Name + ' and ' + cluster2Name + ' should be registered', () => {
+    let cli = chaiExec("kubectl --context " + process.env.MGMT + " get kubernetescluster -A -o jsonpath='{.items..name}'");
+
+    expect(cli).to.exit.with.code(0);
+    expect(cli).stdout.to.contain(cluster1Name + " " + cluster2Name);
+    expect(cli).stderr.to.be.empty;
+  });
+});
+EOF
+mocha ./test.js --retries=500 2> /dev/null
 -->
 
 > ### Note that you can also register the remote clusters with Helm:
@@ -408,19 +504,19 @@ assert_eq "$clusters_names" "$expected_cluster_names" "$result_message" && log_s
 > helm repo update
 > helm install enterprise-agent enterprise-agent/enterprise-agent \
 >   --namespace gloo-mesh \
->   --set relay.serverAddress=${SVC}:9900 \
+>   --set relay.serverAddress=${ENDPOINT_GLOO_MESH} \
 >   --set relay.cluster=cluster1 \
 >   --kube-context=${CLUSTER1} \
->   --set enterpriseAgent.floatingUserId=true \
->   --version 1.1.1
+>   --values=/tmp/enterprise-agent-values.yaml \
+>   --version 1.1.5
 > 
 > helm install enterprise-agent enterprise-agent/enterprise-agent \
 >   --namespace gloo-mesh \
->   --set relay.serverAddress=${SVC}:9900 \
+>   --set relay.serverAddress=${ENDPOINT_GLOO_MESH} \
 >   --set relay.cluster=cluster2 \
 >   --kube-context=${CLUSTER2} \
->   --set enterpriseAgent.floatingUserId=true \
->   --version 1.1.1
+>   --values=/tmp/enterprise-agent-values.yaml \
+>   --version 1.1.5
 > ```
 > #### Create the `KubernetesCluster` objects
 > ```
@@ -476,13 +572,40 @@ EOF
 
 ```
 
+
+You need to create a Helm values file as follow:
+
+```bash
+cat > /tmp/enterprise-agent-addons-values.yaml <<EOF
+enterpriseAgent:
+  floatingUserId: true
+EOF
+```
+
+
 Then, you can deploy the addons using Helm:
 
 ```bash
 helm repo add enterprise-agent https://storage.googleapis.com/gloo-mesh-enterprise/enterprise-agent
 helm repo update
-helm install enterprise-agent-addons enterprise-agent/enterprise-agent --kube-context=${CLUSTER1} --version=1.1.1 --namespace gloo-mesh-addons --set enterpriseAgent.enabled=false --set rate-limiter.enabled=true --set ext-auth-service.enabled=true
-helm install enterprise-agent-addons enterprise-agent/enterprise-agent --kube-context=${CLUSTER2} --version=1.1.1 --namespace gloo-mesh-addons --set enterpriseAgent.enabled=false --set rate-limiter.enabled=true --set ext-auth-service.enabled=true
+
+helm upgrade --install enterprise-agent-addons enterprise-agent/enterprise-agent \
+  --kube-context=${CLUSTER1} \
+  --version=1.1.5 \
+  --namespace gloo-mesh-addons \
+   --values=/tmp/enterprise-agent-addons-values.yaml \
+  --set enterpriseAgent.enabled=false \
+  --set rate-limiter.enabled=true \
+  --set ext-auth-service.enabled=true
+
+helm upgrade --install enterprise-agent-addons enterprise-agent/enterprise-agent \
+  --kube-context=${CLUSTER2} \
+  --version=1.1.5 \
+  --namespace gloo-mesh-addons \
+   --values=/tmp/enterprise-agent-addons-values.yaml \
+  --set enterpriseAgent.enabled=false \
+  --set rate-limiter.enabled=true \
+  --set ext-auth-service.enabled=true
 ```
 
 Finally, we need to create an `AccessPolicy` for the Istio Ingress Gateways to communicate with the addons and for the addons to communicate together:
@@ -517,7 +640,6 @@ EOF
 
 
 
-
 ## Lab 3 - Deploy Istio <a name="Lab-3"></a>
 
 Note that the few Openshift specific commands used in this lab are documented on the Istio website [here](https://istio.io/latest/docs/setup/platform-setup/openshift/).
@@ -530,12 +652,24 @@ export ISTIO_VERSION=1.10.4
 curl -L https://istio.io/downloadIstio | sh -
 ```
 
-
 <!--bash
-log_header "Test :: Istio version"
-expected_istio_client_version=$(./istio-1.10.4/bin/istioctl version --remote=false)
-result_message="Installed version is $ISTIO_VERSION"
-assert_eq "$ISTIO_VERSION" "$expected_istio_client_version" "$result_message" && log_success "$result_message"
+cat <<'EOF' > ./test.js
+const chaiExec = require("@jsdevtools/chai-exec");
+var chai = require('chai');
+var expect = chai.expect;
+chai.use(chaiExec);
+
+describe("istoctl version", () => {
+  it("version should be correct", () => {
+    let cli = chaiExec('./istio-' + process.env.ISTIO_VERSION + '/bin/istioctl version --remote=false');
+
+    expect(cli).to.exit.with.code(0);
+    expect(cli).stdout.to.contain(process.env.ISTIO_VERSION);
+    expect(cli).stderr.to.be.empty;
+  });
+});
+EOF
+mocha ./test.js --retries=500 2> /dev/null
 -->
 
 Now let's deploy Istio on the first cluster:
@@ -752,39 +886,67 @@ spec:
 EOF
 ```
 
-
 <!--bash
-log_header "Test :: Waiting for Istio to be deployed and ready on both clusters"
+cat <<'EOF' > ./test.js
+const chaiExec = require("@jsdevtools/chai-exec");
+var chai = require('chai');
+var expect = chai.expect;
+chai.use(chaiExec);
 
-until kubectl --context ${CLUSTER1} get ns istio-system
-do
-  sleep 1
-done
+describe("Istio installation", function() {
+  it('Istiod is deployed in the clusters ' + process.env.CLUSTER1, function () {
+    let command = "kubectl --context " + process.env.CLUSTER1 + " -n istio-system rollout status deployment istiod"
+    let cli = chaiExec(command);
+    expect(cli).to.exit.with.code(0);
+    expect(cli).output.to.contain("successfully rolled out");
+  })
 
-printf "\nWaiting for all the Istio pods to become ready."
-until [ $(kubectl --context ${CLUSTER1} -n istio-system get pods -o jsonpath='{range .items[*].status.containerStatuses[*]}{.ready}{"\n"}{end}' | grep true -c) -gt 0 -a $(kubectl --context ${CLUSTER1} -n istio-system get pods -o jsonpath='{range .items[*].status.containerStatuses[*]}{.ready}{"\n"}{end}' | grep false -c) -eq 0 ]; do
-  printf "%s" "."
-  sleep 1
-done
-printf "\n"
-log_success "Istio ready in $CLUSTER1"
 
-printf "\nWaiting for istio-system to be created."
-until kubectl --context ${CLUSTER2} get ns istio-system
-do
-  printf "%s" "."
-  sleep 1
-done
-printf "\n"
+  it('Istiod is deployed in ' + process.env.CLUSTER2, function () {
+    let command = "kubectl --context " + process.env.CLUSTER2 + " -n istio-system rollout status deployment istiod"
+    let cli = chaiExec(command);
+    expect(cli).to.exit.with.code(0);
+    expect(cli).output.to.contain("successfully rolled out");
+  })
+  
 
-printf "\nWaiting for all the Istio pods to become ready"
-until [ $(kubectl --context ${CLUSTER2} -n istio-system get pods -o jsonpath='{range .items[*].status.containerStatuses[*]}{.ready}{"\n"}{end}' | grep true -c) -gt 0 -a $(kubectl --context ${CLUSTER2} -n istio-system get pods -o jsonpath='{range .items[*].status.containerStatuses[*]}{.ready}{"\n"}{end}' | grep false -c) -eq 0 ]; do
-  printf "%s" "."
-  sleep 1
-done
-printf "\n"
+  it('All the Istio pods to become ready in cluster: ' + process.env.CLUSTER1 +'.', function () {
+    let command = "kubectl --context " + process.env.CLUSTER1 + " -n istio-system get pods -o jsonpath='{range .items[*].status.containerStatuses[*]}{.ready}{\"\\\\n\"}{end}'"
+    let cli = chaiExec(command);
+    expect(cli).to.exit.with.code(0);
+    let count = (cli.output.match(/true/g) || []).length;
+    expect(count).greaterThan(0);
+    expect(cli).output.to.not.contain("false");
+  })
 
-log_success "Istio ready in $CLUSTER2"
+
+  it('All the Istio pods to become ready in cluster: ' + process.env.CLUSTER2 +'.', function () {
+    let command = "kubectl --context " + process.env.CLUSTER2 + " -n istio-system get pods -o jsonpath='{range .items[*].status.containerStatuses[*]}{.ready}{\"\\\\n\"}{end}'"
+    let cli = chaiExec(command);
+    expect(cli).to.exit.with.code(0);
+    let count = (cli.output.match(/true/g) || []).length;
+    expect(count).greaterThan(0);
+    expect(cli).output.to.not.contain("false");
+  })
+
+  describe("Ingress gateway has an ip attached in cluster: " + process.env.CLUSTER1, () => {
+    it("A value for load-balancing has been assigned", () => {
+      let cli = chaiExec("kubectl --context " + process.env.CLUSTER1 + " -n istio-system get svc istio-ingressgateway  -o jsonpath='{.status.loadBalancer}'");
+      expect(cli).to.exit.with.code(0);
+      expect(cli).output.to.contain('"ingress"');
+    });
+  });
+
+  describe("Ingress gateway has an ip attached in cluster: " + process.env.CLUSTER2, () => {
+    it("A value for load-balancing has been assigned", () => {
+      let cli = chaiExec("kubectl --context " + process.env.CLUSTER2 + " -n istio-system get svc istio-ingressgateway  -o jsonpath='{.status.loadBalancer}'");
+      expect(cli).to.exit.with.code(0);
+      expect(cli).output.to.contain('"ingress"');
+    });
+  });
+});
+EOF
+mocha ./test.js --retries=500 2> /dev/null
 -->
 
 Run the following command until all the Istio Pods are ready:
@@ -813,8 +975,31 @@ oc --context ${CLUSTER2} -n istio-system expose svc/istio-ingressgateway --port=
 Set the environment variable for the service of the Istio Ingress Gateway of cluster1:
 
 ```bash
-SVC_GW_CLUSTER1=$(kubectl --context ${CLUSTER1} -n istio-system get svc istio-ingressgateway -o jsonpath='{.status.loadBalancer.ingress[0].*}')
+export ENDPOINT_HTTP_GW_CLUSTER1=$(kubectl --context ${CLUSTER1} -n istio-system get svc istio-ingressgateway -o jsonpath='{.status.loadBalancer.ingress[0].*}'):80
+export ENDPOINT_HTTPS_GW_CLUSTER1=$(kubectl --context ${CLUSTER1} -n istio-system get svc istio-ingressgateway -o jsonpath='{.status.loadBalancer.ingress[0].*}'):443
+export HOST_GW_CLUSTER1=$(echo ${ENDPOINT_HTTP_GW_CLUSTER1} | cut -d: -f1)
 ```
+
+<!--bash
+cat <<'EOF' > ./test.js
+const dns = require('dns');
+const chaiHttp = require("chai-http");
+const chai = require("chai");
+const expect = chai.expect;
+chai.use(chaiHttp);
+const { waitOnFailedTest } = require('./tests/utils');
+
+describe("Address '" + process.env.HOST_GW_CLUSTER1 + "' can be resolved in DNS", () => {
+    it(process.env.HOST_GW_CLUSTER1 + ' can be resolved', (done) => {
+        return dns.lookup(process.env.HOST_GW_CLUSTER1, (err, address, family) => {
+            expect(address).to.be.an.ip;
+            done();
+        });
+    });
+});
+EOF
+mocha ./test.js --retries=500 2> /dev/null
+-->
 
 
 
@@ -900,32 +1085,32 @@ As you can see, it deployed all three versions of the `reviews` microservice.
 Get the URL to access the `productpage` service from your web browser using the following command:
 
 ```
-echo "http://${SVC_GW_CLUSTER1}/productpage"
+echo "http://${ENDPOINT_HTTP_GW_CLUSTER1}/productpage"
 ```
 
 ![Bookinfo working](images/steps/deploy-bookinfo/bookinfo-working.png)
 
 As you can see, you can access the Bookinfo demo app.
 
-
 <!--bash
-log_header "Test :: Waiting for the Bookinfo application to be deployed and ready on both clusters"
+cat <<'EOF' > ./test.js
+const helpers = require('./tests/chai-exec');
 
-printf "\nWaiting for all the pods of the default namespace to become ready in ${CLUSTER1}"
-until [ $(kubectl --context ${CLUSTER1} get pods -o jsonpath='{range .items[*].status.containerStatuses[*]}{.ready}{"\n"}{end}' | grep false -c) -eq 0 ]; do
-  printf "%s" "."
-  sleep 1
-done
-printf "\n"
-log_success "Bookinfo ready in $CLUSTER1"
-
-printf "\nWaiting for all the pods of the default namespace to become ready in ${CLUSTER2}"
-until [ $(kubectl --context ${CLUSTER2} get pods -o jsonpath='{range .items[*].status.containerStatuses[*]}{.ready}{"\n"}{end}' | grep false -c) -eq 0 ]; do
-  printf "%s" "."
-  sleep 1
-done
-printf "\n"
-log_success "Bookinfo ready in $CLUSTER2"
+describe("Bookinfo app", () => {
+  const clusters = [process.env.CLUSTER1, process.env.CLUSTER2];
+  const deployments = ["productpage-v1", "ratings-v1", "details-v1", "reviews-v1", "reviews-v2"];
+  const istioDeployments = ["istiod", "istio-ingressgateway"];
+  clusters.forEach(cluster => {
+    istioDeployments.forEach(deploy => {
+      it(deploy + ' pods are ready in ' + cluster, () => helpers.checkDeployment({ context: cluster, namespace: "istio-system", k8sObj: deploy }));
+    });
+    deployments.forEach(deploy => {
+      it(deploy + ' pods are ready in ' + cluster, () => helpers.checkDeployment({ context: cluster, namespace: "default", k8sObj: deploy }));
+    });
+  });
+});
+EOF
+mocha ./test.js --retries=500 2> /dev/null
 -->
 
 
@@ -941,28 +1126,33 @@ kubectl --context ${CLUSTER1} exec -t deploy/reviews-v1 -c istio-proxy \
 -- openssl s_client -showcerts -connect ratings:9080
 ```
 
-
 <!--bash
-log_header "Test :: No certificate issued in ${CLUSTER1}"
-printf "\nWaiting until no certificate is issued in $CLUSTER1"
-search1="CONNECTED"
-search2="No client certificate CA names sent"
-while true
-do
-  output=$(kubectl --context ${CLUSTER1} exec -t deploy/reviews-v1 -c istio-proxy -- openssl s_client -showcerts -connect ratings:9080 2>&1)
-  echo "$output" | grep "$search1" &>/dev/null
-  condition1=$?
-  echo "$output" | grep "$search2" &>/dev/null
-  condition2=$?
-  if [ $condition1 == 0 ] && [ $condition2 == 0 ]; then
-    break
-  fi
-  printf "%s" "."
-  sleep 1
-done
-printf "\n"
-result_message="No certificate issued in $CLUSTER1"
-log_success "$result_message"
+cat <<'EOF' > ./test.js
+const chaiExec = require("@jsdevtools/chai-exec");
+var chai = require('chai');
+var expect = chai.expect;
+chai.use(chaiExec);
+
+var expectedOutput = "No client certificate CA names sent";
+
+describe("No certificate has been issued", () => {
+  
+  it('No certificate issued for ' + process.env.CLUSTER1, () => {
+    let cli = chaiExec("kubectl --context " + process.env.CLUSTER1 + " exec -t deploy/reviews-v1 -c istio-proxy -- openssl s_client -showcerts -connect ratings:9080");
+
+    expect(cli).stdout.to.contain(expectedOutput);
+    expect(cli).stderr.to.not.be.empty;
+  });
+
+  it('No certificate issued for ' + process.env.CLUSTER2, () => {
+    let cli = chaiExec("kubectl --context " + process.env.CLUSTER2 + " exec -t deploy/reviews-v1 -c istio-proxy -- openssl s_client -showcerts -connect ratings:9080");
+
+    expect(cli).stdout.to.contain(expectedOutput);
+    expect(cli).stderr.to.not.be.empty;
+  });
+});
+EOF
+mocha ./test.js --retries=500 2> /dev/null
 -->
 
 You should get something like that:
@@ -1024,30 +1214,6 @@ kubectl --context ${CLUSTER1} exec -t deploy/reviews-v1 -c istio-proxy \
 -- openssl s_client -showcerts -connect ratings:9080
 ```
 
-
-<!--bash
-log_header "Test :: Certificate issued by Istio in $CLUSTER1"
-printf "\nWaiting until certificate issuer is $CLUSTER1"
-search1="CONNECTED"
-search2="i:O = cluster1"
-while true
-do
-  output=$(kubectl --context $CLUSTER1 exec -t deploy/reviews-v1 -c istio-proxy -- openssl s_client -showcerts -connect ratings:9080 2>&1)
-  echo "$output" | grep "$search1" &>/dev/null
-  condition1=$?
-  echo "$output" | grep "$search2" &>/dev/null
-  condition2=$?
-  if [ $condition1 == 0 ] && [ $condition2 == 0 ]; then
-    break
-  fi
-  printf "%s" "."
-  sleep 1
-done
-printf "\n"
-result_message="Certificate issued in $CLUSTER1"
-log_success "$result_message"
--->
-
 Now, the output should be like that:
 
 ```
@@ -1080,30 +1246,6 @@ kubectl --context ${CLUSTER2} exec -t deploy/reviews-v1 -c istio-proxy \
 -- openssl s_client -showcerts -connect ratings:9080
 ```
 
-
-<!--bash
-log_header "Test :: Certificate issued by Istio in $CLUSTER2"
-printf "\nWaiting until certificate issuer is $CLUSTER2"
-search1="CONNECTED"
-search2="i:O = cluster2"
-while true
-do
-  output=$(kubectl --context $CLUSTER2 exec -t deploy/reviews-v1 -c istio-proxy -- openssl s_client -showcerts -connect ratings:9080 2>&1)
-  echo "$output" | grep "$search1" &>/dev/null
-  condition1=$?
-  echo "$output" | grep "$search2" &>/dev/null
-  condition2=$?
-  if [ $condition1 == 0 ] && [ $condition2 == 0 ]; then
-    break
-  fi
-  printf "%s" "."
-  sleep 1
-done
-printf "\n"
-result_message="Certificate issued in $CLUSTER2"
-log_success "$result_message"
--->
-
 The output should be like that:
 
 ```
@@ -1126,6 +1268,35 @@ GZRM4zV9BopZg745Tdk2LVoHiBR536QxQv/0h1P0CdN9hNLklAhGN/Yf9SbDgLTw
 -----END CERTIFICATE-----
 ...
 ```
+
+<!--bash
+cat <<'EOF' > ./test.js
+const chaiExec = require("@jsdevtools/chai-exec");
+var chai = require('chai');
+var expect = chai.expect;
+chai.use(chaiExec);
+
+describe("Certificate issued by Istio", () => {
+  var cluster1Name = "cluster1";
+  var cluster2Name = "cluster2";
+
+  it(cluster1Name + ' is the organization for ' + process.env.CLUSTER1, () => {
+    let cli = chaiExec("kubectl --context " + process.env.CLUSTER1 + " exec -t deploy/reviews-v1 -c istio-proxy -- openssl s_client -showcerts -connect ratings:9080");
+
+    expect(cli).stdout.to.contain("i:O = " + cluster1Name);
+    expect(cli).stderr.to.not.be.empty;
+  });
+
+  it(cluster2Name + ' is the organization for ' + process.env.CLUSTER2, () => {
+    let cli = chaiExec("kubectl --context " + process.env.CLUSTER2 + " exec -t deploy/reviews-v1 -c istio-proxy -- openssl s_client -showcerts -connect ratings:9080");
+
+    expect(cli).stdout.to.contain("i:O = " + cluster2Name);
+    expect(cli).stderr.to.not.be.empty;
+  });
+});
+EOF
+mocha ./test.js --retries=500 2> /dev/null
+-->
 
 The first certificate in the chain is the certificate of the workload and the second one is the Istio CA’s signing (CA) certificate.
 
@@ -1266,32 +1437,6 @@ kubectl --context ${CLUSTER1} exec -t deploy/reviews-v1 -c istio-proxy \
 -- openssl s_client -showcerts -connect ratings:9080
 ```
 
-
-<!--bash
-log_header "Test :: Certificate issued by GlooMesh in $CLUSTER1"
-printf "\nWaiting until certificate issuer is gloo-mesh in $CLUSTER1"
-found=false
-search1="CONNECTED"
-search2="i:O = gloo-mesh"
-while true
-do
-  output=$(kubectl --context $CLUSTER1 exec -t deploy/reviews-v1 -c istio-proxy -- openssl s_client -showcerts -connect ratings:9080 2>&1)
-  echo "$output" | grep "$search1" &>/dev/null
-  condition1=$?
-  echo "$output" | grep "$search2" &>/dev/null
-  condition2=$?
-  if [ $condition1 == 0 ] && [ $condition2 == 0 ]; then
-    found=true
-    break
-  fi
-  printf "%s" "."
-  sleep 1
-done
-printf "\n"
-result_message="Certificate issued by gloo-mesh in $CLUSTER1"
-log_success "$result_message"
--->
-
 The output should be like that:
 
 ```
@@ -1335,32 +1480,6 @@ kubectl --context ${CLUSTER2} exec -t deploy/reviews-v1 -c istio-proxy \
 -- openssl s_client -showcerts -connect ratings:9080
 ```
 
-
-<!--bash
-log_header "Test :: Certificate issued by GlooMesh in $CLUSTER2"
-printf "\nWaiting until certificate issuer is gloo-mesh in $CLUSTER2"
-found=false
-search1="CONNECTED"
-search2="i:O = gloo-mesh"
-while true
-do
-  output=$(kubectl --context $CLUSTER2 exec -t deploy/reviews-v1 -c istio-proxy -- openssl s_client -showcerts -connect ratings:9080 2>&1)
-  echo "$output" | grep "$search1" &>/dev/null
-  condition1=$?
-  echo "$output" | grep "$search2" &>/dev/null
-  condition2=$?
-  if [ $condition1 == 0 ] && [ $condition2 == 0 ]; then
-    found=true
-    break
-  fi
-  printf "%s" "."
-  sleep 1
-done
-printf "\n"
-result_message="Certificate issued by gloo-mesh in $CLUSTER2"
-log_success "$result_message"
--->
-
 The output should be like that:
 
 ```
@@ -1396,6 +1515,34 @@ s4v2pEvaYg==
 -----END CERTIFICATE-----
 ...
 ```
+
+<!--bash
+cat <<'EOF' > ./test.js
+const chaiExec = require("@jsdevtools/chai-exec");
+var chai = require('chai');
+var expect = chai.expect;
+chai.use(chaiExec);
+
+describe("Certificate issued by Gloo Mesh", () => {
+  var expectedOutput = "i:O = gloo-mesh";
+  
+  it('Gloo mesh is the organization for ' + process.env.CLUSTER1 + ' certificate', () => {
+    let cli = chaiExec("kubectl --context " + process.env.CLUSTER1 + " exec -t deploy/reviews-v1 -c istio-proxy -- openssl s_client -showcerts -connect ratings:9080");
+
+    expect(cli).stdout.to.contain(expectedOutput);
+    expect(cli).stderr.to.not.be.empty;
+  });
+
+  it('Gloo mesh is the organization for ' + process.env.CLUSTER2 + ' certificate', () => {
+    let cli = chaiExec("kubectl --context " + process.env.CLUSTER2 + " exec -t deploy/reviews-v1 -c istio-proxy -- openssl s_client -showcerts -connect ratings:9080");
+
+    expect(cli).stdout.to.contain(expectedOutput);
+    expect(cli).stderr.to.not.be.empty;
+  });
+});
+EOF
+mocha ./test.js --retries=500 2> /dev/null
+-->
 
 You can see that the last certificate in the chain is now identical on both clusters. It's the new root certificate.
 
@@ -1485,24 +1632,16 @@ spec:
 EOF
 ```
 
-
 <!--bash
-log_header "Test :: Access should be denied"
+cat <<'EOF' > ./test.js
+const helpers = require('./tests/chai-http');
 
-printf "\nWaiting for error code 403"
-while true
-do
-  status_code=$(curl -s -o /dev/null -w "%{http_code}" "http://${SVC_GW_CLUSTER1}/productpage")
-  expected_code=403
-  if [ "$status_code" == "$expected_code" ]; then
-    break
-  fi
-  printf "%s" "."
-  sleep 1
-done
-printf "\n"
-result_message="Got the expected status code $expected_code"
-log_success "$result_message"
+describe("Access should be denied with 403 code", () => {
+  it('Waiting for error code 403 in cluster1', () => helpers.checkURL({ host: 'http://' + process.env.ENDPOINT_HTTP_GW_CLUSTER1, path: '/productpage', retCode: 403 }));
+  it('Waiting for error code 403 in cluster2', () => helpers.checkURL({ host: 'http://' + process.env.ENDPOINT_HTTP_GW_CLUSTER1, path: '/productpage', retCode: 403 }));
+})
+EOF
+mocha ./test.js --retries=500 2> /dev/null
 -->
 
 After a few seconds, if you refresh the web page, you should see that you don't have access to the application anymore.
@@ -1541,28 +1680,17 @@ spec:
 EOF
 ```
 
-
 <!--bash
-log_header "Test :: Only productpage should be accessible"
-search1="Error fetching product details"
-search2="Error fetching product reviews"
-printf "\nWaiting for condition"
-while true
-do
-  output=$(curl -s "http://${SVC_GW_CLUSTER1}/productpage" 2>&1)
-  echo "$output" | grep "$search1" &>/dev/null
-  condition1=$?
-  echo "$output" | grep "$search2" &>/dev/null
-  condition2=$?
-  if [ $condition1 == 0 ] && [ $condition2 == 0 ]; then
-    break
-  fi
-  printf "%s" "."
-  sleep 1
-done
-printf "\n"
-log_success "Details is unavailable"
-log_success "Reviews is unavailable"
+cat <<'EOF' > ./test.js
+const helpers = require('./tests/chai-http');
+
+describe("Only productpage should be accessible. Details and Reviews should not", () => {
+  it("Checking text 'Error fetching product details' in cluster1", () => helpers.checkBody({ host: 'http://' + process.env.ENDPOINT_HTTP_GW_CLUSTER1, path: '/productpage', body: 'Error fetching product details', match: true }));
+  it("Checking text 'Error fetching product reviews' in cluster1", () => helpers.checkBody({ host: 'http://' + process.env.ENDPOINT_HTTP_GW_CLUSTER1, path: '/productpage', body: 'Error fetching product reviews', match: true }));
+})
+
+EOF
+mocha ./test.js --retries=500 2> /dev/null
 -->
 
 Now, refresh the page again and you should be able to access the application, but neither the `details` nor the `reviews`:
@@ -1599,32 +1727,18 @@ spec:
 EOF
 ```
 
-
 <!--bash
-log_header "Test :: Reviews and details should also be accessible, but ratings shouldn't"
-printf "\nWaiting for conditions"
-search1="Error fetching product details"
-search2="Error fetching product reviews"
-search3="Ratings service is currently unavailable"
-while true
-do
-  output=$(curl -s "http://${SVC_GW_CLUSTER1}/productpage" 2>&1)
-  echo "$output" | grep "$search1" &>/dev/null
-  condition1=$?
-  echo "$output" | grep "$search2" &>/dev/null
-  condition2=$?
-  echo "$output" | grep "$search3" &>/dev/null
-  condition3=$?
-  if [ $condition1 != 0 ] && [ $condition2 != 0 ] && [ $condition3 == 0 ]; then
-    break
-  fi
-  printf "%s" "."
-  sleep 1
-done
-printf "\n"
-log_success "Details is available"
-log_success "Reviews is available"
-log_success "Ratings is unavailable"
+cat <<'EOF' > ./test.js
+const helpers = require('./tests/chai-http');
+
+describe("Reviews and details should be accessible, but ratings shouldn't", () => {
+  it("Checking text 'Error fetching product details' in cluster1", () => helpers.checkBody({ host: 'http://' + process.env.ENDPOINT_HTTP_GW_CLUSTER1, path: '/productpage', body: 'Error fetching product details', match: false }));
+  it("Checking text 'Error fetching product reviews' in cluster1", () => helpers.checkBody({ host: 'http://' + process.env.ENDPOINT_HTTP_GW_CLUSTER1, path: '/productpage', body: 'Error fetching product reviews', match: false }));
+  it("Checking text 'Ratings service is currently unavailable' in cluster1", () => helpers.checkBody({ host: 'http://' + process.env.ENDPOINT_HTTP_GW_CLUSTER1, path: '/productpage', body: 'Ratings service is currently unavailable', match: true }));
+})
+
+EOF
+mocha ./test.js --retries=500 2> /dev/null
 -->
 
 If you refresh the page, you should be able to see the product `details` and the `reviews`, but the `reviews` microservice can't access the `ratings` microservice:
@@ -1656,32 +1770,18 @@ spec:
 EOF
 ```
 
-
 <!--bash
-log_header "Test :: All services should be accessible"
-printf "\nWaiting for condition"
-search1="Error fetching product details"
-search2="Error fetching product reviews"
-search3="Ratings service is currently unavailable"
-while true
-do
-  output=$(curl -s "http://${SVC_GW_CLUSTER1}/productpage" 2>&1)
-  echo "$output" | grep "$search1" &>/dev/null
-  condition1=$?
-  echo "$output" | grep "$search2" &>/dev/null
-  condition2=$?
-  echo "$output" | grep "$search3" &>/dev/null
-  condition3=$?
-  if [ $condition1 != 0 ] && [ $condition2 != 0 ] && [ $condition3 != 0 ]; then
-    break
-  fi
-  printf "%s" "."
-  sleep 1
-done
-printf "\n"
-log_success "Details is available"
-log_success "Reviews is available"
-log_success "Ratings is available"
+cat <<'EOF' > ./test.js
+const helpers = require('./tests/chai-http');
+
+describe("All the services should work", () => {
+  it("Checking text 'Error fetching product details' in cluster1", () => helpers.checkBody({ host: 'http://' + process.env.ENDPOINT_HTTP_GW_CLUSTER1, path: '/productpage', body: 'Error fetching product details', match: false }));
+  it("Checking text 'Error fetching product reviews' in cluster1", () => helpers.checkBody({ host: 'http://' + process.env.ENDPOINT_HTTP_GW_CLUSTER1, path: '/productpage', body: 'Error fetching product reviews', match: false }));
+  it("Checking text 'Ratings service is currently unavailable' in cluster1", () => helpers.checkBody({ host: 'http://' + process.env.ENDPOINT_HTTP_GW_CLUSTER1, path: '/productpage', body: 'Ratings service is currently unavailable', match: false }));
+})
+
+EOF
+mocha ./test.js --retries=500 2> /dev/null
 -->
 
 Refresh the page another time and all the services should now work:
@@ -1759,35 +1859,43 @@ spec:
 EOF
 ```
 
-
 <!--bash
-log_header "Test :: Reviews shouldn't be available"
-rating_service_unvailable=false
-printf "\nWait for condition"
-while true
-do
-  curl -s "http://${SVC_GW_CLUSTER1}/productpage" | grep "Sorry, product reviews are currently unavailable for this book." &>/dev/null
-  if [ $? == 0 ]; then
-    rating_service_unvailable=true
-    break
-  fi
-  printf "%s" "."
-  sleep 1
-done
-printf "\n"
-log_success "Reviews is unavailable"
+cat <<'EOF' > ./test.js
+var chai = require('chai');
+var expect = chai.expect;
+const chaiHttp = require("chai-http");
+chai.use(chaiHttp);
+
+let searchTest="Sorry, product reviews are currently unavailable for this book.";
+
+describe("Reviews shouldn't be available", () => {
+  it("Checking text '" + searchTest + "' in cluster1", async () => {
+    await chai.request('http://' + process.env.ENDPOINT_HTTP_GW_CLUSTER1)
+      .get('/productpage')
+      .send()
+      .then((res) => {
+        expect(res.text).to.contain(searchTest);
+      });
+  });
+
+});
+
+EOF
+mocha ./test.js --retries=500 2> /dev/null
 -->
 
 If you refresh the page several times, you'll see an error message telling that reviews are unavailable when the productpage is trying to communicate with the version `v2` of the `reviews` service.
 
 ![Bookinfo v3](images/steps/traffic-policy/reviews-unavailable.png)
 
-Let's delete the TrafficPolicied:
+
+Let's delete the TrafficPolicies:
 
 ```bash
 kubectl --context ${MGMT} -n gloo-mesh delete trafficpolicy ratings-fault-injection
 kubectl --context ${MGMT} -n gloo-mesh delete trafficpolicy reviews-request-timeout
 ```
+
 
 
 
@@ -1844,23 +1952,24 @@ spec:
 EOF
 ```
 
-
 <!--bash
-log_header "Test :: Should get reviews v3 from cluster2 but not ratings"
-rating_service_unvailable=false
-printf "\nWait for condition"
-while true
-do
-  curl -s "http://${SVC_GW_CLUSTER1}/productpage" | grep "Ratings service is currently unavailable" &>/dev/null
-  if [ $? == 0 ]; then
-    rating_service_unvailable=true
-    break
-  fi
-  printf "%s" "."
-  sleep 1
-done
-printf "\n"
-log_success "Got reviews v3 from cluster2 but not ratings"
+cat <<'EOF' > ./test.js
+const chaiExec = require("@jsdevtools/chai-exec");
+var chai = require('chai');
+var expect = chai.expect;
+chai.use(chaiExec);
+
+describe("Reviews v3 is reachable but not rating", function() {
+  it('Got reviews v3 from cluster2 but not ratings', () => {
+    expect(process.env.ENDPOINT_HTTP_GW_CLUSTER1).to.not.be.empty;
+    let command = 'curl -s "http://' + process.env.ENDPOINT_HTTP_GW_CLUSTER1 +'/productpage"';
+    let cli = chaiExec(command);
+    expect(cli).to.exit.with.code(0);
+    expect(cli).output.to.not.contain("Ratings service is currently unavailable");
+  })
+});
+EOF
+mocha ./test.js --retries=500 2> /dev/null
 -->
 
 If you refresh the page several times, you'll see the `v3` version of the `reviews` microservice:
@@ -1897,34 +2006,37 @@ spec:
 EOF
 ```
 
-
 <!--bash
-log_header "Test :: Should get reviews v3 from cluster2 with ratings"
-is_red_star_visible=false
-printf "\nWait for condition"
-while true
-do
-  curl -s "http://${SVC_GW_CLUSTER1}/productpage" | grep 'color="red"' &>/dev/null
-  if [ $? == 0 ]; then
-    is_red_star_visible=true
-    break
-  fi
-  printf "%s" "."
-  sleep 1
-done
-printf "\n"
-log_success "Got reviews v3 from cluster2 with ratings"
+cat <<'EOF' > ./test.js
+const chaiExec = require("@jsdevtools/chai-exec");
+var chai = require('chai');
+var expect = chai.expect;
+chai.use(chaiExec);
+
+describe("Reviews v3 from cluster2 with ratings", function() {
+  it('Got reviews v3 from cluster2 with ratings', function () {
+    expect(process.env.ENDPOINT_HTTP_GW_CLUSTER1).to.not.be.empty
+    let command = 'curl -s "http://' + process.env.ENDPOINT_HTTP_GW_CLUSTER1 +'/productpage"'
+    let cli = chaiExec(command);
+    expect(cli).to.exit.with.code(0);
+    expect(cli).output.to.not.contain('color="red"');
+  })
+});
+EOF
+mocha ./test.js --retries=500 2> /dev/null
 -->
 
 If you refresh the page several times again, you'll see the `v3` version of the `reviews` microservice with the red stars:
 
 ![Bookinfo v3](images/steps/multicluster-traffic/bookinfo-v3.png)
 
+
 Let's delete the TrafficPolicy:
 
 ```bash
 kubectl --context ${MGMT} -n gloo-mesh delete trafficpolicy simple
 ```
+
 
 
 
@@ -1938,7 +2050,7 @@ In this lab, we're going to configure a failover for the `reviews` service:
 
 ![After failover](images/steps/traffic-failover/after-failover.png)
 
-Then, we create a VirtualDestination to define a new hostname (`reviews-global.default.global`) that will be backed by the `reviews` microservice runnings on both clusters. 
+Then, we create a VirtualDestination to define a new hostname (`reviews.global`) that will be backed by the `reviews` microservice runnings on both clusters. 
 
 ```bash
 cat << EOF | kubectl --context ${MGMT} apply -f -
@@ -2004,45 +2116,48 @@ kubectl --context ${CLUSTER1} patch deploy reviews-v1 --patch '{"spec": {"templa
 kubectl --context ${CLUSTER1} patch deploy reviews-v2 --patch '{"spec": {"template": {"spec": {"containers": [{"name": "reviews","command": ["sleep", "20h"]}]}}}}'
 ```
 
-
 <!--bash
-log_header "Test :: Access reviews from cluster2 since the ones from cluster1 are in sleep mode"
-printf "\nWaiting for all the pods to become ready in ${CLUSTER1}."
-sleep 1
-until [ $(kubectl --context ${CLUSTER1} get pods -l app=reviews -o json | jq -r '[.items[].status.containerStatuses[].ready | select(. == true)] | length') -eq 4 ]; do
-  printf "%s" "."
-  sleep 1
-done
-printf "\n"
+cat <<'EOF' > ./test.js
+const chaiExec = require("@jsdevtools/chai-exec");
+const helpersHttp = require('./tests/chai-http');
+const chai = require("chai");
+const expect = chai.expect;
 
-printf "\nWaiting to have two pods with label app=reviews and 'sleep' command"
-while true
-do
-  count=$(kubectl get po --context ${CLUSTER1} -l app=reviews -o json | jq -r '[.items[].spec.containers[0].command[0] | select(. == "sleep")] | length')
-  if [ $count == 2 ]; then
-    break
-  fi
-  printf "%s" "."
-  sleep 1
-done
-printf "\n"
-log_success "There are two pods with label app=reviews and 'sleep' command"
+describe("Access reviews from cluster2 since the ones from cluster1 are in sleep mode", () => {
+  const _getJSONAppReviews = () => {
+    let command = "kubectl --context " + process.env.CLUSTER1 + " get pods -l app=reviews -o json";
+    let cli = chaiExec(command);
 
-printf "\nWaiting for Reviews service to be available"
-search1="product reviews are currently unavailable"
-while true
-do
-  output=$(curl -s "http://${SVC_GW_CLUSTER1}/productpage" 2>&1)
-  echo "$output" | grep "$search1" &>/dev/null
-  condition1=$?
-  if [ $condition1 != 0 ]; then
-    break
-  fi
-  printf "%s" "."
-  sleep 1
-done
-printf "\n"
-log_success "Reviews service is still available"
+    let j = JSON.parse(cli.stdout);
+    return j.items;
+  };
+  const allPodsAreReady = () => {
+    let containersWithReadyStatus = _getJSONAppReviews()
+      .map(x => x.status.containerStatuses)
+      .flat()
+      .filter(x => x.ready)
+      .length;
+    expect(containersWithReadyStatus).to.equal(4);
+  };
+  const twoPodsAreAsleep = () => {
+    let podsWithSleepCommand = _getJSONAppReviews()
+      .map(x => x.spec.containers)
+      .flat()
+      .filter(x => x.command && x.command[0] == "sleep")
+      .length;
+    expect(podsWithSleepCommand).to.equal(2);
+  };
+
+  it('All pods are ready in ' + process.env.CLUSTER1, () => allPodsAreReady());
+  it('There are two pods with label app=reviews and \'sleep\' command in ' + process.env.CLUSTER1, () => twoPodsAreAsleep());
+});
+
+describe("Reviews service is still available", () => {
+  it('Checking text \'product reviews are currently unavailable\' in ' + process.env.CLUSTER1, () => helpersHttp.checkBody({ host: 'http://' + process.env.ENDPOINT_HTTP_GW_CLUSTER1, path: '/productpage', body: 'product reviews are currently unavailable', match: false }));
+})
+
+EOF
+mocha ./test.js --retries=500 2> /dev/null
 -->
 
 If you refresh the web page several times again, you should still see the `reviews` displayed while there's no `reviews` service available anymore on the first cluster.
@@ -2057,26 +2172,6 @@ You should see a line like below each time you refresh the web page:
 
 ```
 [2020-10-12T14:19:35.996Z] "GET /reviews/0 HTTP/1.1" 200 - "-" "-" 0 295 6 6 "-" "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/86.0.4240.75 Safari/537.36" "d18da89b-8682-4e8d-9284-b3d5ff78f2f7" "reviews:9080" "127.0.0.1:9080" inbound|9080|http|reviews.default.svc.cluster.local 127.0.0.1:41542 192.168.163.201:9080 192.168.163.221:42110 outbound_.9080_.version-v1_.reviews.default.svc.cluster.local default
-```
-
-We're going to make the `reviews` services available again on the first cluster.
-
-```bash
-kubectl --context ${CLUSTER1} patch deployment reviews-v1  --type json   -p '[{"op": "remove", "path": "/spec/template/spec/containers/0/command"}]'
-kubectl --context ${CLUSTER1} patch deployment reviews-v2  --type json   -p '[{"op": "remove", "path": "/spec/template/spec/containers/0/command"}]'
-```
-
-Afer 2 minutes, you can validate that the requests are now handled by the first cluster using the following command:
-
-```
-kubectl --context ${CLUSTER1} logs -l app=reviews -c istio-proxy -f
-```
-
-Let's delete the VirtualDestination and the TrafficPolicy:
-
-```bash
-kubectl --context ${MGMT} -n gloo-mesh delete virtualdestination reviews-global
-kubectl --context ${MGMT} -n default delete trafficpolicy reviews-shift-failover
 ```
 
 > ### Note that you can combine traffic shift with failover
@@ -2117,6 +2212,28 @@ kubectl --context ${MGMT} -n default delete trafficpolicy reviews-shift-failover
 > ```
 
 
+We're going to make the `reviews` services available again on the first cluster.
+
+```bash
+kubectl --context ${CLUSTER1} patch deployment reviews-v1  --type json   -p '[{"op": "remove", "path": "/spec/template/spec/containers/0/command"}]'
+kubectl --context ${CLUSTER1} patch deployment reviews-v2  --type json   -p '[{"op": "remove", "path": "/spec/template/spec/containers/0/command"}]'
+```
+
+Afer 2 minutes, you can validate that the requests are now handled by the first cluster using the following command:
+
+```
+kubectl --context ${CLUSTER1} logs -l app=reviews -c istio-proxy -f
+```
+
+Let's delete the VirtualDestination and the TrafficPolicy:
+
+```bash
+kubectl --context ${MGMT} -n gloo-mesh delete virtualdestination reviews-global
+kubectl --context ${MGMT} -n default delete trafficpolicy reviews-shift-failover
+```
+
+
+
 
 ## Lab 10 - Observability <a name="Lab-10"></a>
 
@@ -2141,21 +2258,15 @@ spec:
 EOF
 ```
 
-
 <!--bash
-log_header "Test :: create AccessLogRecord"
-printf "\nWaiting for AccessLogRecord to be created"
-while true
-do
-  kubectl --context ${MGMT} get accesslogrecord access-log-reviews -n gloo-mesh &>/dev/null
-  if [ $? == 0 ]; then
-    break
-  fi
-  printf "%s" "."
-  sleep 1
-done
-printf "\n"
-log_success "Accesslogrecord has been created"
+cat <<'EOF' > ./test.js
+const helpers = require('./tests/chai-exec');
+
+describe("AccessLogRecord is created", () => {
+    it("Accesslogrecord has been created in " + process.env.MGMT, () => helpers.genericCommand({ command: "kubectl --context " + process.env.MGMT + " get accesslogrecord access-log-reviews -n gloo-mesh" }));
+});
+EOF
+mocha ./test.js --retries=500 2> /dev/null
 -->
 
 You can see the access logs in the web interface or using `meshctl`.
@@ -2176,9 +2287,9 @@ Install or upgrade the accesslog meshctl plugin:
 
 ```bash
 if meshctl accesslog --help; then
-  meshctl plugin upgrade accesslog@v1.1.1
+  meshctl plugin upgrade accesslog@v1.1.5
 else
-  meshctl plugin install accesslog@v1.1.1
+  meshctl plugin install accesslog@v1.1.5
 fi
 ```
 
@@ -2189,27 +2300,38 @@ kubectl config use-context ${MGMT}
 meshctl accesslog --kubecontext ${MGMT} -o json
 ```
 
-
 <!--bash
-printf "\nCreate some traffic and check log traces"
-search1="httpAccessLog"
-search2="workloadRef"
-while true
-do
-  curl -s http://${SVC_GW_CLUSTER1}/productpage &>/dev/null
-  output=$(meshctl accesslog --kubecontext ${MGMT} -o json 2>&1)
-  echo "$output" | grep "$search1" &>/dev/null
-  condition1=$?
-  echo "$output" | grep "$search2" &>/dev/null
-  condition2=$?
-  if [ $condition1 == 0 ] && [ $condition1 == 0 ]; then
-    break
-  fi
-  printf "%s" "."
-  sleep 1
-done
-printf "\n"
-log_success "Log traces as expected"
+cat <<'EOF' > ./test.js
+const chaiExec = require("@jsdevtools/chai-exec");
+var chai = require('chai');
+var expect = chai.expect;
+chai.use(chaiExec);
+
+const search1 = "httpAccessLog";
+const search2 = "workloadRef";
+
+describe("Check access logs", function() {
+  this.timeout(5000); // The test needs more than default (2secs)
+  
+  it("Create traffic", () => {
+    expect(process.env.ENDPOINT_HTTP_GW_CLUSTER1).to.not.be.empty;
+    let cli = chaiExec("curl -s http://" + process.env.ENDPOINT_HTTP_GW_CLUSTER1 + "/productpage");
+    expect(cli).to.exit.with.code(0);
+  });
+
+  it("Access Logs contain " + search1 + " and " + search2 + " in " + process.env.MGMT, () => {
+    expect(process.env.ENDPOINT_HTTP_GW_CLUSTER1).to.not.be.empty;
+    chaiExec("curl -s http://" + process.env.ENDPOINT_HTTP_GW_CLUSTER1 + "/productpage");
+    let command = "meshctl accesslog --kubecontext " + process.env.MGMT + " -o json";
+    let cli = chaiExec(command);
+    expect(cli).to.exit.with.code(0);
+    expect(cli).output.to.contain("httpAccessLog");
+    expect(cli).output.to.contain("workloadRef");
+  });
+})
+
+EOF
+mocha ./test.js --retries=500 2> /dev/null
 -->
 
 You should get an output similar to the following one:
@@ -2318,11 +2440,13 @@ You should get an output similar to the following one:
 
 Interesting, no ?
 
+
 Delete the `AccessLogRecord`:
 
 ```bash
 kubectl --context ${MGMT} -n gloo-mesh delete accesslogrecords.observability.enterprise.mesh.gloo.solo.io access-log-reviews                 
 ```
+
 
 
 
@@ -2434,10 +2558,33 @@ kubectl --context ${CLUSTER1} -n keycloak rollout status deploy/keycloak
 ```
 
 <!--bash
-sleep 30
+cat <<'EOF' > ./test.js
+const helpers = require('./tests/chai-exec');
+
+describe("Keycloak", () => {
+  it('keycloak pods are ready in cluster1', () => helpers.checkDeployment({ context: process.env.CLUSTER1, namespace: "keycloak", k8sObj: "keycloak" }));
+});
+EOF
+mocha ./test.js --retries=500 2> /dev/null
 -->
 
+<!--bash
+cat <<'EOF' > ./test.js
+const chaiExec = require("@jsdevtools/chai-exec");
+var chai = require('chai');
+var expect = chai.expect;
+chai.use(chaiExec);
 
+describe("Retrieve enterprise-networking ip", () => {
+  it("A value for load-balancing has been assigned", () => {
+    let cli = chaiExec("kubectl --context " + process.env.CLUSTER1 + " -n keycloak get svc keycloak -o jsonpath='{.status.loadBalancer}'");
+    expect(cli).to.exit.with.code(0);
+    expect(cli).output.to.contain('"ingress"');
+  });
+});
+EOF
+mocha ./test.js --retries=500 2> /dev/null
+-->
 
 Then, we will configure it and create two users:
 
@@ -2447,11 +2594,40 @@ Then, we will configure it and create two users:
 - User2 credentials: `user2/password`
   Email: user2@example.com
 
+Let's see the environment variables we need:
+
 ```bash
 # Get Keycloak URL and token
-KEYCLOAK_URL=http://$(kubectl --context ${CLUSTER1} -n keycloak get service keycloak -o jsonpath='{.status.loadBalancer.ingress[0].*}'):8080/auth
-KEYCLOAK_TOKEN=$(curl -d "client_id=admin-cli" -d "username=admin" -d "password=admin" -d "grant_type=password" "$KEYCLOAK_URL/realms/master/protocol/openid-connect/token" | jq -r .access_token)
+export ENDPOINT_KEYCLOAK=$(kubectl --context ${CLUSTER1} -n keycloak get service keycloak -o jsonpath='{.status.loadBalancer.ingress[0].*}'):8080
+export HOST_KEYCLOAK=$(echo ${ENDPOINT_KEYCLOAK} | cut -d: -f1)
+export KEYCLOAK_URL=http://${ENDPOINT_KEYCLOAK}/auth
+export KEYCLOAK_TOKEN=$(curl -d "client_id=admin-cli" -d "username=admin" -d "password=admin" -d "grant_type=password" "$KEYCLOAK_URL/realms/master/protocol/openid-connect/token" | jq -r .access_token)
+```
 
+<!--bash
+cat <<'EOF' > ./test.js
+const dns = require('dns');
+const chaiHttp = require("chai-http");
+const chai = require("chai");
+const expect = chai.expect;
+chai.use(chaiHttp);
+const { waitOnFailedTest } = require('./tests/utils');
+
+describe("Address '" + process.env.HOST_KEYCLOAK + "' can be resolved in DNS", () => {
+    it(process.env.HOST_KEYCLOAK + ' can be resolved', (done) => {
+        return dns.lookup(process.env.HOST_KEYCLOAK, (err, address, family) => {
+            expect(address).to.be.an.ip;
+            done();
+        });
+    });
+});
+EOF
+mocha ./test.js --retries=500 2> /dev/null
+-->
+
+After that, we configure Keycloak:
+
+```bash
 # Create initial token to register the client
 read -r client token <<<$(curl -H "Authorization: Bearer ${KEYCLOAK_TOKEN}" -X POST -H "Content-Type: application/json" -d '{"expiration": 0, "count": 1}' $KEYCLOAK_URL/admin/realms/master/clients-initial-access | jq -r '[.id, .token] | @tsv')
 
@@ -2459,7 +2635,7 @@ read -r client token <<<$(curl -H "Authorization: Bearer ${KEYCLOAK_TOKEN}" -X P
 read -r id secret <<<$(curl -X POST -d "{ \"clientId\": \"${client}\" }" -H "Content-Type:application/json" -H "Authorization: bearer ${token}" ${KEYCLOAK_URL}/realms/master/clients-registrations/default| jq -r '[.id, .secret] | @tsv')
 
 # Add allowed redirect URIs
-curl -H "Authorization: Bearer ${KEYCLOAK_TOKEN}" -X PUT -H "Content-Type: application/json" -d '{"serviceAccountsEnabled": true, "authorizationServicesEnabled": true, "redirectUris": ["'https://${SVC_GW_CLUSTER1}'/callback"]}' $KEYCLOAK_URL/admin/realms/master/clients/${id}
+curl -H "Authorization: Bearer ${KEYCLOAK_TOKEN}" -X PUT -H "Content-Type: application/json" -d '{"serviceAccountsEnabled": true, "authorizationServicesEnabled": true, "redirectUris": ["'https://${ENDPOINT_HTTPS_GW_CLUSTER1}'/callback"]}' $KEYCLOAK_URL/admin/realms/master/clients/${id}
 
 # Add the group attribute in the JWT token returned by Keycloak
 curl -H "Authorization: Bearer ${KEYCLOAK_TOKEN}" -X POST -H "Content-Type: application/json" -d '{"name": "group", "protocol": "openid-connect", "protocolMapper": "oidc-usermodel-attribute-mapper", "config": {"claim.name": "group", "jsonType.label": "String", "user.attribute": "group", "id.token.claim": "true", "access.token.claim": "true"}}' $KEYCLOAK_URL/admin/realms/master/clients/${id}/protocol-mappers/models
@@ -2584,6 +2760,17 @@ EOF
 
 You can check that you can still access the `productpage` application through the browser.
 
+<!--bash
+cat <<'EOF' > ./test.js
+const helpers = require('./tests/chai-http');
+
+describe("Productpage is available (plain http)", () => {
+  it('/productpage is available in cluster1', () => helpers.checkURL({ host: 'http://' + process.env.ENDPOINT_HTTP_GW_CLUSTER1, path: '/productpage', retCode: 200 }));
+})
+EOF
+mocha ./test.js --retries=500 2> /dev/null
+-->
+
 Now, let's secure the access through TLS.
 
 Let's first create a private key and a self-signed certificate to use in your Virtual Service:
@@ -2648,14 +2835,27 @@ EOF
 Get the URL to securely access the `productpage` service from your web browser using the following command:
 
 ```
-echo "https://${SVC_GW_CLUSTER1}/productpage"
+echo "https://${ENDPOINT_HTTPS_GW_CLUSTER1}/productpage"
 ```
+
+<!--bash
+cat <<'EOF' > ./test.js
+const helpers = require('./tests/chai-http');
+
+describe("Productpage is available (SSL)", () => {
+  it('/productpage is available in cluster1', () => helpers.checkURL({ host: 'https://' + process.env.ENDPOINT_HTTPS_GW_CLUSTER1, path: '/productpage', retCode: 200 }));
+  it('/productpage is available in cluster2', () => helpers.checkURL({ host: 'https://' + process.env.ENDPOINT_HTTPS_GW_CLUSTER1, path: '/productpage', retCode: 200 }));
+})
+EOF
+mocha ./test.js --retries=500 2> /dev/null
+-->
 
 But you can also access it using the gateway of the second cluster:
 
 ```
-echo "https://${SVC_GW_CLUSTER2}/productpage"
+echo "https://${ENDPOINT_HTTPS_GW_CLUSTER1}/productpage"
 ```
+
 
 
 
@@ -2794,29 +2994,22 @@ spec:
 EOF
 ```
 
-
 <!--bash
-log_header "Test :: Should get reviews v3 from cluster2"
-is_red_star_visible=false
-printf "\nWait for condition"
-while true
-do
-  curl -k -s "https://${SVC_GW_CLUSTER1}/reviews/0" | grep '"color": "red"' &>/dev/null
-  if [ $? == 0 ]; then
-    is_red_star_visible=true
-    break
-  fi
-  printf "%s" "."
-  sleep 1
-done
-printf "\n"
-log_success "Got reviews v3 from cluster2"
+cat <<'EOF' > ./test.js
+const helpers = require('./tests/chai-http');
+
+describe("Should get reviews v3 from cluster2", () => {
+  it('Got reviews v3 from cluster2', () => helpers.checkBody({ host: 'https://' + process.env.ENDPOINT_HTTPS_GW_CLUSTER1, path: '/reviews/0', body: '"color": "red"', match: true }));
+})
+
+EOF
+mocha ./test.js --retries=500 2> /dev/null
 -->
 
 Now, run the following command several times.
 
 ```
-curl -k https://$SVC_GW_CLUSTER1/reviews/0
+curl -k https://${ENDPOINT_HTTPS_GW_CLUSTER1}/reviews/0
 ```
 
 You should get responses from `v3` 75% of the time:
@@ -2824,6 +3017,7 @@ You should get responses from `v3` 75% of the time:
 ```
 {"id": "0","reviews": [{  "reviewer": "Reviewer1",  "text": "An extremely entertaining play by Shakespeare. The slapstick humour is refreshing!", "rating": {"stars": 5, "color": "red"}},{  "reviewer": "Reviewer2",  "text": "Absolutely fun and entertaining. The play lacks thematic depth when compared to other plays by Shakespeare.", "rating": {"stars": 4, "color": "red"}}]}
 ```
+
 
 Let's delete the TrafficPolicy:
 
@@ -2865,11 +3059,12 @@ EOF
 
 
 
+
 ## Lab 15 - Traffic failover with Gateway <a name="Lab-15"></a>
 
 In this lab, we're going to configure a failover for the `reviews` service:
 
-Let's create a VirtualDestination to define a new hostname (`reviews-global.default.global`) that will be backed by the `reviews` microservice runnings on both clusters. 
+Let's create a VirtualDestination to define a new hostname (`reviews.global`) that will be backed by the `reviews` microservice runnings on both clusters. 
 
 ```bash
 cat << EOF | kubectl --context ${MGMT} apply -f -
@@ -2977,7 +3172,7 @@ EOF
 Now, run the following command several times.
 
 ```
-curl -k https://$SVC_GW_CLUSTER1/reviews/0
+curl -k https://${ENDPOINT_HTTPS_GW_CLUSTER1}/reviews/0
 ```
 
 You should get responses from either `v1`:
@@ -2998,23 +3193,47 @@ kubectl --context ${CLUSTER1} patch deploy reviews-v1 --patch '{"spec": {"templa
 kubectl --context ${CLUSTER1} patch deploy reviews-v2 --patch '{"spec": {"template": {"spec": {"containers": [{"name": "reviews","command": ["sleep", "20h"]}]}}}}'
 ```
 
-
 <!--bash
-log_header "Test :: Should get reviews v3 from cluster2"
-is_red_star_visible=false
-printf "\nWait for condition"
-while true
-do
-  curl -k -s "https://${SVC_GW_CLUSTER1}/reviews/0" | grep '"color": "red"' &>/dev/null
-  if [ $? == 0 ]; then
-    is_red_star_visible=true
-    break
-  fi
-  printf "%s" "."
-  sleep 1
-done
-printf "\n"
-log_success "Got reviews v3 from cluster2"
+cat <<'EOF' > ./test.js
+const chaiExec = require("@jsdevtools/chai-exec");
+const helpersHttp = require('./tests/chai-http');
+const chai = require("chai");
+const expect = chai.expect;
+
+describe("Access reviews from cluster2 since the ones from cluster1 are in sleep mode", () => {
+  const _getJSONAppReviews = () => {
+    let command = "kubectl --context " + process.env.CLUSTER1 + " get pods -l app=reviews -o json";
+    let cli = chaiExec(command);
+
+    let j = JSON.parse(cli.stdout);
+    return j.items;
+  };
+  const allPodsAreReady = () => {
+    let containersWithReadyStatus = _getJSONAppReviews()
+      .map(x => x.status.containerStatuses)
+      .flat()
+      .filter(x => x.ready)
+      .length;
+    expect(containersWithReadyStatus).to.equal(4);
+  };
+  const twoPodsAreAsleep = () => {
+    let podsWithSleepCommand = _getJSONAppReviews()
+      .map(x => x.spec.containers)
+      .flat()
+      .filter(x => x.command && x.command[0] == "sleep")
+      .length;
+    expect(podsWithSleepCommand).to.equal(2);
+  };
+
+  it('All pods are ready in ' + process.env.CLUSTER1, () => allPodsAreReady());
+  it('There are two pods with label app=reviews and \'sleep\' command in ' + process.env.CLUSTER1, () => twoPodsAreAsleep());
+});
+
+describe("Reviews service is still available", () => {
+  it('Waiting for response code 200', () => helpersHttp.checkURL({ host: 'https://' + process.env.ENDPOINT_HTTPS_GW_CLUSTER1, path: '/reviews/0', retCode: 200 }));
+})
+EOF
+mocha ./test.js --retries=500 2> /dev/null
 -->
 
 If you run the curl command again several times again, you should start to see responses from `v3`:
@@ -3022,6 +3241,7 @@ If you run the curl command again several times again, you should start to see r
 ```
 {"id": "0","reviews": [{  "reviewer": "Reviewer1",  "text": "An extremely entertaining play by Shakespeare. The slapstick humour is refreshing!", "rating": {"stars": 5, "color": "red"}},{  "reviewer": "Reviewer2",  "text": "Absolutely fun and entertaining. The play lacks thematic depth when compared to other plays by Shakespeare.", "rating": {"stars": 4, "color": "red"}}]}
 ```
+
 
 We're going to make the `reviews` services available again on the first cluster.
 
@@ -3069,6 +3289,7 @@ spec:
           namespace: default
 EOF
 ```
+
 
 
 
@@ -3154,30 +3375,23 @@ EOF
 Now, run the following command several times.
 
 ```
-curl -k https://$SVC_GW_CLUSTER1/productpage -I -H "x-type: a" -H "x-number: one"
+curl -k https://${ENDPOINT_HTTPS_GW_CLUSTER1}/productpage -I -H "x-type: a" -H "x-number: one"
 ```
 
-
 <!--bash
-log_header "Test :: Access should be rate limited"
+cat <<'EOF' > ./test.js
+const helpers = require('./tests/chai-http');
 
-printf "\nWaiting for error code 429"
-while true
-do
-  status_code=$(curl -k -s -o /dev/null -w "%{http_code}" "https://${SVC_GW_CLUSTER1}/productpage" -H "x-type: a" -H "x-number: one")
-  expected_code=429
-  if [ "$status_code" == "$expected_code" ]; then
-    break
-  fi
-  printf "%s" "."
-  sleep 1
-done
-printf "\n"
-result_message="Got the expected status code $expected_code"
-log_success "$result_message"
+describe("Access should be rate limited", () => {
+  const headers = [{ key: "x-type", value: "a" }, { key: "x-number", value: "one" }];
+  it('Waiting for error code 429 in cluster1', () => helpers.checkURL({ host: 'https://' + process.env.ENDPOINT_HTTPS_GW_CLUSTER1, path: '/productpage', headers: headers, retCode: 429 }));
+})
+EOF
+mocha ./test.js --retries=500 2> /dev/null
 -->
 
 You should get a `200` response code the first time and a `429` response code after.
+
 
 Let's apply the original `RouteTable` yaml:
 
@@ -3210,6 +3424,7 @@ spec:
           namespace: default
 EOF
 ```
+
 
 
 
@@ -3246,7 +3461,7 @@ spec:
   configs:
   - oauth2:
       oidcAuthorizationCode:
-        appUrl: https://${SVC_GW_CLUSTER1}
+        appUrl: https://${ENDPOINT_HTTPS_GW_CLUSTER1}
         callbackPath: /callback
         clientId: ${client}
         clientSecretRef:
@@ -3303,29 +3518,21 @@ spec:
 EOF
 ```
 
-
 <!--bash
-log_header "Test :: Verify Authentication"
+cat <<'EOF' > ./test.js
+const helpers = require('./tests/chai-http');
 
-printf "\nWaiting until bookinfo returns 302 redirecting to Auth server"
-while true
-do
-  http_status=$(curl -k -o /dev/null -s -w "%{http_code}\n" "https://${SVC_GW_CLUSTER1}/productpage")
-  condition=$?
-  if [ "$http_status" == "302" ]; then
-    break
-  fi
-  printf "%s" "."
-  sleep 1
-done
-printf "\n"
-log_success "Bookinfo access requires Authentication"
+describe("Verify Authentication", () => {
+  it('Bookinfo returns 302 redirecting to Auth server', () => helpers.checkURL({ host: 'https://' + process.env.ENDPOINT_HTTPS_GW_CLUSTER1, path: '/productpage', retCode: 302 }));
+})
+EOF
+mocha ./test.js --retries=500 2> /dev/null
 -->
 
 If you refresh the web browser, you will be redirected to the authentication page.
 
 ```
-/opt/google/chrome/chrome https://$SVC_GW_CLUSTER1/productpage 
+/opt/google/chrome/chrome https://$ENDPOINT_HTTPS_GW_CLUSTER1/productpage 
 ```
 
 If you use the username `user1` and the password `password` Gloo should redirect you back to the `productpage` application.
@@ -3368,7 +3575,7 @@ spec:
   configs:
   - oauth2:
       oidcAuthorizationCode:
-        appUrl: https://${SVC_GW_CLUSTER1}
+        appUrl: https://${ENDPOINT_HTTPS_GW_CLUSTER1}
         callbackPath: /callback
         clientId: ${client}
         clientSecretRef:
@@ -3390,10 +3597,11 @@ EOF
 Let's try again in incognito window using the second user's credentials:
 
 ```
-/opt/google/chrome/chrome --incognito $(glooctl proxy url --port https)/productpage
+/opt/google/chrome/chrome --incognito https://$ENDPOINT_HTTPS_GW_CLUSTER1/productpage
 ```
 
 If you open the browser in incognito and login using the username `user2` and the password `password`, you will not be able to access since the user's email ends with `@example.com`.
+
 
 Let's apply the original `RouteTable` yaml:
 
@@ -3426,5 +3634,6 @@ spec:
           namespace: default
 EOF
 ```
+
 
 

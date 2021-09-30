@@ -334,8 +334,8 @@ Pull and push locally the Docker images needed:
 
 cat <<EOF > images.txt
 docker.io/istio/operator:1.10.4
-gcr.io/istio-enterprise/pilot:1.10.4
-gcr.io/istio-enterprise/proxyv2:1.10.4
+docker.io/istio/pilot:1.10.4
+docker.io/istio/proxyv2:1.10.4
 docker.io/istio/examples-bookinfo-productpage-v1:1.16.2
 docker.io/istio/examples-bookinfo-reviews-v1:1.16.2
 docker.io/istio/examples-bookinfo-reviews-v2:1.16.2
@@ -344,14 +344,14 @@ docker.io/istio/examples-bookinfo-details-v1:1.16.2
 docker.io/istio/examples-bookinfo-ratings-v1:1.16.2
 EOF
 
-wget https://storage.googleapis.com/gloo-mesh-enterprise/enterprise-agent/enterprise-agent-1.1.1.tgz
-tar zxvf enterprise-agent-1.1.1.tgz
+wget https://storage.googleapis.com/gloo-mesh-enterprise/enterprise-agent/enterprise-agent-1.1.5.tgz
+tar zxvf enterprise-agent-1.1.5.tgz
 find enterprise-agent -name "values.yaml" | while read file; do
   cat $file | yq eval -j | jq -r '.. | .image? | select(. != null) | (if .registry then (if .registry == "docker.io" then "docker.io/library" else .registry end) + "/" else "" end) + .repository + ":" + (.tag | tostring)'
 done | sort -u >> images.txt
 
-wget https://storage.googleapis.com/gloo-mesh-enterprise/gloo-mesh-enterprise/gloo-mesh-enterprise-1.1.1.tgz
-tar zxvf gloo-mesh-enterprise-1.1.1.tgz
+wget https://storage.googleapis.com/gloo-mesh-enterprise/gloo-mesh-enterprise/gloo-mesh-enterprise-1.1.5.tgz
+tar zxvf gloo-mesh-enterprise-1.1.5.tgz
 find gloo-mesh-enterprise -name "values.yaml" | while read file; do
   cat $file | yq eval -j | jq -r '.. | .image? | select(. != null) | (if .registry then (if .registry == "docker.io" then "docker.io/library" else .registry end) + "/" else "" end) + .repository + ":" + (.tag | tostring)'
 done | sort -u >> images.txt
@@ -376,8 +376,8 @@ done
 First of all, you need to install the *meshctl* CLI:
 
 ```bash
-export GLOO_MESH_VERSION=v1.1.1
-curl -sL https://run.solo.io/meshctl/install | sh - #IGNORE_ME
+export GLOO_MESH_VERSION=v1.1.5
+curl -sL https://run.solo.io/meshctl/install | sh -
 export PATH=$HOME/.gloo-mesh/bin:$PATH
 ```
 
@@ -447,7 +447,7 @@ helm repo update
 kubectl --context ${MGMT} create ns gloo-mesh 
 helm upgrade --install gloo-mesh-enterprise gloo-mesh-enterprise/gloo-mesh-enterprise \
 --namespace gloo-mesh --kube-context ${MGMT} \
---version=1.1.1 \
+--version=1.1.5 \
 --set rbac-webhook.enabled=true \
 --set enterprise-networking.enterpriseNetworking.image.registry=${registry}/gloo-mesh \
 --set enterprise-networking.prometheus.configmapReload.prometheus.image.repository=${registry}/jimmidyson/configmap-reload \
@@ -524,9 +524,9 @@ mocha ./test.js --retries=500 2> /dev/null
 Finally, you need to register the two other clusters:
 
 ```bash
-wget https://storage.googleapis.com/gloo-mesh-enterprise/enterprise-agent/enterprise-agent-1.1.1.tgz
-meshctl cluster register --mgmt-context=${MGMT} --remote-context=${CLUSTER1} --relay-server-address=${ENDPOINT_GLOO_MESH} enterprise cluster1 --cluster-domain cluster.local --enterprise-agent-chart-file enterprise-agent-1.1.1.tgz --enterprise-agent-chart-values /tmp/enterprise-agent-values.yaml
-meshctl cluster register --mgmt-context=${MGMT} --remote-context=${CLUSTER2} --relay-server-address=${ENDPOINT_GLOO_MESH} enterprise cluster2 --cluster-domain cluster.local --enterprise-agent-chart-file enterprise-agent-1.1.1.tgz --enterprise-agent-chart-values /tmp/enterprise-agent-values.yaml
+wget https://storage.googleapis.com/gloo-mesh-enterprise/enterprise-agent/enterprise-agent-1.1.5.tgz
+meshctl cluster register --mgmt-context=${MGMT} --remote-context=${CLUSTER1} --relay-server-address=${ENDPOINT_GLOO_MESH} enterprise cluster1 --cluster-domain cluster.local --enterprise-agent-chart-file enterprise-agent-1.1.5.tgz --enterprise-agent-chart-values /tmp/enterprise-agent-values.yaml
+meshctl cluster register --mgmt-context=${MGMT} --remote-context=${CLUSTER2} --relay-server-address=${ENDPOINT_GLOO_MESH} enterprise cluster2 --cluster-domain cluster.local --enterprise-agent-chart-file enterprise-agent-1.1.5.tgz --enterprise-agent-chart-values /tmp/enterprise-agent-values.yaml
 ```
 
 You can list the registered cluster using the following command:
@@ -596,7 +596,7 @@ mocha ./test.js --retries=500 2> /dev/null
 >   --set relay.cluster=cluster1 \
 >   --kube-context=${CLUSTER1} \
 >   --values=/tmp/enterprise-agent-values.yaml \
->   --version 1.1.1
+>   --version 1.1.5
 > 
 > helm install enterprise-agent enterprise-agent/enterprise-agent \
 >   --namespace gloo-mesh \
@@ -604,7 +604,7 @@ mocha ./test.js --retries=500 2> /dev/null
 >   --set relay.cluster=cluster2 \
 >   --kube-context=${CLUSTER2} \
 >   --values=/tmp/enterprise-agent-values.yaml \
->   --version 1.1.1
+>   --version 1.1.5
 > ```
 > #### Create the `KubernetesCluster` objects
 > ```
@@ -671,7 +671,7 @@ helm repo update
 
 helm upgrade --install enterprise-agent-addons enterprise-agent/enterprise-agent \
   --kube-context=${CLUSTER1} \
-  --version=1.1.1 \
+  --version=1.1.5 \
   --namespace gloo-mesh-addons \
    --values=/tmp/enterprise-agent-addons-values.yaml \
   --set enterpriseAgent.enabled=false \
@@ -680,7 +680,7 @@ helm upgrade --install enterprise-agent-addons enterprise-agent/enterprise-agent
 
 helm upgrade --install enterprise-agent-addons enterprise-agent/enterprise-agent \
   --kube-context=${CLUSTER2} \
-  --version=1.1.1 \
+  --version=1.1.5 \
   --namespace gloo-mesh-addons \
    --values=/tmp/enterprise-agent-addons-values.yaml \
   --set enterpriseAgent.enabled=false \
@@ -1915,12 +1915,14 @@ If you refresh the page several times, you'll see an error message telling that 
 
 ![Bookinfo v3](images/steps/traffic-policy/reviews-unavailable.png)
 
-Let's delete the TrafficPolicied:
+
+Let's delete the TrafficPolicies:
 
 ```bash
 kubectl --context ${MGMT} -n gloo-mesh delete trafficpolicy ratings-fault-injection
 kubectl --context ${MGMT} -n gloo-mesh delete trafficpolicy reviews-request-timeout
 ```
+
 
 
 
@@ -2055,11 +2057,13 @@ If you refresh the page several times again, you'll see the `v3` version of the 
 
 ![Bookinfo v3](images/steps/multicluster-traffic/bookinfo-v3.png)
 
+
 Let's delete the TrafficPolicy:
 
 ```bash
 kubectl --context ${MGMT} -n gloo-mesh delete trafficpolicy simple
 ```
+
 
 
 
@@ -2073,7 +2077,7 @@ In this lab, we're going to configure a failover for the `reviews` service:
 
 ![After failover](images/steps/traffic-failover/after-failover.png)
 
-Then, we create a VirtualDestination to define a new hostname (`reviews-global.default.global`) that will be backed by the `reviews` microservice runnings on both clusters. 
+Then, we create a VirtualDestination to define a new hostname (`reviews.global`) that will be backed by the `reviews` microservice runnings on both clusters. 
 
 ```bash
 cat << EOF | kubectl --context ${MGMT} apply -f -
@@ -2197,26 +2201,6 @@ You should see a line like below each time you refresh the web page:
 [2020-10-12T14:19:35.996Z] "GET /reviews/0 HTTP/1.1" 200 - "-" "-" 0 295 6 6 "-" "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/86.0.4240.75 Safari/537.36" "d18da89b-8682-4e8d-9284-b3d5ff78f2f7" "reviews:9080" "127.0.0.1:9080" inbound|9080|http|reviews.default.svc.cluster.local 127.0.0.1:41542 192.168.163.201:9080 192.168.163.221:42110 outbound_.9080_.version-v1_.reviews.default.svc.cluster.local default
 ```
 
-We're going to make the `reviews` services available again on the first cluster.
-
-```bash
-kubectl --context ${CLUSTER1} patch deployment reviews-v1  --type json   -p '[{"op": "remove", "path": "/spec/template/spec/containers/0/command"}]'
-kubectl --context ${CLUSTER1} patch deployment reviews-v2  --type json   -p '[{"op": "remove", "path": "/spec/template/spec/containers/0/command"}]'
-```
-
-Afer 2 minutes, you can validate that the requests are now handled by the first cluster using the following command:
-
-```
-kubectl --context ${CLUSTER1} logs -l app=reviews -c istio-proxy -f
-```
-
-Let's delete the VirtualDestination and the TrafficPolicy:
-
-```bash
-kubectl --context ${MGMT} -n gloo-mesh delete virtualdestination reviews-global
-kubectl --context ${MGMT} -n default delete trafficpolicy reviews-shift-failover
-```
-
 > ### Note that you can combine traffic shift with failover
 > ```
 > cat << EOF | kubectl --context ${MGMT} apply -f -
@@ -2253,6 +2237,28 @@ kubectl --context ${MGMT} -n default delete trafficpolicy reviews-shift-failover
 >           weight: 50
 > EOF
 > ```
+
+
+We're going to make the `reviews` services available again on the first cluster.
+
+```bash
+kubectl --context ${CLUSTER1} patch deployment reviews-v1  --type json   -p '[{"op": "remove", "path": "/spec/template/spec/containers/0/command"}]'
+kubectl --context ${CLUSTER1} patch deployment reviews-v2  --type json   -p '[{"op": "remove", "path": "/spec/template/spec/containers/0/command"}]'
+```
+
+Afer 2 minutes, you can validate that the requests are now handled by the first cluster using the following command:
+
+```
+kubectl --context ${CLUSTER1} logs -l app=reviews -c istio-proxy -f
+```
+
+Let's delete the VirtualDestination and the TrafficPolicy:
+
+```bash
+kubectl --context ${MGMT} -n gloo-mesh delete virtualdestination reviews-global
+kubectl --context ${MGMT} -n default delete trafficpolicy reviews-shift-failover
+```
+
 
 
 
@@ -2308,9 +2314,9 @@ Install or upgrade the accesslog meshctl plugin:
 
 ```bash
 if meshctl accesslog --help; then
-  meshctl plugin upgrade accesslog@v1.1.1
+  meshctl plugin upgrade accesslog@v1.1.5
 else
-  meshctl plugin install accesslog@v1.1.1
+  meshctl plugin install accesslog@v1.1.5
 fi
 ```
 
@@ -2461,11 +2467,13 @@ You should get an output similar to the following one:
 
 Interesting, no ?
 
+
 Delete the `AccessLogRecord`:
 
 ```bash
 kubectl --context ${MGMT} -n gloo-mesh delete accesslogrecords.observability.enterprise.mesh.gloo.solo.io access-log-reviews                 
 ```
+
 
 
 
@@ -3037,6 +3045,7 @@ You should get responses from `v3` 75% of the time:
 {"id": "0","reviews": [{  "reviewer": "Reviewer1",  "text": "An extremely entertaining play by Shakespeare. The slapstick humour is refreshing!", "rating": {"stars": 5, "color": "red"}},{  "reviewer": "Reviewer2",  "text": "Absolutely fun and entertaining. The play lacks thematic depth when compared to other plays by Shakespeare.", "rating": {"stars": 4, "color": "red"}}]}
 ```
 
+
 Let's delete the TrafficPolicy:
 
 ```bash
@@ -3077,11 +3086,12 @@ EOF
 
 
 
+
 ## Lab 15 - Traffic failover with Gateway <a name="Lab-15"></a>
 
 In this lab, we're going to configure a failover for the `reviews` service:
 
-Let's create a VirtualDestination to define a new hostname (`reviews-global.default.global`) that will be backed by the `reviews` microservice runnings on both clusters. 
+Let's create a VirtualDestination to define a new hostname (`reviews.global`) that will be backed by the `reviews` microservice runnings on both clusters. 
 
 ```bash
 cat << EOF | kubectl --context ${MGMT} apply -f -
@@ -3212,12 +3222,43 @@ kubectl --context ${CLUSTER1} patch deploy reviews-v2 --patch '{"spec": {"templa
 
 <!--bash
 cat <<'EOF' > ./test.js
-const helpers = require('./tests/chai-http');
+const chaiExec = require("@jsdevtools/chai-exec");
+const helpersHttp = require('./tests/chai-http');
+const chai = require("chai");
+const expect = chai.expect;
 
-describe("Should get reviews v3 from cluster2", () => {
-  it('Got reviews v3 from cluster2', () => helpers.checkBody({ host: 'https://' + process.env.ENDPOINT_HTTPS_GW_CLUSTER1, path: '/reviews/0', body: '"color": "red"', match: true }));
+describe("Access reviews from cluster2 since the ones from cluster1 are in sleep mode", () => {
+  const _getJSONAppReviews = () => {
+    let command = "kubectl --context " + process.env.CLUSTER1 + " get pods -l app=reviews -o json";
+    let cli = chaiExec(command);
+
+    let j = JSON.parse(cli.stdout);
+    return j.items;
+  };
+  const allPodsAreReady = () => {
+    let containersWithReadyStatus = _getJSONAppReviews()
+      .map(x => x.status.containerStatuses)
+      .flat()
+      .filter(x => x.ready)
+      .length;
+    expect(containersWithReadyStatus).to.equal(4);
+  };
+  const twoPodsAreAsleep = () => {
+    let podsWithSleepCommand = _getJSONAppReviews()
+      .map(x => x.spec.containers)
+      .flat()
+      .filter(x => x.command && x.command[0] == "sleep")
+      .length;
+    expect(podsWithSleepCommand).to.equal(2);
+  };
+
+  it('All pods are ready in ' + process.env.CLUSTER1, () => allPodsAreReady());
+  it('There are two pods with label app=reviews and \'sleep\' command in ' + process.env.CLUSTER1, () => twoPodsAreAsleep());
+});
+
+describe("Reviews service is still available", () => {
+  it('Waiting for response code 200', () => helpersHttp.checkURL({ host: 'https://' + process.env.ENDPOINT_HTTPS_GW_CLUSTER1, path: '/reviews/0', retCode: 200 }));
 })
-
 EOF
 mocha ./test.js --retries=500 2> /dev/null
 -->
@@ -3227,6 +3268,7 @@ If you run the curl command again several times again, you should start to see r
 ```
 {"id": "0","reviews": [{  "reviewer": "Reviewer1",  "text": "An extremely entertaining play by Shakespeare. The slapstick humour is refreshing!", "rating": {"stars": 5, "color": "red"}},{  "reviewer": "Reviewer2",  "text": "Absolutely fun and entertaining. The play lacks thematic depth when compared to other plays by Shakespeare.", "rating": {"stars": 4, "color": "red"}}]}
 ```
+
 
 We're going to make the `reviews` services available again on the first cluster.
 
@@ -3274,6 +3316,7 @@ spec:
           namespace: default
 EOF
 ```
+
 
 
 
@@ -3376,6 +3419,7 @@ mocha ./test.js --retries=500 2> /dev/null
 
 You should get a `200` response code the first time and a `429` response code after.
 
+
 Let's apply the original `RouteTable` yaml:
 
 ```bash
@@ -3407,6 +3451,7 @@ spec:
           namespace: default
 EOF
 ```
+
 
 
 
@@ -3579,10 +3624,11 @@ EOF
 Let's try again in incognito window using the second user's credentials:
 
 ```
-/opt/google/chrome/chrome --incognito $(glooctl proxy url --port https)/productpage
+/opt/google/chrome/chrome --incognito https://$ENDPOINT_HTTPS_GW_CLUSTER1/productpage
 ```
 
 If you open the browser in incognito and login using the username `user2` and the password `password`, you will not be able to access since the user's email ends with `@example.com`.
+
 
 Let's apply the original `RouteTable` yaml:
 
@@ -3615,5 +3661,6 @@ spec:
           namespace: default
 EOF
 ```
+
 
 

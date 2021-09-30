@@ -9,6 +9,7 @@
   - https://dl.google.com/linux/linux_signing_key.pub
   - https://packages.microsoft.com/keys/microsoft.asc
   - https://baltocdn.com/helm/signing.asc
+  - https://deb.nodesource.com/gpgkey/nodesource.gpg.key
 
 - name: Add apt repositories
   apt_repository:
@@ -19,6 +20,8 @@
   - deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main
   - deb [arch=amd64] https://packages.microsoft.com/repos/vscode stable main
   - deb https://baltocdn.com/helm/stable/debian/ all main
+  - deb https://deb.nodesource.com/node_16.x focal main
+  - deb-src https://deb.nodesource.com/node_16.x focal main
 
 - name: Install baseline software
   apt:
@@ -72,6 +75,13 @@
     - helm=3.6.*
     - emacs
     - tomcat9
+    - nodejs
+
+- name: Install mocha
+  shell: npm install mocha -g
+
+- name: Install chai
+  shell: npm install chai @jsdevtools/chai-exec
 
 - name: Add the solo user to the docker group
   user:

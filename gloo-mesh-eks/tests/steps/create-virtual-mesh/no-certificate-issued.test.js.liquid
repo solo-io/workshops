@@ -1,0 +1,23 @@
+const chaiExec = require("@jsdevtools/chai-exec");
+var chai = require('chai');
+var expect = chai.expect;
+chai.use(chaiExec);
+
+var expectedOutput = "No client certificate CA names sent";
+
+describe("No certificate has been issued", () => {
+  
+  it('No certificate issued for ' + process.env.CLUSTER1, () => {
+    let cli = chaiExec("kubectl --context " + process.env.CLUSTER1 + " exec -t deploy/reviews-v1 -c istio-proxy -- openssl s_client -showcerts -connect ratings:9080");
+
+    expect(cli).stdout.to.contain(expectedOutput);
+    expect(cli).stderr.to.not.be.empty;
+  });
+
+  it('No certificate issued for ' + process.env.CLUSTER2, () => {
+    let cli = chaiExec("kubectl --context " + process.env.CLUSTER2 + " exec -t deploy/reviews-v1 -c istio-proxy -- openssl s_client -showcerts -connect ratings:9080");
+
+    expect(cli).stdout.to.contain(expectedOutput);
+    expect(cli).stderr.to.not.be.empty;
+  });
+});
