@@ -1,0 +1,9 @@
+const helpers = require('./tests/chai-http');
+
+describe("Productpage is available (https)", () => {
+  it('/productpage is available', () => helpers.checkURL({ host: process.env.APP_URL, path: '/productpage', retCode: 200 }));
+})
+
+describe("Productpage is available (https)", () => {
+  it('/not-secured/get is available', () => helpers.checkURL({ host: process.env.APP_URL, path: '/not-secured/get', retCode: 200 }));
+})

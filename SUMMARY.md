@@ -1,4 +1,5 @@
 
+* [Gloo Edge Workshop](./gloo-edge/README.md)
 * [Gloo Mesh Workshop](./gloo-mesh/README.md)
 * [Gloo Mesh Workshop airgap](./gloo-mesh-airgap/README.md)
 * [Gloo Mesh Workshop on EKS](./gloo-mesh-eks/README.md)

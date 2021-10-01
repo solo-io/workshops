@@ -1,0 +1,5 @@
+const helpers = require('./tests/chai-http');
+
+describe("Request should be blocked due to the scammer user-agent header", () => {
+  it('Request is blocked', () => helpers.checkBody({ host: process.env.APP_URL, path: '/not-secured/get', headers: [{key: 'User-Agent', value: 'scammer'}], body: 'Blocked Scammer', match: true }));
+})
