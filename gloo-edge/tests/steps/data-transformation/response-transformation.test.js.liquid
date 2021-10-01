@@ -1,5 +1,0 @@
-const helpers = require('./tests/chai-http');
-
-describe("httpbin should return the expected body", () => {
-  it('httpbin returns the transformed body', () => helpers.checkBody({ host: process.env.APP_URL, path: '/not-secured/get', body: 'Too many Requests!', match: true }));
-})

@@ -1,5 +1,0 @@
-const helpers = require('./tests/chai-http');
-
-describe("httpbin should return the expected header", () => {
-  it('httpbin returns the expected header', () => helpers.checkBody({ host: process.env.APP_URL, path: '/not-secured/get', headers: [{key: 'x-my-initial-header', value: 'Bearer this_is_my_token_for_test'}], body: '"X-My-Final-Header": "this_is_my_token_for_test"', match: true }));
-})
