@@ -763,81 +763,85 @@ kubectl --context ${CLUSTER1} create ns istio-operator
 kubectl --context ${CLUSTER1} create ns istio-system
 
 cat << EOF | kubectl --context ${CLUSTER1} apply -f -
-
 apiVersion: install.istio.io/v1alpha1
 kind: IstioOperator
 metadata:
-  name: istiocontrolplane-default
+  name: gloo-mesh-istio
   namespace: istio-system
 spec:
-  hub: ${registry}/istio-enterprise
+  # only the control plane components are installed (https://istio.io/latest/docs/setup/additional-setup/config-profiles/)
   profile: default
+  # Solo.io Istio distribution repository
+  hub: gcr.io/istio-enterprise
+  # Solo.io Gloo Mesh Istio tag
+  tag: 1.10.5
+
   meshConfig:
-    trustDomain: cluster1
+    # enable access logging to standard output
     accessLogFile: /dev/stdout
-    enableAutoMtls: true
+
     defaultConfig:
+      # wait for the istio-proxy to start before application pods
+      holdApplicationUntilProxyStarts: true
+      # enable Gloo Mesh metrics service (required for Gloo Mesh Dashboard)
       envoyMetricsService:
         address: enterprise-agent.gloo-mesh:9977
+       # enable GlooMesh accesslog service (required for Gloo Mesh Access Logging)
       envoyAccessLogService:
         address: enterprise-agent.gloo-mesh:9977
       proxyMetadata:
+        # Enable Istio agent to handle DNS requests for known hosts
+        # Unknown hosts will automatically be resolved using upstream dns servers in resolv.conf
+        # (for proxy-dns)
         ISTIO_META_DNS_CAPTURE: "true"
+        # Enable automatic address allocation (for proxy-dns)
         ISTIO_META_DNS_AUTO_ALLOCATE: "true"
-        GLOO_MESH_CLUSTER_NAME: cluster1
-  values:
-    global:
-      meshID: mesh1
-      multiCluster:
-        clusterName: cluster1
-      network: network1
-      meshNetworks:
-        network1:
-          endpoints:
-          - fromRegistry: cluster1
-          gateways:
-          - registryServiceName: istio-ingressgateway.istio-system.svc.cluster.local
-            port: 443
-        vm-network:
+        # Used for gloo mesh metrics aggregation
+        # should match trustDomain (required for Gloo Mesh Dashboard)
+        GLOO_MESH_CLUSTER_NAME: ${CLUSTER1}
+
+    # Set the default behavior of the sidecar for handling outbound traffic from the application.
+    outboundTrafficPolicy:
+      mode: ALLOW_ANY
+    # The trust domain corresponds to the trust root of a system. 
+    # For Gloo Mesh this should be the name of the cluster that cooresponds with the CA certificate CommonName identity
+    trustDomain: ${CLUSTER1}
   components:
     ingressGateways:
+    # enable the default ingress gateway
     - name: istio-ingressgateway
-      label:
-        topology.istio.io/network: network1
       enabled: true
       k8s:
-        env:
-          # sni-dnat adds the clusters required for AUTO_PASSTHROUGH mode
-          - name: ISTIO_META_ROUTER_MODE
-            value: "sni-dnat"
-          # traffic through this gateway should be routed inside the network
-          - name: ISTIO_META_REQUESTED_NETWORK_VIEW
-            value: network1
         service:
+          type: LoadBalancer
           ports:
-            - name: http2
-              port: 80
+            # main http ingress port
+            - port: 80
               targetPort: 8080
-            - name: https
-              port: 443
+              name: http2
+            # main https ingress port
+            - port: 443
               targetPort: 8443
-            - name: tcp-status-port
-              port: 15021
-              targetPort: 15021
-            - name: tls
-              port: 15443
+              name: https
+            # Port for gloo-mesh multi-cluster mTLS passthrough (Required for Gloo Mesh east/west routing)
+            - port: 15443
               targetPort: 15443
-            - name: tcp-istiod
-              port: 15012
-              targetPort: 15012
-            - name: tcp-webhook
-              port: 15017
-              targetPort: 15017
+              # Gloo Mesh looks for this default name 'tls' on an ingress gateway
+              name: tls
     pilot:
       k8s:
         env:
+         # Allow multiple trust domains (Required for Gloo Mesh east/west routing)
           - name: PILOT_SKIP_VALIDATE_TRUST_DOMAIN
             value: "true"
+  values:
+    # https://istio.io/v1.5/docs/reference/config/installation-options/#global-options
+    global:
+      # needed for connecting VirtualMachines to the mesh
+      network: ${CLUSTER1}
+      # needed for annotating istio metrics with cluster (should match trust domain and GLOO_MESH_CLUSTER_NAME)
+      multiCluster:
+        clusterName: ${CLUSTER1}
 EOF
 ```
 
@@ -853,81 +857,85 @@ kubectl --context ${CLUSTER2} create ns istio-operator
 kubectl --context ${CLUSTER2} create ns istio-system
 
 cat << EOF | kubectl --context ${CLUSTER2} apply -f -
-
 apiVersion: install.istio.io/v1alpha1
 kind: IstioOperator
 metadata:
-  name: istiocontrolplane-default
+  name: gloo-mesh-istio
   namespace: istio-system
 spec:
-  hub: ${registry}/istio-enterprise
+  # only the control plane components are installed (https://istio.io/latest/docs/setup/additional-setup/config-profiles/)
   profile: default
+  # Solo.io Istio distribution repository
+  hub: gcr.io/istio-enterprise
+  # Solo.io Gloo Mesh Istio tag
+  tag: 1.10.5
+
   meshConfig:
-    trustDomain: cluster2
+    # enable access logging to standard output
     accessLogFile: /dev/stdout
-    enableAutoMtls: true
+
     defaultConfig:
+      # wait for the istio-proxy to start before application pods
+      holdApplicationUntilProxyStarts: true
+      # enable Gloo Mesh metrics service (required for Gloo Mesh Dashboard)
       envoyMetricsService:
         address: enterprise-agent.gloo-mesh:9977
+       # enable GlooMesh accesslog service (required for Gloo Mesh Access Logging)
       envoyAccessLogService:
         address: enterprise-agent.gloo-mesh:9977
       proxyMetadata:
+        # Enable Istio agent to handle DNS requests for known hosts
+        # Unknown hosts will automatically be resolved using upstream dns servers in resolv.conf
+        # (for proxy-dns)
         ISTIO_META_DNS_CAPTURE: "true"
+        # Enable automatic address allocation (for proxy-dns)
         ISTIO_META_DNS_AUTO_ALLOCATE: "true"
-        GLOO_MESH_CLUSTER_NAME: cluster2
-  values:
-    global:
-      meshID: mesh1
-      multiCluster:
-        clusterName: cluster2
-      network: network1
-      meshNetworks:
-        network1:
-          endpoints:
-          - fromRegistry: cluster2
-          gateways:
-          - registryServiceName: istio-ingressgateway.istio-system.svc.cluster.local
-            port: 443
-        vm-network:
+        # Used for gloo mesh metrics aggregation
+        # should match trustDomain (required for Gloo Mesh Dashboard)
+        GLOO_MESH_CLUSTER_NAME: ${CLUSTER2}
+
+    # Set the default behavior of the sidecar for handling outbound traffic from the application.
+    outboundTrafficPolicy:
+      mode: ALLOW_ANY
+    # The trust domain corresponds to the trust root of a system. 
+    # For Gloo Mesh this should be the name of the cluster that cooresponds with the CA certificate CommonName identity
+    trustDomain: ${CLUSTER2}
   components:
     ingressGateways:
+    # enable the default ingress gateway
     - name: istio-ingressgateway
-      label:
-        topology.istio.io/network: network1
       enabled: true
       k8s:
-        env:
-          # sni-dnat adds the clusters required for AUTO_PASSTHROUGH mode
-          - name: ISTIO_META_ROUTER_MODE
-            value: "sni-dnat"
-          # traffic through this gateway should be routed inside the network
-          - name: ISTIO_META_REQUESTED_NETWORK_VIEW
-            value: network1
         service:
+          type: LoadBalancer
           ports:
-            - name: http2
-              port: 80
+            # main http ingress port
+            - port: 80
               targetPort: 8080
-            - name: https
-              port: 443
+              name: http2
+            # main https ingress port
+            - port: 443
               targetPort: 8443
-            - name: tcp-status-port
-              port: 15021
-              targetPort: 15021
-            - name: tls
-              port: 15443
+              name: https
+            # Port for gloo-mesh multi-cluster mTLS passthrough (Required for Gloo Mesh east/west routing)
+            - port: 15443
               targetPort: 15443
-            - name: tcp-istiod
-              port: 15012
-              targetPort: 15012
-            - name: tcp-webhook
-              port: 15017
-              targetPort: 15017
+              # Gloo Mesh looks for this default name 'tls' on an ingress gateway
+              name: tls
     pilot:
       k8s:
         env:
+         # Allow multiple trust domains (Required for Gloo Mesh east/west routing)
           - name: PILOT_SKIP_VALIDATE_TRUST_DOMAIN
             value: "true"
+  values:
+    # https://istio.io/v1.5/docs/reference/config/installation-options/#global-options
+    global:
+      # needed for connecting VirtualMachines to the mesh
+      network: ${CLUSTER2}
+      # needed for annotating istio metrics with cluster (should match trust domain and GLOO_MESH_CLUSTER_NAME)
+      multiCluster:
+        clusterName: ${CLUSTER2}
 EOF
 ```
 
