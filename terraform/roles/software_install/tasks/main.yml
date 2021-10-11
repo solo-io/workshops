@@ -9,7 +9,6 @@
   - https://dl.google.com/linux/linux_signing_key.pub
   - https://packages.microsoft.com/keys/microsoft.asc
   - https://baltocdn.com/helm/signing.asc
-  - https://deb.nodesource.com/gpgkey/nodesource.gpg.key
 
 - name: Add apt repositories
   apt_repository:
@@ -20,8 +19,9 @@
   - deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main
   - deb [arch=amd64] https://packages.microsoft.com/repos/vscode stable main
   - deb https://baltocdn.com/helm/stable/debian/ all main
-  - deb https://deb.nodesource.com/node_16.x focal main
-  - deb-src https://deb.nodesource.com/node_16.x focal main
+
+- name: Prepare system for nodejs installation
+  shell: 'curl -fsSL https://deb.nodesource.com/setup_16.x | sudo -E bash -'
 
 - name: Install baseline software
   apt:
@@ -77,11 +77,22 @@
     - tomcat9
     - nodejs
 
-- name: Install mocha
-  shell: npm install mocha -g
+- name: Copy file with owner and permissions
+  template:
+    src: files/package.json
+    dest: /home/solo/package.json
+    owner: solo
+    mode: '0644'
 
-- name: Install chai
-  shell: npm install chai @jsdevtools/chai-exec
+- name: Install packages based on package.json
+  community.general.npm:
+    path: /home/solo
+
+- name: Install mocha as global
+  community.general.npm:
+    name: mocha
+    version: '^9.1.0'
+    global: yes
 
 - name: Add the solo user to the docker group
   user:
