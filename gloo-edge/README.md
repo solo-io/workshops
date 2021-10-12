@@ -94,7 +94,7 @@ Why would you choose Gloo Edge ?
 From the terminal go to the `/home/solo/workshops/gloo-edge` directory:
 
 ```
-cd /home/solo/workshops/gloo-mesh
+cd /home/solo/workshops/gloo-edge
 ```
 
 Deploy a local Kubernetes cluster using this command:
