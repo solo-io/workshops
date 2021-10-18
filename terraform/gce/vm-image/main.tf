@@ -1,4 +1,5 @@
 resource "google_compute_instance" "vm" {
+  count = var.source_machine_image == "" ? 1 : 0
   project      = var.project
   name         = "${terraform.workspace}-${var.prefix}-source-image"
   machine_type = var.machine_type
@@ -50,8 +51,9 @@ resource "google_compute_instance" "vm" {
 }
 
 resource "google_compute_image" "image" {
+  count = var.source_machine_image == "" ? 1 : 0
   project = var.project
-  name    = google_compute_instance.vm.name
+  name    = google_compute_instance.vm.0.name
 
-  source_disk = "projects/${var.project}/zones/${var.zone}/disks/${google_compute_instance.vm.name}"
+  source_disk = "projects/${var.project}/zones/${var.zone}/disks/${google_compute_instance.vm.0.name}"
 }

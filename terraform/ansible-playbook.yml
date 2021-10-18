@@ -12,6 +12,7 @@
     reboot_vm_machine: yes # reboot machine at the end of the playbook
     terminal_custom_title: "solo.io workshops"
     vagrant: no
+    provision: yes
 
   roles:
     - role: vagrant
@@ -20,12 +21,15 @@
       repo_name: workshops
       repo_branch: master
     - role: k9s
+      when: provision | bool
     - role: software_install
+      when: provision | bool
     - role: vm_configuration
       reboot_vm: '{{ reboot_vm_machine | bool }}'
       terminal_title: '{{ terminal_custom_title }}'
+      when: provision | bool
 
   tasks:
   - name: Print parameters
     debug:
-      msg: 'reboot_vm={{ reboot_vm_machine | bool }} terminal_title={{ terminal_custom_title }}'
+      msg: 'reboot_vm={{ reboot_vm_machine | bool }} terminal_title={{ terminal_custom_title }} provision={{ provision }}'

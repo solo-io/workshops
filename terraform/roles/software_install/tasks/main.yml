@@ -23,20 +23,13 @@
 - name: Prepare system for nodejs installation
   shell: 'curl -fsSL https://deb.nodesource.com/setup_16.x | sudo -E bash -'
 
-- name: Install baseline software - stage1
+- name: Install tomcat9 - workaround
+  shell: sudo useradd -m -U -d /opt/tomcat -s /bin/false tomcat
+
+- name: Install baseline software
   apt:
     state: present
     update_cache: yes
-    name:
-    - tomcat9-admin
-    - tomcat9-common
-    - tomcat9-user
-    - openjdk-11-jre-headless
-
-- name: Install baseline software - stage2
-  apt:
-    state: present
-    update_cache: no
     name:
     - jq
     - curl

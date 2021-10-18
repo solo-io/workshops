@@ -7,6 +7,7 @@ module "vm-image" {
   project      = lookup(each.value, "project", var.project)
   machine_type = lookup(each.value, "machine_type", var.machine_type)
   zone         = lookup(each.value, "zone", var.zone)
+  source_machine_image = lookup(each.value, "source_machine_image", "")
 }
 
 module "vm-replica" {

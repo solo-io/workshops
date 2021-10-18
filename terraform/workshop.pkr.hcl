@@ -11,16 +11,12 @@ packer {
 
 source "googlecompute" "workshop" {
   project_id   = "solo-test-236622"
-  //region       = "europe-west1"
-  //zone         = "europe-west1-d"
-  region       = "asia-northeast1"
-  zone         = "asia-northeast1-c"
-  //region       = "us-central1"
-  //zone         = "us-central1-a"
+  region       = "us-central1"
+  zone         = "us-central1-a"
 
-  image_storage_locations = [ "asia" ]
+  image_storage_locations = [ "us" ]
   image_family = "workshop-generic"
-  image_name   = regex_replace("workshop-${ uuidv4() }", "[^a-zA-Z0-9_-]", "-")
+  image_name   = "workshop-generic-v${formatdate("YYYYMMDD", timestamp())}"
   image_labels = {
       builder = "packer"
   }
