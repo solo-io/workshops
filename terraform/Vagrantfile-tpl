@@ -1,10 +1,8 @@
 Vagrant.configure("2") do |config|
-  config.vm.define "source", autostart: false do |source|
-	source.vm.box = "ubuntu/focal64"
+  config.vm.box = "packer_solo_image"
   config.vm.network "forwarded_port", guest: 80, host: 8888
-	config.ssh.insert_key = false
-  end
-  
+  config.vm.synced_folder ".", "/vagrant", disabled: true
+
   config.vm.provider "virtualbox" do |vb|
     vb.cpus = "8"
     vb.memory = "16384"
@@ -15,11 +13,4 @@ Vagrant.configure("2") do |config|
       config.ssh.forward_agent = true
       config.ssh.username = 'solo'
   end
-
-  config.vm.define "output" do |output|
-	output.vm.box = "packer_solo_image"
-	output.vm.box_url = "file://package.box"
-	config.ssh.insert_key = false
-  end
-  config.vm.synced_folder ".", "/vagrant", disabled: true
 end
