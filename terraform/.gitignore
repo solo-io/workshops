@@ -9,5 +9,6 @@ env.sh
 ansible-playbook-hack.yml
 hack.sh
 .vagrant
-output
+output*
+vagrant-workshop
 configuration.auto.tfvars

@@ -25,7 +25,9 @@ source "googlecompute" "workshop" {
     enable-oslogin = "FALSE"
   }
 
-  source_image = "ubuntu-2004-focal-v20210927"
+  //source_image = "ubuntu-2004-focal-v20210927"
+  source_image_family = "ubuntu-2004-lts"
+
   machine_type = "n1-standard-8"
   disk_size    = 20
 
@@ -39,8 +41,29 @@ build {
 
   provisioner "ansible" {
     playbook_file = "./ansible-playbook.yml"
-    extra_arguments = [ "-e", "reboot_vm_machine=no" ]
+    extra_arguments = [ "-e", "reboot_vm_machine=no", "-e", "provision=yes" ]
   }
 }
 
+source "vagrant" "workshop" {
+  communicator = "ssh"
+  source_path = "ubuntu/focal64"
+  provider = "virtualbox"
+  skip_add = true
+  template = "Vagrantfile-tpl"
+}
 
+build {
+  sources = ["source.vagrant.workshop"]
+
+  provisioner "ansible" {
+    playbook_file = "./ansible-playbook.yml"
+    extra_arguments = [ "-e", "reboot_vm_machine=no", "-e", "vagrant=yes", "-e", "provision=yes" ]
+  }
+  post-processor "shell-local" {
+    inline = [
+      "aws s3 cp output-workshop/package.box s3://artifacts.solo.io/vagrant-images/workshop-generic-v${formatdate("YYYYMMDD", timestamp())}-vagrant.box",
+      "aws s3 cp output-workshop/Vagrantfile s3://artifacts.solo.io/vagrant-images/workshop-generic-v${formatdate("YYYYMMDD", timestamp())}-vagrant.Vagrantfile",
+    ]
+  }
+}
