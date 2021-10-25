@@ -23,6 +23,9 @@
 - name: Prepare system for nodejs installation
   shell: 'curl -fsSL https://deb.nodesource.com/setup_16.x | sudo -E bash -'
 
+- name: Install tomcat9 - workaround
+  shell: sudo useradd -m -U -d /opt/tomcat -s /bin/false tomcat
+
 - name: Install baseline software
   apt:
     state: present

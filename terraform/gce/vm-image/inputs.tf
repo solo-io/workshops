@@ -18,6 +18,10 @@ variable "vm_image" {
   type = string
 }
 
+variable "source_machine_image" {
+  type = string
+}
+
 locals {
   ssh_file = "./lab.pub"
 }

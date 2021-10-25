@@ -33,9 +33,9 @@ resource "google_compute_instance" "vm" {
     command = "echo 'waiting for ip ${self.network_interface.0.access_config.0.nat_ip}' && until nc -z ${self.network_interface.0.access_config.0.nat_ip} 22; do sleep 1; done && sleep 10"
   }
 
-  # Provision machine with ansible
+  # Re-Provision machine with ansible (update git repos mostly)
   provisioner "local-exec" {
-    command = "ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -u solo -i '${self.network_interface.0.access_config.0.nat_ip},' ansible-playbook.yml -v"
+    command = "ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -u solo -i '${self.network_interface.0.access_config.0.nat_ip},' ansible-playbook.yml -v -e provision=no -e reboot_vm_machine=no"
   }
 
 }

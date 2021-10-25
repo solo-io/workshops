@@ -1,0 +1,18 @@
+Vagrant.configure("2") do |config|
+  config.vm.box = "packer_solo_image"
+  config.vm.network "forwarded_port", guest: 80, host: 8888
+  config.vm.synced_folder ".", "/vagrant", disabled: true
+
+  config.vm.provider "virtualbox" do |vb|
+    vb.cpus = "8"
+    vb.memory = "16384"
+  end
+
+  VAGRANT_COMMAND = ARGV[0]
+  if VAGRANT_COMMAND == "ssh"
+      config.ssh.forward_agent = true
+      config.ssh.username = 'solo'
+  end
+
+  config.vm.provision "shell", inline: "sudo cp .ssh/authorized_keys /home/solo/.ssh/authorized_keys"
+end
