@@ -30,7 +30,11 @@ resource "google_compute_instance" "vm" {
 
   # Wait until ip is available
   provisioner "local-exec" {
-    command = "echo 'waiting for ip ${self.network_interface.0.access_config.0.nat_ip}' && until nc -z ${self.network_interface.0.access_config.0.nat_ip} 22; do sleep 1; done && sleep 10"
+    command = "echo 'waiting for ip ${self.network_interface.0.access_config.0.nat_ip}' && until nc -z ${self.network_interface.0.access_config.0.nat_ip} 22; do sleep 1; done && sleep 5"
+  }
+
+  provisioner "local-exec" {
+    command = "echo 'waiting for solo user ${self.network_interface.0.access_config.0.nat_ip}' && until ssh -oConnectTimeout=5 -oStrictHostKeyChecking=no -T solo@${self.network_interface.0.access_config.0.nat_ip} echo success; do sleep 1; done && sleep 5"
   }
 
   # Re-Provision machine with ansible (update git repos mostly)
