@@ -221,7 +221,7 @@ But the Istio Ingress Gateway doesn't provide all the capabilities that are usua
 
 You can configure an API Gateway like Gloo Edge to securely expose some applications running in the Mesh, but you lose some of the advantages of the Istio Ingress Gateway in that case.
 
-Gloo Mesh Gateway provides the best of both world.
+Gloo Mesh Gateway provides the best of both worlds.
 
 It leverages the simplicity of the Gloo Mesh API and the capabilities of Gloo Edge, to enhance the Istio Ingress Gateway.
 
@@ -233,7 +233,7 @@ Here is a representation of the most important Gloo Mesh objects and how they in
 
 ![Gloo Mesh objects](images/gloo-mesh-objects.png)
 
-### Wants to learn more about Gloo Mesh
+### Want to learn more about Gloo Mesh
 
 You can find more information about Gloo Mesh in the official documentation:
 
