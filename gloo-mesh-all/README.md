@@ -212,7 +212,7 @@ Here is a representation of the most important Gloo Mesh objects and how they in
 
 ![Gloo Mesh objects](images/gloo-mesh-objects.png)
 
-### Wants to learn more about Gloo Mesh
+### Want to learn more about Gloo Mesh
 
 You can find more information about Gloo Mesh in the official documentation:
 
