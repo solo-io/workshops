@@ -194,7 +194,7 @@ One common use case is to create a role corresponding to a global namespace admi
 
 ### Gloo Mesh Gateway
 
-Using the Istio Ingress Gateway provides many benefits, like the ability to configure a traffic shift for both north-south and easy-west traffic or to leverage the Istio `ServiceEntries`.
+Using the Istio Ingress Gateway provides many benefits, like the ability to configure a traffic shift for both north-south and east-west traffic or to leverage the Istio `ServiceEntries`.
 
 But the Istio Ingress Gateway doesn't provide all the capabilities that are usually available in a proper API Gateway (authentication with OAuth, authorization with OPA, rate limiting, ...).
 
