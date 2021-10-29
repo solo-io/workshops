@@ -96,7 +96,7 @@ And what makes Gloo Mesh really unique is that you can then go to the UI and che
 
 ### Multi-cluster traffic and failover
 
-Gloo Makes also provides an abstraction called **TrafficPolicies** that makes it very easy for you to define how services behave and interract globally. Here is an example:
+Gloo Mesh also provides an abstraction called **TrafficPolicies** that makes it very easy for you to define how services behave and interract globally. Here is an example:
 
 ```
 apiVersion: networking.mesh.gloo.solo.io/v1
