@@ -1,0 +1,11 @@
+[Unit]
+Description=Kubectl Proxy
+After=k3s.service
+
+[Service]
+Restart=always
+RestartSec=5s
+ExecStart=/usr/local/bin/kubectl proxy --address 0.0.0.0 --disable-filter=true
+
+[Install]
+WantedBy=multi-user.target
