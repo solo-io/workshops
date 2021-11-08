@@ -20,18 +20,16 @@ do
   /usr/local/bin/k3s ctr i pull docker.io/istio/$i:$ISTIO_VERSION
 done
 
-for i in examples-bookinfo-details-v1 examples-bookinfo-productpage-v1 examples-bookinfo-ratings-v1 examples-bookinfo-reviews-v2 examples-bookinfo-reviews-v3
+for i in examples-bookinfo-details-v1 examples-bookinfo-productpage-v1 examples-bookinfo-ratings-v1 examples-bookinfo-reviews-v1 examples-bookinfo-reviews-v2 examples-bookinfo-reviews-v3
 do
   /usr/local/bin/k3s ctr i pull docker.io/istio/$i:1.16.2
 done
 
-/usr/local/bin/k3s ctr i pull quay.io/prometheus/prometheus:v2.24.0
-/usr/local/bin/k3s ctr i pull docker.io/library/redis:5
-/usr/local/bin/k3s ctr i pull docker.io/library/redis:6
+/usr/local/bin/k3s ctr i pull quay.io/prometheus/prometheus:v2.26.0
+/usr/local/bin/k3s ctr i pull docker.io/library/redis:6.2.6
 /usr/local/bin/k3s ctr i pull docker.io/jimmidyson/configmap-reload:v0.5.0
-/usr/local/bin/k3s ctr i pull docker.io/soloio/rate-limiter:0.4.3
-/usr/local/bin/k3s ctr i pull quay.io/solo-io/ext-auth-service:0.19.1
-/usr/local/bin/k3s ctr i pull docker.io/kennethreitz/httpbin:latest
+/usr/local/bin/k3s ctr i pull gcr.io/gloo-mesh/rate-limiter:0.5.4
+/usr/local/bin/k3s ctr i pull gcr.io/gloo-mesh/ext-auth-service:0.19.7
 /usr/local/bin/k3s ctr i pull quay.io/keycloak/keycloak:12.0.4
 
 systemctl stop k3s

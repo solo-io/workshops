@@ -14,12 +14,12 @@ variable "k3s_version" {
 
 variable "gloo_version" {
   type    = string
-  default = "1.1.7"
+  default = "1.2.2"
 }
 
 variable "istio_version" {
   type    = string
-  default = "1.10.5"
+  default = "1.11.4"
 }
 
 variable "vcluster_version" {
