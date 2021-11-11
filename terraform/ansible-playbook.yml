@@ -20,6 +20,7 @@
     - role: repo
       repo_name: workshops
       repo_branch: master
+    - role: license
     - role: k9s
       when: provision | bool
     - role: software_install

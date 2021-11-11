@@ -252,18 +252,6 @@
   become_user: solo
   become_method: sudo
 
-- name: Add some required variables (sensitive)
-  lineinfile:
-    dest: /home/solo/.bashrc
-    line: "{{ item }}"
-  loop:
-    - "export LICENSE_KEY={{ lookup('env','LICENSE_KEY') }}"
-    - "export GLOO_MESH_LICENSE_KEY={{ lookup('env','GLOO_MESH_LICENSE_KEY') }}"
-    - "export PORTAL_LICENSE_KEY={{ lookup('env','PORTAL_LICENSE_KEY') }}"
-  become_user: solo
-  become_method: sudo
-  no_log: true
-
 - name: Add some required variables
   lineinfile:
     dest: /home/solo/.bashrc
