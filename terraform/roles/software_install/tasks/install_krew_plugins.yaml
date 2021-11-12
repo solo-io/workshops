@@ -1,0 +1,26 @@
+- name: "Install krew"
+  shell: |
+    (
+      set -x; cd "$(mktemp -d)" &&
+      OS="$(uname | tr '[:upper:]' '[:lower:]')" &&
+      ARCH="$(uname -m | sed -e 's/x86_64/amd64/' -e 's/\(arm\)\(64\)\?.*/\1\2/' -e 's/aarch64$/arm64/')" &&
+      KREW="krew-${OS}_${ARCH}" &&
+      curl -fsSLO "https://github.com/kubernetes-sigs/krew/releases/latest/download/${KREW}.tar.gz" &&
+      tar zxvf "${KREW}.tar.gz" &&
+      ./"${KREW}" install krew
+    )
+
+- name: "Setup path env for krew"
+  shell: |
+    echo "" >> /home/solo/.bashrc
+    echo 'export PATH="${KREW_ROOT:-$HOME/.krew}/bin:$PATH"' >> /home/solo/.bashrc
+
+    echo 'alias kns="kubectl ns"' >> /home/solo/.bashrc
+    echo 'alias kctx="kubectl ctx"' >> /home/solo/.bashrc
+
+    echo "" >> /home/solo/.bashrc
+
+- name: "Setup krew plugins"
+  shell: |
+    ${KREW_ROOT:-$HOME/.krew}/bin/kubectl-krew install ns
+    ${KREW_ROOT:-$HOME/.krew}/bin/kubectl-krew install ctx

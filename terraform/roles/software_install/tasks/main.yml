@@ -23,8 +23,14 @@
 - name: Prepare system for nodejs installation
   shell: 'curl -fsSL https://deb.nodesource.com/setup_16.x | sudo -E bash -'
 
+- name: Is tomcat user already created
+  shell: sudo id -u tomcat
+  register: tomcat_user_exists_output
+  ignore_errors: yes
+
 - name: Install tomcat9 - workaround
   shell: sudo useradd -m -U -d /opt/tomcat -s /bin/false tomcat
+  when: "{{ tomcat_user_exists_output['rc'] != 0 }}"
 
 - name: Install baseline software
   apt:
@@ -79,6 +85,7 @@
     - emacs
     - tomcat9
     - nodejs
+    - fzf
 
 - name: Copy file with owner and permissions
   template:
@@ -131,6 +138,11 @@
 
 - name: Enable kubectl autocompletion
   shell: kubectl completion bash > /etc/bash_completion.d/kubectl
+
+- name: Install krew and kubens and kubectx plugins
+  become: yes
+  become_user: solo
+  import_tasks: install_krew_plugins.yaml
 
 - name: Unarchive guacamole
   unarchive:
