@@ -7,10 +7,6 @@ var cluster1Name = "cluster1";
 var cluster2Name = "cluster2";
 
 describe("Cluster registration", () => {
-  it("relay-server-address is known", () => {
-    expect(process.env.ENDPOINT_GLOO_MESH).to.not.be.empty;
-  });
-
   it(cluster1Name + ' and ' + cluster2Name + ' should be registered', () => {
     let cli = chaiExec("kubectl --context " + process.env.MGMT + " get kubernetescluster -A -o jsonpath='{.items..name}'");
 

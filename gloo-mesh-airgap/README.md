@@ -181,10 +181,10 @@ spec:
     protocol: http
   localized:
     outlierDetection:
-      consecutiveErrors: 1
+      consecutiveErrors: 2
       maxEjectionPercent: 100
       interval: 5s
-      baseEjectionTime: 120s
+      baseEjectionTime: 30s
     destinationSelectors:
     - kubeServiceMatcher:
         labels:
@@ -233,7 +233,7 @@ Here is a representation of the most important Gloo Mesh objects and how they in
 
 ![Gloo Mesh objects](images/gloo-mesh-objects.png)
 
-### Wants to learn more about Gloo Mesh
+### Want to learn more about Gloo Mesh
 
 You can find more information about Gloo Mesh in the official documentation:
 
@@ -317,9 +317,6 @@ Run the following command to make `mgmt` the current cluster.
 ```bash
 kubectl config use-context ${MGMT}
 ```
-
-
-
 Set the registry variable:
 ```bash
 registry=localhost:5000
@@ -333,9 +330,9 @@ Pull and push locally the Docker images needed:
 #sudo chmod +x /usr/local/bin/yq
 
 cat <<EOF > images.txt
-docker.io/istio/operator:1.10.4
-docker.io/istio/pilot:1.10.4
-docker.io/istio/proxyv2:1.10.4
+docker.io/istio/operator:1.11.4
+docker.io/istio/pilot:1.11.4
+docker.io/istio/proxyv2:1.11.4
 docker.io/istio/examples-bookinfo-productpage-v1:1.16.2
 docker.io/istio/examples-bookinfo-reviews-v1:1.16.2
 docker.io/istio/examples-bookinfo-reviews-v2:1.16.2
@@ -344,22 +341,21 @@ docker.io/istio/examples-bookinfo-details-v1:1.16.2
 docker.io/istio/examples-bookinfo-ratings-v1:1.16.2
 EOF
 
-wget https://storage.googleapis.com/gloo-mesh-enterprise/enterprise-agent/enterprise-agent-1.1.5.tgz
-tar zxvf enterprise-agent-1.1.5.tgz
+wget https://storage.googleapis.com/gloo-mesh-enterprise/enterprise-agent/enterprise-agent-1.2.3.tgz
+tar zxvf enterprise-agent-1.2.3.tgz
 find enterprise-agent -name "values.yaml" | while read file; do
   cat $file | yq eval -j | jq -r '.. | .image? | select(. != null) | (if .registry then (if .registry == "docker.io" then "docker.io/library" else .registry end) + "/" else "" end) + .repository + ":" + (.tag | tostring)'
 done | sort -u >> images.txt
 
-wget https://storage.googleapis.com/gloo-mesh-enterprise/gloo-mesh-enterprise/gloo-mesh-enterprise-1.1.5.tgz
-tar zxvf gloo-mesh-enterprise-1.1.5.tgz
+wget https://storage.googleapis.com/gloo-mesh-enterprise/gloo-mesh-enterprise/gloo-mesh-enterprise-1.2.3.tgz
+tar zxvf gloo-mesh-enterprise-1.2.3.tgz
 find gloo-mesh-enterprise -name "values.yaml" | while read file; do
   cat $file | yq eval -j | jq -r '.. | .image? | select(. != null) | (if .registry then (if .registry == "docker.io" then "docker.io/library" else .registry end) + "/" else "" end) + .repository + ":" + (.tag | tostring)'
 done | sort -u >> images.txt
 
 cat images.txt | while read image; do
-  src=$(echo $image | sed 's/^docker\.io\///g')
-  #dst=$(echo $image | awk -F/ '{ if(NF>2){ print $2"/"$3}else{print $1"/"$2}}')
-  dst=$(echo $image | awk -F/ '{ if(NF>2){ print $2"/"$3}else{if($1=="docker.io"){print $2}else{print $1"/"$2}}}')
+  src=$(echo $image | sed 's/^docker\.io\///g' | sed 's/^library\///g')
+  dst=$(echo $image | awk -F/ '{ if(NF>2){ print $2"/"$3}else{if($1=="docker.io"){print $2}else{print $1"/"$2}}}' | sed 's/^library\///g')
   docker pull $image
 
   id=$(docker images $src  --format "{{.ID}}") 
@@ -371,12 +367,15 @@ done
 
 
 
+
 ## Lab 2 - Deploy and register Gloo Mesh <a name="Lab-2"></a>
 
-First of all, you need to install the *meshctl* CLI:
+	First of all, you need to install the *meshctl* CLI:
+
+
 
 ```bash
-export GLOO_MESH_VERSION=v1.1.5
+export GLOO_MESH_VERSION=v1.2.3
 curl -sL https://run.solo.io/meshctl/install | sh -
 export PATH=$HOME/.gloo-mesh/bin:$PATH
 ```
@@ -447,7 +446,7 @@ helm repo update
 kubectl --context ${MGMT} create ns gloo-mesh 
 helm upgrade --install gloo-mesh-enterprise gloo-mesh-enterprise/gloo-mesh-enterprise \
 --namespace gloo-mesh --kube-context ${MGMT} \
---version=1.1.5 \
+--version=1.2.3 \
 --set rbac-webhook.enabled=true \
 --set enterprise-networking.enterpriseNetworking.image.registry=${registry}/gloo-mesh \
 --set enterprise-networking.prometheus.configmapReload.prometheus.image.repository=${registry}/jimmidyson/configmap-reload \
@@ -509,6 +508,8 @@ const expect = chai.expect;
 chai.use(chaiHttp);
 const { waitOnFailedTest } = require('./tests/utils');
 
+afterEach(function(done) { waitOnFailedTest(done, this.currentTest.currentRetry())});
+
 describe("Address '" + process.env.HOST_GLOO_MESH + "' can be resolved in DNS", () => {
     it(process.env.HOST_GLOO_MESH + ' can be resolved', (done) => {
         return dns.lookup(process.env.HOST_GLOO_MESH, (err, address, family) => {
@@ -524,15 +525,15 @@ mocha ./test.js --retries=500 2> /dev/null
 Finally, you need to register the two other clusters:
 
 ```bash
-wget https://storage.googleapis.com/gloo-mesh-enterprise/enterprise-agent/enterprise-agent-1.1.5.tgz
-meshctl cluster register --mgmt-context=${MGMT} --remote-context=${CLUSTER1} --relay-server-address=${ENDPOINT_GLOO_MESH} enterprise cluster1 --cluster-domain cluster.local --enterprise-agent-chart-file enterprise-agent-1.1.5.tgz --enterprise-agent-chart-values /tmp/enterprise-agent-values.yaml
-meshctl cluster register --mgmt-context=${MGMT} --remote-context=${CLUSTER2} --relay-server-address=${ENDPOINT_GLOO_MESH} enterprise cluster2 --cluster-domain cluster.local --enterprise-agent-chart-file enterprise-agent-1.1.5.tgz --enterprise-agent-chart-values /tmp/enterprise-agent-values.yaml
+wget https://storage.googleapis.com/gloo-mesh-enterprise/enterprise-agent/enterprise-agent-1.2.3.tgz
+meshctl cluster register --mgmt-context=${MGMT} --remote-context=${CLUSTER1} --relay-server-address=${ENDPOINT_GLOO_MESH} enterprise cluster1 --cluster-domain cluster.local --enterprise-agent-chart-file enterprise-agent-1.2.3.tgz --enterprise-agent-chart-values /tmp/enterprise-agent-values.yaml
+meshctl cluster register --mgmt-context=${MGMT} --remote-context=${CLUSTER2} --relay-server-address=${ENDPOINT_GLOO_MESH} enterprise cluster2 --cluster-domain cluster.local --enterprise-agent-chart-file enterprise-agent-1.2.3.tgz --enterprise-agent-chart-values /tmp/enterprise-agent-values.yaml
 ```
 
 You can list the registered cluster using the following command:
 
-```bash
-kubectl get kubernetescluster -n gloo-mesh
+```
+kubectl --context ${MGMT} get kubernetescluster -n gloo-mesh
 ```
 
 You should get the following output:
@@ -554,10 +555,6 @@ var cluster1Name = "cluster1";
 var cluster2Name = "cluster2";
 
 describe("Cluster registration", () => {
-  it("relay-server-address is known", () => {
-    expect(process.env.ENDPOINT_GLOO_MESH).to.not.be.empty;
-  });
-
   it(cluster1Name + ' and ' + cluster2Name + ' should be registered', () => {
     let cli = chaiExec("kubectl --context " + process.env.MGMT + " get kubernetescluster -A -o jsonpath='{.items..name}'");
 
@@ -570,64 +567,7 @@ EOF
 mocha ./test.js --retries=500 2> /dev/null
 -->
 
-> ### Note that you can also register the remote clusters with Helm:
-> 
-> #### Get the value of the root CA certificate on the management cluster and create a secret in the remote clusters
-> ```
-> kubectl --context ${MGMT} -n gloo-mesh get secret relay-root-tls-secret -o jsonpath='{.data.ca\.crt}' | base64 -d > ca.crt
-> kubectl --context ${CLUSTER1} create ns gloo-mesh
-> kubectl --context ${CLUSTER1} -n gloo-mesh create secret generic relay-root-tls-secret --from-file ca.crt=ca.crt
-> kubectl --context ${CLUSTER2} create ns gloo-mesh
-> kubectl --context ${CLUSTER2} -n gloo-mesh create secret generic relay-root-tls-secret --from-file ca.crt=ca.crt
-> ```
-> #### We also need to copy over the bootstrap token used for initial communication
-> ```
-> kubectl --context ${MGMT} -n gloo-mesh get secret relay-identity-token-secret -o jsonpath='{.data.token}' | base64 -d > token
-> kubectl --context ${CLUSTER1} -n gloo-mesh create secret generic relay-identity-token-secret --from-file token=token
-> kubectl --context ${CLUSTER2} -n gloo-mesh create secret generic relay-identity-token-secret --from-file token=token
-> ```
-> #### Install the Helm charts
-> ```
-> helm repo add enterprise-agent https://storage.googleapis.com/gloo-mesh-enterprise/enterprise-agent
-> helm repo update
-> helm install enterprise-agent enterprise-agent/enterprise-agent \
->   --namespace gloo-mesh \
->   --set relay.serverAddress=${ENDPOINT_GLOO_MESH} \
->   --set relay.cluster=cluster1 \
->   --kube-context=${CLUSTER1} \
->   --values=/tmp/enterprise-agent-values.yaml \
->   --version 1.1.5
-> 
-> helm install enterprise-agent enterprise-agent/enterprise-agent \
->   --namespace gloo-mesh \
->   --set relay.serverAddress=${ENDPOINT_GLOO_MESH} \
->   --set relay.cluster=cluster2 \
->   --kube-context=${CLUSTER2} \
->   --values=/tmp/enterprise-agent-values.yaml \
->   --version 1.1.5
-> ```
-> #### Create the `KubernetesCluster` objects
-> ```
-> kubectl apply --context ${MGMT} -f- <<EOF
-> apiVersion: multicluster.solo.io/v1alpha1
-> kind: KubernetesCluster
-> metadata:
->   name: cluster1
->   namespace: gloo-mesh
-> spec:
->   clusterDomain: cluster.local
-> EOF
-> 
-> kubectl apply --context ${MGMT} -f- <<EOF
-> apiVersion: multicluster.solo.io/v1alpha1
-> kind: KubernetesCluster
-> metadata:
->   name: cluster2
->   namespace: gloo-mesh
-> spec:
->   clusterDomain: cluster.local
-> EOF
-> ```
+> ### Note that you can also register the remote clusters with Helm. refer to docs.solo.io for details.
 
 
 To use the Gloo Mesh Gateway advanced features, you need to install the Gloo Mesh addons.
@@ -639,11 +579,7 @@ kubectl --context ${CLUSTER1} create namespace gloo-mesh-addons
 kubectl --context ${CLUSTER1} label namespace gloo-mesh-addons istio-injection=enabled
 kubectl --context ${CLUSTER2} create namespace gloo-mesh-addons
 kubectl --context ${CLUSTER2} label namespace gloo-mesh-addons istio-injection=enabled
-
-
 ```
-
-
 You need to create a Helm values file as follow:
 
 ```bash
@@ -662,7 +598,6 @@ rate-limiter:
 EOF
 ```
 
-
 Then, you can deploy the addons using Helm:
 
 ```bash
@@ -671,7 +606,7 @@ helm repo update
 
 helm upgrade --install enterprise-agent-addons enterprise-agent/enterprise-agent \
   --kube-context=${CLUSTER1} \
-  --version=1.1.5 \
+  --version=1.2.3 \
   --namespace gloo-mesh-addons \
    --values=/tmp/enterprise-agent-addons-values.yaml \
   --set enterpriseAgent.enabled=false \
@@ -680,7 +615,7 @@ helm upgrade --install enterprise-agent-addons enterprise-agent/enterprise-agent
 
 helm upgrade --install enterprise-agent-addons enterprise-agent/enterprise-agent \
   --kube-context=${CLUSTER2} \
-  --version=1.1.5 \
+  --version=1.2.3 \
   --namespace gloo-mesh-addons \
    --values=/tmp/enterprise-agent-addons-values.yaml \
   --set enterpriseAgent.enabled=false \
@@ -720,14 +655,15 @@ EOF
 
 
 
+
 ## Lab 3 - Deploy Istio <a name="Lab-3"></a>
 
 
 
-Download istio 1.10.4:
+Download istio 1.11.4:
 
 ```bash
-export ISTIO_VERSION=1.10.4
+export ISTIO_VERSION=1.11.4
 curl -L https://istio.io/downloadIstio | sh -
 ```
 
@@ -754,16 +690,8 @@ mocha ./test.js --retries=500 2> /dev/null
 Now let's deploy Istio on the first cluster:
 
 ```bash
-
-
-kubectl --context ${CLUSTER1} create ns istio-operator
-
-./istio-1.10.4/bin/istioctl --context ${CLUSTER1} operator init --hub ${registry}/istio
-
 kubectl --context ${CLUSTER1} create ns istio-system
-
-cat << EOF | kubectl --context ${CLUSTER1} apply -f -
-
+cat << EOF | ./istio-1.11.4/bin/istioctl --context ${CLUSTER1} install -y -f -
 apiVersion: install.istio.io/v1alpha1
 kind: IstioOperator
 metadata:
@@ -838,6 +766,7 @@ spec:
         env:
           - name: PILOT_SKIP_VALIDATE_TRUST_DOMAIN
             value: "true"
+
 EOF
 ```
 
@@ -845,15 +774,8 @@ And deploy Istio on the second cluster:
 
 ```bash
 
-
-kubectl --context ${CLUSTER2} create ns istio-operator
-
-./istio-1.10.4/bin/istioctl --context ${CLUSTER2} operator init --hub ${registry}/istio
-
 kubectl --context ${CLUSTER2} create ns istio-system
-
-cat << EOF | kubectl --context ${CLUSTER2} apply -f -
-
+cat << EOF | ./istio-1.11.4/bin/istioctl --context ${CLUSTER2} install -y -f -
 apiVersion: install.istio.io/v1alpha1
 kind: IstioOperator
 metadata:
@@ -928,6 +850,7 @@ spec:
         env:
           - name: PILOT_SKIP_VALIDATE_TRUST_DOMAIN
             value: "true"
+
 EOF
 ```
 
@@ -1008,9 +931,11 @@ istio-ingressgateway-5c7759c8cb-52r2j   1/1     Running   0          22s
 istiod-7884b57b4c-rvr2c                 1/1     Running   0          30s
 ```
 
-Check the status on the second cluster using `kubectl --context ${CLUSTER2} get pods -n istio-system`
+Check the status on the second cluster using
 
-
+```bash
+kubectl --context ${CLUSTER2} get pods -n istio-system
+```
 
 Set the environment variable for the service of the Istio Ingress Gateway of cluster1:
 
@@ -1019,6 +944,16 @@ export ENDPOINT_HTTP_GW_CLUSTER1=$(kubectl --context ${CLUSTER1} -n istio-system
 export ENDPOINT_HTTPS_GW_CLUSTER1=$(kubectl --context ${CLUSTER1} -n istio-system get svc istio-ingressgateway -o jsonpath='{.status.loadBalancer.ingress[0].*}'):443
 export HOST_GW_CLUSTER1=$(echo ${ENDPOINT_HTTP_GW_CLUSTER1} | cut -d: -f1)
 ```
+<!--bash
+while ! kubectl --context ${CLUSTER1} -n istio-system get deploy/istiod; do sleep 1; done
+while ! kubectl --context ${CLUSTER2} -n istio-system get deploy/istiod; do sleep 1; done
+kubectl --context ${CLUSTER1} -n istio-system rollout status deploy/istiod
+kubectl --context ${CLUSTER2} -n istio-system rollout status deploy/istiod
+while ! kubectl --context ${CLUSTER1} -n istio-system get deploy/istio-ingressgateway; do sleep 1; done
+while ! kubectl --context ${CLUSTER2} -n istio-system get deploy/istio-ingressgateway; do sleep 1; done
+kubectl --context ${CLUSTER1} -n istio-system rollout status deploy/istio-ingressgateway
+kubectl --context ${CLUSTER2} -n istio-system rollout status deploy/istio-ingressgateway
+-->
 
 <!--bash
 cat <<'EOF' > ./test.js
@@ -1028,6 +963,8 @@ const chai = require("chai");
 const expect = chai.expect;
 chai.use(chaiHttp);
 const { waitOnFailedTest } = require('./tests/utils');
+
+afterEach(function(done) { waitOnFailedTest(done, this.currentTest.currentRetry())});
 
 describe("Address '" + process.env.HOST_GW_CLUSTER1 + "' can be resolved in DNS", () => {
     it(process.env.HOST_GW_CLUSTER1 + ' can be resolved', (done) => {
@@ -1043,19 +980,17 @@ mocha ./test.js --retries=500 2> /dev/null
 
 
 
-## Lab 4 - Deploy the Bookinfo demo app <a name="Lab-4"></a>
 
+## Lab 4 - Deploy the Bookinfo demo app <a name="Lab-4"></a>
 
 
 Download the bookinfo yaml and update the registry:
 ```bash
-curl https://raw.githubusercontent.com/istio/istio/1.10.4/samples/bookinfo/platform/kube/bookinfo.yaml | sed "s/image: docker.io/image: ${registry}/g" > bookinfo.yaml
+curl https://raw.githubusercontent.com/istio/istio/1.11.4/samples/bookinfo/platform/kube/bookinfo.yaml | sed "s/image: docker.io/image: ${registry}/g" > bookinfo.yaml
 ```
-
 Run the following commands to deploy the bookinfo app on `cluster1`:
 
 ```bash
-
 
 bookinfo_yaml=bookinfo.yaml
 kubectl --context ${CLUSTER1} label namespace default istio-injection=enabled
@@ -1064,10 +999,14 @@ kubectl --context ${CLUSTER1} apply -f ${bookinfo_yaml} -l 'app,version notin (v
 # deploy all bookinfo service accounts
 kubectl --context ${CLUSTER1} apply -f ${bookinfo_yaml} -l 'account'
 # configure ingress gateway to access bookinfo
-kubectl --context ${CLUSTER1} apply -f https://raw.githubusercontent.com/istio/istio/1.10.4/samples/bookinfo/networking/bookinfo-gateway.yaml
+kubectl --context ${CLUSTER1} apply -f https://raw.githubusercontent.com/istio/istio/1.11.4/samples/bookinfo/networking/bookinfo-gateway.yaml
 ```
 
-You can check that the app is running using `kubectl --context ${CLUSTER1} get pods`:
+You can check that the app is running using
+
+```
+kubectl --context ${CLUSTER1} get pods
+```
 
 ```
 NAME                              READY   STATUS    RESTARTS   AGE
@@ -1083,15 +1022,18 @@ As you can see, it deployed the `v1` and `v2` versions of the `reviews` microser
 Now, run the following commands to deploy the bookinfo app on `cluster2`:
 
 ```bash
-
 kubectl --context ${CLUSTER2} label namespace default istio-injection=enabled
 # deploy all bookinfo service accounts and application components for all versions
 kubectl --context ${CLUSTER2} apply -f ${bookinfo_yaml}
 # configure ingress gateway to access bookinfo
-kubectl --context ${CLUSTER2} apply -f https://raw.githubusercontent.com/istio/istio/1.10.4/samples/bookinfo/networking/bookinfo-gateway.yaml
+kubectl --context ${CLUSTER2} apply -f https://raw.githubusercontent.com/istio/istio/1.11.4/samples/bookinfo/networking/bookinfo-gateway.yaml
 ```
 
-You can check that the app is running using `kubectl --context ${CLUSTER2} get pods`:
+You can check that the app is running using:
+
+```bash
+kubectl --context ${CLUSTER2} get pods
+```
 
 ```
 NAME                              READY   STATUS    RESTARTS   AGE
@@ -1102,15 +1044,23 @@ reviews-v1-7f99cc4496-4r48m       2/2     Running   0          2m21s
 reviews-v2-7d79d5bd5d-cx9lp       2/2     Running   0          2m22s
 reviews-v3-7dbcdcbc56-trjdx       2/2     Running   0          2m22s
 ```
-
+<!--bash
+kubectl --context ${CLUSTER1} rollout status deploy/productpage-v1
+kubectl --context ${CLUSTER1} rollout status deploy/details-v1
+kubectl --context ${CLUSTER1} rollout status deploy/ratings-v1
+kubectl --context ${CLUSTER1} rollout status deploy/reviews-v1
+kubectl --context ${CLUSTER1} rollout status deploy/reviews-v2
+kubectl --context ${CLUSTER2} rollout status deploy/productpage-v1
+kubectl --context ${CLUSTER2} rollout status deploy/details-v1
+kubectl --context ${CLUSTER2} rollout status deploy/ratings-v1
+kubectl --context ${CLUSTER2} rollout status deploy/reviews-v1
+kubectl --context ${CLUSTER2} rollout status deploy/reviews-v2
+kubectl --context ${CLUSTER2} rollout status deploy/reviews-v3
+-->
 As you can see, it deployed all three versions of the `reviews` microservice.
 
 ![Initial setup](images/steps/deploy-bookinfo/initial-setup.png)
-
-
-
 Get the URL to access the `productpage` service from your web browser using the following command:
-
 ```
 echo "http://${ENDPOINT_HTTP_GW_CLUSTER1}/productpage"
 ```
@@ -1148,7 +1098,7 @@ Gloo Mesh can help unify the root identity between multiple service mesh install
 
 Run this command to see how the communication between microservices occurs currently:
 
-```bash
+```
 kubectl --context ${CLUSTER1} exec -t deploy/reviews-v1 -c istio-proxy \
 -- openssl s_client -showcerts -connect ratings:9080
 ```
@@ -1236,7 +1186,7 @@ EOF
 
 Run the command again:
 
-```bash
+```
 kubectl --context ${CLUSTER1} exec -t deploy/reviews-v1 -c istio-proxy \
 -- openssl s_client -showcerts -connect ratings:9080
 ```
@@ -1268,7 +1218,7 @@ As you can see, mTLS is now enabled.
 
 Now, run the same command on the second cluster:
 
-```bash
+```
 kubectl --context ${CLUSTER2} exec -t deploy/reviews-v1 -c istio-proxy \
 -- openssl s_client -showcerts -connect ratings:9080
 ```
@@ -1375,7 +1325,7 @@ You can have a look at the Istio documentation [here](https://istio.io/latest/do
 
 Check that the secret containing the new Istio CA has been created in the istio namespace, on the first cluster:
 
-```bash
+```
 kubectl --context ${CLUSTER1} get secret -n istio-system cacerts -o yaml
 ```
 
@@ -1405,7 +1355,7 @@ type: certificates.mesh.gloo.solo.io/issued_certificate
 
 Same operation on the second cluster:
 
-```bash
+```
 kubectl --context ${CLUSTER2} get secret -n istio-system cacerts -o yaml
 ```
 
@@ -1456,10 +1406,9 @@ do
 done
 printf "\n"
 -->
-
 Now, let's check what certificates we get when we run the same commands we ran before we created the Virtual Mesh:
 
-```bash
+```
 kubectl --context ${CLUSTER1} exec -t deploy/reviews-v1 -c istio-proxy \
 -- openssl s_client -showcerts -connect ratings:9080
 ```
@@ -1502,7 +1451,7 @@ s4v2pEvaYg==
 
 And let's compare with what we get on the second cluster:
 
-```bash
+```
 kubectl --context ${CLUSTER2} exec -t deploy/reviews-v1 -c istio-proxy \
 -- openssl s_client -showcerts -connect ratings:9080
 ```
@@ -1620,19 +1569,27 @@ EtTlhPLbyf2GwkUgzXhdcu2G8uf6o16b0qU=
 ```
 
 The Subject Alternative Name (SAN) is the most interesting part. It allows the sidecar proxy of the `reviews` service to validate that it talks to the sidecar proxy of the `rating` service.
-
+<!--bash
+while ! kubectl --context ${CLUSTER1} -n istio-system get deploy/istiod; do sleep 1; done
+while ! kubectl --context ${CLUSTER2} -n istio-system get deploy/istiod; do sleep 1; done
+kubectl --context ${CLUSTER1} -n istio-system rollout status deploy/istiod
+kubectl --context ${CLUSTER2} -n istio-system rollout status deploy/istiod
+while ! kubectl --context ${CLUSTER1} -n istio-system get deploy/istio-ingressgateway; do sleep 1; done
+while ! kubectl --context ${CLUSTER2} -n istio-system get deploy/istio-ingressgateway; do sleep 1; done
+kubectl --context ${CLUSTER1} -n istio-system rollout status deploy/istio-ingressgateway
+kubectl --context ${CLUSTER2} -n istio-system rollout status deploy/istio-ingressgateway
+-->
 
 
 
 ## Lab 6 - Access control <a name="Lab-6"></a>
+
 
 In the previous guide, we federated multiple meshes and established a shared root CA for a shared identity domain. Now that we have a logical VirtualMesh, we need a way to establish access policies across the multiple meshes, without treating each of them individually. Gloo Mesh helps by establishing a single, unified API that understands the logical VirtualMesh construct.
 
 The application works correctly because RBAC isn't enforced.
 
 Let's update the VirtualMesh to enable it:
-
-
 
 ```bash
 cat << EOF | kubectl --context ${MGMT} apply -f -
@@ -1670,11 +1627,9 @@ describe("Access should be denied with 403 code", () => {
 EOF
 mocha ./test.js --retries=500 2> /dev/null
 -->
-
 After a few seconds, if you refresh the web page, you should see that you don't have access to the application anymore.
 
 You should get the following error message:
-
 ```
 RBAC: access denied
 ```
@@ -1719,9 +1674,7 @@ describe("Only productpage should be accessible. Details and Reviews should not"
 EOF
 mocha ./test.js --retries=500 2> /dev/null
 -->
-
 Now, refresh the page again and you should be able to access the application, but neither the `details` nor the `reviews`:
-
 ![Bookinfo RBAC 1](images/steps/access-control/bookinfo-rbac1.png)
 
 You can create another Gloo Mesh Access Policy to allow the `productpage` microservice to talk to these 2 microservices:
@@ -1810,7 +1763,6 @@ describe("All the services should work", () => {
 EOF
 mocha ./test.js --retries=500 2> /dev/null
 -->
-
 Refresh the page another time and all the services should now work:
 
 ![Bookinfo working](images/steps/access-control/bookinfo-working.png)
@@ -1820,6 +1772,7 @@ If you refresh the web page several times, you should see only the versions `v1`
 
 
 ## Lab 7 - Traffic policy <a name="Lab-7"></a>
+
 
 We're going to use Gloo Mesh Traffic Policies to inject faults and configure timeouts.
 
@@ -1854,7 +1807,6 @@ spec:
       percentage: 100
 EOF
 ```
-
 If you refresh the webpage, you should see that it takes longer to get the `productpage` loaded when version `v2` of the `reviews` services is called.
 
 Now, let's configure a 0.5s request timeout when the `productpage` service calls the `reviews` service on cluster1.
@@ -1914,7 +1866,6 @@ mocha ./test.js --retries=500 2> /dev/null
 If you refresh the page several times, you'll see an error message telling that reviews are unavailable when the productpage is trying to communicate with the version `v2` of the `reviews` service.
 
 ![Bookinfo v3](images/steps/traffic-policy/reviews-unavailable.png)
-
 
 Let's delete the TrafficPolicies:
 
@@ -2057,7 +2008,6 @@ If you refresh the page several times again, you'll see the `v3` version of the 
 
 ![Bookinfo v3](images/steps/multicluster-traffic/bookinfo-v3.png)
 
-
 Let's delete the TrafficPolicy:
 
 ```bash
@@ -2093,10 +2043,10 @@ spec:
     protocol: http
   localized:
     outlierDetection:
-      consecutiveErrors: 1
+      consecutiveErrors: 2
       maxEjectionPercent: 100
       interval: 5s
-      baseEjectionTime: 120s
+      baseEjectionTime: 30s
     destinationSelectors:
     - kubeServiceMatcher:
         labels:
@@ -2115,7 +2065,7 @@ apiVersion: networking.mesh.gloo.solo.io/v1
 kind: TrafficPolicy
 metadata:
   name: reviews-shift-failover
-  namespace: default
+  namespace: gloo-mesh
 spec:
   sourceSelector:
   - kubeWorkloadMatcher:
@@ -2238,7 +2188,6 @@ You should see a line like below each time you refresh the web page:
 > EOF
 > ```
 
-
 We're going to make the `reviews` services available again on the first cluster.
 
 ```bash
@@ -2246,7 +2195,7 @@ kubectl --context ${CLUSTER1} patch deployment reviews-v1  --type json   -p '[{"
 kubectl --context ${CLUSTER1} patch deployment reviews-v2  --type json   -p '[{"op": "remove", "path": "/spec/template/spec/containers/0/command"}]'
 ```
 
-Afer 2 minutes, you can validate that the requests are now handled by the first cluster using the following command:
+After 30 seconds, you can validate that the requests are now handled by the first cluster using the following command:
 
 ```
 kubectl --context ${CLUSTER1} logs -l app=reviews -c istio-proxy -f
@@ -2256,13 +2205,14 @@ Let's delete the VirtualDestination and the TrafficPolicy:
 
 ```bash
 kubectl --context ${MGMT} -n gloo-mesh delete virtualdestination reviews-global
-kubectl --context ${MGMT} -n default delete trafficpolicy reviews-shift-failover
+kubectl --context ${MGMT} -n gloo-mesh delete trafficpolicy reviews-shift-failover
 ```
 
 
 
 
 ## Lab 10 - Observability <a name="Lab-10"></a>
+
 
 Gloo Mesh can also be used to collect the access logs from any Pod running in any cluster.
 
@@ -2314,10 +2264,15 @@ Install or upgrade the accesslog meshctl plugin:
 
 ```bash
 if meshctl accesslog --help; then
-  meshctl plugin upgrade accesslog@v1.1.5
+  meshctl plugin upgrade accesslog@v1.2.3
 else
-  meshctl plugin install accesslog@v1.1.5
+  meshctl plugin install accesslog@v1.2.3
 fi
+```
+
+Now send some traffic through the ingress gateway:
+```bash
+for i in {1..20}; do curl -s -o /dev/null -w "%{http_code}" http://${ENDPOINT_HTTP_GW_CLUSTER1}/productpage;echo ''; done
 ```
 
 Gather the latest access logs:
@@ -2465,8 +2420,7 @@ You should get an output similar to the following one:
 ...
 ```
 
-Interesting, no ?
-
+Interesting, isn't it?
 
 Delete the `AccessLogRecord`:
 
@@ -2482,7 +2436,7 @@ kubectl --context ${MGMT} -n gloo-mesh delete accesslogrecords.observability.ent
 To access the UI, run the following command:
 
 ```
-kubectl --context ${MGMT} port-forward -n gloo-mesh svc/dashboard 8090
+kubectl --context ${MGMT} port-forward -n gloo-mesh svc/dashboard 8090 --address 0.0.0.0
 ```
 
 The UI is available at http://localhost:8090
@@ -2513,6 +2467,44 @@ And you can even see the workloads were a Wasm filter has been deployed on:
 
 Take the time to explore the `Policies` and `Debug` tab to see what other information is available.
 
+Let's introduce a mistake in the system and see how the UI can warn us about it:
+
+```
+cat << EOF | kubectl --context ${MGMT} apply -f -
+apiVersion: networking.mesh.gloo.solo.io/v1
+kind: TrafficPolicy
+metadata:
+  name: reviews-shift-failover
+  namespace: gloo-mesh
+spec:
+  sourceSelector:
+  - kubeWorkloadMatcher:
+      namespaces:
+      - default
+  destinationSelector:
+  - kubeServiceRefs:
+      services:
+        - clusterName: cluster1
+          name: reviews
+          namespace: default
+  policy:
+    trafficShift:
+      destinations:
+        - virtualDestination:
+            name: reviews-global
+            namespace: gloo-mesh
+EOF
+```
+
+Now check the UI and we should see the details of the mistake:
+
+![Gloo Mesh VirtualMesh](images/steps/ui/smh-ui-5.png)
+
+Now fix the mistake and the system will be back to `healthy`:
+```
+kubectl --context ${MGMT} -n gloo-mesh delete trafficpolicy reviews-shift-failover
+```
+
 
 
 ## Lab 12 - Deploy Keycloak <a name="Lab-12"></a>
@@ -2527,7 +2519,6 @@ Let's install Keycloak:
 
 ```bash
 kubectl --context ${CLUSTER1} create namespace keycloak
-
 kubectl --context ${CLUSTER1} -n keycloak apply -f - <<EOF
 apiVersion: v1
 kind: Service
@@ -2580,6 +2571,7 @@ spec:
             path: /auth/realms/master
             port: 8080
 EOF
+
 
 kubectl --context ${CLUSTER1} -n keycloak rollout status deploy/keycloak
 ```
@@ -2640,6 +2632,8 @@ const expect = chai.expect;
 chai.use(chaiHttp);
 const { waitOnFailedTest } = require('./tests/utils');
 
+afterEach(function(done) { waitOnFailedTest(done, this.currentTest.currentRetry())});
+
 describe("Address '" + process.env.HOST_KEYCLOAK + "' can be resolved in DNS", () => {
     it(process.env.HOST_KEYCLOAK + ' can be resolved', (done) => {
         return dns.lookup(process.env.HOST_KEYCLOAK, (err, address, family) => {
@@ -2690,8 +2684,8 @@ In this step, we're going to expose the `productpage` through a Gateway using Gl
 First of all, let's delete the Istio `VirtualService` and `Gateway` objects we've created when we deployed the `bookinfo` application:
 
 ```bash
-kubectl --context ${CLUSTER1} delete -f https://raw.githubusercontent.com/istio/istio/1.10.4/samples/bookinfo/networking/bookinfo-gateway.yaml
-kubectl --context ${CLUSTER2} delete -f https://raw.githubusercontent.com/istio/istio/1.10.4/samples/bookinfo/networking/bookinfo-gateway.yaml
+kubectl --context ${CLUSTER1} delete -f https://raw.githubusercontent.com/istio/istio/1.11.4/samples/bookinfo/networking/bookinfo-gateway.yaml
+kubectl --context ${CLUSTER2} delete -f https://raw.githubusercontent.com/istio/istio/1.11.4/samples/bookinfo/networking/bookinfo-gateway.yaml
 ```
 
 Then, we need to create a Gloo Mesh `VirtualGateway`.
@@ -2787,6 +2781,7 @@ EOF
 
 You can check that you can still access the `productpage` application through the browser.
 
+
 <!--bash
 cat <<'EOF' > ./test.js
 const helpers = require('./tests/chai-http');
@@ -2835,7 +2830,7 @@ spec:
       sslConfig:
         secretName: tls-secret
         tlsMode: SIMPLE
-# -------------------------------------------------------  
+# -------------------------------------------------------
     http:
       routeConfig:
       - virtualHostSelector:
@@ -2844,7 +2839,7 @@ spec:
   ingressGatewaySelectors:
 # ---------------- SSL config ---------------------------
   - portName: https
-# ------------------------------------------------------- 
+# -------------------------------------------------------
     destinationSelectors:
     - kubeServiceMatcher:
         clusters:
@@ -2858,11 +2853,15 @@ EOF
 ```
 
 
-
 Get the URL to securely access the `productpage` service from your web browser using the following command:
-
 ```
 echo "https://${ENDPOINT_HTTPS_GW_CLUSTER1}/productpage"
+```
+
+But you can also access it using the gateway of the second cluster:
+
+```
+echo "https://${ENDPOINT_HTTPS_GW_CLUSTER2}/productpage"
 ```
 
 <!--bash
@@ -2876,12 +2875,6 @@ describe("Productpage is available (SSL)", () => {
 EOF
 mocha ./test.js --retries=500 2> /dev/null
 -->
-
-But you can also access it using the gateway of the second cluster:
-
-```
-echo "https://${ENDPOINT_HTTPS_GW_CLUSTER1}/productpage"
-```
 
 
 
@@ -2984,7 +2977,7 @@ spec:
           clusterName: cluster1
           name: reviews
           namespace: default
-# -------------------------------------------------------  
+# -------------------------------------------------------
 EOF
 ```
 
@@ -3033,10 +3026,10 @@ EOF
 mocha ./test.js --retries=500 2> /dev/null
 -->
 
-Now, run the following command several times.
+Now, run the following command:
 
 ```
-curl -k https://${ENDPOINT_HTTPS_GW_CLUSTER1}/reviews/0
+for i in {1..10}; do curl -sk https://${ENDPOINT_HTTPS_GW_CLUSTER1}/reviews/0;echo ''; done
 ```
 
 You should get responses from `v3` 75% of the time:
@@ -3044,7 +3037,6 @@ You should get responses from `v3` 75% of the time:
 ```
 {"id": "0","reviews": [{  "reviewer": "Reviewer1",  "text": "An extremely entertaining play by Shakespeare. The slapstick humour is refreshing!", "rating": {"stars": 5, "color": "red"}},{  "reviewer": "Reviewer2",  "text": "Absolutely fun and entertaining. The play lacks thematic depth when compared to other plays by Shakespeare.", "rating": {"stars": 4, "color": "red"}}]}
 ```
-
 
 Let's delete the TrafficPolicy:
 
@@ -3107,10 +3099,10 @@ spec:
     protocol: http
   localized:
     outlierDetection:
-      consecutiveErrors: 1
+      consecutiveErrors: 2
       maxEjectionPercent: 100
       interval: 5s
-      baseEjectionTime: 120s
+      baseEjectionTime: 30s
     destinationSelectors:
     - kubeServiceMatcher:
         labels:
@@ -3160,7 +3152,7 @@ spec:
       - virtualDestination:
           name: reviews-global
           namespace: gloo-mesh
-# -------------------------------------------------------  
+# -------------------------------------------------------
 EOF
 ```
 
@@ -3196,10 +3188,10 @@ spec:
         service: reviews
 EOF
 ```
-Now, run the following command several times.
+Now, run the following command:
 
 ```
-curl -k https://${ENDPOINT_HTTPS_GW_CLUSTER1}/reviews/0
+for i in {1..10}; do curl -sk https://${ENDPOINT_HTTPS_GW_CLUSTER1}/reviews/0;echo ''; done
 ```
 
 You should get responses from either `v1`:
@@ -3212,6 +3204,7 @@ Or `v2`:
 
 ```
 {"id": "0","reviews": [{  "reviewer": "Reviewer1",  "text": "An extremely entertaining play by Shakespeare. The slapstick humour is refreshing!", "rating": {"stars": 5, "color": "black"}},{  "reviewer": "Reviewer2",  "text": "Absolutely fun and entertaining. The play lacks thematic depth when compared to other plays by Shakespeare.", "rating": {"stars": 4, "color": "black"}}]}```
+```
 
 We're going to make the `reviews` services unavailable on the first cluster.
 
@@ -3269,7 +3262,6 @@ If you run the curl command again several times again, you should start to see r
 {"id": "0","reviews": [{  "reviewer": "Reviewer1",  "text": "An extremely entertaining play by Shakespeare. The slapstick humour is refreshing!", "rating": {"stars": 5, "color": "red"}},{  "reviewer": "Reviewer2",  "text": "Absolutely fun and entertaining. The play lacks thematic depth when compared to other plays by Shakespeare.", "rating": {"stars": 4, "color": "red"}}]}
 ```
 
-
 We're going to make the `reviews` services available again on the first cluster.
 
 ```bash
@@ -3277,9 +3269,9 @@ kubectl --context ${CLUSTER1} patch deployment reviews-v1  --type json   -p '[{"
 kubectl --context ${CLUSTER1} patch deployment reviews-v2  --type json   -p '[{"op": "remove", "path": "/spec/template/spec/containers/0/command"}]'
 ```
 
-Afer 2 minutes, you can check that the curl command only returns responses from `v1` and `v2`/
+After 30 seconds, you can check that the curl command only returns responses from `v1` and `v2`/
 
-Let's delete the VirtualDestination and the TrafficPolicy:
+Let's delete the VirtualDestination:
 
 ```bash
 kubectl --context ${MGMT} -n gloo-mesh delete virtualdestination reviews-global
@@ -3354,7 +3346,7 @@ EOF
 Finally, you need to update the `RouteTable` to use this `AuthConfig`:
 
 ```bash
-kubectl --context ${MGMT} apply -f - <<EOF
+cat << EOF | kubectl --context ${MGMT} apply -f -
 apiVersion: networking.enterprise.mesh.gloo.solo.io/v1beta1
 kind: RouteTable
 metadata:
@@ -3389,7 +3381,7 @@ spec:
         ratelimitServerConfigSelector:
           namespaces:
           - gloo-mesh
-# -------------------------------------------------------  
+# -------------------------------------------------------
     routeAction:
       destinations:
       - kubeService:
@@ -3399,10 +3391,10 @@ spec:
 EOF
 ```
 
-Now, run the following command several times.
+Now, run the following command:
 
 ```
-curl -k https://${ENDPOINT_HTTPS_GW_CLUSTER1}/productpage -I -H "x-type: a" -H "x-number: one"
+for i in {1..5}; do curl -I -H "x-type: a" -H "x-number: one" -sk https://${ENDPOINT_HTTPS_GW_CLUSTER1}/productpage;echo ''; done
 ```
 
 <!--bash
@@ -3418,7 +3410,6 @@ mocha ./test.js --retries=500 2> /dev/null
 -->
 
 You should get a `200` response code the first time and a `429` response code after.
-
 
 Let's apply the original `RouteTable` yaml:
 
@@ -3527,7 +3518,7 @@ spec:
 # ---------------- Oauth config -------------------------
     - uri:
         prefix: /callback
-# -------------------------------------------------------  
+# -------------------------------------------------------
     name: productpage
 # ---------------- Oauth config -------------------------
     options:
@@ -3535,7 +3526,7 @@ spec:
         configRef:
           name: oauth
           namespace: gloo-mesh
-# -------------------------------------------------------  
+# -------------------------------------------------------
     routeAction:
       destinations:
       - kubeService:
@@ -3555,13 +3546,11 @@ describe("Verify Authentication", () => {
 EOF
 mocha ./test.js --retries=500 2> /dev/null
 -->
-
 If you refresh the web browser, you will be redirected to the authentication page.
 
 ```
 /opt/google/chrome/chrome https://$ENDPOINT_HTTPS_GW_CLUSTER1/productpage 
 ```
-
 If you use the username `user1` and the password `password` Gloo should redirect you back to the `productpage` application.
 
 You can also perform authorization using OPA.
@@ -3571,6 +3560,10 @@ First, you need to create a `ConfigMap` with the policy written in rego:
 ```bash
 kubectl --context ${CLUSTER1} apply -f - <<EOF
 apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: allow-solo-email-users
+  namespace: gloo-mesh
 data:
   policy.rego: |-
     package test
@@ -3581,11 +3574,6 @@ data:
         [header, payload, signature] = io.jwt.decode(input.state.jwt)
         endswith(payload["email"], "@solo.io")
     }
-
-kind: ConfigMap
-metadata:
-  name: allow-solo-email-users
-  namespace: gloo-mesh
 EOF
 ```
 
@@ -3620,7 +3608,6 @@ spec:
       query: "data.test.allow == true"
 EOF
 ```
-
 Let's try again in incognito window using the second user's credentials:
 
 ```
@@ -3628,8 +3615,6 @@ Let's try again in incognito window using the second user's credentials:
 ```
 
 If you open the browser in incognito and login using the username `user2` and the password `password`, you will not be able to access since the user's email ends with `@example.com`.
-
-
 Let's apply the original `RouteTable` yaml:
 
 ```bash
@@ -3661,6 +3646,5 @@ spec:
           namespace: default
 EOF
 ```
-
 
 

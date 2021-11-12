@@ -5,6 +5,8 @@ const expect = chai.expect;
 chai.use(chaiHttp);
 const { waitOnFailedTest } = require('./tests/utils');
 
+afterEach(function(done) { waitOnFailedTest(done, this.currentTest.currentRetry())});
+
 describe("Address '" + process.env.{{ to_resolve }} + "' can be resolved in DNS", () => {
     it(process.env.{{ to_resolve }} + ' can be resolved', (done) => {
         return dns.lookup(process.env.{{ to_resolve }}, (err, address, family) => {

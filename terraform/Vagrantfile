@@ -1,5 +1,5 @@
 Vagrant.configure("2") do |config|
-  config.vm.box = "ubuntu/focal64"
+  config.vm.box = "packer_solo_image"
   config.vm.network "forwarded_port", guest: 80, host: 8888
   config.vm.synced_folder ".", "/vagrant", disabled: true
 
@@ -14,12 +14,5 @@ Vagrant.configure("2") do |config|
       config.ssh.username = 'solo'
   end
 
-  config.vm.provision "ansible" do |ansible|
-    ansible.verbose = "v"
-    ansible.playbook = "ansible-playbook.yml"
-    ansible.compatibility_mode = "2.0"
-    ansible.extra_vars = {
-      vagrant: "yes"
-    }
-  end
+  config.vm.provision "shell", inline: "sudo cp .ssh/authorized_keys /home/solo/.ssh/authorized_keys"
 end
