@@ -1,0 +1,17 @@
+const chaiExec = require("@jsdevtools/chai-exec");
+var chai = require('chai');
+var expect = chai.expect;
+chai.use(chaiExec);
+
+var cluster1Name = "cluster1";
+var cluster2Name = "cluster2";
+
+describe("Cluster registration", () => {
+  it(cluster1Name + ' and ' + cluster2Name + ' should be registered', () => {
+    let cli = chaiExec("kubectl --context " + process.env.MGMT + " get kubernetescluster -A -o jsonpath='{.items..name}'");
+
+    expect(cli).to.exit.with.code(0);
+    expect(cli).stdout.to.contain(cluster1Name + " " + cluster2Name);
+    expect(cli).stderr.to.be.empty;
+  });
+});

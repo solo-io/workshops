@@ -1,0 +1,18 @@
+var chai = require('chai');
+var expect = chai.expect;
+const chaiHttp = require("chai-http");
+chai.use(chaiHttp);
+
+let searchTest="Sorry, product reviews are currently unavailable for this book.";
+
+describe("Reviews shouldn't be available", () => {
+  it("Checking text '" + searchTest + "' in cluster1", async () => {
+    await chai.request('http://' + process.env.ENDPOINT_HTTP_GW_CLUSTER1)
+      .get('/productpage')
+      .send()
+      .then((res) => {
+        expect(res.text).to.contain(searchTest);
+      });
+  });
+
+});
