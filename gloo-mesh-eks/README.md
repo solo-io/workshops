@@ -14,7 +14,7 @@ source ./scripts/assert.sh
 
 ## Table of Contents
 * [Introduction](#introduction)
-* [Lab 1 - Deploy KinD clusters](#Lab-1)
+* [Lab 1 - Deploy EKS clusters](#Lab-1)
 * [Lab 2 - Deploy and register Gloo Mesh](#Lab-2)
 * [Lab 3 - Deploy Istio](#Lab-3)
 * [Lab 4 - Deploy the Bookinfo demo app](#Lab-4)
@@ -241,7 +241,7 @@ You can find more information about Gloo Mesh in the official documentation:
 
 
 
-## Lab 1 - Deploy KinD clusters <a name="Lab-1"></a>
+## Lab 1 - Deploy EKS clusters <a name="Lab-1"></a>
 
 Set the context environment variables:
 
@@ -258,58 +258,18 @@ export CLUSTER2=cluster2
 > export CLUSTER2=cluster2
 > ```
 
-From the terminal go to the `/home/solo/workshops/gloo-mesh` directory:
+For this workshop, you need to deploy 3 EKS clusters.
+
+All the instructions have been tested with each EKS cluster composed of 3 `t3.large` instances (2 CPUs and 8 GB of RAM).
+
+Gloo Mesh can be run in its own cluster or co-located with an existing mesh.  In this exercise, Gloo Mesh will run in its own dedicated management cluster, while the two managed Istio meshes will run in separate clusters.
+
+You also need to rename the Kubernete contexts of each EKS cluster to match `mgmt`, `cluster1` and `cluster2`.
+
+Here is an example showing how to rename a Kubernetes context:
 
 ```
-cd /home/solo/workshops/gloo-mesh
-```
-
-Run the following commands to deploy three Kubernetes clusters using [Kind](https://kind.sigs.k8s.io/):
-    
-
-```bash
-./scripts/deploy.sh 1 mgmt
-./scripts/deploy.sh 2 cluster1 us-west us-west-1
-./scripts/deploy.sh 3 cluster2 us-west us-west-2
-```
-
-Then run the following commands to wait for all the Pods to be ready:
-
-```bash
-./scripts/check.sh mgmt
-./scripts/check.sh cluster1 
-./scripts/check.sh cluster2 
-```
-
-**Note:** If you run the `check.sh` script immediately after the `deploy.sh` script, you may see a jsonpath error. If that happens, simply wait a few seconds and try again.
-
-Once the `check.sh` script completes, when you execute the `kubectl get pods -A` command, you should see the following:
-
-```
-NAMESPACE            NAME                                          READY   STATUS    RESTARTS   AGE
-kube-system          calico-kube-controllers-59d85c5c84-sbk4k      1/1     Running   0          4h26m
-kube-system          calico-node-przxs                             1/1     Running   0          4h26m
-kube-system          coredns-6955765f44-ln8f5                      1/1     Running   0          4h26m
-kube-system          coredns-6955765f44-s7xxx                      1/1     Running   0          4h26m
-kube-system          etcd-cluster1-control-plane                   1/1     Running   0          4h27m
-kube-system          kube-apiserver-cluster1-control-plane         1/1     Running   0          4h27m
-kube-system          kube-controller-manager-cluster1-control-plane1/1     Running   0          4h27m
-kube-system          kube-proxy-ksvzw                              1/1     Running   0          4h26m
-kube-system          kube-scheduler-cluster1-control-plane         1/1     Running   0          4h27m
-local-path-storage   local-path-provisioner-58f6947c7-lfmdx        1/1     Running   0          4h26m
-metallb-system       controller-5c9894b5cd-cn9x2                   1/1     Running   0          4h26m
-metallb-system       speaker-d7jkp                                 1/1     Running   0          4h26m
-```
-
-Note that this represents the output just for `cluster2`, although the pod footprint for all three clusters should look similar at this point.
-
-You can see that your currently connected to this cluster by executing the `kubectl config get-contexts` command:
-
-```
-CURRENT   NAME         CLUSTER         AUTHINFO   NAMESPACE  
-          cluster1     kind-cluster1   cluster1
-*         cluster2     kind-cluster2   cluster2
-          mgmt         kind-mgmt       kind-mgmt 
+kubectl config rename-context <context to rename> <new context name>
 ```
 
 Run the following command to make `mgmt` the current cluster.
@@ -317,7 +277,6 @@ Run the following command to make `mgmt` the current cluster.
 ```bash
 kubectl config use-context ${MGMT}
 ```
-
 
 
 

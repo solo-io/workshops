@@ -4,7 +4,7 @@ Gloo Portal is a Kubernetes native solution aiming to facilitate API publication
 
 More technically, Gloo Portal adheres to the Operator pattern and transforms Custom Resources into customized and ready-to-use developer portals. These portals are fully brandable and secured web applications.
 
-Gloo Portal provides a framework for managing API definitions, API client identity, and API policies on top of Gloo Edge or Istio Ingress Gateway. Vendors of API products can leverage Gloo Portal to secure, manage, and publish their APIs independently of the operations used to manage networking infrastructure.
+Gloo Portal provides a framework for managing API definitions, API client identity, and API policies on top of Gloo Edge or Gloo Mesh Gateway. Vendors of API products can leverage Gloo Portal to secure, manage, and publish their APIs independently of the operations used to manage networking infrastructure.
 
 This workshop aims to expose some key features of the Gloo Portal like API lifecycle, authentication, and branding.
 
@@ -40,7 +40,7 @@ Let's deploy **Gloo Edge**:
 helm repo add glooe https://storage.googleapis.com/gloo-ee-helm
 helm repo update
 
-helm upgrade -i gloo glooe/gloo-ee --namespace gloo-system --version 1.8.9 --create-namespace --set-string license_key="$LICENSE_KEY"
+helm upgrade -i gloo glooe/gloo-ee --namespace gloo-system --version 1.9.2 --create-namespace --set-string license_key="$LICENSE_KEY"
 
 sleep 1
 
@@ -66,7 +66,7 @@ EOF
 
 helm repo add gloo-portal https://storage.googleapis.com/dev-portal-helm
 helm repo update
-helm install gloo-portal gloo-portal/gloo-portal -n gloo-portal --values portal-values.yaml --version=1.1.0-beta6 --create-namespace
+helm install gloo-portal gloo-portal/gloo-portal -n gloo-portal --values portal-values.yaml --version=1.2.0-beta4 --create-namespace
 
 kubectl -n gloo-portal wait pod --all --for condition=Ready --timeout -1s
 ```
@@ -175,6 +175,9 @@ spec:
         name: httpbin
         ports:
         - containerPort: 80
+        env:
+        - name: GUNICORN_CMD_ARGS
+          value: "--capture-output --error-logfile - --access-logfile - --access-logformat '%(h)s %(t)s %(r)s %(s)s Host: %({Host}i)s}'"
 EOF
 ```
 
@@ -196,13 +199,13 @@ In this workshop, we will combine 2 small `APIDoc`s into the `v1` of our Petstor
 And one larger `APIDoc` as the `v2` of our Petstore `APIProduct`.  
 See:
 
-![APIProduct composition](images/petstore-apiproduct-apidocs.png)
+![APIProduct with two versions](images/petstore-apiproduct-apidocs.png)
 
 The `APIProduct` comes with two versions of it:
-- `/v1` will expose endpoints for the `/pets/*` and `/users/*` endpoints, and it will route requests to the `petstore-v1` application
-- `/v2` will expose all of the endpoints, including `/pets/*`, `/users/*` and also `/store/*`, and it will route requests to the `petstore-v2` application
+- `/v1` will expose endpoints for the `/pet/*` and `/user/*` endpoints, and it will route requests to the `petstore-v1` application
+- `/v2` will expose a few more endpoints, including `/pet/*`, `/user/*` and also `/store/*`, and it will route requests to the `petstore-v2` application
 
-We'll start by deploying the well-known Petstore app, twice. This will simulate the two versions of it, accessible behind two different Kubernetes Services.
+We'll start by deploying the _well-known_ Petstore app, twice (as Deployments). This will simulate the two versions of it, accessible behind two different Kubernetes Services.
 
 ### Step 1.1
 
@@ -255,8 +258,7 @@ EOF
 done
 ```
 
-Now, let's check if Gloo Edge has automatically created 2 `Upstream` CRs for these 2 services:
-
+Now, let's check if Gloo Edge has automatically created 2 `Upstream` CRs for these 2 services, thanks to the _Discovery_ feature:
 ```bash
 kubectl -n gloo-system get upstreams
 ```
@@ -310,7 +312,8 @@ kubectl get apidoc
 kubectl get apidoc petstore-openapi-v1-pets -o yaml
 ```
 
-The output is something like that:
+The output looks like the following:
+
 ```yaml
 ...
 status:
@@ -359,7 +362,9 @@ status:
 
 As you can see, the different endpoints of the OpenAPI spec have been parsed by the Gloo Portal controller. 
 
-Finally, let's create the `APIProduct`, with its 2 versions:
+**APIProduct**
+
+Let's create the `APIProduct`, with the two versions of it:
 
 ```bash
 cat << EOF | kubectl apply -f -
@@ -375,7 +380,7 @@ spec:
     title: Petstore Product
     description: Fabulous API product for the Petstore
   versions:
-  - name: v1
+  - name: v1 # ------------ VERSION 1 -------------
     apis:
       - apiDoc:
           name: petstore-openapi-v1-pets
@@ -390,7 +395,7 @@ spec:
             - upstream:
                 name: default-petstore-v1-8080
                 namespace: gloo-system
-  - name: v2
+  - name: v2 # ------------ VERSION 2 -------------
     apis:
     - apiDoc:
         name: petstore-openapi-v2-full
@@ -405,11 +410,11 @@ spec:
 EOF
 ```
 
-Reminder: the `APIProduct` is named `petstore-product`. It is available in 2 different versions:
-- **v1** is built upon 2 `APIDocs`, containing operations for Pets on one side, and Users on the other side
-- **v2** is build upon 1 `APIDoc`, containing all the operations
+Quick reminder: the `APIProduct` is named `petstore-product`. It is available in 2 different versions:
+- **v1** is built upon 2 `APIDocs`, containing operations for Pets on one hand, and Users on the other hand
+- **v2** is build upon 1 `APIDoc`, containing all the operations (`/pet`, `/user` and `/store`)
 
-As you can see, we have configured different routes for the two versions, so that the **v1** will target our `Upstream` called `default-petstore-v1-8080` and the **v2** will target our `Upstream` called `default-petstore-v2-8080`.
+Also, we have configured two different routes for the two versions, so that the **v1** will target our `Upstream` called `default-petstore-v1-8080` and the **v2** will target our `Upstream` called `default-petstore-v2-8080`.
 
 
 ## Lab 2: Deploying the API
@@ -422,12 +427,12 @@ Let's publish our API on a Gateway! First we need to create an `Environment` CR,
 
 Once the `Environment` is created, Gloo Portal will configure an API Gateway:
 
-![Environment](images/env-gw-generation.png)
+![Automatic API Gateway configuration](images/env-gw-generation.png)
 
-In this workshop, and in order to leverage advanced API Gateway features, we will rely on Gloo Edge. The other option is to have Portal configure **Gloo Mesh Gateway**, built on top on the Istio Gateway.
+In this workshop, and in order to leverage advanced API Gateway features, we will rely on Gloo Edge. The other option is to have **Gloo Portal** to configure **Gloo Mesh Gateway**, which is built on top of the Istio Ingress Gateway.
 
 
-We need to prepare an `Environment` CR, where we will set the domain(s) and, optionally, some security options like authentication or rate-limiting rules:
+We need to prepare an `Environment` CR, where we will set the domain(s) and, optionally, some security options like authentication and rate-limiting rules:
 
 ```bash
 cat << EOF > env.yaml
@@ -455,9 +460,7 @@ spec:
         names:
         - v1
         - v2
-      basePath: "{%version%}" # this will dynamically prefix the API with the version names
-  gatewayConfig:
-    disableRoutes: false # we actually want to expose the APIs on a Gateway (optional)
+      basePath: "{%version%}" # this will dynamically prefix the API path with the version name
 EOF
 
 kubectl apply -f env.yaml
@@ -531,7 +534,7 @@ status:
 ```
 
 There are two things to note here:
-- Gloo Portal used the **version** names of your `APIProduct` as prefixes for your endpoints. Meaning the endpoints of the version called 'v1' are now accessible over `/ecommerce/v1/...`, etc. This represents automatic version-based routing.
+- Gloo Portal used the **version** names of your `APIProduct` as prefixes for your endpoints. Meaning the endpoints of the version called 'v1' are now accessible behind `/ecommerce/v1/...`, etc. This represents automatic version-based routing.
 - The `Environment` CR has been used to generate a `VirtualService` CR and also some `RouteTables` CRs.  
 Let's have a closer look at the `RouteTables`:
 
@@ -585,30 +588,37 @@ Extract:
 ...
 ```
 
+There is one route per _OperationId_ selected by the **APIProduct**. We didn't experienced it yet but you absolutely can cherry-pick API endpoints from your different **APIDoc** when building the **APIProduct**. It's useful when you want to hide some sensible endpoints to your end-users.
+
 The combination of these CRs will generate the expected configuration for Envoy.
 
 ### Step 2.3
 
-Now let's consume the API!
+Finally, let's consume the API!
 
 ```bash
 # v1
-# one of the /pet endpoints
+# GET one of the /pet endpoints, on the version 1
 curl -s $(glooctl proxy url)/ecommerce/v1/api/pet/1 -H "Host: api.mycompany.corp" | jq
-# one of the /user endpoints
+```
+
+```bash
+# POST then GET some /user endpoints, on the version 2
 curl -s -X POST $(glooctl proxy url)/ecommerce/v2/api/user/createWithList -H "Host: api.mycompany.corp" -d '[{"id":0,"username":"jdoe","firstName":"John","lastName":"Doe","email":"john@doe.me","password":"string","phone":"string","userStatus":0}]' -H "Content-type: application/json"
 curl -s $(glooctl proxy url)/ecommerce/v2/api/user/jdoe -H "Host: api.mycompany.corp" | jq
+```
 
+```bash
 # v2
-# one of the /store endpoints
+# GET one of the /store endpoints, on the version 2
 curl -s $(glooctl proxy url)/ecommerce/v2/api/store/order/1 -H "Host: api.mycompany.corp" | jq
-
 ```
 
 
-## Lab 3 - Publishing the APIs on a developer portal
 
-You need a `Portal` Custom Resource to expose your APIs to developers. That will configure a developer portal webapp, which is fully brandable.
+## Lab 3 - Publishing the APIs on a Developer Portal
+
+You need a `Portal` Custom Resource to expose your APIs to developers. That will generate a Developer Portal web UI, which is fully brandable.
 
 ![Portal controller](images/portal-controller.png)
 
@@ -633,9 +643,9 @@ spec:
   staticPages: []
 
   domains:
-  - portal.mycompany.corp
+  - portal.mycompany.corp # ------ THE DOMAIN NAME ---------
 
-  publishedEnvironments:
+  publishedEnvironments: # ---- APIs we will publish -----
   - name: dev
     namespace: default
 
@@ -643,7 +653,7 @@ spec:
 EOF
 ```
 
-To access it, you need to override the domain name on your machine:
+To access it, you need to override the Hosts file on your machine:
 
 ```bash
 cat <<EOF | sudo tee -a /etc/hosts
@@ -660,27 +670,31 @@ The developer Portal we have created is now available at http://portal.mycompany
 
 ![Developer Portal](images/petstore-portal-homepage.png)
 
-Note that we explicetly set the APIs visiblity to public in the `Portal` config (see above: `allApisPublicViewable: true`)
+Note that we explicitly set the APIs visiblity to public in the `Portal` config (see above: `allApisPublicViewable: true`)
 
-Take a few minutes to browse the developer portal.  
+Take a few minutes to browse the Developer Portal web UI  
 Under the **APIs** menu, you will find the two versions of our `APIProduct`:
 
-![APIs](images/petstore-portal-apis.png)
+![APIs and their available versions](images/petstore-portal-apis.png)
 
 Click the line with the **v1** to observe the list of aggregated endpoints for this version.
 
-Based on the OpenAPI specifications, these endpoints require authentication. We will override this with Gloo Portal _Custom Resources_ later in this workshop.  Below, there is a section where you will secure the access to the developer portal and also the access to the APIs.
+You can download the OpenAPI schema that has been generated from the selected APIDoc / endpoints:
+
+![Download the OpenAPI spec](images/portal-download-stitched-openAPI-spec.png)
+
+Based on the raw OpenAPI specifications, these endpoints require authentication. We will override this with Gloo Portal _Custom Resources_ later in this workshop. Later in this tutorial, there is a section where you will secure the access to the Developer Portal and also the access to the APIs.
 
 ## Lab 4: Explore the Admin UI
 
-On top of these developer portal web UIs, Gloo Portal comes with an additional Admin-centric web UI, so that you can see and configure all of the Gloo Portal resources:
-- `APIDocs` and `APIProducts`
-- `Routes`
-- `Environments`
-- `Portals`
-- `Users` and `Groups`
+In addition to these Developer Portal web UIs, **Gloo Portal** comes with an admin-centric web UI. It can help to see and configure all of the **Gloo Portal** resources:
+- `APIDocs` and `APIProducts` -- for building up APIs
+- `Routes` -- for fine-grained routing rules
+- `Environments` -- to expose your APIs on API Gateways
+- `Portals` -- to publish your APIs on a Developer Portal
+- `Users` and `Groups` -- for access control
 
-You can access this admin UI using a port-forward:
+You can access this Admin web UI using a port-forward:
 
 ```bash
 kubectl -n gloo-portal port-forward svc/gloo-portal-admin-server 8080 &
@@ -692,58 +706,60 @@ Then, open http://localhost:8080 and you should find this webapp:
 
 Explore the menus and find your `APIProduct`, `Environment` and `Portal` resources.
 
-We will use the Admin UI to secure the access to the developer Portal.  
+We will use the Admin UI to secure the access to the Developer Portal.  
 And, later on, we will use CRDs to secure the access to the APIs.  
 You can achieve the same results either way, using Custom Resources or the Admin web UI.
 
 
-## Lab 5: Securing the access to the developer Portal with basic auth
+## Lab 5: Securing the access to the Developer Portal with Basic Auth
 
-There are 2 options to secure the access to a developer Portal:
-- basic auth, using the `User` and `Group` CRDs
+Back to the Developer Portal, there are 2 options to secure its access:
+- Basic Auth, using the `User` and `Group` CRDs
 - OpenID Connect ([Portal docs](https://www.solo.io/blog/self-service-user-registration-with-gloo-portal-and-okta/))
 
-In this **lab #5**, we will secure the access to a developer `Portal` with basic auth.
+In this **lab #5**, we will secure the access to a Developer `Portal` with Basic Auth.
 
-### Option A - Using the admin portal web UI
-In the "Access Control" section of the dashboard, click the "Create a Group" button...  
+### Option A - Using the Admin Web UI
+In the menu bar, click the "Access Control" link, then click "Create a Group"...
 
 ![group creation - step 1a](images/basic-auth-create-group-1a.png)
 
-... and give it a name, here `developers` and display name, here `ecommerce developers`:
+... and give it a Name: `developers` and also a Display Name: `ecommerce developers`:
 
 ![group creation - step 1](images/basic-auth-create-group-1.png)
 
 Click "Next step" and then click "Create Group".  
 
-Now, let's configure access control so that the __"ecommerce developers"__ `Group` can access the developer `Portal`.  
+Now, let's configure access control so that the __"ecommerce developers"__ `Group` can access the **"developer"** `Portal`.  
 Click the __Manage__ link under "Portal Access", next to the group name:
 
 ![edit group](images/basic-auth-add-portal-to-group.png)
 
-Then add the "E-commerce Portal" `Portal` to the list of allowed Portal for this Group:
+Then add the "E-commerce Portal" `Portal` to the list of allowed `Portals` for this `Group`:
 
 ![add portal](images/group-portal-ac.png)
 
-Now, let's create a User with the same method:
+Now, let's create a `User` with the same method:
 
 ![user creation - step 1](images/basic-auth-create-user-1.png)
 
-Then, give it a name, here `dev1` and a password:
+Then, give it a name, here `dev1` and a password, for example `Password1!`:
 
 ![user creation - step 2](images/basic-auth-create-user-2.png)
 
-Finally, add it as a member of the `Group` defined above: 
+Then, add it as a member of the `Group` defined right before and click "Create User".
 
 ![user creation - step 3](images/basic-auth-create-user-3.png)
 
 
-Finally, you should see a configuration like this:
+Finally, you should see a configuration like the following:
 
 ![user group config overview](images/basic-auth-config-overview.png)
 
 ### Option B - Using CRDs
-Another way of working is by using the Gloo Portal _Custom Resources_:
+Another way of working is by using the **Gloo Portal** _Custom Resources_.
+
+The code snippet below will create another `User` called "dev2". This new user will be made part of the "developers" `Group`.
 
 ```bash
 pass=$(htpasswd -bnBC 10 "" super-password2 | tr -d ':\n')
@@ -768,18 +784,18 @@ spec:
 EOF
 ```
 
-The Access Control page will automatically be updated with our new User:
+The "Access Control" page will automatically be updated with our new User:
 
 ![user dev2 from CRD](images/basic-auth-dev2-crd.png)
 
 As always with Solo.io products, everything is GitOps friendly!
 
 
-### Connecting to the Portal, as a developer
+### Signing in the Developer Portal
 
-Let's now give it a try, with one of our users.  
+Let's give it a try, with one of our `Users`.  
 
-Navigate to your developer portal: http://portal.mycompany.corp/ and click the "Log In" button in the upper right corner.
+Navigate to your Developer Portal: http://portal.mycompany.corp/ and click the "Log In" button in the upper right corner.
 
 ![login basic auth](images/basic-auth-login-portal.png)
 
@@ -791,19 +807,20 @@ Once logged in, you should be able to browse the API catalog and see your Petsto
 
 ## Lab 6: Securing the access to the developer Portal with OIDC
 
-Let's secure our developer Portal with OpenID Connect.  
-We will rely on our Keycloak instance as the OpenID Provider and the few users and group we have created at the beginning.
+Let's now secure our Developer Portal with OpenID Connect.
+We will rely on the Keycloak instance as the OpenID Provider and the few users and group that were created by the init script.
 
-Overview of the in-memory users & group in Keycloak:
+Overview of the in-memory users & groups in Keycloak:
 - "_user1_" and "_user2_" belong to the (IdP) group named "_users_"
 - "_exec1_" belongs to the (IdP) group "_execs_"
 
 Here is a quick summary:
 
-![logged in](images/portal-rbac.png)
+![RBAC](images/portal-rbac.png)
 
-So, we will configure the `Portal` CR with some OIDC options.  
-For that, we need to fetch the Client ID and Client secret that we have created earlier:
+We need to configure the `Portal` CR with OIDC options.  
+For that, we need to fetch the _Client ID_ and _Client Secret_ that were genereted earlier.
+Then, we store the _Client Secret_ into a Kubernetes Secret resource:
 
 ```bash
 KEYCLOAK_URL=http://$(kubectl get service keycloak -o jsonpath='{.status.loadBalancer.ingress[0].ip}'):8080/auth
@@ -824,7 +841,7 @@ data:
 EOF
 ```
 
-And now, we add the OIDC configuration to our Portal CR:
+And now, we add the OIDC configuration to our `Portal` CR:
 
 ```bash
 cat <<EOF | kubectl apply -f -
@@ -860,15 +877,15 @@ spec:
     clientSecret:
       name: petstore-portal-oidc-secret
       namespace: default
-      key: client_secret # this is the k8s secret created above
-    groupClaimKey: group
+      key: client_secret # this is the k8s secret we have created above
+    groupClaimKey: group # we will use the 'group' claim in the 'id_token' to associate the user with a group
     issuer: ${KEYCLOAK_URL}/realms/master
-  portalUrlPrefix: http://portal.mycompany.corp/
   # ---------------------------------------------
+  portalUrlPrefix: http://portal.mycompany.corp/
 EOF
 ```
 
-We will now create a new Gloo Portal `Group` CR representing these corporate users logged in through Keycloak:
+We will now create a new **Gloo Portal** `Group` CR, called "users", representing these corporate users logged in through Keycloak:
 
 ```bash
 cat << EOF | kubectl apply -f -
@@ -884,15 +901,14 @@ spec:
     - name: ecommerce-portal
       namespace: default
   oidcGroup:
-    groupName: users # this represents the group name in you IdP (here Keycloak)
+    groupName: users # this represents the group name in the IdP (Keycloak)
 EOF
 ```
 
-And finally try to log onto the Portal, using our corporate "_user1_":
+And finally, let's log onto the Developer Portal, using our corporate user "user1". 
+Navigate to http://portal.mycompany.corp/ and logout if already logged in with user "dev1" (that was from the Basic Auth lab):
 
-First, you may need to logout from the developer Portal:
-
-![dev2 logout](images/portal-dev2-logout.png)
+![Logout](images/portal-dev1-logout.png)
 
 Then, click again the "Log in" button in the upper right corner, and click the "Log in with OpenID Connect" link:
 
@@ -903,6 +919,7 @@ Then sign in using `user1` and `password` on the Keycloak login form:
 ![login keycloak](images/portal-oidc-keycloak-login.png)
 
 And voilà! 
+
 ![logged in](images/portal-oidc-logged-in.png)
 
 
@@ -911,34 +928,36 @@ If you are interested in the integration with SaaS based OIDC service, check out
 
 ## Lab 7 - Securing your APIs
 
-We have secured the access to the developer Portal, both with basic auth and with OIDC.  
+We have secured the access to the Developer Portal, with Basic Auth at first (Lab 5), and then with OIDC (Lab 6).  
 
-The next step in this workshop is to secure the APIs themselves.
+The next step in this workshop is to secure the access to APIs themselves.
 
-Depending on your organization and on your API governance, you can have different roles for managing an API lifecyle. Let's say we have these personas:
+Depending on your organization and on your API governance, you might have different roles in terms of API lifecycle management. Let's say we have these personas:
 
-![logged in](images/api-mgmt-personas.png)
+![API management personas](images/api-mgmt-personas.png)
 
-There are companies where the Product Owner dictates the plans that must be applied to APIs, and other places where it's someone else, like the Portal Admin or a person from the Security team.
+There are companies where the Product Owner dictates the usage plans that must be applied to APIs, and other places where it's someone else, like the Portal Admin or a person from the Security team.
 
-So, __Usage Plans__ are applicable on several _Custom Resources_:
+In this regard, __Usage Plans__ are applicable on different _Custom Resources_:
 - the `APIProduct` - this represents options an API Owner gives to consumers
-- the `Environment` - the usage plans are actually defined here
+- the `Environment` - the usage plans are actually enforced here
 - the `Group` - this enforces a security policy on a group of users
 
 You can mix them together or, for instance, stick with **Usage Plans** only on the `Environment` CR.
 
-In this lab, let's say you are the Product Owner of the Petstore `APIProduct` and you want to protect your API with two different methods:
-- _Method A_ or the `basic` plan: every client application can access your API, with an API key and also a limitation of **5 req/sec**
-- _Method B_ or the `trusted` plan: every client application presenting a JWT (could optionally be an `id_token`) can access your API with a higher consumption rate, set to **10 req/sec**
+In this lab, let's imagine you are the Product Owner of the Petstore `APIProduct` and you want to protect your API with two different methods:
+- the **Usage Plan** called "_basic_": _Clients_ (end-user or application) can access your API with an API-key and also they are subject to a limitation of **5 req/sec**
+- the **Usage Plan** called "_truted_": _Clients_ (end-user or application) presenting a valid JWT (could optionally be an `id_token`) can access your API with a higher consumption rate, set to **10 req/sec**
 
 To better understand the RBAC system we are deploying here to control the access to the APIs, here is a summary:
 
-![logged in](images/apis-rbac.png)
+![RBAC overview](images/apis-rbac.png)
+
+Let's configure these **Usage Plans** on the `Environment` _CR_.
 
 ### Deploying a JWT based RBAC
 
-Let's create these plans at the `Environment` level, because you first want to try them out in your `dev` Environment and you don't want to block the access to APIs in production.
+First, we create the "_trusted_" **Usage Plan**, which will verify the signature of a JWT with a remote JWKS:
 
 ```bash
 KEYCLOAK_URL=http://$(kubectl get service keycloak -o jsonpath='{.status.loadBalancer.ingress[0].ip}'):8080/auth
@@ -998,7 +1017,7 @@ EOF
 kubectl apply -f env.yaml
 ```
 
-Now we update the `Group` for clients who will authenticate through a JWT:
+Then we update the _users_ `Group` for Clients who will authenticate with a JWT:
 
 ```bash
 cat << EOF | kubectl apply -f -
@@ -1015,7 +1034,7 @@ spec:
           - dev
         namespaces:
           - '*'
-      # -------------- Enforce 'trusted' usage plan (JWT) ---------------
+      # -------------- Enforce the 'trusted' usage plan (JWT) ---------------
       usagePlans:
         - trusted
       # -----------------------------------------------------------------
@@ -1029,7 +1048,8 @@ spec:
 EOF
 ```
 
-And, finally, we update the `APIProduct` to enforce the usage of the `trusted` plan:
+Finally, update the `APIProduct` to allow for this **Usage Plan**:
+
 ```bash
 cat << EOF | kubectl apply -f -
 apiVersion: portal.gloo.solo.io/v1beta1
@@ -1043,7 +1063,7 @@ spec:
   displayInfo: 
     title: Petstore Product
     description: Fabulous API product for the Petstore
-  # ---------------- This API offers 1 usage plan ---------------------
+  # ---------------- This API offers one Usage Plan ---------------------
   usagePlans:
     - trusted
   # --------------------------------------------------------------------
@@ -1078,7 +1098,7 @@ spec:
 EOF
 ```
 
-Let's make some tests!
+Let's do some tests!
 
 #### Testing the JWT based plan
 
@@ -1088,7 +1108,7 @@ Let's fetch an `access_token` JWT from the IdP:
 token=$(curl -s -d "client_id=admin-cli" -d "username=user1" -d "password=password" -d "grant_type=password" "$KEYCLOAK_URL/realms/master/protocol/openid-connect/token" | jq -r .access_token)
 ```
 
-Then, we can run the following command:
+With that token, we can query the PetStore API with the following command:
 
 ```bash
 curl -H "Authorization: Bearer ${token}" -s $(glooctl proxy url)/ecommerce/v1/api/pet/1 -H "Host: api.mycompany.corp" | jq
@@ -1126,7 +1146,9 @@ Congratulations! you just secured you API with JWT verification!
 
 ### Deploying an API-key based RBAC
 
-Let's start by updating the `Environment` CR with a new usage plan:
+Another mean of securing the access to your APIs is **API keys**.
+
+Let's start by updating the `Environment` CR with a new **Usage Plan**:
 
 ```bash
 KEYCLOAK_URL=http://$(kubectl get service keycloak -o jsonpath='{.status.loadBalancer.ingress[0].ip}'):8080/auth
@@ -1195,7 +1217,7 @@ EOF
 kubectl apply -f env.yaml
 ```
 
-We update the `Group` for the developers, so that they must authenticate with basic auth in order to consume the APIs in the **dev** `Environment`:
+Update the `Group` for the developers, so that they must authenticate with Basic Auth in order to consume the APIs in the **dev** `Environment`:
 
 ```bash
 cat << EOF | kubectl apply -f -
@@ -1231,9 +1253,9 @@ spec:
 EOF
 ```
 
-You may see a warning message when applying this `Group` change. It is benign; you can safely ignore it.
+Ignore the warning message.
 
-We also update the petstore `APIProduct` so that is it accessible with both the `basic` plan and the `trusted` plan.
+We also update the Petstore `APIProduct` so that is it accessible with both the `basic` plan and also the `trusted` plan.
 
 ```bash
 cat << EOF | kubectl apply -f -
@@ -1288,17 +1310,17 @@ Let's do some more tests!
 
 #### Testing the basic auth plan
 
-Logout from `user1@solo.io` and log back in with the `dev1` user credentials.
+Navigate to http://portal.mycompany.corp/ , logout from `user1@solo.io` and log back in with the `dev1` user credentials. Remember the password you set for this user in Lab 5.
 
 Click on `dev1` on the top right corner and select `API Keys`.
 
 Click on `API Keys` again and then click "Add an API Key".
 
-![User Developer Portal API Key](images/dev-portal-api-key.png)
+![Generate an API-key on the Developer Portal](images/dev-portal-api-key.png)
 
 You can click on the key to copy the value to the clipboard.
 
-Let's try it out in the Portal UI at first.
+Let's try it out in the Developer Portal at first.
 
 Navigate back to your API and click the 2nd line with 'v2', and you are now able to use the _*try-it-out*_ feature.
 
@@ -1306,11 +1328,13 @@ First, click the **Authorize** button:
 
 ![try-it-out](images/try-it-landing-page.png)
 
+In the popup, you can see the two **Usage Plans** we have defined for this API.
+
 Paste the API key and click **Authorize** again, then **Close**.
 
 ![try-it-out](images/try-it-authorize.png)
 
-Scroll down and click on the `GET /api/store/inventory` API call.
+Scroll down and click on the `GET /api/store/inventory` endpoint.
 
 ![try-it-out](images/try-it-request.png)
 
@@ -1326,7 +1350,7 @@ You should get a 200 response:
 
 You can also test it with curl.
 
-Without providing any proof of identity, you should get a 403 error:
+If you don't provide any proof of identity, you should get a 403 error, as shown in the following command:
 
 ```bash
 curl -s $(glooctl proxy url)/ecommerce/v1/api/pet/1 -H "Host: api.mycompany.corp" -v
@@ -1341,10 +1365,10 @@ curl -s $(glooctl proxy url)/ecommerce/v1/api/pet/1 -H "Host: api.mycompany.corp
 ...
 ```
 
-So, we need to retrieve the API key first:
+To fix that, first retrieve the API key:
 
 ```bash
-kubectl get secret -n default
+kubectl get secret
 ```
 
 ```text
@@ -1377,14 +1401,14 @@ metadata:
 ...
 ```
 
-Then, we can run the following command:
+As you can see, the api-key is stored in this Secret. Let's decode it and use it in a new `curl` command:
 
 ```bash
 apikey=$(kubectl -n default get secret -l apiproducts.portal.gloo.solo.io=petstore-product.default -l environments.portal.gloo.solo.io=dev.default -l usageplans.portal.gloo.solo.io=basic2 -o "jsonpath={.items[0].data['api-key']}" | base64 -d)
 curl -H "api-key: $apikey" -s $(glooctl proxy url)/ecommerce/v1/api/pet/1 -H "Host: api.mycompany.corp" | jq
 ```
 
-It should work:
+Expected output:
 
 ```yaml
 {
@@ -1418,7 +1442,7 @@ Now, execute the curl command again several times:
 curl -H "api-key: $apikey" -s $(glooctl proxy url)/ecommerce/v1/api/pet/1 -H "Host: api.mycompany.corp" -v
 ```
 
-As soon as you reach the rate limit, you should get the following output:
+After five tries, you will reach the rate limit and you will get a 429 HTTP code:
 
 ```
 ...
@@ -1438,16 +1462,16 @@ As soon as you reach the rate limit, you should get the following output:
 * Closing connection 0
 ```
 
-Congratulations! you just secured you API with Basic Auth and rate limiting!
+Congratulations! you have secured your API with both Basic Auth and rate limiting!
 
 
 
 
 ## Lab 8: Portal rebranding
 
-As you've seen in onr of the previous lab, we've been able to provide a few pictures (banner, logo, etc.).
+As you have seen in one of the previous lab, we were able to place a few custom images on the Developer Portal (banner, logo, etc.).
 
-But you can completely change the look & feel of the `Portal` by providing your own CSS.
+You can completely change the look & feel of the `Portal` by providing your own CSS.
 
 Let's use this feature to change the color of the title.
 
@@ -1467,7 +1491,7 @@ You can see the CSS below displayed on the right:
 }
 ```
 
-Go to the admin Portal (http://localhost:8000), click on `Portals` and then on the `E-commerce Portal`.
+Go to the Admin UI (http://localhost:8000), click on `Portals` and then on the `E-commerce Portal`.
 
 Click on the `Advanced Portal Customization` link and provide the CSS below:
 
@@ -1482,7 +1506,7 @@ Click on the `Advanced Portal Customization` link and provide the CSS below:
 
 ![User Developer Portal Admin CSS](images/dev-portal-admin-css.png)
 
-Save the change and go back to the main page of the Portal:
+Save the change and go back to the main page of the Developer Portal. You will see the new style applied to the title.
 
 ![User Developer Portal After CSS](images/dev-portal-after-css.png)
 
@@ -1503,7 +1527,7 @@ You'll see the new section below:
         namespace: default
 ```
 
-Now, execute the following command to see the content of the config map:
+Now, execute the following command to see the content of the ConfigMap:
 
 ```bash
 kubectl get cm default-ecommerce-portal-custom-stylesheet -o yaml
@@ -1563,7 +1587,7 @@ It's very useful to provide additional information about your APIs, or even to l
 
 Static pages are very simple to add. You simply need to provide the content using the Markdown syntax.
 
-Go to the admin Portal (http://localhost:8000), click on `Portals` and then on the `E-commerce Portal`.
+Go to the Admin UI (http://localhost:8000), click on `Portals` and then on the `E-commerce Portal`.
 
 Click on the `Pages` tab and then on the `Add a Page` link.
 
@@ -1571,7 +1595,7 @@ Create a new `Static Page`:
 
 ![Developer Portal Static Page Create](images/dev-portal-static-page-create.png)
 
-Then edit it to provide the Markdown content:
+Then edit it to paste the following Markdown content:
 
 ```md
 **Q.** - Can I use your API to see how many pets are available?  
@@ -1729,6 +1753,30 @@ metadata:
 
 The `binaryData.dynamic-page` value is the content of the `dynamic.html` file encoded in base64.
 
+### Inject scripts
+
+Freely inspired from this website: https://developers.axeptio.eu/v/english/sdk/integration-du-sdk
+
+Let's inject a javascript snippet that requires end-user consent for cookies.
+
+Navigate to http://localhost:8080/, then click the **Portal** menu and click the "Custom Html" tab.
+
+Insert the following code snippet and click "Save changes":
+
+
+```javascript
+<script>
+window.axeptioSettings = {
+  clientId: "5c11ff5ce95cd64112feab79",
+};
+ 
+(function(d, s) {
+  var t = d.getElementsByTagName(s)[0], e = d.createElement(s);
+  e.async = true; e.src = "//static.axept.io/sdk-slim.js";
+  t.parentNode.insertBefore(e, t);
+})(document, "script");
+</script>
+```
 
 ## Lab 10: gRPC
 
@@ -2055,7 +2103,7 @@ All of this offers a lot a flexibility in your routing design and strategy.
 
 ### Overriding a route
 
-We will define a `Route` CR that target the **HTTPBIN** backend.
+We will define a `Route` CR which targets the **Httpbin** backend.
 
 ```bash
 kubectl apply -f - <<EOF
@@ -2072,7 +2120,7 @@ spec:
 EOF
 ```
 
-And now, we reference this Route at the `Environment` level, so that any `APIProduct` could eventually use it.
+Then, we reference this `Route` at the `Environment` level, so that any `APIProduct` could eventually use it.
 
 ```bash
 KEYCLOAK_URL=http://$(kubectl get service keycloak -o jsonpath='{.status.loadBalancer.ingress[0].ip}'):8080/auth
@@ -2144,7 +2192,7 @@ EOF
 kubectl apply -f env.yaml
 ```
 
-And now, we update our `APIProduct` to do some fine-grained routing on the `/api/store/inventory` endpoint, for v2:
+Then, we update our `APIProduct` to do some fine-grained routing on the `/api/store/inventory` endpoint, for v2:
 
 ```bash
 cat << EOF | kubectl apply -f -
@@ -2215,7 +2263,9 @@ spec:
 EOF
 ```
 
-Now, we run a hacky test:
+In the code here above, we have overriden a particular endpoint, namely `getInventory`, so that requests matching this operationId will be routed to the httpbin backend! 
+
+Verify the little hack works as expected:
 
 ```bash
 apikey=$(kubectl -n default get secret -l apiproducts.portal.gloo.solo.io=petstore-product.default -l environments.portal.gloo.solo.io=dev.default -l usageplans.portal.gloo.solo.io=basic2 -o "jsonpath={.items[0].data['api-key']}" | base64 -d)
@@ -2241,7 +2291,9 @@ So, let's fix that!
 
 Let's hack a bit the `Route` defined above and give it a transformation template that will change the request path on the fly.
 
-This time, we will use the admin web UI. Find the **httpbin** Route and click the edit icon, then click on the **Options** tab in the left-hand sidebar:
+This time, we will use the Admin web UI. 
+
+Open http://localhost:8080/, navigate to the APIs menu, then click Routes in the left hand side column, then find the **httpbin** Route and click the edit button (then pencil icon), then click on the **Options** tab in the left-hand sidebar:
 
 ![route transformation](images/route-transfo-path.png)
 
@@ -2287,6 +2339,13 @@ The output is now a nice JSON payload, returned by the `/headers` endpoint:
   }
 }
 ```
+
+As a brief summary, you have:
+- created a new Route targetting the **httpbin** application
+- assigned that route to a particular API endpoint (or "operationId")
+- added a transformation to that route to change the request headers on-the-fly
+
+How hacky!
 
 ## Lab 13 - Advanced policies - JWT
 
@@ -2525,7 +2584,7 @@ You can also manage the gateway from the Admin web UI:
 
 ## Lab 15 - Monetization
 
-It is now possible to configure Gloo Portal and GLoo Edge so that it get metrics of the API consumption.
+It is now possible to configure Gloo Portal and Gloo Edge so that they gather metrics about the API consumption.
 
 We have a nice step-by-step guide in this section of the doc: https://docs.solo.io/gloo-portal/main/guides/portal_features/monetization/
 
