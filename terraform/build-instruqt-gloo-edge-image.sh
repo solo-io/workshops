@@ -1,3 +1,3 @@
 #!/bin/sh
 cd packer/instruqt-gloo-edge
-packer build -force -color=true -timestamp-ui .
+packer build -force -color=true -timestamp-ui -var 'k3s_version=v1.22.4+k3s1' -var 'glooee_version=1.8.15' -var 'gloo_version=1.8.18' .

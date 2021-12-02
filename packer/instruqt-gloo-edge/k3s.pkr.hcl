@@ -9,7 +9,7 @@ packer {
 
 variable "k3s_version" {
   type    = string
-  default = "v1.19.15+k3s2"
+  default = "v1.22.4+k3s1"
 }
 
 variable "gloo_version" {

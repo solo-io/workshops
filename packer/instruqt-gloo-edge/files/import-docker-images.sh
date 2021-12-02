@@ -7,26 +7,20 @@ systemctl start k3s
 
 while ! nc -z kubernetes 6443 -v; do sleep 1; done
 
-for i in gloo-ee gloo-ee-envoy-wrapper gloo-fed-apiserver-envoy gloo-fed-apiserver gloo-fed gloo-federation-console extauth-ee observability-ee rate-limit-ee
+wget -q https://storage.googleapis.com/gloo-ee-helm/charts/gloo-ee-${GLOOEE_VERSION}.tgz
+gloo_images=$(helm template gloo ./gloo-ee-${GLOOEE_VERSION}.tgz --namespace gloo-system --version=${GLOOEE_VERSION} --create-namespace --set-string license_key=dummy|grep image:|sed 's/- //g'|awk '{print $2}'|sed 's/"//g'|sed 's/docker.io/docker.io\/library/g')
+for i in $gloo_images
 do
-  /usr/local/bin/k3s ctr i pull quay.io/solo-io/$i:$GLOOEE_VERSION
+  /usr/local/bin/k3s ctr i pull $i
 done
+rm gloo-ee-${GLOOEE_VERSION}.tgz
 
-for i in certgen discovery gateway
+for url in https://raw.githubusercontent.com/istio/istio/1.7.3/samples/bookinfo/platform/kube/bookinfo.yaml https://raw.githubusercontent.com/keycloak/keycloak-quickstarts/12.0.4/kubernetes-examples/keycloak.yaml
 do
-  /usr/local/bin/k3s ctr i pull quay.io/solo-io/$i:$GLOO_VERSION
+  for image in $(curl -sfL ${url}|grep image:|awk '{print $2}')
+  do
+    /usr/local/bin/k3s ctr i pull $image
+  done
 done
-
-for i in examples-bookinfo-details-v1 examples-bookinfo-productpage-v1 examples-bookinfo-ratings-v1 examples-bookinfo-reviews-v2 examples-bookinfo-reviews-v3
-do
-  /usr/local/bin/k3s ctr i pull docker.io/istio/$i:1.16.2
-done
-
-/usr/local/bin/k3s ctr i pull docker.io/grafana/grafana:6.6.2
-/usr/local/bin/k3s ctr i pull docker.io/library/redis:5
-/usr/local/bin/k3s ctr i pull docker.io/kennethreitz/httpbin:latest
-/usr/local/bin/k3s ctr i pull quay.io/keycloak/keycloak:12.0.4
-
-echo "the end"
 
 systemctl stop k3s
