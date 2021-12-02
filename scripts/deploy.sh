@@ -29,14 +29,20 @@ if [ "${running}" != 'true' ]; then
     registry:2
 fi
 
-cache_name='kind-cache'
 cache_port='5000'
+cat > registries <<EOF
+docker https://registry-1.docker.io
+quay https://quay.io
+gcr https://gcr.io
+EOF
+
+cat registries | while read cache_name cache_url; do
 running="$(docker inspect -f '{{.State.Running}}' "${cache_name}" 2>/dev/null || true)"
 if [ "${running}" != 'true' ]; then
   cat > config.yml <<EOF
 version: 0.1
 proxy:
-  remoteurl: https://registry-1.docker.io
+  remoteurl: ${cache_url}
 log:
   fields:
     service: registry
@@ -60,13 +66,11 @@ EOF
     -d --restart=always -v `pwd`/config.yml:/etc/docker/registry/config.yml --name "${cache_name}" \
     registry:2
 fi
+done
 
 cat << EOF > kind${number}.yaml
 kind: Cluster
 apiVersion: kind.x-k8s.io/v1alpha4
-featureGates:
-  TokenRequest: true
-  EphemeralContainers: true
 nodes:
 - role: control-plane
   extraPortMappings:
@@ -97,7 +101,11 @@ containerdConfigPatches:
   [plugins."io.containerd.grpc.v1.cri".registry.mirrors."localhost:${reg_port}"]
     endpoint = ["http://${reg_name}:${reg_port}"]
   [plugins."io.containerd.grpc.v1.cri".registry.mirrors."docker.io"]
-    endpoint = ["http://${cache_name}:${cache_port}"]
+    endpoint = ["http://docker:${cache_port}"]
+  [plugins."io.containerd.grpc.v1.cri".registry.mirrors."quay.io"]
+    endpoint = ["http://quay:${cache_port}"]
+  [plugins."io.containerd.grpc.v1.cri".registry.mirrors."gcr.io"]
+    endpoint = ["http://gcr:${cache_port}"]
 EOF
 
 kind create cluster --name kind${number} --config kind${number}.yaml
@@ -129,7 +137,9 @@ EOF
 kubectl --context=kind-kind${number} apply -f metallb${number}.yaml
 
 docker network connect "kind" "${reg_name}" || true
-docker network connect "kind" "${cache_name}" || true
+docker network connect "kind" docker || true
+docker network connect "kind" quay || true
+docker network connect "kind" gcr || true
 
 cat <<EOF | kubectl apply -f -
 apiVersion: v1
