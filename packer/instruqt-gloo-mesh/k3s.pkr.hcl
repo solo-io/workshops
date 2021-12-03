@@ -33,8 +33,8 @@ source "googlecompute" "k3s" {
   zone         = "us-central1-a"
 
   image_storage_locations = [ "us" ]
-  image_family = "workshop-instruqt-gloo-edge"
-  image_name   = regex_replace("workshop-instruqt-gloo-mesh-${var.k3s_version}-${formatdate("YYYYMMDD", timestamp())}", "[^a-zA-Z0-9_-]", "-")
+  image_family = "workshop-instruqt-gloo-mesh"
+  image_name   = regex_replace("workshop-instruqt-gloo-mesh-${var.gloo_version}-k3s-${var.k3s_version}-${formatdate("YYYYMMDD", timestamp())}", "[^a-zA-Z0-9_-]", "-")
   image_labels = {
       builder = "packer"
   }

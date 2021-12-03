@@ -8,12 +8,12 @@ systemctl start k3s
 while ! nc -z kubernetes 6443 -v; do sleep 1; done
 
 wget -q https://storage.googleapis.com/gloo-ee-helm/charts/gloo-ee-${GLOOEE_VERSION}.tgz
-gloo_images=$(helm template gloo ./gloo-ee-${GLOOEE_VERSION}.tgz --namespace gloo-system --version=${GLOOEE_VERSION} --create-namespace --set-string license_key=dummy|grep image:|sed 's/- //g'|awk '{print $2}'|sed 's/"//g'|sed 's/docker.io/docker.io\/library/g')
+gloo_images=$(helm template gloo ./gloo-ee-${GLOOEE_VERSION}.tgz --namespace gloo-system --version=${GLOOEE_VERSION} --create-namespace --set-string license_key=dummy|grep image:|sed 's/- //g'|awk '{print $2}'|sed 's/"//g'|sed 's/docker.io/docker.io\/library/g'|sed 's/grafana\//docker.io\/grafana\//g'|sed 's/jimmidyson\//docker.io\/jimmidyson\//g'|sed 's/prom\//docker.io\/prom\//g')
 for i in $gloo_images
 do
   /usr/local/bin/k3s ctr i pull $i
 done
-rm gloo-ee-${GLOOEE_VERSION}.tgz
+rm ./gloo-ee-${GLOOEE_VERSION}.tgz
 
 for url in https://raw.githubusercontent.com/istio/istio/1.7.3/samples/bookinfo/platform/kube/bookinfo.yaml https://raw.githubusercontent.com/keycloak/keycloak-quickstarts/12.0.4/kubernetes-examples/keycloak.yaml
 do

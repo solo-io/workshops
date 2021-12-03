@@ -30,28 +30,20 @@ export CLUSTER2=vcluster_mesh-3_mesh-3
 EOF
 
 # Install metallb
-kubectl apply -f https://raw.githubusercontent.com/metallb/metallb/v0.10.2/manifests/namespace.yaml
-kubectl apply -f https://raw.githubusercontent.com/metallb/metallb/v0.10.2/manifests/metallb.yaml
-kubectl create secret generic -n metallb-system memberlist --from-literal=secretkey="$(openssl rand -base64 128)"
-
-cat << EOF | kubectl apply -f -
-apiVersion: v1
-kind: ConfigMap
-metadata:
-    namespace: metallb-system
-    name: config
-data:
-  config: |
-    address-pools:
-    - name: default
-      protocol: layer2
-      addresses:
-      - 192.168.1.230-192.168.1.250
+helm repo add metallb https://metallb.github.io/metallb
+helm repo update
+cat <<EOF >> /tmp/metallb-values.yaml
+configInline:
+  address-pools:
+   - name: default
+     protocol: layer2
+     addresses:
+     - 192.168.1.0/24
 EOF
-
+helm install metallb metallb/metallb --version=0.11.0 -f /tmp/metallb-values.yaml
 
 # Create vclusters and add kubeconfigs
-clusters=( mesh-1 mesh-2 mesh-3 )
+clusters=( mesh-2 mesh-3 mesh-1 )
 for cluster in ${clusters[@]}; do
   vcluster create $cluster -n $cluster --expose
   # wait until IP is attached
@@ -59,12 +51,11 @@ for cluster in ${clusters[@]}; do
   vcluster connect $cluster -n $cluster --update-current
 done
 
-kubectl --context=vcluster_mesh-2_mesh-2 label node kubernetes ingress-ready=true
-kubectl --context=vcluster_mesh-2_mesh-2 label node kubernetes topology.kubernetes.io/region=us-west
-kubectl --context=vcluster_mesh-2_mesh-2 label node kubernetes topology.kubernetes.io/zone=us-west-1
+# Give some time for the nodes to be available
+sleep 5
 
-kubectl --context=vcluster_mesh-3_mesh-3 label node kubernetes ingress-ready=true
-kubectl --context=vcluster_mesh-3_mesh-3 label node kubernetes topology.kubernetes.io/region=us-west
-kubectl --context=vcluster_mesh-3_mesh-3 label node kubernetes topology.kubernetes.io/zone=us-west-2
+kubectl --context=vcluster_mesh-2_mesh-2 label node kubernetes ingress-ready=true topology.kubernetes.io/region=us-west topology.kubernetes.io/zone=us-west-1
+kubectl --context=vcluster_mesh-3_mesh-3 label node kubernetes ingress-ready=true topology.kubernetes.io/region=us-west topology.kubernetes.io/zone=us-west-2
 
+#/usr/local/bin/k3s-killall.sh
 systemctl stop k3s

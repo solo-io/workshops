@@ -29,7 +29,7 @@ source "googlecompute" "k3s" {
 
   image_storage_locations = [ "us" ]
   image_family = "workshop-instruqt-gloo-edge"
-  image_name   = regex_replace("workshop-instruqt-gloo-edge-${var.k3s_version}-${formatdate("YYYYMMDD", timestamp())}", "[^a-zA-Z0-9_-]", "-")
+  image_name   = regex_replace("workshop-instruqt-gloo-edge-${var.glooee_version}-k3s-${var.k3s_version}-${formatdate("YYYYMMDD", timestamp())}", "[^a-zA-Z0-9_-]", "-")
   image_labels = {
       builder = "packer"
   }
