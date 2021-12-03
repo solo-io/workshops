@@ -32,6 +32,8 @@ Configure region and zone for your remote resources:
 # Use this file to configure your desired resources too
 ```
 
+Install [aws-iam-authenticator](https://docs.aws.amazon.com/eks/latest/userguide/install-aws-iam-authenticator.html) if you are going to create eks clusters. This is because we use the module [howdio/eks/aws](https://registry.terraform.io/modules/howdio/eks/aws/latest), that have the authenticator as dependency. EKS auth is possible just with aws-cli, but the dependency is not very maintained.
+
 When hosting the Livestorm workshop, it is recommeded to use [Chrome browser](https://support.livestorm.co/article/19-technical-requirements-livestorm#browsers).
 
 ## Deploy
@@ -62,15 +64,13 @@ Edit the `configuration.auto.tfvars` file to adapt it to your needs:
 - Possible options:
 ```
   workshop1 = { # Prefix that will be shared in all objects
-    project       = "solo-test-236622"
     # https://cloud.google.com/compute/docs/machine-types
     machine_type  = "n1-standard-8"
     # Zone where replicas will be created
-    zone          = "europe-west4-a"
-    # Replicas to deploy, in addition 1 'source-image' will be always created
-    num_instances = 0
-    # OS image https://cloud.google.com/compute/docs/images
-    vm_image      = "ubuntu-2004-focal-v20210211"
+    zone          = "europe-west4-d"
+    # Replicas to deploy
+    num_instances = 1
+    source_machine_image = "workshop-generic-v20211019"
   }
 
 **NOTE**  
