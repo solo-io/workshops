@@ -39,7 +39,7 @@ EOF
 cat registries | while read cache_name cache_url; do
 running="$(docker inspect -f '{{.State.Running}}' "${cache_name}" 2>/dev/null || true)"
 if [ "${running}" != 'true' ]; then
-  cat > config.yml <<EOF
+  cat > ${HOME}/.${cache_name}-config.yml <<EOF
 version: 0.1
 proxy:
   remoteurl: ${cache_url}
@@ -63,7 +63,7 @@ health:
 EOF
 
   docker run \
-    -d --restart=always -v `pwd`/config.yml:/etc/docker/registry/config.yml --name "${cache_name}" \
+    -d --restart=always -v ${HOME}/.${cache_name}-config.yml:/etc/docker/registry/config.yml --name "${cache_name}" \
     registry:2
 fi
 done
