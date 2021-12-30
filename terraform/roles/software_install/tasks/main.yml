@@ -116,6 +116,12 @@
     dest: /usr/local/bin/kind
     mode: '0755'
 
+- name: Download yq
+  get_url:
+    url: https://github.com/mikefarah/yq/releases/download/v4.12.1/yq_linux_amd64
+    dest: /usr/local/bin/yq
+    mode: '0755'
+
 - name: Get Latest Kubernetes Version
   get_url:
     url: https://storage.googleapis.com/kubernetes-release/release/stable.txt

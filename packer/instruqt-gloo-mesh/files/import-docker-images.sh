@@ -26,7 +26,7 @@ do
 done
 rm ./enterprise-agent-${GLOO_VERSION}.tgz
 
-for i in pilot proxyv2
+for i in pilot proxyv2 operator
 do
   /usr/local/bin/k3s ctr i pull docker.io/istio/$i:$ISTIO_VERSION
 done

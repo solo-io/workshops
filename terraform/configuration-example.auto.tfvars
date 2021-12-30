@@ -23,10 +23,10 @@
 
 #environments = {
 #  workshop1 = {
-#    machine_type  = "n1-standard-8"
-#    zone          = "europe-west4-a"
-#    num_instances = 0
-#    vm_image      = "ubuntu-2004-focal-v20210211"
+#    machine_type         = "n1-standard-8"
+#    zone                 = "europe-west4-a"
+#    num_instances        = 0
+#    source_machine_image = "workshop-generic-v20211217"
 #  }
 #  personal1 = {
 #    num_instances = 1

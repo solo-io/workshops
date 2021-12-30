@@ -30,6 +30,7 @@ source "googlecompute" "workshop" {
 
   machine_type = "n1-standard-8"
   disk_size    = 20
+  disk_type    = "pd-balanced"
 
   ssh_username = "solo"
 
