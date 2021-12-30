@@ -46,3 +46,6 @@ echo "alias k=kubectl" >> /root/.bash_aliases
 kubectl completion bash >/etc/bash_completion.d/kubectl
 mkdir -p /root/.kube
 ln -sf /etc/rancher/k3s/k3s.yaml /root/.kube/config
+
+wget https://dl.step.sm/gh-release/cli/docs-cli-install/v0.18.0/step-cli_0.18.0_amd64.deb
+sudo dpkg -i step-cli_0.18.0_amd64.deb
