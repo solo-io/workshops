@@ -1,9 +1,17 @@
 {%- assign files = step.vars.dir | append: '/partials' | listFiles %}
-mkdir -p /root/files
 {%- for file in files %}
-{%- assign filePath = step.vars.dir | append: '/partials/' | append: file %}
+{% assign filePath = step.vars.dir | append: '/partials/' | append: file %}
 # Rendered from {{ filePath }}
 cat <<EOF >/root/files/{{ file | remove: ".liquid" }}
+{{ filePath | render: step: step }}
+EOF
+{%- endfor %}
+
+{%- assign files = step.vars.dir | append: '/data' | listFiles %}
+{%- for file in files %}
+{% assign filePath = step.vars.dir | append: '/data/' | append: file %}
+# Rendered from {{ filePath }}
+cat <<EOF >/root/data/steps/{{ step.name }}/data/{{ file }}
 {{ filePath | render: step: step }}
 EOF
 {%- endfor %}
