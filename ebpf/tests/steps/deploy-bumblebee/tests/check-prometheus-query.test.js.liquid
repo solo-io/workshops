@@ -1,0 +1,14 @@
+const chaiExec = require("@jsdevtools/chai-exec");
+var chai = require('chai');
+var expect = chai.expect;
+chai.use(chaiExec);
+
+describe("Check prometheus query", function() {
+  it("Query returns some results", () => {
+    let pod = chaiExec("kubectl get pods -l app=productpage -o jsonpath='{.items[0].metadata.name}'").stdout
+    let command = "kubectl exec " + pod + " -- python -c \"import requests; r = requests.get('http://prom-kube-prometheus-stack-prometheus.prometheus.svc.cluster.local:9090/api/v1/query?query=ebpf_solo_io_events_hash'); print(r.text)\"";
+    let cli = chaiExec(command);
+    expect(cli).to.exit.with.code(0);
+    expect(JSON.parse(cli.output).data.result.length).to.be.at.least(1);
+  });
+})

@@ -1,0 +1,8 @@
+const helpers = require('./tests/chai-exec');
+
+describe("Bookinfo app", () => {
+  const deployments = ["productpage-v1", "ratings-v1", "details-v1", "reviews-v1", "reviews-v2", "reviews-v3"];
+  deployments.forEach(deploy => {
+    it(deploy + ' pods are ready', () => helpers.checkDeployment({ context: "ebpf", namespace: "default", k8sObj: deploy }));
+  });
+});

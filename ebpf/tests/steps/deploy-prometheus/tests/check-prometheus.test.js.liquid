@@ -1,0 +1,16 @@
+const helpers = require('./tests/chai-exec');
+
+describe("Prometheus is running", () => {
+  const deployments = ["prom-grafana", "prom-kube-prometheus-stack-operator", "prom-kube-state-metrics"];
+  deployments.forEach(deploy => {
+    it(deploy + ' pods are ready', () => helpers.checkDeployment({ context: "ebpf", namespace: "prometheus", k8sObj: deploy }));
+  });
+  const statefulsets = ["prometheus-prom-kube-prometheus-stack-prometheus"];
+  statefulsets.forEach(statefulset => {
+    it(statefulset + ' pods are ready', () => helpers.checkStatefulSet({ context: "ebpf", namespace: "prometheus", k8sObj: statefulset }));
+  });
+  const daemonsets = ["prom-prometheus-node-exporter"];
+  daemonsets.forEach(daemonset => {
+    it(daemonset + ' pods are ready', () => helpers.checkDaemonSet({ context: "ebpf", namespace: "prometheus", k8sObj: daemonset }));
+  });
+});

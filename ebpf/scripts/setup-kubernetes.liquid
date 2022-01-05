@@ -1,0 +1,44 @@
+#!/bin/bash
+
+# Enable bash completion for kubectl
+echo "source /usr/share/bash-completion/bash_completion" >> /etc/bash.bashrc
+echo "complete -F __start_kubectl k" >> /etc/bash.bashrc
+
+# Install dependencies in /tmp
+cat <<EOF >/tmp/package.json
+{% render 'package.json' %}
+EOF
+
+# Render common libraries
+mkdir -p /tmp/tests
+{%- assign files = dir | append: '/tests' | listFiles %}
+{%- for file in files %}
+{%- assign filePath = dir | append: '/tests/' | append: file %}
+cat <<EOF >/tmp/tests/{{ file | remove: ".liquid" }}
+{% render filePath %}
+EOF
+{%- endfor %}
+
+cp -r node_modules/ /tmp/node_modules/
+
+while [ ! -f /opt/instruqt/bootstrap/host-bootstrap-completed ]
+do
+    echo "Waiting for Instruqt to finish booting the VM"
+    sleep 1
+done
+
+# Run vclusters and add kubeconfigs
+clusters=( mesh-1 mesh-2 mesh-3 )
+for cluster in ${clusters[@]}; do
+  vcluster connect $cluster -n $cluster --update-current
+done
+
+kubectl --context=vcluster_mesh-2_mesh-2 label node kubernetes ingress-ready=true topology.kubernetes.io/region=us-west topology.kubernetes.io/zone=us-west-1
+kubectl --context=vcluster_mesh-3_mesh-3 label node kubernetes ingress-ready=true topology.kubernetes.io/region=us-west topology.kubernetes.io/zone=us-west-2
+
+kubectl config use-context vcluster_mesh-1_mesh-1
+
+ln -s /root/.nvm/versions/node/*/bin/node -t /usr/local/sbin
+ln -s /root/.nvm/versions/node/*/bin/mocha -t /usr/local/sbin
+
+mkdir -p /root/files
