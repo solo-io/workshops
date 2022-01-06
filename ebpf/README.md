@@ -14,7 +14,7 @@ source ./scripts/assert.sh
 
 ## Table of Contents
 * [Introduction](#introduction)
-* [Lab 1 - BumbleBee](#Lab-1)
+* [Lab 1 - eBPF and BumbleBee introduction](#Lab-1)
 * [Lab 2 - Deploy KinD cluster](#Lab-2)
 * [Lab 3 - Deploy Prometheus](#Lab-3)
 * [Lab 4 - Deploy the Bookinfo demo app](#Lab-4)
@@ -29,7 +29,7 @@ source ./scripts/assert.sh
 
 
 
-## Lab 1 - BumbleBee <a name="Lab-1"></a>
+## Lab 1 - eBPF and BumbleBee introduction <a name="Lab-1"></a>
 
 ![BumbleBee logo](images/steps/bumblebee/bumblebee.svg)
 
@@ -193,7 +193,7 @@ We'll also solve for this challenge by tracking connection counts in addition to
 Let's use the updated file:
 
 ```bash
-cp data/steps/bumblebee/data/probe.c ./probe.c
+cp data/steps/bumblebee/probe.c ./probe.c
 ```
 
 You can take a look at the updated file:
@@ -222,16 +222,18 @@ bee run my_probe:v1
 
 ![BumbleBee probe](images/steps/bumblebee/probe.png)
 
+You can execute any command in the second terminal to see new entries displayed in the BumbleBee UI.
+
 For the following lab, we'll use another eBPF program which will display the source and destination IP addresses for all the network communications happening in the system.
 
 ```bash
-cp data/steps/bumblebee/data/tcpconnect.c ./tcpconnect.c
+cp data/steps/bumblebee/tcpconnect.c ./tcpconnect.c
 ```
 
 You can take a look at the file:
 
 ```
-cat probe.c
+cat tcpconnect.c
 ```
 
 Use the bee tool to compile your program and store it as an OCI image:
@@ -247,6 +249,8 @@ bee run tcpconnect:v1
 ```
 
 ![BumbleBee tcpconnect](images/steps/bumblebee/tcpconnect.png)
+
+You can execute any curl command in the second terminal to see new entries displayed in the BumbleBee UI.
 
 Run the following command in a different tab while the program is running:
 
@@ -321,7 +325,7 @@ Install Prometheus:
 helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
 helm repo update
 
-helm install prom prometheus-community/kube-prometheus-stack --version 13.13.1 -n prometheus -f data/steps/deploy-prometheus/data/prometheus-values.yaml
+helm install prom prometheus-community/kube-prometheus-stack --version 13.13.1 -n prometheus -f data/steps/deploy-prometheus/prometheus-values.yaml
 ```
 
 <!--bash
