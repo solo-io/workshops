@@ -1491,7 +1491,7 @@ You can see the CSS below displayed on the right:
 }
 ```
 
-Go to the Admin UI (http://localhost:8000), click on `Portals` and then on the `E-commerce Portal`.
+Go to the Admin UI (http://localhost:8080), click on `Portals` and then on the `E-commerce Portal`.
 
 Click on the `Advanced Portal Customization` link and provide the CSS below:
 
@@ -1587,7 +1587,7 @@ It's very useful to provide additional information about your APIs, or even to l
 
 Static pages are very simple to add. You simply need to provide the content using the Markdown syntax.
 
-Go to the Admin UI (http://localhost:8000), click on `Portals` and then on the `E-commerce Portal`.
+Go to the Admin UI (http://localhost:8080), click on `Portals` and then on the `E-commerce Portal`.
 
 Click on the `Pages` tab and then on the `Add a Page` link.
 
