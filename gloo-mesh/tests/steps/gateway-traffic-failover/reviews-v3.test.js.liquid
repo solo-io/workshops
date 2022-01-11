@@ -3,6 +3,15 @@ const helpersHttp = require('./tests/chai-http');
 const chai = require("chai");
 const expect = chai.expect;
 
+afterEach(function (done) {
+  if (this.currentTest.currentRetry() > 0) {
+    process.stdout.write(".");
+    setTimeout(done, 1000);
+  } else {
+    done();
+  }
+});
+
 describe("Access reviews from cluster2 since the ones from cluster1 are in sleep mode", () => {
   const _getJSONAppReviews = () => {
     let command = "kubectl --context " + process.env.CLUSTER1 + " get pods -l app=reviews -o json";
