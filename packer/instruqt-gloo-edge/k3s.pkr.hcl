@@ -38,7 +38,7 @@ source "googlecompute" "k3s" {
     enable-oslogin = "FALSE"
   }
 
-  source_image_family = "ubuntu-2004-lts"
+  source_image_family = "ubuntu-2104"
 
   machine_type = "n1-standard-8"
   disk_size    = 20

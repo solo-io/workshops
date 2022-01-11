@@ -16,13 +16,17 @@ echo "waiting 180 seconds for cloud-init to update /etc/apt/sources.list"
 timeout 180 /bin/bash -c \
   'until stat /var/lib/cloud/instance/boot-finished 2>/dev/null; do echo waiting ...; sleep 1; done'
 
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
+echo \
+  "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu \
+  $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+
 export DEBIAN_FRONTEND=noninteractive
 apt-get update
 apt-get -y install \
     git curl wget \
     apt-transport-https \
     ca-certificates \
-    curl \
     software-properties-common \
     conntrack \
     jq vim nano emacs joe \
@@ -31,7 +35,20 @@ apt-get -y install \
     unzip \
     bash-completion \
     dnsutils \
-    iputils-ping
+    iputils-ping \
+    docker-ce docker-ce-cli containerd.io
+
+apt install -y bison build-essential cmake flex git libedit-dev libllvm11 llvm-11-dev libclang-11-dev python zlib1g-dev libelf-dev libfl-dev python3-distutils
+git clone https://github.com/iovisor/bcc.git
+mkdir bcc/build; cd bcc/build
+cmake ..
+make
+sudo make install
+cmake -DPYTHON_CMD=python3 .. # build python3 binding
+pushd src/python/
+make
+sudo make install
+popd
 
 curl https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3 | bash
 
