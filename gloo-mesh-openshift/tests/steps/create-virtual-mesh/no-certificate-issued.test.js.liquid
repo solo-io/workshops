@@ -3,6 +3,15 @@ var chai = require('chai');
 var expect = chai.expect;
 chai.use(chaiExec);
 
+afterEach(function (done) {
+  if (this.currentTest.currentRetry() > 0) {
+    process.stdout.write(".");
+    setTimeout(done, 1000);
+  } else {
+    done();
+  }
+});
+
 var expectedOutput = "No client certificate CA names sent";
 
 describe("No certificate has been issued", () => {

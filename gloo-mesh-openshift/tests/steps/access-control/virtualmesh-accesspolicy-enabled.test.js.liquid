@@ -1,0 +1,5 @@
+const helpers = require('./tests/chai-exec');
+
+describe("VirtualMesh globalAccesPolicy is enabled", () => {
+    it("VirtualMesh globalAccesPolicy is enabled in " + process.env.MGMT, () => helpers.genericCommand({ responseContains:"ENABLED", command: "kubectl --context " + process.env.MGMT + " get virtualmesh virtual-mesh -ojsonpath='{.spec.globalAccessPolicy}' -n gloo-mesh" }));
+});

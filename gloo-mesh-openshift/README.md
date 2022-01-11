@@ -294,7 +294,7 @@ kubectl config use-context ${MGMT}
 
 
 ```bash
-export GLOO_MESH_VERSION=v1.2.3
+export GLOO_MESH_VERSION=v1.2.7
 curl -sL https://run.solo.io/meshctl/install | sh -
 export PATH=$HOME/.gloo-mesh/bin:$PATH
 ```
@@ -321,7 +321,8 @@ describe("Check meshctl version", () => {
   });
 });
 EOF
-mocha ./test.js --retries=500 2> /dev/null
+echo "executing test gloo-mesh/templates/steps/deploy-and-register-gloo-mesh/tests/meshctl-version.test.js.liquid"
+mocha ./test.js --retries=50 --bail 2> /dev/null || exit 1
 -->
 
 Gloo Mesh Enterprise is adding unique features on top of Gloo Mesh Open Source (RBAC, UI, WASM, ...).
@@ -356,7 +357,8 @@ describe("Required environment variables should contain value", () => {
   });
 });
 EOF
-mocha ./test.js --retries=500 2> /dev/null
+echo "executing test gloo-mesh/templates/steps/deploy-and-register-gloo-mesh/tests/environment-variables.test.js.liquid"
+mocha ./test.js --retries=50 --bail 2> /dev/null || exit 1
 -->
 
 ```bash
@@ -365,7 +367,7 @@ helm repo update
 kubectl --context ${MGMT} create ns gloo-mesh 
 helm upgrade --install gloo-mesh-enterprise gloo-mesh-enterprise/gloo-mesh-enterprise \
 --namespace gloo-mesh --kube-context ${MGMT} \
---version=1.2.3 \
+--version=1.2.7 \
 --set rbac-webhook.enabled=true \
 --set enterprise-networking.enterpriseNetworking.floatingUserId=true \
 --set rbac-webhook.rbacWebhook.floatingUserId=true \
@@ -397,16 +399,9 @@ const chaiExec = require("@jsdevtools/chai-exec");
 var chai = require('chai');
 var expect = chai.expect;
 chai.use(chaiExec);
-
-describe("Retrieve enterprise-networking ip", () => {
-  it("A value for load-balancing has been assigned", () => {
-    let cli = chaiExec("kubectl --context " + process.env.MGMT + " -n gloo-mesh get svc enterprise-networking -o jsonpath='{.status.loadBalancer}'");
-    expect(cli).to.exit.with.code(0);
-    expect(cli).output.to.contain('"ingress"');
-  });
-});
 EOF
-mocha ./test.js --retries=500 2> /dev/null
+echo "executing test gloo-mesh/templates/steps/deploy-and-register-gloo-mesh/tests/get-enterprise-networking-ip.test.js.liquid"
+mocha ./test.js --retries=50 --bail 2> /dev/null || exit 1
 -->
 
 ```bash
@@ -434,7 +429,8 @@ describe("Address '" + process.env.HOST_GLOO_MESH + "' can be resolved in DNS", 
     });
 });
 EOF
-mocha ./test.js --retries=500 2> /dev/null
+echo "executing test ./gloo-mesh/tests/can-resolve.test.js.liquid"
+mocha ./test.js --retries=50 --bail 2> /dev/null || exit 1
 -->
 
 Finally, you need to register the two other clusters:
@@ -465,6 +461,15 @@ var chai = require('chai');
 var expect = chai.expect;
 chai.use(chaiExec);
 
+afterEach(function (done) {
+  if (this.currentTest.currentRetry() > 0) {
+    process.stdout.write(".");
+    setTimeout(done, 1000);
+  } else {
+    done();
+  }
+});
+
 var cluster1Name = "cluster1";
 var cluster2Name = "cluster2";
 
@@ -478,7 +483,8 @@ describe("Cluster registration", () => {
   });
 });
 EOF
-mocha ./test.js --retries=500 2> /dev/null
+echo "executing test gloo-mesh/templates/steps/deploy-and-register-gloo-mesh/tests/cluster-registration.test.js.liquid"
+mocha ./test.js --retries=50 --bail 2> /dev/null || exit 1
 -->
 
 > ### Note that you can also register the remote clusters with Helm. refer to docs.solo.io for details.
@@ -501,7 +507,6 @@ kind: NetworkAttachmentDefinition
 metadata:
   name: istio-cni
 EOF
-
 oc --context ${CLUSTER2} adm policy add-scc-to-group anyuid system:serviceaccounts:gloo-mesh-addons
 
 cat <<EOF | oc --context ${CLUSTER2} -n gloo-mesh-addons create -f -
@@ -511,6 +516,8 @@ metadata:
   name: istio-cni
 EOF
 ```
+
+
 You need to create a Helm values file as follow:
 
 ```bash
@@ -528,7 +535,7 @@ helm repo update
 
 helm upgrade --install enterprise-agent-addons enterprise-agent/enterprise-agent \
   --kube-context=${CLUSTER1} \
-  --version=1.2.3 \
+  --version=1.2.7 \
   --namespace gloo-mesh-addons \
    --values=/tmp/enterprise-agent-addons-values.yaml \
   --set enterpriseAgent.enabled=false \
@@ -537,7 +544,7 @@ helm upgrade --install enterprise-agent-addons enterprise-agent/enterprise-agent
 
 helm upgrade --install enterprise-agent-addons enterprise-agent/enterprise-agent \
   --kube-context=${CLUSTER2} \
-  --version=1.2.3 \
+  --version=1.2.7 \
   --namespace gloo-mesh-addons \
    --values=/tmp/enterprise-agent-addons-values.yaml \
   --set enterpriseAgent.enabled=false \
@@ -584,10 +591,10 @@ EOF
 Note that the few Openshift specific commands used in this lab are documented on the Istio website [here](https://istio.io/latest/docs/setup/platform-setup/openshift/).
 
 
-Download istio 1.11.4:
+Download istio 1.11.5:
 
 ```bash
-export ISTIO_VERSION=1.11.4
+export ISTIO_VERSION=1.11.5
 curl -L https://istio.io/downloadIstio | sh -
 ```
 
@@ -608,7 +615,8 @@ describe("istoctl version", () => {
   });
 });
 EOF
-mocha ./test.js --retries=500 2> /dev/null
+echo "executing test gloo-mesh/templates/steps/deploy-istio/tests/istio-version.test.js.liquid"
+mocha ./test.js --retries=50 --bail 2> /dev/null || exit 1
 -->
 
 Now let's deploy Istio on the first cluster:
@@ -617,7 +625,7 @@ Now let's deploy Istio on the first cluster:
 oc --context ${CLUSTER1} adm policy add-scc-to-group anyuid system:serviceaccounts:istio-system
 oc --context ${CLUSTER1} adm policy add-scc-to-group anyuid system:serviceaccounts:istio-operator
 kubectl --context ${CLUSTER1} create ns istio-system
-cat << EOF | ./istio-1.11.4/bin/istioctl --context ${CLUSTER1} install -y -f -
+cat << EOF | ./istio-1.11.5/bin/istioctl --context ${CLUSTER1} install -y -f -
 apiVersion: install.istio.io/v1alpha1
 kind: IstioOperator
 metadata:
@@ -657,18 +665,17 @@ spec:
       multiCluster:
         clusterName: cluster1
       network: network1
-      meshNetworks:
-        network1:
-          endpoints:
-          - fromRegistry: cluster1
-          gateways:
-          - registryServiceName: istio-ingressgateway.istio-system.svc.cluster.local
-            port: 443
-        vm-network:
   components:
     cni:
       enabled: true
       namespace: kube-system
+      k8s:
+        overlays:
+          - kind: DaemonSet
+            name: istio-cni-node
+            patches:
+              - path: spec.template.spec.containers[0].securityContext.privileged
+                value: true
     ingressGateways:
     - name: istio-ingressgateway
       label:
@@ -707,7 +714,6 @@ spec:
         env:
           - name: PILOT_SKIP_VALIDATE_TRUST_DOMAIN
             value: "true"
-
 EOF
 ```
 
@@ -719,7 +725,7 @@ oc --context ${CLUSTER2} adm policy add-scc-to-group anyuid system:serviceaccoun
 
 
 kubectl --context ${CLUSTER2} create ns istio-system
-cat << EOF | ./istio-1.11.4/bin/istioctl --context ${CLUSTER2} install -y -f -
+cat << EOF | ./istio-1.11.5/bin/istioctl --context ${CLUSTER2} install -y -f -
 apiVersion: install.istio.io/v1alpha1
 kind: IstioOperator
 metadata:
@@ -759,18 +765,17 @@ spec:
       multiCluster:
         clusterName: cluster2
       network: network1
-      meshNetworks:
-        network1:
-          endpoints:
-          - fromRegistry: cluster2
-          gateways:
-          - registryServiceName: istio-ingressgateway.istio-system.svc.cluster.local
-            port: 443
-        vm-network:
   components:
     cni:
       enabled: true
       namespace: kube-system
+      k8s:
+        overlays:
+          - kind: DaemonSet
+            name: istio-cni-node
+            patches:
+              - path: spec.template.spec.containers[0].securityContext.privileged
+                value: true
     ingressGateways:
     - name: istio-ingressgateway
       label:
@@ -809,7 +814,6 @@ spec:
         env:
           - name: PILOT_SKIP_VALIDATE_TRUST_DOMAIN
             value: "true"
-
 EOF
 ```
 
@@ -819,6 +823,15 @@ const chaiExec = require("@jsdevtools/chai-exec");
 var chai = require('chai');
 var expect = chai.expect;
 chai.use(chaiExec);
+
+afterEach(function (done) {
+  if (this.currentTest.currentRetry() > 0) {
+    process.stdout.write(".");
+    setTimeout(done, 1000);
+  } else {
+    done();
+  }
+});
 
 describe("Istio installation", function() {
   it('Istiod is deployed in the clusters ' + process.env.CLUSTER1, function () {
@@ -855,25 +868,10 @@ describe("Istio installation", function() {
     expect(count).greaterThan(0);
     expect(cli).output.to.not.contain("false");
   })
-
-  describe("Ingress gateway has an ip attached in cluster: " + process.env.CLUSTER1, () => {
-    it("A value for load-balancing has been assigned", () => {
-      let cli = chaiExec("kubectl --context " + process.env.CLUSTER1 + " -n istio-system get svc istio-ingressgateway  -o jsonpath='{.status.loadBalancer}'");
-      expect(cli).to.exit.with.code(0);
-      expect(cli).output.to.contain('"ingress"');
-    });
-  });
-
-  describe("Ingress gateway has an ip attached in cluster: " + process.env.CLUSTER2, () => {
-    it("A value for load-balancing has been assigned", () => {
-      let cli = chaiExec("kubectl --context " + process.env.CLUSTER2 + " -n istio-system get svc istio-ingressgateway  -o jsonpath='{.status.loadBalancer}'");
-      expect(cli).to.exit.with.code(0);
-      expect(cli).output.to.contain('"ingress"');
-    });
-  });
 });
 EOF
-mocha ./test.js --retries=500 2> /dev/null
+echo "executing test gloo-mesh/templates/steps/deploy-istio/tests/istio-ready.test.js.liquid"
+mocha ./test.js --retries=50 --bail 2> /dev/null || exit 1
 -->
 
 Run the following command until all the Istio Pods are ready:
@@ -895,10 +893,14 @@ Check the status on the second cluster using
 ```bash
 kubectl --context ${CLUSTER2} get pods -n istio-system
 ```
-Expose an OpenShift route for the ingress gateway on each cluster:
+Expose an OpenShift route for the ingress gateway on the first cluster:
 
 ```bash
 oc --context ${CLUSTER1} -n istio-system expose svc/istio-ingressgateway --port=http2
+```
+Expose an OpenShift route for the ingress gateway on the second cluster:
+
+```bash
 oc --context ${CLUSTER2} -n istio-system expose svc/istio-ingressgateway --port=http2
 ```
 
@@ -940,7 +942,8 @@ describe("Address '" + process.env.HOST_GW_CLUSTER1 + "' can be resolved in DNS"
     });
 });
 EOF
-mocha ./test.js --retries=500 2> /dev/null
+echo "executing test ./gloo-mesh/tests/can-resolve.test.js.liquid"
+mocha ./test.js --retries=50 --bail 2> /dev/null || exit 1
 -->
 
 
@@ -963,14 +966,14 @@ metadata:
 EOF
 
 
-bookinfo_yaml=https://raw.githubusercontent.com/istio/istio/1.11.4/samples/bookinfo/platform/kube/bookinfo.yaml
+bookinfo_yaml=https://raw.githubusercontent.com/istio/istio/1.11.5/samples/bookinfo/platform/kube/bookinfo.yaml
 kubectl --context ${CLUSTER1} label namespace default istio-injection=enabled
 # deploy bookinfo application components for all versions less than v3
 kubectl --context ${CLUSTER1} apply -f ${bookinfo_yaml} -l 'app,version notin (v3)'
 # deploy all bookinfo service accounts
 kubectl --context ${CLUSTER1} apply -f ${bookinfo_yaml} -l 'account'
 # configure ingress gateway to access bookinfo
-kubectl --context ${CLUSTER1} apply -f https://raw.githubusercontent.com/istio/istio/1.11.4/samples/bookinfo/networking/bookinfo-gateway.yaml
+kubectl --context ${CLUSTER1} apply -f https://raw.githubusercontent.com/istio/istio/1.11.5/samples/bookinfo/networking/bookinfo-gateway.yaml
 ```
 
 You can check that the app is running using
@@ -1002,11 +1005,13 @@ metadata:
   name: istio-cni
 EOF
 
+
+bookinfo_yaml=https://raw.githubusercontent.com/istio/istio/1.11.5/samples/bookinfo/platform/kube/bookinfo.yaml
 kubectl --context ${CLUSTER2} label namespace default istio-injection=enabled
 # deploy all bookinfo service accounts and application components for all versions
 kubectl --context ${CLUSTER2} apply -f ${bookinfo_yaml}
 # configure ingress gateway to access bookinfo
-kubectl --context ${CLUSTER2} apply -f https://raw.githubusercontent.com/istio/istio/1.11.4/samples/bookinfo/networking/bookinfo-gateway.yaml
+kubectl --context ${CLUSTER2} apply -f https://raw.githubusercontent.com/istio/istio/1.11.5/samples/bookinfo/networking/bookinfo-gateway.yaml
 ```
 
 You can check that the app is running using:
@@ -1067,7 +1072,8 @@ describe("Bookinfo app", () => {
   });
 });
 EOF
-mocha ./test.js --retries=500 2> /dev/null
+echo "executing test gloo-mesh/templates/steps/apps/bookinfo/deploy-bookinfo/tests/check-bookinfo.test.js.liquid"
+mocha ./test.js --retries=50 --bail 2> /dev/null || exit 1
 -->
 
 
@@ -1090,6 +1096,15 @@ var chai = require('chai');
 var expect = chai.expect;
 chai.use(chaiExec);
 
+afterEach(function (done) {
+  if (this.currentTest.currentRetry() > 0) {
+    process.stdout.write(".");
+    setTimeout(done, 1000);
+  } else {
+    done();
+  }
+});
+
 var expectedOutput = "No client certificate CA names sent";
 
 describe("No certificate has been issued", () => {
@@ -1109,7 +1124,8 @@ describe("No certificate has been issued", () => {
   });
 });
 EOF
-mocha ./test.js --retries=500 2> /dev/null
+echo "executing test gloo-mesh/templates/steps/create-virtual-mesh/tests/no-certificate-issued.test.js.liquid"
+mocha ./test.js --retries=50 --bail 2> /dev/null || exit 1
 -->
 
 You should get something like that:
@@ -1233,6 +1249,15 @@ var chai = require('chai');
 var expect = chai.expect;
 chai.use(chaiExec);
 
+afterEach(function (done) {
+  if (this.currentTest.currentRetry() > 0) {
+    process.stdout.write(".");
+    setTimeout(done, 1000);
+  } else {
+    done();
+  }
+});
+
 describe("Certificate issued by Istio", () => {
   var cluster1Name = "cluster1";
   var cluster2Name = "cluster2";
@@ -1252,7 +1277,8 @@ describe("Certificate issued by Istio", () => {
   });
 });
 EOF
-mocha ./test.js --retries=500 2> /dev/null
+echo "executing test gloo-mesh/templates/steps/create-virtual-mesh/tests/certificate-issued-by-istio.test.js.liquid"
+mocha ./test.js --retries=50 --bail 2> /dev/null || exit 1
 -->
 
 The first certificate in the chain is the certificate of the workload and the second one is the Istio CA’s signing (CA) certificate.
@@ -1479,6 +1505,15 @@ var chai = require('chai');
 var expect = chai.expect;
 chai.use(chaiExec);
 
+afterEach(function (done) {
+  if (this.currentTest.currentRetry() > 0) {
+    process.stdout.write(".");
+    setTimeout(done, 1000);
+  } else {
+    done();
+  }
+});
+
 describe("Certificate issued by Gloo Mesh", () => {
   var expectedOutput = "i:O = gloo-mesh";
   
@@ -1497,7 +1532,8 @@ describe("Certificate issued by Gloo Mesh", () => {
   });
 });
 EOF
-mocha ./test.js --retries=500 2> /dev/null
+echo "executing test gloo-mesh/templates/steps/create-virtual-mesh/tests/certificate-issued-by-gloo-mesh.test.js.liquid"
+mocha ./test.js --retries=50 --bail 2> /dev/null || exit 1
 -->
 
 You can see that the last certificate in the chain is now identical on both clusters. It's the new root certificate.
@@ -1559,6 +1595,19 @@ while ! kubectl --context ${CLUSTER2} -n istio-system get deploy/istio-ingressga
 kubectl --context ${CLUSTER1} -n istio-system rollout status deploy/istio-ingressgateway
 kubectl --context ${CLUSTER2} -n istio-system rollout status deploy/istio-ingressgateway
 -->
+<!--bash
+kubectl --context ${CLUSTER1} rollout status deploy/productpage-v1
+kubectl --context ${CLUSTER1} rollout status deploy/details-v1
+kubectl --context ${CLUSTER1} rollout status deploy/ratings-v1
+kubectl --context ${CLUSTER1} rollout status deploy/reviews-v1
+kubectl --context ${CLUSTER1} rollout status deploy/reviews-v2
+kubectl --context ${CLUSTER2} rollout status deploy/productpage-v1
+kubectl --context ${CLUSTER2} rollout status deploy/details-v1
+kubectl --context ${CLUSTER2} rollout status deploy/ratings-v1
+kubectl --context ${CLUSTER2} rollout status deploy/reviews-v1
+kubectl --context ${CLUSTER2} rollout status deploy/reviews-v2
+kubectl --context ${CLUSTER2} rollout status deploy/reviews-v3
+-->
 
 
 
@@ -1595,7 +1644,18 @@ spec:
     namespace: gloo-mesh
 EOF
 ```
+<!--bash
+cat <<'EOF' > ./test.js
+const helpers = require('./tests/chai-exec');
 
+describe("VirtualMesh globalAccesPolicy is enabled", () => {
+    it("VirtualMesh globalAccesPolicy is enabled in " + process.env.MGMT, () => helpers.genericCommand({ responseContains:"ENABLED", command: "kubectl --context " + process.env.MGMT + " get virtualmesh virtual-mesh -ojsonpath='{.spec.globalAccessPolicy}' -n gloo-mesh" }));
+});
+
+EOF
+echo "executing test gloo-mesh/templates/steps/apps/bookinfo/access-control/tests/virtualmesh-accesspolicy-enabled.test.js.liquid"
+mocha ./test.js --retries=50 --bail 2> /dev/null || exit 1
+-->
 <!--bash
 cat <<'EOF' > ./test.js
 const helpers = require('./tests/chai-http');
@@ -1605,7 +1665,8 @@ describe("Access should be denied with 403 code", () => {
   it('Waiting for error code 403 in cluster2', () => helpers.checkURL({ host: 'http://' + process.env.ENDPOINT_HTTP_GW_CLUSTER1, path: '/productpage', retCode: 403 }));
 })
 EOF
-mocha ./test.js --retries=500 2> /dev/null
+echo "executing test gloo-mesh/templates/steps/apps/bookinfo/access-control/tests/access-denied.test.js.liquid"
+mocha ./test.js --retries=50 --bail 2> /dev/null || exit 1
 -->
 After a few seconds, if you refresh the web page, you should see that you don't have access to the application anymore.
 
@@ -1652,7 +1713,8 @@ describe("Only productpage should be accessible. Details and Reviews should not"
 })
 
 EOF
-mocha ./test.js --retries=500 2> /dev/null
+echo "executing test gloo-mesh/templates/steps/apps/bookinfo/access-control/tests/access-policy-details-and-reviews-not-allowed.test.js.liquid"
+mocha ./test.js --retries=50 --bail 2> /dev/null || exit 1
 -->
 Now, refresh the page again and you should be able to access the application, but neither the `details` nor the `reviews`:
 ![Bookinfo RBAC 1](images/steps/access-control/bookinfo-rbac1.png)
@@ -1698,7 +1760,8 @@ describe("Reviews and details should be accessible, but ratings shouldn't", () =
 })
 
 EOF
-mocha ./test.js --retries=500 2> /dev/null
+echo "executing test gloo-mesh/templates/steps/apps/bookinfo/access-control/tests/access-policy-ratings-not-allowed.test.js.liquid"
+mocha ./test.js --retries=50 --bail 2> /dev/null || exit 1
 -->
 
 If you refresh the page, you should be able to see the product `details` and the `reviews`, but the `reviews` microservice can't access the `ratings` microservice:
@@ -1741,7 +1804,8 @@ describe("All the services should work", () => {
 })
 
 EOF
-mocha ./test.js --retries=500 2> /dev/null
+echo "executing test gloo-mesh/templates/steps/apps/bookinfo/access-control/tests/access-policy-all-allowed.test.js.liquid"
+mocha ./test.js --retries=50 --bail 2> /dev/null || exit 1
 -->
 Refresh the page another time and all the services should now work:
 
@@ -1825,6 +1889,15 @@ var expect = chai.expect;
 const chaiHttp = require("chai-http");
 chai.use(chaiHttp);
 
+afterEach(function (done) {
+  if (this.currentTest.currentRetry() > 0) {
+    process.stdout.write(".");
+    setTimeout(done, 1000);
+  } else {
+    done();
+  }
+});
+
 let searchTest="Sorry, product reviews are currently unavailable for this book.";
 
 describe("Reviews shouldn't be available", () => {
@@ -1840,7 +1913,8 @@ describe("Reviews shouldn't be available", () => {
 });
 
 EOF
-mocha ./test.js --retries=500 2> /dev/null
+echo "executing test gloo-mesh/templates/steps/apps/bookinfo/traffic-policy/tests/traffic-policy-reviews-unavailable.test.js.liquid"
+mocha ./test.js --retries=50 --bail 2> /dev/null || exit 1
 -->
 
 If you refresh the page several times, you'll see an error message telling that reviews are unavailable when the productpage is trying to communicate with the version `v2` of the `reviews` service.
@@ -1917,6 +1991,15 @@ var chai = require('chai');
 var expect = chai.expect;
 chai.use(chaiExec);
 
+afterEach(function (done) {
+  if (this.currentTest.currentRetry() > 0) {
+    process.stdout.write(".");
+    setTimeout(done, 1000);
+  } else {
+    done();
+  }
+});
+
 describe("Reviews v3 is reachable but not rating", function() {
   it('Got reviews v3 from cluster2 but not ratings', () => {
     expect(process.env.ENDPOINT_HTTP_GW_CLUSTER1).to.not.be.empty;
@@ -1927,7 +2010,8 @@ describe("Reviews v3 is reachable but not rating", function() {
   })
 });
 EOF
-mocha ./test.js --retries=500 2> /dev/null
+echo "executing test gloo-mesh/templates/steps/apps/bookinfo/multicluster-traffic/tests/reviews-v3-but-no-ratings.test.js.liquid"
+mocha ./test.js --retries=50 --bail 2> /dev/null || exit 1
 -->
 
 If you refresh the page several times, you'll see the `v3` version of the `reviews` microservice:
@@ -1971,6 +2055,15 @@ var chai = require('chai');
 var expect = chai.expect;
 chai.use(chaiExec);
 
+afterEach(function (done) {
+  if (this.currentTest.currentRetry() > 0) {
+    process.stdout.write(".");
+    setTimeout(done, 1000);
+  } else {
+    done();
+  }
+});
+
 describe("Reviews v3 from cluster2 with ratings", function() {
   it('Got reviews v3 from cluster2 with ratings', function () {
     expect(process.env.ENDPOINT_HTTP_GW_CLUSTER1).to.not.be.empty
@@ -1981,7 +2074,8 @@ describe("Reviews v3 from cluster2 with ratings", function() {
   })
 });
 EOF
-mocha ./test.js --retries=500 2> /dev/null
+echo "executing test gloo-mesh/templates/steps/apps/bookinfo/multicluster-traffic/tests/reviews-v3-and-ratings.test.js.liquid"
+mocha ./test.js --retries=50 --bail 2> /dev/null || exit 1
 -->
 
 If you refresh the page several times again, you'll see the `v3` version of the `reviews` microservice with the red stars:
@@ -2080,6 +2174,15 @@ const helpersHttp = require('./tests/chai-http');
 const chai = require("chai");
 const expect = chai.expect;
 
+afterEach(function (done) {
+  if (this.currentTest.currentRetry() > 0) {
+    process.stdout.write(".");
+    setTimeout(done, 1000);
+  } else {
+    done();
+  }
+});
+
 describe("Access reviews from cluster2 since the ones from cluster1 are in sleep mode", () => {
   const _getJSONAppReviews = () => {
     let command = "kubectl --context " + process.env.CLUSTER1 + " get pods -l app=reviews -o json";
@@ -2114,7 +2217,8 @@ describe("Reviews service is still available", () => {
 })
 
 EOF
-mocha ./test.js --retries=500 2> /dev/null
+echo "executing test gloo-mesh/templates/steps/apps/bookinfo/traffic-failover/tests/reviews-from-cluster2.test.js.liquid"
+mocha ./test.js --retries=50 --bail 2> /dev/null || exit 1
 -->
 
 If you refresh the web page several times again, you should still see the `reviews` displayed while there's no `reviews` service available anymore on the first cluster.
@@ -2223,7 +2327,8 @@ describe("AccessLogRecord is created", () => {
     it("Accesslogrecord has been created in " + process.env.MGMT, () => helpers.genericCommand({ command: "kubectl --context " + process.env.MGMT + " get accesslogrecord access-log-reviews -n gloo-mesh" }));
 });
 EOF
-mocha ./test.js --retries=500 2> /dev/null
+echo "executing test gloo-mesh/templates/steps/apps/bookinfo/observability/tests/waiting-for-accesslogrecord.test.js.liquid"
+mocha ./test.js --retries=50 --bail 2> /dev/null || exit 1
 -->
 
 You can see the access logs in the web interface or using `meshctl`.
@@ -2244,9 +2349,9 @@ Install or upgrade the accesslog meshctl plugin:
 
 ```bash
 if meshctl accesslog --help; then
-  meshctl plugin upgrade accesslog@v1.2.3
+  meshctl plugin upgrade accesslog@v1.2.7
 else
-  meshctl plugin install accesslog@v1.2.3
+  meshctl plugin install accesslog@v1.2.7
 fi
 ```
 
@@ -2268,6 +2373,15 @@ const chaiExec = require("@jsdevtools/chai-exec");
 var chai = require('chai');
 var expect = chai.expect;
 chai.use(chaiExec);
+
+afterEach(function (done) {
+  if (this.currentTest.currentRetry() > 0) {
+    process.stdout.write(".");
+    setTimeout(done, 1000);
+  } else {
+    done();
+  }
+});
 
 const search1 = "httpAccessLog";
 const search2 = "workloadRef";
@@ -2293,7 +2407,8 @@ describe("Check access logs", function() {
 })
 
 EOF
-mocha ./test.js --retries=500 2> /dev/null
+echo "executing test gloo-mesh/templates/steps/apps/bookinfo/observability/tests/check-logs.test.js.liquid"
+mocha ./test.js --retries=50 --bail 2> /dev/null || exit 1
 -->
 
 You should get an output similar to the following one:
@@ -2564,7 +2679,8 @@ describe("Keycloak", () => {
   it('keycloak pods are ready in cluster1', () => helpers.checkDeployment({ context: process.env.CLUSTER1, namespace: "keycloak", k8sObj: "keycloak" }));
 });
 EOF
-mocha ./test.js --retries=500 2> /dev/null
+echo "executing test gloo-mesh/templates/steps/deploy-keycloak/tests/pods-available.test.js.liquid"
+mocha ./test.js --retries=50 --bail 2> /dev/null || exit 1
 -->
 
 <!--bash
@@ -2574,6 +2690,15 @@ var chai = require('chai');
 var expect = chai.expect;
 chai.use(chaiExec);
 
+afterEach(function (done) {
+  if (this.currentTest.currentRetry() > 0) {
+    process.stdout.write(".");
+    setTimeout(done, 1000);
+  } else {
+    done();
+  }
+});
+
 describe("Retrieve enterprise-networking ip", () => {
   it("A value for load-balancing has been assigned", () => {
     let cli = chaiExec("kubectl --context " + process.env.CLUSTER1 + " -n keycloak get svc keycloak -o jsonpath='{.status.loadBalancer}'");
@@ -2582,7 +2707,8 @@ describe("Retrieve enterprise-networking ip", () => {
   });
 });
 EOF
-mocha ./test.js --retries=500 2> /dev/null
+echo "executing test gloo-mesh/templates/steps/deploy-keycloak/tests/keycloak-ip-is-attached.test.js.liquid"
+mocha ./test.js --retries=50 --bail 2> /dev/null || exit 1
 -->
 
 Then, we will configure it and create two users:
@@ -2623,7 +2749,8 @@ describe("Address '" + process.env.HOST_KEYCLOAK + "' can be resolved in DNS", (
     });
 });
 EOF
-mocha ./test.js --retries=500 2> /dev/null
+echo "executing test ./gloo-mesh/tests/can-resolve.test.js.liquid"
+mocha ./test.js --retries=50 --bail 2> /dev/null || exit 1
 -->
 
 After that, we configure Keycloak:
@@ -2664,8 +2791,8 @@ In this step, we're going to expose the `productpage` through a Gateway using Gl
 First of all, let's delete the Istio `VirtualService` and `Gateway` objects we've created when we deployed the `bookinfo` application:
 
 ```bash
-kubectl --context ${CLUSTER1} delete -f https://raw.githubusercontent.com/istio/istio/1.11.4/samples/bookinfo/networking/bookinfo-gateway.yaml
-kubectl --context ${CLUSTER2} delete -f https://raw.githubusercontent.com/istio/istio/1.11.4/samples/bookinfo/networking/bookinfo-gateway.yaml
+kubectl --context ${CLUSTER1} delete -f https://raw.githubusercontent.com/istio/istio/1.11.5/samples/bookinfo/networking/bookinfo-gateway.yaml
+kubectl --context ${CLUSTER2} delete -f https://raw.githubusercontent.com/istio/istio/1.11.5/samples/bookinfo/networking/bookinfo-gateway.yaml
 ```
 
 Then, we need to create a Gloo Mesh `VirtualGateway`.
@@ -2770,7 +2897,8 @@ describe("Productpage is available (plain http)", () => {
   it('/productpage is available in cluster1', () => helpers.checkURL({ host: 'http://' + process.env.ENDPOINT_HTTP_GW_CLUSTER1, path: '/productpage', retCode: 200 }));
 })
 EOF
-mocha ./test.js --retries=500 2> /dev/null
+echo "executing test gloo-mesh/templates/steps/apps/bookinfo/gateway-expose/tests/productpage-available.test.js.liquid"
+mocha ./test.js --retries=50 --bail 2> /dev/null || exit 1
 -->
 
 Now, let's secure the access through TLS.
@@ -2831,8 +2959,6 @@ spec:
         - istio-system
 EOF
 ```
-
-
 Get the URL to securely access the `productpage` service from your web browser using the following command:
 ```
 echo "https://${ENDPOINT_HTTPS_GW_CLUSTER1}/productpage"
@@ -2853,7 +2979,8 @@ describe("Productpage is available (SSL)", () => {
   it('/productpage is available in cluster2', () => helpers.checkURL({ host: 'https://' + process.env.ENDPOINT_HTTPS_GW_CLUSTER1, path: '/productpage', retCode: 200 }));
 })
 EOF
-mocha ./test.js --retries=500 2> /dev/null
+echo "executing test gloo-mesh/templates/steps/apps/bookinfo/gateway-expose/tests/productpage-available-secure.test.js.liquid"
+mocha ./test.js --retries=50 --bail 2> /dev/null || exit 1
 -->
 
 
@@ -3003,7 +3130,8 @@ describe("Should get reviews v3 from cluster2", () => {
 })
 
 EOF
-mocha ./test.js --retries=500 2> /dev/null
+echo "executing test gloo-mesh/templates/steps/apps/bookinfo/gateway-multicluster-traffic/tests/reviews-v3.test.js.liquid"
+mocha ./test.js --retries=50 --bail 2> /dev/null || exit 1
 -->
 
 Now, run the following command:
@@ -3200,6 +3328,15 @@ const helpersHttp = require('./tests/chai-http');
 const chai = require("chai");
 const expect = chai.expect;
 
+afterEach(function (done) {
+  if (this.currentTest.currentRetry() > 0) {
+    process.stdout.write(".");
+    setTimeout(done, 1000);
+  } else {
+    done();
+  }
+});
+
 describe("Access reviews from cluster2 since the ones from cluster1 are in sleep mode", () => {
   const _getJSONAppReviews = () => {
     let command = "kubectl --context " + process.env.CLUSTER1 + " get pods -l app=reviews -o json";
@@ -3233,7 +3370,8 @@ describe("Reviews service is still available", () => {
   it('Waiting for response code 200', () => helpersHttp.checkURL({ host: 'https://' + process.env.ENDPOINT_HTTPS_GW_CLUSTER1, path: '/reviews/0', retCode: 200 }));
 })
 EOF
-mocha ./test.js --retries=500 2> /dev/null
+echo "executing test gloo-mesh/templates/steps/apps/bookinfo/gateway-traffic-failover/tests/reviews-v3.test.js.liquid"
+mocha ./test.js --retries=50 --bail 2> /dev/null || exit 1
 -->
 
 If you run the curl command again several times again, you should start to see responses from `v3`:
@@ -3386,7 +3524,8 @@ describe("Access should be rate limited", () => {
   it('Waiting for error code 429 in cluster1', () => helpers.checkURL({ host: 'https://' + process.env.ENDPOINT_HTTPS_GW_CLUSTER1, path: '/productpage', headers: headers, retCode: 429 }));
 })
 EOF
-mocha ./test.js --retries=500 2> /dev/null
+echo "executing test gloo-mesh/templates/steps/apps/bookinfo/gateway-ratelimiting/tests/rate-limited.test.js.liquid"
+mocha ./test.js --retries=50 --bail 2> /dev/null || exit 1
 -->
 
 You should get a `200` response code the first time and a `429` response code after.
@@ -3524,7 +3663,8 @@ describe("Verify Authentication", () => {
   it('Bookinfo returns 302 redirecting to Auth server', () => helpers.checkURL({ host: 'https://' + process.env.ENDPOINT_HTTPS_GW_CLUSTER1, path: '/productpage', retCode: 302 }));
 })
 EOF
-mocha ./test.js --retries=500 2> /dev/null
+echo "executing test gloo-mesh/templates/steps/apps/bookinfo/gateway-extauth-oauth/tests/authentication-required.test.js.liquid"
+mocha ./test.js --retries=50 --bail 2> /dev/null || exit 1
 -->
 If you refresh the web browser, you will be redirected to the authentication page.
 

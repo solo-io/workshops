@@ -3,6 +3,15 @@ var expect = chai.expect;
 const chaiHttp = require("chai-http");
 chai.use(chaiHttp);
 
+afterEach(function (done) {
+  if (this.currentTest.currentRetry() > 0) {
+    process.stdout.write(".");
+    setTimeout(done, 1000);
+  } else {
+    done();
+  }
+});
+
 let searchTest="Sorry, product reviews are currently unavailable for this book.";
 
 describe("Reviews shouldn't be available", () => {
