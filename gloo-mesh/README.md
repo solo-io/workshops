@@ -402,10 +402,8 @@ kubectl --context ${MGMT} create ns gloo-mesh
 helm upgrade --install gloo-mesh-enterprise gloo-mesh-enterprise/gloo-mesh-enterprise \
 --namespace gloo-mesh --kube-context ${MGMT} \
 --version=1.2.7 \
---set rbac-webhook.enabled=true \
---set licenseKey=${GLOO_MESH_LICENSE_KEY} \
---set "rbac-webhook.adminSubjects[0].kind=Group" \
---set "rbac-webhook.adminSubjects[0].name=system:masters"
+--set rbac-webhook.enabled=false \
+--set licenseKey=${GLOO_MESH_LICENSE_KEY}
 kubectl --context ${MGMT} -n gloo-mesh rollout status deploy/enterprise-networking
 ```
 
