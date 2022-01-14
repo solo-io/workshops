@@ -1,8 +1,0 @@
-const helpers = require('./tests/chai-exec');
-
-describe("Bumblebee is running", () => {
-  const daemonsets = ["bumblebee"];
-  daemonsets.forEach(daemonset => {
-    it(daemonset + ' pods are ready', () => helpers.checkDaemonSet({ context: "ebpf", namespace: "default", k8sObj: daemonset }));
-  });
-});
