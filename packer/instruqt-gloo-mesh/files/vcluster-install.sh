@@ -41,17 +41,23 @@ EOF
 helm install metallb metallb/metallb --version=0.11.0 -f /tmp/metallb-values.yaml
 
 # Create vclusters and add kubeconfigs
+cat <<EOF > /tmp/vcluster.yaml
+vcluster:
+  image: "rancher/$(echo $K3S_VERSION|sed 's/+/-/g')"
+EOF
+cat /tmp/vcluster.yaml
 clusters=( mesh-2 mesh-3 mesh-1 )
 for cluster in ${clusters[@]}; do
+  echo "vcluster create $cluster -n $cluster --expose -f /tmp/vcluster.yaml"
   vcluster create $cluster -n $cluster --expose
   # wait until IP is attached
   until [ "$SVC" != "" ]; do  SVC=$(kubectl -n $cluster get svc $cluster -o jsonpath='{.status.loadBalancer.ingress[0].*}'); echo "wait"; sleep 1; done
+  kubectl wait --for=condition=Ready pod/${cluster}-0 -n ${cluster} --context default
   vcluster connect $cluster -n $cluster --update-current
+  kubectl get po -n $cluster --context default
 done
 
-# Give some time for the nodes to be available
-sleep 5
-
+kubectl config get-contexts
 kubectl --context=vcluster_mesh-2_mesh-2 label node kubernetes ingress-ready=true topology.kubernetes.io/region=us-west topology.kubernetes.io/zone=us-west-1
 kubectl --context=vcluster_mesh-3_mesh-3 label node kubernetes ingress-ready=true topology.kubernetes.io/region=us-west topology.kubernetes.io/zone=us-west-2
 

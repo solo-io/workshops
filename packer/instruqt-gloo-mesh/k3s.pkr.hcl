@@ -9,7 +9,7 @@ packer {
 
 variable "k3s_version" {
   type    = string
-  default = "v1.21.8+k3s1"
+  default = "v1.22.5+k3s2"
 }
 
 variable "gloo_version" {
@@ -19,12 +19,12 @@ variable "gloo_version" {
 
 variable "istio_version" {
   type    = string
-  default = "1.11.5"
+  default = "1.12.2"
 }
 
 variable "vcluster_version" {
   type    = string
-  default = "v0.5.2"
+  default = "v0.5.3"
 }
 
 source "googlecompute" "k3s" {
@@ -105,7 +105,8 @@ build {
     provisioner "shell" {
         script = "files/vcluster-install.sh"
         environment_vars = [
-            "VCLUSTER_VERSION=${ var.vcluster_version }"
+            "VCLUSTER_VERSION=${ var.vcluster_version }",
+            "K3S_VERSION=${ var.k3s_version }"
         ]
     }
 }
