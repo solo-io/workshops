@@ -42,7 +42,7 @@ if [ -n "$K3S_CONTROL_PLANE_HOSTNAME" ]; then
 mirrors:
   docker.io:
     endpoint:
-      - "http://kubernetes:5000"
+      - "http://${K3S_CONTROL_PLANE_HOSTNAME}:5000"
 EOF
     /usr/local/bin/k3s agent
 fi
