@@ -2,7 +2,7 @@
 
 #create the registry
 docker run \
-    -d --restart=always -p "127.0.0.1:5000:5000" --name "kind-registry" \
+    -d --restart=always -p 5000:5000 --name registry \
     registry:2
 
 #use it to keep the k3s images

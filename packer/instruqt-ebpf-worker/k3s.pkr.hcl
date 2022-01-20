@@ -9,7 +9,7 @@ packer {
 
 variable "k3s_version" {
   type    = string
-  default = "v1.21.8+k3s1"
+  default = "v1.23.1+k3s1"
 }
 
 source "googlecompute" "k3s" {

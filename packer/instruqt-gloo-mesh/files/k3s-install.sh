@@ -39,6 +39,10 @@ if [ "$K3S_VERSION" != "latest" ]; then
     export INSTALL_K3S_VERSION=$K3S_VERSION
 fi
 
+mkdir -p /var/lib/rancher/k3s/server/manifests
+touch /var/lib/rancher/k3s/server/manifests/traefik.yaml.skip
+touch /var/lib/rancher/k3s/server/manifests/servicelb.yaml.skip
+
 export INSTALL_K3S_SKIP_START=true
 curl -sfL https://get.k3s.io | sh -
 
