@@ -10,7 +10,8 @@ done
 K3S_CMD=agent
 K3S_NODE_NAME=$(hostname)
 export K3S_NODE_NAME
-K3S_CONTROL_PLANE_HOSTNAME=kubernetes
+. /etc/profile.d/instruqt-env.sh
+K3S_CONTROL_PLANE_HOSTNAME="${K3S_CONTROL_PLANE_HOSTNAME:-kubernetes}"
 if [ -n "$K3S_CONTROL_PLANE_HOSTNAME" ]; then
     # Try to fetch node-token from control plane server
     RETRIES=300
@@ -36,5 +37,12 @@ if [ -n "$K3S_CONTROL_PLANE_HOSTNAME" ]; then
     K3S_CONTROL_PLANE_IP=$(host "$K3S_CONTROL_PLANE_HOSTNAME" | grep ' has address ' | awk '{print $NF}')
     K3S_URL="https://${K3S_CONTROL_PLANE_IP}:6443/"
     export K3S_URL
+    mkdir -p /etc/rancher/k3s
+    cat <<EOF > /etc/rancher/k3s/registries.yaml
+mirrors:
+  docker.io:
+    endpoint:
+      - "http://${K3S_CONTROL_PLANE_HOSTNAME}:5000"
+EOF
     /usr/local/bin/k3s agent
 fi

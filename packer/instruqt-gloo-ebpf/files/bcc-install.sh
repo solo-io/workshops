@@ -12,3 +12,6 @@ pushd src/python/
 make
 sudo make install
 popd
+
+apt install clang -y
+ln -s /usr/bin/llvm-strip-12 /usr/bin/llvm-strip

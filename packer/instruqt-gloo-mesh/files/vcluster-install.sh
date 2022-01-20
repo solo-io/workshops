@@ -1,6 +1,4 @@
 #!/bin/bash
-mkdir -p /var/lib/rancher/k3s/server/manifests
-touch /var/lib/rancher/k3s/server/manifests/traefik.yaml.skip
 export K3S_NODE_NAME=kubernetes
 systemctl daemon-reload
 systemctl start k3s

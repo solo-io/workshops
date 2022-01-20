@@ -9,22 +9,22 @@ packer {
 
 variable "k3s_version" {
   type    = string
-  default = "v1.19.15+k3s2"
+  default = "v1.21.8+k3s1"
 }
 
 variable "gloo_version" {
   type    = string
-  default = "1.2.2"
+  default = "1.2.9"
 }
 
 variable "istio_version" {
   type    = string
-  default = "1.11.4"
+  default = "1.11.5"
 }
 
 variable "vcluster_version" {
   type    = string
-  default = "v0.4.3"
+  default = "v0.5.2"
 }
 
 source "googlecompute" "k3s" {
@@ -43,10 +43,11 @@ source "googlecompute" "k3s" {
     enable-oslogin = "FALSE"
   }
 
-  source_image_family = "ubuntu-2004-lts"
+  source_image_family = "ubuntu-2104"
 
   machine_type = "n1-standard-8"
   disk_size    = 20
+  disk_type    = "pd-balanced"
 
   ssh_username = "root"
 
