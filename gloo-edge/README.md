@@ -1364,7 +1364,7 @@ For this we got to use Staged Transformers and the transformation MUST occur aft
 
 The diagram below shows the order in which filters are applied to a request. 
 
-![Order of filters applied to a request](images/6.order-of-filters.png)
+![Order of filters applied to a request](images/order-of-filters.png)
 
 So in order for us to extract the organization from the email header. We have to use the "Regular Transformations" as shown in the image. The regular transofmrations are executed after the JWT stage (as shown in the image). 
 
