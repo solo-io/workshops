@@ -1,9 +1,0 @@
-const helpers = require('./tests/chai-http');
-
-describe("Productpage is available (plain http)", () => {
-  it('/productpage is available', () => helpers.checkURL({ host: 'http://' + process.env.ENDPOINT, path: '/productpage', retCode: 200 }));
-})
-
-describe("Productpage is available (plain http)", () => {
-  it('/not-secured/get is available', () => helpers.checkURL({ host: 'http://' + process.env.ENDPOINT, path: '/not-secured/get', retCode: 200 }));
-})

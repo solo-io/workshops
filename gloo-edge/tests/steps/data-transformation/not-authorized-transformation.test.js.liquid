@@ -1,6 +1,0 @@
-const helpers = require('./tests/chai-http');
-
-describe("httpbin should return the expected body", () => {
-  it('httpbin returns the transformed body when the status is 401', () => helpers.checkBody({ host: process.env.APP_URL, path: '/not-secured/status/401', body: 'Hold the horses! You are not authenticated', match: true }));
-  it('httpbin returns the transformed body when the status is 200', () => helpers.checkBody({ host: process.env.APP_URL, path: '/not-secured/status/200', body: 'Hold the horses! You are not authenticated', match: false }));
-})

@@ -1,5 +1,0 @@
-const helpers = require('./tests/chai-http');
-
-describe("Anonymous user is rate limited", () => {
-  it('/not-secured/get is rate limited', () => helpers.checkURL({ host: process.env.APP_URL, path: '/not-secured/get', retCode: 429 }));
-})
