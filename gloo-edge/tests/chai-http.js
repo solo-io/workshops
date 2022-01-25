@@ -7,7 +7,7 @@ const utils = require('./utils');
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 
 global = {
-  checkURL: ({ host, path, headers = [], retCode }) => {
+  checkURL: ({ host, path = "", headers = [], retCode }) => {
     let request = chai.request(host).head(path).redirects(0);
     headers.forEach(header => request.set(header.key, header.value));
     return request
@@ -16,7 +16,7 @@ global = {
         expect(res).to.have.status(retCode);
       });
   },
-  checkBody: ({ host, path, headers = [], body = '', match = true }) => {
+  checkBody: ({ host, path = "", headers = [], body = '', match = true }) => {
     let request = chai.request(host).get(path).redirects(0);
     headers.forEach(header => request.set(header.key, header.value));
     return request
@@ -29,6 +29,25 @@ global = {
         }
       });
   },
+  checkWithMethod: ({ host, path, headers = [], method = "get", retCode }) => {
+    let request
+    if (method === "get") {
+      request = chai.request(host).get(path).redirects(0);
+    } else if (method === "post") {
+      request = chai.request(host).post(path).redirects(0);
+    } else if (method === "put") {
+      request = chai.request(host).put(path).redirects(0);
+    } else {
+      throw 'The requested method is not implemented.'
+    }
+    
+    headers.forEach(header => request.set(header.key, header.value));
+    return request
+      .send()
+      .then(async function (res) {
+        expect(res).to.have.status(retCode);
+      });
+    }
 };
 
 module.exports = global;

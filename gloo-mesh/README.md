@@ -328,7 +328,7 @@ kubectl config use-context ${MGMT}
 
 
 ```bash
-export GLOO_MESH_VERSION=v1.2.7
+export GLOO_MESH_VERSION=v1.2.10
 curl -sL https://run.solo.io/meshctl/install | sh -
 export PATH=$HOME/.gloo-mesh/bin:$PATH
 ```
@@ -401,7 +401,7 @@ helm repo update
 kubectl --context ${MGMT} create ns gloo-mesh 
 helm upgrade --install gloo-mesh-enterprise gloo-mesh-enterprise/gloo-mesh-enterprise \
 --namespace gloo-mesh --kube-context ${MGMT} \
---version=1.2.7 \
+--version=1.2.10 \
 --set rbac-webhook.enabled=false \
 --set licenseKey=${GLOO_MESH_LICENSE_KEY}
 kubectl --context ${MGMT} -n gloo-mesh rollout status deploy/enterprise-networking
@@ -529,7 +529,7 @@ helm repo update
 
 helm upgrade --install enterprise-agent-addons enterprise-agent/enterprise-agent \
   --kube-context=${CLUSTER1} \
-  --version=1.2.7 \
+  --version=1.2.10 \
   --namespace gloo-mesh-addons \
   --set enterpriseAgent.enabled=false \
   --set rate-limiter.enabled=true \
@@ -537,7 +537,7 @@ helm upgrade --install enterprise-agent-addons enterprise-agent/enterprise-agent
 
 helm upgrade --install enterprise-agent-addons enterprise-agent/enterprise-agent \
   --kube-context=${CLUSTER2} \
-  --version=1.2.7 \
+  --version=1.2.10 \
   --namespace gloo-mesh-addons \
   --set enterpriseAgent.enabled=false \
   --set rate-limiter.enabled=true \
@@ -1560,6 +1560,7 @@ describe("VirtualMesh globalAccesPolicy is enabled", () => {
     it("VirtualMesh globalAccesPolicy is enabled in " + process.env.MGMT, () => helpers.genericCommand({ responseContains:"ENABLED", command: "kubectl --context " + process.env.MGMT + " get virtualmesh virtual-mesh -ojsonpath='{.spec.globalAccessPolicy}' -n gloo-mesh" }));
 });
 
+
 EOF
 echo "executing test gloo-mesh/templates/steps/apps/bookinfo/access-control/tests/virtualmesh-accesspolicy-enabled.test.js.liquid"
 mocha ./test.js --retries=50 --bail 2> /dev/null || exit 1
@@ -2257,9 +2258,9 @@ Install or upgrade the accesslog meshctl plugin:
 
 ```bash
 if meshctl accesslog --help; then
-  meshctl plugin upgrade accesslog@v1.2.7
+  meshctl plugin upgrade accesslog@v1.2.10
 else
-  meshctl plugin install accesslog@v1.2.7
+  meshctl plugin install accesslog@v1.2.10
 fi
 ```
 
@@ -2630,11 +2631,9 @@ Then, we will configure it and create two users:
 Let's see the environment variables we need:
 
 ```bash
-# Get Keycloak URL and token
 export ENDPOINT_KEYCLOAK=$(kubectl --context ${CLUSTER1} -n keycloak get service keycloak -o jsonpath='{.status.loadBalancer.ingress[0].*}'):8080
 export HOST_KEYCLOAK=$(echo ${ENDPOINT_KEYCLOAK} | cut -d: -f1)
 export KEYCLOAK_URL=http://${ENDPOINT_KEYCLOAK}/auth
-export KEYCLOAK_TOKEN=$(curl -d "client_id=admin-cli" -d "username=admin" -d "password=admin" -d "grant_type=password" "$KEYCLOAK_URL/realms/master/protocol/openid-connect/token" | jq -r .access_token)
 ```
 
 <!--bash
@@ -2660,6 +2659,12 @@ EOF
 echo "executing test ./gloo-mesh/tests/can-resolve.test.js.liquid"
 mocha ./test.js --retries=50 --bail 2> /dev/null || exit 1
 -->
+
+Now, we need to get a token:
+
+```bash
+export KEYCLOAK_TOKEN=$(curl -d "client_id=admin-cli" -d "username=admin" -d "password=admin" -d "grant_type=password" "$KEYCLOAK_URL/realms/master/protocol/openid-connect/token" | jq -r .access_token)
+```
 
 After that, we configure Keycloak:
 
