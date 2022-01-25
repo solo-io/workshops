@@ -3,6 +3,15 @@ var chai = require('chai');
 var expect = chai.expect;
 chai.use(chaiExec);
 
+afterEach(function (done) {
+  if (this.currentTest.currentRetry() > 0) {
+    process.stdout.write(".");
+    setTimeout(done, 1000);
+  } else {
+    done();
+  }
+});
+
 describe("Istio installation", function() {
   it('Istiod is deployed in the clusters ' + process.env.CLUSTER1, function () {
     let command = "kubectl --context " + process.env.CLUSTER1 + " -n istio-system rollout status deployment istiod"
@@ -39,6 +48,7 @@ describe("Istio installation", function() {
     expect(cli).output.to.not.contain("false");
   })
 
+{%- if vars.node_port == false and vars.cluster1.node_port == false %}
   describe("Ingress gateway has an ip attached in cluster: " + process.env.CLUSTER1, () => {
     it("A value for load-balancing has been assigned", () => {
       let cli = chaiExec("kubectl --context " + process.env.CLUSTER1 + " -n istio-system get svc istio-ingressgateway  -o jsonpath='{.status.loadBalancer}'");
@@ -46,7 +56,9 @@ describe("Istio installation", function() {
       expect(cli).output.to.contain('"ingress"');
     });
   });
+{%- endif %}
 
+{%- if vars.node_port == false and vars.cluster2.node_port == false %}
   describe("Ingress gateway has an ip attached in cluster: " + process.env.CLUSTER2, () => {
     it("A value for load-balancing has been assigned", () => {
       let cli = chaiExec("kubectl --context " + process.env.CLUSTER2 + " -n istio-system get svc istio-ingressgateway  -o jsonpath='{.status.loadBalancer}'");
@@ -54,4 +66,5 @@ describe("Istio installation", function() {
       expect(cli).output.to.contain('"ingress"');
     });
   });
+{%- endif %}
 });
