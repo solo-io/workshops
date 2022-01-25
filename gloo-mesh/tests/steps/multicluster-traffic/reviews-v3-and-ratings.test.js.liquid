@@ -3,6 +3,15 @@ var chai = require('chai');
 var expect = chai.expect;
 chai.use(chaiExec);
 
+afterEach(function (done) {
+  if (this.currentTest.currentRetry() > 0) {
+    process.stdout.write(".");
+    setTimeout(done, 1000);
+  } else {
+    done();
+  }
+});
+
 describe("Reviews v3 from cluster2 with ratings", function() {
   it('Got reviews v3 from cluster2 with ratings', function () {
     expect(process.env.ENDPOINT_HTTP_GW_CLUSTER1).to.not.be.empty
