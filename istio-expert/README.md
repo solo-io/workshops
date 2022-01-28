@@ -15,4 +15,6 @@ We've cultivated a lot of this knowledge from working organizations across the w
 
 ## This workshop will be first delivered at SoloCon 
 
-The second annual [SoloCon](https://solocon.io) will be Feb 22, 2022. This workshop will be one of the four new workshops delivered by Christian, Lin, and Ram. 
+The second annual [SoloCon](https://solocon.io) will be Feb 22, 2022. This workshop will be one of the four new workshops delivered by Christian, Lin, and Ram.
+
+![](./images/istio-expert-badge.png)
