@@ -29,7 +29,7 @@ The natural way to expose them is through a standard Kubernetes Ingress Controll
 
 But it quickly becomes obvious that this approach is limited. The Ingress Kubernetes object doesn’t provide any way to define advanced routing policies and neither implement cross-cutting concerns.
 
-![Authentication at app level](images/authentication-at-app-level.png)
+![Authentication at the app level](images/authentication-at-app-level.png)
 
 More and more microservices are deployed and some functionalities (like external authentication) are implemented by different application teams.
 
@@ -37,11 +37,11 @@ It would be a better usage of resources if the teams focus on the business logic
 
 A workaround implemented by many companies is to provide standard libraries used across microservices. But it forces all the teams to use the same programming language, or maintain the library for multiple programming languages. Which generates new challenges (slow down innovation, no global visibility for the security team, and so on).
 
-Other functionalities such as rate limiting and Web Application Firewalls cannot easily be implemented in microservices and generally require an API Gateway or Firewall running outside of Kubernetes.
+Other functionalities such as rate-limiting and Web Application Firewalls cannot easily be implemented in microservices and generally require an API Gateway or Firewall running outside of Kubernetes.
 
 ![Other capabilities](images/other-capabilities.png)
 
-Services that are outside of the Kubernetes cluster, such as an external API Gateway (implementing rate limiting and WAF) usually requires other means to automate its configuration. Thus it is not compatible to the GitOps model -- unless, your team takes the tremendous effort of creating a Kubernetes Operator that configures an external service using YAML, or more specifically Kubernetes Custom Resource Definitions. 
+Services that are outside of the Kubernetes cluster, such as an external API Gateway (implementing rate-limiting and WAF) usually require other means to automate its configuration. Thus it is not compatible with the GitOps model -- unless, your team takes the tremendous effort of creating a Kubernetes Operator that configures an external service using YAML, or more specifically Kubernetes Custom Resource Definitions. 
 
 ![Kubernetes native API gateway](images/kubernetes-native-api-gateway.png)
 
@@ -51,41 +51,41 @@ We call it Kubernetes-native because it can be 100% configured by YAML (declarat
 
 Authentication/Authorization can be implemented at the API Gateway level and relevant information (like the email address of the authenticated user) can be passed to the Upstream microservice (through a header, for example).
 
-It also provides functionalities like rate limiting and Web Application Firewall, which can be configured through YAML.
+It also provides functionalities like rate-limiting and Web Application Firewall, which can be configured through YAML.
 
 Even if it runs on Kubernetes, a modern Kubernetes-native API Gateway can be used to route traffic to legacy applications (running in Virtual Machines, for example).
 
 ![Other workloads](images/other-workloads.png)
 
-And it can also provide capabilities, like discovering functions running on AWS Lambda and route traffic to them.
+And it can also provide capabilities, like discovering functions running on AWS Lambda and routing traffic to them.
 
-## Why is Gloo Edge build on top of Envoy?
+## Why is Gloo Edge built on top of Envoy?
 
 Gloo Edge is a modern Kubernetes-native API Gateway built on Envoy. It provides all the capabilities described above. (and much more!)
 
 Why would you choose an API Gateway based on Envoy?
 
 There are many good reasons why.
-- First of all, it’s a high performance software written in C++.
+- First of all, it’s a high-performance software written in C++.
 - It’s driven by a neutral foundation (the CNCF, like Kubernetes), so its roadmap isn’t driven by a single vendor.
-- And probably more importantly, you have already adopted or you’re probably going to adopt a Service Mesh in the future. Chances are high that this Service Mesh will be Istio and if it’s not the case it will most probably be a Service Mesh based on Envoy.
-- So choosing an API Gateway based on Envoy will allow you to get the metrics for your API Gateway and your Service Mesh in the same format, will allow you troubleshoot issues in a common way, … It will make your life much easier to summarize.
+- And probably, more importantly, you have already adopted or you’re probably going to adopt a Service Mesh in the future. Chances are high that this Service Mesh will be Istio and if it’s not the case it will most probably be a Service Mesh based on Envoy.
+- So choosing an API Gateway based on Envoy will allow you to get the metrics for your API Gateway and your Service Mesh in the same format. So you can troubleshoot issues in a common way, … It will make your life much easier to summarize.
 
-Why would you choose Gloo Edge ?
+Why would you choose Gloo Edge?
 - It has been developed from the beginning with the idea to be configured 100% through yaml.
 - It provides all the functionalities you expect from a modern API Gateway:
 - External authentication based on OAuth2, JWT, api keys, …
 - Authorization based on OPA
-- Advanced rate limiting
+- Advanced rate-limiting
 - Web Application Firewall based on ModSecurity
 - Advanced transformation
 - Customization through Web Assembly
 - A Kubernetes-native developer portal called Gloo Portal
 - And much more
 
-The above mentioned features enable Platform Engineers as well as Development Teams to implement powerful mechanisms to manage and secure traffic, implement access conrol, transform requests and responses, and gain observability over their services.
+The above-mentioned features enable Platform Engineers as well as Development Teams to implement powerful mechanisms to manage and secure traffic, implement access control, transform requests and responses, and gain observability over their services.
 
-However, the true power unfolds when combining the above mentioned capabilities to achieve a desired outcome. 
+However, the true power unfolds when combining the above-mentioned capabilities to achieve the desired outcome. 
 In the labs that follow we present some of the common patterns that our customers use and provide a good entry point into the workings of Gloo Edge.
 
 
@@ -195,9 +195,9 @@ With the components up and running, we are ready to showcase Gloo Edge with prac
 
 ### Deploy Services
 
-In this step you will expose two services to the outside world using Gloo Edge.
+In this step, you will expose two services to the outside world using Gloo Edge.
 
-First, let's deploy the **httpbin** service. `httpbin` is an open source application useful to debug routing, headers in requests and responses, status codes, and so on. The public online version of it can be found at [httpbin.org](https://httpbin.org). 
+First, let's deploy the **httpbin** service. `httpbin` is an open-source application useful to debug routing, headers in requests and responses, status codes, and so on. The public online version of it can be found at [httpbin.org](https://httpbin.org). 
 
 Begin by creating a namespace and then deploy the service.
 
@@ -225,7 +225,7 @@ In Gloo Edge, an `Upstream` defines destinations where traffic can be routed. Up
 
 > Note: To learn more about `Upstreams` check the [Upstream API documentation](https://docs.solo.io/gloo-edge/latest/reference/api/github.com/solo-io/gloo/projects/gloo/api/v1/upstream.proto.sk/#upstream)
 
-This is cool and all, but do "I" have to create all the upstreams? *sob
+This is cool and all, but do "I" have to create all the upstreams? *sad
 
 No, Gloo Edge does it for you! It uses a discovery mechanism to create upstreams automatically! This covers the majority of the cases, but whenever you are using a resource that is not automatically discovered, remember that you can create the upstream manually using Kubernetes CRs.
 
@@ -266,7 +266,7 @@ The output shows the discovered upstream with an `Accepted` status:
 +----------------------+------------+----------+------------------------+
 ```
 
-Similarily, Gloo Edge has created upstreams for the `echo` service and all the other existing services in the cluster. To list all of the upstreams execute the following command:
+Similarly, Gloo Edge has created upstreams for the `echo` service and all the other existing services in the cluster. To list all of the upstreams execute the following command:
 
 ```bash
 glooctl get upstream 
@@ -304,7 +304,7 @@ rate-limit                                             28m
 
 ### Using `VirtualServices` you can route traffic to an `Upstream`
 
-`VirtualService` is another Custom Resource Definition created by Gloo Edge. Those configure the Envoy proxy to route traffic to upstreams. Because the upstreams are already created, all we need to do to is expose and route traffic to those with a virtual service. 
+`VirtualService` is another Custom Resource Definition created by Gloo Edge. Those configure the Envoy proxy to route traffic to upstreams. Because the upstreams are already created, all we need to do is expose and route traffic to those with a virtual service. 
 
 Let's create a Virtual Service that routes all incoming traffic to the `httpbin` service.
 
@@ -337,17 +337,17 @@ Now you can access the `httpbin` application in the web browser by running the f
 
 > Note: The nested command `glooctl proxy url` returns the endpoint in which the Gloo Edge Envoy proxy is exposed. Take the time and investigate `glooctl` and the utilities it exposes.
 
-On the web browser you'll see the `httpbin` application webpage.
+On the web browser, you'll see the `httpbin` application webpage.
 
 ![`httpbin` Web Interface](images/httpbin-ui.png)
 
-Now, create another route entry for the `echo` service. But we got to ask ourselves on what property of the request should we take the routing decision? Gloo Edge is versatile and you can route based on many properties such as: headers, hostname, path based routing, and so on.
+Now, create another route entry for the `echo` service. But we got to ask ourselves on what property of the request should we take the routing decision? Gloo Edge is versatile and you can route based on many properties such as headers, hostname, path-based routing, and so on.
 
-While surfing the web regular users will type the hostname such as `echo.solo.io` in the web browser. After that the browser uses Domain Name Servers (DNS) configured on the operating system to resolve the typed hostname to an IP address.
+While surfing the web end-users will type the hostname in the web browser address bar, for e.g.  `echo.solo.io`. After that the browser uses Domain Name Servers (DNS) configured on the operating system to resolve the typed hostname to an IP address.
 
-After the resolution a TCP connection is initiated to that IP address and the hostname `echo.solo.io` is added to the request as an HTTP Header, specifically the `Host` header for HTTP/1, and as the `:authority` header for HTTP/2. Because Envoy internally uses the HTTP/2 version of this header we refer to it with the latter header.
+After the resolution, a TCP connection is initiated to that IP address and the hostname (in this example `echo.solo.io`) is added to the request as an HTTP Header, specifically the `Host` header for HTTP/1, and as the `:authority` header for HTTP/2. Because Envoy internally uses the HTTP/2 version of this header we refer to it with the latter header.
 
-In order too route traffic to the `echo` service for the hostname `echo.solo.io` we define the following virtual service.
+In order to route traffic to the `echo` service for the hostname `echo.solo.io` we define the following virtual service.
 
 ```bash
 kubectl apply -f - <<EOF
@@ -388,9 +388,9 @@ curl -H "Host: echo.solo.io" $(glooctl proxy url)/
 ```
 
 The server responds with `version-1`, which indicates that traffic was properly routed to the `echo` service using the host header.
-Instead of typing the host header in each request we can configure the systems hosts file to resolve our sample domains. 
+Instead of typing the host header in each request, we can configure the systems hosts file to resolve our sample domains. 
 
-> **NOTE:** The `hosts` file is the first stop for the operating system to resolve a hostname. Thus when configuring the hostname with static entries those will be resolved by all applications.
+> **NOTE:** The `/etc/hosts` file is the first stop for the operating system to resolve a hostname. Thus when configuring the hostname with static entries those will be resolved by all applications.
 
 Configure your hosts file to resolve the hostnames to the IP address of the proxy by executing the following command:
 
@@ -419,7 +419,7 @@ To test that the hostnames are resolved open chrome and instead of the IP use th
 /opt/google/chrome/chrome http://echo.solo.io
 ```
 
-And sure enough you should see the static text "version-1"
+And sure enough, you should see the static text "version-1".
 
 ### Gloo Edge configuration to route traffic to a workload
 
@@ -447,7 +447,7 @@ gateway-proxy       58m
 gateway-proxy-ssl   58m
 ```
 
-To learn more let's print the denfinition of the `Gateway` named `gateway-proxy`.
+To learn more let's print the definition of the `Gateway` named `gateway-proxy`.
 
 ```
 kubectl get gateway gateway-proxy -n gloo-system -o yaml
@@ -470,13 +470,13 @@ spec:
   useProxyProto: false
 ```
 
-This configures the proxy to admit traffic on port 8080 for all addresses. When checking the gateway `gateway-proxy-ssl` you'll see that it listens on port 8443 and additionaly sets the ssl property to true.
+This configures the proxy to admit traffic on port 8080 for all addresses. When checking the gateway `gateway-proxy-ssl` you'll see that it listens on port 8443 and additionally sets the ssl property to true.
 
 ### Delegation
 
-In the previous example, we set up a virtual service that routes traffic to two different applications. Those applications might be operated by different teams. At the surface this seems fine, but it violates the isolation principle of multi tenant environments. Basically, if one team makes changes to the Virtual Service (such as prototyping with a new app), a missconfiguration of theirs can break the routing for the apps of other teams. 
+In the previous example, we set up a `VirtualService` that routes traffic to two different applications. Those applications might be operated by different teams. At the surface, this might seem fine, but it violates the isolation principle of multi-tenant environments. If one team makes changes to the `VirtualService` (such as prototyping with a new app), a misconfiguration of theirs can break the routing for the apps of other teams. 
 
-> Multi-tenant environments require tenant isolation to ensure that the misshaps of one tenant don't impact other tenants.
+> Multi-tenant environments require tenant isolation to ensure that the mishaps of one tenant don't impact other tenants.
 
 Gloo Edge provides a feature referred to as _delegation_ that makes routing configuration multi-tenant friendly. Using delegation routing configuration can be assembled from separate config objects. The root config object delegates responsibility to other objects, forming a tree of config objects. The tree always has a virtual service as its root, which delegates to any number of route tables. Route tables can further delegate to other route tables.
 
@@ -492,7 +492,7 @@ Use cases for delegation include:
 
 Let's rewrite your Virtual Service to delegate the routing to a `RouteTable`.
 
-First resource is the delegated Route Table. Second resource is a Virtual Service. Notice that there is a new `delegateAction` referencing the just created `RouteTable`.
+The first resource is the delegated Route Table. The second resource is a Virtual Service. Notice that there is a new `delegateAction` referencing the just created `RouteTable`.
 
 ```bash
 kubectl apply -f - <<EOF
@@ -547,7 +547,7 @@ spec:
 EOF
 ```
 
-Breaking the route table from the virtual service enables seperation of concerns. Development teams can maintain the route table and configure properties specific for their services. Meanwhile, administrators can define higher level options. Such as firewall rules, authentication of requests, and so on.
+Breaking the route table from the virtual service enables the separation of concerns. Development teams can maintain the route table and configure properties specific for routing to their services. Meanwhile, administrators can define higher-level options. Such as firewall rules, authentication of requests, and so on.
 
 ### Delegation By Label Selector
 
@@ -620,7 +620,7 @@ spec:
 EOF
 ```
 
-Now teams within the `echo` namespace can create multiple route tables on how to route traffic to their serivces without making changes to the virtual service. You can try the same commands as previous and everything works the same.
+Now teams within the `echo` namespace can create multiple route tables on how to route traffic to their services without making changes to the virtual service. You can try the same commands as previous and everything works the same.
 
 ### Routing to Multiple Upstreams
 
@@ -695,11 +695,11 @@ spec:
 EOF
 ```
 
-After applying the updated `RouteTable`, the proxy splits traffic equally accross versions.
+After applying the updated `RouteTable`, the proxy splits traffic equally across versions.
 
 ![Weighted Routing Diagram](images/weighted-routing.png)
 
-You can verify that requests are load balanced equally by refreshing the page and verifying that the versions switch between **version-1** and **version-2** approximately equally. Or execute the command below that makes 10 requests in a row.
+You can verify that requests are load-balanced equally by refreshing the page and verifying that the versions switch between **version-1** and **version-2** approximately equally. Or execute the command below that makes 10 requests in a row.
 
 ```
 for i in {1..10}; do curl -s echo.solo.io; done
@@ -715,9 +715,9 @@ version-1
 ...
 ```
 
-The output shows that the traffic is split across the version 1 and 2 of the echo application. This allows teams to gradually release traffic to a new version of an application, and such scopes the misshaps to only a small percentage of your users (in case there was something wrong with the new version of the service).
+The output shows that the traffic is split across versions 1 and 2 of the echo app. This allows teams to gradually release traffic to a new version of an app, and such scopes the mishaps to only a small percentage of your users (in case there was something wrong with the new version of the service).
 
-> NOTE: The change was entirely done in the RouteTable. The RouteTable resided within the teams namespace. Thus in multi tenant environments other teams are protected from the missconfigurations of each other.
+> NOTE: The change was entirely done in the RouteTable. The RouteTable resided within the teams namespace. Thus in multi-tenant environments, other teams' are protected from the misconfigurations of each other.
 
 <!--bash
 cat <<'EOF' > ./test.js
@@ -750,7 +750,7 @@ In this step, you will explore some of the Gloo Edge features related to securit
 
 ### Network Encryption - Server TLS
 
-Traffic routes through many networking devices until it reaches the intended service. It is key for the traffic to be encrypted while traveling through these networking devices, and only the server should be able to decrypt and read the contents. For that reason you need to secure your application using TLS.
+Traffic routes through many networking devices until it reaches the intended service. It is key for the traffic to be encrypted while traveling through these networking devices, and only the server should be able to decrypt and read the contents. For that reason, you need to secure your application using TLS.
 
 Let's first create a private key and a self-signed certificate to be used in your virtual service:
 
@@ -832,12 +832,12 @@ spec:
 EOF
 ```
 
-Now the application is securely exposed through TLS. Open it in the browser using https.
+Now the application is securely exposed through TLS. Open it in the browser using HTTPS.
 ```
 /opt/google/chrome/chrome https://httpbin.solo.io
 ```
 
-If you've added the Root CA certificate to your browser you will see the green key in the address bar, which indicates that the authentication of the server succeded and that the connection is encrypted and secure.
+If you've added the Root CA certificate to your browser you will see the green key in the address bar, which indicates that the authentication of the server succeeded and that the connection is encrypted and secure.
 
 Meanwhile, when you make requests using CURL, you either have to add the certificate to the system certs or specify it in the command as shown below.
 
@@ -866,7 +866,7 @@ In many use cases, you need to restrict the access to your applications to only 
 
 OIDC (OpenID Connect) is an identity layer on top of the OAuth 2.0 protocol. In OAuth 2.0 flows, authentication is performed by an external Identity Provider (IdP) which, in case of success, returns an Access Token representing the user identity. The protocol does not define the contents and structure of the Access Token, which greatly reduces the portability of OAuth 2.0 implementations.
 
-The goal of OIDC is to address this ambiguity by additionally requiring Identity Providers to return a well-defined ID Token. OIDC ID tokens follow the JSON Web Token standard and contain specific fields that your applications can expect and handle. This standardization allows you to switch between Identity Providers – or support multiple ones at the same time – with minimal, if any, changes to your downstream services; it also allows you to consistently apply additional security measures like Role-based Access Control (RBAC) based on the identity of your users, i.e. the contents of their ID token.
+The goal of OIDC is to address this ambiguity by additionally requiring Identity Providers to return a well-defined ID Token. OIDC ID tokens follow the JSON Web Token standard and contain specific fields that your applications can expect and handle. This standardization allows you to switch between Identity Providers – or support multiple ones at the same time – with minimal if any, changes to your downstream services; it also allows you to consistently apply additional security measures like Role-based Access Control (RBAC) based on the identity of your users, i.e. the contents of their ID token.
 
 In this step, you will secure the **httpbin** application using an OIDC Identity Provider.
 
@@ -900,7 +900,7 @@ export KEYCLOAK_ENDPOINT=$(kubectl -n keycloak get service keycloak -o jsonpath=
 export KEYCLOAK_URL=http://${KEYCLOAK_ENDPOINT}:8080/auth
 
 ## Wait for keycloak to be receiving requests
-timeout 60 bash -c "while ! echo exit | nc $KEYCLOAK_ENDPOINT 8080; do printf '.'; sleep 1; done"
+timeout 60 bash -c "while ! echo exit | nc $KEYCLOAK_ENDPOINT 8080 > /dev/null; do printf '.'; sleep 1; done"
 ```
 
 And then we can make requests to Keycloak to configure the client and the users:
@@ -934,7 +934,7 @@ curl -H "Authorization: Bearer ${KEYCLOAK_TOKEN}" -X POST -H "Content-Type: appl
 curl -H "Authorization: Bearer ${KEYCLOAK_TOKEN}" -X POST -H "Content-Type: application/json" -d '{"username": "admin1", "email": "admin1@solo.io", "enabled": true, "attributes": {"group": "admin"}, "credentials": [{"type": "password", "value": "password", "temporary": false}]}' $KEYCLOAK_URL/admin/realms/master/users
 ```
 
-> **Note:** If you get a *Not Authorized* error, please, re-run this command and continue from the command started to fail:
+> **Note:** If you get a *Not Authorized* error, please, re-run this command and continue from the command that started to fail:
 
 ```
 KEYCLOAK_TOKEN=$(curl -d "client_id=admin-cli" -d "username=admin" -d "password=admin" -d "grant_type=password" "$KEYCLOAK_URL/realms/master/protocol/openid-connect/token" | jq -r .access_token)
@@ -944,7 +944,7 @@ The architecture looks like this now when omitting the `echo` services:
 
 ![Bookinfo with OIDC](images/keycloak-oidc.png)
 
-> **Note:** Another alternative to configure JWT authentication and authorization is explained here: https://docs.solo.io/gloo-edge/latest/guides/security/auth/jwt/access_control/#secure-the-virtual-service. This however, requires the client to provide the JWT token (and as well store it properly into an HttpOnly cookie)
+> **Note:** Another alternative to configuring JWT authentication and authorization is explained here: https://docs.solo.io/gloo-edge/latest/guides/security/auth/jwt/access_control/#secure-the-virtual-service. This, however, requires the client to provide the JWT token (and as well store it properly into an HttpOnly cookie)
 
 The next step is to configure the authentication in the virtual service. For this, you will have to create a Kubernetes Secret that contains the OIDC secret:
 
@@ -1035,7 +1035,7 @@ After authenticating with the username: `user1` and password: `password` Gloo wi
 
 ![Keycloak Authentication Dialog](images/keycloak-authentication-dialog.png)
 
-After authenticating the user we can determine what he is authorized to access. We will investigate that right after we refactor the current resources some bit.
+After authenticating the user we can determine what they are authorized to access. We will investigate that right after we refactor the current resources some bit.
 
 <!--bash
 cat <<'EOF' > ./test.js
@@ -1077,7 +1077,7 @@ Start by cleaning up the current virtual service.
 kubectl delete virtualservice vs -n gloo-system
 ```
 
-Next create one virtual service to represent each hostname. Start with the echo service.
+Next, create one virtual service to represent each hostname. Start with the echo service.
 
 ```bash
 kubectl apply -f - <<EOF
@@ -1144,11 +1144,11 @@ The above definitions have a few more changes. We removed the SSL configuration 
 
 
 
-After authenticating an end user request, we can make use of the validated information (claims, profile information, and so on) to authorize his actions. For example, let's allow users to only have READ permissions meanwhile the administrator is allowed to make changes as well.
+After authenticating an end-user request, we can make use of the validated information (claims, profile information, and so on) to authorize his actions. For example, let's allow users to only have READ permissions meanwhile the administrator is allowed to make changes as well.
 
 Gloo Edge uses the [OPA (Open Policy Agent)](https://www.openpolicyagent.org/) and its Rego rules to implement complex access control.
 
-This model allows you to get fine-grained control over the authorization in your applications. Furhtermore, this model is well adopted by the Kubernetes community.
+This model allows you to get fine-grained control over the authorization in your applications. Furthermore, this model is well adopted by the Kubernetes community.
 
 The Rego rules are stored as `ConfigMaps`. 
 For example with the rego rule below we allow all requests with the HTTP method `GET`, meanwhile, any other HTTP methods require that the JWT token has the `group` claim with the value `"admin"`
@@ -1268,13 +1268,13 @@ mocha ./test.js --retries=50 --bail 2> /dev/null || exit 1
 
 ## Lab 6 - Data Transformations - Request transformations <a name="Lab-6"></a>
 
-In this section you will explore how to transform requests using Gloo Edge. You will frequently encounter requirements that some information has to be added in the request. Frequently, it is not an application concern, such as rate limiting user requests, validating the response that is sent to the user, returning a good looking '404' page, and so on.
+In this section, you will explore how to transform requests using Gloo Edge. You will frequently encounter requirements that some information has to be added in the request. Frequently, it is not an application concern, such as rate-limiting user requests, validating the response that is sent to the user, returning a good-looking '404' page, and so on.
 
 The example that we will take in the labs that follow is to rate limit our users based on the email, on their subscription, and the organization.
 
 The information of the email and the subscription are present in the JWT tokens. So we need to use the request transformation capabilities of Gloo Edge to extract those claims and mount those into the request.
 
-### Extract JWT claims and store in HTTP headers
+### Extract JWT claims and store them in HTTP headers
 
 To extract JWT claims and store those in the request headers we got to use the `jwtStaged` property. After authenticating the request this property can be configured to extract the token claims and store those as HTTP Headers. As shown below:
 
@@ -1331,7 +1331,7 @@ spec:
 EOF
 ```
 
-To verify that the headers were added hit following endpoint:
+To verify that the headers were added hit the following endpoint:
 ```
 /opt/google/chrome/chrome https://httpbin.solo.io/get
 ```
@@ -1356,17 +1356,17 @@ Your output too should contain the `X-Email`, `X-Subscription` headers.
 
 ### Staged transformations
 
-We need another peace of information in the header and that is the organization. However, the organization is not stored as a claim in the user token. But on closer look we find out that we can derive the organization from the email! Basically `user1@acme.com` is a member of the ACME organization.
+We need another piece of information in the header and that is the organization. However, the organization is not stored as a claim in the user token. But on closer look, we find out that we can derive the organization from the email! Basically, `user1@acme.com` is a member of the ACME organization.
 
 Gloo Edge enables us to use request transformers that extract information from the request using regex-es.
 
-For this we got to use Staged Transformers and the transformation MUST occur after the email claim is extracted from the JWT and stored into the header `X-Email`.
+For this, we got to use Staged Transformers and the transformation MUST occur after the email claim is extracted from the JWT and stored into the header `X-Email`.
 
 The diagram below shows the order in which filters are applied to a request. 
 
 ![Order of filters applied to a request](images/order-of-filters.png)
 
-So in order for us to extract the organization from the email header. We have to use the "Regular Transformations" as shown in the image. The regular transofmrations are executed after the JWT stage (as shown in the image). 
+To extract the organization from the email header, we got to use the "Regular Transformations" as shown in the image. The regular transfomrations are executed after the JWT stage (as shown in the image). 
 
 Putting this together we come up with the virtual service defined below.
 
@@ -1459,7 +1459,7 @@ You should see the following output in your browser.
 }
 ```
 
-The output shows that the email, organization, and subscription are all set in the headers, and can be used for rate limiting. 
+The output shows that the email, organization, and subscription are all set in the headers, and can be used for rate-limiting. 
 
 <!--bash
 cat <<'EOF' > ./test.js
@@ -1497,7 +1497,7 @@ mocha ./test.js --retries=50 --bail 2> /dev/null || exit 1
 
 
 
-In this step, you are going to use rate limiting to protect or monetize your services.
+In this step, you are going to use rate-limiting to protect or monetize your services.
 
 In our example with `httpbin` we want to achieve the following rate limit configuration:
 * Users of organizations with the `enterprise` subscription have a rate limit of 8 requests per second
@@ -1618,7 +1618,7 @@ EOF
 
 ```
 
-With the rate limit applied open the browser and login with `user1` and send 8 requests by just refreshing the page:
+With the rate limit applied open the browser, login with `user1` and send 8 requests by just refreshing the page:
 ```
 /opt/google/chrome/chrome https://httpbin.solo.io/get
 ```
@@ -1629,9 +1629,9 @@ You will see that on the 9th request you will see a 429 status code. Which stand
 
 ### Refactor time!
 
-The VirtualService options can be extracted in its own resource called `VirtualHostOptions`. Usually, used when the same set of options has to be applied across different virtual services.
+The VirtualService options can be extracted in their own resource called `VirtualHostOptions`. Usually, used when the same set of options has to be applied across different virtual services.
 
-Start by creating the `VirtualHostOption` that contains the extauth, the transformations, and the ratelimiting configuration.
+Start by creating the `VirtualHostOption` that contains the extauth, the transformations, and the rate-limiting configuration.
 
 ```bash
 
@@ -1720,7 +1720,7 @@ spec:
 EOF
 ```
 
-After the refactoring if you requery the `echo` service, you will see that everything still works the same: the request is authenticated and authorized, claims are extracted and stored as headers, and ratelimiting applies. 
+After the refactoring, if you re-query the `echo` service, you will see that everything still works the same: the request is authenticated and authorized, claims are extracted and stored as headers, and rate-limiting applies. 
 
 <!--bash
 cat <<'EOF' > ./test.js
@@ -1771,9 +1771,11 @@ mocha ./test.js --retries=50 --bail 2> /dev/null || exit 1
 -->
 
 
-## Lab 9 - Web application firewall <a name="Lab-9"></a>
 
-A web application firewall (WAF) protects web applications by monitoring, filtering and blocking potentially harmful traffic and attacks that can overtake or exploit them.
+
+## Lab 8 - Web application firewall <a name="Lab-8"></a>
+
+A web application firewall (WAF) protects web applications by monitoring, filtering, and blocking potentially harmful traffic and attacks that can overtake or exploit them.
 
 Gloo Edge Enterprise includes the ability to enable the ModSecurity Web Application Firewall for any incoming and outgoing HTTP connections. 
 
@@ -1847,7 +1849,7 @@ mocha ./test.js --retries=50 --bail 2> /dev/null || exit 1
 
 
 
-## Lab 10 - Observability <a name="Lab-10"></a>
+## Lab 9 - Observability <a name="Lab-9"></a>
 
 ### Metrics
 
@@ -1859,7 +1861,7 @@ Let's run the following command to allow access to the Grafana UI:
 kubectl port-forward -n gloo-system svc/glooe-grafana 8081:80 --address 0.0.0.0
 ```
 
-You can now access the Grafana UI at http://localhost:8081 and login with `admin/admin`.
+You can now access the Grafana UI at http://localhost:8081 and log in with `admin/admin`.
 
 You can take a look at the `Gloo -> Envoy Statistics` Dashboard that provides global statistics:
 
@@ -1875,7 +1877,7 @@ You can run the following command to see the default template used to generate t
 kubectl -n gloo-system get cm gloo-observability-config -o yaml
 ```
 
-If you want to customize how these per-upstream dashboards look, you can provide your own template to use by writing a Grafana dashboard JSON representation to that config map key. 
+If you want to customize how these per-upstream dashboards look, you can provide your template to use by writing a Grafana dashboard JSON representation to that config map key. 
 
 ### Access Logging
 
@@ -1939,9 +1941,9 @@ NOTE:  You can safely ignore the following warning when you run the above comman
 Warning: kubectl apply should be used on resource created by either kubectl create --save-config or kubectl apply
 ```
 
-Refresh your browser a couple times to generate some traffic.
+Refresh your browser a couple of times to generate some traffic.
+The following command opens the app in a new browser window:
 
-You can access the application on the following URL:
 ```
 /opt/google/chrome/chrome http://echo.solo.io
 ```
