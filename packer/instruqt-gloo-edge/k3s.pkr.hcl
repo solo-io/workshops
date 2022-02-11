@@ -38,10 +38,11 @@ source "googlecompute" "k3s" {
     enable-oslogin = "FALSE"
   }
 
-  source_image_family = "ubuntu-2104"
+  source_image_family = "ubuntu-2110"
 
   machine_type = "n1-standard-8"
   disk_size    = 20
+  disk_type    = "pd-balanced"
 
   ssh_username = "root"
 
