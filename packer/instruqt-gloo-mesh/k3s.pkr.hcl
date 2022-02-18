@@ -9,22 +9,17 @@ packer {
 
 variable "k3s_version" {
   type    = string
-  default = "v1.22.5+k3s2"
+  default = "v1.23.3+k3s1"
 }
 
 variable "gloo_version" {
   type    = string
-  default = "1.2.9"
+  default = "2.0.0"
 }
 
 variable "istio_version" {
   type    = string
-  default = "1.12.2"
-}
-
-variable "vcluster_version" {
-  type    = string
-  default = "v0.5.3"
+  default = "1.12.3"
 }
 
 source "googlecompute" "k3s" {
@@ -43,7 +38,7 @@ source "googlecompute" "k3s" {
     enable-oslogin = "FALSE"
   }
 
-  source_image_family = "ubuntu-2104"
+  source_image_family = "ubuntu-2110"
 
   machine_type = "n1-standard-8"
   disk_size    = 20
@@ -94,19 +89,4 @@ build {
         destination = "/usr/bin/start.sh"
     }
 
-    provisioner "shell" {
-        script = "files/import-docker-images.sh"
-        environment_vars = [
-            "GLOO_VERSION=${ var.gloo_version }",
-            "ISTIO_VERSION=${ var.istio_version }"
-        ]
-    }
-
-    provisioner "shell" {
-        script = "files/vcluster-install.sh"
-        environment_vars = [
-            "VCLUSTER_VERSION=${ var.vcluster_version }",
-            "K3S_VERSION=${ var.k3s_version }"
-        ]
-    }
 }

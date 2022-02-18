@@ -10,6 +10,7 @@ if ! grep "source /root/.env" /root/.bashrc; then
   touch /root/.env
   echo "source /root/.env" >> /root/.bashrc
 fi
+source /root/.env
 clear
 echo ""
 echo " ^ ^ "

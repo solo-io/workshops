@@ -22,7 +22,6 @@ apt-get -y install \
     git curl wget \
     apt-transport-https \
     ca-certificates \
-    curl \
     software-properties-common \
     conntrack \
     jq vim nano emacs joe \
@@ -42,6 +41,13 @@ fi
 mkdir -p /var/lib/rancher/k3s/server/manifests
 touch /var/lib/rancher/k3s/server/manifests/traefik.yaml.skip
 touch /var/lib/rancher/k3s/server/manifests/servicelb.yaml.skip
+mkdir -p /etc/rancher/k3s
+cat <<EOF > /etc/rancher/k3s/registries.yaml
+mirrors:
+  docker.io:
+    endpoint:
+      - http://solo-registry:5000
+EOF
 
 export INSTALL_K3S_SKIP_START=true
 curl -sfL https://get.k3s.io | sh -
@@ -50,3 +56,6 @@ echo "alias k=kubectl" >> /root/.bash_aliases
 kubectl completion bash >/etc/bash_completion.d/kubectl
 mkdir -p /root/.kube
 ln -sf /etc/rancher/k3s/k3s.yaml /root/.kube/config
+
+wget https://dl.step.sm/gh-release/cli/docs-cli-install/v0.18.0/step-cli_0.18.0_amd64.deb
+sudo dpkg -i step-cli_0.18.0_amd64.deb
