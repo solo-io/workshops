@@ -49,7 +49,10 @@ module "eks" {
   cluster_subnet_ids = flatten([module.vpc[count.index].private_subnets, module.vpc[count.index].public_subnets])
   node_subnet_ids    = data.aws_subnet_ids.nodes[count.index].ids
   node_instance_type = var.node_instance_type
-  node_ami_lookup    = "amazon-eks-node-${var.eks_version}*"
+  # node_ami_lookup    = "amazon-eks-node-${var.eks_version}*"
+  # node_ami_lookup    = "solo-eks-node-${var.eks_version}*"
+  node_ami_id    = "ami-0484a03969565977f"
+  # node_user_data = "amazon-linux-extras install -y kernel-5.10"
   eks_version        = var.eks_version
 }
 
