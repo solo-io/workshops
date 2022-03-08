@@ -4,7 +4,7 @@
 source /root/.env
 # Rendered from {{ filename }}
     {%- if filename | isMocha %}
-{{ filename | generateCheckFile: retries: 0, bail: 'yes' }}
+{{ filename | generateCheckFile: retries: 5, bail: 'yes', vars: vars }}
     {%- else %}
       {%- render filename %}
     {%- endif %}

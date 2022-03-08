@@ -437,6 +437,12 @@ kubectl --context ${CLUSTER2} get pods -n istio-system && kubectl --context ${CL
 
 Set the environment variable for the service corresponding to the Istio Ingress Gateway of cluster1:
 
+<!--bash
+until [[ $(kubectl --context ${CLUSTER1} -n istio-gateways get svc istio-ingressgateway -o json | jq '.status.loadBalancer | length') -gt 0 ]]; do
+  sleep 1
+done
+-->
+
 ```bash
 export ENDPOINT_HTTP_GW_CLUSTER1=$(kubectl --context ${CLUSTER1} -n istio-gateways get svc istio-ingressgateway -o jsonpath='{.status.loadBalancer.ingress[0].*}'):80
 export ENDPOINT_HTTPS_GW_CLUSTER1=$(kubectl --context ${CLUSTER1} -n istio-gateways get svc istio-ingressgateway -o jsonpath='{.status.loadBalancer.ingress[0].*}'):443
@@ -724,13 +730,15 @@ mocha ./test.js --retries=50 --bail 2> /dev/null || exit 1
 
 
 
+<!--
 First of all, you need to install the *meshctl* CLI:
 
 ```bash
-export GLOO_MESH_VERSION=v2.0.0-beta12
+export GLOO_MESH_VERSION=v2.0.0-beta15
 curl -sL https://run.solo.io/meshctl/install | sh -
 export PATH=$HOME/.gloo-mesh/bin:$PATH
 ```
+-->
 
 Run the following commands to deploy the Gloo Mesh management plane:
 
@@ -770,12 +778,18 @@ helm repo update
 kubectl --context ${MGMT} create ns gloo-mesh 
 helm upgrade --install gloo-mesh-enterprise gloo-mesh-enterprise/gloo-mesh-enterprise \
 --namespace gloo-mesh --kube-context ${MGMT} \
---version=2.0.0-beta12 \
+--version=2.0.0-beta15 \
 --set glooMeshMgmtServer.ports.healthcheck=8091 \
 --set glooMeshUi.serviceType=LoadBalancer \
 --set licenseKey=${GLOO_MESH_LICENSE_KEY}
 kubectl --context ${MGMT} -n gloo-mesh rollout status deploy/gloo-mesh-mgmt-server
 ```
+<!--bash
+kubectl wait --context ${MGMT} --for=condition=Ready -n gloo-mesh --all pod
+until [[ $(kubectl --context ${MGMT} -n gloo-mesh get svc gloo-mesh-mgmt-server -o json | jq '.status.loadBalancer | length') -gt 0 ]]; do
+  sleep 1
+done
+-->
 
 Then, you need to set the environment variable to tell the Gloo Mesh agents how to communicate with the management plane:
 
@@ -795,6 +809,11 @@ export ENDPOINT_GLOO_MESH=$(kubectl --context ${MGMT} -n gloo-mesh get svc gloo-
 export HOST_GLOO_MESH=$(echo ${ENDPOINT_GLOO_MESH} | cut -d: -f1)
 ```
 
+Check that the variables have correct values:
+```
+echo $HOST_GLOO_MESH
+echo $ENDPOINT_GLOO_MESH
+```
 <!--bash
 cat <<'EOF' > ./test.js
 const dns = require('dns');
@@ -855,7 +874,7 @@ helm upgrade --install gloo-mesh-agent gloo-mesh-agent/gloo-mesh-agent \
   --set rate-limiter.enabled=false \
   --set ext-auth-service.enabled=false \
   --set cluster=cluster1 \
-  --version 2.0.0-beta12
+  --version 2.0.0-beta15
 ```
 
 And here is how you register the second one:
@@ -889,7 +908,7 @@ helm upgrade --install gloo-mesh-agent gloo-mesh-agent/gloo-mesh-agent \
   --set rate-limiter.enabled=false \
   --set ext-auth-service.enabled=false \
   --set cluster=cluster2 \
-  --version 2.0.0-beta12
+  --version 2.0.0-beta15
 ```
 
 Note that the registration can also be performed using `meshctl`.
@@ -954,7 +973,7 @@ helm upgrade --install gloo-mesh-agent-addons gloo-mesh-agent/gloo-mesh-agent \
   --set glooMeshAgent.enabled=false \
   --set rate-limiter.enabled=true \
   --set ext-auth-service.enabled=true \
-  --version 2.0.0-beta12
+  --version 2.0.0-beta15
 
 helm upgrade --install gloo-mesh-agent-addons gloo-mesh-agent/gloo-mesh-agent \
   --namespace gloo-mesh-addons \
@@ -962,7 +981,7 @@ helm upgrade --install gloo-mesh-agent-addons gloo-mesh-agent/gloo-mesh-agent \
   --set glooMeshAgent.enabled=false \
   --set rate-limiter.enabled=true \
   --set ext-auth-service.enabled=true \
-  --version 2.0.0-beta12
+  --version 2.0.0-beta15
 ```
 
 This is how to environment looks like now:
@@ -1351,6 +1370,8 @@ spec:
               namespace: bookinfo-backends
             port:
               number: 9080
+            subset:
+              version: v2
 EOF
 ```
 
@@ -1945,6 +1966,12 @@ Get the URL to access the `productpage` service from the second cluster using th
 ```
 echo "https://${ENDPOINT_HTTPS_GW_CLUSTER2}/productpage"
 ```
+<!--bash
+for i in {1..60}; do
+  nc -z $HOST_GW_CLUSTER1 443 && break
+  sleep 1
+done
+-->
 
 <!--bash
 cat <<'EOF' > ./test.js
@@ -1959,7 +1986,112 @@ echo "executing test gloo-mesh-2-0/templates/steps/apps/bookinfo/virtual-destina
 mocha ./test.js --retries=50 --bail 2> /dev/null || exit 1
 -->
 
+But if you try to access it from the first cluster, you can see that you now get the `v3` version of the `reviews` service (red stars).
+
 This diagram shows the flow of the request (through both Istio ingress gateways):
+
+![Gloo Mesh Virtual Destination Both](images/steps/virtual-destination/gloo-mesh-virtual-destination-both.svg)
+
+It's nice, but you generally want to direct the traffic to the local services if they're available and failover to the remote cluster only when they're not.
+
+In order to do that we need to create 2 other policies.
+
+The first one is a `FailoverPolicy`:
+
+```bash
+kubectl --context ${CLUSTER1} apply -f - <<EOF
+apiVersion: resilience.policy.gloo.solo.io/v2
+kind: FailoverPolicy
+metadata:
+  name: failover
+  namespace: bookinfo-frontends
+  labels:
+    workspace.solo.io/exported: "true"
+spec:
+  applyToDestinations:
+  - kind: VIRTUAL_DESTINATION
+    selector:
+      labels:
+        failover: "true"
+  config:
+    localityMappings: []
+EOF
+```
+
+It will update the Istio `DestinationRule` to enable failover.
+
+The second one is an `OutlierDetectionPolicy`:
+
+```bash
+kubectl --context ${CLUSTER1} apply -f - <<EOF
+apiVersion: resilience.policy.gloo.solo.io/v2
+kind: OutlierDetectionPolicy
+metadata:
+  name: outlier-detection
+  namespace: bookinfo-frontends
+  labels:
+    workspace.solo.io/exported: "true"
+spec:
+  applyToDestinations:
+  - kind: VIRTUAL_DESTINATION
+    selector:
+      labels:
+        failover: "true"
+  config:
+    consecutiveErrors: 2
+    interval: 5s
+    baseEjectionTime: 30s
+    maxEjectionPercent: 100
+EOF
+```
+
+It will update the Istio `DestinationRule` to specify how/when we want the failover to happen.
+
+As you can see, both policies will be applied to `VirtualDestination` objects that have the label `failover` set to `"true"`.
+
+So we need to update the `VirtualDestination`:
+
+```bash
+kubectl --context ${CLUSTER1} apply -f - <<EOF
+apiVersion: networking.gloo.solo.io/v2
+kind: VirtualDestination
+metadata:
+  name: productpage
+  namespace: bookinfo-frontends
+  labels:
+    failover: "true"
+    workspace.solo.io/exported: "true"
+spec:
+  hosts:
+  - productpage.global
+  services:
+  - namespace: bookinfo-frontends
+    labels:
+      app: productpage
+  ports:
+    - name: http
+      number: 9080
+      protocol: HTTP
+
+EOF
+```
+
+<!--bash
+cat <<'EOF' > ./test.js
+const helpers = require('./tests/chai-http');
+
+describe("Productpage is available (SSL)", () => {
+  it('/productpage is available in cluster1', () => helpers.checkURL({ host: 'https://' + process.env.ENDPOINT_HTTPS_GW_CLUSTER1, path: '/productpage', retCode: 200 }));
+  it('/productpage is available in cluster2', () => helpers.checkURL({ host: 'https://' + process.env.ENDPOINT_HTTPS_GW_CLUSTER1, path: '/productpage', retCode: 200 }));
+})
+EOF
+echo "executing test gloo-mesh-2-0/templates/steps/apps/bookinfo/virtual-destination/tests/productpage-available-secure.test.js.liquid"
+mocha ./test.js --retries=50 --bail 2> /dev/null || exit 1
+-->
+
+Now, if you try to access the productpage from the first cluster, you should only get the `v1` and `v2` versions (the local ones).
+
+This updated diagram shows the flow of the requests using the local services:
 
 ![Gloo Mesh Virtual Destination](images/steps/virtual-destination/gloo-mesh-virtual-destination.svg)
 
@@ -2008,103 +2140,20 @@ The following command will patch the deployment to run a new version which won't
 kubectl --context ${CLUSTER1} -n bookinfo-frontends patch deploy productpage-v1 --patch '{"spec": {"template": {"spec": {"containers": [{"name": "productpage","command": ["sleep", "20h"]}]}}}}'
 ```
 
-You shouldn't be able to access the bookinfo application anymore.
+<!--bash
+cat <<'EOF' > ./test.js
+const helpers = require('./tests/chai-http');
 
-Run the following command to make it work again.
-
-```bash
-kubectl --context ${CLUSTER1} -n bookinfo-frontends patch deployment productpage-v1  --type json   -p '[{"op": "remove", "path": "/spec/template/spec/containers/0/command"}]'
-```
-
-To make it works we need to create 2 other policies.
-
-The first one is a `FailoverPolicy`:
-
-```bash
-kubectl --context ${CLUSTER1} apply -f - <<EOF
-apiVersion: resilience.policy.gloo.solo.io/v2
-kind: FailoverPolicy
-metadata:
-  name: failover
-  namespace: bookinfo-frontends
-  labels:
-    workspace.solo.io/exported: "true"
-spec:
-  applyToDestinations:
-  - kind: VirtualDestination
-    selector:
-      labels:
-        failover: "true"
-  config:
-    localityMappings: []
+describe("Productpage is available (SSL)", () => {
+  it('/productpage is available in cluster1', () => helpers.checkURL({ host: 'https://' + process.env.ENDPOINT_HTTPS_GW_CLUSTER1, path: '/productpage', retCode: 200 }));
+  it('/productpage is available in cluster2', () => helpers.checkURL({ host: 'https://' + process.env.ENDPOINT_HTTPS_GW_CLUSTER1, path: '/productpage', retCode: 200 }));
+})
 EOF
-```
+echo "executing test gloo-mesh-2-0/templates/steps/apps/bookinfo/virtual-destination/tests/productpage-available-secure.test.js.liquid"
+mocha ./test.js --retries=50 --bail 2> /dev/null || exit 1
+-->
 
-It will update the Istio `DestinationRule` to enable failover.
-
-The second one is an `OutlierDetectionPolicy`:
-
-```bash
-kubectl --context ${CLUSTER1} apply -f - <<EOF
-apiVersion: resilience.policy.gloo.solo.io/v2
-kind: OutlierDetectionPolicy
-metadata:
-  name: outlier-detection
-  namespace: bookinfo-frontends
-  labels:
-    workspace.solo.io/exported: "true"
-spec:
-  applyToDestinations:
-  - kind: VirtualDestination
-    selector:
-      labels:
-        failover: "true"
-  config:
-    consecutiveErrors: 2
-    interval: 5s
-    baseEjectionTime: 30s
-    maxEjectionPercent: 100
-EOF
-```
-
-It will update the Istio `DestinationRule` to specify how/when we want the failover to happen.
-
-As you can see, both policies will be applied to `VirtualDestination` objects that have the label `failover` set to `"true"`.
-
-So we need to update the `VirtualDestination`:
-
-```bash
-kubectl --context ${CLUSTER1} apply -f - <<EOF
-apiVersion: networking.gloo.solo.io/v2
-kind: VirtualDestination
-metadata:
-  name: productpage
-  namespace: bookinfo-frontends
-  labels:
-    failover: "true"
-    workspace.solo.io/exported: "true"
-spec:
-  hosts:
-  - productpage.global
-  services:
-  - namespace: bookinfo-frontends
-    labels:
-      app: productpage
-  ports:
-    - name: http
-      number: 9080
-      protocol: HTTP
-
-EOF
-```
-
-Let's patch again the deployment to run a new version which won't respond to the incoming requests.
-
-```bash
-kubectl --context ${CLUSTER1} -n bookinfo-frontends patch deploy productpage-v1 --patch '{"spec": {"template": {"spec": {"containers": [{"name": "productpage","command": ["sleep", "20h"]}]}}}}'
-```
-
-This time you can still access the bookinfo application.
+You can still access the bookinfo application.
 
 This updated diagram shows the flow of the request now that the `productpage` service isn't available in the first cluster:
 
@@ -2183,7 +2232,7 @@ Run the following commands to initiate a communication from a service which isn'
 
 ```
 pod=$(kubectl --context ${CLUSTER1} -n httpbin get pods -l app=not-in-mesh -o jsonpath='{.items[0].metadata.name}')
-kubectl --context ${CLUSTER1} -n httpbin debug -i ${pod} --image=curlimages/curl -- curl -s -o /dev/null -w "%{http_code}" http://reviews.bookinfo-backends.svc.cluster.local:9080/reviews/0
+kubectl --context ${CLUSTER1} -n httpbin debug -i -q ${pod} --image=curlimages/curl -- curl -s -o /dev/null -w "%{http_code}" http://reviews.bookinfo-backends.svc.cluster.local:9080/reviews/0
 ```
 
 You should get a `200` response code which confirm that the communication is currently allowed.
@@ -2197,7 +2246,7 @@ const helpers = require('./tests/chai-exec');
 describe("Communication allowed", () => {
   it("Response code should be 200", () => {
     const podName = helpers.getOutputForCommand({ command: "kubectl --context " + process.env.CLUSTER1 + " -n httpbin get pods -l app=not-in-mesh -o jsonpath='{.items[0].metadata.name}'" }).replaceAll("'", "");
-    const command = helpers.getOutputForCommand({ command: "kubectl --context " + process.env.CLUSTER1 + " -n httpbin debug -i " + podName + " --image=curlimages/curl -- curl -s -o /dev/null -w \"%{http_code}\" http://reviews.bookinfo-backends.svc.cluster.local:9080/reviews/0" }).replaceAll("'", "");
+    const command = helpers.getOutputForCommand({ command: "kubectl --context " + process.env.CLUSTER1 + " -n httpbin debug -i -q " + podName + " --image=curlimages/curl -- curl -s -o /dev/null -w \"%{http_code}\" http://reviews.bookinfo-backends.svc.cluster.local:9080/reviews/0" }).replaceAll("'", "");
     expect(command).to.contain("200");
   });
 });
@@ -2210,7 +2259,7 @@ Run the following commands to initiate a communication from a service which is i
 
 ```
 pod=$(kubectl --context ${CLUSTER1} -n httpbin get pods -l app=in-mesh -o jsonpath='{.items[0].metadata.name}')
-kubectl --context ${CLUSTER1} -n httpbin debug -i ${pod} --image=curlimages/curl -- curl -s -o /dev/null -w "%{http_code}" http://reviews.bookinfo-backends.svc.cluster.local:9080/reviews/0
+kubectl --context ${CLUSTER1} -n httpbin debug -i -q ${pod} --image=curlimages/curl -- curl -s -o /dev/null -w "%{http_code}" http://reviews.bookinfo-backends.svc.cluster.local:9080/reviews/0
 ```
 
 <!--bash
@@ -2222,7 +2271,7 @@ const helpers = require('./tests/chai-exec');
 describe("Communication allowed", () => {
   it("Response code should be 200", () => {
     const podName = helpers.getOutputForCommand({ command: "kubectl --context " + process.env.CLUSTER1 + " -n httpbin get pods -l app=in-mesh -o jsonpath='{.items[0].metadata.name}'" }).replaceAll("'", "");
-    const command = helpers.getOutputForCommand({ command: "kubectl --context " + process.env.CLUSTER1 + " -n httpbin debug -i " + podName + " --image=curlimages/curl -- curl -s -o /dev/null -w \"%{http_code}\" http://reviews.bookinfo-backends.svc.cluster.local:9080/reviews/0" }).replaceAll("'", "");
+    const command = helpers.getOutputForCommand({ command: "kubectl --context " + process.env.CLUSTER1 + " -n httpbin debug -i -q " + podName + " --image=curlimages/curl -- curl -s -o /dev/null -w \"%{http_code}\" http://reviews.bookinfo-backends.svc.cluster.local:9080/reviews/0" }).replaceAll("'", "");
     expect(command).to.contain("200");
   });
 });
@@ -2264,7 +2313,7 @@ Run the following commands to initiate a communication from a service which isn'
 
 ```
 pod=$(kubectl --context ${CLUSTER1} -n httpbin get pods -l app=not-in-mesh -o jsonpath='{.items[0].metadata.name}')
-kubectl --context ${CLUSTER1} -n httpbin debug -i ${pod} --image=curlimages/curl -- curl -s -o /dev/null -w "%{http_code}" http://reviews.bookinfo-backends.svc.cluster.local:9080/reviews/0
+kubectl --context ${CLUSTER1} -n httpbin debug -i -q ${pod} --image=curlimages/curl -- curl -s -o /dev/null -w "%{http_code}" http://reviews.bookinfo-backends.svc.cluster.local:9080/reviews/0
 ```
 
 You should get a `000` response code which means that the communication can't be established.
@@ -2278,7 +2327,7 @@ const helpers = require('./tests/chai-exec');
 describe("Communication notallowed", () => {
   it("Response code should be 000", () => {
     const podName = helpers.getOutputForCommand({ command: "kubectl --context " + process.env.CLUSTER1 + " -n httpbin get pods -l app=not-in-mesh -o jsonpath='{.items[0].metadata.name}'" }).replaceAll("'", "");
-    const command = helpers.getOutputForCommand({ command: "kubectl --context " + process.env.CLUSTER1 + " -n httpbin debug -i " + podName + " --image=curlimages/curl -- curl -s -o /dev/null -w \"%{http_code}\" http://reviews.bookinfo-backends.svc.cluster.local:9080/reviews/0" }).replaceAll("'", "");
+    const command = helpers.getOutputForCommand({ command: "kubectl --context " + process.env.CLUSTER1 + " -n httpbin debug -i -q " + podName + " --image=curlimages/curl -- curl -s -o /dev/null -w \"%{http_code}\" http://reviews.bookinfo-backends.svc.cluster.local:9080/reviews/0" }).replaceAll("'", "");
     expect(command).to.contain("000");
   });
 });
@@ -2291,7 +2340,7 @@ Run the following commands to initiate a communication from a service which is i
 
 ```
 pod=$(kubectl --context ${CLUSTER1} -n httpbin get pods -l app=in-mesh -o jsonpath='{.items[0].metadata.name}')
-kubectl --context ${CLUSTER1} -n httpbin debug -i ${pod} --image=curlimages/curl -- curl -s -o /dev/null -w "%{http_code}" http://reviews.bookinfo-backends.svc.cluster.local:9080/reviews/0
+kubectl --context ${CLUSTER1} -n httpbin debug -i -q ${pod} --image=curlimages/curl -- curl -s -o /dev/null -w "%{http_code}" http://reviews.bookinfo-backends.svc.cluster.local:9080/reviews/0
 ```
 
 <!--bash
@@ -2303,7 +2352,7 @@ const helpers = require('./tests/chai-exec');
 describe("Communication not allowed", () => {
   it("Response code should be 403", () => {
     const podName = helpers.getOutputForCommand({ command: "kubectl --context " + process.env.CLUSTER1 + " -n httpbin get pods -l app=in-mesh -o jsonpath='{.items[0].metadata.name}'" }).replaceAll("'", "");
-    const command = helpers.getOutputForCommand({ command: "kubectl --context " + process.env.CLUSTER1 + " -n httpbin debug -i " + podName + " --image=curlimages/curl -- curl -s -o /dev/null -w \"%{http_code}\" http://reviews.bookinfo-backends.svc.cluster.local:9080/reviews/0" }).replaceAll("'", "");
+    const command = helpers.getOutputForCommand({ command: "kubectl --context " + process.env.CLUSTER1 + " -n httpbin debug -i -q " + podName + " --image=curlimages/curl -- curl -s -o /dev/null -w \"%{http_code}\" http://reviews.bookinfo-backends.svc.cluster.local:9080/reviews/0" }).replaceAll("'", "");
     expect(command).to.contain("403");
   });
 });
@@ -2331,10 +2380,10 @@ In this lab, we're going to install Keycloak. It will allow us to setup OIDC wor
 Let's install it:
 
 ```bash
-kubectl --context ${CLUSTER1} create namespace keycloak
-cat data/steps/deploy-keycloak/keycloak.yaml | kubectl --context ${CLUSTER1} -n keycloak apply -f -
+kubectl --context ${MGMT} create namespace keycloak
+cat data/steps/deploy-keycloak/keycloak.yaml | kubectl --context ${MGMT} -n keycloak apply -f -
 
-kubectl --context ${CLUSTER1} -n keycloak rollout status deploy/keycloak
+kubectl --context ${MGMT} -n keycloak rollout status deploy/keycloak
 ```
 
 <!--bash
@@ -2342,7 +2391,7 @@ cat <<'EOF' > ./test.js
 const helpers = require('./tests/chai-exec');
 
 describe("Keycloak", () => {
-  it('keycloak pods are ready in cluster1', () => helpers.checkDeployment({ context: process.env.CLUSTER1, namespace: "keycloak", k8sObj: "keycloak" }));
+  it('keycloak pods are ready in cluster1', () => helpers.checkDeployment({ context: process.env.MGMT, namespace: "keycloak", k8sObj: "keycloak" }));
 });
 EOF
 echo "executing test gloo-mesh-2-0/templates/steps/deploy-keycloak/tests/pods-available.test.js.liquid"
@@ -2367,7 +2416,7 @@ afterEach(function (done) {
 
 describe("Retrieve enterprise-networking ip", () => {
   it("A value for load-balancing has been assigned", () => {
-    let cli = chaiExec("kubectl --context " + process.env.CLUSTER1 + " -n keycloak get svc keycloak -o jsonpath='{.status.loadBalancer}'");
+    let cli = chaiExec("kubectl --context " + process.env.MGMT + " -n keycloak get svc keycloak -o jsonpath='{.status.loadBalancer}'");
     expect(cli).to.exit.with.code(0);
     expect(cli).output.to.contain('"ingress"');
   });
@@ -2385,10 +2434,16 @@ Then, we will configure it and create two users:
 - User2 credentials: `user2/password`
   Email: user2@example.com
 
+<!--bash
+until [[ $(kubectl --context ${MGMT} -n keycloak get svc keycloak -o json | jq '.status.loadBalancer | length') -gt 0 ]]; do
+  sleep 1
+done
+-->
+
 Let's set the environment variables we need:
 
 ```bash
-export ENDPOINT_KEYCLOAK=$(kubectl --context ${CLUSTER1} -n keycloak get service keycloak -o jsonpath='{.status.loadBalancer.ingress[0].*}'):8080
+export ENDPOINT_KEYCLOAK=$(kubectl --context ${MGMT} -n keycloak get service keycloak -o jsonpath='{.status.loadBalancer.ingress[0].*}'):8080
 export HOST_KEYCLOAK=$(echo ${ENDPOINT_KEYCLOAK} | cut -d: -f1)
 export KEYCLOAK_URL=http://${ENDPOINT_KEYCLOAK}/auth
 ```

@@ -14,7 +14,7 @@ afterEach(function (done) {
 
 describe("Retrieve enterprise-networking ip", () => {
   it("A value for load-balancing has been assigned", () => {
-    let cli = chaiExec("kubectl --context " + process.env.CLUSTER1 + " -n keycloak get svc keycloak -o jsonpath='{.status.loadBalancer}'");
+    let cli = chaiExec("kubectl --context " + process.env.MGMT + " -n keycloak get svc keycloak -o jsonpath='{.status.loadBalancer}'");
     expect(cli).to.exit.with.code(0);
     expect(cli).output.to.contain('"ingress"');
   });

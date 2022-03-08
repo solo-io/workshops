@@ -19,6 +19,11 @@ cp -r node_modules/ /tmp/node_modules/
 
 ln -s /root/.nvm/versions/node/*/bin/node -t /usr/local/sbin
 ln -s /root/.nvm/versions/node/*/bin/mocha -t /usr/local/sbin
+ln -s /root/.nvm/versions/node/*/bin/npm -t /usr/local/sbin
+
+pushd /tmp
+npm install
+popd
 
 touch /root/.env
 echo "export KUBECONFIG=/root/.kube/mgmt:/root/.kube/cluster1:/root/.kube/cluster2" >> /root/.env
@@ -56,9 +61,12 @@ end
 EOF
 
 cat <<'EOF' >/root/penv.sh
+trap "exec /root/penv.sh;" INT TERM
 while true; do
-  gdb -x /root/penv.gdb -p $PPID -q --batch 2>null  | grep '^\$' | awk -F\" '{ print $2 }' | awk -F= '{ print "export "$1"=\""$2"\"" }' > /root/.env
   sleep 5
+  [[ $(($(date +%s)-$(stat -c '%Y' /root/.env))) -gt 5 ]] || continue
+  gdb -x /root/penv.gdb -p $PPID -q --batch 2>null  | grep '^\$' | awk -F\" '{ print $2 }' | awk -F= '{ print "export "$1"=\""$2"\"" }' > /tmp/.env
+  cp /tmp/.env /root/.env
 done
 EOF
 
