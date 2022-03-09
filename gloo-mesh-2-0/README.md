@@ -23,11 +23,12 @@ source ./scripts/assert.sh
 * [Lab 7 - Expose the productpage through a gateway](#Lab-7)
 * [Lab 8 - Traffic policies](#Lab-8)
 * [Lab 9 - Create the Root Trust Policy](#Lab-9)
-* [Lab 10 - Leverage Virtual Destinations](#Lab-10)
-* [Lab 11 - Zero trust](#Lab-11)
-* [Lab 12 - Deploy Keycloak](#Lab-12)
-* [Lab 13 - Securing the access with OAuth](#Lab-13)
-* [Lab 14 - Apply rate limiting to the Gateway](#Lab-14)
+* [Lab 10 - Multi-cluster Traffic](#Lab-10)
+* [Lab 11 - Leverage Virtual Destinations](#Lab-11)
+* [Lab 12 - Zero trust](#Lab-12)
+* [Lab 13 - Deploy Keycloak](#Lab-13)
+* [Lab 14 - Securing the access with OAuth](#Lab-14)
+* [Lab 15 - Apply rate limiting to the Gateway](#Lab-15)
 
 
 
@@ -1855,9 +1856,118 @@ kubectl --context ${CLUSTER1} -n httpbin rollout restart deploy/in-mesh
 
 
 
-## Lab 10 - Leverage Virtual Destinations <a name="Lab-10"></a>
+## Lab 10 - Multi-cluster Traffic <a name="Lab-10"></a>
 
-We've exposed the `productpage` service on the first cluster.
+On the first cluster, the `v3` version of the `reviews` microservice doesn't exist, but we can use Gloo Mesh to explicitly direct all the traffic to the `v3` version of the second cluster.
+
+To do that, the bookinfo team must update the `WorkspaceSettings` to discover all the `reviews` services and to make them available from anywhere.
+
+```bash
+cat << EOF | kubectl --context ${CLUSTER1} apply -f -
+apiVersion: admin.gloo.solo.io/v2
+kind: WorkspaceSettings
+metadata:
+  name: bookinfo
+  namespace: bookinfo-frontends
+spec:
+  exportTo:
+  - name: gateways
+  options:
+    federation:
+      enabled: true
+      serviceSelector:
+      - workspace: bookinfo
+        labels:
+          app: reviews
+EOF
+```
+
+Gloo Mesh will discover the remote services and create the corresponding Istio `ServiceEntries` to make them available.
+
+After that, you need to create a `RouteTable` to send all the traffic to the `v3` version of the `reviews` service running on the second cluster.
+
+```bash
+cat << EOF | kubectl --context ${CLUSTER1} apply -f -
+apiVersion: networking.gloo.solo.io/v2
+kind: RouteTable
+metadata:
+  name: reviews
+  namespace: bookinfo-backends
+spec:
+  hosts:
+    - 'reviews.bookinfo-backends.svc.cluster.local'
+  workloadSelectors:
+  - selector:
+      labels:
+        app: productpage
+  http:
+    - name: reviews
+      matchers:
+      - uri:
+          prefix: /
+      forwardTo:
+        destinations:
+          - ref:
+              name: reviews
+              namespace: bookinfo-backends
+              cluster: cluster2
+            port:
+              number: 9080
+            subset:
+              version: v3
+EOF
+```
+
+<!--bash
+cat <<'EOF' > ./test.js
+const chaiExec = require("@jsdevtools/chai-exec");
+var chai = require('chai');
+var expect = chai.expect;
+chai.use(chaiExec);
+
+afterEach(function (done) {
+  if (this.currentTest.currentRetry() > 0) {
+    process.stdout.write(".");
+    setTimeout(done, 1000);
+  } else {
+    done();
+  }
+});
+
+describe("Reviews v3", function() {
+  it('Got reviews v3', function () {
+    expect(process.env.ENDPOINT_HTTPS_GW_CLUSTER1).to.not.be.empty
+    let command = 'curl -ks "https://' + process.env.ENDPOINT_HTTPS_GW_CLUSTER1 +'/productpage"'
+    let cli = chaiExec(command);
+    expect(cli).to.exit.with.code(0);
+    expect(cli).output.to.contain('color="red"');
+  })
+});
+EOF
+echo "executing test gloo-mesh-2-0/templates/steps/apps/bookinfo/multicluster-traffic/tests/reviews-v3.test.js.liquid"
+mocha ./test.js --retries=50 --bail 2> /dev/null || exit 1
+-->
+
+If you refresh the page, you'll see the `v3` version of the `reviews` microservice:
+
+![Bookinfo v3](images/steps/multicluster-traffic/bookinfo-v3.png)
+
+This updated diagram shows the flow of the requests:
+
+![Gloo Mesh Virtual Destination Remote](images/steps/multicluster-traffic/multicluster-traffic.svg)
+
+Let's delete the `RouteTable` we've created:
+
+```bash
+kubectl --context ${CLUSTER1} -n bookinfo-backends delete routetable reviews
+```
+
+
+
+
+## Lab 11 - Leverage Virtual Destinations <a name="Lab-11"></a>
+
+Right now, we've only exposed the `productpage` service on the first cluster.
 
 Let's update the VirtualGateway to expose it on both clusters.
 
@@ -2072,7 +2182,6 @@ spec:
     - name: http
       number: 9080
       protocol: HTTP
-
 EOF
 ```
 
@@ -2138,6 +2247,7 @@ The following command will patch the deployment to run a new version which won't
 
 ```bash
 kubectl --context ${CLUSTER1} -n bookinfo-frontends patch deploy productpage-v1 --patch '{"spec": {"template": {"spec": {"containers": [{"name": "productpage","command": ["sleep", "20h"]}]}}}}'
+kubectl --context ${CLUSTER1} -n bookinfo-frontends rollout status deploy/productpage-v1
 ```
 
 <!--bash
@@ -2163,6 +2273,8 @@ Run the following command to make the `productpage` available again in the first
 
 ```bash
 kubectl --context ${CLUSTER1} -n bookinfo-frontends patch deployment productpage-v1  --type json   -p '[{"op": "remove", "path": "/spec/template/spec/containers/0/command"}]'
+kubectl --context ${CLUSTER1} -n bookinfo-frontends rollout status deploy/productpage-v1
+
 ```
 
 Let's apply the original `RouteTable` yaml:
@@ -2217,7 +2329,7 @@ kubectl --context ${CLUSTER1} -n bookinfo-frontends delete outlierdetectionpolic
 
 
 
-## Lab 11 - Zero trust <a name="Lab-11"></a>
+## Lab 12 - Zero trust <a name="Lab-12"></a>
 
 In the previous step, we federated multiple meshes and established a shared root CA for a shared identity domain.
 
@@ -2367,7 +2479,7 @@ You've achieved zero trust with nearly no effort.
 
 
 
-## Lab 12 - Deploy Keycloak <a name="Lab-12"></a>
+## Lab 13 - Deploy Keycloak <a name="Lab-13"></a>
 
 In many use cases, you need to restrict the access to your applications to authenticated users. 
 
@@ -2510,7 +2622,7 @@ KEYCLOAK_TOKEN=$(curl -d "client_id=admin-cli" -d "username=admin" -d "password=
 
 
 
-## Lab 13 - Securing the access with OAuth <a name="Lab-13"></a>
+## Lab 14 - Securing the access with OAuth <a name="Lab-14"></a>
 
 
 In this step, we're going to secure the access to the `productpage` using OAuth.
@@ -2789,7 +2901,7 @@ kubectl --context ${CLUSTER1} -n bookinfo-frontends delete extauthserver ext-aut
 
 
 
-## Lab 14 - Apply rate limiting to the Gateway <a name="Lab-14"></a>
+## Lab 15 - Apply rate limiting to the Gateway <a name="Lab-15"></a>
 
 
 In this step, we're going to apply rate limiting to the Gateway.
