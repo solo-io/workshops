@@ -28,5 +28,3 @@ azs_workers        = ["eu-west-1a", "eu-west-1b", "eu-west-1c"]
 eks_version        = "1.21"
 node_instance_type = "t3.small"
 include_vm         = {}
-
-

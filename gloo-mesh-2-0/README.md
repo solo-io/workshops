@@ -216,6 +216,7 @@ After that, you can deploy the gateways:
 kubectl --context ${CLUSTER1} label namespace istio-gateways istio.io/rev=1-11
 
 helm --kube-context=${CLUSTER1} install istio-ingressgateway ./istio-1.11.7/manifests/charts/gateways/istio-ingress -n istio-gateways --values - <<EOF
+
 gateways:
   istio-ingressgateway:
     name: istio-ingressgateway
@@ -233,6 +234,7 @@ gateways:
 EOF
 
 helm --kube-context=${CLUSTER1} install istio-eastwestgateway ./istio-1.11.7/manifests/charts/gateways/istio-ingress -n istio-gateways --values - <<EOF
+
 gateways:
   istio-ingressgateway:
     name: istio-eastwestgateway
@@ -310,6 +312,7 @@ After that, you can deploy the gateways:
 kubectl --context ${CLUSTER2} label namespace istio-gateways istio.io/rev=1-11
 
 helm --kube-context=${CLUSTER2} install istio-ingressgateway ./istio-1.11.7/manifests/charts/gateways/istio-ingress -n istio-gateways --values - <<EOF
+
 gateways:
   istio-ingressgateway:
     name: istio-ingressgateway
@@ -327,6 +330,7 @@ gateways:
 EOF
 
 helm --kube-context=${CLUSTER2} install istio-eastwestgateway ./istio-1.11.7/manifests/charts/gateways/istio-ingress -n istio-gateways --values - <<EOF
+
 gateways:
   istio-ingressgateway:
     name: istio-eastwestgateway
@@ -735,7 +739,7 @@ mocha ./test.js --retries=50 --bail 2> /dev/null || exit 1
 First of all, you need to install the *meshctl* CLI:
 
 ```bash
-export GLOO_MESH_VERSION=v2.0.0-beta15
+export GLOO_MESH_VERSION=v2.0.0-beta17
 curl -sL https://run.solo.io/meshctl/install | sh -
 export PATH=$HOME/.gloo-mesh/bin:$PATH
 ```
@@ -779,7 +783,7 @@ helm repo update
 kubectl --context ${MGMT} create ns gloo-mesh 
 helm upgrade --install gloo-mesh-enterprise gloo-mesh-enterprise/gloo-mesh-enterprise \
 --namespace gloo-mesh --kube-context ${MGMT} \
---version=2.0.0-beta15 \
+--version=2.0.0-beta17 \
 --set glooMeshMgmtServer.ports.healthcheck=8091 \
 --set glooMeshUi.serviceType=LoadBalancer \
 --set licenseKey=${GLOO_MESH_LICENSE_KEY}
@@ -875,7 +879,7 @@ helm upgrade --install gloo-mesh-agent gloo-mesh-agent/gloo-mesh-agent \
   --set rate-limiter.enabled=false \
   --set ext-auth-service.enabled=false \
   --set cluster=cluster1 \
-  --version 2.0.0-beta15
+  --version 2.0.0-beta17
 ```
 
 And here is how you register the second one:
@@ -909,7 +913,7 @@ helm upgrade --install gloo-mesh-agent gloo-mesh-agent/gloo-mesh-agent \
   --set rate-limiter.enabled=false \
   --set ext-auth-service.enabled=false \
   --set cluster=cluster2 \
-  --version 2.0.0-beta15
+  --version 2.0.0-beta17
 ```
 
 Note that the registration can also be performed using `meshctl`.
@@ -974,7 +978,7 @@ helm upgrade --install gloo-mesh-agent-addons gloo-mesh-agent/gloo-mesh-agent \
   --set glooMeshAgent.enabled=false \
   --set rate-limiter.enabled=true \
   --set ext-auth-service.enabled=true \
-  --version 2.0.0-beta15
+  --version 2.0.0-beta17
 
 helm upgrade --install gloo-mesh-agent-addons gloo-mesh-agent/gloo-mesh-agent \
   --namespace gloo-mesh-addons \
@@ -982,7 +986,7 @@ helm upgrade --install gloo-mesh-agent-addons gloo-mesh-agent/gloo-mesh-agent \
   --set glooMeshAgent.enabled=false \
   --set rate-limiter.enabled=true \
   --set ext-auth-service.enabled=true \
-  --version 2.0.0-beta15
+  --version 2.0.0-beta17
 ```
 
 This is how to environment looks like now:
@@ -2759,9 +2763,9 @@ var expect = chai.expect;
 describe("Authentication is working properly", function() {
   let user = 'user1';
   let password = 'password';
-  let keycloak_svc = chaiExec("kubectl --context " + process.env.CLUSTER1 + " -n keycloak get service keycloak -o jsonpath='{.status.loadBalancer.ingress[0].ip}'").stdout.replaceAll("'", "");
-  let keycloak_client_id = chaiExec("kubectl --context " + process.env.CLUSTER1 + " -n bookinfo-frontends get extauthpolicy productpage -o jsonpath='{.spec.config.glooAuth.configs[0].oauth2.oidcAuthorizationCode.clientId}'").stdout.replaceAll("'", "");
-  let keycloak_client_secret_base64 = chaiExec("kubectl --context " + process.env.CLUSTER1 + " -n bookinfo-frontends get secret oauth -o jsonpath='{.data.client-secret}'").stdout.replaceAll("'", "");
+  let keycloak_svc = chaiExec("kubectl --context " + process.env.MGMT + " -n keycloak get service keycloak -o jsonpath='{.status.loadBalancer.ingress[0].ip}'").stdout.replaceAll("'", "");
+  let keycloak_client_id = chaiExec("kubectl --context " + process.env.MGMT + " -n bookinfo-frontends get extauthpolicy productpage -o jsonpath='{.spec.config.glooAuth.configs[0].oauth2.oidcAuthorizationCode.clientId}'").stdout.replaceAll("'", "");
+  let keycloak_client_secret_base64 = chaiExec("kubectl --context " + process.env.MGMT + " -n bookinfo-frontends get secret oauth -o jsonpath='{.data.client-secret}'").stdout.replaceAll("'", "");
   let buff = new Buffer(keycloak_client_secret_base64, 'base64');
   let keycloak_client_secret = buff.toString('ascii');
   let keycloak_token = JSON.parse(chaiExec('curl -d "client_id=' + keycloak_client_id + '" -d "client_secret=' + keycloak_client_secret + '" -d "scope=openid" -d "username=' + user + '" -d "password=' + password + '" -d "grant_type=password" "http://' + keycloak_svc + ':8080/auth/realms/master/protocol/openid-connect/token"').stdout.replaceAll("'", "")).id_token;
