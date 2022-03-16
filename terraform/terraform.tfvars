@@ -25,6 +25,13 @@ preemptible = false # to build clusters that live mostly for 24h, cheaper
 # EKS
 azs_controlplane   = ["eu-west-1a", "eu-west-1b", "eu-west-1c"]
 azs_workers        = ["eu-west-1a", "eu-west-1b", "eu-west-1c"]
-eks_version        = "1.21"
+eks_version        = "1.20"
 node_instance_type = "t3.small"
 include_vm         = {}
+
+eks_clusters = {
+  eks-batch1 = {
+    num_instances      = 2
+    node_instance_type = "t3.2xlarge"
+  }
+}
