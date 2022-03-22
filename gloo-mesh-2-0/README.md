@@ -69,6 +69,8 @@ You can find more information about Gloo Mesh in the official documentation:
 
 ## Lab 1 - Deploy KinD clusters <a name="Lab-1"></a>
 
+Clone this repository and go to the `gloo-mesh-2-0` directory.
+
 Set the context environment variables:
 
 ```bash
@@ -182,9 +184,9 @@ kubectl --context ${CLUSTER1} create ns istio-gateways
 Now, let's deploy the Istio control plane on the first cluster:
 
 ```bash
-helm --kube-context=${CLUSTER1} install istio-base ./istio-1.11.7/manifests/charts/base -n istio-system
+helm --kube-context=${CLUSTER1} upgrade --install istio-base ./istio-1.11.7/manifests/charts/base -n istio-system
 
-helm --kube-context=${CLUSTER1} install istio-1.11.7 ./istio-1.11.7/manifests/charts/istio-control/istio-discovery -n istio-system --values - <<EOF
+helm --kube-context=${CLUSTER1} upgrade --install istio-1.11.7 ./istio-1.11.7/manifests/charts/istio-control/istio-discovery -n istio-system --values - <<EOF
 revision: 1-11
 global:
   meshID: mesh1
@@ -215,7 +217,7 @@ After that, you can deploy the gateways:
 ```bash
 kubectl --context ${CLUSTER1} label namespace istio-gateways istio.io/rev=1-11
 
-helm --kube-context=${CLUSTER1} install istio-ingressgateway ./istio-1.11.7/manifests/charts/gateways/istio-ingress -n istio-gateways --values - <<EOF
+helm --kube-context=${CLUSTER1} upgrade --install istio-ingressgateway ./istio-1.11.7/manifests/charts/gateways/istio-ingress -n istio-gateways --values - <<EOF
 
 gateways:
   istio-ingressgateway:
@@ -233,7 +235,7 @@ gateways:
       targetPort: 8443
 EOF
 
-helm --kube-context=${CLUSTER1} install istio-eastwestgateway ./istio-1.11.7/manifests/charts/gateways/istio-ingress -n istio-gateways --values - <<EOF
+helm --kube-context=${CLUSTER1} upgrade --install istio-eastwestgateway ./istio-1.11.7/manifests/charts/gateways/istio-ingress -n istio-gateways --values - <<EOF
 
 gateways:
   istio-ingressgateway:
@@ -278,9 +280,9 @@ kubectl --context ${CLUSTER2} create ns istio-gateways
 Now, let's deploy the Istio control plane on the second cluster:
 
 ```bash
-helm --kube-context=${CLUSTER2} install istio-base ./istio-1.11.7/manifests/charts/base -n istio-system
+helm --kube-context=${CLUSTER2} upgrade --install istio-base ./istio-1.11.7/manifests/charts/base -n istio-system
 
-helm --kube-context=${CLUSTER2} install istio-1.11.7 ./istio-1.11.7/manifests/charts/istio-control/istio-discovery -n istio-system --values - <<EOF
+helm --kube-context=${CLUSTER2} upgrade --install istio-1.11.7 ./istio-1.11.7/manifests/charts/istio-control/istio-discovery -n istio-system --values - <<EOF
 revision: 1-11
 global:
   meshID: mesh1
@@ -311,7 +313,7 @@ After that, you can deploy the gateways:
 ```bash
 kubectl --context ${CLUSTER2} label namespace istio-gateways istio.io/rev=1-11
 
-helm --kube-context=${CLUSTER2} install istio-ingressgateway ./istio-1.11.7/manifests/charts/gateways/istio-ingress -n istio-gateways --values - <<EOF
+helm --kube-context=${CLUSTER2} upgrade --install istio-ingressgateway ./istio-1.11.7/manifests/charts/gateways/istio-ingress -n istio-gateways --values - <<EOF
 
 gateways:
   istio-ingressgateway:
@@ -329,7 +331,7 @@ gateways:
       targetPort: 8443
 EOF
 
-helm --kube-context=${CLUSTER2} install istio-eastwestgateway ./istio-1.11.7/manifests/charts/gateways/istio-ingress -n istio-gateways --values - <<EOF
+helm --kube-context=${CLUSTER2} upgrade --install istio-eastwestgateway ./istio-1.11.7/manifests/charts/gateways/istio-ingress -n istio-gateways --values - <<EOF
 
 gateways:
   istio-ingressgateway:
@@ -420,7 +422,7 @@ mocha ./test.js --retries=50 --bail 2> /dev/null || exit 1
 
 Run the following command until all the Istio Pods are ready:
 
-```
+```bash
 kubectl --context ${CLUSTER1} get pods -n istio-system && kubectl --context ${CLUSTER1} get pods -n istio-gateways
 ```
 
@@ -439,14 +441,13 @@ Check the status on the second cluster using:
 ```bash
 kubectl --context ${CLUSTER2} get pods -n istio-system && kubectl --context ${CLUSTER2} get pods -n istio-gateways
 ```
-
-Set the environment variable for the service corresponding to the Istio Ingress Gateway of cluster1:
-
 <!--bash
 until [[ $(kubectl --context ${CLUSTER1} -n istio-gateways get svc istio-ingressgateway -o json | jq '.status.loadBalancer | length') -gt 0 ]]; do
   sleep 1
 done
 -->
+
+Set the environment variable for the service corresponding to the Istio Ingress Gateway of cluster1:
 
 ```bash
 export ENDPOINT_HTTP_GW_CLUSTER1=$(kubectl --context ${CLUSTER1} -n istio-gateways get svc istio-ingressgateway -o jsonpath='{.status.loadBalancer.ingress[0].*}'):80
@@ -739,7 +740,7 @@ mocha ./test.js --retries=50 --bail 2> /dev/null || exit 1
 First of all, you need to install the *meshctl* CLI:
 
 ```bash
-export GLOO_MESH_VERSION=v2.0.0-beta17
+export GLOO_MESH_VERSION=v2.0.0-beta19
 curl -sL https://run.solo.io/meshctl/install | sh -
 export PATH=$HOME/.gloo-mesh/bin:$PATH
 ```
@@ -783,9 +784,10 @@ helm repo update
 kubectl --context ${MGMT} create ns gloo-mesh 
 helm upgrade --install gloo-mesh-enterprise gloo-mesh-enterprise/gloo-mesh-enterprise \
 --namespace gloo-mesh --kube-context ${MGMT} \
---version=2.0.0-beta17 \
+--version=2.0.0-beta19 \
 --set glooMeshMgmtServer.ports.healthcheck=8091 \
 --set glooMeshUi.serviceType=LoadBalancer \
+--set mgmtClusterName=${MGMT} \
 --set licenseKey=${GLOO_MESH_LICENSE_KEY}
 kubectl --context ${MGMT} -n gloo-mesh rollout status deploy/gloo-mesh-mgmt-server
 ```
@@ -879,7 +881,7 @@ helm upgrade --install gloo-mesh-agent gloo-mesh-agent/gloo-mesh-agent \
   --set rate-limiter.enabled=false \
   --set ext-auth-service.enabled=false \
   --set cluster=cluster1 \
-  --version 2.0.0-beta17
+  --version 2.0.0-beta19
 ```
 
 And here is how you register the second one:
@@ -913,7 +915,7 @@ helm upgrade --install gloo-mesh-agent gloo-mesh-agent/gloo-mesh-agent \
   --set rate-limiter.enabled=false \
   --set ext-auth-service.enabled=false \
   --set cluster=cluster2 \
-  --version 2.0.0-beta17
+  --version 2.0.0-beta19
 ```
 
 Note that the registration can also be performed using `meshctl`.
@@ -922,7 +924,7 @@ You can check the clusters have been registered correctly using the following co
 
 ```
 pod=$(kubectl --context ${MGMT} -n gloo-mesh get pods -l app=gloo-mesh-mgmt-server -o jsonpath='{.items[0].metadata.name}')
-kubectl --context mgmt -n gloo-mesh debug -it ${pod} --image=curlimages/curl -- curl http://localhost:9091/metrics | grep relay_push_clients_connected
+kubectl --context ${MGMT} -n gloo-mesh debug -it ${pod} --image=curlimages/curl -- curl http://localhost:9091/metrics | grep relay_push_clients_connected
 ```
 
 You should get an output similar to this:
@@ -978,7 +980,7 @@ helm upgrade --install gloo-mesh-agent-addons gloo-mesh-agent/gloo-mesh-agent \
   --set glooMeshAgent.enabled=false \
   --set rate-limiter.enabled=true \
   --set ext-auth-service.enabled=true \
-  --version 2.0.0-beta17
+  --version 2.0.0-beta19
 
 helm upgrade --install gloo-mesh-agent-addons gloo-mesh-agent/gloo-mesh-agent \
   --namespace gloo-mesh-addons \
@@ -986,7 +988,7 @@ helm upgrade --install gloo-mesh-agent-addons gloo-mesh-agent/gloo-mesh-agent \
   --set glooMeshAgent.enabled=false \
   --set rate-limiter.enabled=true \
   --set ext-auth-service.enabled=true \
-  --version 2.0.0-beta17
+  --version 2.0.0-beta19
 ```
 
 This is how to environment looks like now:
