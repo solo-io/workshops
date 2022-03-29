@@ -29,9 +29,10 @@ eks_version        = "1.21"
 node_instance_type = "t3.small"
 include_vm         = {}
 
-eks_clusters = {
-  eks-batch1 = {
-    num_instances      = 2
-    node_instance_type = "t3.2xlarge"
+environments = {
+  perf = {
+    machine_type = "n1-highmem-96"
+    source_machine_image = "workshop-generic-v20211019"
+    num_instances = 1
   }
 }

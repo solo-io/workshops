@@ -1,0 +1,3 @@
+docker https://registry-1.docker.io
+quay https://quay.io
+gcr https://gcr.io
