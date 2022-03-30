@@ -49,7 +49,11 @@ GLOO_MESH_VERSION=v2.0.0-beta23
 
 curl --insecure -sL https://run.solo.io/meshctl/install | GLOO_MESH_VERSION=${GLOO_MESH_VERSION} sh -
 
-meshctl install --kubecontext $MGMT_CONTEXT --license $GLOO_MESH_LICENSE_KEY --version $GLOO_MESH_VERSION
+meshctl install \
+  --kubecontext $MGMT_CONTEXT \
+  --license $GLOO_MESH_LICENSE_KEY \
+  --version $GLOO_MESH_VERSION \
+  --set mgmtClusterName=$MGMT_CLUSTER
 
 MGMT_SERVER_NETWORKING_DOMAIN=$(kubectl get svc -n gloo-mesh gloo-mesh-mgmt-server --context $MGMT_CONTEXT -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
 MGMT_SERVER_NETWORKING_PORT=$(kubectl -n gloo-mesh get service gloo-mesh-mgmt-server --context $MGMT_CONTEXT -o jsonpath='{.spec.ports[?(@.name=="grpc")].port}')
@@ -212,10 +216,6 @@ spec:
         service:
           type: LoadBalancer
           ports:
-            # health check port (required to be first for aws elbs)
-            - name: status-port
-              port: 15021
-              targetPort: 15021
             # main http ingress port
             - port: 80
               targetPort: 8080
@@ -224,11 +224,6 @@ spec:
             - port: 443
               targetPort: 8443
               name: https
-            # Port for gloo-mesh multi-cluster mTLS passthrough (Required for Gloo Mesh east/west routing)
-            - port: 15443
-              targetPort: 15443
-              # Gloo Mesh looks for this default name 'tls' on an ingress gateway
-              name: tls
     - name: istio-eastwestgateway
       enabled: true
       namespace: istio-gateways
@@ -245,10 +240,6 @@ spec:
             istio: eastwestgateway
           # Default ports
           ports:
-            # Health check port. For AWS ELBs, this port must be listed first.
-            - name: status-port
-              port: 15021
-              targetPort: 15021
             # Port for multicluster mTLS passthrough; required for Gloo Mesh east/west routing
             - port: 15443
               targetPort: 15443
@@ -324,10 +315,6 @@ spec:
         service:
           type: LoadBalancer
           ports:
-            # health check port (required to be first for aws elbs)
-            - name: status-port
-              port: 15021
-              targetPort: 15021
             # main http ingress port
             - port: 80
               targetPort: 8080
@@ -336,11 +323,6 @@ spec:
             - port: 443
               targetPort: 8443
               name: https
-            # Port for gloo-mesh multi-cluster mTLS passthrough (Required for Gloo Mesh east/west routing)
-            - port: 15443
-              targetPort: 15443
-              # Gloo Mesh looks for this default name 'tls' on an ingress gateway
-              name: tls
     - name: istio-eastwestgateway
       enabled: true
       namespace: istio-gateways
@@ -357,10 +339,6 @@ spec:
             istio: eastwestgateway
           # Default ports
           ports:
-            # Health check port. For AWS ELBs, this port must be listed first.
-            - name: status-port
-              port: 15021
-              targetPort: 15021
             # Port for multicluster mTLS passthrough; required for Gloo Mesh east/west routing
             - port: 15443
               targetPort: 15443
@@ -388,10 +366,162 @@ EOF
 # install apps
 
 ```sh
-kubectl apply -n web-ui -f data/online-boutique/web-ui.yaml --context cluster1
-kubectl apply -n backend-apis -f data/online-boutique/backend-apis.yaml --context cluster1
-
-kubectl apply -n web-ui -f data/online-boutique/web-ui.yaml --context cluster2
+kubectl apply -n web-ui -f data/online-boutique/web-ui-cluster1.yaml --context $REMOTE_CLUSTER1
+kubectl apply -n backend-apis -f data/online-boutique/backend-apis-cluster1.yaml --context $REMOTE_CLUSTER1
 ```
 
+## Gloo Mesh Configuration
+
+
+```sh
+kubectl create namespace ops --context $MGMT_CONTEXT
+kubectl create namespace web --context $MGMT_CONTEXT
+kubectl create namespace backend-apis --context $MGMT_CONTEXT
+
+# Create ops workspace
+cat << EOF | kubectl apply --context $MGMT_CONTEXT -f -
+apiVersion: admin.gloo.solo.io/v2
+kind: Workspace
+metadata:
+  name: ops-team
+  namespace: gloo-mesh
+spec:
+  workloadClusters:
+  - name: 'mgmt'
+    namespaces:
+    - name: ops
+  - name: 'cluster1'
+    namespaces:
+    - name: istio-gateways
+  - name: 'cluster2'
+    namespaces:
+    - name: istio-gateways
+---
+apiVersion: admin.gloo.solo.io/v2
+kind: WorkspaceSettings
+metadata:
+  name: ops-team
+  namespace: ops
+spec:
+  importFrom:
+  - workspaces:
+    - name: web-team
+EOF
+# Create Web Team workspace
+cat << EOF | kubectl apply --context $MGMT_CONTEXT -f -
+apiVersion: admin.gloo.solo.io/v2
+kind: Workspace
+metadata:
+  name: web-team
+  namespace: gloo-mesh
+spec:
+  workloadClusters:
+  - name: 'mgmt'
+    namespaces:
+    - name: web
+  - name: 'cluster1'
+    namespaces:
+    - name: web-ui
+  - name: 'cluster2'
+    namespaces:
+    - name: web-ui
+---
+apiVersion: admin.gloo.solo.io/v2
+kind: WorkspaceSettings
+metadata:
+  name: web-team
+  namespace: web
+spec:
+  exportTo:
+  - name: ops
+  options:
+    federation:
+      enabled: true
+      serviceSelector:
+      - workspace: web-ui
+EOF
+# Create Backend Team workspace
+cat << EOF | kubectl apply --context $MGMT_CONTEXT -f -
+apiVersion: admin.gloo.solo.io/v2
+kind: Workspace
+metadata:
+  name: backend-apis-team
+  namespace: gloo-mesh
+spec:
+  workloadClusters:
+  - name: '*'
+    namespaces:
+    - name: backend-apis
+---
+apiVersion: admin.gloo.solo.io/v2
+kind: WorkspaceSettings
+metadata:
+  name: backend-apis-team
+  namespace: backend-apis
+spec: {}
+EOF
+```
+
+
+
 # expose frontend
+
+```yaml
+cat << EOF | kubectl apply --context $MGMT_CONTEXT -f -
+apiVersion: networking.gloo.solo.io/v2
+kind: VirtualGateway
+metadata:
+  name: north-south-gw
+  namespace: ops
+spec:
+  workloads:
+    - selector:
+        labels:
+          istio: ingressgateway
+        cluster: cluster1
+  listeners: 
+    - http: {}
+      port:
+        number: 80
+        name: http
+        protocol: HTTP
+      allowedRouteTables:
+        - host: 'shopping.nick.local'
+    - http: {}
+      port:
+        number: 443
+        name: http
+        protocol: HTTP
+      allowedRouteTables:
+        - host: 'shopping.nick.local'
+EOF
+cat << EOF | kubectl apply --context $MGMT_CONTEXT -f -
+apiVersion: networking.gloo.solo.io/v2
+kind: RouteTable
+metadata:
+  name: frontend
+  namespace: web
+  labels:
+    workspace.solo.io/exported: "true"
+spec:
+  hosts:
+    - 'shopping.nick.local'
+  virtualGateways:
+    - name: north-south-gw
+      namespace: istio-gateways
+      cluster: cluster1
+  workloadSelectors: []
+  http:
+    - name: frontend
+      forwardTo:
+        destinations:
+          - ref:
+              name: frontend
+              namespace: web-ui
+            port:
+              number: 80
+EOF
+
+
+
+```
