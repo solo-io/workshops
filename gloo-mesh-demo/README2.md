@@ -154,6 +154,9 @@ EOF
 
 ## Istio install temporary
 ```sh
+kubectl create ns istio-gateways --context $REMOTE_CONTEXT1
+kubectl create ns istio-gateways --context $REMOTE_CONTEXT2
+
 CLUSTER_NAME=$REMOTE_CLUSTER1
 cat << EOF | istioctl install -y --context $REMOTE_CONTEXT1 -f -
 apiVersion: install.istio.io/v1alpha1
@@ -203,6 +206,7 @@ spec:
     ingressGateways:
     # enable the default ingress gateway
     - name: istio-ingressgateway
+      namespace: istio-gateways
       enabled: true
       k8s:
         service:
@@ -227,6 +231,119 @@ spec:
               name: tls
     - name: istio-eastwestgateway
       enabled: true
+      namespace: istio-gateways
+      label:
+        istio: eastwestgateway
+      k8s:
+        env:
+          # Required by Gloo Mesh for east/west routing
+          - name: ISTIO_META_ROUTER_MODE
+            value: "sni-dnat"
+        service:
+          type: LoadBalancer
+          selector:
+            istio: eastwestgateway
+          # Default ports
+          ports:
+            # Health check port. For AWS ELBs, this port must be listed first.
+            - name: status-port
+              port: 15021
+              targetPort: 15021
+            # Port for multicluster mTLS passthrough; required for Gloo Mesh east/west routing
+            - port: 15443
+              targetPort: 15443
+              # Gloo Mesh looks for this default name 'tls' on a gateway
+              name: tls
+    pilot:
+      k8s:
+        env:
+         # Allow multiple trust domains (Required for Gloo Mesh east/west routing)
+          - name: PILOT_SKIP_VALIDATE_TRUST_DOMAIN
+            value: "true"
+  values:
+    # https://istio.io/v1.5/docs/reference/config/installation-options/#global-options
+    global:
+      # needed for connecting VirtualMachines to the mesh
+      network: ${CLUSTER_NAME}
+      # needed for annotating istio metrics with cluster (should match trust domain and GLOO_MESH_CLUSTER_NAME)
+      multiCluster:
+        clusterName: ${CLUSTER_NAME}
+EOF
+CLUSTER_NAME=$REMOTE_CLUSTER2
+cat << EOF | istioctl install -y --context $REMOTE_CONTEXT2 -f -
+apiVersion: install.istio.io/v1alpha1
+kind: IstioOperator
+metadata:
+  name: gloo-mesh-istio
+  namespace: istio-system
+spec:
+  # only the control plane components are installed (https://istio.io/latest/docs/setup/additional-setup/config-profiles/)
+  profile: minimal
+  # Solo.io Istio distribution repository
+  hub: $REPO
+  # Solo.io Gloo Mesh Istio tag
+  tag: ${ISTIO_VERSION}
+
+  meshConfig:
+    # enable access logging to standard output
+    accessLogFile: /dev/stdout
+
+    defaultConfig:
+      # wait for the istio-proxy to start before application pods
+      holdApplicationUntilProxyStarts: true
+      # enable Gloo Mesh metrics service (required for Gloo Mesh UI)
+      envoyMetricsService:
+        address: gloo-mesh-agent.gloo-mesh:9977
+       # enable GlooMesh accesslog service (required for Gloo Mesh Access Logging)
+      envoyAccessLogService:
+        address: gloo-mesh-agent.gloo-mesh:9977
+      proxyMetadata:
+        # Enable Istio agent to handle DNS requests for known hosts
+        # Unknown hosts will automatically be resolved using upstream dns servers in resolv.conf
+        # (for proxy-dns)
+        ISTIO_META_DNS_CAPTURE: "true"
+        # Enable automatic address allocation (for proxy-dns)
+        ISTIO_META_DNS_AUTO_ALLOCATE: "true"
+        # Used for gloo mesh metrics aggregation
+        # should match trustDomain (required for Gloo Mesh UI)
+        GLOO_MESH_CLUSTER_NAME: ${CLUSTER_NAME}
+
+    # Set the default behavior of the sidecar for handling outbound traffic from the application.
+    outboundTrafficPolicy:
+      mode: ALLOW_ANY
+    # The trust domain corresponds to the trust root of a system. 
+    # For Gloo Mesh this should be the name of the cluster that cooresponds with the CA certificate CommonName identity
+    trustDomain: ${CLUSTER_NAME}
+  components:
+    ingressGateways:
+    # enable the default ingress gateway
+    - name: istio-ingressgateway
+      namespace: istio-gateways
+      enabled: true
+      k8s:
+        service:
+          type: LoadBalancer
+          ports:
+            # health check port (required to be first for aws elbs)
+            - name: status-port
+              port: 15021
+              targetPort: 15021
+            # main http ingress port
+            - port: 80
+              targetPort: 8080
+              name: http2
+            # main https ingress port
+            - port: 443
+              targetPort: 8443
+              name: https
+            # Port for gloo-mesh multi-cluster mTLS passthrough (Required for Gloo Mesh east/west routing)
+            - port: 15443
+              targetPort: 15443
+              # Gloo Mesh looks for this default name 'tls' on an ingress gateway
+              name: tls
+    - name: istio-eastwestgateway
+      enabled: true
+      namespace: istio-gateways
       label:
         istio: eastwestgateway
       k8s:
