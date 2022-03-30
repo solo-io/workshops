@@ -1,0 +1,65 @@
+apiVersion: admin.enterprise.mesh.gloo.solo.io/v1alpha1
+kind: IstioLifecycleManager
+metadata:
+  name: lifecycle-demo
+  namespace: gloo-mesh
+spec:
+  clusters:
+    - name: cluster1
+    - name: cluster2
+  installations:
+    - name: control-plane
+      istioOperatorSpec:
+        profile: minimal
+        tag: 1.12.5
+        components:
+          ingressGateways:
+          - name: istio-ingressgateway
+            enabled: false
+    - name: ingress-gateway
+      istioOperatorSpec:
+        profile: empty
+        tag: 1.12.5
+        components:
+          ingressGateways:
+          - name: istio-ingressgateway
+            namespace: istio-gateways
+            enabled: true
+            k8s:
+              service:
+                type: LoadBalancer
+                ports:
+                  # health check port (required to be first for aws elbs)
+                  - name: status-port
+                    port: 15021
+                    targetPort: 15021
+                  # main http ingress port
+                  - port: 80
+                    targetPort: 8080
+                    name: http2
+                  # main https ingress port
+                  - port: 443
+                    targetPort: 8443
+                    name: https
+    - name: eastwest-gateway
+      istioOperatorSpec:
+        profile: empty
+        tag: 1.12.5
+        components:
+          ingressGateways:
+          - name: istio-eastwestgateway
+            namespace: istio-gateways
+            enabled: true
+            k8s:
+              service:
+                type: LoadBalancer
+                ports:
+                  # health check port (required to be first for aws elbs)
+                  - name: status-port
+                    port: 15021
+                    targetPort: 15021
+                  # Port for gloo-mesh multi-cluster mTLS passthrough (Required for Gloo Mesh east/west routing)
+                  - port: 15443
+                    targetPort: 15443
+                    # Gloo Mesh looks for this default name 'tls' on an ingress gateway
+                    name: tls
