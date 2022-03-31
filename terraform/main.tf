@@ -32,6 +32,7 @@ module "eks-cluster" {
   azs_workers        = lookup(each.value, "azs_workers", var.azs_workers)
   eks_version        = lookup(each.value, "eks_version", var.eks_version)
   node_instance_type = lookup(each.value, "node_instance_type", var.node_instance_type)
+  aws_lb_controller  = lookup(each.value, "aws_lb_controller", 0)
   # An exact number of 3 kubeconfigs per vm is the only supported choice, as we must use these names: [mgmt, cluster1, cluster2]
   vm_merge_kubeconfig     = length(lookup(each.value, "include_vm", var.include_vm)) > 0 ? 3 : -1
   vm_machine_type         = lookup(lookup(each.value, "include_vm", var.include_vm), "machine_type", var.machine_type)

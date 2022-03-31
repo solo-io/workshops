@@ -11,7 +11,8 @@ module "vpc" {
 
   tags = merge(
     {
-      "kubernetes.io/cluster/${terraform.workspace}-${var.prefix}-${count.index + 1}" = "shared"
+      "kubernetes.io/cluster/${terraform.workspace}-${var.prefix}-${count.index + 1}" = "shared",
+      "kubernetes.io/role/elb" = "1"
     },
     local.common_tags,
   )
@@ -49,11 +50,11 @@ module "eks" {
   cluster_subnet_ids = flatten([module.vpc[count.index].private_subnets, module.vpc[count.index].public_subnets])
   node_subnet_ids    = data.aws_subnet_ids.nodes[count.index].ids
   node_instance_type = var.node_instance_type
-  # node_ami_lookup    = "amazon-eks-node-${var.eks_version}*"
+  node_ami_lookup    = "amazon-eks-node-${var.eks_version}*"
   # node_ami_lookup    = "solo-eks-node-${var.eks_version}*"
-  node_ami_id    = "ami-0484a03969565977f"
+  # node_ami_id    = "ami-0484a03969565977f"
   # node_user_data = "amazon-linux-extras install -y kernel-5.10"
-  eks_version        = var.eks_version
+  eks_version = var.eks_version
 }
 
 resource "null_resource" "eks-admin" {
@@ -105,6 +106,30 @@ resource "null_resource" "eks-admin" {
     cluster_name        = module.eks[count.index].cluster_name
     kubeconfig_rendered = module.eks[count.index].kubeconfig
   }
+}
+
+data "aws_eks_cluster" "cp" {
+  count      = var.aws_lb_controller > 0 ? var.num_instances : 0
+  name       = module.eks[count.index].cluster_name
+  depends_on = [module.eks]
+}
+
+resource "aws_iam_openid_connect_provider" "oidc" {
+  count           = var.aws_lb_controller > 0 ? var.num_instances : 0
+  client_id_list  = ["sts.amazonaws.com"]
+  thumbprint_list = ["9e99a48a9960b14926bb7f3b02e22da2b0ab7280"]
+  url             = data.aws_eks_cluster.cp[count.index].identity.0.oidc.0.issuer
+}
+
+module "lb-controller" {
+  count        = var.aws_lb_controller > 0 ? var.num_instances : 0
+  source       = "Young-ook/eks/aws//modules/lb-controller"
+  cluster_name = module.eks[count.index].cluster_name
+  oidc = {
+    arn = aws_iam_openid_connect_provider.oidc[count.index].arn
+    url = replace(aws_iam_openid_connect_provider.oidc[count.index].url, "https://", "")
+  }
+  tags = { env = "test" }
 }
 
 module "vm-replica" {

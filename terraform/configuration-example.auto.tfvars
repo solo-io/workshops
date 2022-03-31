@@ -57,6 +57,7 @@
 #  eks-batch1 = {
 #    num_instances      = 3
 #    node_instance_type = "t3.micro"
+#    aws_lb_controller = 0 # Only works woth 1 cluster, and setting the env KUBE_CONFIG_PATH=/{}/output/{}/kubeconfig
 #    include_vm = {
 #      machine_type         = "n1-standard-1"
 #      source_machine_image = "jesus-test-personal1-source-image"

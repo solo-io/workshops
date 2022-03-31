@@ -28,11 +28,3 @@ azs_workers        = ["eu-west-1a", "eu-west-1b", "eu-west-1c"]
 eks_version        = "1.21"
 node_instance_type = "t3.small"
 include_vm         = {}
-
-environments = {
-  perf = {
-    machine_type = "n1-highmem-96"
-    source_machine_image = "workshop-generic-v20211019"
-    num_instances = 1
-  }
-}

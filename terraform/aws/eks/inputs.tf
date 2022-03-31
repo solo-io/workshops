@@ -6,6 +6,10 @@ variable "num_instances" {
   type = string
 }
 
+variable "aws_lb_controller" {
+  type = string
+}
+
 variable "azs_controlplane" {
   type = list(string)
 }
