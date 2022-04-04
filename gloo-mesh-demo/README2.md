@@ -91,7 +91,7 @@ cat << EOF | kubectl apply --context $MGMT_CONTEXT -f -
 apiVersion: admin.enterprise.mesh.gloo.solo.io/v2
 kind: IstioLifecycleManager
 metadata:
-  name: lifecycle-demo
+  name: gloo-mesh-istio
   namespace: gloo-mesh
 spec:
   clusters:
@@ -354,13 +354,28 @@ spec:
         clusterName: ${CLUSTER_NAME}
 EOF
 ```
+# Deploy RootTrustPolicy
 
+```sh
+cat << EOF | kubectl --context $MGMT_CONTEXT apply -f -
+apiVersion: admin.gloo.solo.io/v2
+kind: RootTrustPolicy
+metadata:
+  name: root-trust-policy
+  namespace: gloo-mesh
+spec:
+  config:
+    mgmtServerCa:
+      generated: {}
+    autoRestartPods: true
+EOF
+```
 
 
 # install apps
 
 ```sh
-kubectl apply -n web-ui -f data/online-boutique/web-ui-cluster1.yaml --context $REMOTE_CLUSTER1
+kubectl apply -n web-ui -f data/online-boutique/web-ui.yaml --context $REMOTE_CLUSTER1
 kubectl apply -n backend-apis -f data/online-boutique/backend-apis-cluster1.yaml --context $REMOTE_CLUSTER1
 ```
 
@@ -431,12 +446,12 @@ spec:
     - name: backend-api-team
   exportTo:
   - workspaces:
-    - name: ops
+    - name: ops-team
   options:
     federation:
       enabled: true
       serviceSelector:
-      - workspace: web-ui
+      - namespace: web-ui
 EOF
 # Create Backend Team workspace
 cat << EOF | kubectl apply --context $MGMT_CONTEXT -f -
@@ -446,9 +461,6 @@ metadata:
   name: backend-apis-team
   namespace: gloo-mesh
 spec:
-  exportTo:
-  - workspaces:
-    - name: web-team
   workloadClusters:
   - name: '*'
     namespaces:
@@ -459,11 +471,17 @@ kind: WorkspaceSettings
 metadata:
   name: backend-apis-team
   namespace: backend-apis
-spec: {}
+spec:
+  exportTo:
+  - workspaces:
+    - name: web-team
+  options:
+    federation:
+      enabled: true
+      serviceSelector:
+      - namespace: backend-apis
 EOF
 ```
-
-
 
 # expose frontend
 
@@ -487,14 +505,14 @@ spec:
         name: http
         protocol: HTTP
       allowedRouteTables:
-        - host: 'shopping.nick.local'
+        - host: '*'
     - http: {}
       port:
         number: 443
         name: http
         protocol: HTTP
       allowedRouteTables:
-        - host: 'shopping.nick.local'
+        - host: '*'
 EOF
 cat << EOF | kubectl apply --context $MGMT_CONTEXT -f -
 apiVersion: networking.gloo.solo.io/v2
@@ -502,15 +520,13 @@ kind: RouteTable
 metadata:
   name: frontend
   namespace: web
-  labels:
-    workspace.solo.io/exported: "true"
 spec:
   hosts:
-    - 'shopping.nick.local'
+    - '*'
   virtualGateways:
     - name: north-south-gw
-      namespace: istio-gateways
-      cluster: cluster1
+      namespace: ops
+      cluster: mgmt
   workloadSelectors: []
   http:
     - name: frontend
@@ -522,7 +538,16 @@ spec:
             port:
               number: 80
 EOF
+```
 
 
+## Deploy Checkout Serivce
+
+```
+kubectl apply -n backend-apis -f data/online-boutique/checkout-service.yaml --context $REMOTE_CLUSTER2
+
+kubectl apply -n backend-apis -f data/online-boutique/virtual-destinations.yaml --context $MGMT_CONTEXT
+
+kubectl apply -n web-ui -f data/online-boutique/web-ui-with-checkout.yaml --context $REMOTE_CLUSTER1
 
 ```
