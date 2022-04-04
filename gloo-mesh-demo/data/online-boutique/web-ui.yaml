@@ -42,7 +42,7 @@ spec:
       serviceAccountName: frontend
       containers:
         - name: server
-          image: gcr.io/google-samples/microservices-demo/frontend:v0.3.5
+          image: gcr.io/google-samples/microservices-demo/frontend:v0.3.6
           ports:
             - containerPort: 8080
           readinessProbe:
@@ -73,9 +73,9 @@ spec:
             - name: RECOMMENDATION_SERVICE_ADDR
               value: "recommendationservice.backend-apis.svc.cluster.local:8080"
             - name: SHIPPING_SERVICE_ADDR
-              value: "shippingservice.backend-apis.svc.cluster.local:50051"
+              value: "localhost:50051"
             - name: CHECKOUT_SERVICE_ADDR
-              value: "checkoutservice.backend-apis.svc.cluster.local:5050"
+              value: "localhost:5050"
             - name: AD_SERVICE_ADDR
               value: "adservice.backend-apis.svc.cluster.local:9555"
             # # ENV_PLATFORM: One of: local, gcp, aws, azure, onprem

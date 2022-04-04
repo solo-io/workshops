@@ -45,7 +45,7 @@ export REMOTE_CONTEXT2=cluster2
 export REPO=gcr.io/istio-release
 export ISTIO_VERSION=1.12.5
 
-GLOO_MESH_VERSION=v2.0.0-beta24
+GLOO_MESH_VERSION=v1.2.23
 
 curl --insecure -sL https://run.solo.io/meshctl/install | GLOO_MESH_VERSION=${GLOO_MESH_VERSION} sh -
 
@@ -119,10 +119,6 @@ spec:
               service:
                 type: LoadBalancer
                 ports:
-                  # health check port (required to be first for aws elbs)
-                  - name: status-port
-                    port: 15021
-                    targetPort: 15021
                   # main http ingress port
                   - port: 80
                     targetPort: 8080
@@ -144,10 +140,6 @@ spec:
               service:
                 type: LoadBalancer
                 ports:
-                  # health check port (required to be first for aws elbs)
-                  - name: status-port
-                    port: 15021
-                    targetPort: 15021
                   # Port for gloo-mesh multi-cluster mTLS passthrough (Required for Gloo Mesh east/west routing)
                   - port: 15443
                     targetPort: 15443
@@ -174,7 +166,7 @@ spec:
   # Solo.io Istio distribution repository
   hub: $REPO
   # Solo.io Gloo Mesh Istio tag
-  tag: ${ISTIO_VERSION}
+  tag: ${ISTIO_VERSION}-solo
 
   meshConfig:
     # enable access logging to standard output
@@ -200,6 +192,9 @@ spec:
         # should match trustDomain (required for Gloo Mesh UI)
         GLOO_MESH_CLUSTER_NAME: ${CLUSTER_NAME}
 
+    # Set the default behavior of the sidecar for handling outbound traffic from the application.
+    outboundTrafficPolicy:
+      mode: ALLOW_ANY
     # The trust domain corresponds to the trust root of a system. 
     # For Gloo Mesh this should be the name of the cluster that cooresponds with the CA certificate CommonName identity
     trustDomain: ${CLUSTER_NAME}
@@ -270,7 +265,7 @@ spec:
   # Solo.io Istio distribution repository
   hub: $REPO
   # Solo.io Gloo Mesh Istio tag
-  tag: ${ISTIO_VERSION}
+  tag: ${ISTIO_VERSION}-solo
 
   meshConfig:
     # enable access logging to standard output
@@ -296,6 +291,9 @@ spec:
         # should match trustDomain (required for Gloo Mesh UI)
         GLOO_MESH_CLUSTER_NAME: ${CLUSTER_NAME}
 
+    # Set the default behavior of the sidecar for handling outbound traffic from the application.
+    outboundTrafficPolicy:
+      mode: ALLOW_ANY
     # The trust domain corresponds to the trust root of a system. 
     # For Gloo Mesh this should be the name of the cluster that cooresponds with the CA certificate CommonName identity
     trustDomain: ${CLUSTER_NAME}
@@ -426,12 +424,8 @@ metadata:
   name: web-team
   namespace: web
 spec:
-  importFrom:
-  - workspaces:
-    - name: backend-api-team
   exportTo:
-  - workspaces:
-    - name: ops
+  - name: ops
   options:
     federation:
       enabled: true
@@ -446,9 +440,6 @@ metadata:
   name: backend-apis-team
   namespace: gloo-mesh
 spec:
-  exportTo:
-  - workspaces:
-    - name: web-team
   workloadClusters:
   - name: '*'
     namespaces:
