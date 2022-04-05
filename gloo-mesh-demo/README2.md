@@ -10,27 +10,11 @@
 
 ## Table of Contents
 * [Introduction](#introduction)
-* [Lab 1 - Deploy Application](#Lab-1)
-* [Lab 2 - Deploy Gloo Mesh](#Lab-2)
-* [Lab 3 - Deploy Istio](#Lab-3)
-* [Lab 4 - Setup Workspaces](#Lab-4)
-* [Lab 5 - Expose Application](#Lab-5)
-
-
-* [Lab 2 - Deploy Istio](#Lab-2)
-* [Lab 3 - Deploy the Bookinfo demo app](#Lab-3)
-* [Lab 4 - Deploy the httpbin demo app](#Lab-4)
-* [Lab 5 - Deploy and register Gloo Mesh](#Lab-5)
-* [Lab 6 - Create workspaces](#Lab-6)
-* [Lab 7 - Expose the productpage through a gateway](#Lab-7)
-* [Lab 8 - Traffic policies](#Lab-8)
-* [Lab 9 - Create the Root Trust Policy](#Lab-9)
-* [Lab 10 - Multi-cluster Traffic](#Lab-10)
-* [Lab 11 - Leverage Virtual Destinations](#Lab-11)
-* [Lab 12 - Zero trust](#Lab-12)
-* [Lab 13 - Deploy Keycloak](#Lab-13)
-* [Lab 14 - Securing the access with OAuth](#Lab-14)
-* [Lab 15 - Apply rate limiting to the Gateway](#Lab-15)
+* [Lab 1 - Environment Setup](#Lab-1)
+* [Lab 2 - Workspaces](#Lab-2)
+* [Lab 3 - Expose Frontend](#Lab-3)
+* [Lab 4 - Multi-cluster Routing](#Lab-4)
+* [Lab 5 - Policies](#Lab-5)
 
 ```sh
 
