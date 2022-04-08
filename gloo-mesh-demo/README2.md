@@ -233,6 +233,10 @@ spec:
           - name: PILOT_SKIP_VALIDATE_TRUST_DOMAIN
             value: "true"
   values:
+    gateways:
+      istio-ingressgateway:
+        # Enable gateway injection
+        injectionTemplate: gateway
     # https://istio.io/v1.5/docs/reference/config/installation-options/#global-options
     global:
       # needed for connecting VirtualMachines to the mesh
@@ -329,6 +333,10 @@ spec:
           - name: PILOT_SKIP_VALIDATE_TRUST_DOMAIN
             value: "true"
   values:
+    gateways:
+      istio-ingressgateway:
+        # Enable gateway injection
+        injectionTemplate: gateway
     # https://istio.io/v1.5/docs/reference/config/installation-options/#global-options
     global:
       # needed for connecting VirtualMachines to the mesh
@@ -427,7 +435,7 @@ metadata:
 spec:
   importFrom:
   - workspaces:
-    - name: backend-api-team
+    - name: backend-apis-team
   exportTo:
   - workspaces:
     - name: ops-team
