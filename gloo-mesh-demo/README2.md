@@ -29,7 +29,7 @@ export REMOTE_CONTEXT2=cluster2
 export REPO=gcr.io/istio-release
 export ISTIO_VERSION=1.12.5
 
-GLOO_MESH_VERSION=v2.0.0-beta24
+GLOO_MESH_VERSION=v2.0.0-beta25
 
 curl --insecure -sL https://run.solo.io/meshctl/install | GLOO_MESH_VERSION=${GLOO_MESH_VERSION} sh -
 
@@ -71,6 +71,7 @@ meshctl cluster register \
 # Install Istio
 
 ```yaml
+# https://github.com/solo-io/gloo-mesh-enterprise/issues/1641
 cat << EOF | kubectl apply --context $MGMT_CONTEXT -f -
 apiVersion: admin.enterprise.mesh.gloo.solo.io/v2
 kind: IstioLifecycleManager

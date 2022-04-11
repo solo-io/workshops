@@ -24,6 +24,28 @@ kind: ServiceAccount
 metadata:
   name: frontend
 ---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: view-nodes
+rules:
+- apiGroups: [""]
+  resources: ["nodes"]
+  verbs: ["get","list","watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: read-nodes
+subjects:
+- kind: ServiceAccount
+  name: frontend
+  namespace: web-ui
+roleRef:
+  kind: ClusterRole
+  name: view-nodes
+  apiGroup: rbac.authorization.k8s.io
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -42,7 +64,7 @@ spec:
       serviceAccountName: frontend
       containers:
         - name: server
-          image: gcr.io/google-samples/microservices-demo/frontend:v0.3.6
+          image: gcr.io/solo-test-236622/frontend:solo-build
           ports:
             - containerPort: 8080
           readinessProbe:
@@ -81,11 +103,25 @@ spec:
             # # ENV_PLATFORM: One of: local, gcp, aws, azure, onprem
             # # When not set, defaults to "local" unless running in GKE, otherwies auto-sets to gcp 
             - name: ENV_PLATFORM 
-              value: "local"
+              value: "onprem"
             - name: DISABLE_TRACING
               value: "1"
             - name: DISABLE_PROFILER
               value: "1"
+            - name: KUBERNETES_NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: KUBERNETES_POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: KUBERNETES_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: KUBERNETES_CLUSTER_NAME
+              value: cluster1
           # - name: JAEGER_SERVICE_ADDR
           #   value: "jaeger-collector:14268"
           resources:
