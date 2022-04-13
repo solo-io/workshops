@@ -537,15 +537,19 @@ EOF
 ```
 
 
-## Deploy Checkout Serivce
+## Checkout Serivce
 
+Deploy Checkout in cluster2:
 ```
 kubectl apply -n backend-apis -f data/online-boutique/checkout-service.yaml --context $REMOTE_CONTEXT2
-kubectl apply -n web-ui -f data/online-boutique/web-ui-with-checkout.yaml --context $REMOTE_CONTEXT1
 ```
 
-## VirtualDestination
-
+Create a VirtualDestination so it can be reachable from everywhere:
 ```
 kubectl apply -n backend-apis -f data/online-boutique/virtual-destinations.yaml --context $MGMT_CONTEXT
+```
+
+Update webui to use checkout virtualdestination:
+```
+kubectl apply -n web-ui -f data/online-boutique/web-ui-with-checkout.yaml --context $REMOTE_CONTEXT1
 ```
