@@ -540,10 +540,12 @@ EOF
 ## Deploy Checkout Serivce
 
 ```
-kubectl apply -n backend-apis -f data/online-boutique/checkout-service.yaml --context $REMOTE_CLUSTER2
+kubectl apply -n backend-apis -f data/online-boutique/checkout-service.yaml --context $REMOTE_CONTEXT2
+kubectl apply -n web-ui -f data/online-boutique/web-ui-with-checkout.yaml --context $REMOTE_CONTEXT1
+```
 
+## VirtualDestination
+
+```
 kubectl apply -n backend-apis -f data/online-boutique/virtual-destinations.yaml --context $MGMT_CONTEXT
-
-kubectl apply -n web-ui -f data/online-boutique/web-ui-with-checkout.yaml --context $REMOTE_CLUSTER1
-
 ```
