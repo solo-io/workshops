@@ -70,7 +70,7 @@ meshctl cluster register \
 
 # Install Istio
 
-## Install Isito using GM Istio Lifecycle [Not Implmented yet]
+## Install Istio using GM Istio Lifecycle [Not Implmented yet]
 
 ```yaml
 # https://github.com/solo-io/gloo-mesh-enterprise/issues/1641
