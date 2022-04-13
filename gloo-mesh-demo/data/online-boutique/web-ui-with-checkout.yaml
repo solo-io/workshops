@@ -45,13 +45,13 @@ spec:
             - name: RECOMMENDATION_SERVICE_ADDR
               value: "recommendationservice.backend-apis.svc.cluster.local:8080"
             - name: SHIPPING_SERVICE_ADDR
-              value: "shipping.mesh.internal:80"
+              value: "shipping.mesh.internal:50051"
             - name: CHECKOUT_SERVICE_ADDR
-              value: "checkout.mesh.internal:80"
+              value: "checkout.mesh.internal:5050"
             - name: PRODUCT_CATALOG_SERVICE_ADDR
-              value: "product-catalog.mesh.internal:80"
+              value: "product-catalog.mesh.internal:3550"
             - name: CURRENCY_SERVICE_ADDR
-              value: "currency.mesh.internal:80"
+              value: "currency.mesh.internal:7000"
             # # ENV_PLATFORM: One of: local, gcp, aws, azure, onprem
             # # When not set, defaults to "local" unless running in GKE, otherwies auto-sets to gcp 
             - name: ENV_PLATFORM 

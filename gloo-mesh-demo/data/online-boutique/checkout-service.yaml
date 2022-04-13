@@ -180,9 +180,9 @@ spec:
             - name: PORT
               value: "5050"
             - name: PRODUCT_CATALOG_SERVICE_ADDR
-              value: "product-catalog.mesh.internal:80"
+              value: "product-catalog.mesh.internal:3550"
             - name: SHIPPING_SERVICE_ADDR
-              value: "shipping.mesh.internal:80"
+              value: "shipping.mesh.internal:50051"
             - name: PAYMENT_SERVICE_ADDR
               value: "paymentservice.backend-apis.svc.cluster.local:50051"
             - name: EMAIL_SERVICE_ADDR
@@ -190,7 +190,7 @@ spec:
             - name: CURRENCY_SERVICE_ADDR
               value: "currency.mesh.internal:7000"
             - name: CART_SERVICE_ADDR
-              value: "cart.mesh.internal"
+              value: "cart.mesh.internal:7070"
             - name: DISABLE_STATS
               value: "1"
             - name: DISABLE_TRACING

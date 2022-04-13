@@ -31,7 +31,7 @@ export ISTIO_VERSION=1.12.5
 
 GLOO_MESH_VERSION=v2.0.0-beta25
 
-curl --insecure -sL https://run.solo.io/meshctl/install | GLOO_MESH_VERSION=${GLOO_MESH_VERSION} sh -
+curl -sL https://run.solo.io/meshctl/install | GLOO_MESH_VERSION=${GLOO_MESH_VERSION} sh -
 
 meshctl install \
   --kubecontext $MGMT_CONTEXT \
@@ -187,6 +187,9 @@ spec:
         # Used for gloo mesh metrics aggregation
         # should match trustDomain (required for Gloo Mesh UI)
         GLOO_MESH_CLUSTER_NAME: ${CLUSTER_NAME}
+    # Specify if http1.1 connections should be upgraded to http2 by default. 
+    # Can be overridden using DestinationRule
+    h2UpgradePolicy: UPGRADE
 
     # The trust domain corresponds to the trust root of a system. 
     # For Gloo Mesh this should be the name of the cluster that cooresponds with the CA certificate CommonName identity
@@ -287,6 +290,9 @@ spec:
         # Used for gloo mesh metrics aggregation
         # should match trustDomain (required for Gloo Mesh UI)
         GLOO_MESH_CLUSTER_NAME: ${CLUSTER_NAME}
+    # Specify if http1.1 connections should be upgraded to http2 by default. 
+    # Can be overridden using DestinationRule
+    h2UpgradePolicy: UPGRADE
 
     # The trust domain corresponds to the trust root of a system. 
     # For Gloo Mesh this should be the name of the cluster that cooresponds with the CA certificate CommonName identity
@@ -386,6 +392,18 @@ kubectl create namespace backend-apis --context $MGMT_CONTEXT
 # Create ops workspace
 cat << EOF | kubectl apply --context $MGMT_CONTEXT -f -
 apiVersion: admin.gloo.solo.io/v2
+kind: WorkspaceSettings
+metadata:
+  name: global
+  namespace: gloo-mesh
+spec:
+  options:
+    eastWestGateways:
+    - selector:
+        labels:
+          istio: eastwestgateway
+---
+apiVersion: admin.gloo.solo.io/v2
 kind: Workspace
 metadata:
   name: ops-team
@@ -408,6 +426,11 @@ metadata:
   name: ops-team
   namespace: ops
 spec:
+  options:
+    eastWestGateways:
+    - selector:
+        labels:
+          istio: eastwestgateway
   importFrom:
   - workspaces:
     - name: web-team
@@ -444,6 +467,10 @@ spec:
   - workspaces:
     - name: ops-team
   options:
+    eastWestGateways:
+    - selector:
+        labels:
+          istio: eastwestgateway
     federation:
       enabled: true
       serviceSelector:
@@ -472,6 +499,10 @@ spec:
   - workspaces:
     - name: web-team
   options:
+    eastWestGateways:
+    - selector:
+        labels:
+          istio: eastwestgateway
     federation:
       enabled: true
       serviceSelector:
@@ -531,6 +562,7 @@ spec:
           - ref:
               name: frontend
               namespace: web-ui
+              cluster: cluster1
             port:
               number: 80
 EOF
