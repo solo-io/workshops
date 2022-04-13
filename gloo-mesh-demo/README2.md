@@ -70,6 +70,8 @@ meshctl cluster register \
 
 # Install Istio
 
+## Install Isito using GM Istio Lifecycle [Not Implmented yet]
+
 ```yaml
 # https://github.com/solo-io/gloo-mesh-enterprise/issues/1641
 cat << EOF | kubectl apply --context $MGMT_CONTEXT -f -
@@ -141,7 +143,8 @@ spec:
 EOF
 ```
 
-## Istio install temporary
+## Manually installing Istio using istioctl
+
 ```sh
 kubectl create ns istio-gateways --context $REMOTE_CONTEXT1
 kubectl create ns istio-gateways --context $REMOTE_CONTEXT2
