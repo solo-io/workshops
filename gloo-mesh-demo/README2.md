@@ -371,8 +371,8 @@ EOF
 # install apps
 
 ```sh
-kubectl apply -n web-ui -f data/online-boutique/web-ui.yaml --context $REMOTE_CLUSTER1
-kubectl apply -n backend-apis -f data/online-boutique/backend-apis-cluster1.yaml --context $REMOTE_CLUSTER1
+kubectl apply -n web-ui -f data/online-boutique/web-ui.yaml --context $REMOTE_CONTEXT1
+kubectl apply -n backend-apis -f data/online-boutique/backend-apis-cluster1.yaml --context $REMOTE_CONTEXT1
 ```
 
 ## Gloo Mesh Configuration
