@@ -197,6 +197,8 @@ spec:
               value: "1"
             - name: DISABLE_PROFILER
               value: "1"
+            - name: KUBERNETES_CLUSTER_NAME
+              value: cluster2
           # - name: JAEGER_SERVICE_ADDR
           #   value: "jaeger-collector:14268"
           resources:

@@ -17,6 +17,7 @@ spec:
       containers:
         - name: server
           image: gcr.io/solo-test-236622/frontend:solo-build
+          imagePullPolicy: Always
           ports:
             - containerPort: 8080
           readinessProbe:

@@ -37,7 +37,9 @@ meshctl install \
   --kubecontext $MGMT_CONTEXT \
   --license $GLOO_MESH_LICENSE_KEY \
   --version $GLOO_MESH_VERSION \
-  --set mgmtClusterName=$MGMT_CLUSTER
+  --set mgmtClusterName=$MGMT_CLUSTER \
+  --set glooMeshMgmtServer.image.registry=gcr.io/solo-test-236622 \
+  --set glooMeshMgmtServer.image.tag=2.0.0-beta25-3-g5cc217208-dirty
 
 MGMT_SERVER_NETWORKING_DOMAIN=$(kubectl get svc -n gloo-mesh gloo-mesh-mgmt-server --context $MGMT_CONTEXT -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
 MGMT_SERVER_NETWORKING_PORT=$(kubectl -n gloo-mesh get service gloo-mesh-mgmt-server --context $MGMT_CONTEXT -o jsonpath='{.spec.ports[?(@.name=="grpc")].port}')
@@ -391,18 +393,6 @@ kubectl create namespace backend-apis --context $MGMT_CONTEXT
 
 # Create ops workspace
 cat << EOF | kubectl apply --context $MGMT_CONTEXT -f -
-apiVersion: admin.gloo.solo.io/v2
-kind: WorkspaceSettings
-metadata:
-  name: global
-  namespace: gloo-mesh
-spec:
-  options:
-    eastWestGateways:
-    - selector:
-        labels:
-          istio: eastwestgateway
----
 apiVersion: admin.gloo.solo.io/v2
 kind: Workspace
 metadata:
