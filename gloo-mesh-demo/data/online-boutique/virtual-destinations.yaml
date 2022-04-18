@@ -2,7 +2,7 @@ apiVersion: networking.gloo.solo.io/v2
 kind: VirtualDestination
 metadata:
   name: checkout
-  namespace: backend-apis
+  namespace: backend-apis-team
 spec:
   hosts:
   - checkout.mesh.internal
@@ -19,7 +19,7 @@ apiVersion: networking.gloo.solo.io/v2
 kind: VirtualDestination
 metadata:
   name: currency
-  namespace: backend-apis
+  namespace: backend-apis-team
 spec:
   hosts:
   - currency.mesh.internal
@@ -36,7 +36,7 @@ apiVersion: networking.gloo.solo.io/v2
 kind: VirtualDestination
 metadata:
   name: product-catalog
-  namespace: backend-apis
+  namespace: backend-apis-team
 spec:
   hosts:
   - product-catalog.mesh.internal
@@ -53,7 +53,7 @@ apiVersion: networking.gloo.solo.io/v2
 kind: VirtualDestination
 metadata:
   name: shipping
-  namespace: backend-apis
+  namespace: backend-apis-team
 spec:
   hosts:
   - shipping.mesh.internal
@@ -70,7 +70,7 @@ apiVersion: networking.gloo.solo.io/v2
 kind: VirtualDestination
 metadata:
   name: cart
-  namespace: backend-apis
+  namespace: backend-apis-team
 spec:
   hosts:
   - cart.mesh.internal

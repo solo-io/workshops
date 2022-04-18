@@ -38,8 +38,6 @@ meshctl install \
   --license $GLOO_MESH_LICENSE_KEY \
   --version $GLOO_MESH_VERSION \
   --set mgmtClusterName=$MGMT_CLUSTER
-  # --set glooMeshMgmtServer.image.registry=gcr.io/solo-test-236622 \
-  # --set glooMeshMgmtServer.image.tag=2.0.0-beta25-3-g5cc217208-dirty
 
 MGMT_SERVER_NETWORKING_DOMAIN=$(kubectl get svc -n gloo-mesh gloo-mesh-mgmt-server --context $MGMT_CONTEXT -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
 MGMT_SERVER_NETWORKING_PORT=$(kubectl -n gloo-mesh get service gloo-mesh-mgmt-server --context $MGMT_CONTEXT -o jsonpath='{.spec.ports[?(@.name=="grpc")].port}')
@@ -383,9 +381,9 @@ kubectl apply -n backend-apis -f data/online-boutique/backend-apis-cluster1.yaml
 
 
 ```sh
-kubectl create namespace ops --context $MGMT_CONTEXT
-kubectl create namespace web --context $MGMT_CONTEXT
-kubectl create namespace backend-apis --context $MGMT_CONTEXT
+kubectl create namespace ops-team --context $MGMT_CONTEXT
+kubectl create namespace web-team --context $MGMT_CONTEXT
+kubectl create namespace backend-apis-team --context $MGMT_CONTEXT
 
 # Create ops workspace
 cat << EOF | kubectl apply --context $MGMT_CONTEXT -f -
@@ -398,11 +396,8 @@ spec:
   workloadClusters:
   - name: 'mgmt'
     namespaces:
-    - name: ops
-  - name: 'cluster1'
-    namespaces:
-    - name: istio-gateways
-  - name: 'cluster2'
+    - name: ops-team
+  - name: '*'
     namespaces:
     - name: istio-gateways
 ---
@@ -410,7 +405,7 @@ apiVersion: admin.gloo.solo.io/v2
 kind: WorkspaceSettings
 metadata:
   name: ops-team
-  namespace: ops
+  namespace: ops-team
 spec:
   options:
     eastWestGateways:
@@ -433,11 +428,8 @@ spec:
   workloadClusters:
   - name: 'mgmt'
     namespaces:
-    - name: web
-  - name: 'cluster1'
-    namespaces:
-    - name: web-ui
-  - name: 'cluster2'
+    - name: web-team
+  - name: '*'
     namespaces:
     - name: web-ui
 ---
@@ -445,7 +437,7 @@ apiVersion: admin.gloo.solo.io/v2
 kind: WorkspaceSettings
 metadata:
   name: web-team
-  namespace: web
+  namespace: web-team
 spec:
   importFrom:
   - workspaces:
@@ -472,6 +464,9 @@ metadata:
   namespace: gloo-mesh
 spec:
   workloadClusters:
+  - name: 'mgmt'
+    namespaces:
+    - name: backend-apis-team
   - name: '*'
     namespaces:
     - name: backend-apis
@@ -480,7 +475,7 @@ apiVersion: admin.gloo.solo.io/v2
 kind: WorkspaceSettings
 metadata:
   name: backend-apis-team
-  namespace: backend-apis
+  namespace: backend-apis-team
 spec:
   exportTo:
   - workspaces:
@@ -506,7 +501,7 @@ apiVersion: networking.gloo.solo.io/v2
 kind: VirtualGateway
 metadata:
   name: north-south-gw
-  namespace: ops
+  namespace: ops-team
 spec:
   workloads:
     - selector:
@@ -530,13 +525,13 @@ apiVersion: networking.gloo.solo.io/v2
 kind: RouteTable
 metadata:
   name: frontend
-  namespace: web
+  namespace: web-team
 spec:
   hosts:
     - '*'
   virtualGateways:
     - name: north-south-gw
-      namespace: ops
+      namespace: ops-team
       cluster: mgmt
   workloadSelectors: []
   http:
@@ -553,7 +548,7 @@ EOF
 ```
 
 
-## Checkout Serivce
+## Checkout Serivce Implementation
 
 Deploy Checkout in cluster2:
 ```
@@ -562,7 +557,7 @@ kubectl apply -n backend-apis -f data/online-boutique/checkout-service.yaml --co
 
 Create a VirtualDestination so it can be reachable from everywhere:
 ```
-kubectl apply -n backend-apis -f data/online-boutique/virtual-destinations.yaml --context $MGMT_CONTEXT
+kubectl apply -n backend-apis-team -f data/online-boutique/virtual-destinations.yaml --context $MGMT_CONTEXT
 ```
 
 Update webui to use checkout virtualdestination:
