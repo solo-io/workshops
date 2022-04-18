@@ -26,10 +26,10 @@ export MGMT_CONTEXT=mgmt
 export REMOTE_CONTEXT1=cluster1
 export REMOTE_CONTEXT2=cluster2
 
-export REPO=gcr.io/istio-release
-export ISTIO_VERSION=1.12.5
+export ISTIO_REPO=gcr.io/istio-release
+export ISTIO_VERSION=1.12.6
 
-GLOO_MESH_VERSION=v2.0.0-beta25
+export GLOO_MESH_VERSION=v2.0.0-beta27
 
 curl -sL https://run.solo.io/meshctl/install | GLOO_MESH_VERSION=${GLOO_MESH_VERSION} sh -
 
@@ -37,21 +37,14 @@ meshctl install \
   --kubecontext $MGMT_CONTEXT \
   --license $GLOO_MESH_LICENSE_KEY \
   --version $GLOO_MESH_VERSION \
-  --set mgmtClusterName=$MGMT_CLUSTER \
-  --set glooMeshMgmtServer.image.registry=gcr.io/solo-test-236622 \
-  --set glooMeshMgmtServer.image.tag=2.0.0-beta25-3-g5cc217208-dirty
+  --set mgmtClusterName=$MGMT_CLUSTER
+  # --set glooMeshMgmtServer.image.registry=gcr.io/solo-test-236622 \
+  # --set glooMeshMgmtServer.image.tag=2.0.0-beta25-3-g5cc217208-dirty
 
 MGMT_SERVER_NETWORKING_DOMAIN=$(kubectl get svc -n gloo-mesh gloo-mesh-mgmt-server --context $MGMT_CONTEXT -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
 MGMT_SERVER_NETWORKING_PORT=$(kubectl -n gloo-mesh get service gloo-mesh-mgmt-server --context $MGMT_CONTEXT -o jsonpath='{.spec.ports[?(@.name=="grpc")].port}')
 MGMT_SERVER_NETWORKING_ADDRESS=${MGMT_SERVER_NETWORKING_DOMAIN}:${MGMT_SERVER_NETWORKING_PORT}
 echo $MGMT_SERVER_NETWORKING_ADDRESS
-
-meshctl cluster register \
-  --kubecontext=$MGMT_CONTEXT \
-  --remote-context=$MGMT_CONTEXT \
-  --relay-server-address $MGMT_SERVER_NETWORKING_ADDRESS \
-  --version $GLOO_MESH_VERSION \
-  $MGMT_CLUSTER
 
 meshctl cluster register \
   --kubecontext=$MGMT_CONTEXT \
@@ -162,7 +155,7 @@ spec:
   # only the control plane components are installed (https://istio.io/latest/docs/setup/additional-setup/config-profiles/)
   profile: minimal
   # Solo.io Istio distribution repository
-  hub: $REPO
+  hub: $ISTIO_REPO
   # Solo.io Gloo Mesh Istio tag
   tag: ${ISTIO_VERSION}
 
@@ -265,7 +258,7 @@ spec:
   # only the control plane components are installed (https://istio.io/latest/docs/setup/additional-setup/config-profiles/)
   profile: minimal
   # Solo.io Istio distribution repository
-  hub: $REPO
+  hub: $ISTIO_REPO
   # Solo.io Gloo Mesh Istio tag
   tag: ${ISTIO_VERSION}
 
@@ -341,9 +334,12 @@ spec:
     pilot:
       k8s:
         env:
-         # Allow multiple trust domains (Required for Gloo Mesh east/west routing)
+          # Allow multiple trust domains (Required for Gloo Mesh east/west routing)
           - name: PILOT_SKIP_VALIDATE_TRUST_DOMAIN
             value: "true"
+          # Disable workload entries from matching local kubernetes service endpoints
+          - name: PILOT_ENABLE_K8S_SELECT_WORKLOAD_ENTRIES
+            value: "false"
   values:
     gateways:
       istio-ingressgateway:
@@ -424,6 +420,7 @@ spec:
   importFrom:
   - workspaces:
     - name: web-team
+    - name: backend-apis-team
 EOF
 # Create Web Team workspace
 cat << EOF | kubectl apply --context $MGMT_CONTEXT -f -
@@ -488,6 +485,7 @@ spec:
   exportTo:
   - workspaces:
     - name: web-team
+    - name: ops-team
   options:
     eastWestGateways:
     - selector:
@@ -518,16 +516,12 @@ spec:
   listeners: 
     - http: {}
       port:
-        number: 80
-        name: http
-        protocol: HTTP
+        name: http2
       allowedRouteTables:
         - host: '*'
     - http: {}
       port:
-        number: 443
-        name: http
-        protocol: HTTP
+        name: https
       allowedRouteTables:
         - host: '*'
 EOF

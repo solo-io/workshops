@@ -10,9 +10,10 @@ spec:
   - labels:
       app: checkoutservice
   ports:
-  - name: grpc
-    number: 5050
+  - number: 80
     protocol: GRPC
+    targetPort:
+      name: grpc
 ---
 apiVersion: networking.gloo.solo.io/v2
 kind: VirtualDestination
@@ -26,9 +27,10 @@ spec:
   - labels:
       app: currencyservice
   ports:
-  - name: grpc
-    number: 7000
+  - number: 80
     protocol: GRPC
+    targetPort:
+      name: grpc
 ---
 apiVersion: networking.gloo.solo.io/v2
 kind: VirtualDestination
@@ -42,9 +44,10 @@ spec:
   - labels:
       app: productcatalogservice
   ports:
-  - name: grpc
-    number: 3550
+  - number: 80
     protocol: GRPC
+    targetPort:
+      name: grpc
 ---
 apiVersion: networking.gloo.solo.io/v2
 kind: VirtualDestination
@@ -58,9 +61,10 @@ spec:
   - labels:
       app: shippingservice
   ports:
-  - name: grpc
-    number: 50051
+  - number: 80
     protocol: GRPC
+    targetPort:
+      name: grpc
 ---
 apiVersion: networking.gloo.solo.io/v2
 kind: VirtualDestination
@@ -74,6 +78,7 @@ spec:
   - labels:
       app: cartservice
   ports:
-  - name: grpc
-    number: 7070
+  - number: 80
     protocol: GRPC
+    targetPort:
+      name: grpc
