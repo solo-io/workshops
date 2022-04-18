@@ -232,6 +232,9 @@ spec:
          # Allow multiple trust domains (Required for Gloo Mesh east/west routing)
           - name: PILOT_SKIP_VALIDATE_TRUST_DOMAIN
             value: "true"
+          # Disable workload entries from matching local kubernetes service endpoints
+          - name: PILOT_ENABLE_K8S_SELECT_WORKLOAD_ENTRIES
+            value: "false"
   values:
     gateways:
       istio-ingressgateway:
