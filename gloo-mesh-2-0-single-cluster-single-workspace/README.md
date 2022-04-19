@@ -187,13 +187,12 @@ pilot:
 EOF
 ```
 
-After that, you can deploy the gateways:
+After that, you can deploy the gateway(s):
 
 ```bash
 kubectl --context ${CLUSTER1} label namespace istio-gateways istio.io/rev=1-11
 
 helm --kube-context=${CLUSTER1} upgrade --install istio-ingressgateway ./istio-1.11.7/manifests/charts/gateways/istio-ingress -n istio-gateways --values - <<EOF
-
 global:
   hub: us-docker.pkg.dev/gloo-mesh/istio-2daba5115807
   tag: 1.11.7-solo
@@ -212,40 +211,9 @@ gateways:
       port: 443
       targetPort: 8443
 EOF
-
-helm --kube-context=${CLUSTER1} upgrade --install istio-eastwestgateway ./istio-1.11.7/manifests/charts/gateways/istio-ingress -n istio-gateways --values - <<EOF
-
-global:
-  hub: us-docker.pkg.dev/gloo-mesh/istio-2daba5115807
-  tag: 1.11.7-solo
-gateways:
-  istio-ingressgateway:
-    name: istio-eastwestgateway
-    namespace: istio-gateways
-    labels:
-      istio: eastwestgateway
-      topology.istio.io/network: network1
-    injectionTemplate: gateway
-    ports:
-    - name: tcp-status-port
-      port: 15021
-      targetPort: 15021
-    - name: tls
-      port: 15443
-      targetPort: 15443
-    - name: tcp-istiod
-      port: 15012
-      targetPort: 15012
-    - name: tcp-webhook
-      port: 15017
-      targetPort: 15017
-    env:
-      ISTIO_META_ROUTER_MODE: "sni-dnat"
-      ISTIO_META_REQUESTED_NETWORK_VIEW: "network1"
-EOF
 ```
 
-As you can see, we deploy the control plane (istiod) in the `istio-system` and two gateways in the `istio-gateways` namespace.
+As you can see, we deploy the control plane (istiod) in the `istio-system` and gateway(s) in the `istio-gateways` namespace.
 
 One gateway will be used for ingress traffic while the other one will be used for cross cluster communications. It's not mandatory to use separate gateways, but it's a best practice.
 
@@ -263,7 +231,6 @@ When they are ready, you should get this output:
 NAME                      READY   STATUS    RESTARTS   AGE
 istiod-5c669bcf6f-2hn6c   1/1     Running   0          3m7s
 NAME                                     READY   STATUS    RESTARTS   AGE
-istio-eastwestgateway-77f79cdb47-f4r7k   1/1     Running   0          2m53s
 istio-ingressgateway-744fcf4fb-5dc7q     1/1     Running   0          2m44s
 ```
 <!--bash
@@ -595,7 +562,7 @@ mocha ./test.js --retries=50 --bail 2> /dev/null || exit 1
 -->
 
 ```bash
-export ENDPOINT_GLOO_MESH=$(kubectl --context ${MGMT} -n gloo-mesh get svc gloo-mesh-mgmt-server -o jsonpath='{.status.loadBalancer.ingress[0].*}'):9900
+export ENDPOINT_GLOO_MESH=gloo-mesh-mgmt-server:9900
 export HOST_GLOO_MESH=$(echo ${ENDPOINT_GLOO_MESH} | cut -d: -f1)
 ```
 
@@ -604,29 +571,6 @@ Check that the variables have correct values:
 echo $HOST_GLOO_MESH
 echo $ENDPOINT_GLOO_MESH
 ```
-<!--bash
-cat <<'EOF' > ./test.js
-const dns = require('dns');
-const chaiHttp = require("chai-http");
-const chai = require("chai");
-const expect = chai.expect;
-chai.use(chaiHttp);
-const { waitOnFailedTest } = require('./tests/utils');
-
-afterEach(function(done) { waitOnFailedTest(done, this.currentTest.currentRetry())});
-
-describe("Address '" + process.env.HOST_GLOO_MESH + "' can be resolved in DNS", () => {
-    it(process.env.HOST_GLOO_MESH + ' can be resolved', (done) => {
-        return dns.lookup(process.env.HOST_GLOO_MESH, (err, address, family) => {
-            expect(address).to.be.an.ip;
-            done();
-        });
-    });
-});
-EOF
-echo "executing test ./gloo-mesh/tests/can-resolve.test.js.liquid"
-mocha ./test.js --retries=50 --bail 2> /dev/null || exit 1
--->
 
 Finally, you need to register the cluster(s).
 
@@ -722,24 +666,6 @@ helm upgrade --install gloo-mesh-agent-addons gloo-mesh-agent/gloo-mesh-agent \
   --set rate-limiter.enabled=true \
   --set ext-auth-service.enabled=true \
   --version 2.0.0-beta28
-```
-
-Finally, you need to specify which gateways you want to use for cross cluster traffic:
-
-```bash
-cat <<EOF | kubectl --context ${MGMT} apply -f -
-apiVersion: admin.gloo.solo.io/v2
-kind: WorkspaceSettings
-metadata:
-  name: global
-  namespace: gloo-mesh
-spec:
-  options:
-    eastWestGateways:
-      - selector:
-          labels:
-            istio: eastwestgateway
-EOF
 ```
 
 This is how to environment looks like now:
