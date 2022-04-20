@@ -1,0 +1,268 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: backend-apis
+  labels:
+    istio-injection: enabled
+---
+###########################################################
+## Services
+###########################################################
+apiVersion: v1
+kind: Service
+metadata:
+  name: shippingservice
+  labels:
+    app: shippingservice
+spec:
+  type: ClusterIP
+  selector:
+    app: shippingservice
+  ports:
+  - name: grpc
+    port: 50051
+    targetPort: 50051
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: paymentservice
+  labels:
+    app: paymentservice
+spec:
+  selector:
+    app: paymentservice
+  ports:
+  - name: grpc
+    port: 50051
+    targetPort: 50051
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: checkoutservice
+  labels:
+    app: checkoutservice
+spec:
+  selector:
+    app: checkoutservice
+  ports:
+  - name: grpc
+    port: 5050
+    targetPort: 5050
+---
+###########################################################
+## Deployments
+###########################################################
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: shipping
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: shippingservice
+spec:
+  selector:
+    matchLabels:
+      app: shippingservice
+  template:
+    metadata:
+      labels:
+        app: shippingservice
+    spec:
+      serviceAccountName: shipping
+      containers:
+      - name: server
+        image: gcr.io/solo-test-236622/shippingservice:solo-build
+        ports:
+        - containerPort: 50051
+        env:
+        - name: PORT
+          value: "50051"
+        - name: DISABLE_STATS
+          value: "1"
+        - name: DISABLE_TRACING
+          value: "1"
+        - name: DISABLE_PROFILER
+          value: "1"
+        # - name: JAEGER_SERVICE_ADDR
+        #   value: "jaeger-collector:14268"
+        readinessProbe:
+          periodSeconds: 5
+          exec:
+            command: ["/bin/grpc_health_probe", "-addr=:50051"]
+        livenessProbe:
+          exec:
+            command: ["/bin/grpc_health_probe", "-addr=:50051"]
+        resources:
+          requests:
+            cpu: 100m
+            memory: 64Mi
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: payment
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: paymentservice
+spec:
+  selector:
+    matchLabels:
+      app: paymentservice
+  template:
+    metadata:
+      labels:
+        app: paymentservice
+    spec:
+      serviceAccountName: payment
+      terminationGracePeriodSeconds: 5
+      containers:
+      - name: server
+        image: gcr.io/solo-test-236622/paymentservice:solo-build
+        ports:
+        - containerPort: 50051
+        env:
+        - name: PORT
+          value: "50051"
+        - name: DISABLE_TRACING
+          value: "1"
+        - name: DISABLE_PROFILER
+          value: "1"
+        - name: DISABLE_DEBUGGER
+          value: "1"
+        readinessProbe:
+          exec:
+            command: ["/bin/grpc_health_probe", "-addr=:50051"]
+        livenessProbe:
+          exec:
+            command: ["/bin/grpc_health_probe", "-addr=:50051"]
+        resources:
+          requests:
+            cpu: 100m
+            memory: 64Mi
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: checkout
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: checkoutservice
+spec:
+  selector:
+    matchLabels:
+      app: checkoutservice
+  template:
+    metadata:
+      labels:
+        app: checkoutservice
+    spec:
+      serviceAccountName: checkout
+      containers:
+        - name: server
+          image: gcr.io/solo-test-236622/checkoutservice:solo-build
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 5050
+          readinessProbe:
+            exec:
+              command: ["/bin/grpc_health_probe", "-addr=:5050"]
+          livenessProbe:
+            exec:
+              command: ["/bin/grpc_health_probe", "-addr=:5050"]
+          env:
+            - name: PORT
+              value: "5050"
+            - name: PRODUCT_CATALOG_SERVICE_ADDR
+              value: "product-catalog.mesh.internal:80"
+            - name: SHIPPING_SERVICE_ADDR
+              value: "shipping.mesh.internal:80"
+            - name: PAYMENT_SERVICE_ADDR
+              value: "paymentservice.backend-apis.svc.cluster.local:50051"
+            - name: EMAIL_SERVICE_ADDR
+              value: "emailservice.backend-apis.svc.cluster.local:5000"
+            - name: CURRENCY_SERVICE_ADDR
+              value: "currency.mesh.internal:80"
+            - name: CART_SERVICE_ADDR
+              value: "cart.mesh.internal:80"
+            - name: DISABLE_STATS
+              value: "1"
+            - name: DISABLE_TRACING
+              value: "1"
+            - name: DISABLE_PROFILER
+              value: "1"
+            - name: KUBERNETES_CLUSTER_NAME
+              value: cluster2
+          # - name: JAEGER_SERVICE_ADDR
+          #   value: "jaeger-collector:14268"
+          resources:
+            requests:
+              cpu: 100m
+              memory: 64Mi
+---
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata: 
+  name: checkout-loadgenerator
+  namespace: backend-apis
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: checkout-loadgenerator
+  namespace: backend-apis
+spec:
+  selector:
+    matchLabels:
+      app: checkout-loadgenerator
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: checkout-loadgenerator
+      annotations:
+        sidecar.istio.io/rewriteAppHTTPProbers: "true"
+    spec:
+      serviceAccountName: checkout-loadgenerator
+      terminationGracePeriodSeconds: 5
+      restartPolicy: Always
+      containers:
+      - name: main
+        image: golang:1.15.15
+        env:
+        - name: GO111MODULE
+          value: "on"
+        command:
+            - /bin/sh
+            - -c
+            - >
+                go get github.com/fullstorydev/grpcurl/cmd/grpcurl@latest && i=0;
+                while [ $i -lt 10000 ];
+                do
+                  grpcurl --plaintext -d "{ \"userCurrency\": \"USD\", \"creditCard\": { \"creditCardNumber\": \"4432-8015-6152-0454\", \"creditCardCvv\": 123, \"creditCardExpirationYear\": 2023, \"creditCardExpirationMonth\": 12 }, \"address\": { \"streetAddress\": \"1600 Amphitheatre Parkway\", \"zipCode\": 94043, \"city\": \"Mountain View\", \"state\": \"CA\", \"country\": \"United States\" }, \"email\": \"someone@example.com\" }" -v checkout.mesh.internal:80 hipstershop.CheckoutService/PlaceOrder
+                  sleep 1
+                done
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: checkout-loadgenerator
+  namespace: backend-apis
+  labels:
+    app: loadgenerator
+spec:
+  type: ClusterIP
+  selector:
+    app: checkout-loadgenerator
+  ports:
+  - name: http
+    port: 80
+    targetPort: 8080

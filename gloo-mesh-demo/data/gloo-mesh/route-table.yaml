@@ -1,0 +1,23 @@
+apiVersion: networking.gloo.solo.io/v2
+kind: RouteTable
+metadata:
+  name: frontend
+  namespace: web-team
+spec:
+  hosts:
+    - '*'
+  virtualGateways:
+    - name: north-south-gw
+      namespace: ops-team
+      cluster: mgmt
+  workloadSelectors: []
+  http:
+    - name: frontend
+      forwardTo:
+        destinations:
+          - ref:
+              name: frontend
+              namespace: web-ui
+              cluster: cluster1
+            port:
+              number: 80

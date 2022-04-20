@@ -129,3 +129,59 @@ spec:
             requests:
               cpu: 100m
               memory: 64Mi
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata: 
+  name: loadgenerator
+  namespace: web-ui
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: loadgenerator
+  namespace: web-ui
+spec:
+  selector:
+    matchLabels:
+      app: loadgenerator
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: loadgenerator
+      annotations:
+        sidecar.istio.io/rewriteAppHTTPProbers: "true"
+    spec:
+      serviceAccountName: loadgenerator
+      terminationGracePeriodSeconds: 5
+      restartPolicy: Always
+      containers:
+      - name: main
+        image: gcr.io/google-samples/microservices-demo/loadgenerator:v0.3.5
+        env:
+        - name: FRONTEND_ADDR
+          value: "frontend.web-ui.svc.cluster.local:80"
+        - name: USERS
+          value: "2"
+        resources:
+          requests:
+            cpu: 300m
+            memory: 256Mi
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: loadgenerator
+  namespace: web-ui
+  labels:
+    app: loadgenerator
+spec:
+  type: ClusterIP
+  selector:
+    app: loadgenerator
+  ports:
+  - name: http
+    port: 80
+    targetPort: 8080

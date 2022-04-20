@@ -1,0 +1,115 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ops-team
+---
+# operations team workspace and settings
+apiVersion: admin.gloo.solo.io/v2
+kind: Workspace
+metadata:
+  name: ops-team
+  namespace: gloo-mesh
+spec:
+  workloadClusters:
+  - name: 'mgmt'
+    namespaces:
+    - name: ops-team
+  - name: '*'
+    namespaces:
+    - name: istio-gateways
+---
+apiVersion: admin.gloo.solo.io/v2
+kind: WorkspaceSettings
+metadata:
+  name: ops-team
+  namespace: ops-team
+spec:
+  options:
+    eastWestGateways:
+    - selector:
+        labels:
+          istio: eastwestgateway
+  importFrom:
+  - workspaces:
+    - name: web-team
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: web-team
+---
+# Create Web Team workspace
+apiVersion: admin.gloo.solo.io/v2
+kind: Workspace
+metadata:
+  name: web-team
+  namespace: gloo-mesh
+spec:
+  workloadClusters:
+  - name: 'mgmt'
+    namespaces:
+    - name: web-team
+  - name: '*'
+    namespaces:
+    - name: web-ui
+---
+apiVersion: admin.gloo.solo.io/v2
+kind: WorkspaceSettings
+metadata:
+  name: web-team
+  namespace: web-team
+spec:
+  importFrom:
+  - workspaces:
+    - name: backend-apis-team
+  exportTo:
+  - workspaces:
+    - name: ops-team
+  options:
+    eastWestGateways:
+    - selector:
+        labels:
+          istio: eastwestgateway
+    federation:
+      enabled: true
+      serviceSelector:
+      - namespace: web-ui
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: backend-apis-team
+---
+# Create Backend Team workspace
+apiVersion: admin.gloo.solo.io/v2
+kind: Workspace
+metadata:
+  name: backend-apis-team
+  namespace: gloo-mesh
+spec:
+  workloadClusters:
+  - name: 'mgmt'
+    namespaces:
+    - name: backend-apis-team
+  - name: '*'
+    namespaces:
+    - name: backend-apis
+---
+apiVersion: admin.gloo.solo.io/v2
+kind: WorkspaceSettings
+metadata:
+  name: backend-apis-team
+  namespace: backend-apis-team
+spec:
+  exportTo:
+  - workspaces:
+    - name: web-team
+  options:
+    eastWestGateways:
+    - selector:
+        labels:
+          istio: eastwestgateway
+    federation:
+      enabled: true
+      serviceSelector:
+      - namespace: backend-apis

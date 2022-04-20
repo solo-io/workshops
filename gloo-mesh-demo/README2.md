@@ -29,7 +29,7 @@ export REMOTE_CONTEXT2=cluster2
 export ISTIO_REPO=gcr.io/istio-release
 export ISTIO_VERSION=1.12.6
 
-export GLOO_MESH_VERSION=v2.0.0-beta27
+export GLOO_MESH_VERSION=v2.0.0-beta30
 
 curl -sL https://run.solo.io/meshctl/install | GLOO_MESH_VERSION=${GLOO_MESH_VERSION} sh -
 
@@ -38,6 +38,9 @@ meshctl install \
   --license $GLOO_MESH_LICENSE_KEY \
   --version $GLOO_MESH_VERSION \
   --set mgmtClusterName=$MGMT_CLUSTER
+
+#  --set glooMeshMgmtServer.image.registry=gcr.io/solo-test-236622 \
+#  --set glooMeshMgmtServer.image.tag=2.0.0-beta28-3-gf1fbadcb3
 
 MGMT_SERVER_NETWORKING_DOMAIN=$(kubectl get svc -n gloo-mesh gloo-mesh-mgmt-server --context $MGMT_CONTEXT -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
 MGMT_SERVER_NETWORKING_PORT=$(kubectl -n gloo-mesh get service gloo-mesh-mgmt-server --context $MGMT_CONTEXT -o jsonpath='{.spec.ports[?(@.name=="grpc")].port}')
@@ -60,302 +63,17 @@ meshctl cluster register \
 
 ```
 
-
-# Install Istio
-
-## Install Istio using GM Istio Lifecycle [Not Implmented yet]
-
-```yaml
-# https://github.com/solo-io/gloo-mesh-enterprise/issues/1641
-cat << EOF | kubectl apply --context $MGMT_CONTEXT -f -
-apiVersion: admin.enterprise.mesh.gloo.solo.io/v2
-kind: IstioLifecycleManager
-metadata:
-  name: gloo-mesh-istio
-  namespace: gloo-mesh
-spec:
-  clusters:
-    - name: cluster1
-    - name: cluster2
-  installations:
-    - name: control-plane
-      istioOperatorSpec:
-        profile: minimal
-        tag: 1.12.5
-        components:
-          ingressGateways:
-          - name: istio-ingressgateway
-            enabled: false
-    - name: ingress-gateway
-      istioOperatorSpec:
-        profile: empty
-        tag: 1.12.5
-        components:
-          ingressGateways:
-          - name: istio-ingressgateway
-            namespace: istio-gateways
-            enabled: true
-            k8s:
-              service:
-                type: LoadBalancer
-                ports:
-                  # health check port (required to be first for aws elbs)
-                  - name: status-port
-                    port: 15021
-                    targetPort: 15021
-                  # main http ingress port
-                  - port: 80
-                    targetPort: 8080
-                    name: http2
-                  # main https ingress port
-                  - port: 443
-                    targetPort: 8443
-                    name: https
-    - name: eastwest-gateway
-      istioOperatorSpec:
-        profile: empty
-        tag: 1.12.5
-        components:
-          ingressGateways:
-          - name: istio-eastwestgateway
-            namespace: istio-gateways
-            enabled: true
-            k8s:
-              service:
-                type: LoadBalancer
-                ports:
-                  # health check port (required to be first for aws elbs)
-                  - name: status-port
-                    port: 15021
-                    targetPort: 15021
-                  # Port for gloo-mesh multi-cluster mTLS passthrough (Required for Gloo Mesh east/west routing)
-                  - port: 15443
-                    targetPort: 15443
-                    # Gloo Mesh looks for this default name 'tls' on an ingress gateway
-                    name: tls
-EOF
-```
-
-## Manually installing Istio using istioctl
+## Install Istio
 
 ```sh
 kubectl create ns istio-gateways --context $REMOTE_CONTEXT1
 kubectl create ns istio-gateways --context $REMOTE_CONTEXT2
 
-CLUSTER_NAME=$REMOTE_CLUSTER1
-cat << EOF | istioctl install -y --context $REMOTE_CONTEXT1 -f -
-apiVersion: install.istio.io/v1alpha1
-kind: IstioOperator
-metadata:
-  name: gloo-mesh-istio
-  namespace: istio-system
-spec:
-  # only the control plane components are installed (https://istio.io/latest/docs/setup/additional-setup/config-profiles/)
-  profile: minimal
-  # Solo.io Istio distribution repository
-  hub: $ISTIO_REPO
-  # Solo.io Gloo Mesh Istio tag
-  tag: ${ISTIO_VERSION}
+istioctl install -y --context $REMOTE_CONTEXT1 -f data/istio/cluster1.yaml
+istioctl install -y --context $REMOTE_CONTEXT2 -f data/istio/cluster2.yaml
 
-  meshConfig:
-    # enable access logging to standard output
-    accessLogFile: /dev/stdout
-
-    defaultConfig:
-      # wait for the istio-proxy to start before application pods
-      holdApplicationUntilProxyStarts: true
-      # enable Gloo Mesh metrics service (required for Gloo Mesh UI)
-      envoyMetricsService:
-        address: gloo-mesh-agent.gloo-mesh:9977
-       # enable GlooMesh accesslog service (required for Gloo Mesh Access Logging)
-      envoyAccessLogService:
-        address: gloo-mesh-agent.gloo-mesh:9977
-      proxyMetadata:
-        # Enable Istio agent to handle DNS requests for known hosts
-        # Unknown hosts will automatically be resolved using upstream dns servers in resolv.conf
-        # (for proxy-dns)
-        ISTIO_META_DNS_CAPTURE: "true"
-        # Enable automatic address allocation (for proxy-dns)
-        ISTIO_META_DNS_AUTO_ALLOCATE: "true"
-        # Used for gloo mesh metrics aggregation
-        # should match trustDomain (required for Gloo Mesh UI)
-        GLOO_MESH_CLUSTER_NAME: ${CLUSTER_NAME}
-    # Specify if http1.1 connections should be upgraded to http2 by default. 
-    # Can be overridden using DestinationRule
-    h2UpgradePolicy: UPGRADE
-
-    # The trust domain corresponds to the trust root of a system. 
-    # For Gloo Mesh this should be the name of the cluster that cooresponds with the CA certificate CommonName identity
-    trustDomain: ${CLUSTER_NAME}
-  components:
-    ingressGateways:
-    # enable the default ingress gateway
-    - name: istio-ingressgateway
-      namespace: istio-gateways
-      enabled: true
-      k8s:
-        service:
-          type: LoadBalancer
-          ports:
-            # main http ingress port
-            - port: 80
-              targetPort: 8080
-              name: http2
-            # main https ingress port
-            - port: 443
-              targetPort: 8443
-              name: https
-    - name: istio-eastwestgateway
-      enabled: true
-      namespace: istio-gateways
-      label:
-        istio: eastwestgateway
-      k8s:
-        env:
-          # Required by Gloo Mesh for east/west routing
-          - name: ISTIO_META_ROUTER_MODE
-            value: "sni-dnat"
-        service:
-          type: LoadBalancer
-          selector:
-            istio: eastwestgateway
-          # Default ports
-          ports:
-            # Port for multicluster mTLS passthrough; required for Gloo Mesh east/west routing
-            - port: 15443
-              targetPort: 15443
-              # Gloo Mesh looks for this default name 'tls' on a gateway
-              name: tls
-    pilot:
-      k8s:
-        env:
-         # Allow multiple trust domains (Required for Gloo Mesh east/west routing)
-          - name: PILOT_SKIP_VALIDATE_TRUST_DOMAIN
-            value: "true"
-          # Disable workload entries from matching local kubernetes service endpoints
-          - name: PILOT_ENABLE_K8S_SELECT_WORKLOAD_ENTRIES
-            value: "false"
-  values:
-    gateways:
-      istio-ingressgateway:
-        # Enable gateway injection
-        injectionTemplate: gateway
-    # https://istio.io/v1.5/docs/reference/config/installation-options/#global-options
-    global:
-      # needed for connecting VirtualMachines to the mesh
-      network: ${CLUSTER_NAME}
-      # needed for annotating istio metrics with cluster (should match trust domain and GLOO_MESH_CLUSTER_NAME)
-      multiCluster:
-        clusterName: ${CLUSTER_NAME}
-EOF
-CLUSTER_NAME=$REMOTE_CLUSTER2
-cat << EOF | istioctl install -y --context $REMOTE_CONTEXT2 -f -
-apiVersion: install.istio.io/v1alpha1
-kind: IstioOperator
-metadata:
-  name: gloo-mesh-istio
-  namespace: istio-system
-spec:
-  # only the control plane components are installed (https://istio.io/latest/docs/setup/additional-setup/config-profiles/)
-  profile: minimal
-  # Solo.io Istio distribution repository
-  hub: $ISTIO_REPO
-  # Solo.io Gloo Mesh Istio tag
-  tag: ${ISTIO_VERSION}
-
-  meshConfig:
-    # enable access logging to standard output
-    accessLogFile: /dev/stdout
-
-    defaultConfig:
-      # wait for the istio-proxy to start before application pods
-      holdApplicationUntilProxyStarts: true
-      # enable Gloo Mesh metrics service (required for Gloo Mesh UI)
-      envoyMetricsService:
-        address: gloo-mesh-agent.gloo-mesh:9977
-       # enable GlooMesh accesslog service (required for Gloo Mesh Access Logging)
-      envoyAccessLogService:
-        address: gloo-mesh-agent.gloo-mesh:9977
-      proxyMetadata:
-        # Enable Istio agent to handle DNS requests for known hosts
-        # Unknown hosts will automatically be resolved using upstream dns servers in resolv.conf
-        # (for proxy-dns)
-        ISTIO_META_DNS_CAPTURE: "true"
-        # Enable automatic address allocation (for proxy-dns)
-        ISTIO_META_DNS_AUTO_ALLOCATE: "true"
-        # Used for gloo mesh metrics aggregation
-        # should match trustDomain (required for Gloo Mesh UI)
-        GLOO_MESH_CLUSTER_NAME: ${CLUSTER_NAME}
-    # Specify if http1.1 connections should be upgraded to http2 by default. 
-    # Can be overridden using DestinationRule
-    h2UpgradePolicy: UPGRADE
-
-    # The trust domain corresponds to the trust root of a system. 
-    # For Gloo Mesh this should be the name of the cluster that cooresponds with the CA certificate CommonName identity
-    trustDomain: ${CLUSTER_NAME}
-  components:
-    ingressGateways:
-    # enable the default ingress gateway
-    - name: istio-ingressgateway
-      namespace: istio-gateways
-      enabled: true
-      k8s:
-        service:
-          type: LoadBalancer
-          ports:
-            # main http ingress port
-            - port: 80
-              targetPort: 8080
-              name: http2
-            # main https ingress port
-            - port: 443
-              targetPort: 8443
-              name: https
-    - name: istio-eastwestgateway
-      enabled: true
-      namespace: istio-gateways
-      label:
-        istio: eastwestgateway
-      k8s:
-        env:
-          # Required by Gloo Mesh for east/west routing
-          - name: ISTIO_META_ROUTER_MODE
-            value: "sni-dnat"
-        service:
-          type: LoadBalancer
-          selector:
-            istio: eastwestgateway
-          # Default ports
-          ports:
-            # Port for multicluster mTLS passthrough; required for Gloo Mesh east/west routing
-            - port: 15443
-              targetPort: 15443
-              # Gloo Mesh looks for this default name 'tls' on a gateway
-              name: tls
-    pilot:
-      k8s:
-        env:
-          # Allow multiple trust domains (Required for Gloo Mesh east/west routing)
-          - name: PILOT_SKIP_VALIDATE_TRUST_DOMAIN
-            value: "true"
-          # Disable workload entries from matching local kubernetes service endpoints
-          - name: PILOT_ENABLE_K8S_SELECT_WORKLOAD_ENTRIES
-            value: "false"
-  values:
-    gateways:
-      istio-ingressgateway:
-        # Enable gateway injection
-        injectionTemplate: gateway
-    # https://istio.io/v1.5/docs/reference/config/installation-options/#global-options
-    global:
-      # needed for connecting VirtualMachines to the mesh
-      network: ${CLUSTER_NAME}
-      # needed for annotating istio metrics with cluster (should match trust domain and GLOO_MESH_CLUSTER_NAME)
-      multiCluster:
-        clusterName: ${CLUSTER_NAME}
-EOF
 ```
-# Deploy RootTrustPolicy
+## Deploy RootTrustPolicy
 
 ```sh
 cat << EOF | kubectl --context $MGMT_CONTEXT apply -f -
@@ -372,108 +90,199 @@ spec:
 EOF
 ```
 
+## Gloo Mesh Configuration
 
-# install apps
+
+```sh
+# Create workspaces and namespaces for configuration
+kubectl apply --context $MGMT_CONTEXT -f data/gloo-mesh/workspaces.yaml
+
+```
+
+## install apps
 
 ```sh
 kubectl apply -n web-ui -f data/online-boutique/web-ui.yaml --context $REMOTE_CONTEXT1
 kubectl apply -n backend-apis -f data/online-boutique/backend-apis-cluster1.yaml --context $REMOTE_CONTEXT1
 ```
 
-## Gloo Mesh Configuration
+## expose frontend
+
+In order to expose the frontend application in the web-ui namespace, the Ops team first needs to setup the Istio ingress gateway to allow incomming traffic. This is done with a `VirtualGateway`. The Ops team determines which hosts and ports other teams can use by configuring the `allowedRouteTables`. In this case we will allow the Web team to define routes for their application. 
+
+```sh
+# view the VirtualGateway configuration
+cat data/gloo-mesh/virtual-gateway.yaml
+
+# apply the VirtualGateway to the mgmt cluster in the ops-team namespace
+kubectl apply --context $MGMT_CONTEXT -f data/gloo-mesh/virtual-gateway.yaml
+```
+
+The Web team has been granted the ability to attach route tables to the `VirtualGateway`. Using a `RouteTable` the Web team can forward traffic from the VirtualGateway to their `frontend` application. 
+
+```sh
+# view the route table configuration
+cat data/gloo-mesh/route-table.yaml
+
+# apply the RouteTable to the mgmt cluster in the web-team namespace
+kubectl apply --context $MGMT_CONTEXT -f data/gloo-mesh/route-table.yaml
+```
+
+
+## Checkout Serivce Feature
+
+Currently the `Checkout` feature is missing from our Online Boutique. The Backend APIs team has finished the feature and plans to deploy it to `cluster2`. This would normally cause issues because the `frontend` application which depends on this feature is deployed to `cluster1`. Gloo Mesh has the ability to create globally addressable multi-cluster services using a `VirtualDestination` configuration. The `VirtualDestination` allows the user to create a unique hostname that allows the selected service(s) to be reachable from anywhere Gloo Mesh is deployed. Since users can select their services using labels, VirtualDestinations are dynamic, adding and removing services as they come and go. We can demonstrate this with the `Checkout` feature.
+
+```yaml
+apiVersion: networking.gloo.solo.io/v2
+kind: VirtualDestination
+metadata:
+  name: checkout
+  namespace: backend-apis-team
+spec:
+  # Global hostname available everywhere
+  hosts:
+  - checkout.mesh.internal
+  # services that available at the above address
+  services:
+  - labels:
+      app: checkoutservice
+  ports:
+  - number: 80
+    protocol: GRPC
+    targetPort:
+      name: grpc
+```
+
+
+First we are going to deploy the checkout feature to `cluster2`. It wont immediately be available to the frontend yet until we create the `VirtualDestination`. 
+
+```sh
+kubectl apply -n backend-apis -f data/online-boutique/checkout-feature.yaml --context $REMOTE_CONTEXT2
+```
+
+In this demo the Backend APIs team needs to create 5 VirtualDestinations because the checkout feature makes requests to the `cart/currency/product-catalog` services in `cluster1` and the frontend also needs to communicate with the `shipping` service deployed with the `Catalog` feature. We did add a small load tester for the `Checkout` feature in `cluster2` so that you can view it in the `Gloo Mesh UI`.
+
+```sh
+# Create the 5 VirtualDestinations in the backend-apis-team namespace in the management plane
+kubectl apply -n backend-apis-team -f data/gloo-mesh/virtual-destinations.yaml --context $MGMT_CONTEXT
+```
+
+Finally the Web Team will need to update thier `frontend` service to call the global hostnamed services generated by the `VirtualDestinations`. The below updates are needed for the frontend to call the `Checkout` feature.
+
+```yaml
+  - name: SHIPPING_SERVICE_ADDR
+    value: "shipping.mesh.internal:80"
+  - name: CHECKOUT_SERVICE_ADDR
+    value: "checkout.mesh.internal:80"
+  - name: PRODUCT_CATALOG_SERVICE_ADDR
+    value: "product-catalog.mesh.internal:80"
+  - name: CURRENCY_SERVICE_ADDR
+    value: "currency.mesh.internal:80"
+```
+
+```yaml
+# Update the frontend application to use global hostnames
+kubectl apply -n web-ui -f data/online-boutique/web-ui-with-checkout.yaml --context $REMOTE_CONTEXT1
+```
+
+## Making Checkout Highly Available
+
+The Backend APIs team has decided to make their `Checkout` feature highly available and wants to deploy it to `cluster1`. Because `VirtualDestinations` already existing with label selectors that will select these new services no Gloo Mesh configuration is needed. The `frontend` will automatically update its service discovery and call the new `checkout` service in `cluster1`.
 
 
 ```sh
-kubectl create namespace ops-team --context $MGMT_CONTEXT
-kubectl create namespace web-team --context $MGMT_CONTEXT
-kubectl create namespace backend-apis-team --context $MGMT_CONTEXT
+# deploy the checkout feature to cluster1
+kubectl apply -n backend-apis -f data/online-boutique/checkout-feature-cluster1.yaml --context $REMOTE_CONTEXT1
+```
 
-# Create ops workspace
+Now when you checkout you may notice that your checkout confirmation may come from `cluster1` or `cluster2`
+
+
+## Policies
+
+Failover Policy
+
+```yaml
 cat << EOF | kubectl apply --context $MGMT_CONTEXT -f -
-apiVersion: admin.gloo.solo.io/v2
-kind: Workspace
+apiVersion: resilience.policy.gloo.solo.io/v2
+kind: OutlierDetectionPolicy
 metadata:
-  name: ops-team
-  namespace: gloo-mesh
+  name: outlier-detection
+  namespace: backend-apis-team
 spec:
-  workloadClusters:
-  - name: 'mgmt'
-    namespaces:
-    - name: ops-team
-  - name: '*'
-    namespaces:
-    - name: istio-gateways
+  applyToDestinations:
+  - kind: VIRTUAL_DESTINATION
+    selector:
+      labels:
+        failover: "true"
+  config:
+    consecutiveErrors: 2
+    interval: 5s
+    baseEjectionTime: 30s
+    maxEjectionPercent: 100
 ---
-apiVersion: admin.gloo.solo.io/v2
-kind: WorkspaceSettings
+apiVersion: resilience.policy.gloo.solo.io/v2
+kind: FailoverPolicy
 metadata:
-  name: ops-team
-  namespace: ops-team
+  name: failover
+  namespace: backend-apis-team
 spec:
-  options:
-    eastWestGateways:
-    - selector:
-        labels:
-          istio: eastwestgateway
-  importFrom:
-  - workspaces:
-    - name: web-team
-    - name: backend-apis-team
+  applyToDestinations:
+  - kind: VIRTUAL_DESTINATION
+    selector:
+      labels:
+        failover: "true"
+  config:
+    localityMappings: []
+---
+apiVersion: networking.gloo.solo.io/v2
+kind: VirtualDestination
+metadata:
+  name: checkout
+  namespace: backend-apis-team
+  labels:
+    failover: "true"
+spec:
+  hosts:
+  - checkout.mesh.internal
+  services:
+  - labels:
+      app: checkoutservice
+  ports:
+  - number: 80
+    protocol: GRPC
+    targetPort:
+      name: grpc
 EOF
-# Create Web Team workspace
-cat << EOF | kubectl apply --context $MGMT_CONTEXT -f -
-apiVersion: admin.gloo.solo.io/v2
-kind: Workspace
-metadata:
-  name: web-team
-  namespace: gloo-mesh
-spec:
-  workloadClusters:
-  - name: 'mgmt'
-    namespaces:
-    - name: web-team
-  - name: '*'
-    namespaces:
-    - name: web-ui
----
-apiVersion: admin.gloo.solo.io/v2
-kind: WorkspaceSettings
-metadata:
-  name: web-team
-  namespace: web-team
-spec:
-  importFrom:
-  - workspaces:
-    - name: backend-apis-team
-  exportTo:
-  - workspaces:
-    - name: ops-team
-  options:
-    eastWestGateways:
-    - selector:
-        labels:
-          istio: eastwestgateway
-    federation:
+```
+
+### Trip Failover
+
+```sh
+kubectl --context $REMOTE_CONTEXT1 -n backend-apis patch deploy checkoutservice --patch '{"spec":{"template":{"spec":{"containers":[{"name":"server","command":["sleep","20h"],"readinessProbe":null,"livenessProbe":null}]}}}}'
+```
+
+### Undo failover
+
+```sh
+kubectl delete deployment checkoutservice -n backend-apis --context $REMOTE_CONTEXT1 
+kubectl apply -n backend-apis -f data/online-boutique/checkout-service-cluster1.yaml --context $REMOTE_CONTEXT1
+```
+
+
+
+## Authorization Policies
+
+* Service Isolation - Deny traffic from non workspace traffic
+
+```yaml
+    serviceIsolation:
       enabled: true
-      serviceSelector:
-      - namespace: web-ui
-EOF
-# Create Backend Team workspace
-cat << EOF | kubectl apply --context $MGMT_CONTEXT -f -
-apiVersion: admin.gloo.solo.io/v2
-kind: Workspace
-metadata:
-  name: backend-apis-team
-  namespace: gloo-mesh
-spec:
-  workloadClusters:
-  - name: 'mgmt'
-    namespaces:
-    - name: backend-apis-team
-  - name: '*'
-    namespaces:
-    - name: backend-apis
----
+```
+
+```sh
+kubectl apply --context $MGMT_CONTEXT -f- <<EOF
 apiVersion: admin.gloo.solo.io/v2
 kind: WorkspaceSettings
 metadata:
@@ -483,7 +292,6 @@ spec:
   exportTo:
   - workspaces:
     - name: web-team
-    - name: ops-team
   options:
     eastWestGateways:
     - selector:
@@ -493,77 +301,7 @@ spec:
       enabled: true
       serviceSelector:
       - namespace: backend-apis
+    serviceIsolation:
+      enabled: true
 EOF
-```
-
-# expose frontend
-
-```yaml
-cat << EOF | kubectl apply --context $MGMT_CONTEXT -f -
-apiVersion: networking.gloo.solo.io/v2
-kind: VirtualGateway
-metadata:
-  name: north-south-gw
-  namespace: ops-team
-spec:
-  workloads:
-    - selector:
-        labels:
-          istio: ingressgateway
-        cluster: cluster1
-  listeners: 
-    - http: {}
-      port:
-        name: http2
-      allowedRouteTables:
-        - host: '*'
-    - http: {}
-      port:
-        name: https
-      allowedRouteTables:
-        - host: '*'
-EOF
-cat << EOF | kubectl apply --context $MGMT_CONTEXT -f -
-apiVersion: networking.gloo.solo.io/v2
-kind: RouteTable
-metadata:
-  name: frontend
-  namespace: web-team
-spec:
-  hosts:
-    - '*'
-  virtualGateways:
-    - name: north-south-gw
-      namespace: ops-team
-      cluster: mgmt
-  workloadSelectors: []
-  http:
-    - name: frontend
-      forwardTo:
-        destinations:
-          - ref:
-              name: frontend
-              namespace: web-ui
-              cluster: cluster1
-            port:
-              number: 80
-EOF
-```
-
-
-## Checkout Serivce Implementation
-
-Deploy Checkout in cluster2:
-```
-kubectl apply -n backend-apis -f data/online-boutique/checkout-service.yaml --context $REMOTE_CONTEXT2
-```
-
-Create a VirtualDestination so it can be reachable from everywhere:
-```
-kubectl apply -n backend-apis-team -f data/online-boutique/virtual-destinations.yaml --context $MGMT_CONTEXT
-```
-
-Update webui to use checkout virtualdestination:
-```
-kubectl apply -n web-ui -f data/online-boutique/web-ui-with-checkout.yaml --context $REMOTE_CONTEXT1
 ```

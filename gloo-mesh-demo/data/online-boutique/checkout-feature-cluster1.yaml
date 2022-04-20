@@ -168,6 +168,7 @@ spec:
       containers:
         - name: server
           image: gcr.io/solo-test-236622/checkoutservice:solo-build
+          imagePullPolicy: Always
           ports:
             - containerPort: 5050
           readinessProbe:
@@ -198,7 +199,7 @@ spec:
             - name: DISABLE_PROFILER
               value: "1"
             - name: KUBERNETES_CLUSTER_NAME
-              value: cluster2
+              value: cluster1
           # - name: JAEGER_SERVICE_ADDR
           #   value: "jaeger-collector:14268"
           resources:
