@@ -201,60 +201,11 @@ Now when you checkout you may notice that your checkout confirmation may come fr
 
 ## Policies
 
-Failover Policy
+Failover & Outlier Detection Policies
 
-```yaml
-cat << EOF | kubectl apply --context $MGMT_CONTEXT -f -
-apiVersion: resilience.policy.gloo.solo.io/v2
-kind: OutlierDetectionPolicy
-metadata:
-  name: outlier-detection
-  namespace: backend-apis-team
-spec:
-  applyToDestinations:
-  - kind: VIRTUAL_DESTINATION
-    selector:
-      labels:
-        failover: "true"
-  config:
-    consecutiveErrors: 2
-    interval: 5s
-    baseEjectionTime: 30s
-    maxEjectionPercent: 100
----
-apiVersion: resilience.policy.gloo.solo.io/v2
-kind: FailoverPolicy
-metadata:
-  name: failover
-  namespace: backend-apis-team
-spec:
-  applyToDestinations:
-  - kind: VIRTUAL_DESTINATION
-    selector:
-      labels:
-        failover: "true"
-  config:
-    localityMappings: []
----
-apiVersion: networking.gloo.solo.io/v2
-kind: VirtualDestination
-metadata:
-  name: checkout
-  namespace: backend-apis-team
-  labels:
-    failover: "true"
-spec:
-  hosts:
-  - checkout.mesh.internal
-  services:
-  - labels:
-      app: checkoutservice
-  ports:
-  - number: 80
-    protocol: GRPC
-    targetPort:
-      name: grpc
-EOF
+```sh
+kubectl apply -n backend-apis-team -f data/gloo-mesh/failover-policy.yaml --context $MGMT_CONTEXT
+kubectl apply -n backend-apis-team -f data/gloo-mesh/outlier-detection-policy.yaml --context $MGMT_CONTEXT
 ```
 
 ### Trip Failover
@@ -263,11 +214,17 @@ EOF
 kubectl --context $REMOTE_CONTEXT1 -n backend-apis patch deploy checkoutservice --patch '{"spec":{"template":{"spec":{"containers":[{"name":"server","command":["sleep","20h"],"readinessProbe":null,"livenessProbe":null}]}}}}'
 ```
 
+
+```sh
+# View the connection errros in the checkout service
+kubectl logs -l app=checkoutservice -n backend-apis --context $REMOTE_CONTEXT1 -c istio-proxy
+```
+
+
 ### Undo failover
 
 ```sh
-kubectl delete deployment checkoutservice -n backend-apis --context $REMOTE_CONTEXT1 
-kubectl apply -n backend-apis -f data/online-boutique/checkout-service-cluster1.yaml --context $REMOTE_CONTEXT1
+kubectl apply -n backend-apis -f data/online-boutique/checkout-feature-cluster1.yaml --context $REMOTE_CONTEXT1
 ```
 
 
