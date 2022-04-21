@@ -1,18 +1,18 @@
 {%- if step.spec.checkFile %}
   {%- assign filename = step.vars.dir | findFile: step.spec.checkFile %}
   {%- if filename != "notfound" %}
-source /root/.env
+source /root/.env 2>/dev/null || true
 # Rendered from {{ filename }}
     {%- if filename | isMocha %}
 {{ filename | generateCheckFile: retries: 5, bail: 'yes', vars: vars }}
-    {%- else %}
-      {%- render filename %}
-    {%- endif %}
 retval=$?
 if [ $retval -ne 0 ]; then
-  echo "FAIL: {{ filename }}"
+  echo "{{ filename }}"
   echo "FAIL: $(cat /tmp/stderr | grep Error | head -n 1 | xargs -0)"
   exit 1
 fi
+    {%- else %}
+{% render filename %}
+    {%- endif %}
   {%- endif %}
 {%- endif %}

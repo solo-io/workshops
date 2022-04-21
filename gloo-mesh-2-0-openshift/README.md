@@ -40,10 +40,7 @@ source ./scripts/assert.sh
 
 ## Introduction <a name="introduction"></a>
 
-[Gloo Mesh Enterprise](https://www.solo.io/products/gloo-mesh/) is a distribution of [Istio Service Mesh](https://istio.io) with production support, CVE patching, FIPS builds, and a multi-cluster operational management plane to simplify running a service mesh across multiple clusters or a hybrid deployment. 
-
-Gloo Mesh also has enterprise features around multi-tenancy, global failover and routing, observability, and east-west rate limiting and policy enforcement (through AuthZ/AuthN plugins). 
-
+[Gloo Mesh Enterprise](https://www.solo.io/products/gloo-mesh/) is a management plane which makes it easy to operate [Istio](https://istio.io) on one or many Kubernetes clusters deployed anywhere (any platform, anywhere).
 
 ### Istio support
 
@@ -58,10 +55,15 @@ The Gloo Mesh Enterprise subscription includes end to end Istio support:
 - Install / upgrade
 - Architecture and operational guidance, best practices
 
+### Gloo Mesh overview
 
-### Observability
+Gloo Mesh provides many unique features, including:
 
-Gloo Mesh is also using these agents to consolidate all the metrics and access logs from the different clusters. Graphs can then be used to monitor all the communication happening globally.
+- multi-tenancy based on global workspaces
+- zero trust enforcement
+- global observability (centralized metrics and access logging)
+- simplified cross cluster communications (using virtual destinations)
+- advanced gateway capabilities (oauth, jwt, transformations, rate limiting, web application firewall, ...)
 
 ![Gloo Mesh graph](images/gloo-mesh-graph.png)
 
@@ -127,12 +129,12 @@ var chai = require('chai');
 var expect = chai.expect;
 chai.use(chaiExec);
 
-describe("istoctl version", () => {
+describe("istioctl version", () => {
   it("version should be correct", () => {
-    let cli = chaiExec('./istio-' + process.env.ISTIO_VERSION + '/bin/istioctl version --remote=false');
+    let cli = chaiExec('./istio-1.12.6/bin/istioctl version --remote=false');
 
     expect(cli).to.exit.with.code(0);
-    expect(cli).stdout.to.contain(process.env.ISTIO_VERSION);
+    expect(cli).stdout.to.contain("1.12.6");
     expect(cli).stderr.to.be.empty;
   });
 });

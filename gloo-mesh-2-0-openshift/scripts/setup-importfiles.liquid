@@ -1,57 +1,42 @@
+{% comment %} render data files in /root/data/ directory {% endcomment %}
 {%- assign a = step.vars.dir | split: "/" %}
 {%- assign files = a[0] | append: '/data' | listFiles %}
 {%- for file in files %}
 {% assign filePath = a[0] | append: '/data/' | append: file %}
-# Rendered from {{ filePath }}
+# A: Rendered from {{ filePath }}
 mkdir -p /root/data
 cat <<'FILEEND' >/root/data/{{ file }}
 {{ filePath | raw_include }}
 FILEEND
-{%- endfor %}
+{% endfor %}
 
+{% comment %} render data files in /root/data/steps/<step-name>/ directory {% endcomment %}
 {%- assign files = step.vars.dir | append: '/data' | listFiles %}
 {%- for file in files %}
 {% assign filePath = step.vars.dir | append: '/data/' | append: file %}
-# Rendered from {{ filePath }}
+# B: Rendered from {{ filePath }}
 mkdir -p /root/data/steps/{{ step.name }}/
 cat <<'FILEEND' >/root/data/steps/{{ step.name }}/{{ file }}
 {{ filePath | raw_include }}
 FILEEND
-{%- endfor %}
+{% endfor %}
 
+{% comment %} render custom files in /root/files/ directory {% endcomment %}
 {%- assign files = step.vars.dir | append: '/partials' | listFiles %}
 {%- for file in files %}
 {% assign filePath = step.vars.dir | append: '/partials/' | append: file %}
-# Rendered from {{ filePath }}
+# C: Rendered from {{ filePath }}
 cat <<FILEEND >/root/files/{{ file | remove: ".liquid" }}
 {{ filePath | render: step: step }}
 FILEEND
-{%- endfor %}
+{% endfor %}
 
-{%- for subStep in step.vars.subStepList %}
-{%- for s in steps %}
-{%- if subStep == s.name %}
-
-{%- assign files = s.vars.dir | append: '/data' | listFiles %}
+{% comment %} variables that are loaded AFTER each step {% endcomment %}
+{%- assign files = step.vars.dir | append: '/partials' | listFiles: includeFilter: 'variables.liquid', excludeFilter: '' %}
 {%- for file in files %}
-{% assign filePath = s.vars.dir | append: '/data/' | append: file %}
-# Rendered from {{ filePath }}
-mkdir -p /root/data/steps/{{ s.name }}/
-cat <<'FILEEND' >/root/data/steps/{{ s.name }}/{{ file }}
-{{ filePath | raw_include }}
+{% assign filePath = step.vars.dir | append: '/partials/' | append: file %}
+# D: Rendered from {{ filePath }}
+cat <<FILEEND >>/root/.env
+{{ filePath | render: step: step | replace: "$", "\\$" }}
 FILEEND
-{%- endfor %}
-
-# Should we render partials in files ?
-{%- assign files = s.vars.dir | append: '/partials' | listFiles %}
-{%- for file in files %}
-{% assign filePath = s.vars.dir | append: '/partials/' | append: file %}
-# Rendered from {{ filePath }}
-cat <<FILEEND >/root/files/{{ file | remove: ".liquid" }}
-{{ filePath | render: step: s }}
-FILEEND
-{%- endfor %}
-
-{%- endif %}
-{%- endfor %}
-{%- endfor %}
+{% endfor %}
