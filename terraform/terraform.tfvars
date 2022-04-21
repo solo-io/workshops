@@ -29,4 +29,10 @@ eks_version        = "1.21"
 node_instance_type = "t3.small"
 include_vm         = {}
 
-
+environments = {
+  perf = {
+    machine_type = "n1-highmem-64"
+    source_machine_image = "workshop-generic-v20211019"
+    num_instances = 1
+  }
+}
