@@ -25,17 +25,43 @@ global = {
     expect(expectedObject, "The following object can't be found or is not as expected:\n" + yaml).to.be.true;
   },
   checkDeployment: async ({ context, namespace, k8sObj }) => {
-    let command = "kubectl --context " + context + " -n " + namespace + " get deploy " + k8sObj + " -o jsonpath='{.status.availableReplicas}'";
+    let command = "kubectl --context " + context + " -n " + namespace + " get deploy " + k8sObj + " -o jsonpath='{.status}'";
     let cli = chaiExec(command);
-
     cli.stderr.should.be.empty;
-    let availableReplicas = cli.stdout;
-    if (!availableReplicas.includes("1")) {
+    let readyReplicas = JSON.parse(cli.stdout.slice(1,-1)).readyReplicas || 0;
+    let replicas = JSON.parse(cli.stdout.slice(1,-1)).replicas;
+    if (readyReplicas != replicas) {
       console.log("    ----> " + k8sObj + " in " + context + " not ready...");
       await utils.sleep(1000);
     }
     cli.should.exit.with.code(0);
-    availableReplicas.should.equal("'1'");
+    readyReplicas.should.equal(replicas);
+  },
+  checkStatefulSet: async ({ context, namespace, k8sObj }) => {
+    let command = "kubectl --context " + context + " -n " + namespace + " get sts " + k8sObj + " -o jsonpath='{.status}'";
+    let cli = chaiExec(command);
+    cli.stderr.should.be.empty;
+    let readyReplicas = JSON.parse(cli.stdout.slice(1,-1)).readyReplicas || 0;
+    let replicas = JSON.parse(cli.stdout.slice(1,-1)).replicas;
+    if (readyReplicas != replicas) {
+      console.log("    ----> " + k8sObj + " in " + context + " not ready...");
+      await utils.sleep(1000);
+    }
+    cli.should.exit.with.code(0);
+    readyReplicas.should.equal(replicas);
+  },
+  checkDaemonSet: async ({ context, namespace, k8sObj }) => {
+    let command = "kubectl --context " + context + " -n " + namespace + " get ds " + k8sObj + " -o jsonpath='{.status}'";
+    let cli = chaiExec(command);
+    cli.stderr.should.be.empty;
+    let readyReplicas = JSON.parse(cli.stdout.slice(1,-1)).numberReady || 0;
+    let replicas = JSON.parse(cli.stdout.slice(1,-1)).desiredNumberScheduled;
+    if (readyReplicas != replicas) {
+      console.log("    ----> " + k8sObj + " in " + context + " not ready...");
+      await utils.sleep(1000);
+    }
+    cli.should.exit.with.code(0);
+    readyReplicas.should.equal(replicas);
   },
   k8sObjectIsPresent: ({ context, namespace, k8sType, k8sObj }) => {
     let command = "kubectl --context " + context + " -n " + namespace + " get " + k8sType + " " + k8sObj + " -o name";
