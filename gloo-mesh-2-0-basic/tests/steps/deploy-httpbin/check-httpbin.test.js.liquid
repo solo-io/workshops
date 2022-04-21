@@ -1,9 +1,0 @@
-const helpers = require('./tests/chai-exec');
-
-describe("Bookinfo app", () => {
-  let cluster = process.env.CLUSTER1
-  let deployments = ["not-in-mesh", "in-mesh"];
-  deployments.forEach(deploy => {
-    it(deploy + ' pods are ready in ' + cluster, () => helpers.checkDeployment({ context: cluster, namespace: "httpbin", k8sObj: deploy }));
-  });
-});
