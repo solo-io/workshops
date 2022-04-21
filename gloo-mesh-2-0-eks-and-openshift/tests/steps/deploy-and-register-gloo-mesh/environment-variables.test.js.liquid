@@ -14,7 +14,9 @@ describe("Required environment variables should contain value", () => {
   it("Context environment variables should not be empty", () => {
     expect(process.env.MGMT).to.not.be.empty
     expect(process.env.CLUSTER1).to.not.be.empty
+{%- if vars.single_cluster != true %}
     expect(process.env.CLUSTER2).to.not.be.empty
+{%- endif %}
   });
 
   it("Gloo Mesh licence environment variables should not be empty", () => {
