@@ -28,6 +28,8 @@ describe("Checking Istio installation", function() {
   deployments.forEach(deploy => {
     it(deploy + ' pods are ready in cluster ' + process.env.CLUSTER1, () => helpers.checkDeployment({ context: process.env.CLUSTER1, namespace: "istio-gateways", k8sObj: deploy }));
   });
+
+{%- if vars.single_cluster != true %}
   deployments = ["{{ istio }}"];
   deployments.forEach(deploy => {
     it(deploy + ' pods are ready in cluster ' + process.env.CLUSTER2, () => helpers.checkDeployment({ context: process.env.CLUSTER2, namespace: "istio-system", k8sObj: deploy }));
@@ -36,8 +38,7 @@ describe("Checking Istio installation", function() {
   deployments.forEach(deploy => {
     it(deploy + ' pods are ready in cluster ' + process.env.CLUSTER2, () => helpers.checkDeployment({ context: process.env.CLUSTER2, namespace: "istio-gateways", k8sObj: deploy }));
   });
-
-{{ vars.gateway }}
+{%- endif %}
 
 {%- if vars.node_port != true and vars.cluster1.node_port != true %}
   it("Ingress gateways have an ip attached in cluster " + process.env.CLUSTER1, () => {
@@ -50,6 +51,7 @@ describe("Checking Istio installation", function() {
   });
 {%- endif %}
 
+{%- if vars.single_cluster != true %}
 {%- if vars.node_port != true and vars.cluster2.node_port != true %}
   it("Ingress gateways have an ip attached in cluster " + process.env.CLUSTER2, () => {
     let cli = chaiExec("kubectl --context " + process.env.CLUSTER2 + " -n istio-gateways get svc istio-eastwestgateway  -o jsonpath='{.status.loadBalancer}'");
@@ -59,5 +61,6 @@ describe("Checking Istio installation", function() {
     expect(cli).to.exit.with.code(0);
     expect(cli).output.to.contain('"ingress"');
   });
+{%- endif %}
 {%- endif %}
 });

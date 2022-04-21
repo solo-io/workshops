@@ -40,6 +40,7 @@ for i in {1..100}; do
   sleep 5
 done
 
+{% if vars.saveLocalVariables %}
 cat <<EOF >/usr/bin/save-environment.sh
 # Export current variables
 export >> /root/.env
@@ -76,5 +77,6 @@ cat <<'EOF' >>/etc/bash.bashrc
 source /root/.env
 /root/penv.sh &
 EOF
+{% endif %}
 
 echo 'cd /root' >> /etc/bash.bashrc
