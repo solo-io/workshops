@@ -29,7 +29,7 @@ export REMOTE_CONTEXT2=cluster2
 export ISTIO_REPO=gcr.io/istio-release
 export ISTIO_VERSION=1.12.6
 
-export GLOO_MESH_VERSION=v2.0.0-beta30
+export GLOO_MESH_VERSION=v2.0.0-beta31
 
 curl -sL https://run.solo.io/meshctl/install | GLOO_MESH_VERSION=${GLOO_MESH_VERSION} sh -
 
@@ -109,6 +109,8 @@ kubectl apply -n backend-apis -f data/online-boutique/backend-apis-cluster1.yaml
 ```
 
 ## expose frontend
+
+![](./images/expose-frontend.png)
 
 In order to expose the frontend application in the web-ui namespace, the Ops team first needs to setup the Istio ingress gateway to allow incomming traffic. This is done with a `VirtualGateway`. The Ops team determines which hosts and ports other teams can use by configuring the `allowedRouteTables`. In this case we will allow the Web team to define routes for their application. 
 
