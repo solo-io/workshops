@@ -1,0 +1,82 @@
+#!/bin/bash
+
+# Install dependencies in /tmp
+cat <<EOF >/tmp/package.json
+{% render 'package.json' %}
+EOF
+
+# Render common libraries
+mkdir -p /tmp/tests
+{%- assign files = dir | append: '/tests' | listFiles %}
+{%- for file in files %}
+{%- assign filePath = dir | append: '/tests/' | append: file %}
+cat <<EOF >/tmp/tests/{{ file | remove: ".liquid" }}
+{% render filePath %}
+EOF
+{%- endfor %}
+
+cp -r node_modules/ /tmp/node_modules/
+
+ln -s /root/.nvm/versions/node/*/bin/node -t /usr/local/sbin
+ln -s /root/.nvm/versions/node/*/bin/mocha -t /usr/local/sbin
+ln -s /root/.nvm/versions/node/*/bin/npm -t /usr/local/sbin
+
+pushd /tmp
+npm install
+popd
+
+touch /root/.env
+echo "export KUBECONFIG=/root/.kube/mgmt:/root/.kube/cluster1:/root/.kube/cluster2" >> /root/.env
+
+source /root/.env
+
+for i in {1..100}; do
+  kubectl --context=cluster1 label node cluster1 ingress-ready=true topology.kubernetes.io/region=us-west topology.kubernetes.io/zone=us-west-1 && break
+  sleep 5
+done
+
+for i in {1..100}; do
+  kubectl --context=cluster2 label node cluster2 ingress-ready=true topology.kubernetes.io/region=us-west topology.kubernetes.io/zone=us-west-2 && break
+  sleep 5
+done
+
+{% if vars.saveLocalVariables %}
+cat <<EOF >/usr/bin/save-environment.sh
+# Export current variables
+export >> /root/.env
+touch /tmp/environment-saved
+# Remove duplicates
+cp /root/.env /root/.env.previous
+awk '!seen[\$0]++' /root/.env.previous > /root/.env
+EOF
+chmod +x /usr/bin/save-environment.sh
+
+apt update && apt -y install gdb
+
+cat <<'EOF' >/root/penv.gdb
+set variable $foo = (char **) environ
+set $i = 0
+while ($foo[$i] != 0)
+print $foo[$i++]
+end
+EOF
+
+cat <<'EOF' >/root/penv.sh
+trap "exec /root/penv.sh;" INT TERM
+while true; do
+  sleep 5
+  [[ $(($(date +%s)-$(stat -c '%Y' /root/.env))) -gt 5 ]] || continue
+  gdb -x /root/penv.gdb -p $PPID -q --batch 2>null  | grep '^\$' | awk -F\" '{ print $2 }' | awk -F= '{ print "export "$1"=\""$2"\"" }' > /tmp/.env
+  cp /tmp/.env /root/.env
+done
+EOF
+
+chmod +x /root/penv.sh
+
+cat <<'EOF' >>/etc/bash.bashrc
+source /root/.env
+/root/penv.sh &
+EOF
+{% endif %}
+
+echo 'cd /root' >> /etc/bash.bashrc
