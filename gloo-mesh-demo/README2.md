@@ -198,6 +198,8 @@ kubectl apply -n web-ui -f data/online-boutique/web-ui-with-checkout.yaml --cont
 
 ## Making Checkout Highly Available
 
+![](./images/ha-checkout.png)
+
 The Backend APIs team has decided to make their `Checkout` feature highly available and wants to deploy it to `cluster1`. Because `VirtualDestinations` already existing with label selectors that will select these new services no Gloo Mesh configuration is needed. The `frontend` will automatically update its service discovery and call the new `checkout` service in `cluster1`.
 
 
@@ -212,6 +214,8 @@ Now when you checkout you may notice that your checkout confirmation may come fr
 ## Policies
 
 ### Failover & Outlier Detection Policies
+
+![](./images/checkout-failover.png)
 
 ```sh
 kubectl apply -n backend-apis-team -f data/gloo-mesh/failover-policy.yaml --context $MGMT_CONTEXT
