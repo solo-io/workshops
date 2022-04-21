@@ -232,7 +232,7 @@ kubectl logs -l app=checkoutservice -n backend-apis --context $REMOTE_CONTEXT1 -
 ### Undo failover
 
 ```sh
-kubectl apply -n backend-apis -f data/online-boutique/checkout-feature-cluster1.yaml --context $REMOTE_CONTEXT1
+kubectl --context $REMOTE_CONTEXT1 -n backend-apis patch deploy checkoutservice --patch '{"spec":{"template":{"spec":{"containers":[{"name":"server","command":[],"readinessProbe":null,"livenessProbe":null}]}}}}'
 ```
 
 
