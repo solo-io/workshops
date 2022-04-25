@@ -29,7 +29,7 @@ export REMOTE_CONTEXT2=cluster2
 export ISTIO_REPO=gcr.io/istio-release
 export ISTIO_VERSION=1.12.6
 
-export GLOO_MESH_VERSION=v2.0.0-beta31
+export GLOO_MESH_VERSION=v2.0.0-beta32
 
 curl -sL https://run.solo.io/meshctl/install | GLOO_MESH_VERSION=${GLOO_MESH_VERSION} sh -
 
@@ -38,9 +38,6 @@ meshctl install \
   --license $GLOO_MESH_LICENSE_KEY \
   --version $GLOO_MESH_VERSION \
   --set mgmtClusterName=$MGMT_CLUSTER
-
-#  --set glooMeshMgmtServer.image.registry=gcr.io/solo-test-236622 \
-#  --set glooMeshMgmtServer.image.tag=2.0.0-beta28-3-gf1fbadcb3
 
 MGMT_SERVER_NETWORKING_DOMAIN=$(kubectl get svc -n gloo-mesh gloo-mesh-mgmt-server --context $MGMT_CONTEXT -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
 MGMT_SERVER_NETWORKING_PORT=$(kubectl -n gloo-mesh get service gloo-mesh-mgmt-server --context $MGMT_CONTEXT -o jsonpath='{.spec.ports[?(@.name=="grpc")].port}')
