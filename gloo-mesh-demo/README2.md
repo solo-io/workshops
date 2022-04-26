@@ -39,22 +39,15 @@ meshctl install \
   --version $GLOO_MESH_VERSION \
   --set mgmtClusterName=$MGMT_CLUSTER
 
-MGMT_SERVER_NETWORKING_DOMAIN=$(kubectl get svc -n gloo-mesh gloo-mesh-mgmt-server --context $MGMT_CONTEXT -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
-MGMT_SERVER_NETWORKING_PORT=$(kubectl -n gloo-mesh get service gloo-mesh-mgmt-server --context $MGMT_CONTEXT -o jsonpath='{.spec.ports[?(@.name=="grpc")].port}')
-MGMT_SERVER_NETWORKING_ADDRESS=${MGMT_SERVER_NETWORKING_DOMAIN}:${MGMT_SERVER_NETWORKING_PORT}
-echo $MGMT_SERVER_NETWORKING_ADDRESS
-
 meshctl cluster register \
   --kubecontext=$MGMT_CONTEXT \
   --remote-context=$REMOTE_CONTEXT1 \
-  --relay-server-address $MGMT_SERVER_NETWORKING_ADDRESS \
   --version $GLOO_MESH_VERSION \
   $REMOTE_CLUSTER1
 
 meshctl cluster register \
   --kubecontext=$MGMT_CONTEXT \
   --remote-context=$REMOTE_CONTEXT2 \
-  --relay-server-address $MGMT_SERVER_NETWORKING_ADDRESS \
   --version $GLOO_MESH_VERSION \
   $REMOTE_CLUSTER2
 
