@@ -267,7 +267,7 @@ spec:
     - name: web-team
   options:
     serviceIsolation:
-      enabled: true
+      enabled: false
 ---
 apiVersion: admin.gloo.solo.io/v2
 kind: WorkspaceSettings
