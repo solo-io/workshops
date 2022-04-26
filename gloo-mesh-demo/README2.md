@@ -254,6 +254,48 @@ kubectl apply --context $MGMT_CONTEXT -f- <<EOF
 apiVersion: admin.gloo.solo.io/v2
 kind: WorkspaceSettings
 metadata:
+  name: ops-team
+  namespace: ops-team
+spec:
+  options:
+    eastWestGateways:
+    - selector:
+        labels:
+          istio: eastwestgateway
+  importFrom:
+  - workspaces:
+    - name: web-team
+  options:
+    serviceIsolation:
+      enabled: true
+---
+apiVersion: admin.gloo.solo.io/v2
+kind: WorkspaceSettings
+metadata:
+  name: web-team
+  namespace: web-team
+spec:
+  importFrom:
+  - workspaces:
+    - name: backend-apis-team
+  exportTo:
+  - workspaces:
+    - name: ops-team
+  options:
+    eastWestGateways:
+    - selector:
+        labels:
+          istio: eastwestgateway
+    federation:
+      enabled: true
+      serviceSelector:
+      - namespace: web-ui
+    serviceIsolation:
+      enabled: true
+---
+apiVersion: admin.gloo.solo.io/v2
+kind: WorkspaceSettings
+metadata:
   name: backend-apis-team
   namespace: backend-apis-team
 spec:
@@ -272,4 +314,10 @@ spec:
     serviceIsolation:
       enabled: true
 EOF
+```
+
+* Test that the frontend can access the backend-apis but not the other way around
+```sh
+POD_NAME=$(kubectl get pods --namespace backend-apis -l "app=checkoutservice" --context $REMOTE_CONTEXT1 -o jsonpath="{.items[0].metadata.name}")
+kubectl exec -it $POD_NAME -n backend-apis --context $REMOTE_CONTEXT1 -c istio-proxy -- curl "http://frontend.web-ui.svc.cluster.local:80/info"
 ```
