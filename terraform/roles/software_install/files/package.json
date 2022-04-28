@@ -4,12 +4,15 @@
   "description": "Solo Procedure Generator",
   "dependencies": {
     "@jsdevtools/chai-exec": "^2.1.1",
-    "chai": "^4.3.4",
+    "chai": "^4.3.6",
     "chai-http": "^4.3.0",
-    "glob": "^7.1.7",
+    "deep-object-diff": "^1.1.7",
+    "fs-extra": "^10.1.0",
+    "glob": "^8.0.1",
     "js-yaml": "^4.1.0",
-    "liquidjs": "^9.25.1",
-    "mocha": "^9.1.0",
-    "yargs": "^17.1.1"
+    "json-diff": "^0.7.4",
+    "liquidjs": "^9.37.0",
+    "mocha": "^9.2.2",
+    "yargs": "^17.4.1"
   }
 }
