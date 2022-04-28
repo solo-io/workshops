@@ -236,6 +236,14 @@
   - socat
   when: "not ( reboot_vm | bool )"
 
+- name: Stop/Disable services
+  service:
+    name: "{{ item }}"
+    enabled: no
+    state: 'stopped'
+  loop:
+  - avahi-daemon
+
 - name: Fix a known issue with VSCode
   shell: sed -i 's/BIG-REQUESTS/_IG-REQUESTS/' /usr/lib/x86_64-linux-gnu/libxcb.so.1.1.0
 
