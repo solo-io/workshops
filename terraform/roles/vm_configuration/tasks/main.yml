@@ -245,7 +245,10 @@
   - avahi-daemon
 
 - name: Disable avahi-daemon
-  shell: sed -i 's/AVAHI_DAEMON_START.*1/AVAHI_DAEMON_START = 0/' /etc/default/avahi-daemon
+  shell: sed -i 's/AVAHI_DAEMON_START.*1/AVAHI_DAEMON_START=0/' /etc/default/avahi-daemon
+
+- name: Disable avahi-daemon
+  shell: sed -i 's/AVAHI_DAEMON_DETECT_LOCAL.*1/AVAHI_DAEMON_DETECT_LOCAL=0/' /etc/default/avahi-daemon
 
 - name: Fix a known issue with VSCode
   shell: sed -i 's/BIG-REQUESTS/_IG-REQUESTS/' /usr/lib/x86_64-linux-gnu/libxcb.so.1.1.0
