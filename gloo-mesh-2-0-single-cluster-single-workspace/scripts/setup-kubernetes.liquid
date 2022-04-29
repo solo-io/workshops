@@ -7,9 +7,9 @@ EOF
 
 # Render common libraries
 mkdir -p /tmp/tests
-{%- assign files = dir | append: '/tests' | listFiles %}
+{%- assign files = config.dir | append: '/tests' | listFiles %}
 {%- for file in files %}
-{%- assign filePath = dir | append: '/tests/' | append: file %}
+{%- assign filePath = config.dir | append: '/tests/' | append: file %}
 cat <<EOF >/tmp/tests/{{ file | remove: ".liquid" }}
 {% render filePath %}
 EOF
@@ -22,10 +22,11 @@ ln -s /root/.nvm/versions/node/*/bin/mocha -t /usr/local/sbin
 ln -s /root/.nvm/versions/node/*/bin/npm -t /usr/local/sbin
 
 pushd /tmp
-npm install
+/root/.nvm/versions/node/*/bin/npm install
 popd
 
 touch /root/.env
+{%- if vars.single_cluster != true %}
 echo "export KUBECONFIG=/root/.kube/mgmt:/root/.kube/cluster1:/root/.kube/cluster2" >> /root/.env
 
 source /root/.env
@@ -39,6 +40,7 @@ for i in {1..100}; do
   kubectl --context=cluster2 label node cluster2 ingress-ready=true topology.kubernetes.io/region=us-west topology.kubernetes.io/zone=us-west-2 && break
   sleep 5
 done
+{% endif %}
 
 {% if vars.saveLocalVariables %}
 cat <<EOF >/usr/bin/save-environment.sh
