@@ -26,11 +26,10 @@ EOF
 
 while ! stat /etc/rancher/k3s/k3s.yaml; do sleep 1; done
 
+{%- if vars.single_cluster != true %}
 export LOCAL_IP=$(dig +short $(hostname).$INSTRUQT_PARTICIPANT_ID.svc.cluster.local | grep -v '\.$')
 cat /etc/rancher/k3s/k3s.yaml | sed 's/127.0.0.1/$LOCAL_IP/' | sed 's/default/$HOSTNAME/' | HOSTNAME=$(hostname) envsubst > /tmp/$HOSTNAME
-while ! rsync -e "ssh -o StrictHostKeyChecking=no" -v /tmp/$HOSTNAME mgmt.$INSTRUQT_PARTICIPANT_ID.svc.cluster.local:/root/.kube/$HOSTNAME; do sleep 1; done
+while ! rsync -e "ssh -o StrictHostKeyChecking=no" -v /tmp/$HOSTNAME {{ config.spec.virtualmachines[0].name }}.$INSTRUQT_PARTICIPANT_ID.svc.cluster.local:/root/.kube/$HOSTNAME; do sleep 1; done
+{%- endif %}
 
 touch /root/.env
-echo "export MGMT=mgmt" >> /root/.env
-echo "export CLUSTER1=cluster1" >> /root/.env
-echo "export CLUSTER2=cluster2" >> /root/.env

@@ -4,7 +4,7 @@ var chai = require('chai');
 var expect = chai.expect;
 
 describe("Authentication is working properly", function() {
-  let user = 'user1';
+  let user = 'user2';
   let password = 'password';
   let keycloak_client_id = chaiExec("kubectl --context " + process.env.CLUSTER1 + " -n httpbin get extauthpolicy httpbin -o jsonpath='{.spec.config.glooAuth.configs[0].oauth2.oidcAuthorizationCode.clientId}'").stdout.replaceAll("'", "");
   let keycloak_client_secret_base64 = chaiExec("kubectl --context " + process.env.CLUSTER1 + " -n httpbin get secret oauth -o jsonpath='{.data.client-secret}'").stdout.replaceAll("'", "");

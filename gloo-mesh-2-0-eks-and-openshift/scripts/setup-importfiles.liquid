@@ -27,7 +27,7 @@ FILEEND
 {% assign filePath = step.vars.dir | append: '/partials/' | append: file %}
 # C: Rendered from {{ filePath }}
 cat <<FILEEND >/root/files/{{ file | remove: ".liquid" }}
-{{ filePath | render: step: step }}
+{{ filePath | render: step: step, vars: vars }}
 FILEEND
 {% endfor %}
 
@@ -37,6 +37,6 @@ FILEEND
 {% assign filePath = step.vars.dir | append: '/partials/' | append: file %}
 # D: Rendered from {{ filePath }}
 cat <<FILEEND >>/root/.env
-{{ filePath | render: step: step | replace: "$", "\\$" }}
+{{ filePath | render: step: step, vars: vars | replace: "$", "\\$" }}
 FILEEND
 {% endfor %}

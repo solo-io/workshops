@@ -8,6 +8,7 @@ source /root/.env 2>/dev/null || true
 retval=$?
 if [ $retval -ne 0 ]; then
   echo "{{ filename }}"
+  cat /tmp/stderr
   echo "FAIL: $(cat /tmp/stderr | grep Error | head -n 1 | xargs -0)"
   exit 1
 fi
