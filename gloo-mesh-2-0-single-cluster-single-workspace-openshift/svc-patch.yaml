@@ -1,0 +1,4 @@
+spec:
+  ports:
+  - port: 80
+    targetPort: 8443
