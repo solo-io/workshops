@@ -123,6 +123,8 @@ spec:
                   fieldPath: metadata.namespace
             - name: KUBERNETES_CLUSTER_NAME
               value: cluster1
+            - name: CART_DISABLED
+              value: "true"
           # - name: JAEGER_SERVICE_ADDR
           #   value: "jaeger-collector:14268"
           resources:

@@ -17,19 +17,11 @@
 * [Lab 5 - Policies](#Lab-5)
 
 ```sh
-
-export MGMT_CLUSTER=mgmt
-export REMOTE_CLUSTER1=cluster1
-export REMOTE_CLUSTER2=cluster2
-
 export MGMT_CONTEXT=mgmt
 export REMOTE_CONTEXT1=cluster1
 export REMOTE_CONTEXT2=cluster2
 
-export ISTIO_REPO=gcr.io/istio-release
-export ISTIO_VERSION=1.12.6
-
-export GLOO_MESH_VERSION=v2.0.0-beta32
+export GLOO_MESH_VERSION=v2.0.0-rc1
 
 curl -sL https://run.solo.io/meshctl/install | GLOO_MESH_VERSION=${GLOO_MESH_VERSION} sh -
 
@@ -37,19 +29,19 @@ meshctl install \
   --kubecontext $MGMT_CONTEXT \
   --license $GLOO_MESH_LICENSE_KEY \
   --version $GLOO_MESH_VERSION \
-  --set mgmtClusterName=$MGMT_CLUSTER
+  --set mgmtClusterName=$MGMT_CONTEXT
 
 meshctl cluster register \
   --kubecontext=$MGMT_CONTEXT \
   --remote-context=$REMOTE_CONTEXT1 \
   --version $GLOO_MESH_VERSION \
-  $REMOTE_CLUSTER1
+  $REMOTE_CONTEXT1
 
 meshctl cluster register \
   --kubecontext=$MGMT_CONTEXT \
   --remote-context=$REMOTE_CONTEXT2 \
   --version $GLOO_MESH_VERSION \
-  $REMOTE_CLUSTER2
+  $REMOTE_CONTEXT2
 
 ```
 
