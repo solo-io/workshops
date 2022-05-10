@@ -9,6 +9,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: frontend
+  namespace: web-ui
   labels:
     app: frontend
 spec:
@@ -23,11 +24,13 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: frontend
+  namespace: web-ui
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   name: view-nodes
+  namespace: web-ui
 rules:
 - apiGroups: [""]
   resources: ["nodes"]
@@ -37,6 +40,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
   name: read-nodes
+  namespace: web-ui
 subjects:
 - kind: ServiceAccount
   name: frontend
@@ -50,6 +54,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: frontend
+  namespace: web-ui
 spec:
   selector:
     matchLabels:
@@ -102,8 +107,8 @@ spec:
             - name: AD_SERVICE_ADDR
               value: "adservice.backend-apis.svc.cluster.local:9555"
             # # ENV_PLATFORM: One of: local, gcp, aws, azure, onprem
-            # # When not set, defaults to "local" unless running in GKE, otherwies auto-sets to gcp 
-            - name: ENV_PLATFORM 
+            # # When not set, defaults to "local" unless running in GKE, otherwies auto-sets to gcp
+            - name: ENV_PLATFORM
               value: "onprem"
             - name: DISABLE_TRACING
               value: "1"
@@ -134,7 +139,7 @@ spec:
 ---
 apiVersion: v1
 kind: ServiceAccount
-metadata: 
+metadata:
   name: loadgenerator
   namespace: web-ui
 ---
