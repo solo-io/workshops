@@ -77,6 +77,8 @@ You can find more information about Gloo Mesh in the official documentation:
 
 ## Lab 1 - Deploy the Kubernetes clusters manually <a name="Lab-1"></a>
 
+Clone this repository and go to the `gloo-mesh-2-0-openshift` directory.
+
 Set the context environment variables:
 
 ```bash
@@ -201,7 +203,7 @@ helm --kube-context=${CLUSTER1} upgrade --install istio-cni -n kube-system ./ist
 
 global:
   hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-  tag: 1.12.6
+  tag: 1.12.6-solo
 cni:
   excludeNamespaces:
     - istio-system
@@ -224,6 +226,8 @@ metadata:
   name: istio-cni
 EOF
 ```
+
+Note that we set the `trust domain` to be the same as the cluster name and we configure the sidecars to send their metrics and access logs to the Gloo Mesh agent.
 
 After that, you can deploy the gateway(s):
 
@@ -284,8 +288,6 @@ EOF
 As you can see, we deploy the control plane (istiod) in the `istio-system` and gateway(s) in the `istio-gateways` namespace.
 
 One gateway will be used for ingress traffic while the other one will be used for cross cluster communications. It's not mandatory to use separate gateways, but it's a best practice.
-
-Note that we set the `trust domain` to be the same as the cluster name and we configure the sidecars to send their metrics and access logs to the Gloo Mesh agent.
 
 Run the following command until all the Istio Pods are ready:
 
@@ -360,7 +362,7 @@ helm --kube-context=${CLUSTER2} upgrade --install istio-cni -n kube-system ./ist
 
 global:
   hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-  tag: 1.12.6
+  tag: 1.12.6-solo
 cni:
   excludeNamespaces:
     - istio-system
@@ -578,6 +580,7 @@ EOF
 echo "executing test ./gloo-mesh/tests/can-resolve.test.js.liquid"
 mocha ./test.js --timeout 5000 --retries=50 --bail 2> /dev/null || exit 1
 -->
+
 
 
 
@@ -899,7 +902,7 @@ mocha ./test.js --timeout 5000 --retries=50 --bail 2> /dev/null || exit 1
 First of all, let's install the `meshctl` CLI:
 
 ```bash
-export GLOO_MESH_VERSION=v2.0.0-beta33
+export GLOO_MESH_VERSION=v2.0.0-rc1
 curl -sL https://run.solo.io/meshctl/install | sh -
 export PATH=$HOME/.gloo-mesh/bin:$PATH
 ```
@@ -942,7 +945,7 @@ helm repo update
 kubectl --context ${MGMT} create ns gloo-mesh 
 helm upgrade --install gloo-mesh-enterprise gloo-mesh-enterprise/gloo-mesh-enterprise \
 --namespace gloo-mesh --kube-context ${MGMT} \
---version=2.0.0-beta33 \
+--version=2.0.0-rc1 \
 --set glooMeshMgmtServer.ports.healthcheck=8091 \
 --set glooMeshUi.serviceType=LoadBalancer \
 --set glooMeshMgmtServer.floatingUserId=true \
@@ -1044,7 +1047,7 @@ helm upgrade --install gloo-mesh-agent gloo-mesh-agent/gloo-mesh-agent \
   --set ext-auth-service.enabled=false \
   --set cluster=cluster1 \
   --set glooMeshAgent.floatingUserId=true \
-  --version 2.0.0-beta33
+  --version 2.0.0-rc1
 ```
 
 Note that the registration can also be performed using `meshctl cluster register`.
@@ -1081,7 +1084,7 @@ helm upgrade --install gloo-mesh-agent gloo-mesh-agent/gloo-mesh-agent \
   --set ext-auth-service.enabled=false \
   --set cluster=cluster2 \
   --set glooMeshAgent.floatingUserId=true \
-  --version 2.0.0-beta33
+  --version 2.0.0-rc1
 ```
 
 You can check the cluster(s) have been registered correctly using the following commands:
@@ -1161,7 +1164,7 @@ helm upgrade --install gloo-mesh-agent-addons gloo-mesh-agent/gloo-mesh-agent \
   --set rate-limiter.enabled=true \
   --set ext-auth-service.enabled=true \
   --set glooMeshAgent.floatingUserId=true \
-  --version 2.0.0-beta33
+  --version 2.0.0-rc1
 
 helm upgrade --install gloo-mesh-agent-addons gloo-mesh-agent/gloo-mesh-agent \
   --namespace gloo-mesh-addons \
@@ -1170,7 +1173,7 @@ helm upgrade --install gloo-mesh-agent-addons gloo-mesh-agent/gloo-mesh-agent \
   --set rate-limiter.enabled=true \
   --set ext-auth-service.enabled=true \
   --set glooMeshAgent.floatingUserId=true \
-  --version 2.0.0-beta33
+  --version 2.0.0-rc1
 ```
 
 Finally, you need to specify which gateways you want to use for cross cluster traffic:
@@ -1324,9 +1327,10 @@ The Bookinfo team has decided to export the following to the `gateway` workspace
 - the `productpage` and the `reviews` Kubernetes services
 - all the resources (RouteTables, VirtualDestination, ...) that have the label `expose` set to `true`
 
-This is how to environment looks like with the workspaces:
+This is how the environment looks like with the workspaces:
 
 ![Gloo Mesh Workspaces](images/steps/create-bookinfo-workspace/gloo-mesh-workspaces.svg)
+
 
 
 
