@@ -134,7 +134,7 @@ describe("istioctl version", () => {
   });
 });
 EOF
-echo "executing test procs/gloo-mesh-2-0-single-cluster-single-workspace-openshift/build/templates/steps/deploy-istio/tests/istio-version.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-single-cluster-single-workspace-openshift/build/templates/steps/deploy-istio/tests/istio-version.test.js.liquid"
 mocha ./test.js --timeout 5000 --retries=50 --bail 2> /dev/null || exit 1
 -->
 
@@ -220,6 +220,8 @@ metadata:
 EOF
 ```
 
+Note that we set the `trust domain` to be the same as the cluster name and we configure the sidecars to send their metrics and access logs to the Gloo Mesh agent.
+
 After that, you can deploy the gateway(s):
 
 ```bash
@@ -249,8 +251,6 @@ EOF
 As you can see, we deploy the control plane (istiod) in the `istio-system` and gateway(s) in the `istio-gateways` namespace.
 
 One gateway will be used for ingress traffic while the other one will be used for cross cluster communications. It's not mandatory to use separate gateways, but it's a best practice.
-
-Note that we set the `trust domain` to be the same as the cluster name and we configure the sidecars to send their metrics and access logs to the Gloo Mesh agent.
 
 Run the following command until all the Istio Pods are ready:
 
@@ -308,6 +308,7 @@ EOF
 echo "executing test ./gloo-mesh/tests/can-resolve.test.js.liquid"
 mocha ./test.js --timeout 5000 --retries=50 --bail 2> /dev/null || exit 1
 -->
+
 
 
 
@@ -395,7 +396,7 @@ describe("Bookinfo app", () => {
   });
 });
 EOF
-echo "executing test procs/gloo-mesh-2-0-single-cluster-single-workspace-openshift/build/templates/steps/apps/bookinfo/deploy-bookinfo/tests/check-bookinfo.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-single-cluster-single-workspace-openshift/build/templates/steps/apps/bookinfo/deploy-bookinfo/tests/check-bookinfo.test.js.liquid"
 mocha ./test.js --timeout 5000 --retries=50 --bail 2> /dev/null || exit 1
 -->
 
@@ -548,7 +549,7 @@ describe("Bookinfo app", () => {
   });
 });
 EOF
-echo "executing test procs/gloo-mesh-2-0-single-cluster-single-workspace-openshift/build/templates/steps/apps/httpbin/deploy-httpbin/tests/check-httpbin.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-single-cluster-single-workspace-openshift/build/templates/steps/apps/httpbin/deploy-httpbin/tests/check-httpbin.test.js.liquid"
 mocha ./test.js --timeout 5000 --retries=50 --bail 2> /dev/null || exit 1
 -->
 
@@ -593,7 +594,7 @@ describe("Required environment variables should contain value", () => {
   });
 });
 EOF
-echo "executing test procs/gloo-mesh-2-0-single-cluster-single-workspace-openshift/build/templates/steps/deploy-and-register-gloo-mesh/tests/environment-variables.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-single-cluster-single-workspace-openshift/build/templates/steps/deploy-and-register-gloo-mesh/tests/environment-variables.test.js.liquid"
 mocha ./test.js --timeout 5000 --retries=50 --bail 2> /dev/null || exit 1
 -->
 
@@ -630,7 +631,7 @@ var chai = require('chai');
 var expect = chai.expect;
 chai.use(chaiExec);
 EOF
-echo "executing test procs/gloo-mesh-2-0-single-cluster-single-workspace-openshift/build/templates/steps/deploy-and-register-gloo-mesh/tests/get-gloo-mesh-mgmt-server-ip.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-single-cluster-single-workspace-openshift/build/templates/steps/deploy-and-register-gloo-mesh/tests/get-gloo-mesh-mgmt-server-ip.test.js.liquid"
 mocha ./test.js --timeout 5000 --retries=50 --bail 2> /dev/null || exit 1
 -->
 
@@ -716,7 +717,7 @@ describe("Cluster registration", () => {
   });
 });
 EOF
-echo "executing test procs/gloo-mesh-2-0-single-cluster-single-workspace-openshift/build/templates/steps/deploy-and-register-gloo-mesh/tests/cluster-registration.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-single-cluster-single-workspace-openshift/build/templates/steps/deploy-and-register-gloo-mesh/tests/cluster-registration.test.js.liquid"
 mocha ./test.js --timeout 5000 --retries=50 --bail 2> /dev/null || exit 1
 -->
 
@@ -876,7 +877,7 @@ describe("Productpage is available (HTTP)", () => {
   it('/productpage is available in cluster1', () => helpers.checkURL({ host: 'http://' + process.env.ENDPOINT_HTTP_GW_CLUSTER1, path: '/productpage', retCode: 200 }));
 })
 EOF
-echo "executing test procs/gloo-mesh-2-0-single-cluster-single-workspace-openshift/build/templates/steps/apps/bookinfo/gateway-expose/tests/productpage-available.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-single-cluster-single-workspace-openshift/build/templates/steps/apps/bookinfo/gateway-expose/tests/productpage-available.test.js.liquid"
 mocha ./test.js --timeout 5000 --retries=50 --bail 2> /dev/null || exit 1
 -->
 
@@ -959,7 +960,7 @@ describe("Productpage is available (HTTPS)", () => {
   it('/productpage is available in cluster1', () => helpers.checkURL({ host: 'https://' + process.env.ENDPOINT_HTTPS_GW_CLUSTER1, path: '/productpage', retCode: 200 }));
 })
 EOF
-echo "executing test procs/gloo-mesh-2-0-single-cluster-single-workspace-openshift/build/templates/steps/apps/bookinfo/gateway-expose/tests/productpage-available-secure.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-single-cluster-single-workspace-openshift/build/templates/steps/apps/bookinfo/gateway-expose/tests/productpage-available-secure.test.js.liquid"
 mocha ./test.js --timeout 5000 --retries=50 --bail 2> /dev/null || exit 1
 -->
 
@@ -1122,7 +1123,7 @@ describe("Reviews shouldn't be available", () => {
 });
 
 EOF
-echo "executing test procs/gloo-mesh-2-0-single-cluster-single-workspace-openshift/build/templates/steps/apps/bookinfo/traffic-policies/tests/traffic-policies-reviews-unavailable.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-single-cluster-single-workspace-openshift/build/templates/steps/apps/bookinfo/traffic-policies/tests/traffic-policies-reviews-unavailable.test.js.liquid"
 mocha ./test.js --timeout 5000 --retries=50 --bail 2> /dev/null || exit 1
 -->
 
@@ -1217,7 +1218,7 @@ describe("httpbin from the external service", () => {
   it('Checking text \'X-Amzn-Trace-Id\' in ' + process.env.CLUSTER1, () => helpersHttp.checkBody({ host: 'https://' + process.env.ENDPOINT_HTTPS_GW_CLUSTER1, path: '/get', body: 'X-Amzn-Trace-Id', match: true }));
 })
 EOF
-echo "executing test procs/gloo-mesh-2-0-single-cluster-single-workspace-openshift/build/templates/steps/apps/httpbin/gateway-external-service/tests/httpbin-from-external.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-single-cluster-single-workspace-openshift/build/templates/steps/apps/httpbin/gateway-external-service/tests/httpbin-from-external.test.js.liquid"
 mocha ./test.js --timeout 5000 --retries=50 --bail 2> /dev/null || exit 1
 -->
 
@@ -1278,7 +1279,7 @@ describe("httpbin from the local service", () => {
   it('Checking text \'X-B3-Parentspanid\' in ' + process.env.CLUSTER1, () => helpersHttp.checkBody({ host: 'https://' + process.env.ENDPOINT_HTTPS_GW_CLUSTER1, path: '/get', body: 'X-B3-Parentspanid', match: true }));
 })
 EOF
-echo "executing test procs/gloo-mesh-2-0-single-cluster-single-workspace-openshift/build/templates/steps/apps/httpbin/gateway-external-service/tests/httpbin-from-local.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-single-cluster-single-workspace-openshift/build/templates/steps/apps/httpbin/gateway-external-service/tests/httpbin-from-local.test.js.liquid"
 mocha ./test.js --timeout 5000 --retries=50 --bail 2> /dev/null || exit 1
 -->
 <!--bash
@@ -1289,7 +1290,7 @@ describe("httpbin from the external service", () => {
   it('Checking text \'X-Amzn-Trace-Id\' in ' + process.env.CLUSTER1, () => helpersHttp.checkBody({ host: 'https://' + process.env.ENDPOINT_HTTPS_GW_CLUSTER1, path: '/get', body: 'X-Amzn-Trace-Id', match: true }));
 })
 EOF
-echo "executing test procs/gloo-mesh-2-0-single-cluster-single-workspace-openshift/build/templates/steps/apps/httpbin/gateway-external-service/tests/httpbin-from-external.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-single-cluster-single-workspace-openshift/build/templates/steps/apps/httpbin/gateway-external-service/tests/httpbin-from-external.test.js.liquid"
 mocha ./test.js --timeout 5000 --retries=50 --bail 2> /dev/null || exit 1
 -->
 
@@ -1341,7 +1342,7 @@ describe("httpbin from the local service", () => {
   it('Checking text \'X-B3-Parentspanid\' in ' + process.env.CLUSTER1, () => helpersHttp.checkBody({ host: 'https://' + process.env.ENDPOINT_HTTPS_GW_CLUSTER1, path: '/get', body: 'X-B3-Parentspanid', match: true }));
 })
 EOF
-echo "executing test procs/gloo-mesh-2-0-single-cluster-single-workspace-openshift/build/templates/steps/apps/httpbin/gateway-external-service/tests/httpbin-from-local.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-single-cluster-single-workspace-openshift/build/templates/steps/apps/httpbin/gateway-external-service/tests/httpbin-from-local.test.js.liquid"
 mocha ./test.js --timeout 5000 --retries=50 --bail 2> /dev/null || exit 1
 -->
 
@@ -1380,7 +1381,7 @@ describe("Keycloak", () => {
   it('keycloak pods are ready in cluster1', () => helpers.checkDeployment({ context: process.env.MGMT, namespace: "keycloak", k8sObj: "keycloak" }));
 });
 EOF
-echo "executing test procs/gloo-mesh-2-0-single-cluster-single-workspace-openshift/build/templates/steps/deploy-keycloak/tests/pods-available.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-single-cluster-single-workspace-openshift/build/templates/steps/deploy-keycloak/tests/pods-available.test.js.liquid"
 mocha ./test.js --timeout 5000 --retries=50 --bail 2> /dev/null || exit 1
 -->
 
@@ -1408,7 +1409,7 @@ describe("Retrieve enterprise-networking ip", () => {
   });
 });
 EOF
-echo "executing test procs/gloo-mesh-2-0-single-cluster-single-workspace-openshift/build/templates/steps/deploy-keycloak/tests/keycloak-ip-is-attached.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-single-cluster-single-workspace-openshift/build/templates/steps/deploy-keycloak/tests/keycloak-ip-is-attached.test.js.liquid"
 mocha ./test.js --timeout 5000 --retries=50 --bail 2> /dev/null || exit 1
 -->
 
@@ -1638,7 +1639,7 @@ describe("Authentication is working properly", function() {
 });
 
 EOF
-echo "executing test procs/gloo-mesh-2-0-single-cluster-single-workspace-openshift/build/templates/steps/apps/httpbin/gateway-extauth-oauth/tests/authentication.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-single-cluster-single-workspace-openshift/build/templates/steps/apps/httpbin/gateway-extauth-oauth/tests/authentication.test.js.liquid"
 mocha ./test.js --timeout 5000 --retries=50 --bail 2> /dev/null || exit 1
 -->
 
@@ -1839,7 +1840,7 @@ describe("Claim to header is working properly", function() {
 });
 
 EOF
-echo "executing test procs/gloo-mesh-2-0-single-cluster-single-workspace-openshift/build/templates/steps/apps/httpbin/gateway-jwt/tests/header-added.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-single-cluster-single-workspace-openshift/build/templates/steps/apps/httpbin/gateway-jwt/tests/header-added.test.js.liquid"
 mocha ./test.js --timeout 5000 --retries=50 --bail 2> /dev/null || exit 1
 -->
 
@@ -1904,7 +1905,7 @@ describe("Tranformation is working properly", function() {
 });
 
 EOF
-echo "executing test procs/gloo-mesh-2-0-single-cluster-single-workspace-openshift/build/templates/steps/apps/httpbin/gateway-transformation/tests/header-added.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-single-cluster-single-workspace-openshift/build/templates/steps/apps/httpbin/gateway-transformation/tests/header-added.test.js.liquid"
 mocha ./test.js --timeout 5000 --retries=50 --bail 2> /dev/null || exit 1
 -->
 
@@ -2075,7 +2076,7 @@ describe("Rate limiting is working properly", function() {
 });
 
 EOF
-echo "executing test procs/gloo-mesh-2-0-single-cluster-single-workspace-openshift/build/templates/steps/apps/httpbin/gateway-ratelimiting/tests/rate-limited.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-single-cluster-single-workspace-openshift/build/templates/steps/apps/httpbin/gateway-ratelimiting/tests/rate-limited.test.js.liquid"
 mocha ./test.js --timeout 5000 --retries=50 --bail 2> /dev/null || exit 1
 -->
 
@@ -2221,7 +2222,7 @@ describe("WAF is working properly", function() {
 });
 
 EOF
-echo "executing test procs/gloo-mesh-2-0-single-cluster-single-workspace-openshift/build/templates/steps/apps/httpbin/gateway-waf/tests/waf.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-single-cluster-single-workspace-openshift/build/templates/steps/apps/httpbin/gateway-waf/tests/waf.test.js.liquid"
 mocha ./test.js --timeout 5000 --retries=50 --bail 2> /dev/null || exit 1
 -->
 
