@@ -80,7 +80,7 @@ source /root/.env
 /root/penv.sh &
 EOF
 {% endif %}
-
+{% raw %}
 cat <<ENDFILE >/usr/bin/find-translation.sh
 #!/usr/bin/env bash
 
@@ -91,7 +91,7 @@ script_dir=\$(cd "\$(dirname "\${BASH_SOURCE[0]}")" &>/dev/null && pwd -P)
 
 usage() {
     cat <<EOF
-Usage: \$(basename "\${BASH_SOURCE[0]}") [-h] name namespace
+Usage: \$(basename "\${BASH_SOURCE[0]}") [-h] name namespace kubecontext
 
 This script will print out any Istio resources it can find corresponding to the Gloo Mesh Enterprise name.
 The name and namespace arguments are required.
@@ -146,7 +146,7 @@ parse_params() {
     args=("\$@")
 
     # check required params and arguments
-    [[ \${#args[@]} -ne 2 ]] && die "Missing required arguments.  Must have name and namespace"
+    [[ \${#args[@]} -lt 2 ]] && die "Missing required arguments.  Must have name and namespace"
 
     return 0
 }
@@ -156,18 +156,20 @@ setup_colors
 
 name="\${args[0]}"
 namespace="\${args[1]}"
+kubecontext="\${args[2]-\$(kubectl config current-context)}"
 
 # Script logic
-echo "Looking for Istio translation for \${name} in \${namespace}"
-for crd in `kubectl get crd | grep istio | cut -f 1 -d ' '`; do 
+echo "Looking for Istio translation for \${name} in ns=\${namespace}" and cluster=\${kubecontext}
+for crd in \`kubectl --context \${kubecontext} get crd | grep istio | cut -f 1 -d ' '\`; do 
     echo "Looking for objects of type \${crd}"
-    kubectl get \${crd} -l gloo.solo.io/parent_name=\${name} -n \${namespace} --ignore-not-found=true
+    kubectl --context \${kubecontext} get \${crd} -l gloo.solo.io/parent_name=\${name} -l gloo.solo.io/parent_namespace=\${namespace} -A --ignore-not-found=true
 done
 
 
 # Cleanup
 cleanup
 ENDFILE
+{% endraw %}
 chmod +x /usr/bin/find-translation.sh
 
 echo 'cd /root' >> /etc/bash.bashrc
