@@ -30,8 +30,8 @@ node_instance_type = "t3.small"
 include_vm         = {}
 
 environments = {
-  perf = {
-    machine_type = "n1-highmem-64"
+  test = {
+    machine_type = "n1-standard-8"
     source_machine_image = "workshop-generic-v20211019"
     num_instances = 1
   }
