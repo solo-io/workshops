@@ -1,0 +1,35 @@
+
+#!/bin/bash
+
+# Enable bash completion for kubectl
+echo "source /usr/share/bash-completion/bash_completion" >> /etc/bash.bashrc
+echo "complete -F __start_kubectl k" >> /etc/bash.bashrc
+
+while [ ! -f /opt/instruqt/bootstrap/host-bootstrap-completed ]
+do
+    echo "Waiting for Instruqt to finish booting the VM"
+    sleep 1
+done
+
+mkdir -p /root/files
+
+# Disable IPv6, seems like Instruqt has some issues here so this is to work around it
+systemctl stop systemd-resolved && systemctl disable systemd-resolved
+sysctl -w net.ipv6.conf.all.disable_ipv6=1
+sysctl -w net.ipv6.conf.default.disable_ipv6=1
+sysctl -w net.ipv6.conf.lo.disable_ipv6=1
+rm /etc/resolv.conf && cp /run/systemd/resolve/resolv.conf /etc/resolv.conf
+cat >>/etc/resolv.conf <<EOF
+options single-request
+options timeout:1
+EOF
+
+while ! stat /etc/rancher/k3s/k3s.yaml; do sleep 1; done
+
+{%- if vars.single_cluster != true %}
+export LOCAL_IP=$(dig +short $(hostname).$INSTRUQT_PARTICIPANT_ID.svc.cluster.local | grep -v '\.$')
+cat /etc/rancher/k3s/k3s.yaml | sed 's/127.0.0.1/$LOCAL_IP/' | sed 's/default/$HOSTNAME/' | HOSTNAME=$(hostname) envsubst > /tmp/$HOSTNAME
+while ! rsync -e "ssh -o StrictHostKeyChecking=no" -v /tmp/$HOSTNAME {{ config.spec.virtualmachines[0].name }}.$INSTRUQT_PARTICIPANT_ID.svc.cluster.local:/root/.kube/$HOSTNAME; do sleep 1; done
+{%- endif %}
+
+touch /root/.env
