@@ -1028,7 +1028,7 @@ spec:
 EOF
 ```
 
-This is how to environment looks like now:
+This is how the environment looks now:
 
 ![Gloo Mesh Workshop Environment](images/steps/deploy-and-register-gloo-mesh/gloo-mesh-workshop-environment.svg)
 
@@ -1161,7 +1161,7 @@ The Bookinfo team has decided to export the following to the `gateway` workspace
 - the `productpage` and the `reviews` Kubernetes services
 - all the resources (RouteTables, VirtualDestination, ...) that have the label `expose` set to `true`
 
-This is how the environment looks like with the workspaces:
+This is how the environment looks with the workspaces:
 
 ![Gloo Mesh Workspaces](images/steps/create-bookinfo-workspace/gloo-mesh-workspaces.svg)
 
