@@ -74,7 +74,7 @@ You can find more information about Gloo Mesh in the official documentation:
 
 ## Lab 1 - Deploy KinD clusters <a name="Lab-1"></a>
 
-Clone this repository and go to the `eks-single` directory.
+Clone this repository and go to the `gloo-mesh-2-0-eks-single-workspace-no-revisions` directory.
 
 Set the context environment variables:
 
@@ -174,7 +174,7 @@ describe("istioctl version", () => {
   });
 });
 EOF
-echo "executing test dist/eks-single/build/templates/steps/deploy-istio/tests/istio-version.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-eks-single-workspace-no-revisions/build/templates/steps/deploy-istio/tests/istio-version.test.js.liquid"
 mocha ./test.js --timeout 5000 --retries=50 --bail 2> /dev/null || exit 1
 -->
 
@@ -449,7 +449,7 @@ describe("Checking Istio installation", function() {
   });
 });
 EOF
-echo "executing test dist/eks-single/build/templates/steps/deploy-istio/tests/istio-ready.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-eks-single-workspace-no-revisions/build/templates/steps/deploy-istio/tests/istio-ready.test.js.liquid"
 mocha ./test.js --timeout 5000 --retries=50 --bail 2> /dev/null || exit 1
 -->
 
@@ -642,7 +642,7 @@ describe("Bookinfo app", () => {
   });
 });
 EOF
-echo "executing test dist/eks-single/build/templates/steps/apps/bookinfo/deploy-bookinfo/tests/check-bookinfo.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-eks-single-workspace-no-revisions/build/templates/steps/apps/bookinfo/deploy-bookinfo/tests/check-bookinfo.test.js.liquid"
 mocha ./test.js --timeout 5000 --retries=50 --bail 2> /dev/null || exit 1
 -->
 
@@ -784,7 +784,7 @@ describe("Bookinfo app", () => {
   });
 });
 EOF
-echo "executing test dist/eks-single/build/templates/steps/apps/httpbin/deploy-httpbin/tests/check-httpbin.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-eks-single-workspace-no-revisions/build/templates/steps/apps/httpbin/deploy-httpbin/tests/check-httpbin.test.js.liquid"
 mocha ./test.js --timeout 5000 --retries=50 --bail 2> /dev/null || exit 1
 -->
 
@@ -830,7 +830,7 @@ describe("Required environment variables should contain value", () => {
   });
 });
 EOF
-echo "executing test dist/eks-single/build/templates/steps/deploy-and-register-gloo-mesh/tests/environment-variables.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-eks-single-workspace-no-revisions/build/templates/steps/deploy-and-register-gloo-mesh/tests/environment-variables.test.js.liquid"
 mocha ./test.js --timeout 5000 --retries=50 --bail 2> /dev/null || exit 1
 -->
 
@@ -863,7 +863,7 @@ var chai = require('chai');
 var expect = chai.expect;
 chai.use(chaiExec);
 EOF
-echo "executing test dist/eks-single/build/templates/steps/deploy-and-register-gloo-mesh/tests/get-gloo-mesh-mgmt-server-ip.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-eks-single-workspace-no-revisions/build/templates/steps/deploy-and-register-gloo-mesh/tests/get-gloo-mesh-mgmt-server-ip.test.js.liquid"
 mocha ./test.js --timeout 5000 --retries=50 --bail 2> /dev/null || exit 1
 -->
 
@@ -977,8 +977,11 @@ helm upgrade --install gloo-mesh-agent gloo-mesh-agent/gloo-mesh-agent \
 You can check the cluster(s) have been registered correctly using the following commands:
 
 ```
-pod=$(kubectl --context ${MGMT} -n gloo-mesh get pods -l app=gloo-mesh-mgmt-server -o jsonpath='{.items[0].metadata.name}')
-kubectl --context ${MGMT} -n gloo-mesh debug -q -i ${pod} --image=curlimages/curl -- curl -s http://localhost:9091/metrics | grep relay_push_clients_connected
+kubectl --context ${MGMT} -n gloo-mesh port-forward deploy/gloo-mesh-mgmt-server 9091 &
+PID=$!
+sleep 3
+curl -s http://localhost:9091/metrics | grep relay_push_clients_connected
+kill $PID
 ```
 
 You should get an output similar to this:
@@ -995,21 +998,9 @@ cat <<'EOF' > ./test.js
 var chai = require('chai');
 var expect = chai.expect;
 const helpers = require('./tests/chai-exec');
-
-describe("Cluster registration", () => {
-  it("cluster1 is registered", () => {
-    podName = helpers.getOutputForCommand({ command: "kubectl -n gloo-mesh get pods -l app=gloo-mesh-mgmt-server -o jsonpath='{.items[0].metadata.name}' --context " + process.env.MGMT }).replaceAll("'", "");
-    command = helpers.getOutputForCommand({ command: "kubectl --context " + process.env.MGMT + " -n gloo-mesh debug -q -i " + podName + " --image=curlimages/curl -- curl -s http://localhost:9091/metrics" }).replaceAll("'", "");
-    expect(command).to.contain("cluster1");
-  });
-  it("cluster2 is registered", () => {
-    podName = helpers.getOutputForCommand({ command: "kubectl -n gloo-mesh get pods -l app=gloo-mesh-mgmt-server -o jsonpath='{.items[0].metadata.name}' --context " + process.env.MGMT }).replaceAll("'", "");
-    command = helpers.getOutputForCommand({ command: "kubectl --context " + process.env.MGMT + " -n gloo-mesh debug -q -i " + podName + " --image=curlimages/curl -- curl -s http://localhost:9091/metrics" }).replaceAll("'", "");
-    expect(command).to.contain("cluster2");
-  });
-});
+//TODO: Create test without ephemeral container
 EOF
-echo "executing test dist/eks-single/build/templates/steps/deploy-and-register-gloo-mesh/tests/cluster-registration.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-eks-single-workspace-no-revisions/build/templates/steps/deploy-and-register-gloo-mesh/tests/cluster-registration.test.js.liquid"
 mocha ./test.js --timeout 5000 --retries=50 --bail 2> /dev/null || exit 1
 -->
 
@@ -1188,7 +1179,7 @@ describe("Productpage is available (HTTP)", () => {
   it('/productpage is available in cluster1', () => helpers.checkURL({ host: 'http://' + process.env.ENDPOINT_HTTP_GW_CLUSTER1, path: '/productpage', retCode: 200 }));
 })
 EOF
-echo "executing test dist/eks-single/build/templates/steps/apps/bookinfo/gateway-expose/tests/productpage-available.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-eks-single-workspace-no-revisions/build/templates/steps/apps/bookinfo/gateway-expose/tests/productpage-available.test.js.liquid"
 mocha ./test.js --timeout 5000 --retries=50 --bail 2> /dev/null || exit 1
 -->
 
@@ -1275,7 +1266,7 @@ describe("Productpage is available (HTTPS)", () => {
   it('/productpage is available in cluster1', () => helpers.checkURL({ host: 'https://' + process.env.ENDPOINT_HTTPS_GW_CLUSTER1, path: '/productpage', retCode: 200 }));
 })
 EOF
-echo "executing test dist/eks-single/build/templates/steps/apps/bookinfo/gateway-expose/tests/productpage-available-secure.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-eks-single-workspace-no-revisions/build/templates/steps/apps/bookinfo/gateway-expose/tests/productpage-available-secure.test.js.liquid"
 mocha ./test.js --timeout 5000 --retries=50 --bail 2> /dev/null || exit 1
 -->
 
@@ -1438,7 +1429,7 @@ describe("Reviews shouldn't be available", () => {
 });
 
 EOF
-echo "executing test dist/eks-single/build/templates/steps/apps/bookinfo/traffic-policies/tests/traffic-policies-reviews-unavailable.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-eks-single-workspace-no-revisions/build/templates/steps/apps/bookinfo/traffic-policies/tests/traffic-policies-reviews-unavailable.test.js.liquid"
 mocha ./test.js --timeout 5000 --retries=50 --bail 2> /dev/null || exit 1
 -->
 
@@ -1784,7 +1775,7 @@ describe("Certificate issued by Gloo Mesh", () => {
   });
 });
 EOF
-echo "executing test dist/eks-single/build/templates/steps/root-trust-policy/tests/certificate-issued-by-gloo-mesh.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-eks-single-workspace-no-revisions/build/templates/steps/root-trust-policy/tests/certificate-issued-by-gloo-mesh.test.js.liquid"
 mocha ./test.js --timeout 5000 --retries=50 --bail 2> /dev/null || exit 1
 -->
 
@@ -1932,7 +1923,7 @@ describe("Reviews v3", function() {
   })
 });
 EOF
-echo "executing test dist/eks-single/build/templates/steps/apps/bookinfo/multicluster-traffic/tests/reviews-v3.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-eks-single-workspace-no-revisions/build/templates/steps/apps/bookinfo/multicluster-traffic/tests/reviews-v3.test.js.liquid"
 mocha ./test.js --timeout 5000 --retries=50 --bail 2> /dev/null || exit 1
 -->
 
@@ -2079,7 +2070,7 @@ describe("Productpage is available (SSL)", () => {
   it('/productpage is available in cluster2', () => helpers.checkURL({ host: 'https://' + process.env.ENDPOINT_HTTPS_GW_CLUSTER2, path: '/productpage', retCode: 200 }));
 })
 EOF
-echo "executing test dist/eks-single/build/templates/steps/apps/bookinfo/virtual-destination/tests/productpage-available-secure.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-eks-single-workspace-no-revisions/build/templates/steps/apps/bookinfo/virtual-destination/tests/productpage-available-secure.test.js.liquid"
 mocha ./test.js --timeout 5000 --retries=50 --bail 2> /dev/null || exit 1
 -->
 
@@ -2176,7 +2167,7 @@ describe("Productpage is available (SSL)", () => {
   it('/productpage is available in cluster2', () => helpers.checkURL({ host: 'https://' + process.env.ENDPOINT_HTTPS_GW_CLUSTER2, path: '/productpage', retCode: 200 }));
 })
 EOF
-echo "executing test dist/eks-single/build/templates/steps/apps/bookinfo/virtual-destination/tests/productpage-available-secure.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-eks-single-workspace-no-revisions/build/templates/steps/apps/bookinfo/virtual-destination/tests/productpage-available-secure.test.js.liquid"
 mocha ./test.js --timeout 5000 --retries=50 --bail 2> /dev/null || exit 1
 -->
 
@@ -2204,7 +2195,7 @@ describe("Productpage is available (SSL)", () => {
   it('/productpage is available in cluster2', () => helpers.checkURL({ host: 'https://' + process.env.ENDPOINT_HTTPS_GW_CLUSTER2, path: '/productpage', retCode: 200 }));
 })
 EOF
-echo "executing test dist/eks-single/build/templates/steps/apps/bookinfo/virtual-destination/tests/productpage-available-secure.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-eks-single-workspace-no-revisions/build/templates/steps/apps/bookinfo/virtual-destination/tests/productpage-available-secure.test.js.liquid"
 mocha ./test.js --timeout 5000 --retries=50 --bail 2> /dev/null || exit 1
 -->
 
@@ -2241,7 +2232,7 @@ describe("Productpage is available (SSL)", () => {
   it('/productpage is available in cluster2', () => helpers.checkURL({ host: 'https://' + process.env.ENDPOINT_HTTPS_GW_CLUSTER2, path: '/productpage', retCode: 200 }));
 })
 EOF
-echo "executing test dist/eks-single/build/templates/steps/apps/bookinfo/virtual-destination/tests/productpage-available-secure.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-eks-single-workspace-no-revisions/build/templates/steps/apps/bookinfo/virtual-destination/tests/productpage-available-secure.test.js.liquid"
 mocha ./test.js --timeout 5000 --retries=50 --bail 2> /dev/null || exit 1
 -->
 
@@ -2382,7 +2373,7 @@ describe("httpbin from the external service", () => {
   it('Checking text \'X-Amzn-Trace-Id\' in ' + process.env.CLUSTER1, () => helpersHttp.checkBody({ host: 'https://' + process.env.ENDPOINT_HTTPS_GW_CLUSTER1, path: '/get', body: 'X-Amzn-Trace-Id', match: true }));
 })
 EOF
-echo "executing test dist/eks-single/build/templates/steps/apps/httpbin/gateway-external-service/tests/httpbin-from-external.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-eks-single-workspace-no-revisions/build/templates/steps/apps/httpbin/gateway-external-service/tests/httpbin-from-external.test.js.liquid"
 mocha ./test.js --timeout 5000 --retries=50 --bail 2> /dev/null || exit 1
 -->
 
@@ -2443,7 +2434,7 @@ describe("httpbin from the local service", () => {
   it('Checking text \'X-B3-Parentspanid\' in ' + process.env.CLUSTER1, () => helpersHttp.checkBody({ host: 'https://' + process.env.ENDPOINT_HTTPS_GW_CLUSTER1, path: '/get', body: 'X-B3-Parentspanid', match: true }));
 })
 EOF
-echo "executing test dist/eks-single/build/templates/steps/apps/httpbin/gateway-external-service/tests/httpbin-from-local.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-eks-single-workspace-no-revisions/build/templates/steps/apps/httpbin/gateway-external-service/tests/httpbin-from-local.test.js.liquid"
 mocha ./test.js --timeout 5000 --retries=50 --bail 2> /dev/null || exit 1
 -->
 <!--bash
@@ -2454,7 +2445,7 @@ describe("httpbin from the external service", () => {
   it('Checking text \'X-Amzn-Trace-Id\' in ' + process.env.CLUSTER1, () => helpersHttp.checkBody({ host: 'https://' + process.env.ENDPOINT_HTTPS_GW_CLUSTER1, path: '/get', body: 'X-Amzn-Trace-Id', match: true }));
 })
 EOF
-echo "executing test dist/eks-single/build/templates/steps/apps/httpbin/gateway-external-service/tests/httpbin-from-external.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-eks-single-workspace-no-revisions/build/templates/steps/apps/httpbin/gateway-external-service/tests/httpbin-from-external.test.js.liquid"
 mocha ./test.js --timeout 5000 --retries=50 --bail 2> /dev/null || exit 1
 -->
 
@@ -2506,7 +2497,7 @@ describe("httpbin from the local service", () => {
   it('Checking text \'X-B3-Parentspanid\' in ' + process.env.CLUSTER1, () => helpersHttp.checkBody({ host: 'https://' + process.env.ENDPOINT_HTTPS_GW_CLUSTER1, path: '/get', body: 'X-B3-Parentspanid', match: true }));
 })
 EOF
-echo "executing test dist/eks-single/build/templates/steps/apps/httpbin/gateway-external-service/tests/httpbin-from-local.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-eks-single-workspace-no-revisions/build/templates/steps/apps/httpbin/gateway-external-service/tests/httpbin-from-local.test.js.liquid"
 mocha ./test.js --timeout 5000 --retries=50 --bail 2> /dev/null || exit 1
 -->
 
@@ -2545,7 +2536,7 @@ describe("Keycloak", () => {
   it('keycloak pods are ready in cluster1', () => helpers.checkDeployment({ context: process.env.MGMT, namespace: "keycloak", k8sObj: "keycloak" }));
 });
 EOF
-echo "executing test dist/eks-single/build/templates/steps/deploy-keycloak/tests/pods-available.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-eks-single-workspace-no-revisions/build/templates/steps/deploy-keycloak/tests/pods-available.test.js.liquid"
 mocha ./test.js --timeout 5000 --retries=50 --bail 2> /dev/null || exit 1
 -->
 
@@ -2573,7 +2564,7 @@ describe("Retrieve enterprise-networking ip", () => {
   });
 });
 EOF
-echo "executing test dist/eks-single/build/templates/steps/deploy-keycloak/tests/keycloak-ip-is-attached.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-eks-single-workspace-no-revisions/build/templates/steps/deploy-keycloak/tests/keycloak-ip-is-attached.test.js.liquid"
 mocha ./test.js --timeout 5000 --retries=50 --bail 2> /dev/null || exit 1
 -->
 
@@ -2803,7 +2794,7 @@ describe("Authentication is working properly", function() {
 });
 
 EOF
-echo "executing test dist/eks-single/build/templates/steps/apps/httpbin/gateway-extauth-oauth/tests/authentication.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-eks-single-workspace-no-revisions/build/templates/steps/apps/httpbin/gateway-extauth-oauth/tests/authentication.test.js.liquid"
 mocha ./test.js --timeout 5000 --retries=50 --bail 2> /dev/null || exit 1
 -->
 
@@ -3004,7 +2995,7 @@ describe("Claim to header is working properly", function() {
 });
 
 EOF
-echo "executing test dist/eks-single/build/templates/steps/apps/httpbin/gateway-jwt/tests/header-added.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-eks-single-workspace-no-revisions/build/templates/steps/apps/httpbin/gateway-jwt/tests/header-added.test.js.liquid"
 mocha ./test.js --timeout 5000 --retries=50 --bail 2> /dev/null || exit 1
 -->
 
@@ -3069,7 +3060,7 @@ describe("Tranformation is working properly", function() {
 });
 
 EOF
-echo "executing test dist/eks-single/build/templates/steps/apps/httpbin/gateway-transformation/tests/header-added.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-eks-single-workspace-no-revisions/build/templates/steps/apps/httpbin/gateway-transformation/tests/header-added.test.js.liquid"
 mocha ./test.js --timeout 5000 --retries=50 --bail 2> /dev/null || exit 1
 -->
 
@@ -3240,7 +3231,7 @@ describe("Rate limiting is working properly", function() {
 });
 
 EOF
-echo "executing test dist/eks-single/build/templates/steps/apps/httpbin/gateway-ratelimiting/tests/rate-limited.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-eks-single-workspace-no-revisions/build/templates/steps/apps/httpbin/gateway-ratelimiting/tests/rate-limited.test.js.liquid"
 mocha ./test.js --timeout 5000 --retries=50 --bail 2> /dev/null || exit 1
 -->
 
@@ -3386,7 +3377,7 @@ describe("WAF is working properly", function() {
 });
 
 EOF
-echo "executing test dist/eks-single/build/templates/steps/apps/httpbin/gateway-waf/tests/waf.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-eks-single-workspace-no-revisions/build/templates/steps/apps/httpbin/gateway-waf/tests/waf.test.js.liquid"
 mocha ./test.js --timeout 5000 --retries=50 --bail 2> /dev/null || exit 1
 -->
 
