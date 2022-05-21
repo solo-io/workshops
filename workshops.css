@@ -1,0 +1,7 @@
+workshops {
+  background-image: url(https://github.com/solo-io/workshops/blob/master/Solo-Community-Hero.png);
+  background-repeat: no-repeat;
+  height: 100vh;
+  min-height: 375px;
+  position: relative;
+}
