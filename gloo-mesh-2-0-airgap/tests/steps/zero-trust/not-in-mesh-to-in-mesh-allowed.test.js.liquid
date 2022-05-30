@@ -2,6 +2,9 @@ var chai = require('chai');
 var expect = chai.expect;
 const helpers = require('./tests/chai-exec');
 
+{%- if vars.ephemeral == false %}
+//TODO: Create test without ephemeral container
+{%- else %}
 describe("Communication allowed", () => {
   it("Response code should be 200", () => {
     const podName = helpers.getOutputForCommand({ command: "kubectl --context " + process.env.CLUSTER1 + " -n httpbin get pods -l app=not-in-mesh -o jsonpath='{.items[0].metadata.name}'" }).replaceAll("'", "");
@@ -9,3 +12,4 @@ describe("Communication allowed", () => {
     expect(command).to.contain("200");
   });
 });
+{%- endif %}
