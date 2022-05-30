@@ -125,6 +125,12 @@ helm repo add cilium https://helm.cilium.io/
 
 helm --kube-context kind-kind${number} install cilium cilium/cilium --version 1.11.4 \
    --namespace kube-system \
+   --set prometheus.enabled=true \
+   --set operator.prometheus.enabled=true \
+   --set hubble.enabled=true \
+   --set hubble.metrics.enabled="{dns,drop,tcp,flow,icmp,http}" \
+   --set hubble.relay.enabled=true \
+   --set hubble.ui.enabled=true \
    --set kubeProxyReplacement=partial \
    --set hostServices.enabled=false \
    --set externalIPs.enabled=true \
