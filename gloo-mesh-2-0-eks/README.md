@@ -503,7 +503,7 @@ Run the following commands to deploy the bookinfo application on `cluster1`:
 ```bash
 kubectl --context ${CLUSTER1} create ns bookinfo-frontends
 kubectl --context ${CLUSTER1} create ns bookinfo-backends
-curl https://raw.githubusercontent.com/istio/istio/1.12.6/samples/bookinfo/platform/kube/bookinfo.yaml -s|sed 's/docker\.io\/istio/us-central1-docker\.pkg\.dev\/solo-test-236622\/jmunozro/g'|tee bookinfo.yaml
+curl https://raw.githubusercontent.com/istio/istio/1.12.6/samples/bookinfo/platform/kube/bookinfo.yaml | sed "s/1\.16\..$/1\.16\.4/g" > bookinfo.yaml
 kubectl --context ${CLUSTER1} label namespace bookinfo-frontends istio.io/rev=1-12
 kubectl --context ${CLUSTER1} label namespace bookinfo-backends istio.io/rev=1-12
 # deploy the frontend bookinfo service in the bookinfo-frontends namespace
@@ -545,7 +545,7 @@ Now, run the following commands to deploy the bookinfo application on `cluster2`
 ```bash
 kubectl --context ${CLUSTER2} create ns bookinfo-frontends
 kubectl --context ${CLUSTER2} create ns bookinfo-backends
-curl https://raw.githubusercontent.com/istio/istio/1.12.6/samples/bookinfo/platform/kube/bookinfo.yaml -s|sed 's/docker\.io\/istio/us-central1-docker\.pkg\.dev\/solo-test-236622\/jmunozro/g'|tee bookinfo.yaml
+curl https://raw.githubusercontent.com/istio/istio/1.12.6/samples/bookinfo/platform/kube/bookinfo.yaml -s|tee bookinfo.yaml
 kubectl --context ${CLUSTER2} label namespace bookinfo-frontends istio.io/rev=1-12
 kubectl --context ${CLUSTER2} label namespace bookinfo-backends istio.io/rev=1-12
 # deploy the frontend bookinfo service in the bookinfo-frontends namespace
