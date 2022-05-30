@@ -680,7 +680,6 @@ metadata:
   name: istio-cni
 EOF
 
-curl https://raw.githubusercontent.com/istio/istio/1.12.6/samples/bookinfo/platform/kube/bookinfo.yaml -s|tee bookinfo.yaml
 kubectl --context ${CLUSTER2} label namespace bookinfo-frontends istio.io/rev=1-12
 kubectl --context ${CLUSTER2} label namespace bookinfo-backends istio.io/rev=1-12
 # deploy the frontend bookinfo service in the bookinfo-frontends namespace
