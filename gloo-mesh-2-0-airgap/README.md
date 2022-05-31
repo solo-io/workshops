@@ -160,13 +160,13 @@ Pull and push locally the Docker images needed:
 
 ```bash
 cat <<EOF > images.txt
-us-docker.pkg.dev/gloo-mesh/istio-workshops/pilot:1.12.6-solo
-us-docker.pkg.dev/gloo-mesh/istio-workshops/proxyv2:1.12.6-solo
+us-docker.pkg.dev/gloo-mesh/istio-workshops/pilot:1.13.4-solo
+us-docker.pkg.dev/gloo-mesh/istio-workshops/proxyv2:1.13.4-solo
 quay.io/keycloak/keycloak:12.0.4
 docker.io/kennethreitz/httpbin
 EOF
 
-for url in https://raw.githubusercontent.com/istio/istio/1.12.6/samples/bookinfo/platform/kube/bookinfo.yaml https://raw.githubusercontent.com/istio/istio/1.12.6/samples/bookinfo/networking/bookinfo-gateway.yaml
+for url in https://raw.githubusercontent.com/istio/istio/1.13.4/samples/bookinfo/platform/kube/bookinfo.yaml https://raw.githubusercontent.com/istio/istio/1.13.4/samples/bookinfo/networking/bookinfo-gateway.yaml
 do
   for image in $(curl -sfL ${url}|grep image:|awk '{print $2}')
   do
@@ -174,14 +174,14 @@ do
   done
 done
 
-wget https://storage.googleapis.com/gloo-mesh-enterprise/gloo-mesh-agent/gloo-mesh-agent-2.0.0.tgz
-tar zxvf gloo-mesh-agent-2.0.0.tgz
+wget https://storage.googleapis.com/gloo-mesh-enterprise/gloo-mesh-agent/gloo-mesh-agent-2.0.5.tgz
+tar zxvf gloo-mesh-agent-2.0.5.tgz
 find gloo-mesh-agent -name "values.yaml" | while read file; do
   cat $file | yq eval -j | jq -r '.. | .image? | select(. != null) | (if .registry then (if .registry == "docker.io" then "docker.io/library" else .registry end) + "/" else "" end) + .repository + ":" + (.tag | tostring)'
 done | sort -u >> images.txt
 
-wget https://storage.googleapis.com/gloo-mesh-enterprise/gloo-mesh-enterprise/gloo-mesh-enterprise-2.0.0.tgz
-tar zxvf gloo-mesh-enterprise-2.0.0.tgz
+wget https://storage.googleapis.com/gloo-mesh-enterprise/gloo-mesh-enterprise/gloo-mesh-enterprise-2.0.5.tgz
+tar zxvf gloo-mesh-enterprise-2.0.5.tgz
 find gloo-mesh-enterprise -name "values.yaml" | while read file; do
   cat $file | yq eval -j | jq -r '.. | .image? | select(. != null) | (if .registry then (if .registry == "docker.io" then "docker.io/library" else .registry end) + "/" else "" end) + .repository + ":" + (.tag | tostring)'
 done | sort -u >> images.txt
@@ -205,10 +205,10 @@ done
 
 We are going to deploy Istio using Helm, but there are several other options. You can find more information in the [Istio documentation](https://istio.io/latest/docs/setup/install/).
 
-First of all, let's Download the Istio release 1.12.6:
+First of all, let's Download the Istio release 1.13.4:
 
 ```bash
-export ISTIO_VERSION=1.12.6
+export ISTIO_VERSION=1.13.4
 curl -L https://istio.io/downloadIstio | sh -
 ```
 
@@ -221,10 +221,10 @@ chai.use(chaiExec);
 
 describe("istioctl version", () => {
   it("version should be correct", () => {
-    let cli = chaiExec('./istio-1.12.6/bin/istioctl version --remote=false');
+    let cli = chaiExec('./istio-1.13.4/bin/istioctl version --remote=false');
 
     expect(cli).to.exit.with.code(0);
-    expect(cli).stdout.to.contain("1.12.6");
+    expect(cli).stdout.to.contain("1.13.4");
     expect(cli).stderr.to.be.empty;
   });
 });
@@ -243,17 +243,17 @@ kubectl --context ${CLUSTER1} create ns istio-gateways
 Now, let's deploy the Istio control plane on the first cluster:
 
 ```bash
-helm --kube-context=${CLUSTER1} upgrade --install istio-base ./istio-1.12.6/manifests/charts/base -n istio-system
+helm --kube-context=${CLUSTER1} upgrade --install istio-base ./istio-1.13.4/manifests/charts/base -n istio-system --set revision=1-13
 
-helm --kube-context=${CLUSTER1} upgrade --install istio-1.12.6 ./istio-1.12.6/manifests/charts/istio-control/istio-discovery -n istio-system --values - <<EOF
-revision: 1-12
+helm --kube-context=${CLUSTER1} upgrade --install istio-1.13.4 ./istio-1.13.4/manifests/charts/istio-control/istio-discovery -n istio-system --values - <<EOF
+revision: 1-13
 global:
   meshID: mesh1
   multiCluster:
     clusterName: cluster1
   network: network1
   hub: ${registry}/istio-workshops
-  tag: 1.12.6-solo
+  tag: 1.13.4-solo
 meshConfig:
   trustDomain: cluster1
   accessLogFile: /dev/stdout
@@ -279,12 +279,12 @@ Note that we set the `trust domain` to be the same as the cluster name and we co
 After that, you can deploy the gateway(s):
 
 ```bash
-kubectl --context ${CLUSTER1} label namespace istio-gateways istio.io/rev=1-12
+kubectl --context ${CLUSTER1} label namespace istio-gateways istio.io/rev=1-13
 
-helm --kube-context=${CLUSTER1} upgrade --install istio-ingressgateway ./istio-1.12.6/manifests/charts/gateways/istio-ingress -n istio-gateways --values - <<EOF
+helm --kube-context=${CLUSTER1} upgrade --install istio-ingressgateway ./istio-1.13.4/manifests/charts/gateways/istio-ingress -n istio-gateways --values - <<EOF
 global:
   hub: ${registry}/istio-workshops
-  tag: 1.12.6-solo
+  tag: 1.13.4-solo
 gateways:
   istio-ingressgateway:
     name: istio-ingressgateway
@@ -301,10 +301,10 @@ gateways:
       targetPort: 8443
 EOF
 
-helm --kube-context=${CLUSTER1} upgrade --install istio-eastwestgateway ./istio-1.12.6/manifests/charts/gateways/istio-ingress -n istio-gateways --values - <<EOF
+helm --kube-context=${CLUSTER1} upgrade --install istio-eastwestgateway ./istio-1.13.4/manifests/charts/gateways/istio-ingress -n istio-gateways --values - <<EOF
 global:
   hub: ${registry}/istio-workshops
-  tag: 1.12.6-solo
+  tag: 1.13.4-solo
 gateways:
   istio-ingressgateway:
     name: istio-eastwestgateway
@@ -361,17 +361,17 @@ kubectl --context ${CLUSTER2} create ns istio-gateways
 Now, let's deploy the Istio control plane on the second cluster:
 
 ```bash
-helm --kube-context=${CLUSTER2} upgrade --install istio-base ./istio-1.12.6/manifests/charts/base -n istio-system
+helm --kube-context=${CLUSTER2} upgrade --install istio-base ./istio-1.13.4/manifests/charts/base -n istio-system --set revision=1-13
 
-helm --kube-context=${CLUSTER2} upgrade --install istio-1.12.6 ./istio-1.12.6/manifests/charts/istio-control/istio-discovery -n istio-system --values - <<EOF
-revision: 1-12
+helm --kube-context=${CLUSTER2} upgrade --install istio-1.13.4 ./istio-1.13.4/manifests/charts/istio-control/istio-discovery -n istio-system --values - <<EOF
+revision: 1-13
 global:
   meshID: mesh1
   multiCluster:
     clusterName: cluster2
   network: network1
   hub: ${registry}/istio-workshops
-  tag: 1.12.6-solo
+  tag: 1.13.4-solo
 meshConfig:
   trustDomain: cluster2
   accessLogFile: /dev/stdout
@@ -395,12 +395,12 @@ EOF
 After that, you can deploy the gateways:
 
 ```bash
-kubectl --context ${CLUSTER2} label namespace istio-gateways istio.io/rev=1-12
+kubectl --context ${CLUSTER2} label namespace istio-gateways istio.io/rev=1-13
 
-helm --kube-context=${CLUSTER2} upgrade --install istio-ingressgateway ./istio-1.12.6/manifests/charts/gateways/istio-ingress -n istio-gateways --values - <<EOF
+helm --kube-context=${CLUSTER2} upgrade --install istio-ingressgateway ./istio-1.13.4/manifests/charts/gateways/istio-ingress -n istio-gateways --values - <<EOF
 global:
   hub: ${registry}/istio-workshops
-  tag: 1.12.6-solo
+  tag: 1.13.4-solo
 gateways:
   istio-ingressgateway:
     name: istio-ingressgateway
@@ -417,10 +417,10 @@ gateways:
       targetPort: 8443
 EOF
 
-helm --kube-context=${CLUSTER2} upgrade --install istio-eastwestgateway ./istio-1.12.6/manifests/charts/gateways/istio-ingress -n istio-gateways --values - <<EOF
+helm --kube-context=${CLUSTER2} upgrade --install istio-eastwestgateway ./istio-1.13.4/manifests/charts/gateways/istio-ingress -n istio-gateways --values - <<EOF
 global:
   hub: ${registry}/istio-workshops
-  tag: 1.12.6-solo
+  tag: 1.13.4-solo
 gateways:
   istio-ingressgateway:
     name: istio-eastwestgateway
@@ -468,7 +468,7 @@ afterEach(function (done) {
 });
 
 describe("Checking Istio installation", function() {
-  let deployments = ["istiod-1-12"];
+  let deployments = ["istiod-1-13"];
   deployments.forEach(deploy => {
     it(deploy + ' pods are ready in cluster ' + process.env.CLUSTER1, () => helpers.checkDeployment({ context: process.env.CLUSTER1, namespace: "istio-system", k8sObj: deploy }));
   });
@@ -476,7 +476,7 @@ describe("Checking Istio installation", function() {
   deployments.forEach(deploy => {
     it(deploy + ' pods are ready in cluster ' + process.env.CLUSTER1, () => helpers.checkDeployment({ context: process.env.CLUSTER1, namespace: "istio-gateways", k8sObj: deploy }));
   });
-  deployments = ["istiod-1-12"];
+  deployments = ["istiod-1-13"];
   deployments.forEach(deploy => {
     it(deploy + ' pods are ready in cluster ' + process.env.CLUSTER2, () => helpers.checkDeployment({ context: process.env.CLUSTER2, namespace: "istio-system", k8sObj: deploy }));
   });
@@ -589,7 +589,7 @@ We're going to deploy the bookinfo application to demonstrate several features o
 You can find more information about this application [here](https://istio.io/latest/docs/examples/bookinfo/).
 Download the bookinfo yaml and update the registry:
 ```bash
-curl https://raw.githubusercontent.com/istio/istio/1.12.6/samples/bookinfo/platform/kube/bookinfo.yaml | sed "s/image: docker.io/image: ${registry}/g" > bookinfo.yaml
+curl https://raw.githubusercontent.com/istio/istio/release-1.13/samples/bookinfo/platform/kube/bookinfo.yaml | sed "s/image: docker.io/image: ${registry}/g" > bookinfo.yaml
 ```
 
 Run the following commands to deploy the bookinfo application on `cluster1`:
@@ -597,9 +597,9 @@ Run the following commands to deploy the bookinfo application on `cluster1`:
 ```bash
 kubectl --context ${CLUSTER1} create ns bookinfo-frontends
 kubectl --context ${CLUSTER1} create ns bookinfo-backends
-curl https://raw.githubusercontent.com/istio/istio/1.12.6/samples/bookinfo/platform/kube/bookinfo.yaml -s|sed 's/docker\.io\/istio/us-central1-docker\.pkg\.dev\/solo-test-236622\/jmunozro/g'|tee bookinfo.yaml
-kubectl --context ${CLUSTER1} label namespace bookinfo-frontends istio.io/rev=1-12
-kubectl --context ${CLUSTER1} label namespace bookinfo-backends istio.io/rev=1-12
+
+kubectl --context ${CLUSTER1} label namespace bookinfo-frontends istio.io/rev=1-13
+kubectl --context ${CLUSTER1} label namespace bookinfo-backends istio.io/rev=1-13
 # deploy the frontend bookinfo service in the bookinfo-frontends namespace
 kubectl --context ${CLUSTER1} -n bookinfo-frontends apply -f bookinfo.yaml -l 'account in (productpage)'
 kubectl --context ${CLUSTER1} -n bookinfo-frontends apply -f bookinfo.yaml -l 'app in (productpage)'
@@ -639,9 +639,8 @@ Now, run the following commands to deploy the bookinfo application on `cluster2`
 ```bash
 kubectl --context ${CLUSTER2} create ns bookinfo-frontends
 kubectl --context ${CLUSTER2} create ns bookinfo-backends
-curl https://raw.githubusercontent.com/istio/istio/1.12.6/samples/bookinfo/platform/kube/bookinfo.yaml -s|sed 's/docker\.io\/istio/us-central1-docker\.pkg\.dev\/solo-test-236622\/jmunozro/g'|tee bookinfo.yaml
-kubectl --context ${CLUSTER2} label namespace bookinfo-frontends istio.io/rev=1-12
-kubectl --context ${CLUSTER2} label namespace bookinfo-backends istio.io/rev=1-12
+kubectl --context ${CLUSTER2} label namespace bookinfo-frontends istio.io/rev=1-13
+kubectl --context ${CLUSTER2} label namespace bookinfo-backends istio.io/rev=1-13
 # deploy the frontend bookinfo service in the bookinfo-frontends namespace
 kubectl --context ${CLUSTER2} -n bookinfo-frontends apply -f bookinfo.yaml -l 'account in (productpage)'
 kubectl --context ${CLUSTER2} -n bookinfo-frontends apply -f bookinfo.yaml -l 'app in (productpage)'
@@ -807,7 +806,7 @@ spec:
       labels:
         app: in-mesh
         version: v1
-        istio.io/rev: 1-12
+        istio.io/rev: 1-13
     spec:
       serviceAccountName: in-mesh
       containers:
@@ -856,7 +855,7 @@ mocha ./test.js --timeout 5000 --retries=50 --bail 2> /dev/null || exit 1
 First of all, let's install the `meshctl` CLI:
 
 ```bash
-export GLOO_MESH_VERSION=v2.0.0
+export GLOO_MESH_VERSION=v2.0.5
 curl -sL https://run.solo.io/meshctl/install | sh -
 export PATH=$HOME/.gloo-mesh/bin:$PATH
 ```
@@ -899,7 +898,7 @@ helm repo update
 kubectl --context ${MGMT} create ns gloo-mesh 
 helm upgrade --install gloo-mesh-enterprise gloo-mesh-enterprise/gloo-mesh-enterprise \
 --namespace gloo-mesh --kube-context ${MGMT} \
---version=2.0.0 \
+--version=2.0.5 \
 --set glooMeshMgmtServer.ports.healthcheck=8091 \
 --set glooMeshMgmtServer.image.registry=${registry}/gloo-mesh \
 --set prometheus.configmapReload.prometheus.image.repository=${registry}/jimmidyson/configmap-reload \
@@ -1003,7 +1002,7 @@ helm upgrade --install gloo-mesh-agent gloo-mesh-agent/gloo-mesh-agent \
   --set ext-auth-service.enabled=false \
   --set cluster=cluster1 \
 --set glooMeshAgent.image.registry=${registry}/gloo-mesh \
-  --version 2.0.0
+  --version 2.0.5
 ```
 
 Note that the registration can also be performed using `meshctl cluster register`.
@@ -1039,7 +1038,7 @@ helm upgrade --install gloo-mesh-agent gloo-mesh-agent/gloo-mesh-agent \
   --set ext-auth-service.enabled=false \
   --set cluster=cluster2 \
 --set glooMeshAgent.image.registry=${registry}/gloo-mesh \
-  --version 2.0.0
+  --version 2.0.5
 ```
 
 You can check the cluster(s) have been registered correctly using the following commands:
@@ -1063,7 +1062,6 @@ cat <<'EOF' > ./test.js
 var chai = require('chai');
 var expect = chai.expect;
 const helpers = require('./tests/chai-exec');
-
 describe("Cluster registration", () => {
   it("cluster1 is registered", () => {
     podName = helpers.getOutputForCommand({ command: "kubectl -n gloo-mesh get pods -l app=gloo-mesh-mgmt-server -o jsonpath='{.items[0].metadata.name}' --context " + process.env.MGMT }).replaceAll("'", "");
@@ -1088,9 +1086,9 @@ First, you need to create a namespace for the addons, with Istio injection enabl
 
 ```bash
 kubectl --context ${CLUSTER1} create namespace gloo-mesh-addons
-kubectl --context ${CLUSTER1} label namespace gloo-mesh-addons istio.io/rev=1-12
+kubectl --context ${CLUSTER1} label namespace gloo-mesh-addons istio.io/rev=1-13
 kubectl --context ${CLUSTER2} create namespace gloo-mesh-addons
-kubectl --context ${CLUSTER2} label namespace gloo-mesh-addons istio.io/rev=1-12
+kubectl --context ${CLUSTER2} label namespace gloo-mesh-addons istio.io/rev=1-13
 ```
 
 Then, you can deploy the addons on the cluster(s) using Helm:
@@ -1105,7 +1103,7 @@ helm upgrade --install gloo-mesh-agent-addons gloo-mesh-agent/gloo-mesh-agent \
 --set ext-auth-service.extAuth.image.registry=${registry}/gloo-mesh \
 --set rate-limiter.rateLimiter.image.registry=${registry}/gloo-mesh \
 --set rate-limiter.redis.image.registry=${registry} \
-  --version 2.0.0
+  --version 2.0.5
 
 helm upgrade --install gloo-mesh-agent-addons gloo-mesh-agent/gloo-mesh-agent \
   --namespace gloo-mesh-addons \
@@ -1116,7 +1114,7 @@ helm upgrade --install gloo-mesh-agent-addons gloo-mesh-agent/gloo-mesh-agent \
 --set ext-auth-service.extAuth.image.registry=${registry}/gloo-mesh \
 --set rate-limiter.rateLimiter.image.registry=${registry}/gloo-mesh \
 --set rate-limiter.redis.image.registry=${registry} \
-  --version 2.0.0
+  --version 2.0.5
 ```
 
 Finally, you need to specify which gateways you want to use for cross cluster traffic:
@@ -2511,7 +2509,6 @@ cat <<'EOF' > ./test.js
 var chai = require('chai');
 var expect = chai.expect;
 const helpers = require('./tests/chai-exec');
-
 describe("Communication allowed", () => {
   it("Response code should be 200", () => {
     const podName = helpers.getOutputForCommand({ command: "kubectl --context " + process.env.CLUSTER1 + " -n httpbin get pods -l app=not-in-mesh -o jsonpath='{.items[0].metadata.name}'" }).replaceAll("'", "");
@@ -2536,7 +2533,6 @@ cat <<'EOF' > ./test.js
 var chai = require('chai');
 var expect = chai.expect;
 const helpers = require('./tests/chai-exec');
-
 describe("Communication allowed", () => {
   it("Response code should be 200", () => {
     const podName = helpers.getOutputForCommand({ command: "kubectl --context " + process.env.CLUSTER1 + " -n httpbin get pods -l app=in-mesh -o jsonpath='{.items[0].metadata.name}'" }).replaceAll("'", "");
@@ -2613,7 +2609,6 @@ cat <<'EOF' > ./test.js
 var chai = require('chai');
 var expect = chai.expect;
 const helpers = require('./tests/chai-exec');
-
 describe("Communication notallowed", () => {
   it("Response code should be 000", () => {
     const podName = helpers.getOutputForCommand({ command: "kubectl --context " + process.env.CLUSTER1 + " -n httpbin get pods -l app=not-in-mesh -o jsonpath='{.items[0].metadata.name}'" }).replaceAll("'", "");
@@ -2638,7 +2633,6 @@ cat <<'EOF' > ./test.js
 var chai = require('chai');
 var expect = chai.expect;
 const helpers = require('./tests/chai-exec');
-
 describe("Communication not allowed", () => {
   it("Response code should be 403", () => {
     const podName = helpers.getOutputForCommand({ command: "kubectl --context " + process.env.CLUSTER1 + " -n httpbin get pods -l app=in-mesh -o jsonpath='{.items[0].metadata.name}'" }).replaceAll("'", "");
