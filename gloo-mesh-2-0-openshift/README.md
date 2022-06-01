@@ -323,7 +323,7 @@ oc --context ${CLUSTER2} adm policy add-scc-to-group anyuid system:serviceaccoun
 Now, let's deploy the Istio control plane on the second cluster:
 
 ```bash
-helm --kube-context=${CLUSTER2} upgrade --install istio-base ./istio-1.13.4/manifests/charts/base -n istio-system --set revision=1-13
+helm --kube-context=${CLUSTER2} upgrade --install istio-base ./istio-1.13.4/manifests/charts/base -n istio-system --set defaultRevision=1-13
 
 helm --kube-context=${CLUSTER2} upgrade --install istio-1.13.4 ./istio-1.13.4/manifests/charts/istio-control/istio-discovery -n istio-system --values - <<EOF
 revision: 1-13
