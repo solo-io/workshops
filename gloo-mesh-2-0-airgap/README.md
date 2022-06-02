@@ -166,7 +166,7 @@ quay.io/keycloak/keycloak:12.0.4
 docker.io/kennethreitz/httpbin
 EOF
 
-for url in https://raw.githubusercontent.com/istio/istio/1.13.4/samples/bookinfo/platform/kube/bookinfo.yaml https://raw.githubusercontent.com/istio/istio/1.13.4/samples/bookinfo/networking/bookinfo-gateway.yaml
+for url in https://raw.githubusercontent.com/istio/istio/release-1.13/samples/bookinfo/platform/kube/bookinfo.yaml https://raw.githubusercontent.com/istio/istio/release-1.13/samples/bookinfo/networking/bookinfo-gateway.yaml
 do
   for image in $(curl -sfL ${url}|grep image:|awk '{print $2}')
   do
@@ -243,7 +243,7 @@ kubectl --context ${CLUSTER1} create ns istio-gateways
 Now, let's deploy the Istio control plane on the first cluster:
 
 ```bash
-helm --kube-context=${CLUSTER1} upgrade --install istio-base ./istio-1.13.4/manifests/charts/base -n istio-system --set revision=1-13
+helm --kube-context=${CLUSTER1} upgrade --install istio-base ./istio-1.13.4/manifests/charts/base -n istio-system --set defaultRevision=1-13
 
 helm --kube-context=${CLUSTER1} upgrade --install istio-1.13.4 ./istio-1.13.4/manifests/charts/istio-control/istio-discovery -n istio-system --values - <<EOF
 revision: 1-13
