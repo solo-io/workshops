@@ -77,8 +77,8 @@ nodes:
   - containerPort: 6443
     hostPort: 70${twodigits}
 networking:
-  serviceSubnet: "10.0${twodigits}.0.0/16"
-  podSubnet: "10.1${twodigits}.0.0/16"
+  serviceSubnet: "10.${number}.0.0/16"
+  podSubnet: "10.1${number}.0.0/16"
 kubeadmConfigPatches:
 - |
   apiVersion: kubeadm.k8s.io/v1beta2
