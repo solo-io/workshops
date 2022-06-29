@@ -1,0 +1,20 @@
+In this module, we'll review Networking and the OSI model, along with what makes packets move around the network. 
+We'll also explore the current node networking configuration.
+
+Why Networking?
+
+The OSI model
+
+TCP/IP Networking
+
+A basic Packet flow
+
+Let's review this node's networking configuration
+
+-ifconfig
+-nslookup
+-dig
+-nc
+-ping
+-traceroute
+-ipaddr
