@@ -12,12 +12,14 @@ We dive into connectivity between multiple nodes and how this is facilitated. We
 Module 2 - Get to the Gateway!
 Not all networks are the same shape or size! We need ways to get to other networks and we use Routers to do this. In this module we'll explore Layer 3 connectivity and typical protocols used.
 
-Module 3 - It's not DNS, it can't be DNS, it was DNS.
+Module 3 - I wanna tell you a joke, but you might not get it. Understanding TCP and UDP
+
+Module 4 - It's not DNS, it can't be DNS, it was DNS.
 DNS is critical to all applications! This is how we resolve IP addresses to human-readable names. IP's change, names don't!
 
-Module 4 - I'm a teapot - Undertanding HTTP codes and Layer 7
+Module 5 - I'm a teapot - Undertanding HTTP codes and Layer 7
 As we climb up the OSI stack, we can use Layer 7 to gain insights, and manipulate how our applications communicate. But first, we need to understand what goes on here and dig into HTTP status codes, the API, and other elements.
 
-Module 5 - Containers, Kubernetes, and Networking
+Module 6 - Containers, Kubernetes, and Networking
 Let's review containers, Kubernetes, and how we provide Networking.
 
