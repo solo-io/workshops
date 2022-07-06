@@ -1,0 +1,12 @@
+Get to the Gateway! 
+Not all networks are the same shape or size! 
+We need ways to get to other networks and we use Routers to do this. 
+In this module we'll explore Layer 2/3 connectivity and typical protocols used.
+
+Virtual Networks, VLANs
+Understanding VXLANs and Logical Networks
+Understanding Leaf-Spine architectures eVPN and BGP,
+Why Layer 3 addressing and subnet masks are important
+How we learn about other networks and the need for routing (Dynamic vs Static routing)
+Constructing a static route (default, specific prefix)
+Dynamic routing with BGP
