@@ -9,12 +9,26 @@ TCP/IP Networking
 
 A basic Packet flow
 
+Understanding Mac addresses
+
+Understanding IP Addressing, subnetting and RFC 1918
+
+Understanding the basics of routing (defaut gateway/route)
+
+Basics of DNS
+
 Let's review this node's networking configuration
 
 -ifconfig
 -nslookup
 -dig
--nc
+-netcat
 -ping
 -traceroute
 -ipaddr
+-arp 
+-netstat
+-tcpdump
+-ip
+-cURL
+
