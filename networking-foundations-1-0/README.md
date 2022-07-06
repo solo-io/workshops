@@ -20,6 +20,12 @@ DNS is critical to all applications! This is how we resolve IP addresses to huma
 Module 5 - I'm a teapot - Undertanding HTTP codes and Layer 7
 As we climb up the OSI stack, we can use Layer 7 to gain insights, and manipulate how our applications communicate. But first, we need to understand what goes on here and dig into HTTP status codes, the API, and other elements.
 
-Module 6 - Containers, Kubernetes, and Networking
+Module 6 - LBs, Proxies, and Firewalling
+
+Module 7 - Containers, Kubernetes, and Networking
 Let's review containers, Kubernetes, and how we provide Networking.
+Networking Namespaces
+IPfilter, IPVS, IPTables
+eBPF
+
 
