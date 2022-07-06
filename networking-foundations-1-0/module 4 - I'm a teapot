@@ -1,0 +1,8 @@
+I'm a teapot
+Undertanding HTTP codes and Layer 7 As we climb up the OSI stack, we can use Layer 7 to gain insights, and manipulate how our applications communicate. 
+But first, we need to understand what goes on here and dig into HTTP status codes, the API, and other elements.
+
+Discuss Layer 7 and what goes on with HTTP
+Discuss the various status codes 2xx, 3xx, 4xx, 5xx
+Run cURL commands to capture various status codes
+HTTP 1 vs 2 vs 3
