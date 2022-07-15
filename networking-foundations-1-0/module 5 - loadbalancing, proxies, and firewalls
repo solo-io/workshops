@@ -1,1 +1,13 @@
+With the foundations of networking in place, there are tools and technologies that create higher levels of availability and resiliency.
+A lot of this is derived from the information that's shared with us at Layer 7 or the HTTP layer.
 
+We are going to walk through how to provide load-balancing for a few basic HTTP services deployed into a small container environment. 
+We will also working through setting up firewall policies that filter traffic at Layers 3 and 4, and cover how WAFs provided upper layer security
+Finally we'll see how Proxies and technologies like Envoy play a huge role in service request routing and security.
+
+TLS, mTLS, FIPS
+IPSec and Wireguard
+Internet-connected vs air-gapped vs disconnected
+Hardware vs Software LB
+Firewall technoliges and WAFs
+Proxies and Envoy
