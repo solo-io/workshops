@@ -32,6 +32,8 @@ fi
 cache_port='5000'
 cat > registries <<EOF
 docker https://registry-1.docker.io
+us-docker https://us-docker.pkg.dev
+us-central1-docker https://us-central1-docker.pkg.dev
 quay https://quay.io
 gcr https://gcr.io
 EOF
@@ -71,13 +73,15 @@ done
 cat << EOF > kind${number}.yaml
 kind: Cluster
 apiVersion: kind.x-k8s.io/v1alpha4
+featureGates:
+  EphemeralContainers: true
 nodes:
 - role: control-plane
   extraPortMappings:
   - containerPort: 6443
     hostPort: 70${twodigits}
 networking:
-  serviceSubnet: "10.0${twodigits}.0.0/16"
+  serviceSubnet: "10.$(echo $twodigits | sed 's/^0*//').0.0/16"
   podSubnet: "10.1${twodigits}.0.0/16"
 kubeadmConfigPatches:
 - |
@@ -102,6 +106,10 @@ containerdConfigPatches:
     endpoint = ["http://${reg_name}:${reg_port}"]
   [plugins."io.containerd.grpc.v1.cri".registry.mirrors."docker.io"]
     endpoint = ["http://docker:${cache_port}"]
+  [plugins."io.containerd.grpc.v1.cri".registry.mirrors."us-docker.pkg.dev"]
+    endpoint = ["http://us-docker:${cache_port}"]
+  [plugins."io.containerd.grpc.v1.cri".registry.mirrors."us-central1-docker.pkg.dev"]
+    endpoint = ["http://us-central1-docker.pkg.dev:${cache_port}"]
   [plugins."io.containerd.grpc.v1.cri".registry.mirrors."quay.io"]
     endpoint = ["http://quay:${cache_port}"]
   [plugins."io.containerd.grpc.v1.cri".registry.mirrors."gcr.io"]
@@ -138,6 +146,8 @@ kubectl --context=kind-kind${number} apply -f metallb${number}.yaml
 
 docker network connect "kind" "${reg_name}" || true
 docker network connect "kind" docker || true
+docker network connect "kind" us-docker || true
+docker network connect "kind" us-central1-docker || true
 docker network connect "kind" quay || true
 docker network connect "kind" gcr || true
 
