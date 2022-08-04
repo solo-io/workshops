@@ -1,0 +1,22 @@
+const chaiExec = require("@jsdevtools/chai-exec");
+var chai = require('chai');
+var expect = chai.expect;
+chai.use(chaiExec);
+
+{%- if vars.node_port == false and vars.mgmt.node_port == false %}
+describe("Retrieve gloo-mesh-mgmt-server ip", () => {
+  afterEach(function (done) {
+    if (this.currentTest.currentRetry() > 0) {
+      process.stdout.write(".");
+      setTimeout(done, 1000);
+    } else {
+      done();
+    }
+  });
+  it("A value for load-balancing has been assigned", () => {
+    let cli = chaiExec("kubectl --context " + process.env.MGMT + " -n gloo-mesh get svc gloo-mesh-mgmt-server -o jsonpath='{.status.loadBalancer}'");
+    expect(cli).to.exit.with.code(0);
+    expect(cli).output.to.contain('"ingress"');
+  });
+});
+{%- endif %}
