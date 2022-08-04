@@ -15,21 +15,22 @@ source ./scripts/assert.sh
 ## Table of Contents
 * [Introduction](#introduction)
 * [Lab 1 - Deploy a KinD cluster](#Lab-1)
-* [Lab 2 - Deploy Istio](#Lab-2)
-* [Lab 3 - Deploy the Bookinfo demo app](#Lab-3)
-* [Lab 4 - Deploy the httpbin demo app](#Lab-4)
-* [Lab 5 - Deploy and register Gloo Mesh](#Lab-5)
-* [Lab 6 - Deploy Gloo Mesh Addons](#Lab-6)
-* [Lab 7 - Create a single workspace](#Lab-7)
-* [Lab 8 - Expose the productpage through a gateway](#Lab-8)
-* [Lab 9 - Traffic policies](#Lab-9)
-* [Lab 10 - Expose an external service](#Lab-10)
-* [Lab 11 - Deploy Keycloak](#Lab-11)
-* [Lab 12 - Securing the access with OAuth](#Lab-12)
-* [Lab 13 - Use the JWT filter to create headers from claims](#Lab-13)
-* [Lab 14 - Use the transformation filter to manipulate headers](#Lab-14)
-* [Lab 15 - Apply rate limiting to the Gateway](#Lab-15)
-* [Lab 16 - Use the Web Application Firewall filter](#Lab-16)
+* [Lab 2 - Prepare airgap environment](#Lab-2)
+* [Lab 3 - Deploy Istio](#Lab-3)
+* [Lab 4 - Deploy the Bookinfo demo app](#Lab-4)
+* [Lab 5 - Deploy the httpbin demo app](#Lab-5)
+* [Lab 6 - Deploy and register Gloo Mesh](#Lab-6)
+* [Lab 7 - Deploy Gloo Mesh Addons](#Lab-7)
+* [Lab 8 - Create a single workspace](#Lab-8)
+* [Lab 9 - Expose the productpage through a gateway](#Lab-9)
+* [Lab 10 - Traffic policies](#Lab-10)
+* [Lab 11 - Expose an external service](#Lab-11)
+* [Lab 12 - Deploy Keycloak](#Lab-12)
+* [Lab 13 - Securing the access with OAuth](#Lab-13)
+* [Lab 14 - Use the JWT filter to create headers from claims](#Lab-14)
+* [Lab 15 - Use the transformation filter to manipulate headers](#Lab-15)
+* [Lab 16 - Apply rate limiting to the Gateway](#Lab-16)
+* [Lab 17 - Use the Web Application Firewall filter](#Lab-17)
 
 
 
@@ -116,7 +117,58 @@ metallb-system       speaker-d7jkp                                 1/1     Runni
 
 
 
-## Lab 2 - Deploy Istio <a name="Lab-2"></a>
+## Lab 2 - Prepare airgap environment <a name="Lab-2"></a>
+
+Set the registry variable:
+```bash
+registry=localhost:5000
+```
+
+Pull and push locally the Docker images needed:
+
+```bash
+cat <<EOF > images.txt
+us-docker.pkg.dev/gloo-mesh/istio-workshops/pilot:1.13.4-solo
+us-docker.pkg.dev/gloo-mesh/istio-workshops/proxyv2:1.13.4-solo
+quay.io/keycloak/keycloak:12.0.4
+docker.io/kennethreitz/httpbin
+EOF
+
+for url in https://raw.githubusercontent.com/istio/istio/release-1.13/samples/bookinfo/platform/kube/bookinfo.yaml https://raw.githubusercontent.com/istio/istio/release-1.13/samples/bookinfo/networking/bookinfo-gateway.yaml
+do
+  for image in $(curl -sfL ${url}|grep image:|awk '{print $2}')
+  do
+    echo $image >> images.txt
+  done
+done
+
+wget https://storage.googleapis.com/gloo-mesh-enterprise/gloo-mesh-agent/gloo-mesh-agent-2.0.6.tgz
+tar zxvf gloo-mesh-agent-2.0.6.tgz
+find gloo-mesh-agent -name "values.yaml" | while read file; do
+  cat $file | yq eval -j | jq -r '.. | .image? | select(. != null) | (if .registry then (if .registry == "docker.io" then "docker.io/library" else .registry end) + "/" else "" end) + .repository + ":" + (.tag | tostring)'
+done | sort -u >> images.txt
+
+wget https://storage.googleapis.com/gloo-mesh-enterprise/gloo-mesh-enterprise/gloo-mesh-enterprise-2.0.6.tgz
+tar zxvf gloo-mesh-enterprise-2.0.6.tgz
+find gloo-mesh-enterprise -name "values.yaml" | while read file; do
+  cat $file | yq eval -j | jq -r '.. | .image? | select(. != null) | (if .registry then (if .registry == "docker.io" then "docker.io/library" else .registry end) + "/" else "" end) + .repository + ":" + (.tag | tostring)'
+done | sort -u >> images.txt
+
+cat images.txt | while read image; do
+  src=$(echo $image | sed 's/^docker\.io\///g' | sed 's/^library\///g')
+  dst=$(echo $image | awk -F/ '{ if(NF>3){ print $3"/"$4}else{if(NF>2){ print $2"/"$3}else{if($1=="docker.io"){print $2}else{print $1"/"$2}}}}' | sed 's/^library\///g')
+  docker pull $image
+
+  id=$(docker images $src  --format "{{.ID}}") 
+
+  docker tag $id ${registry}/$dst
+  docker push ${registry}/$dst
+done
+```
+
+
+
+## Lab 3 - Deploy Istio <a name="Lab-3"></a>
 
 
 We are going to deploy Istio using Helm, but there are several other options. You can find more information in the [Istio documentation](https://istio.io/latest/docs/setup/install/).
@@ -277,7 +329,7 @@ mocha ./test.js --timeout 5000 --retries=50 --bail 2> /dev/null || exit 1
 
 
 
-## Lab 3 - Deploy the Bookinfo demo app <a name="Lab-3"></a>
+## Lab 4 - Deploy the Bookinfo demo app <a name="Lab-4"></a>
 
 
 
@@ -354,7 +406,7 @@ mocha ./test.js --timeout 5000 --retries=50 --bail 2> /dev/null || exit 1
 
 
 
-## Lab 4 - Deploy the httpbin demo app <a name="Lab-4"></a>
+## Lab 5 - Deploy the httpbin demo app <a name="Lab-5"></a>
 
 We're going to deploy the httpbin application to demonstrate several features of Istio and Gloo Mesh.
 
@@ -495,7 +547,7 @@ mocha ./test.js --timeout 5000 --retries=50 --bail 2> /dev/null || exit 1
 
 
 
-## Lab 5 - Deploy and register Gloo Mesh <a name="Lab-5"></a>
+## Lab 6 - Deploy and register Gloo Mesh <a name="Lab-6"></a>
 
 
 
@@ -657,7 +709,7 @@ mocha ./test.js --timeout 5000 --retries=50 --bail 2> /dev/null || exit 1
 
 
 
-## Lab 6 - Deploy Gloo Mesh Addons <a name="Lab-6"></a>
+## Lab 7 - Deploy Gloo Mesh Addons <a name="Lab-7"></a>
 
 
 
@@ -691,7 +743,7 @@ This is how to environment looks like now:
 
 
 
-## Lab 7 - Create a single workspace <a name="Lab-7"></a>
+## Lab 8 - Create a single workspace <a name="Lab-8"></a>
 
 We're going to create a single workspace. We assume that multi tenancy isn't something we want to implement right now. on both clusters:
 
@@ -725,7 +777,7 @@ EOF
 
 
 
-## Lab 8 - Expose the productpage through a gateway <a name="Lab-8"></a>
+## Lab 9 - Expose the productpage through a gateway <a name="Lab-9"></a>
 
 In this step, we're going to expose the `productpage` service through the Ingress Gateway using Gloo Mesh.
 
@@ -886,7 +938,7 @@ This diagram shows the flow of the request (through the Istio Ingress Gateway):
 
 
 
-## Lab 9 - Traffic policies <a name="Lab-9"></a>
+## Lab 10 - Traffic policies <a name="Lab-10"></a>
 
 We're going to use Gloo Mesh policies to inject faults and configure timeouts.
 
@@ -1062,7 +1114,7 @@ kubectl --context ${CLUSTER1} -n bookinfo-backends delete routetable reviews
 
 
 
-## Lab 10 - Expose an external service <a name="Lab-10"></a>
+## Lab 11 - Expose an external service <a name="Lab-11"></a>
 
 In this step, we're going to expose an external service through a Gateway using Gloo Mesh and show how we can then migrate this service to the Mesh.
 
@@ -1270,7 +1322,7 @@ This diagram shows the flow of the requests :
 
 
 
-## Lab 11 - Deploy Keycloak <a name="Lab-11"></a>
+## Lab 12 - Deploy Keycloak <a name="Lab-12"></a>
 
 In many use cases, you need to restrict the access to your applications to authenticated users. 
 
@@ -1414,7 +1466,7 @@ KEYCLOAK_TOKEN=$(curl -d "client_id=admin-cli" -d "username=admin" -d "password=
 
 
 
-## Lab 12 - Securing the access with OAuth <a name="Lab-12"></a>
+## Lab 13 - Securing the access with OAuth <a name="Lab-13"></a>
 
 
 In this step, we're going to secure the access to the `httpbin` service using OAuth.
@@ -1644,7 +1696,7 @@ This diagram shows the flow of the request (with the Istio ingress gateway lever
 
 
 
-## Lab 13 - Use the JWT filter to create headers from claims <a name="Lab-13"></a>
+## Lab 14 - Use the JWT filter to create headers from claims <a name="Lab-14"></a>
 
 
 In this step, we're going to validate the JWT token and to create a new header from the `email` claim.
@@ -1762,7 +1814,7 @@ mocha ./test.js --timeout 5000 --retries=50 --bail 2> /dev/null || exit 1
 
 
 
-## Lab 14 - Use the transformation filter to manipulate headers <a name="Lab-14"></a>
+## Lab 15 - Use the transformation filter to manipulate headers <a name="Lab-15"></a>
 
 
 In this step, we're going to use a regular expression to extract a part of an existing header and to create a new one:
@@ -1827,7 +1879,7 @@ mocha ./test.js --timeout 5000 --retries=50 --bail 2> /dev/null || exit 1
 
 
 
-## Lab 15 - Apply rate limiting to the Gateway <a name="Lab-15"></a>
+## Lab 16 - Apply rate limiting to the Gateway <a name="Lab-16"></a>
 
 
 In this step, we're going to apply rate limiting to the Gateway to only allow 3 requests per minute for the users of the `solo.io` organization.
@@ -2048,7 +2100,7 @@ kubectl --context ${CLUSTER1} -n httpbin delete ratelimitserversettings rate-lim
 
 
 
-## Lab 16 - Use the Web Application Firewall filter <a name="Lab-16"></a>
+## Lab 17 - Use the Web Application Firewall filter <a name="Lab-17"></a>
 
 
 A web application firewall (WAF) protects web applications by monitoring, filtering, and blocking potentially harmful traffic and attacks that can overtake or exploit them.
