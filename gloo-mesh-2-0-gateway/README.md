@@ -19,17 +19,18 @@ source ./scripts/assert.sh
 * [Lab 3 - Deploy the Bookinfo demo app](#Lab-3)
 * [Lab 4 - Deploy the httpbin demo app](#Lab-4)
 * [Lab 5 - Deploy and register Gloo Mesh](#Lab-5)
-* [Lab 6 - Create the gateways workspace](#Lab-6)
-* [Lab 7 - Create the bookinfo workspace](#Lab-7)
-* [Lab 8 - Expose the productpage through a gateway](#Lab-8)
-* [Lab 9 - Create the httpbin workspace](#Lab-9)
-* [Lab 10 - Expose an external service](#Lab-10)
-* [Lab 11 - Deploy Keycloak](#Lab-11)
-* [Lab 12 - Securing the access with OAuth](#Lab-12)
-* [Lab 13 - Use the JWT filter to create headers from claims](#Lab-13)
-* [Lab 14 - Use the transformation filter to manipulate headers](#Lab-14)
-* [Lab 15 - Apply rate limiting to the Gateway](#Lab-15)
-* [Lab 16 - Use the Web Application Firewall filter](#Lab-16)
+* [Lab 6 - Deploy Gloo Mesh Addons](#Lab-6)
+* [Lab 7 - Create the gateways workspace](#Lab-7)
+* [Lab 8 - Create the bookinfo workspace](#Lab-8)
+* [Lab 9 - Expose the productpage through a gateway](#Lab-9)
+* [Lab 10 - Create the httpbin workspace](#Lab-10)
+* [Lab 11 - Expose an external service](#Lab-11)
+* [Lab 12 - Deploy Keycloak](#Lab-12)
+* [Lab 13 - Securing the access with OAuth](#Lab-13)
+* [Lab 14 - Use the JWT filter to create headers from claims](#Lab-14)
+* [Lab 15 - Use the transformation filter to manipulate headers](#Lab-15)
+* [Lab 16 - Apply rate limiting to the Gateway](#Lab-16)
+* [Lab 17 - Use the Web Application Firewall filter](#Lab-17)
 
 
 
@@ -498,7 +499,7 @@ mocha ./test.js --timeout 5000 --retries=50 --bail 2> /dev/null || exit 1
 First of all, let's install the `meshctl` CLI:
 
 ```bash
-export GLOO_MESH_VERSION=v2.0.5
+export GLOO_MESH_VERSION=v2.0.6
 curl -sL https://run.solo.io/meshctl/install | sh -
 export PATH=$HOME/.gloo-mesh/bin:$PATH
 ```
@@ -540,7 +541,7 @@ helm repo update
 kubectl --context ${MGMT} create ns gloo-mesh 
 helm upgrade --install gloo-mesh-enterprise gloo-mesh-enterprise/gloo-mesh-enterprise \
 --namespace gloo-mesh --kube-context ${MGMT} \
---version=2.0.5 \
+--version=2.0.6 \
 --set glooMeshMgmtServer.ports.healthcheck=8091 \
 --set glooMeshUi.serviceType=LoadBalancer \
 --set mgmtClusterName=${MGMT} \
@@ -606,7 +607,7 @@ helm upgrade --install gloo-mesh-agent gloo-mesh-agent/gloo-mesh-agent \
   --set rate-limiter.enabled=false \
   --set ext-auth-service.enabled=false \
   --set cluster=cluster1 \
-  --version 2.0.5
+  --version 2.0.6
 ```
 
 Note that the registration can also be performed using `meshctl cluster register`.
@@ -644,6 +645,11 @@ mocha ./test.js --timeout 5000 --retries=50 --bail 2> /dev/null || exit 1
 -->
 
 
+
+## Lab 6 - Deploy Gloo Mesh Addons <a name="Lab-6"></a>
+
+
+
 To use the Gloo Mesh Gateway advanced features (external authentication, rate limiting, ...), you need to install the Gloo Mesh addons.
 
 First, you need to create a namespace for the addons, with Istio injection enabled:
@@ -662,16 +668,16 @@ helm upgrade --install gloo-mesh-agent-addons gloo-mesh-agent/gloo-mesh-agent \
   --set glooMeshAgent.enabled=false \
   --set rate-limiter.enabled=true \
   --set ext-auth-service.enabled=true \
-  --version 2.0.5
+  --version 2.0.6
 ```
 
 This is how to environment looks like now:
 
-![Gloo Mesh Workshop Environment](images/steps/deploy-and-register-gloo-mesh/gloo-mesh-workshop-environment.svg)
+![Gloo Mesh Workshop Environment](images/steps/deploy-gloo-mesh-addons/gloo-mesh-workshop-environment.svg)
 
 
 
-## Lab 6 - Create the gateways workspace <a name="Lab-6"></a>
+## Lab 7 - Create the gateways workspace <a name="Lab-7"></a>
 
 We're going to create a workspace for the team in charge of the Gateways.
 
@@ -729,7 +735,7 @@ The Gateway team has decided to import the following from the workspaces that ha
 
 
 
-## Lab 7 - Create the bookinfo workspace <a name="Lab-7"></a>
+## Lab 8 - Create the bookinfo workspace <a name="Lab-8"></a>
 
 We're going to create a workspace for the team in charge of the Bookinfo application.
 
@@ -797,7 +803,7 @@ This is how the environment looks like with the workspaces:
 
 
 
-## Lab 8 - Expose the productpage through a gateway <a name="Lab-8"></a>
+## Lab 9 - Expose the productpage through a gateway <a name="Lab-9"></a>
 
 In this step, we're going to expose the `productpage` service through the Ingress Gateway using Gloo Mesh.
 
@@ -958,7 +964,7 @@ This diagram shows the flow of the request (through the Istio Ingress Gateway):
 
 
 
-## Lab 9 - Create the httpbin workspace <a name="Lab-9"></a>
+## Lab 10 - Create the httpbin workspace <a name="Lab-10"></a>
 
 We're going to create a workspace for the team in charge of the httpbin application.
 
@@ -1017,7 +1023,7 @@ The Httpbin team has decided to export the following to the `gateway` workspace 
 
 
 
-## Lab 10 - Expose an external service <a name="Lab-10"></a>
+## Lab 11 - Expose an external service <a name="Lab-11"></a>
 
 In this step, we're going to expose an external service through a Gateway using Gloo Mesh and show how we can then migrate this service to the Mesh.
 
@@ -1225,7 +1231,7 @@ This diagram shows the flow of the requests :
 
 
 
-## Lab 11 - Deploy Keycloak <a name="Lab-11"></a>
+## Lab 12 - Deploy Keycloak <a name="Lab-12"></a>
 
 In many use cases, you need to restrict the access to your applications to authenticated users. 
 
@@ -1369,7 +1375,7 @@ KEYCLOAK_TOKEN=$(curl -d "client_id=admin-cli" -d "username=admin" -d "password=
 
 
 
-## Lab 12 - Securing the access with OAuth <a name="Lab-12"></a>
+## Lab 13 - Securing the access with OAuth <a name="Lab-13"></a>
 
 
 In this step, we're going to secure the access to the `httpbin` service using OAuth.
@@ -1599,7 +1605,7 @@ This diagram shows the flow of the request (with the Istio ingress gateway lever
 
 
 
-## Lab 13 - Use the JWT filter to create headers from claims <a name="Lab-13"></a>
+## Lab 14 - Use the JWT filter to create headers from claims <a name="Lab-14"></a>
 
 
 In this step, we're going to validate the JWT token and to create a new header from the `email` claim.
@@ -1717,7 +1723,7 @@ mocha ./test.js --timeout 5000 --retries=50 --bail 2> /dev/null || exit 1
 
 
 
-## Lab 14 - Use the transformation filter to manipulate headers <a name="Lab-14"></a>
+## Lab 15 - Use the transformation filter to manipulate headers <a name="Lab-15"></a>
 
 
 In this step, we're going to use a regular expression to extract a part of an existing header and to create a new one:
@@ -1782,7 +1788,7 @@ mocha ./test.js --timeout 5000 --retries=50 --bail 2> /dev/null || exit 1
 
 
 
-## Lab 15 - Apply rate limiting to the Gateway <a name="Lab-15"></a>
+## Lab 16 - Apply rate limiting to the Gateway <a name="Lab-16"></a>
 
 
 In this step, we're going to apply rate limiting to the Gateway to only allow 3 requests per minute for the users of the `solo.io` organization.
@@ -2003,7 +2009,7 @@ kubectl --context ${CLUSTER1} -n httpbin delete ratelimitserversettings rate-lim
 
 
 
-## Lab 16 - Use the Web Application Firewall filter <a name="Lab-16"></a>
+## Lab 17 - Use the Web Application Firewall filter <a name="Lab-17"></a>
 
 
 A web application firewall (WAF) protects web applications by monitoring, filtering, and blocking potentially harmful traffic and attacks that can overtake or exploit them.
