@@ -131,7 +131,7 @@ helm --kube-context kind-kind${number} install cilium cilium/cilium --version 1.
    --set prometheus.enabled=true \
    --set operator.prometheus.enabled=true \
    --set hubble.enabled=true \
-   --set hubble.metrics.enabled="{dns:destinationContext=pod;sourceContext=pod,drop:destinationContext=pod;sourceContext=pod,tcp:destinationContext=pod;sourceContext=pod,flow:destinationContext=pod;sourceContext=pod,port-distribution:destinationContext=pod;sourceContext=pod}" \
+   --set hubble.metrics.enabled="{dns:destinationContext=pod|ip;sourceContext=pod|ip,drop:destinationContext=pod|ip;sourceContext=pod|ip,tcp:destinationContext=pod|ip;sourceContext=pod|ip,flow:destinationContext=pod|ip;sourceContext=pod|ip,port-distribution:destinationContext=pod|ip;sourceContext=pod|ip}" \
    --set hubble.relay.enabled=true \
    --set hubble.ui.enabled=true \
    --set kubeProxyReplacement=partial \
