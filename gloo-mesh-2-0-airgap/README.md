@@ -596,9 +596,10 @@ curl https://raw.githubusercontent.com/istio/istio/release-1.13/samples/bookinfo
 Run the following commands to deploy the bookinfo application on `cluster1`:
 
 ```bash
+
+
 kubectl --context ${CLUSTER1} create ns bookinfo-frontends
 kubectl --context ${CLUSTER1} create ns bookinfo-backends
-
 kubectl --context ${CLUSTER1} label namespace bookinfo-frontends istio.io/rev=1-13
 kubectl --context ${CLUSTER1} label namespace bookinfo-backends istio.io/rev=1-13
 # deploy the frontend bookinfo service in the bookinfo-frontends namespace
@@ -709,6 +710,7 @@ mocha ./test.js --timeout 5000 --retries=50 --bail 2> /dev/null || exit 1
 
 
 ## Lab 5 - Deploy the httpbin demo app <a name="Lab-5"></a>
+
 
 We're going to deploy the httpbin application to demonstrate several features of Istio and Gloo Mesh.
 
@@ -837,7 +839,9 @@ const helpers = require('./tests/chai-exec');
 
 describe("Bookinfo app", () => {
   let cluster = process.env.CLUSTER1
+  
   let deployments = ["not-in-mesh", "in-mesh"];
+  
   deployments.forEach(deploy => {
     it(deploy + ' pods are ready in ' + cluster, () => helpers.checkDeployment({ context: cluster, namespace: "httpbin", k8sObj: deploy }));
   });
@@ -910,6 +914,7 @@ helm upgrade --install gloo-mesh-enterprise gloo-mesh-enterprise/gloo-mesh-enter
 --set glooMeshRedis.image.registry=${registry} \
 --set glooMeshUi.serviceType=LoadBalancer \
 --set mgmtClusterName=${MGMT} \
+--set global.cluster=${MGMT} \
 --set licenseKey=${GLOO_MESH_LICENSE_KEY}
 kubectl --context ${MGMT} -n gloo-mesh rollout status deploy/gloo-mesh-mgmt-server
 ```
@@ -1097,6 +1102,7 @@ spec:
             istio: eastwestgateway
 EOF
 ```
+
 
 
 
@@ -2713,6 +2719,7 @@ EOF
 The Httpbin team has decided to export the following to the `gateway` workspace (using a reference):
 - the `in-mesh` Kubernetes service
 - all the resources (RouteTables, VirtualDestination, ...) that have the label `expose` set to `true`
+
 
 
 
