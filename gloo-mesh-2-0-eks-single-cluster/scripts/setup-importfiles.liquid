@@ -1,0 +1,42 @@
+{% comment %} render data files in /root/data/ directory {% endcomment %}
+{%- assign a = step.vars.dir | split: "/" %}
+{%- assign files = a[0] | append: '/data' | listFiles %}
+{%- for file in files %}
+{% assign filePath = a[0] | append: '/data/' | append: file %}
+# A: Rendered from {{ filePath }}
+mkdir -p /root/data
+cat <<'FILEEND' >/root/data/{{ file }}
+{{ filePath | raw_include }}
+FILEEND
+{% endfor %}
+
+{% comment %} render data files in /root/data/steps/<step-name>/ directory {% endcomment %}
+{%- assign files = step.vars.dir | append: '/data' | listFiles %}
+{%- for file in files %}
+{% assign filePath = step.vars.dir | append: '/data/' | append: file %}
+# B: Rendered from {{ filePath }}
+mkdir -p /root/data/steps/{{ step.name }}/
+cat <<'FILEEND' >/root/data/steps/{{ step.name }}/{{ file }}
+{{ filePath | raw_include }}
+FILEEND
+{% endfor %}
+
+{% comment %} render custom files in /root/files/ directory {% endcomment %}
+{%- assign files = step.vars.dir | append: '/partials' | listFiles %}
+{%- for file in files %}
+{% assign filePath = step.vars.dir | append: '/partials/' | append: file %}
+# C: Rendered from {{ filePath }}
+cat <<FILEEND >/root/files/{{ file | remove: ".liquid" }}
+{{ filePath | render: step: step, vars: vars }}
+FILEEND
+{% endfor %}
+
+{% comment %} variables that are loaded AFTER each step {% endcomment %}
+{%- assign files = step.vars.dir | append: '/partials' | listFiles: includeFilter: 'variables.liquid', excludeFilter: '' %}
+{%- for file in files %}
+{% assign filePath = step.vars.dir | append: '/partials/' | append: file %}
+# D: Rendered from {{ filePath }}
+cat <<FILEEND >>/root/.env
+{{ filePath | render: step: step, vars: vars | replace: "$", "\\$" }}
+FILEEND
+{% endfor %}

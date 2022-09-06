@@ -1,0 +1,68 @@
+{%- assign istio = 'istiod' %}
+{%- if vars.revision %}
+{%- assign a = vars.istio_version | split: "." %}
+{%- assign istio = 'istiod-' | append: a[0] | append: '-' | append: a[1] %}
+{%- endif %}
+const helpers = require('./tests/chai-exec');
+
+const chaiExec = require("@jsdevtools/chai-exec");
+const helpersHttp = require('./tests/chai-http');
+const chai = require("chai");
+const expect = chai.expect;
+
+afterEach(function (done) {
+  if (this.currentTest.currentRetry() > 0) {
+    process.stdout.write(".");
+    setTimeout(done, 1000);
+  } else {
+    done();
+  }
+});
+
+describe("Checking Istio installation", function() {
+  let deployments = ["{{ istio }}"];
+  deployments.forEach(deploy => {
+    it(deploy + ' pods are ready in cluster ' + process.env.CLUSTER1, () => helpers.checkDeployment({ context: process.env.CLUSTER1, namespace: "istio-system", k8sObj: deploy }));
+  });
+  deployments = [{% if vars.single_cluster != true %}"istio-eastwestgateway", {% endif %}"istio-ingressgateway"];
+  deployments.forEach(deploy => {
+    it(deploy + ' pods are ready in cluster ' + process.env.CLUSTER1, () => helpers.checkDeployment({ context: process.env.CLUSTER1, namespace: "istio-gateways", k8sObj: deploy }));
+  });
+
+{%- if vars.single_cluster != true %}
+  deployments = ["{{ istio }}"];
+  deployments.forEach(deploy => {
+    it(deploy + ' pods are ready in cluster ' + process.env.CLUSTER2, () => helpers.checkDeployment({ context: process.env.CLUSTER2, namespace: "istio-system", k8sObj: deploy }));
+  });
+  deployments = ["istio-eastwestgateway", "istio-ingressgateway"];
+  deployments.forEach(deploy => {
+    it(deploy + ' pods are ready in cluster ' + process.env.CLUSTER2, () => helpers.checkDeployment({ context: process.env.CLUSTER2, namespace: "istio-gateways", k8sObj: deploy }));
+  });
+{%- endif %}
+
+{%- if vars.node_port != true and vars.cluster1.node_port != true %}
+  it("Ingress gateways have an ip attached in cluster " + process.env.CLUSTER1, () => {
+    let cli = chaiExec("kubectl --context " + process.env.CLUSTER1 + " -n istio-gateways get svc istio-ingressgateway -o jsonpath='{.status.loadBalancer}'");
+    expect(cli).to.exit.with.code(0);
+    expect(cli).output.to.contain('"ingress"');
+    {% if vars.single_cluster != true %}
+    cli = chaiExec("kubectl --context " + process.env.CLUSTER1 + " -n istio-gateways get svc istio-eastwestgateway -o jsonpath='{.status.loadBalancer}'");
+    expect(cli).to.exit.with.code(0);
+    expect(cli).output.to.contain('"ingress"');
+    {% endif %}
+  });
+{%- endif %}
+
+{%- if vars.single_cluster != true %}
+{%- if vars.node_port != true and vars.cluster2.node_port != true %}
+  it("Ingress gateways have an ip attached in cluster " + process.env.CLUSTER2, () => {
+    let cli = chaiExec("kubectl --context " + process.env.CLUSTER2 + " -n istio-gateways get svc istio-eastwestgateway  -o jsonpath='{.status.loadBalancer}'");
+    expect(cli).to.exit.with.code(0);
+    expect(cli).output.to.contain('"ingress"');
+    cli = chaiExec("kubectl --context " + process.env.CLUSTER2 + " -n istio-gateways get svc istio-ingressgateway  -o jsonpath='{.status.loadBalancer}'");
+    expect(cli).to.exit.with.code(0);
+    expect(cli).output.to.contain('"ingress"');
+  });
+{%- endif %}
+{%- endif %}
+});
