@@ -124,7 +124,6 @@ resource "aws_iam_openid_connect_provider" "oidc" {
 module "lb-controller" {
   count        = var.aws_lb_controller > 0 ? var.num_instances : 0
   source       = "Young-ook/eks/aws//modules/lb-controller"
-  cluster_name = module.eks[count.index].cluster_name
   oidc = {
     arn = aws_iam_openid_connect_provider.oidc[count.index].arn
     url = replace(aws_iam_openid_connect_provider.oidc[count.index].url, "https://", "")

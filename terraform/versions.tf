@@ -2,19 +2,19 @@ terraform {
   required_providers {
     aws = {
       source  = "hashicorp/aws"
-      version = "~> 3.50.0"
+      version = "~> 4.32.0"
     }
-    gcp = {
+    google = {
       source  = "hashicorp/google"
-      version = "~> 3.76.0"
+      version = "~> 4.38.0"
     }
     null-provider = {
       source  = "hashicorp/null"
-      version = "~> 3.1.0"
+      version = "~> 3.1.1"
     }
     local-provider = {
       source  = "hashicorp/local"
-      version = "~> 2.1.0"
+      version = "~> 2.2.3"
     }
   }
   required_version = ">= 0.15"
