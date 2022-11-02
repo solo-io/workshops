@@ -77,12 +77,16 @@ featureGates:
   EphemeralContainers: true
 nodes:
 - role: control-plane
+  image: kindest/node:v1.24.7@sha256:577c630ce8e509131eab1aea12c022190978dd2f745aac5eb1fe65c0807eb315
   extraPortMappings:
   - containerPort: 6443
     hostPort: 70${twodigits}
 - role: worker
+  image: kindest/node:v1.24.7@sha256:577c630ce8e509131eab1aea12c022190978dd2f745aac5eb1fe65c0807eb315
 - role: worker
+  image: kindest/node:v1.24.7@sha256:577c630ce8e509131eab1aea12c022190978dd2f745aac5eb1fe65c0807eb315
 - role: worker
+  image: kindest/node:v1.24.7@sha256:577c630ce8e509131eab1aea12c022190978dd2f745aac5eb1fe65c0807eb315
 networking:
   serviceSubnet: "10.$(echo $twodigits | sed 's/^0*//').0.0/16"
   podSubnet: "10.1${twodigits}.0.0/16"
