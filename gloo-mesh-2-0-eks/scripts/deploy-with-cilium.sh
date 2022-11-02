@@ -76,6 +76,7 @@ featureGates:
   EphemeralContainers: true
 nodes:
 - role: control-plane
+  image: kindest/node:v1.24.7@sha256:577c630ce8e509131eab1aea12c022190978dd2f745aac5eb1fe65c0807eb315
   extraPortMappings:
   - containerPort: 6443
     hostPort: 70${twodigits}
