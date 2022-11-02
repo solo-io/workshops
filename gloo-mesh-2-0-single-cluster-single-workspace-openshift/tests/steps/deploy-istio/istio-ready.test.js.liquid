@@ -1,7 +1,6 @@
 {%- assign istio = 'istiod' %}
 {%- if vars.revision %}
-{%- assign a = vars.istio_version | split: "." %}
-{%- assign istio = 'istiod-' | append: a[0] | append: '-' | append: a[1] %}
+{%- assign istio = 'istiod-' | append: vars.revision_tag %}
 {%- endif %}
 const helpers = require('./tests/chai-exec');
 

@@ -37,6 +37,23 @@ global = {
     cli.should.exit.with.code(0);
     readyReplicas.should.equal(replicas);
   },
+  checkDeploymentsWithLabels: async ({ context, namespace, labels, instances }) => {
+    let command = "kubectl --context " + context + " -n " + namespace + " get deploy -l " + labels + " -o jsonpath='{.items}'";
+    let cli = chaiExec(command);
+    cli.stderr.should.be.empty;
+    let deployments = JSON.parse(cli.stdout.slice(1,-1));
+    expect(deployments).to.have.lengthOf(instances);
+    deployments.forEach((deployment) => {
+      let readyReplicas = deployment.status.readyReplicas || 0;
+      let replicas = deployment.status.replicas;
+      if (readyReplicas != replicas) {
+        console.log("    ----> " + deployment.metadata.name + " in " + context + " not ready...");
+        utils.sleep(1000);
+      }
+      cli.should.exit.with.code(0);
+      readyReplicas.should.equal(replicas);
+    });
+  },
   checkStatefulSet: async ({ context, namespace, k8sObj }) => {
     let command = "kubectl --context " + context + " -n " + namespace + " get sts " + k8sObj + " -o jsonpath='{.status}'";
     let cli = chaiExec(command);
