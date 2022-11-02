@@ -76,16 +76,18 @@ featureGates:
   EphemeralContainers: true
 nodes:
 - role: control-plane
+  image: kindest/node:v1.24.7@sha256:577c630ce8e509131eab1aea12c022190978dd2f745aac5eb1fe65c0807eb315
   extraPortMappings:
   - containerPort: 6443
     hostPort: 70${twodigits}
 - role: worker
+  image: kindest/node:v1.24.7@sha256:577c630ce8e509131eab1aea12c022190978dd2f745aac5eb1fe65c0807eb315
 - role: worker
-- role: worker
+  image: kindest/node:v1.24.7@sha256:577c630ce8e509131eab1aea12c022190978dd2f745aac5eb1fe65c0807eb315
 networking:
+  disableDefaultCNI: true
   serviceSubnet: "10.$(echo $twodigits | sed 's/^0*//').0.0/16"
   podSubnet: "10.1${twodigits}.0.0/16"
-  disableDefaultCNI: true
 kubeadmConfigPatches:
 - |
   apiVersion: kubeadm.k8s.io/v1beta2
@@ -131,7 +133,7 @@ helm --kube-context kind-kind${number} install cilium cilium/cilium --version 1.
    --set prometheus.enabled=true \
    --set operator.prometheus.enabled=true \
    --set hubble.enabled=true \
-   --set hubble.metrics.enabled="{dns:destinationContext=pod;sourceContext=pod,drop:destinationContext=pod;sourceContext=pod,tcp:destinationContext=pod;sourceContext=pod,flow:destinationContext=pod;sourceContext=pod,port-distribution:destinationContext=pod;sourceContext=pod}" \
+   --set hubble.metrics.enabled="{dns:destinationContext=pod|ip;sourceContext=pod|ip,drop:destinationContext=pod|ip;sourceContext=pod|ip,tcp:destinationContext=pod|ip;sourceContext=pod|ip,flow:destinationContext=pod|ip;sourceContext=pod|ip,port-distribution:destinationContext=pod|ip;sourceContext=pod|ip}" \
    --set hubble.relay.enabled=true \
    --set hubble.ui.enabled=true \
    --set kubeProxyReplacement=partial \

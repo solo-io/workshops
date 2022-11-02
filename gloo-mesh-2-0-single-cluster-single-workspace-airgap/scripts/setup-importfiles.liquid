@@ -21,6 +21,10 @@ cat <<'FILEEND' >/root/data/steps/{{ step.name }}/{{ file }}
 FILEEND
 {% endfor %}
 
+if [ -d "/root/data" ]; then
+  find /root/data -name "*.sh" -exec chmod +x {} \; 
+fi
+
 {% comment %} render custom files in /root/files/ directory {% endcomment %}
 {%- assign files = step.vars.dir | append: '/partials' | listFiles %}
 {%- for file in files %}
