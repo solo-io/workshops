@@ -1,0 +1,14 @@
+const chaiExec = require("@jsdevtools/chai-exec");
+var chai = require('chai');
+var expect = chai.expect;
+chai.use(chaiExec);
+
+describe("istioctl version", () => {
+  it("version should be correct", () => {
+    let cli = chaiExec('./istio-{{ vars.istio_version }}/bin/istioctl version --remote=false');
+
+    expect(cli).to.exit.with.code(0);
+    expect(cli).stdout.to.contain("{{ vars.istio_version }}");
+    expect(cli).stderr.to.be.empty;
+  });
+});
