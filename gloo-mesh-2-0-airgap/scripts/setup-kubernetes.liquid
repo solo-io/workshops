@@ -26,11 +26,17 @@ pushd /tmp
 popd
 
 touch /root/.env
+while ! stat /etc/rancher/k3s/k3s.yaml; do sleep 1; done
+
 {%- if vars.single_cluster != true %}
-echo "export KUBECONFIG=/root/.kube/mgmt:/root/.kube/cluster1:/root/.kube/cluster2" >> /root/.env
+export LOCAL_IP=$(dig +short $(hostname).$INSTRUQT_PARTICIPANT_ID.svc.cluster.local | grep -v '\.$')
+cat /etc/rancher/k3s/k3s.yaml | sed 's/127.0.0.1/$LOCAL_IP/' | sed 's/default/$HOSTNAME/' | HOSTNAME=$(hostname) envsubst > /tmp/$HOSTNAME
+while ! rsync -e "ssh -o StrictHostKeyChecking=no" -v /tmp/$HOSTNAME {{ config.spec.virtualmachines[0].name }}.$INSTRUQT_PARTICIPANT_ID.svc.cluster.local:/root/.kube/$HOSTNAME; do sleep 1; done
 
 source /root/.env
+export KUBECONFIG=/root/.kube/mgmt:/root/.kube/cluster1:/root/.kube/cluster2
 
+if [ "$HOSTNAME" = "{{ config.spec.virtualmachines[0].name }}" ]; then
 for i in {1..100}; do
   kubectl --context=cluster1 label node cluster1 ingress-ready=true topology.kubernetes.io/region=us-west topology.kubernetes.io/zone=us-west-1 && break
   sleep 5
@@ -40,6 +46,7 @@ for i in {1..100}; do
   kubectl --context=cluster2 label node cluster2 ingress-ready=true topology.kubernetes.io/region=us-west topology.kubernetes.io/zone=us-west-2 && break
   sleep 5
 done
+fi
 {% endif %}
 
 {% if vars.saveLocalVariables %}
