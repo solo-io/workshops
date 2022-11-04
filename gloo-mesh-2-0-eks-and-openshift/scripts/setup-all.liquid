@@ -24,12 +24,4 @@ options single-request
 options timeout:1
 EOF
 
-while ! stat /etc/rancher/k3s/k3s.yaml; do sleep 1; done
-
-{%- if vars.single_cluster != true %}
-export LOCAL_IP=$(dig +short $(hostname).$INSTRUQT_PARTICIPANT_ID.svc.cluster.local | grep -v '\.$')
-cat /etc/rancher/k3s/k3s.yaml | sed 's/127.0.0.1/$LOCAL_IP/' | sed 's/default/$HOSTNAME/' | HOSTNAME=$(hostname) envsubst > /tmp/$HOSTNAME
-while ! rsync -e "ssh -o StrictHostKeyChecking=no" -v /tmp/$HOSTNAME {{ config.spec.virtualmachines[0].name }}.$INSTRUQT_PARTICIPANT_ID.svc.cluster.local:/root/.kube/$HOSTNAME; do sleep 1; done
-{%- endif %}
-
 touch /root/.env
