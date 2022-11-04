@@ -122,27 +122,6 @@ networkkind=$(echo ${ipkind} | awk -F. '{ print $1"."$2 }')
 
 kubectl config set-cluster kind-kind${number} --server=https://${myip}:70${twodigits} --insecure-skip-tls-verify=true
 
-helm repo add cilium https://helm.cilium.io/
-
-helm --kube-context kind-kind${number} install cilium cilium/cilium --version 1.11.4 \
-   --namespace kube-system \
-   --set prometheus.enabled=true \
-   --set operator.prometheus.enabled=true \
-   --set hubble.enabled=true \
-   --set hubble.metrics.enabled="{dns,drop,tcp,flow,icmp,http}" \
-   --set hubble.relay.enabled=true \
-   --set hubble.ui.enabled=true \
-   --set kubeProxyReplacement=partial \
-   --set hostServices.enabled=false \
-   --set externalIPs.enabled=true \
-   --set nodePort.enabled=true \
-   --set hostPort.enabled=true \
-   --set bpf.masquerade=false \
-   --set image.pullPolicy=IfNotPresent \
-   --set ipam.mode=kubernetes
-
-kubectl --context kind-kind${number} -n kube-system scale deploy/cilium-operator --replicas=1
-
 kubectl --context=kind-kind${number} apply -f https://raw.githubusercontent.com/metallb/metallb/v0.9.3/manifests/namespace.yaml
 kubectl --context=kind-kind${number} apply -f https://raw.githubusercontent.com/metallb/metallb/v0.9.3/manifests/metallb.yaml
 kubectl --context=kind-kind${number} create secret generic -n metallb-system memberlist --from-literal=secretkey="$(openssl rand -base64 128)"
