@@ -1,0 +1,19 @@
+const helpers = require('./tests/chai-exec');
+
+describe("Bookinfo app", () => {
+  let cluster = process.env.CLUSTER1
+  it('test', () => helpers.checkKubernetesObject({ context: cluster, namespace: "bookinfo", kind: "Deployment", k8sObj: "productpage-v1", yaml: `
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: productpage
+    version: v1
+  name: productpage-v1
+  namespace: bookinfo
+spec:
+  progressDeadlineSeconds: 600
+status:
+  availableReplicas: 1
+  ` }));
+});
