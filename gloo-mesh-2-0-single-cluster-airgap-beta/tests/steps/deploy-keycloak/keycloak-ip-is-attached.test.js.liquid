@@ -1,0 +1,21 @@
+const chaiExec = require("@jsdevtools/chai-exec");
+var chai = require('chai');
+var expect = chai.expect;
+chai.use(chaiExec);
+
+afterEach(function (done) {
+  if (this.currentTest.currentRetry() > 0) {
+    process.stdout.write(".");
+    setTimeout(done, 1000);
+  } else {
+    done();
+  }
+});
+
+describe("Retrieve enterprise-networking ip", () => {
+  it("A value for load-balancing has been assigned", () => {
+    let cli = chaiExec("kubectl --context " + process.env.MGMT + " -n keycloak get svc keycloak -o jsonpath='{.status.loadBalancer}'");
+    expect(cli).to.exit.with.code(0);
+    expect(cli).output.to.contain('"ingress"');
+  });
+});
