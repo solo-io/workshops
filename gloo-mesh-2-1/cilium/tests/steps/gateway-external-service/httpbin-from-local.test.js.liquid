@@ -1,0 +1,5 @@
+const helpersHttp = require('./tests/chai-http');
+
+describe("httpbin from the local service", () => {
+  it('Checking text \'X-B3-Parentspanid\' in ' + process.env.CLUSTER1, () => helpersHttp.checkBody({ host: 'https://' + process.env.ENDPOINT_HTTPS_GW_CLUSTER1, path: '/get', body: 'X-B3-Parentspanid', match: true }));
+})
