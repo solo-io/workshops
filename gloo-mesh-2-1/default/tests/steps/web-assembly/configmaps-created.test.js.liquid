@@ -1,0 +1,8 @@
+const helpers = require('./tests/chai-exec');
+
+describe("ConfigMaps are created", () => {
+    const clusters = [process.env.CLUSTER1, process.env.CLUSTER2];
+    clusters.forEach(cluster => {
+        it('Configmap is present in ' + cluster, () => helpers.k8sObjectIsPresent({ context: cluster, namespace: "bookinfo-backends", k8sType: "configmap", k8sObj: "gloo-mesh-custom-envoy-bootstrap" }));
+    });
+});
