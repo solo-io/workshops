@@ -73,7 +73,8 @@ You can find more information about Gloo Mesh in the official documentation:
 
 ## Lab 1 - Deploy Openshift cluster <a name="Lab-1"></a>
 
-Clone this repository and go to the `gloo-mesh-2-0-single-cluster-single-workspace-openshift-beta` directory.
+
+Clone this repository and go to the directory where this `README.md` file is.
 
 Set the context environment variables:
 
