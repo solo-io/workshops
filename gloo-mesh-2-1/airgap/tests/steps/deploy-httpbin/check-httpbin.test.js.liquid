@@ -1,6 +1,6 @@
 const helpers = require('./tests/chai-exec');
 
-describe("Bookinfo app", () => {
+describe("httpbin app", () => {
   let cluster = process.env.CLUSTER1
   {% if vars.istio_version %}
   let deployments = ["not-in-mesh", "in-mesh"];
