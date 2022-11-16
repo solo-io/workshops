@@ -1176,7 +1176,7 @@ not-in-mesh-5c64bb49cd-m9kwm   1/1     Running   0          11s
 cat <<'EOF' > ./test.js
 const helpers = require('./tests/chai-exec');
 
-describe("Bookinfo app", () => {
+describe("httpbin app", () => {
   let cluster = process.env.CLUSTER1
   
   let deployments = ["not-in-mesh", "in-mesh"];
