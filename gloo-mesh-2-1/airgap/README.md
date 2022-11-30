@@ -1246,7 +1246,7 @@ not-in-mesh-5c64bb49cd-m9kwm   1/1     Running   0          11s
 cat <<'EOF' > ./test.js
 const helpers = require('./tests/chai-exec');
 
-describe("Bookinfo app", () => {
+describe("httpbin app", () => {
   let cluster = process.env.CLUSTER1
   
   let deployments = ["not-in-mesh", "in-mesh"];
@@ -2339,39 +2339,31 @@ echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
 -->
 
-Now, if you try to access it from the first cluster, you can see that you now get the `v3` version of the `reviews` service (red stars).
+If you try to access it from the first cluster, you can see that the traffic is still sent to the local `productpage` service.
 
-This diagram shows the flow of the request (through both Istio ingress gateways):
+If the local `productpage` service becomes unavailable, it will automatically failover to the `productpage` service running on the remote cluster.
 
-![Gloo Mesh Virtual Destination Both](images/steps/virtual-destination/gloo-mesh-virtual-destination-both.svg)
+If you take a look at the Istio `DestinationRule` corresponding to the `VirtualDestination`, you'll see the following `trafficPolicy` configuration:
 
-It's nice, but you generally want to direct the traffic to the local services if they're available and failover to the remote cluster only when they're not.
-
-In order to do that we need to create 2 other policies.
-
-The first one is a `FailoverPolicy`:
-
-```bash
-kubectl --context ${CLUSTER1} apply -f - <<EOF
-apiVersion: resilience.policy.gloo.solo.io/v2
-kind: FailoverPolicy
-metadata:
-  name: failover
-  namespace: bookinfo-frontends
-spec:
-  applyToDestinations:
-  - kind: VIRTUAL_DESTINATION
-    selector:
-      labels:
-        failover: "true"
-  config:
-    localityMappings: []
-EOF
+```
+    trafficPolicy:
+      loadBalancer:
+        localityLbSetting:
+          enabled: true
+          failoverPriority:
+          - topology.istio.io/network
+          - topology.kubernetes.io/region
+          - topology.kubernetes.io/zone
+          - topology.istio.io/subzone
+      outlierDetection:
+        baseEjectionTime: 900s
+        consecutive5xxErrors: 7
+        interval: 300s
 ```
 
-It will update the Istio `DestinationRule` to enable failover.
+You can change these default settings by attaching a `FailoverPolicy` or/and an `OutlierDetectionPolicy` to the `VirtualDestination`.
 
-The second one is an `OutlierDetectionPolicy`:
+In our case, we'll create an `OutlierDetectionPolicy` to failover faster:
 
 ```bash
 kubectl --context ${CLUSTER1} apply -f - <<EOF
@@ -2394,9 +2386,7 @@ spec:
 EOF
 ```
 
-It will update the Istio `DestinationRule` to specify how/when we want the failover to happen.
-
-As you can see, both policies will be applied to `VirtualDestination` objects that have the label `failover` set to `"true"`.
+As you can see, the policy will be applied to `VirtualDestination` objects that have the label `failover` set to `"true"`.
 
 So we need to update the `VirtualDestination`:
 
@@ -2437,8 +2427,6 @@ tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
 -->
-
-Now, if you try to access the productpage from the first cluster, you should only get the `v1` and `v2` versions (the local ones).
 
 This updated diagram shows the flow of the requests using the local services:
 
