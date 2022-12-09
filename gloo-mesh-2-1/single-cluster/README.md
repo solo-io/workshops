@@ -2144,7 +2144,7 @@ spec:
               namespace: httpbin
             issuerUrl: "${KEYCLOAK_URL}/realms/master/"
             logoutPath: /logout
-            afterLogoutUrl: "${KEYCLOAK_URL}/realms/master/protocol/openid-connect/logout?redirect_uri=https://${ENDPOINT_HTTPS_GW_CLUSTER1}/get"
+            afterLogoutUrl: "${KEYCLOAK_URL}/realms/master/protocol/openid-connect/logout?redirecturi=https://${ENDPOINT_HTTPS_GW_CLUSTER1}/get"
             session:
               failOnFetchFailure: true
               redis:
