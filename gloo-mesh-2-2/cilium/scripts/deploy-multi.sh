@@ -116,7 +116,7 @@ containerdConfigPatches:
   [plugins."io.containerd.grpc.v1.cri".registry.mirrors."us-docker.pkg.dev"]
     endpoint = ["http://us-docker:${cache_port}"]
   [plugins."io.containerd.grpc.v1.cri".registry.mirrors."us-central1-docker.pkg.dev"]
-    endpoint = ["http://us-central1-docker.pkg.dev:${cache_port}"]
+    endpoint = ["http://us-central1-docker:${cache_port}"]
   [plugins."io.containerd.grpc.v1.cri".registry.mirrors."quay.io"]
     endpoint = ["http://quay:${cache_port}"]
   [plugins."io.containerd.grpc.v1.cri".registry.mirrors."gcr.io"]
