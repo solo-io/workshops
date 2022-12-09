@@ -1759,6 +1759,8 @@ spec:
       - uri:
           exact: /get
       - uri:
+          exact: /logout
+      - uri:
           prefix: /callback
       forwardTo:
         destinations:
