@@ -36,8 +36,7 @@ source ./scripts/assert.sh
 * [Lab 20 - Apply rate limiting to the Gateway](#Lab-20)
 * [Lab 21 - Use the Web Application Firewall filter](#Lab-21)
 * [Lab 22 - Upgrade Istio using Gloo Mesh Lifecycle Manager](#Lab-22)
-* [Lab 23 - Extend Envoy with WebAssembly](#Lab-23)
-* [Lab 24 - VM integration](#Lab-24)
+* [Lab 23 - VM integration](#Lab-23)
 
 
 
@@ -415,6 +414,7 @@ First of all, let's create Kubernetes services for the gateways:
 
 ```bash
 kubectl --context ${CLUSTER1} create ns istio-gateways
+kubectl --context ${CLUSTER1} label namespace istio-gateways istio.io/rev=1-14
 
 cat << EOF | kubectl --context ${CLUSTER1} apply -f -
 apiVersion: v1
@@ -487,6 +487,7 @@ spec:
 EOF
 
 kubectl --context ${CLUSTER2} create ns istio-gateways
+kubectl --context ${CLUSTER2} label namespace istio-gateways istio.io/rev=1-14
 
 cat << EOF | kubectl --context ${CLUSTER2} apply -f -
 apiVersion: v1
@@ -904,7 +905,7 @@ You can find more information about this application [here](https://istio.io/lat
 Run the following commands to deploy the bookinfo application on `cluster1`:
 
 ```bash
-curl https://raw.githubusercontent.com/istio/istio/release-1.13/samples/bookinfo/platform/kube/bookinfo.yaml > bookinfo.yaml
+curl https://raw.githubusercontent.com/istio/istio/release-1.16/samples/bookinfo/platform/kube/bookinfo.yaml > bookinfo.yaml
 
 kubectl --context ${CLUSTER1} create ns bookinfo-frontends
 kubectl --context ${CLUSTER1} create ns bookinfo-backends
@@ -2995,7 +2996,7 @@ Let's set the environment variables we need:
 export ENDPOINT_KEYCLOAK=$(kubectl --context ${MGMT} get nodes -o jsonpath='{.items[0].status.addresses[?(.type=="InternalIP")].address}'):$(kubectl --context ${MGMT} -n keycloak get svc keycloak -o jsonpath='{.spec.ports[?(@.port==8080)].nodePort}')
 export HOST_KEYCLOAK=$(echo ${ENDPOINT_KEYCLOAK} | cut -d: -f1)
 export PORT_KEYCLOAK=$(echo ${ENDPOINT_KEYCLOAK} | cut -d: -f2)
-export KEYCLOAK_URL=http://${ENDPOINT_KEYCLOAK}/auth
+export KEYCLOAK_URL=http://${ENDPOINT_KEYCLOAK}
 ```
 
 <!--bash
@@ -3042,7 +3043,7 @@ read -r id secret <<<$(curl -X POST -d "{ \"clientId\": \"${KEYCLOAK_CLIENT}\" }
 export KEYCLOAK_SECRET=${secret}
 
 # Add allowed redirect URIs
-curl -H "Authorization: Bearer ${KEYCLOAK_TOKEN}" -X PUT -H "Content-Type: application/json" -d '{"serviceAccountsEnabled": true, "directAccessGrantsEnabled": true, "authorizationServicesEnabled": true, "redirectUris": ["'https://${ENDPOINT_HTTPS_GW_CLUSTER1}'/callback"]}' $KEYCLOAK_URL/admin/realms/master/clients/${id}
+curl -H "Authorization: Bearer ${KEYCLOAK_TOKEN}" -X PUT -H "Content-Type: application/json" -d '{"serviceAccountsEnabled": true, "directAccessGrantsEnabled": true, "authorizationServicesEnabled": true, "redirectUris": ["'https://${ENDPOINT_HTTPS_GW_CLUSTER1}'/callback","'https://${ENDPOINT_HTTPS_GW_CLUSTER1}'/get"]}' $KEYCLOAK_URL/admin/realms/master/clients/${id}
 
 # Add the group attribute in the JWT token returned by Keycloak
 curl -H "Authorization: Bearer ${KEYCLOAK_TOKEN}" -X POST -H "Content-Type: application/json" -d '{"name": "group", "protocol": "openid-connect", "protocolMapper": "oidc-usermodel-attribute-mapper", "config": {"claim.name": "group", "jsonType.label": "String", "user.attribute": "group", "id.token.claim": "true", "access.token.claim": "true"}}' $KEYCLOAK_URL/admin/realms/master/clients/${id}/protocol-mappers/models
@@ -3262,6 +3263,7 @@ spec:
               namespace: httpbin
             issuerUrl: "${KEYCLOAK_URL}/realms/master/"
             logoutPath: /logout
+            afterLogoutUrl: "${KEYCLOAK_URL}/realms/master/protocol/openid-connect/logout?redirect_uri=https://${ENDPOINT_HTTPS_GW_CLUSTER1}/get"
             session:
               failOnFetchFailure: true
               redis:
@@ -4651,260 +4653,7 @@ mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${te
 
 
 
-## Lab 23 - Extend Envoy with WebAssembly <a name="Lab-23"></a>
-
-WebAssembly (WASM) is the future of cloud-native infrastructure extensibility.
-
-WASM is a safe, secure, and dynamic way of extending infrastructure with the language of your choice. WASM tool chains compile your code from any of the supported languages into a type-safe, binary format that can be loaded dynamically in a WASM sandbox/VM.
-
-The Envoy Wasm filter is already available, but it's not ready for production use yet. More info available in [this Blog Post](https://www.solo.io/blog/the-state-of-webassembly-in-envoy-proxy/).
-
-Both Gloo Edge and Istio are based on Envoy, so they can take advantage of WebAssembly.
-
-One of the projects for working with WASM and Envoy proxy is [WebAssembly Hub](https://webassemblyhub.io/).
-
-WebAssembly Hub is a meeting place for the community to share and consume WebAssembly Envoy extensions. You can easily search and find extensions that meet the functionality you want to add and give them a try.
-
-The main advantage of building a Wasm Envoy filter is that you can manipulate requests (and responses) exactly the way it makes sense for your specific use cases.
-
-Perhaps you want to gather some metrics only when the request contain specific headers, or you want to enrich the request by getting information from another API, it doesn't matter, you're now free to do exactly what you want.
-
-The first decision you need to take is to decide which SDK (so which language) you want to use. SDKs are currently available for C++, AssemblyScript, RUST and TinyGo.
-
-Not all the languages can be compiled to WebAssembly and don't expect that you'll be able to import any external packages (like the Amazon SDK).
-
-So, you need to determine what you want your filter to do, look at what kind of packages you'll need (Regexp, ...) and check which one of the language you already know is matching your requirements.
-
-### Prepare
-
-Our Envoy instances will fetch their wasm filters from an envoy cluster that must be defined in the static bootstrap config. We must therefore perform a one-time operation to add the wasm-agent as a cluster in the Envoy bootstrap:
-
-```bash
-cat <<EOF | kubectl apply --context ${CLUSTER1} -f -
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: gloo-mesh-custom-envoy-bootstrap
-  namespace: bookinfo-backends
-data:
-  custom_bootstrap.json: |
-    {
-      "static_resources": {
-        "clusters": [{
-          "name": "gloo_mesh_agent_cluster",
-          "type" : "STRICT_DNS",
-          "connect_timeout": "1s",
-          "lb_policy": "ROUND_ROBIN",
-          "load_assignment": {
-            "cluster_name": "gloo_mesh_agent_cluster",
-            "endpoints": [{
-              "lb_endpoints": [{
-                "endpoint": {
-                  "address":{
-                    "socket_address": {
-                      "address": "gloo-mesh-agent.gloo-mesh.svc.cluster.local",
-                      "port_value": 9977
-                    }
-                  }
-                }
-              }]
-            }]
-          },
-          "circuit_breakers": {
-            "thresholds": [
-              {
-                "priority": "DEFAULT",
-                "max_connections": 100000,
-                "max_pending_requests": 100000,
-                "max_requests": 100000
-              },
-              {
-                "priority": "HIGH",
-                "max_connections": 100000,
-                "max_pending_requests": 100000,
-                "max_requests": 100000
-              }
-            ]
-          },
-          "upstream_connection_options": {
-            "tcp_keepalive": {
-              "keepalive_time": 300
-            }
-          },
-          "max_requests_per_connection": 1,
-          "http2_protocol_options": { }
-        }]
-      }
-    }
-
-EOF
-
-cat <<EOF | kubectl apply --context ${CLUSTER2} -f -
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: gloo-mesh-custom-envoy-bootstrap
-  namespace: bookinfo-backends
-data:
-  custom_bootstrap.json: |
-    {
-      "static_resources": {
-        "clusters": [{
-          "name": "gloo_mesh_agent_cluster",
-          "type" : "STRICT_DNS",
-          "connect_timeout": "1s",
-          "lb_policy": "ROUND_ROBIN",
-          "load_assignment": {
-            "cluster_name": "gloo_mesh_agent_cluster",
-            "endpoints": [{
-              "lb_endpoints": [{
-                "endpoint": {
-                  "address":{
-                    "socket_address": {
-                      "address": "gloo-mesh-agent.gloo-mesh.svc.cluster.local",
-                      "port_value": 9977
-                    }
-                  }
-                }
-              }]
-            }]
-          },
-          "circuit_breakers": {
-            "thresholds": [
-              {
-                "priority": "DEFAULT",
-                "max_connections": 100000,
-                "max_pending_requests": 100000,
-                "max_requests": 100000
-              },
-              {
-                "priority": "HIGH",
-                "max_connections": 100000,
-                "max_pending_requests": 100000,
-                "max_requests": 100000
-              }
-            ]
-          },
-          "upstream_connection_options": {
-            "tcp_keepalive": {
-              "keepalive_time": 300
-            }
-          },
-          "max_requests_per_connection": 1,
-          "http2_protocol_options": { }
-        }]
-      }
-    }
-
-EOF
-```
-
-<!--bash
-cat <<'EOF' > ./test.js
-const helpers = require('./tests/chai-exec');
-
-describe("ConfigMaps are created", () => {
-    const clusters = [process.env.CLUSTER1, process.env.CLUSTER2];
-    clusters.forEach(cluster => {
-        it('Configmap is present in ' + cluster, () => helpers.k8sObjectIsPresent({ context: cluster, namespace: "bookinfo-backends", k8sType: "configmap", k8sObj: "gloo-mesh-custom-envoy-bootstrap" }));
-    });
-});
-
-EOF
-echo "executing test dist/gloo-mesh-2-0-node-ports-beta/build/templates/steps/apps/bookinfo/web-assembly/tests/configmaps-created.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
--->
-
-### Deploy
-
-It's now time to deploy a Wasm filter on Istio !
-
-Gloo Mesh Enteprise has a `WasmDeploymentPolicy` CRD (Custom Resource Definition) for that purpose.
-
-To deploy your Wasm filter on all the Pods corresponding to the version v1 of the reviews service and running in the bookinfo-backends namespace of the cluster1 cluster, use the following commands:
-
-```bash
-kubectl --context ${CLUSTER1} -n bookinfo-backends patch deployment reviews-v1 --patch='{"spec":{"template": {"metadata": {"annotations": {"sidecar.istio.io/bootstrapOverride": "gloo-mesh-custom-envoy-bootstrap"}}}}}' --type=merge
-
-cat << EOF | kubectl --context ${CLUSTER1} apply -f-
-apiVersion: extensions.policy.gloo.solo.io/v2
-kind: WasmDeploymentPolicy
-metadata:
-  name: reviews-wasm
-  namespace: bookinfo-backends
-spec:
-  applyToWorkloads:
-  - selector:
-      cluster: cluster1
-      labels:
-        app: reviews
-        version: v1
-      namespace: bookinfo-backends
-  config:
-    filters:
-    - filterContext: SIDECAR_INBOUND
-      wasmImageSource:
-        wasmImageTag: webassemblyhub.io/djannot/myfilter:0.2
-      staticFilterConfig:
-        '@type': type.googleapis.com/google.protobuf.StringValue
-        value: "Gloo Mesh Enterprise"
-
-EOF
-```
-
-Let's send a request from the `productpage` service to the `reviews` service:
-
-```
-kubectl --context $CLUSTER1 -n bookinfo-frontends exec -it $(kubectl --context $CLUSTER1 -n bookinfo-frontends get pods -l app=productpage -o jsonpath='{.items[0].metadata.name}') -- python -c "import requests; r = requests.get('http://reviews.bookinfo-backends:9080/reviews/0'); print(r.headers)"
-```
-
-<!--bash
-cat <<'EOF' > ./test.js
-const helpers = require('./tests/chai-exec');
-
-describe("Get WasmDeployment log traces", () => {
-  const podName = helpers.getOutputForCommand({ command: "kubectl -n bookinfo-frontends get pods -l app=productpage -o jsonpath='{.items[0].metadata.name}' --context " + process.env.CLUSTER1 }).replaceAll("'", "");
-  const command = "kubectl -n bookinfo-frontends exec " + podName + " --context " + process.env.CLUSTER1 + " -- python -c \"import requests; r = requests.get('http://reviews.bookinfo-backends:9080/reviews/0'); print(r.headers)\"";
-  const searches = ["hello", "Gloo Mesh Enterprise"];
-  searches.forEach(search => {
-    it('Got the new header "' + search + '"', () => helpers.genericCommand({ command: command, responseContains: search }));
-  });
-});
-
-EOF
-echo "executing test dist/gloo-mesh-2-0-node-ports-beta/build/templates/steps/apps/bookinfo/web-assembly/tests/check-logs.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
--->
-
-You should get either:
-
-```
-{'x-powered-by': 'Servlet/3.1', 'content-type': 'application/json', 'date': 'Tue, 15 Dec 2020 08:23:24 GMT', 'content-language': 'en-US', 'content-length': '295', 'x-envoy-upstream-service-time': '10', 'server': 'envoy'}
-```
-
-or:
-
-```
-{'x-powered-by': 'Servlet/3.1', 'content-type': 'application/json', 'date': 'Tue, 15 Dec 2020 08:23:25 GMT', 'content-language': 'en-US', 'content-length': '295', 'x-envoy-upstream-service-time': '17', 'hello': 'Gloo Mesh Enterprise Beta', 'server': 'envoy'}
-```
-
-We have deployed the Istio Bookinfo application with the versions `v1` and `v2` of the `reviews` service, so the new header is added half of the time.
-
-Delete the WasmDeploymentPolicy:
-
-```bash
-kubectl --context ${CLUSTER1} -n bookinfo-backends delete wasmdeploymentpolicy reviews-wasm
-```
-
-
-
-
-
-## Lab 24 - VM integration <a name="Lab-24"></a>
+## Lab 23 - VM integration <a name="Lab-23"></a>
 
 Let's see how we can configure a VM to be part of the Mesh.
 
@@ -5320,7 +5069,7 @@ SELECT host, user FROM mysql.user;
 EOF
 
 docker exec vm1 /etc/init.d/mysql restart
-docker exec vm1 curl -LO https://raw.githubusercontent.com/istio/istio/release-1.10/samples/bookinfo/src/mysql/mysqldb-init.sql
+docker exec vm1 curl -LO https://raw.githubusercontent.com/istio/istio/release-1.16/samples/bookinfo/src/mysql/mysqldb-init.sql
 docker exec vm1 sh -c 'mysql -u root -ppassword < mysqldb-init.sql'
 ```
 
