@@ -165,14 +165,14 @@ cat <<EOF > images.txt
 us-docker.pkg.dev/gloo-mesh/istio-workshops/operator:1.14.5-solo
 us-docker.pkg.dev/gloo-mesh/istio-workshops/pilot:1.14.5-solo
 us-docker.pkg.dev/gloo-mesh/istio-workshops/proxyv2:1.14.5-solo
-quay.io/keycloak/keycloak:12.0.4
+quay.io/keycloak/keycloak:20.0.1
 docker.io/kennethreitz/httpbin
 us-docker.pkg.dev/gloo-mesh/istio-workshops/operator:1.15.3-solo
 us-docker.pkg.dev/gloo-mesh/istio-workshops/pilot:1.15.3-solo
 us-docker.pkg.dev/gloo-mesh/istio-workshops/proxyv2:1.15.3-solo
 EOF
 
-for url in https://raw.githubusercontent.com/istio/istio/release-1.13/samples/bookinfo/platform/kube/bookinfo.yaml https://raw.githubusercontent.com/istio/istio/release-1.13/samples/bookinfo/networking/bookinfo-gateway.yaml
+for url in https://raw.githubusercontent.com/istio/istio/release-1.16/samples/bookinfo/platform/kube/bookinfo.yaml https://raw.githubusercontent.com/istio/istio/release-1.16/samples/bookinfo/networking/bookinfo-gateway.yaml
 do
   for image in $(curl -sfL ${url}|grep image:|awk '{print $2}')
   do
@@ -180,14 +180,14 @@ do
   done
 done
 
-wget https://storage.googleapis.com/gloo-mesh-enterprise/gloo-mesh-agent/gloo-mesh-agent-2.1.0.tgz
-tar zxvf gloo-mesh-agent-2.1.0.tgz
+wget https://storage.googleapis.com/gloo-mesh-enterprise/gloo-mesh-agent/gloo-mesh-agent-2.1.2.tgz
+tar zxvf gloo-mesh-agent-2.1.2.tgz
 find gloo-mesh-agent -name "values.yaml" | while read file; do
   cat $file | yq eval -j | jq -r '.. | .image? | select(. != null) | (if .hub then .hub + "/" + .repository + ":" + .tag else (if .registry then (if .registry == "docker.io" then "docker.io/library" else .registry end) + "/" else "" end) + .repository + ":" + (.tag | tostring) end)'
 done | sort -u >> images.txt
 
-wget https://storage.googleapis.com/gloo-mesh-enterprise/gloo-mesh-enterprise/gloo-mesh-enterprise-2.1.0.tgz
-tar zxvf gloo-mesh-enterprise-2.1.0.tgz
+wget https://storage.googleapis.com/gloo-mesh-enterprise/gloo-mesh-enterprise/gloo-mesh-enterprise-2.1.2.tgz
+tar zxvf gloo-mesh-enterprise-2.1.2.tgz
 find gloo-mesh-enterprise -name "values.yaml" | while read file; do
   cat $file | yq eval -j | jq -r '.. | .image? | select(. != null) | (if .hub then .hub + "/" + .repository + ":" + .tag else (if .registry then (if .registry == "docker.io" then "docker.io/library" else .registry end) + "/" else "" end) + .repository + ":" + (.tag | tostring) end)'
 done | sort -u >> images.txt
@@ -215,7 +215,7 @@ done
 First of all, let's install the `meshctl` CLI:
 
 ```bash
-export GLOO_MESH_VERSION=v2.1.0
+export GLOO_MESH_VERSION=v2.1.2
 curl -sL https://run.solo.io/meshctl/install | sh -
 export PATH=$HOME/.gloo-mesh/bin:$PATH
 ```
@@ -260,7 +260,7 @@ helm repo update
 kubectl --context ${MGMT} create ns gloo-mesh 
 helm upgrade --install gloo-mesh-enterprise gloo-mesh-enterprise/gloo-mesh-enterprise \
 --namespace gloo-mesh --kube-context ${MGMT} \
---version=2.1.0 \
+--version=2.1.2 \
 --set glooMeshMgmtServer.ports.healthcheck=8091 \
 --set glooMeshMgmtServer.image.registry=${registry}/gloo-mesh \
 --set prometheus.configmapReload.prometheus.image.repository=${registry}/jimmidyson/configmap-reload \
@@ -380,7 +380,7 @@ helm upgrade --install gloo-mesh-agent gloo-mesh-agent/gloo-mesh-agent \
   --set ext-auth-service.enabled=false \
   --set cluster=cluster1 \
 --set glooMeshAgent.image.registry=${registry}/gloo-mesh \
-  --version 2.1.0
+  --version 2.1.2
 ```
 
 Note that the registration can also be performed using `meshctl cluster register`.
@@ -416,7 +416,7 @@ helm upgrade --install gloo-mesh-agent gloo-mesh-agent/gloo-mesh-agent \
   --set ext-auth-service.enabled=false \
   --set cluster=cluster2 \
 --set glooMeshAgent.image.registry=${registry}/gloo-mesh \
-  --version 2.1.0
+  --version 2.1.2
 ```
 
 You can check the cluster(s) have been registered correctly using the following commands:
@@ -487,6 +487,7 @@ First of all, let's create Kubernetes services for the gateways:
 
 ```bash
 kubectl --context ${CLUSTER1} create ns istio-gateways
+kubectl --context ${CLUSTER1} label namespace istio-gateways istio.io/rev=1-14
 
 cat << EOF | kubectl --context ${CLUSTER1} apply -f -
 apiVersion: v1
@@ -559,6 +560,7 @@ spec:
 EOF
 
 kubectl --context ${CLUSTER2} create ns istio-gateways
+kubectl --context ${CLUSTER2} label namespace istio-gateways istio.io/rev=1-14
 
 cat << EOF | kubectl --context ${CLUSTER2} apply -f -
 apiVersion: v1
@@ -997,7 +999,7 @@ We're going to deploy the bookinfo application to demonstrate several features o
 You can find more information about this application [here](https://istio.io/latest/docs/examples/bookinfo/).
 Download the bookinfo yaml and update the registry:
 ```bash
-curl https://raw.githubusercontent.com/istio/istio/release-1.13/samples/bookinfo/platform/kube/bookinfo.yaml | sed "s/image: docker.io/image: ${registry}/g" > bookinfo.yaml
+curl https://raw.githubusercontent.com/istio/istio/release-1.16/samples/bookinfo/platform/kube/bookinfo.yaml | sed "s/image: docker.io/image: ${registry}/g" > bookinfo.yaml
 ```
 
 Run the following commands to deploy the bookinfo application on `cluster1`:
@@ -1289,7 +1291,7 @@ helm upgrade --install gloo-mesh-agent-addons gloo-mesh-agent/gloo-mesh-agent \
 --set ext-auth-service.extAuth.image.registry=${registry}/gloo-mesh \
 --set rate-limiter.rateLimiter.image.registry=${registry}/gloo-mesh \
 --set rate-limiter.redis.image.registry=${registry} \
-  --version 2.1.0
+  --version 2.1.2
 
 helm upgrade --install gloo-mesh-agent-addons gloo-mesh-agent/gloo-mesh-agent \
   --namespace gloo-mesh-addons \
@@ -1300,7 +1302,7 @@ helm upgrade --install gloo-mesh-agent-addons gloo-mesh-agent/gloo-mesh-agent \
 --set ext-auth-service.extAuth.image.registry=${registry}/gloo-mesh \
 --set rate-limiter.rateLimiter.image.registry=${registry}/gloo-mesh \
 --set rate-limiter.redis.image.registry=${registry} \
-  --version 2.1.0
+  --version 2.1.2
 ```
 
 This is how to environment looks like now:
@@ -2547,7 +2549,6 @@ And also delete the different objects we've created:
 
 ```bash
 kubectl --context ${CLUSTER1} -n bookinfo-frontends delete virtualdestination productpage
-kubectl --context ${CLUSTER1} -n bookinfo-frontends delete failoverpolicy failover
 kubectl --context ${CLUSTER1} -n bookinfo-frontends delete outlierdetectionpolicy outlier-detection
 ```
 
@@ -3100,7 +3101,7 @@ Let's set the environment variables we need:
 export ENDPOINT_KEYCLOAK=$(kubectl --context ${MGMT} -n keycloak get service keycloak -o jsonpath='{.status.loadBalancer.ingress[0].*}'):8080
 export HOST_KEYCLOAK=$(echo ${ENDPOINT_KEYCLOAK} | cut -d: -f1)
 export PORT_KEYCLOAK=$(echo ${ENDPOINT_KEYCLOAK} | cut -d: -f2)
-export KEYCLOAK_URL=http://${ENDPOINT_KEYCLOAK}/auth
+export KEYCLOAK_URL=http://${ENDPOINT_KEYCLOAK}
 ```
 
 <!--bash
@@ -3147,7 +3148,7 @@ read -r id secret <<<$(curl -X POST -d "{ \"clientId\": \"${KEYCLOAK_CLIENT}\" }
 export KEYCLOAK_SECRET=${secret}
 
 # Add allowed redirect URIs
-curl -H "Authorization: Bearer ${KEYCLOAK_TOKEN}" -X PUT -H "Content-Type: application/json" -d '{"serviceAccountsEnabled": true, "directAccessGrantsEnabled": true, "authorizationServicesEnabled": true, "redirectUris": ["'https://${ENDPOINT_HTTPS_GW_CLUSTER1}'/callback"]}' $KEYCLOAK_URL/admin/realms/master/clients/${id}
+curl -H "Authorization: Bearer ${KEYCLOAK_TOKEN}" -X PUT -H "Content-Type: application/json" -d '{"serviceAccountsEnabled": true, "directAccessGrantsEnabled": true, "authorizationServicesEnabled": true, "redirectUris": ["'https://${ENDPOINT_HTTPS_GW_CLUSTER1}'/callback","'https://${ENDPOINT_HTTPS_GW_CLUSTER1}'/get"]}' $KEYCLOAK_URL/admin/realms/master/clients/${id}
 
 # Add the group attribute in the JWT token returned by Keycloak
 curl -H "Authorization: Bearer ${KEYCLOAK_TOKEN}" -X POST -H "Content-Type: application/json" -d '{"name": "group", "protocol": "openid-connect", "protocolMapper": "oidc-usermodel-attribute-mapper", "config": {"claim.name": "group", "jsonType.label": "String", "user.attribute": "group", "id.token.claim": "true", "access.token.claim": "true"}}' $KEYCLOAK_URL/admin/realms/master/clients/${id}/protocol-mappers/models
@@ -3271,6 +3272,8 @@ spec:
       - uri:
           exact: /get
       - uri:
+          exact: /logout
+      - uri:
           prefix: /callback
       forwardTo:
         destinations:
@@ -3367,6 +3370,7 @@ spec:
               namespace: httpbin
             issuerUrl: "${KEYCLOAK_URL}/realms/master/"
             logoutPath: /logout
+            afterLogoutUrl: "${KEYCLOAK_URL}/realms/master/protocol/openid-connect/logout?redirecturi=https://${ENDPOINT_HTTPS_GW_CLUSTER1}/get"
             session:
               failOnFetchFailure: true
               redis:

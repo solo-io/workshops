@@ -133,14 +133,14 @@ cat <<EOF > images.txt
 us-docker.pkg.dev/gloo-mesh/istio-workshops/operator:1.14.5-solo
 us-docker.pkg.dev/gloo-mesh/istio-workshops/pilot:1.14.5-solo
 us-docker.pkg.dev/gloo-mesh/istio-workshops/proxyv2:1.14.5-solo
-quay.io/keycloak/keycloak:12.0.4
+quay.io/keycloak/keycloak:20.0.1
 docker.io/kennethreitz/httpbin
 us-docker.pkg.dev/gloo-mesh/istio-workshops/operator:1.15.3-solo
 us-docker.pkg.dev/gloo-mesh/istio-workshops/pilot:1.15.3-solo
 us-docker.pkg.dev/gloo-mesh/istio-workshops/proxyv2:1.15.3-solo
 EOF
 
-for url in https://raw.githubusercontent.com/istio/istio/release-1.13/samples/bookinfo/platform/kube/bookinfo.yaml https://raw.githubusercontent.com/istio/istio/release-1.13/samples/bookinfo/networking/bookinfo-gateway.yaml
+for url in https://raw.githubusercontent.com/istio/istio/release-1.16/samples/bookinfo/platform/kube/bookinfo.yaml https://raw.githubusercontent.com/istio/istio/release-1.16/samples/bookinfo/networking/bookinfo-gateway.yaml
 do
   for image in $(curl -sfL ${url}|grep image:|awk '{print $2}')
   do
@@ -364,6 +364,7 @@ First of all, let's create Kubernetes services for the gateways:
 
 ```bash
 kubectl --context ${CLUSTER1} create ns istio-gateways
+kubectl --context ${CLUSTER1} label namespace istio-gateways istio.io/rev=1-14
 
 cat << EOF | kubectl --context ${CLUSTER1} apply -f -
 apiVersion: v1
@@ -648,7 +649,7 @@ We're going to deploy the bookinfo application to demonstrate several features o
 You can find more information about this application [here](https://istio.io/latest/docs/examples/bookinfo/).
 Download the bookinfo yaml and update the registry:
 ```bash
-curl https://raw.githubusercontent.com/istio/istio/release-1.13/samples/bookinfo/platform/kube/bookinfo.yaml | sed "s/image: docker.io/image: ${registry}/g" > bookinfo.yaml
+curl https://raw.githubusercontent.com/istio/istio/release-1.16/samples/bookinfo/platform/kube/bookinfo.yaml | sed "s/image: docker.io/image: ${registry}/g" > bookinfo.yaml
 ```
 
 Run the following commands to deploy the bookinfo application on `cluster1`:
@@ -1587,7 +1588,7 @@ Let's set the environment variables we need:
 export ENDPOINT_KEYCLOAK=$(kubectl --context ${MGMT} -n keycloak get service keycloak -o jsonpath='{.status.loadBalancer.ingress[0].*}'):8080
 export HOST_KEYCLOAK=$(echo ${ENDPOINT_KEYCLOAK} | cut -d: -f1)
 export PORT_KEYCLOAK=$(echo ${ENDPOINT_KEYCLOAK} | cut -d: -f2)
-export KEYCLOAK_URL=http://${ENDPOINT_KEYCLOAK}/auth
+export KEYCLOAK_URL=http://${ENDPOINT_KEYCLOAK}
 ```
 
 <!--bash
@@ -1634,7 +1635,7 @@ read -r id secret <<<$(curl -X POST -d "{ \"clientId\": \"${KEYCLOAK_CLIENT}\" }
 export KEYCLOAK_SECRET=${secret}
 
 # Add allowed redirect URIs
-curl -H "Authorization: Bearer ${KEYCLOAK_TOKEN}" -X PUT -H "Content-Type: application/json" -d '{"serviceAccountsEnabled": true, "directAccessGrantsEnabled": true, "authorizationServicesEnabled": true, "redirectUris": ["'https://${ENDPOINT_HTTPS_GW_CLUSTER1}'/callback"]}' $KEYCLOAK_URL/admin/realms/master/clients/${id}
+curl -H "Authorization: Bearer ${KEYCLOAK_TOKEN}" -X PUT -H "Content-Type: application/json" -d '{"serviceAccountsEnabled": true, "directAccessGrantsEnabled": true, "authorizationServicesEnabled": true, "redirectUris": ["'https://${ENDPOINT_HTTPS_GW_CLUSTER1}'/callback","'https://${ENDPOINT_HTTPS_GW_CLUSTER1}'/get"]}' $KEYCLOAK_URL/admin/realms/master/clients/${id}
 
 # Add the group attribute in the JWT token returned by Keycloak
 curl -H "Authorization: Bearer ${KEYCLOAK_TOKEN}" -X POST -H "Content-Type: application/json" -d '{"name": "group", "protocol": "openid-connect", "protocolMapper": "oidc-usermodel-attribute-mapper", "config": {"claim.name": "group", "jsonType.label": "String", "user.attribute": "group", "id.token.claim": "true", "access.token.claim": "true"}}' $KEYCLOAK_URL/admin/realms/master/clients/${id}/protocol-mappers/models
@@ -1758,6 +1759,8 @@ spec:
       - uri:
           exact: /get
       - uri:
+          exact: /logout
+      - uri:
           prefix: /callback
       forwardTo:
         destinations:
@@ -1854,6 +1857,7 @@ spec:
               namespace: httpbin
             issuerUrl: "${KEYCLOAK_URL}/realms/master/"
             logoutPath: /logout
+            afterLogoutUrl: "${KEYCLOAK_URL}/realms/master/protocol/openid-connect/logout?redirecturi=https://${ENDPOINT_HTTPS_GW_CLUSTER1}/get"
             session:
               failOnFetchFailure: true
               redis:
