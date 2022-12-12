@@ -14,28 +14,28 @@ source ./scripts/assert.sh
 
 ## Table of Contents
 * [Introduction](#introduction)
-* [Lab 1 - Deploy the Kubernetes clusters manually](#Lab-1)
-* [Lab 2 - Deploy and register Gloo Mesh](#Lab-2)
-* [Lab 3 - Deploy Istio using Gloo Mesh Lifecycle Manager](#Lab-3)
-* [Lab 4 - Deploy the Bookinfo demo app](#Lab-4)
-* [Lab 5 - Deploy the httpbin demo app](#Lab-5)
-* [Lab 6 - Deploy Gloo Mesh Addons](#Lab-6)
-* [Lab 7 - Create the gateways workspace](#Lab-7)
-* [Lab 8 - Create the bookinfo workspace](#Lab-8)
-* [Lab 9 - Expose the productpage through a gateway](#Lab-9)
-* [Lab 10 - Traffic policies](#Lab-10)
-* [Lab 11 - Create the Root Trust Policy](#Lab-11)
-* [Lab 12 - Leverage Virtual Destinations](#Lab-12)
-* [Lab 13 - Zero trust](#Lab-13)
-* [Lab 14 - Create the httpbin workspace](#Lab-14)
-* [Lab 15 - Expose an external service](#Lab-15)
-* [Lab 16 - Deploy Keycloak](#Lab-16)
-* [Lab 17 - Securing the access with OAuth](#Lab-17)
-* [Lab 18 - Use the JWT filter to create headers from claims](#Lab-18)
-* [Lab 19 - Use the transformation filter to manipulate headers](#Lab-19)
-* [Lab 20 - Apply rate limiting to the Gateway](#Lab-20)
-* [Lab 21 - Use the Web Application Firewall filter](#Lab-21)
-* [Lab 22 - Upgrade Istio using Gloo Mesh Lifecycle Manager](#Lab-22)
+* [Lab 1 - Deploy the Kubernetes clusters manually](#lab-1---deploy-the-kubernetes-clusters-manually-)
+* [Lab 2 - Deploy and register Gloo Mesh](#lab-2---deploy-and-register-gloo-mesh-)
+* [Lab 3 - Deploy Istio using Gloo Mesh Lifecycle Manager](#lab-3---deploy-istio-using-gloo-mesh-lifecycle-manager-)
+* [Lab 4 - Deploy the Bookinfo demo app](#lab-4---deploy-the-bookinfo-demo-app-)
+* [Lab 5 - Deploy the httpbin demo app](#lab-5---deploy-the-httpbin-demo-app-)
+* [Lab 6 - Deploy Gloo Mesh Addons](#lab-6---deploy-gloo-mesh-addons-)
+* [Lab 7 - Create the gateways workspace](#lab-7---create-the-gateways-workspace-)
+* [Lab 8 - Create the bookinfo workspace](#lab-8---create-the-bookinfo-workspace-)
+* [Lab 9 - Expose the productpage through a gateway](#lab-9---expose-the-productpage-through-a-gateway-)
+* [Lab 10 - Traffic policies](#lab-10---traffic-policies-)
+* [Lab 11 - Create the Root Trust Policy](#lab-11---create-the-root-trust-policy-)
+* [Lab 12 - Leverage Virtual Destinations](#lab-12---leverage-virtual-destinations-)
+* [Lab 13 - Zero trust](#lab-13---zero-trust-)
+* [Lab 14 - Create the httpbin workspace](#lab-14---create-the-httpbin-workspace-)
+* [Lab 15 - Expose an external service](#lab-15---expose-an-external-service-)
+* [Lab 16 - Deploy Keycloak](#lab-16---deploy-keycloak-)
+* [Lab 17 - Securing the access with OAuth](#lab-17---securing-the-access-with-oauth-)
+* [Lab 18 - Use the JWT filter to create headers from claims](#lab-18---use-the-jwt-filter-to-create-headers-from-claims-)
+* [Lab 19 - Use the transformation filter to manipulate headers](#lab-19---use-the-transformation-filter-to-manipulate-headers-)
+* [Lab 20 - Apply rate limiting to the Gateway](#lab-20---apply-rate-limiting-to-the-gateway-)
+* [Lab 21 - Use the Web Application Firewall filter](#lab-21---use-the-web-application-firewall-filter-)
+* [Lab 22 - Upgrade Istio using Gloo Mesh Lifecycle Manager](#lab-22---upgrade-istio-using-gloo-mesh-lifecycle-manager-)
 
 
 
@@ -76,7 +76,7 @@ You can find more information about Gloo Mesh in the official documentation:
 
 
 
-## Lab 1 - Deploy the Kubernetes clusters manually <a name="Lab-1"></a>
+## Lab 1 - Deploy the Kubernetes clusters manually <a name="lab-1---deploy-the-kubernetes-clusters-manually-"></a>
 
 
 Clone this repository and go to the directory where this `README.md` file is.
@@ -112,7 +112,7 @@ kubectl config use-context ${MGMT}
 
 
 
-## Lab 2 - Deploy and register Gloo Mesh <a name="Lab-2"></a>
+## Lab 2 - Deploy and register Gloo Mesh <a name="lab-2---deploy-and-register-gloo-mesh-"></a>
 
 First of all, let's install the `meshctl` CLI:
 
@@ -378,7 +378,7 @@ EOF
 
 
 
-## Lab 3 - Deploy Istio using Gloo Mesh Lifecycle Manager <a name="Lab-3"></a>
+## Lab 3 - Deploy Istio using Gloo Mesh Lifecycle Manager <a name="lab-3---deploy-istio-using-gloo-mesh-lifecycle-manager-"></a>
 
 We are going to deploy Istio using Gloo Mesh Lifecycle Manager.
 Note that the few Openshift specific commands used in this lab are documented on the Istio website [here](https://istio.io/latest/docs/setup/platform-setup/openshift/).
@@ -962,7 +962,7 @@ mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${te
 
 
 
-## Lab 4 - Deploy the Bookinfo demo app <a name="Lab-4"></a>
+## Lab 4 - Deploy the Bookinfo demo app <a name="lab-4---deploy-the-bookinfo-demo-app-"></a>
 
 We're going to deploy the bookinfo application to demonstrate several features of Gloo Mesh.
 
@@ -1118,7 +1118,7 @@ mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${te
 
 
 
-## Lab 5 - Deploy the httpbin demo app <a name="Lab-5"></a>
+## Lab 5 - Deploy the httpbin demo app <a name="lab-5---deploy-the-httpbin-demo-app-"></a>
 
 We're going to deploy the httpbin application to demonstrate several features of Gloo Mesh.
 
@@ -1278,7 +1278,7 @@ mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${te
 
 
 
-## Lab 6 - Deploy Gloo Mesh Addons <a name="Lab-6"></a>
+## Lab 6 - Deploy Gloo Mesh Addons <a name="lab-6---deploy-gloo-mesh-addons-"></a>
 
 To use the Gloo Mesh Gateway advanced features (external authentication, rate limiting, ...), you need to install the Gloo Mesh addons.
 
@@ -1336,7 +1336,7 @@ This is how to environment looks like now:
 
 
 
-## Lab 7 - Create the gateways workspace <a name="Lab-7"></a>
+## Lab 7 - Create the gateways workspace <a name="lab-7---create-the-gateways-workspace-"></a>
 
 We're going to create a workspace for the team in charge of the Gateways.
 
@@ -1398,7 +1398,7 @@ The Gateway team has decided to import the following from the workspaces that ha
 
 
 
-## Lab 8 - Create the bookinfo workspace <a name="Lab-8"></a>
+## Lab 8 - Create the bookinfo workspace <a name="lab-8---create-the-bookinfo-workspace-"></a>
 
 We're going to create a workspace for the team in charge of the Bookinfo application.
 
@@ -1470,7 +1470,7 @@ This is how the environment looks like with the workspaces:
 
 
 
-## Lab 9 - Expose the productpage through a gateway <a name="Lab-9"></a>
+## Lab 9 - Expose the productpage through a gateway <a name="lab-9---expose-the-productpage-through-a-gateway-"></a>
 
 In this step, we're going to expose the `productpage` service through the Ingress Gateway using Gloo Mesh.
 
@@ -1688,7 +1688,7 @@ This diagram shows the flow of the request (through the Istio Ingress Gateway):
 
 
 
-## Lab 10 - Traffic policies <a name="Lab-10"></a>
+## Lab 10 - Traffic policies <a name="lab-10---traffic-policies-"></a>
 
 We're going to use Gloo Mesh policies to inject faults and configure timeouts.
 
@@ -1866,7 +1866,7 @@ kubectl --context ${CLUSTER1} -n bookinfo-backends delete routetable reviews
 
 
 
-## Lab 11 - Create the Root Trust Policy <a name="Lab-11"></a>
+## Lab 11 - Create the Root Trust Policy <a name="lab-11---create-the-root-trust-policy-"></a>
 
 To allow secured (end-to-end mTLS) cross cluster communications, we need to make sure the certificates issued by the Istio control plance on each cluster are signed with intermediate certificates which have a common root CA.
 
@@ -2253,7 +2253,7 @@ kubectl --context ${CLUSTER1} -n httpbin rollout restart deploy/in-mesh
 
 
 
-## Lab 12 - Leverage Virtual Destinations <a name="Lab-12"></a>
+## Lab 12 - Leverage Virtual Destinations <a name="lab-12---leverage-virtual-destinations-"></a>
 
 Right now, we've only exposed the `productpage` service on the first cluster.
 
@@ -2595,7 +2595,7 @@ kubectl --context ${CLUSTER1} -n bookinfo-frontends delete outlierdetectionpolic
 
 
 
-## Lab 13 - Zero trust <a name="Lab-13"></a>
+## Lab 13 - Zero trust <a name="lab-13---zero-trust-"></a>
 
 In the previous step, we federated multiple meshes and established a shared root CA for a shared identity domain.
 
@@ -2804,7 +2804,7 @@ EOF
 
 
 
-## Lab 14 - Create the httpbin workspace <a name="Lab-14"></a>
+## Lab 14 - Create the httpbin workspace <a name="lab-14---create-the-httpbin-workspace-"></a>
 
 We're going to create a workspace for the team in charge of the httpbin application.
 
@@ -2864,7 +2864,7 @@ The Httpbin team has decided to export the following to the `gateway` workspace 
 
 
 
-## Lab 15 - Expose an external service <a name="Lab-15"></a>
+## Lab 15 - Expose an external service <a name="lab-15---expose-an-external-service-"></a>
 
 In this step, we're going to expose an external service through a Gateway using Gloo Mesh and show how we can then migrate this service to the Mesh.
 
@@ -3059,7 +3059,7 @@ This diagram shows the flow of the requests :
 
 
 
-## Lab 16 - Deploy Keycloak <a name="Lab-16"></a>
+## Lab 16 - Deploy Keycloak <a name="lab-16---deploy-keycloak-"></a>
 
 In many use cases, you need to restrict the access to your applications to authenticated users. 
 
@@ -3210,7 +3210,7 @@ KEYCLOAK_TOKEN=$(curl -d "client_id=admin-cli" -d "username=admin" -d "password=
 
 
 
-## Lab 17 - Securing the access with OAuth <a name="Lab-17"></a>
+## Lab 17 - Securing the access with OAuth <a name="lab-17---securing-the-access-with-oauth-"></a>
 
 
 In this step, we're going to secure the access to the `httpbin` service using OAuth.
@@ -3439,7 +3439,7 @@ This diagram shows the flow of the request (with the Istio ingress gateway lever
 
 
 
-## Lab 18 - Use the JWT filter to create headers from claims <a name="Lab-18"></a>
+## Lab 18 - Use the JWT filter to create headers from claims <a name="lab-18---use-the-jwt-filter-to-create-headers-from-claims-"></a>
 
 
 In this step, we're going to validate the JWT token and to create a new header from the `email` claim.
@@ -3559,7 +3559,7 @@ mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${te
 
 
 
-## Lab 19 - Use the transformation filter to manipulate headers <a name="Lab-19"></a>
+## Lab 19 - Use the transformation filter to manipulate headers <a name="lab-19---use-the-transformation-filter-to-manipulate-headers-"></a>
 
 
 In this step, we're going to use a regular expression to extract a part of an existing header and to create a new one:
@@ -3626,7 +3626,7 @@ mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${te
 
 
 
-## Lab 20 - Apply rate limiting to the Gateway <a name="Lab-20"></a>
+## Lab 20 - Apply rate limiting to the Gateway <a name="lab-20---apply-rate-limiting-to-the-gateway-"></a>
 
 
 In this step, we're going to apply rate limiting to the Gateway to only allow 3 requests per minute for the users of the `solo.io` organization.
@@ -3835,7 +3835,7 @@ kubectl --context ${CLUSTER1} -n httpbin delete ratelimitserversettings rate-lim
 
 
 
-## Lab 21 - Use the Web Application Firewall filter <a name="Lab-21"></a>
+## Lab 21 - Use the Web Application Firewall filter <a name="lab-21---use-the-web-application-firewall-filter-"></a>
 
 
 A web application firewall (WAF) protects web applications by monitoring, filtering, and blocking potentially harmful traffic and attacks that can overtake or exploit them.
@@ -3981,7 +3981,7 @@ kubectl --context ${CLUSTER1} -n httpbin delete wafpolicies.security.policy.gloo
 
 
 
-## Lab 22 - Upgrade Istio using Gloo Mesh Lifecycle Manager <a name="Lab-22"></a>
+## Lab 22 - Upgrade Istio using Gloo Mesh Lifecycle Manager <a name="lab-22---upgrade-istio-using-gloo-mesh-lifecycle-manager-"></a>
 
 Set the variables corresponding to the old and new revision tags:
 
