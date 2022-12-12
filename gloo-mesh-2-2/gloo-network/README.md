@@ -14,14 +14,14 @@ source ./scripts/assert.sh
 
 ## Table of Contents
 * [Introduction](#introduction)
-* [Lab 1 - Deploy KinD clusters](#lab-1---deploy-kind-clusters-)
-* [Lab 2 - Deploy the Bookinfo demo app](#lab-2---deploy-the-bookinfo-demo-app-)
-* [Lab 3 - Deploy the httpbin demo app](#lab-3---deploy-the-httpbin-demo-app-)
-* [Lab 4 - Deploy and register Gloo Mesh](#lab-4---deploy-and-register-gloo-mesh-)
-* [Lab 5 - Create the bookinfo workspace](#lab-5---create-the-bookinfo-workspace-)
-* [Lab 6 - Create the httpbin workspace](#lab-6---create-the-httpbin-workspace-)
-* [Lab 7 - Observability at Level 4 layer](#lab-7---observability-at-level-4-layer-)
-* [Lab 8 - Zero trust at Level 4 layer](#lab-8---zero-trust-at-level-4-layer-)
+* [Lab 1 - Deploy KinD clusters](#Lab-1)
+* [Lab 2 - Deploy the Bookinfo demo app](#Lab-2)
+* [Lab 3 - Deploy the httpbin demo app](#Lab-3)
+* [Lab 4 - Deploy and register Gloo Mesh](#Lab-4)
+* [Lab 5 - Create the bookinfo workspace](#Lab-5)
+* [Lab 6 - Create the httpbin workspace](#Lab-6)
+* [Lab 7 - Observability at Level 4 layer](#Lab-7)
+* [Lab 8 - Zero trust at Level 4 layer](#Lab-8)
 
 
 
@@ -51,7 +51,7 @@ You can find more information about Gloo Mesh in the official documentation:
 
 
 
-## Lab 1 - Deploy KinD clusters <a name="lab-1---deploy-kind-clusters-"></a>
+## Lab 1 - Deploy KinD clusters <a name="Lab-1"></a>
 
 
 Clone this repository and go to the directory where this `README.md` file is.
@@ -125,7 +125,7 @@ kubectl config use-context ${MGMT}
 
 
 
-## Lab 2 - Deploy the Bookinfo demo app <a name="lab-2---deploy-the-bookinfo-demo-app-"></a>
+## Lab 2 - Deploy the Bookinfo demo app <a name="Lab-2"></a>
 
 We're going to deploy the bookinfo application to demonstrate several features of Gloo Mesh.
 
@@ -242,7 +242,7 @@ mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${te
 
 
 
-## Lab 3 - Deploy the httpbin demo app <a name="lab-3---deploy-the-httpbin-demo-app-"></a>
+## Lab 3 - Deploy the httpbin demo app <a name="Lab-3"></a>
 
 We're going to deploy the httpbin application to demonstrate several features of Gloo Mesh.
 
@@ -335,7 +335,7 @@ mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${te
 
 
 
-## Lab 4 - Deploy and register Gloo Mesh <a name="lab-4---deploy-and-register-gloo-mesh-"></a>
+## Lab 4 - Deploy and register Gloo Mesh <a name="Lab-4"></a>
 
 First of all, let's install the `meshctl` CLI:
 
@@ -577,7 +577,7 @@ mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${te
 
 
 
-## Lab 5 - Create the bookinfo workspace <a name="lab-5---create-the-bookinfo-workspace-"></a>
+## Lab 5 - Create the bookinfo workspace <a name="Lab-5"></a>
 
 We're going to create a workspace for the team in charge of the Bookinfo application.
 
@@ -621,7 +621,7 @@ EOF
 
 
 
-## Lab 6 - Create the httpbin workspace <a name="lab-6---create-the-httpbin-workspace-"></a>
+## Lab 6 - Create the httpbin workspace <a name="Lab-6"></a>
 
 We're going to create a workspace for the team in charge of the httpbin application.
 
@@ -660,7 +660,7 @@ EOF
 
 
 
-## Lab 7 - Observability at Level 4 layer <a name="lab-7---observability-at-level-4-layer-"></a>
+## Lab 7 - Observability at Level 4 layer <a name="Lab-7"></a>
 
 The Gloo Mesh UI is providing a centralized dashboard to allow you to see how everything has been configured.
 
@@ -737,7 +737,7 @@ kubectl --context ${CLUSTER1} -n bookinfo-frontends delete ciliumnetworkpolicy p
 
 
 
-## Lab 8 - Zero trust at Level 4 layer <a name="lab-8---zero-trust-at-level-4-layer-"></a>
+## Lab 8 - Zero trust at Level 4 layer <a name="Lab-8"></a>
 
 All the communications between Pods in the cluster(s) are allowed by default.
 
