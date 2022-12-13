@@ -1,0 +1,27 @@
+const chaiExec = require("@jsdevtools/chai-exec");
+var chai = require('chai');
+var expect = chai.expect;
+chai.use(chaiExec);
+
+describe("Old Istio version should be uninstalled", () => {
+  let cluster = process.env.CLUSTER1
+  let namespaces = ["istio-system", "istio-gateways"];
+  namespaces.forEach(namespace => {
+    it("Pods aren't running anymore in the cluster " + cluster + " in the namespace  " + namespace, () => {
+      let cli = chaiExec('kubectl --context ' + cluster +' -n istio-system get pods -l "istio.io/rev=' + process.env.OLD_REVISION +'" -o json');
+      expect(cli).to.exit.with.code(0);
+      expect(JSON.parse(cli.stdout).items).to.have.lengthOf(0);
+    });
+  });
+{%- if vars.single_cluster != true %}
+  cluster = process.env.CLUSTER2
+  namespaces = ["istio-system", "istio-gateways"];
+  namespaces.forEach(namespace => {
+    it("Pods aren't running anymore in the cluster " + cluster + " in the namespace  " + namespace, () => {
+      let cli = chaiExec('kubectl --context ' + cluster +' -n istio-system get pods -l "istio.io/rev=' + process.env.OLD_REVISION +'" -o json');
+      expect(cli).to.exit.with.code(0);
+      expect(JSON.parse(cli.stdout).items).to.have.lengthOf(0);
+    });
+  });
+{%- endif %}
+});
