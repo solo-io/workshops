@@ -4,7 +4,7 @@
 source /root/.env 2>/dev/null || true
 # Rendered from {{ filename }}
     {%- if filename | isMocha %}
-{{ filename | generateCheckFile: retries: 5, bail: 'yes', vars: vars }}
+{{ filename | generateCheckFile: timeout: 7000, retries: 7, bail: 'yes', vars: vars }}
 retval=$?
 if [ $retval -ne 0 ]; then
   echo "{{ filename }}"
