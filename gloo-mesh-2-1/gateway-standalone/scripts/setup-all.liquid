@@ -24,4 +24,8 @@ options single-request
 options timeout:1
 EOF
 
-touch /root/.env
+cat >>/root/.env <<EOF
+{%- for secret in config.spec.secrets %}
+export {{ secret.name }}={% raw %}${{% endraw %}{{ secret.name }}{% raw %}}{% endraw %}
+{%- endfor %}
+EOF
