@@ -183,7 +183,7 @@ registerMgmtPlane:
     defaultRevision: true
     images:
       hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-      tag: 1.15.3-solo
+      tag: 1.16.0-solo
     controlPlane:
       enabled: true
       overrides: {}
@@ -1450,7 +1450,7 @@ spec:
               namespace: httpbin
             issuerUrl: "${KEYCLOAK_URL}/realms/master/"
             logoutPath: /logout
-            afterLogoutUrl: "${KEYCLOAK_URL}/realms/master/protocol/openid-connect/logout?redirecturi=https://${ENDPOINT_HTTPS_GW_CLUSTER1}/get"
+            afterLogoutUrl: "https://${ENDPOINT_HTTPS_GW_CLUSTER1}/get"
             session:
               failOnFetchFailure: true
               redis:
