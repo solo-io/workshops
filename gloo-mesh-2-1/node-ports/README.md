@@ -412,7 +412,7 @@ First of all, let's create Kubernetes services for the gateways:
 
 ```bash
 kubectl --context ${CLUSTER1} create ns istio-gateways
-kubectl --context ${CLUSTER1} label namespace istio-gateways istio.io/rev=1-16
+kubectl --context ${CLUSTER1} label namespace istio-gateways istio.io/rev=1-15
 
 cat << EOF | kubectl --context ${CLUSTER1} apply -f -
 apiVersion: v1
@@ -421,7 +421,7 @@ metadata:
   labels:
     app: istio-ingressgateway
     istio: ingressgateway
-    revision: 1-16
+    revision: 1-15
   name: istio-ingressgateway
   namespace: istio-gateways
 spec:
@@ -437,7 +437,7 @@ spec:
   selector:
     app: istio-ingressgateway
     istio: ingressgateway
-    revision: 1-16
+    revision: 1-15
   type: LoadBalancer
 
 EOF
@@ -449,7 +449,7 @@ metadata:
   labels:
     app: istio-ingressgateway
     istio: eastwestgateway
-    revision: 1-16
+    revision: 1-15
     topology.istio.io/network: cluster1
   name: istio-eastwestgateway
   namespace: istio-gateways
@@ -478,14 +478,14 @@ spec:
   selector:
     app: istio-ingressgateway
     istio: eastwestgateway
-    revision: 1-16
+    revision: 1-15
     topology.istio.io/network: cluster1
   type: LoadBalancer
 
 EOF
 
 kubectl --context ${CLUSTER2} create ns istio-gateways
-kubectl --context ${CLUSTER2} label namespace istio-gateways istio.io/rev=1-16
+kubectl --context ${CLUSTER2} label namespace istio-gateways istio.io/rev=1-15
 
 cat << EOF | kubectl --context ${CLUSTER2} apply -f -
 apiVersion: v1
@@ -494,7 +494,7 @@ metadata:
   labels:
     app: istio-ingressgateway
     istio: ingressgateway
-    revision: 1-16
+    revision: 1-15
   name: istio-ingressgateway
   namespace: istio-gateways
 spec:
@@ -510,7 +510,7 @@ spec:
   selector:
     app: istio-ingressgateway
     istio: ingressgateway
-    revision: 1-16
+    revision: 1-15
   type: LoadBalancer
 
 EOF
@@ -522,7 +522,7 @@ metadata:
   labels:
     app: istio-ingressgateway
     istio: eastwestgateway
-    revision: 1-16
+    revision: 1-15
     topology.istio.io/network: cluster2
   name: istio-eastwestgateway
   namespace: istio-gateways
@@ -551,7 +551,7 @@ spec:
   selector:
     app: istio-ingressgateway
     istio: eastwestgateway
-    revision: 1-16
+    revision: 1-15
     topology.istio.io/network: cluster2
   type: LoadBalancer
 
@@ -575,11 +575,11 @@ spec:
     - clusters:
       - name: cluster1
         defaultRevision: true
-      revision: 1-16
+      revision: 1-15
       istioOperatorSpec:
         profile: minimal
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.16.0-solo
+        tag: 1.15.4-solo
         namespace: istio-system
         values:
           global:
@@ -620,11 +620,11 @@ spec:
     - clusters:
       - name: cluster1
         activeGateway: false
-      gatewayRevision: 1-16
+      gatewayRevision: 1-15
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.16.0-solo
+        tag: 1.15.4-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -647,11 +647,11 @@ spec:
     - clusters:
       - name: cluster1
         activeGateway: false
-      gatewayRevision: 1-16
+      gatewayRevision: 1-15
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.16.0-solo
+        tag: 1.15.4-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -684,11 +684,11 @@ spec:
     - clusters:
       - name: cluster2
         defaultRevision: true
-      revision: 1-16
+      revision: 1-15
       istioOperatorSpec:
         profile: minimal
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.16.0-solo
+        tag: 1.15.4-solo
         namespace: istio-system
         values:
           global:
@@ -729,11 +729,11 @@ spec:
     - clusters:
       - name: cluster2
         activeGateway: false
-      gatewayRevision: 1-16
+      gatewayRevision: 1-15
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.16.0-solo
+        tag: 1.15.4-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -756,11 +756,11 @@ spec:
     - clusters:
       - name: cluster2
         activeGateway: false
-      gatewayRevision: 1-16
+      gatewayRevision: 1-15
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.16.0-solo
+        tag: 1.15.4-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -907,8 +907,8 @@ curl https://raw.githubusercontent.com/istio/istio/release-1.16/samples/bookinfo
 
 kubectl --context ${CLUSTER1} create ns bookinfo-frontends
 kubectl --context ${CLUSTER1} create ns bookinfo-backends
-kubectl --context ${CLUSTER1} label namespace bookinfo-frontends istio.io/rev=1-16
-kubectl --context ${CLUSTER1} label namespace bookinfo-backends istio.io/rev=1-16
+kubectl --context ${CLUSTER1} label namespace bookinfo-frontends istio.io/rev=1-15
+kubectl --context ${CLUSTER1} label namespace bookinfo-backends istio.io/rev=1-15
 # deploy the frontend bookinfo service in the bookinfo-frontends namespace
 kubectl --context ${CLUSTER1} -n bookinfo-frontends apply -f bookinfo.yaml -l 'account in (productpage)'
 kubectl --context ${CLUSTER1} -n bookinfo-frontends apply -f bookinfo.yaml -l 'app in (productpage)'
@@ -947,8 +947,8 @@ Now, run the following commands to deploy the bookinfo application on `cluster2`
 ```bash
 kubectl --context ${CLUSTER2} create ns bookinfo-frontends
 kubectl --context ${CLUSTER2} create ns bookinfo-backends
-kubectl --context ${CLUSTER2} label namespace bookinfo-frontends istio.io/rev=1-16
-kubectl --context ${CLUSTER2} label namespace bookinfo-backends istio.io/rev=1-16
+kubectl --context ${CLUSTER2} label namespace bookinfo-frontends istio.io/rev=1-15
+kubectl --context ${CLUSTER2} label namespace bookinfo-backends istio.io/rev=1-15
 # deploy the frontend bookinfo service in the bookinfo-frontends namespace
 kubectl --context ${CLUSTER2} -n bookinfo-frontends apply -f bookinfo.yaml -l 'account in (productpage)'
 kubectl --context ${CLUSTER2} -n bookinfo-frontends apply -f bookinfo.yaml -l 'app in (productpage)'
@@ -1117,7 +1117,7 @@ spec:
       labels:
         app: in-mesh
         version: v1
-        istio.io/rev: 1-16
+        istio.io/rev: 1-15
     spec:
       serviceAccountName: in-mesh
       containers:
@@ -1172,9 +1172,9 @@ First, you need to create a namespace for the addons, with Istio injection enabl
 
 ```bash
 kubectl --context ${CLUSTER1} create namespace gloo-mesh-addons
-kubectl --context ${CLUSTER1} label namespace gloo-mesh-addons istio.io/rev=1-16
+kubectl --context ${CLUSTER1} label namespace gloo-mesh-addons istio.io/rev=1-15
 kubectl --context ${CLUSTER2} create namespace gloo-mesh-addons
-kubectl --context ${CLUSTER2} label namespace gloo-mesh-addons istio.io/rev=1-16
+kubectl --context ${CLUSTER2} label namespace gloo-mesh-addons istio.io/rev=1-15
 ```
 
 Then, you can deploy the addons on the cluster(s) using Helm:
@@ -3262,7 +3262,7 @@ spec:
               namespace: httpbin
             issuerUrl: "${KEYCLOAK_URL}/realms/master/"
             logoutPath: /logout
-            afterLogoutUrl: "${KEYCLOAK_URL}/realms/master/protocol/openid-connect/logout?redirecturi=https://${ENDPOINT_HTTPS_GW_CLUSTER1}/get"
+            afterLogoutUrl: "https://${ENDPOINT_HTTPS_GW_CLUSTER1}/get"
             session:
               failOnFetchFailure: true
               redis:
