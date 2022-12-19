@@ -573,7 +573,7 @@ spec:
       istioOperatorSpec:
         profile: minimal
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.16.0-solo
+        tag: 1.15.4-solo
         namespace: istio-system
         values:
           global:
@@ -618,7 +618,7 @@ spec:
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.16.0-solo
+        tag: 1.15.4-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -645,7 +645,7 @@ spec:
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.16.0-solo
+        tag: 1.15.4-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -682,7 +682,7 @@ spec:
       istioOperatorSpec:
         profile: minimal
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.16.0-solo
+        tag: 1.15.4-solo
         namespace: istio-system
         values:
           global:
@@ -727,7 +727,7 @@ spec:
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.16.0-solo
+        tag: 1.15.4-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -754,7 +754,7 @@ spec:
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.16.0-solo
+        tag: 1.15.4-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -2927,7 +2927,7 @@ spec:
               namespace: httpbin
             issuerUrl: "${KEYCLOAK_URL}/realms/master/"
             logoutPath: /logout
-            afterLogoutUrl: "${KEYCLOAK_URL}/realms/master/protocol/openid-connect/logout?redirecturi=https://${ENDPOINT_HTTPS_GW_CLUSTER1}/get"
+            afterLogoutUrl: "https://${ENDPOINT_HTTPS_GW_CLUSTER1}/get"
             session:
               failOnFetchFailure: true
               redis:
