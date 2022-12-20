@@ -5739,7 +5739,7 @@ pod=$(kubectl --context ${MGMT} -n gloo-mesh get pods -l app=gloo-mesh-mgmt-serv
 kubectl --context ${MGMT} -n gloo-mesh debug -q -i ${pod} --image=curlimages/curl -- curl -s http://localhost:9091/snapshots/output > output
 ```
 
-We can use it later to check the translation procudes the same output on the new management plane.
+We can use it later to check the translation produces the same output on the new management plane.
 
 Also, let's find what's the last `resourceVersion` of all the Istio objects on `cluster1`:
 
@@ -5941,11 +5941,11 @@ export HOST_GLOO_MESH=$(echo ${ENDPOINT_GLOO_MESH} | cut -d: -f1)
 Now, let's update the agents to use the new management plane.
 
 ```bash
-kubectl --context cluster1 create ns gloo-mesh
+kubectl --context ${CLUSTER1} create ns gloo-mesh
 
 helm upgrade --install gloo-mesh-agent gloo-mesh-agent/gloo-mesh-agent \
   --namespace gloo-mesh \
-  --kube-context=cluster1 \
+  --kube-context=${CLUSTER1} \
   --set relay.serverAddress=${ENDPOINT_GLOO_MESH} \
   --set relay.authority=gloo-mesh-mgmt-server.gloo-mesh \
   --set rate-limiter.enabled=false \
@@ -5953,11 +5953,11 @@ helm upgrade --install gloo-mesh-agent gloo-mesh-agent/gloo-mesh-agent \
   --set cluster=cluster1 \
   --version 2.2.0-beta1
 
-kubectl --context cluster2 create ns gloo-mesh
+kubectl --context ${CLUSTER2} create ns gloo-mesh
 
 helm upgrade --install gloo-mesh-agent gloo-mesh-agent/gloo-mesh-agent \
   --namespace gloo-mesh \
-  --kube-context=cluster2 \
+  --kube-context=${CLUSTER2} \
   --set relay.serverAddress=${ENDPOINT_GLOO_MESH} \
   --set relay.authority=gloo-mesh-mgmt-server.gloo-mesh \
   --set rate-limiter.enabled=false \
