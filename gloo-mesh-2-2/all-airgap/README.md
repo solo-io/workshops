@@ -184,14 +184,14 @@ do
   done
 done
 
-wget https://storage.googleapis.com/gloo-mesh-enterprise/gloo-mesh-agent/gloo-mesh-agent-2.2.0-beta1.tgz
-tar zxvf gloo-mesh-agent-2.2.0-beta1.tgz
+wget https://storage.googleapis.com/gloo-mesh-enterprise/gloo-mesh-agent/gloo-mesh-agent-2.2.0-rc1.tgz
+tar zxvf gloo-mesh-agent-2.2.0-rc1.tgz
 find gloo-mesh-agent -name "values.yaml" | while read file; do
   cat $file | yq eval -j | jq -r '.. | .image? | select(. != null) | (if .hub then .hub + "/" + .repository + ":" + .tag else (if .registry then (if .registry == "docker.io" then "docker.io/library" else .registry end) + "/" else "" end) + .repository + ":" + (.tag | tostring) end)'
 done | sort -u >> images.txt
 
-wget https://storage.googleapis.com/gloo-mesh-enterprise/gloo-mesh-enterprise/gloo-mesh-enterprise-2.2.0-beta1.tgz
-tar zxvf gloo-mesh-enterprise-2.2.0-beta1.tgz
+wget https://storage.googleapis.com/gloo-mesh-enterprise/gloo-mesh-enterprise/gloo-mesh-enterprise-2.2.0-rc1.tgz
+tar zxvf gloo-mesh-enterprise-2.2.0-rc1.tgz
 find gloo-mesh-enterprise -name "values.yaml" | while read file; do
   cat $file | yq eval -j | jq -r '.. | .image? | select(. != null) | (if .hub then .hub + "/" + .repository + ":" + .tag else (if .registry then (if .registry == "docker.io" then "docker.io/library" else .registry end) + "/" else "" end) + .repository + ":" + (.tag | tostring) end)'
 done | sort -u >> images.txt
@@ -219,7 +219,7 @@ done
 First of all, let's install the `meshctl` CLI:
 
 ```bash
-export GLOO_MESH_VERSION=v2.2.0-beta1
+export GLOO_MESH_VERSION=v2.2.0-rc1
 curl -sL https://run.solo.io/meshctl/install | sh -
 export PATH=$HOME/.gloo-mesh/bin:$PATH
 ```
@@ -264,14 +264,14 @@ helm repo update
 kubectl --context ${MGMT} create ns gloo-mesh 
 helm upgrade --install gloo-mesh-enterprise gloo-mesh-enterprise/gloo-mesh-enterprise \
 --namespace gloo-mesh --kube-context ${MGMT} \
---version=2.2.0-beta1 \
+--version=2.2.0-rc1 \
 --set glooMeshMgmtServer.ports.healthcheck=8091 \
 --set glooMeshMgmtServer.image.registry=${registry}/gloo-mesh \
---set prometheus.configmapReload.prometheus.image.repository=${registry}/jimmidyson/configmap-reload \
---set prometheus.server.image.repository=${registry}/prometheus/prometheus \
 --set glooMeshUi.image.registry=${registry}/gloo-mesh \
 --set glooMeshUi.sidecars.console.image.registry=${registry}/gloo-mesh \
 --set glooMeshUi.sidecars.envoy.image.registry=${registry}/gloo-mesh \
+--set prometheus.configmapReload.prometheus.image.repository=${registry}/jimmidyson/configmap-reload \
+--set prometheus.server.image.repository=${registry}/prometheus/prometheus \
 --set glooMeshRedis.image.registry=${registry} \
 --set glooMeshUi.serviceType=LoadBalancer \
 --set mgmtClusterName=${MGMT} \
@@ -384,7 +384,7 @@ helm upgrade --install gloo-mesh-agent gloo-mesh-agent/gloo-mesh-agent \
   --set ext-auth-service.enabled=false \
   --set cluster=cluster1 \
 --set glooMeshAgent.image.registry=${registry}/gloo-mesh \
-  --version 2.2.0-beta1
+  --version 2.2.0-rc1
 ```
 
 Note that the registration can also be performed using `meshctl cluster register`.
@@ -420,7 +420,7 @@ helm upgrade --install gloo-mesh-agent gloo-mesh-agent/gloo-mesh-agent \
   --set ext-auth-service.enabled=false \
   --set cluster=cluster2 \
 --set glooMeshAgent.image.registry=${registry}/gloo-mesh \
-  --version 2.2.0-beta1
+  --version 2.2.0-rc1
 ```
 
 You can check the cluster(s) have been registered correctly using the following commands:
@@ -1295,7 +1295,7 @@ helm upgrade --install gloo-mesh-agent-addons gloo-mesh-agent/gloo-mesh-agent \
 --set ext-auth-service.extAuth.image.registry=${registry}/gloo-mesh \
 --set rate-limiter.rateLimiter.image.registry=${registry}/gloo-mesh \
 --set rate-limiter.redis.image.registry=${registry} \
-  --version 2.2.0-beta1
+  --version 2.2.0-rc1
 
 helm upgrade --install gloo-mesh-agent-addons gloo-mesh-agent/gloo-mesh-agent \
   --namespace gloo-mesh-addons \
@@ -1306,7 +1306,7 @@ helm upgrade --install gloo-mesh-agent-addons gloo-mesh-agent/gloo-mesh-agent \
 --set ext-auth-service.extAuth.image.registry=${registry}/gloo-mesh \
 --set rate-limiter.rateLimiter.image.registry=${registry}/gloo-mesh \
 --set rate-limiter.redis.image.registry=${registry} \
-  --version 2.2.0-beta1
+  --version 2.2.0-rc1
 ```
 
 This is how to environment looks like now:
@@ -5501,14 +5501,14 @@ mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${te
 
 Gloo Mesh is enhancing the Istio Ingress Gateway to allow exposing some REST services as a GraphQL API.
 
-First, you need to create an `ApiSchema` to define your GraphQL API:
+First, you need to create an `ApiDoc` to define your GraphQL API:
 
 ```bash
 kubectl --context ${CLUSTER1} apply -f - <<EOF
 apiVersion: apimanagement.gloo.solo.io/v2
-kind: ApiSchema
+kind: ApiDoc
 metadata:
-  name: bookinfo-schema
+  name: bookinfo-api-doc
   namespace: bookinfo-frontends
   labels:
     expose: "true"
@@ -5566,7 +5566,7 @@ kubectl --context ${CLUSTER1} apply -f - <<EOF
 apiVersion: apimanagement.gloo.solo.io/v2
 kind: GraphQLResolverMap
 metadata:
-  name: bookinfo-resolvers
+  name: bookinfo-graphql-resolvers
   namespace: bookinfo-frontends
   labels:
     expose: "true"
@@ -5635,6 +5635,31 @@ spec:
 EOF
 ```
 
+After that, you need to create an `ApiSchema` which references the `ApiDoc` and the `GraphQLResolverMap`:
+
+```bash
+kubectl --context ${CLUSTER1} apply -f - <<EOF
+apiVersion: apimanagement.gloo.solo.io/v2
+kind: GraphQLSchema
+metadata:
+  name: bookinfo-graphql-schema
+  namespace: bookinfo-frontends
+  labels:
+    expose: "true"
+spec:
+  schemaRef:
+    name: bookinfo-api-doc
+    namespace: bookinfo-frontends
+    clusterName: cluster1
+  resolved:
+    options: {}
+    resolverMapRefs:
+    - name: bookinfo-graphql-resolvers
+      namespace: bookinfo-frontends
+      clusterName: cluster1
+EOF
+```
+
 Finally, you can create a `RouteTable` to expose the GraphQL API:
 
 ```bash
@@ -5649,20 +5674,15 @@ metadata:
 spec:
   http:
   - graphql:
-      executableSchema:
-        local:
-          options: {}
-          resolverMapRefs:
-          - name: bookinfo-resolvers
-            namespace: bookinfo-frontends
-            clusterName: cluster1
-        schemaRef:
-          name: bookinfo-schema
-          namespace: bookinfo-frontends
-          clusterName: cluster1
+      schema:
+        name: bookinfo-graphql-schema
+        namespace: bookinfo-frontends
+        clusterName: cluster1
     matchers:
     - uri:
         prefix: /graphql
+    labels:
+      graphql: "true"
 EOF
 ```
 
@@ -5728,6 +5748,33 @@ echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
 -->
 
+Create the following `CORSPolicy` to allow using the GraphQL explorer from the Gloo Mesh UI:
+
+```bash
+kubectl --context ${CLUSTER1} apply -f - <<EOF
+apiVersion: security.policy.gloo.solo.io/v2
+kind: CORSPolicy
+metadata:
+  name: graphql-explorer
+  namespace: bookinfo-frontends
+spec:
+  applyToRoutes:
+  - route:
+      labels:
+        graphql: "true"
+  config:
+    allowCredentials: true
+    allowHeaders:
+    - apollo-query-plan-experimental
+    - content-type
+    - x-apollo-tracing
+    allowMethods:
+    - POST
+    allowOrigins:
+    - regex: ".*"
+EOF
+```
+
 
 
 ## Lab 27 - Gloo Mesh Management Plane failover <a name="lab-27---gloo-mesh-management-plane-failover-"></a>
@@ -5787,7 +5834,7 @@ helm repo update
 kubectl --context ${MGMT2} create ns gloo-mesh 
 helm upgrade --install gloo-mesh-enterprise gloo-mesh-enterprise/gloo-mesh-enterprise \
 --namespace gloo-mesh --kube-context ${MGMT2} \
---version=2.2.0-beta1 \
+--version=2.2.0-rc1 \
 --set glooMeshMgmtServer.ports.healthcheck=8091 \
 --set glooMeshMgmtServer.image.registry=${registry}/gloo-mesh \
 --set prometheus.configmapReload.prometheus.image.repository=${registry}/jimmidyson/configmap-reload \
@@ -5951,7 +5998,7 @@ helm upgrade --install gloo-mesh-agent gloo-mesh-agent/gloo-mesh-agent \
   --set rate-limiter.enabled=false \
   --set ext-auth-service.enabled=false \
   --set cluster=cluster1 \
-  --version 2.2.0-beta1
+  --version 2.2.0-rc1
 
 kubectl --context ${CLUSTER2} create ns gloo-mesh
 
@@ -5963,7 +6010,7 @@ helm upgrade --install gloo-mesh-agent gloo-mesh-agent/gloo-mesh-agent \
   --set rate-limiter.enabled=false \
   --set ext-auth-service.enabled=false \
   --set cluster=cluster2 \
-  --version 2.2.0-beta1
+  --version 2.2.0-rc1
 ```
 
 Let's scale up the management plane:
