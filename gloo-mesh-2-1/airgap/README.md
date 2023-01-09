@@ -259,11 +259,11 @@ helm upgrade --install gloo-mesh-enterprise gloo-mesh-enterprise/gloo-mesh-enter
 --version=2.1.3 \
 --set glooMeshMgmtServer.ports.healthcheck=8091 \
 --set glooMeshMgmtServer.image.registry=${registry}/gloo-mesh \
---set prometheus.configmapReload.prometheus.image.repository=${registry}/jimmidyson/configmap-reload \
---set prometheus.server.image.repository=${registry}/prometheus/prometheus \
 --set glooMeshUi.image.registry=${registry}/gloo-mesh \
 --set glooMeshUi.sidecars.console.image.registry=${registry}/gloo-mesh \
 --set glooMeshUi.sidecars.envoy.image.registry=${registry}/gloo-mesh \
+--set prometheus.configmapReload.prometheus.image.repository=${registry}/jimmidyson/configmap-reload \
+--set prometheus.server.image.repository=${registry}/prometheus/prometheus \
 --set glooMeshRedis.image.registry=${registry} \
 --set glooMeshUi.serviceType=LoadBalancer \
 --set mgmtClusterName=${MGMT} \
