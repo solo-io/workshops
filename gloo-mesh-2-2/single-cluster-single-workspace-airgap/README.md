@@ -144,14 +144,14 @@ do
   done
 done
 
-wget https://storage.googleapis.com/gloo-mesh-enterprise/gloo-mesh-agent/gloo-mesh-agent-2.2.0-beta1.tgz
-tar zxvf gloo-mesh-agent-2.2.0-beta1.tgz
+wget https://storage.googleapis.com/gloo-mesh-enterprise/gloo-mesh-agent/gloo-mesh-agent-2.2.0-rc1.tgz
+tar zxvf gloo-mesh-agent-2.2.0-rc1.tgz
 find gloo-mesh-agent -name "values.yaml" | while read file; do
   cat $file | yq eval -j | jq -r '.. | .image? | select(. != null) | (if .hub then .hub + "/" + .repository + ":" + .tag else (if .registry then (if .registry == "docker.io" then "docker.io/library" else .registry end) + "/" else "" end) + .repository + ":" + (.tag | tostring) end)'
 done | sort -u >> images.txt
 
-wget https://storage.googleapis.com/gloo-mesh-enterprise/gloo-mesh-enterprise/gloo-mesh-enterprise-2.2.0-beta1.tgz
-tar zxvf gloo-mesh-enterprise-2.2.0-beta1.tgz
+wget https://storage.googleapis.com/gloo-mesh-enterprise/gloo-mesh-enterprise/gloo-mesh-enterprise-2.2.0-rc1.tgz
+tar zxvf gloo-mesh-enterprise-2.2.0-rc1.tgz
 find gloo-mesh-enterprise -name "values.yaml" | while read file; do
   cat $file | yq eval -j | jq -r '.. | .image? | select(. != null) | (if .hub then .hub + "/" + .repository + ":" + .tag else (if .registry then (if .registry == "docker.io" then "docker.io/library" else .registry end) + "/" else "" end) + .repository + ":" + (.tag | tostring) end)'
 done | sort -u >> images.txt
@@ -179,7 +179,7 @@ done
 First of all, let's install the `meshctl` CLI:
 
 ```bash
-export GLOO_MESH_VERSION=v2.2.0-beta1
+export GLOO_MESH_VERSION=v2.2.0-rc1
 curl -sL https://run.solo.io/meshctl/install | sh -
 export PATH=$HOME/.gloo-mesh/bin:$PATH
 ```
@@ -223,14 +223,14 @@ helm repo update
 kubectl --context ${MGMT} create ns gloo-mesh 
 helm upgrade --install gloo-mesh-enterprise gloo-mesh-enterprise/gloo-mesh-enterprise \
 --namespace gloo-mesh --kube-context ${MGMT} \
---version=2.2.0-beta1 \
+--version=2.2.0-rc1 \
 --set glooMeshMgmtServer.ports.healthcheck=8091 \
 --set glooMeshMgmtServer.image.registry=${registry}/gloo-mesh \
---set prometheus.configmapReload.prometheus.image.repository=${registry}/jimmidyson/configmap-reload \
---set prometheus.server.image.repository=${registry}/prometheus/prometheus \
 --set glooMeshUi.image.registry=${registry}/gloo-mesh \
 --set glooMeshUi.sidecars.console.image.registry=${registry}/gloo-mesh \
 --set glooMeshUi.sidecars.envoy.image.registry=${registry}/gloo-mesh \
+--set prometheus.configmapReload.prometheus.image.repository=${registry}/jimmidyson/configmap-reload \
+--set prometheus.server.image.repository=${registry}/prometheus/prometheus \
 --set glooMeshRedis.image.registry=${registry} \
 --set glooMeshUi.serviceType=LoadBalancer \
 --set mgmtClusterName=${MGMT} \
@@ -311,7 +311,7 @@ helm upgrade --install gloo-mesh-agent gloo-mesh-agent/gloo-mesh-agent \
   --set ext-auth-service.enabled=false \
   --set cluster=cluster1 \
 --set glooMeshAgent.image.registry=${registry}/gloo-mesh \
-  --version 2.2.0-beta1
+  --version 2.2.0-rc1
 ```
 
 Note that the registration can also be performed using `meshctl cluster register`.
@@ -887,7 +887,7 @@ helm upgrade --install gloo-mesh-agent-addons gloo-mesh-agent/gloo-mesh-agent \
 --set ext-auth-service.extAuth.image.registry=${registry}/gloo-mesh \
 --set rate-limiter.rateLimiter.image.registry=${registry}/gloo-mesh \
 --set rate-limiter.redis.image.registry=${registry} \
-  --version 2.2.0-beta1
+  --version 2.2.0-rc1
 ```
 
 This is how to environment looks like now:
