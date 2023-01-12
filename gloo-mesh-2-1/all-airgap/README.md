@@ -382,7 +382,7 @@ helm upgrade --install gloo-mesh-agent gloo-mesh-agent/gloo-mesh-agent \
   --set rate-limiter.enabled=false \
   --set ext-auth-service.enabled=false \
   --set cluster=cluster1 \
---set glooMeshAgent.image.registry=${registry}/gloo-mesh \
+  --set glooMeshAgent.image.registry=${registry}/gloo-mesh \
   --version 2.1.3
 ```
 
@@ -418,7 +418,7 @@ helm upgrade --install gloo-mesh-agent gloo-mesh-agent/gloo-mesh-agent \
   --set rate-limiter.enabled=false \
   --set ext-auth-service.enabled=false \
   --set cluster=cluster2 \
---set glooMeshAgent.image.registry=${registry}/gloo-mesh \
+  --set glooMeshAgent.image.registry=${registry}/gloo-mesh \
   --version 2.1.3
 ```
 
@@ -669,9 +669,7 @@ spec:
           accessLogFile: /dev/stdout
           defaultConfig:
             envoyMetricsService:
-              address: gloo-mesh-agent.gloo-mesh:9977
-            envoyAccessLogService:
-              address: gloo-mesh-agent.gloo-mesh:9977
+              address: gloo-mesh-agent.gloo-mesh:9977        
             proxyMetadata:
               ISTIO_META_DNS_CAPTURE: "true"
               ISTIO_META_DNS_AUTO_ALLOCATE: "true"
@@ -778,9 +776,7 @@ spec:
           accessLogFile: /dev/stdout
           defaultConfig:
             envoyMetricsService:
-              address: gloo-mesh-agent.gloo-mesh:9977
-            envoyAccessLogService:
-              address: gloo-mesh-agent.gloo-mesh:9977
+              address: gloo-mesh-agent.gloo-mesh:9977        
             proxyMetadata:
               ISTIO_META_DNS_CAPTURE: "true"
               ISTIO_META_DNS_AUTO_ALLOCATE: "true"
@@ -1647,6 +1643,7 @@ mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${te
 This diagram shows the flow of the request (through the Istio Ingress Gateway):
 
 ![Gloo Mesh Gateway](images/steps/gateway-expose/gloo-mesh-gateway.svg)
+
 
 
 
@@ -3984,8 +3981,6 @@ spec:
           defaultConfig:
             envoyMetricsService:
               address: gloo-mesh-agent.gloo-mesh:9977
-            envoyAccessLogService:
-              address: gloo-mesh-agent.gloo-mesh:9977
             proxyMetadata:
               ISTIO_META_DNS_CAPTURE: "true"
               ISTIO_META_DNS_AUTO_ALLOCATE: "true"
@@ -4017,8 +4012,6 @@ spec:
           accessLogFile: /dev/stdout
           defaultConfig:
             envoyMetricsService:
-              address: gloo-mesh-agent.gloo-mesh:9977
-            envoyAccessLogService:
               address: gloo-mesh-agent.gloo-mesh:9977
             proxyMetadata:
               ISTIO_META_DNS_CAPTURE: "true"
@@ -4172,8 +4165,6 @@ spec:
           defaultConfig:
             envoyMetricsService:
               address: gloo-mesh-agent.gloo-mesh:9977
-            envoyAccessLogService:
-              address: gloo-mesh-agent.gloo-mesh:9977
             proxyMetadata:
               ISTIO_META_DNS_CAPTURE: "true"
               ISTIO_META_DNS_AUTO_ALLOCATE: "true"
@@ -4205,8 +4196,6 @@ spec:
           accessLogFile: /dev/stdout
           defaultConfig:
             envoyMetricsService:
-              address: gloo-mesh-agent.gloo-mesh:9977
-            envoyAccessLogService:
               address: gloo-mesh-agent.gloo-mesh:9977
             proxyMetadata:
               ISTIO_META_DNS_CAPTURE: "true"
@@ -4504,8 +4493,6 @@ spec:
           defaultConfig:
             envoyMetricsService:
               address: gloo-mesh-agent.gloo-mesh:9977
-            envoyAccessLogService:
-              address: gloo-mesh-agent.gloo-mesh:9977
             proxyMetadata:
               ISTIO_META_DNS_CAPTURE: "true"
               ISTIO_META_DNS_AUTO_ALLOCATE: "true"
@@ -4612,8 +4599,6 @@ spec:
           accessLogFile: /dev/stdout
           defaultConfig:
             envoyMetricsService:
-              address: gloo-mesh-agent.gloo-mesh:9977
-            envoyAccessLogService:
               address: gloo-mesh-agent.gloo-mesh:9977
             proxyMetadata:
               ISTIO_META_DNS_CAPTURE: "true"
