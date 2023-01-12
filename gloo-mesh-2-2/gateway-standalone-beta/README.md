@@ -843,6 +843,7 @@ This diagram shows the flow of the request (through the Istio Ingress Gateway):
 
 
 
+
 ## Lab 9 - Create the httpbin workspace <a name="lab-9---create-the-httpbin-workspace-"></a>
 
 We're going to create a workspace for the team in charge of the httpbin application.
