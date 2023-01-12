@@ -422,9 +422,7 @@ spec:
           accessLogFile: /dev/stdout
           defaultConfig:
             envoyMetricsService:
-              address: gloo-mesh-agent.gloo-mesh:9977
-            envoyAccessLogService:
-              address: gloo-mesh-agent.gloo-mesh:9977
+              address: gloo-mesh-agent.gloo-mesh:9977        
             proxyMetadata:
               ISTIO_META_DNS_CAPTURE: "true"
               ISTIO_META_DNS_AUTO_ALLOCATE: "true"
@@ -1099,23 +1097,6 @@ spec:
 EOF
 ```
 
-If your Kubernetes cluster is running on AWS, the Load Balancer created for the Service Type Load Balancer corresponding to the Istio Ingress Gateway has a health check port configured to use the HTTP port.
-
-Gloo Mesh is now configuring the Istio Ingress Gateway to listen on HTTPS, so in that case you need to patch the Kubernetes Service as follow.
-
-```bash
-cat << EOF > svc-patch.yaml
-spec:
-  ports:
-  - port: 80
-    targetPort: 8443
-EOF
-
-kubectl --context ${CLUSTER1} patch -n istio-gateways svc istio-ingressgateway -p "$(cat svc-patch.yaml)"
-
-kubectl --context ${CLUSTER2} patch -n istio-gateways svc istio-ingressgateway -p "$(cat svc-patch.yaml)"
-```
-
 You can now access the `productpage` application securely through the browser.
 Get the URL to access the `productpage` service using the following command:
 ```
@@ -1139,6 +1120,7 @@ mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${te
 This diagram shows the flow of the request (through the Istio Ingress Gateway):
 
 ![Gloo Mesh Gateway](images/steps/gateway-expose/gloo-mesh-gateway.svg)
+
 
 
 
