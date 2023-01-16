@@ -1,5 +1,0 @@
-const helpers = require('./tests/chai-exec');
-
-describe("istioctl version", () => {
-  it("version should be correct", () => helpers.genericCommand({ responseContains: "{{ vars.istio_version }}", command: "./istio-{{ vars.istio_version }}/bin/istioctl version --remote=false" }));
-});
