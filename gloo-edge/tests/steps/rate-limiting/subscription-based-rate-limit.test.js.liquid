@@ -8,9 +8,9 @@ describe("The rate limit for free sub users", function() {
   let password = 'password';
   let keycloak_svc = chaiExec("kubectl -n keycloak get service keycloak -o jsonpath='{.status.loadBalancer.ingress[0].ip}'").stdout.replaceAll("'", "");
   let keycloak_client_id = chaiExec("kubectl -n gloo-system get authconfig oauth -o jsonpath='{.spec.configs[0].oauth2.oidcAuthorizationCode.clientId}'").stdout.replaceAll("'", "");
-  let keycloak_client_secret_base64 = chaiExec("kubectl -n gloo-system get secret oauth -o jsonpath='{.data.oauth}'").stdout.replaceAll("'", "");
+  let keycloak_client_secret_base64 = chaiExec("kubectl -n gloo-system get secret oauth -o jsonpath='{.data.client-secret}'").stdout.replaceAll("'", "");
   let buff = new Buffer(keycloak_client_secret_base64, 'base64');
-  let keycloak_client_secret = buff.toString('ascii').split(' ')[1].trim();
+  let keycloak_client_secret = buff.toString('ascii');
   let keycloak_token = JSON.parse(chaiExec('curl -d "client_id=' + keycloak_client_id + '" -d "client_secret=' + keycloak_client_secret + '" -d "scope=openid" -d "username=' + user + '" -d "password=' + password + '" -d "grant_type=password" "http://' + keycloak_svc + ':8080/auth/realms/master/protocol/openid-connect/token"').stdout.replaceAll("'", "")).id_token;
   
   it("have only 2 requests per minute", () => {
@@ -25,9 +25,9 @@ describe("The rate limit for enterprise sub users", function() {
   let password = 'password';
   let keycloak_svc = chaiExec("kubectl -n keycloak get service keycloak -o jsonpath='{.status.loadBalancer.ingress[0].ip}'").stdout.replaceAll("'", "");
   let keycloak_client_id = chaiExec("kubectl -n gloo-system get authconfig oauth -o jsonpath='{.spec.configs[0].oauth2.oidcAuthorizationCode.clientId}'").stdout.replaceAll("'", "");
-  let keycloak_client_secret_base64 = chaiExec("kubectl -n gloo-system get secret oauth -o jsonpath='{.data.oauth}'").stdout.replaceAll("'", "");
+  let keycloak_client_secret_base64 = chaiExec("kubectl -n gloo-system get secret oauth -o jsonpath='{.data.client-secret}'").stdout.replaceAll("'", "");
   let buff = new Buffer(keycloak_client_secret_base64, 'base64');
-  let keycloak_client_secret = buff.toString('ascii').split(' ')[1].trim();
+  let keycloak_client_secret = buff.toString('ascii');
   let keycloak_token = JSON.parse(chaiExec('curl -d "client_id=' + keycloak_client_id + '" -d "client_secret=' + keycloak_client_secret + '" -d "scope=openid" -d "username=' + user + '" -d "password=' + password + '" -d "grant_type=password" "http://' + keycloak_svc + ':8080/auth/realms/master/protocol/openid-connect/token"').stdout.replaceAll("'", "")).id_token;
   
   it("have only 8 requests per minute", () => {

@@ -29,6 +29,15 @@ global = {
         }
       });
   },
+  checkHeaders: ({ host, path = "", headers = [], expectedHeaders = [] }) => {
+    let request = chai.request(host).get(path).redirects(0);
+    headers.forEach(header => request.set(header.key, header.value));
+    return request
+      .send()
+      .then(async function (res) {
+          expectedHeaders.forEach(header => expect(res.header[header.key]).to.equal(header.value));
+      });
+  },
   checkWithMethod: ({ host, path, headers = [], method = "get", retCode }) => {
     let request
     if (method === "get") {
@@ -40,7 +49,6 @@ global = {
     } else {
       throw 'The requested method is not implemented.'
     }
-    
     headers.forEach(header => request.set(header.key, header.value));
     return request
       .send()

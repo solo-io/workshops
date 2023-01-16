@@ -25,7 +25,7 @@ reg_port='5000'
 running="$(docker inspect -f '{{.State.Running}}' "${reg_name}" 2>/dev/null || true)"
 if [ "${running}" != 'true' ]; then
   docker run \
-    -d --restart=always -p "127.0.0.1:${reg_port}:5000" --name "${reg_name}" \
+    -d --restart=always -p "0.0.0.0:${reg_port}:5000" --name "${reg_name}" \
     registry:2
 fi
 
@@ -81,6 +81,12 @@ nodes:
   extraPortMappings:
   - containerPort: 6443
     hostPort: 70${twodigits}
+- role: worker
+  image: kindest/node:v1.24.7@sha256:577c630ce8e509131eab1aea12c022190978dd2f745aac5eb1fe65c0807eb315
+- role: worker
+  image: kindest/node:v1.24.7@sha256:577c630ce8e509131eab1aea12c022190978dd2f745aac5eb1fe65c0807eb315
+- role: worker
+  image: kindest/node:v1.24.7@sha256:577c630ce8e509131eab1aea12c022190978dd2f745aac5eb1fe65c0807eb315
 networking:
   serviceSubnet: "10.$(echo $twodigits | sed 's/^0*//').0.0/16"
   podSubnet: "10.1${twodigits}.0.0/16"
