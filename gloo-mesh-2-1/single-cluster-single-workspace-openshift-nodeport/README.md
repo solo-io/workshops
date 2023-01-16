@@ -285,7 +285,7 @@ First of all, let's create Kubernetes services for the gateways:
 
 ```bash
 kubectl --context ${CLUSTER1} create ns istio-gateways
-kubectl --context ${CLUSTER1} label namespace istio-gateways istio.io/rev=1-15
+kubectl --context ${CLUSTER1} label namespace istio-gateways istio.io/rev=1-16
 
 cat << EOF | kubectl --context ${CLUSTER1} apply -f -
 apiVersion: v1
@@ -294,7 +294,7 @@ metadata:
   labels:
     app: istio-ingressgateway
     istio: ingressgateway
-    revision: 1-15
+    revision: 1-16
   name: istio-ingressgateway
   namespace: istio-gateways
 spec:
@@ -310,7 +310,7 @@ spec:
   selector:
     app: istio-ingressgateway
     istio: ingressgateway
-    revision: 1-15
+    revision: 1-16
   type: LoadBalancer
 
 EOF
@@ -322,7 +322,7 @@ metadata:
   labels:
     app: istio-ingressgateway
     istio: eastwestgateway
-    revision: 1-15
+    revision: 1-16
     topology.istio.io/network: cluster1
   name: istio-eastwestgateway
   namespace: istio-gateways
@@ -351,7 +351,7 @@ spec:
   selector:
     app: istio-ingressgateway
     istio: eastwestgateway
-    revision: 1-15
+    revision: 1-16
     topology.istio.io/network: cluster1
   type: LoadBalancer
 
@@ -364,7 +364,7 @@ For Openshift clusters, you also need to run the following commands:
 ```bash
 oc --context ${CLUSTER1} adm policy add-scc-to-group anyuid system:serviceaccounts:istio-system
 oc --context ${CLUSTER1} adm policy add-scc-to-group anyuid system:serviceaccounts:istio-gateways
-oc --context ${CLUSTER1} adm policy add-scc-to-group anyuid system:serviceaccounts:gm-iop-1-15
+oc --context ${CLUSTER1} adm policy add-scc-to-group anyuid system:serviceaccounts:gm-iop-1-16
 
 cat <<EOF | oc --context ${CLUSTER1} -n istio-gateways create -f -
 apiVersion: "k8s.cni.cncf.io/v1"
@@ -389,11 +389,11 @@ spec:
     - clusters:
       - name: cluster1
         defaultRevision: true
-      revision: 1-15
+      revision: 1-16
       istioOperatorSpec:
         profile: minimal
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.15.4-solo
+        tag: 1.16.1-solo
         namespace: istio-system
         values:
           global:
@@ -454,11 +454,11 @@ spec:
     - clusters:
       - name: cluster1
         activeGateway: false
-      gatewayRevision: 1-15
+      gatewayRevision: 1-16
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.15.4-solo
+        tag: 1.16.1-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -481,11 +481,11 @@ spec:
     - clusters:
       - name: cluster1
         activeGateway: false
-      gatewayRevision: 1-15
+      gatewayRevision: 1-16
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.15.4-solo
+        tag: 1.16.1-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -614,8 +614,8 @@ metadata:
   name: istio-cni
 EOF
 
-kubectl --context ${CLUSTER1} label namespace bookinfo-frontends istio.io/rev=1-15
-kubectl --context ${CLUSTER1} label namespace bookinfo-backends istio.io/rev=1-15
+kubectl --context ${CLUSTER1} label namespace bookinfo-frontends istio.io/rev=1-16
+kubectl --context ${CLUSTER1} label namespace bookinfo-backends istio.io/rev=1-16
 # deploy the frontend bookinfo service in the bookinfo-frontends namespace
 kubectl --context ${CLUSTER1} -n bookinfo-frontends apply -f bookinfo.yaml -l 'account in (productpage)'
 kubectl --context ${CLUSTER1} -n bookinfo-frontends apply -f bookinfo.yaml -l 'app in (productpage)'
@@ -787,7 +787,7 @@ spec:
       labels:
         app: in-mesh
         version: v1
-        istio.io/rev: 1-15
+        istio.io/rev: 1-16
     spec:
       serviceAccountName: in-mesh
       containers:
@@ -842,7 +842,7 @@ First, you need to create a namespace for the addons, with Istio injection enabl
 
 ```bash
 kubectl --context ${CLUSTER1} create namespace gloo-mesh-addons
-kubectl --context ${CLUSTER1} label namespace gloo-mesh-addons istio.io/rev=1-15
+kubectl --context ${CLUSTER1} label namespace gloo-mesh-addons istio.io/rev=1-16
 oc --context ${CLUSTER1} adm policy add-scc-to-group anyuid system:serviceaccounts:gloo-mesh-addons
 
 cat <<EOF | oc --context ${CLUSTER1} -n gloo-mesh-addons create -f -
