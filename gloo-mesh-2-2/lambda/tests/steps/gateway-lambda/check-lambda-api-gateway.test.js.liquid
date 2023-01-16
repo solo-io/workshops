@@ -1,0 +1,6 @@
+const helpersHttp = require('./tests/chai-http');
+
+describe("Lambda integration is working properly", () => {
+  it('Checking text \'"TotalCodeSize": 104330022\' in ' + process.env.CLUSTER1, () => helpersHttp.checkBody({ host: 'https://' + process.env.ENDPOINT_HTTPS_GW_CLUSTER1, path: '/lambda', body: '"TotalCodeSize": 104330022', match: true }));
+  it('Checking headers in ' + process.env.CLUSTER1, () => helpersHttp.checkHeaders({ host: 'https://' + process.env.ENDPOINT_HTTPS_GW_CLUSTER1, path: '/lambda', expectedHeaders: [{key: "key", value: "value"}, {key: "x-custom-header", value: "My value,My other value"}], match: true }));
+})
