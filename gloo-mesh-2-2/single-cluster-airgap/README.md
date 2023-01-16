@@ -132,9 +132,9 @@ Pull and push locally the Docker images needed:
 
 ```bash
 cat <<EOF > images.txt
-us-docker.pkg.dev/gloo-mesh/istio-workshops/operator:1.15.4-solo
-us-docker.pkg.dev/gloo-mesh/istio-workshops/pilot:1.15.4-solo
-us-docker.pkg.dev/gloo-mesh/istio-workshops/proxyv2:1.15.4-solo
+us-docker.pkg.dev/gloo-mesh/istio-workshops/operator:1.16.1-solo
+us-docker.pkg.dev/gloo-mesh/istio-workshops/pilot:1.16.1-solo
+us-docker.pkg.dev/gloo-mesh/istio-workshops/proxyv2:1.16.1-solo
 quay.io/keycloak/keycloak:20.0.1
 docker.io/kennethreitz/httpbin
 EOF
@@ -147,14 +147,14 @@ do
   done
 done
 
-wget https://storage.googleapis.com/gloo-mesh-enterprise/gloo-mesh-agent/gloo-mesh-agent-2.2.0-rc1.tgz
-tar zxvf gloo-mesh-agent-2.2.0-rc1.tgz
+wget https://storage.googleapis.com/gloo-mesh-enterprise/gloo-mesh-agent/gloo-mesh-agent-2.2.0-rc2.tgz
+tar zxvf gloo-mesh-agent-2.2.0-rc2.tgz
 find gloo-mesh-agent -name "values.yaml" | while read file; do
   cat $file | yq eval -j | jq -r '.. | .image? | select(. != null) | (if .hub then .hub + "/" + .repository + ":" + .tag else (if .registry then (if .registry == "docker.io" then "docker.io/library" else .registry end) + "/" else "" end) + .repository + ":" + (.tag | tostring) end)'
 done | sort -u >> images.txt
 
-wget https://storage.googleapis.com/gloo-mesh-enterprise/gloo-mesh-enterprise/gloo-mesh-enterprise-2.2.0-rc1.tgz
-tar zxvf gloo-mesh-enterprise-2.2.0-rc1.tgz
+wget https://storage.googleapis.com/gloo-mesh-enterprise/gloo-mesh-enterprise/gloo-mesh-enterprise-2.2.0-rc2.tgz
+tar zxvf gloo-mesh-enterprise-2.2.0-rc2.tgz
 find gloo-mesh-enterprise -name "values.yaml" | while read file; do
   cat $file | yq eval -j | jq -r '.. | .image? | select(. != null) | (if .hub then .hub + "/" + .repository + ":" + .tag else (if .registry then (if .registry == "docker.io" then "docker.io/library" else .registry end) + "/" else "" end) + .repository + ":" + (.tag | tostring) end)'
 done | sort -u >> images.txt
@@ -182,7 +182,7 @@ done
 First of all, let's install the `meshctl` CLI:
 
 ```bash
-export GLOO_MESH_VERSION=v2.2.0-rc1
+export GLOO_MESH_VERSION=v2.2.0-rc2
 curl -sL https://run.solo.io/meshctl/install | sh -
 export PATH=$HOME/.gloo-mesh/bin:$PATH
 ```
@@ -226,12 +226,16 @@ helm repo update
 kubectl --context ${MGMT} create ns gloo-mesh 
 helm upgrade --install gloo-mesh-enterprise gloo-mesh-enterprise/gloo-mesh-enterprise \
 --namespace gloo-mesh --kube-context ${MGMT} \
---version=2.2.0-rc1 \
+--version=2.2.0-rc2 \
 --set glooMeshMgmtServer.ports.healthcheck=8091 \
+--set legacyMetricsPipeline.enabled=false \
+--set metricsgateway.enabled=true \
+--set metricsgateway.service.type=LoadBalancer \
 --set glooMeshMgmtServer.image.registry=${registry}/gloo-mesh \
 --set glooMeshUi.image.registry=${registry}/gloo-mesh \
 --set glooMeshUi.sidecars.console.image.registry=${registry}/gloo-mesh \
 --set glooMeshUi.sidecars.envoy.image.registry=${registry}/gloo-mesh \
+--set metricsgateway.image.repository=${registry}/gloo-mesh/gloo-otel-collector \
 --set prometheus.configmapReload.prometheus.image.repository=${registry}/jimmidyson/configmap-reload \
 --set prometheus.server.image.repository=${registry}/prometheus/prometheus \
 --set glooMeshRedis.image.registry=${registry} \
@@ -277,6 +281,7 @@ mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${te
 ```bash
 export ENDPOINT_GLOO_MESH=gloo-mesh-mgmt-server:9900
 export HOST_GLOO_MESH=$(echo ${ENDPOINT_GLOO_MESH} | cut -d: -f1)
+export ENDPOINT_METRICS_GATEWAY=gloo-metrics-gateway:4317
 ```
 
 Check that the variables have correct values:
@@ -313,8 +318,11 @@ helm upgrade --install gloo-mesh-agent gloo-mesh-agent/gloo-mesh-agent \
   --set rate-limiter.enabled=false \
   --set ext-auth-service.enabled=false \
   --set cluster=cluster1 \
+  --set metricscollector.enabled=true \
+  --set metricscollector.config.exporters.otlp.endpoint=\"${ENDPOINT_METRICS_GATEWAY}\" \
   --set glooMeshAgent.image.registry=${registry}/gloo-mesh \
-  --version 2.2.0-rc1
+  --set metricscollector.image.repository=${registry}/gloo-mesh/gloo-otel-collector \
+  --version 2.2.0-rc2
 ```
 
 Note that the registration can also be performed using `meshctl cluster register`.
@@ -363,7 +371,7 @@ First of all, let's create Kubernetes services for the gateways:
 
 ```bash
 kubectl --context ${CLUSTER1} create ns istio-gateways
-kubectl --context ${CLUSTER1} label namespace istio-gateways istio.io/rev=1-15
+kubectl --context ${CLUSTER1} label namespace istio-gateways istio.io/rev=1-16
 
 cat << EOF | kubectl --context ${CLUSTER1} apply -f -
 apiVersion: v1
@@ -372,7 +380,7 @@ metadata:
   labels:
     app: istio-ingressgateway
     istio: ingressgateway
-    revision: 1-15
+    revision: 1-16
   name: istio-ingressgateway
   namespace: istio-gateways
 spec:
@@ -388,7 +396,7 @@ spec:
   selector:
     app: istio-ingressgateway
     istio: ingressgateway
-    revision: 1-15
+    revision: 1-16
   type: LoadBalancer
 
 EOF
@@ -400,7 +408,7 @@ metadata:
   labels:
     app: istio-ingressgateway
     istio: eastwestgateway
-    revision: 1-15
+    revision: 1-16
     topology.istio.io/network: cluster1
   name: istio-eastwestgateway
   namespace: istio-gateways
@@ -429,7 +437,7 @@ spec:
   selector:
     app: istio-ingressgateway
     istio: eastwestgateway
-    revision: 1-15
+    revision: 1-16
     topology.istio.io/network: cluster1
   type: LoadBalancer
 
@@ -453,11 +461,11 @@ spec:
     - clusters:
       - name: cluster1
         defaultRevision: true
-      revision: 1-15
+      revision: 1-16
       istioOperatorSpec:
         profile: minimal
         hub: ${registry}/istio-workshops
-        tag: 1.15.4-solo
+        tag: 1.16.1-solo
         namespace: istio-system
         values:
           global:
@@ -467,9 +475,7 @@ spec:
             network: cluster1
         meshConfig:
           accessLogFile: /dev/stdout
-          defaultConfig:
-            envoyMetricsService:
-              address: gloo-mesh-agent.gloo-mesh:9977        
+          defaultConfig:        
             proxyMetadata:
               ISTIO_META_DNS_CAPTURE: "true"
               ISTIO_META_DNS_AUTO_ALLOCATE: "true"
@@ -496,11 +502,11 @@ spec:
     - clusters:
       - name: cluster1
         activeGateway: false
-      gatewayRevision: 1-15
+      gatewayRevision: 1-16
       istioOperatorSpec:
         profile: empty
         hub: ${registry}/istio-workshops
-        tag: 1.15.4-solo
+        tag: 1.16.1-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -523,11 +529,11 @@ spec:
     - clusters:
       - name: cluster1
         activeGateway: false
-      gatewayRevision: 1-15
+      gatewayRevision: 1-16
       istioOperatorSpec:
         profile: empty
         hub: ${registry}/istio-workshops
-        tag: 1.15.4-solo
+        tag: 1.16.1-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -656,8 +662,8 @@ Run the following commands to deploy the bookinfo application on `cluster1`:
 
 kubectl --context ${CLUSTER1} create ns bookinfo-frontends
 kubectl --context ${CLUSTER1} create ns bookinfo-backends
-kubectl --context ${CLUSTER1} label namespace bookinfo-frontends istio.io/rev=1-15
-kubectl --context ${CLUSTER1} label namespace bookinfo-backends istio.io/rev=1-15
+kubectl --context ${CLUSTER1} label namespace bookinfo-frontends istio.io/rev=1-16
+kubectl --context ${CLUSTER1} label namespace bookinfo-backends istio.io/rev=1-16
 # deploy the frontend bookinfo service in the bookinfo-frontends namespace
 kubectl --context ${CLUSTER1} -n bookinfo-frontends apply -f bookinfo.yaml -l 'account in (productpage)'
 kubectl --context ${CLUSTER1} -n bookinfo-frontends apply -f bookinfo.yaml -l 'app in (productpage)'
@@ -818,7 +824,7 @@ spec:
       labels:
         app: in-mesh
         version: v1
-        istio.io/rev: 1-15
+        istio.io/rev: 1-16
     spec:
       serviceAccountName: in-mesh
       containers:
@@ -873,7 +879,7 @@ First, you need to create a namespace for the addons, with Istio injection enabl
 
 ```bash
 kubectl --context ${CLUSTER1} create namespace gloo-mesh-addons
-kubectl --context ${CLUSTER1} label namespace gloo-mesh-addons istio.io/rev=1-15
+kubectl --context ${CLUSTER1} label namespace gloo-mesh-addons istio.io/rev=1-16
 ```
 
 Then, you can deploy the addons on the cluster(s) using Helm:
@@ -888,7 +894,7 @@ helm upgrade --install gloo-mesh-agent-addons gloo-mesh-agent/gloo-mesh-agent \
 --set ext-auth-service.extAuth.image.registry=${registry}/gloo-mesh \
 --set rate-limiter.rateLimiter.image.registry=${registry}/gloo-mesh \
 --set rate-limiter.redis.image.registry=${registry} \
-  --version 2.2.0-rc1
+  --version 2.2.0-rc2
 ```
 
 This is how to environment looks like now:
