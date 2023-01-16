@@ -122,7 +122,7 @@ metallb-system       speaker-d7jkp                                 1/1     Runni
 First of all, let's install the `meshctl` CLI:
 
 ```bash
-export GLOO_MESH_VERSION=v2.2.0-rc1
+export GLOO_MESH_VERSION=v2.2.0-rc2
 curl -sL https://run.solo.io/meshctl/install | sh -
 export PATH=$HOME/.gloo-mesh/bin:$PATH
 ```
@@ -166,8 +166,11 @@ helm repo update
 kubectl --context ${MGMT} create ns gloo-mesh 
 helm upgrade --install gloo-mesh-enterprise gloo-mesh-enterprise/gloo-mesh-enterprise \
 --namespace gloo-mesh --kube-context ${MGMT} \
---version=2.2.0-rc1 \
+--version=2.2.0-rc2 \
 --set glooMeshMgmtServer.ports.healthcheck=8091 \
+--set legacyMetricsPipeline.enabled=false \
+--set metricsgateway.enabled=true \
+--set metricsgateway.service.type=LoadBalancer \
 --set glooMeshUi.serviceType=LoadBalancer \
 --set mgmtClusterName=${MGMT} \
 --set global.cluster=${MGMT} \
@@ -179,11 +182,11 @@ registerMgmtPlane:
   # Configuration for managed Istio control plane and gateway installations by using the Istio Lifecycle Manager
   managedInstallations:
     enabled: true
-    revision: 1-15
+    revision: 1-16
     defaultRevision: true
     images:
       hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-      tag: 1.16.0-solo
+      tag: 1.16.1-solo
     controlPlane:
       enabled: true
       overrides: {}
@@ -243,8 +246,8 @@ curl https://raw.githubusercontent.com/istio/istio/release-1.16/samples/bookinfo
 
 kubectl --context ${CLUSTER1} create ns bookinfo-frontends
 kubectl --context ${CLUSTER1} create ns bookinfo-backends
-kubectl --context ${CLUSTER1} label namespace bookinfo-frontends istio.io/rev=1-15
-kubectl --context ${CLUSTER1} label namespace bookinfo-backends istio.io/rev=1-15
+kubectl --context ${CLUSTER1} label namespace bookinfo-frontends istio.io/rev=1-16
+kubectl --context ${CLUSTER1} label namespace bookinfo-backends istio.io/rev=1-16
 # deploy the frontend bookinfo service in the bookinfo-frontends namespace
 kubectl --context ${CLUSTER1} -n bookinfo-frontends apply -f bookinfo.yaml -l 'account in (productpage)'
 kubectl --context ${CLUSTER1} -n bookinfo-frontends apply -f bookinfo.yaml -l 'app in (productpage)'
@@ -405,7 +408,7 @@ spec:
       labels:
         app: in-mesh
         version: v1
-        istio.io/rev: 1-15
+        istio.io/rev: 1-16
     spec:
       serviceAccountName: in-mesh
       containers:
@@ -460,13 +463,13 @@ First, you need to create a namespace for the addons, with Istio injection enabl
 
 ```bash
 kubectl --context ${CLUSTER1} create namespace gloo-mesh-addons
-kubectl --context ${CLUSTER1} label namespace gloo-mesh-addons istio.io/rev=1-15
+kubectl --context ${CLUSTER1} label namespace gloo-mesh-addons istio.io/rev=1-16
 ```
 
 Then, you can deploy the addons on the cluster(s) using Helm:
 
 ```bash
-until [[ $(kubectl --context ${MGMT} -n istio-system get deploy istiod-1-15 -o json | jq '.status.availableReplicas') -gt 0 ]]; do
+until [[ $(kubectl --context ${MGMT} -n istio-system get deploy istiod-1-16 -o json | jq '.status.availableReplicas') -gt 0 ]]; do
   sleep 1
 done
 helm repo add gloo-mesh-agent https://storage.googleapis.com/gloo-mesh-enterprise/gloo-mesh-agent
@@ -477,7 +480,7 @@ helm upgrade --install gloo-mesh-agent-addons gloo-mesh-agent/gloo-mesh-agent \
   --set glooMeshAgent.enabled=false \
   --set rate-limiter.enabled=true \
   --set ext-auth-service.enabled=true \
-  --version 2.2.0-rc1
+  --version 2.2.0-rc2
 ```
 Set the environment variable for the service corresponding to the Istio Ingress Gateway of the cluster(s):
 

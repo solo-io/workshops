@@ -371,7 +371,7 @@ First of all, let's create Kubernetes services for the gateways:
 
 ```bash
 kubectl --context ${CLUSTER1} create ns istio-gateways
-kubectl --context ${CLUSTER1} label namespace istio-gateways istio.io/rev=1-15
+kubectl --context ${CLUSTER1} label namespace istio-gateways istio.io/rev=1-16
 
 cat << EOF | kubectl --context ${CLUSTER1} apply -f -
 apiVersion: v1
@@ -380,7 +380,7 @@ metadata:
   labels:
     app: istio-ingressgateway
     istio: ingressgateway
-    revision: 1-15
+    revision: 1-16
   name: istio-ingressgateway
   namespace: istio-gateways
 spec:
@@ -396,7 +396,7 @@ spec:
   selector:
     app: istio-ingressgateway
     istio: ingressgateway
-    revision: 1-15
+    revision: 1-16
   type: LoadBalancer
 
 EOF
@@ -408,7 +408,7 @@ metadata:
   labels:
     app: istio-ingressgateway
     istio: eastwestgateway
-    revision: 1-15
+    revision: 1-16
     topology.istio.io/network: cluster1
   name: istio-eastwestgateway
   namespace: istio-gateways
@@ -437,14 +437,14 @@ spec:
   selector:
     app: istio-ingressgateway
     istio: eastwestgateway
-    revision: 1-15
+    revision: 1-16
     topology.istio.io/network: cluster1
   type: LoadBalancer
 
 EOF
 
 kubectl --context ${CLUSTER2} create ns istio-gateways
-kubectl --context ${CLUSTER2} label namespace istio-gateways istio.io/rev=1-15
+kubectl --context ${CLUSTER2} label namespace istio-gateways istio.io/rev=1-16
 
 cat << EOF | kubectl --context ${CLUSTER2} apply -f -
 apiVersion: v1
@@ -453,7 +453,7 @@ metadata:
   labels:
     app: istio-ingressgateway
     istio: ingressgateway
-    revision: 1-15
+    revision: 1-16
   name: istio-ingressgateway
   namespace: istio-gateways
 spec:
@@ -469,7 +469,7 @@ spec:
   selector:
     app: istio-ingressgateway
     istio: ingressgateway
-    revision: 1-15
+    revision: 1-16
   type: LoadBalancer
 
 EOF
@@ -481,7 +481,7 @@ metadata:
   labels:
     app: istio-ingressgateway
     istio: eastwestgateway
-    revision: 1-15
+    revision: 1-16
     topology.istio.io/network: cluster2
   name: istio-eastwestgateway
   namespace: istio-gateways
@@ -510,7 +510,7 @@ spec:
   selector:
     app: istio-ingressgateway
     istio: eastwestgateway
-    revision: 1-15
+    revision: 1-16
     topology.istio.io/network: cluster2
   type: LoadBalancer
 
@@ -534,11 +534,11 @@ spec:
     - clusters:
       - name: cluster1
         defaultRevision: true
-      revision: 1-15
+      revision: 1-16
       istioOperatorSpec:
         profile: minimal
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.15.4-solo
+        tag: 1.16.1-solo
         namespace: istio-system
         values:
           global:
@@ -577,11 +577,11 @@ spec:
     - clusters:
       - name: cluster1
         activeGateway: false
-      gatewayRevision: 1-15
+      gatewayRevision: 1-16
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.15.4-solo
+        tag: 1.16.1-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -604,11 +604,11 @@ spec:
     - clusters:
       - name: cluster1
         activeGateway: false
-      gatewayRevision: 1-15
+      gatewayRevision: 1-16
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.15.4-solo
+        tag: 1.16.1-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -641,11 +641,11 @@ spec:
     - clusters:
       - name: cluster2
         defaultRevision: true
-      revision: 1-15
+      revision: 1-16
       istioOperatorSpec:
         profile: minimal
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.15.4-solo
+        tag: 1.16.1-solo
         namespace: istio-system
         values:
           global:
@@ -684,11 +684,11 @@ spec:
     - clusters:
       - name: cluster2
         activeGateway: false
-      gatewayRevision: 1-15
+      gatewayRevision: 1-16
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.15.4-solo
+        tag: 1.16.1-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -711,11 +711,11 @@ spec:
     - clusters:
       - name: cluster2
         activeGateway: false
-      gatewayRevision: 1-15
+      gatewayRevision: 1-16
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.15.4-solo
+        tag: 1.16.1-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -885,8 +885,8 @@ curl https://raw.githubusercontent.com/istio/istio/release-1.16/samples/bookinfo
 
 kubectl --context ${CLUSTER1} create ns bookinfo-frontends
 kubectl --context ${CLUSTER1} create ns bookinfo-backends
-kubectl --context ${CLUSTER1} label namespace bookinfo-frontends istio.io/rev=1-15
-kubectl --context ${CLUSTER1} label namespace bookinfo-backends istio.io/rev=1-15
+kubectl --context ${CLUSTER1} label namespace bookinfo-frontends istio.io/rev=1-16
+kubectl --context ${CLUSTER1} label namespace bookinfo-backends istio.io/rev=1-16
 # deploy the frontend bookinfo service in the bookinfo-frontends namespace
 kubectl --context ${CLUSTER1} -n bookinfo-frontends apply -f bookinfo.yaml -l 'account in (productpage)'
 kubectl --context ${CLUSTER1} -n bookinfo-frontends apply -f bookinfo.yaml -l 'app in (productpage)'
@@ -925,8 +925,8 @@ Now, run the following commands to deploy the bookinfo application on `cluster2`
 ```bash
 kubectl --context ${CLUSTER2} create ns bookinfo-frontends
 kubectl --context ${CLUSTER2} create ns bookinfo-backends
-kubectl --context ${CLUSTER2} label namespace bookinfo-frontends istio.io/rev=1-15
-kubectl --context ${CLUSTER2} label namespace bookinfo-backends istio.io/rev=1-15
+kubectl --context ${CLUSTER2} label namespace bookinfo-frontends istio.io/rev=1-16
+kubectl --context ${CLUSTER2} label namespace bookinfo-backends istio.io/rev=1-16
 # deploy the frontend bookinfo service in the bookinfo-frontends namespace
 kubectl --context ${CLUSTER2} -n bookinfo-frontends apply -f bookinfo.yaml -l 'account in (productpage)'
 kubectl --context ${CLUSTER2} -n bookinfo-frontends apply -f bookinfo.yaml -l 'app in (productpage)'
@@ -1095,7 +1095,7 @@ spec:
       labels:
         app: in-mesh
         version: v1
-        istio.io/rev: 1-15
+        istio.io/rev: 1-16
     spec:
       serviceAccountName: in-mesh
       containers:
@@ -1150,9 +1150,9 @@ First, you need to create a namespace for the addons, with Istio injection enabl
 
 ```bash
 kubectl --context ${CLUSTER1} create namespace gloo-mesh-addons
-kubectl --context ${CLUSTER1} label namespace gloo-mesh-addons istio.io/rev=1-15
+kubectl --context ${CLUSTER1} label namespace gloo-mesh-addons istio.io/rev=1-16
 kubectl --context ${CLUSTER2} create namespace gloo-mesh-addons
-kubectl --context ${CLUSTER2} label namespace gloo-mesh-addons istio.io/rev=1-15
+kubectl --context ${CLUSTER2} label namespace gloo-mesh-addons istio.io/rev=1-16
 ```
 
 Then, you can deploy the addons on the cluster(s) using Helm:
@@ -2212,31 +2212,41 @@ echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
 -->
 
-If you try to access it from the first cluster, you can see that the traffic is still sent to the local `productpage` service.
+Now, if you try to access it from the first cluster, you can see that you now get the `v3` version of the `reviews` service (red stars).
 
-If the local `productpage` service becomes unavailable, it will automatically failover to the `productpage` service running on the remote cluster.
+This diagram shows the flow of the request (through both Istio ingress gateways):
 
-If you take a look at the Istio `DestinationRule` corresponding to the `VirtualDestination`, you'll see the following `trafficPolicy` configuration:
+![Gloo Mesh Virtual Destination Both](images/steps/virtual-destination/gloo-mesh-virtual-destination-both.svg)
 
+It's nice, but you generally want to direct the traffic to the local services if they're available and failover to the remote cluster only when they're not.
+
+In order to do that we need to create 2 other policies.
+
+The first one is a `FailoverPolicy`:
+
+```bash
+kubectl --context ${CLUSTER1} apply -f - <<EOF
+apiVersion: resilience.policy.gloo.solo.io/v2
+kind: FailoverPolicy
+metadata:
+  name: failover
+  namespace: bookinfo-frontends
+spec:
+  applyToDestinations:
+  - kind: VIRTUAL_DESTINATION
+    selector:
+      labels:
+        failover: "true"
+  config:
+    localityMappings: []
+EOF
 ```
-    trafficPolicy:
-      loadBalancer:
-        localityLbSetting:
-          enabled: true
-          failoverPriority:
-          - topology.istio.io/network
-          - topology.kubernetes.io/region
-          - topology.kubernetes.io/zone
-          - topology.istio.io/subzone
-      outlierDetection:
-        baseEjectionTime: 900s
-        consecutive5xxErrors: 7
-        interval: 300s
-```
 
-You can change these default settings by attaching a `FailoverPolicy` or/and an `OutlierDetectionPolicy` to the `VirtualDestination`.
+It will update the Istio `DestinationRule` to enable failover.
 
-In our case, we'll create an `OutlierDetectionPolicy` to failover faster:
+Note that failover is enabled by default, so creating this `FailoverPolicy` is optional. By default, it will try to failover to the same zone, then same region and finally anywhere. A `FailoverPolicy` is generally used when you want to change this default behavior. For example, if you have many regions, you may want to failover only to a specific region.
+
+The second one is an `OutlierDetectionPolicy`:
 
 ```bash
 kubectl --context ${CLUSTER1} apply -f - <<EOF
@@ -2259,7 +2269,9 @@ spec:
 EOF
 ```
 
-As you can see, the policy will be applied to `VirtualDestination` objects that have the label `failover` set to `"true"`.
+It will update the Istio `DestinationRule` to specify how/when we want the failover to happen.
+
+As you can see, both policies will be applied to `VirtualDestination` objects that have the label `failover` set to `"true"`.
 
 So we need to update the `VirtualDestination`:
 
@@ -2300,6 +2312,8 @@ tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
 -->
+
+Now, if you try to access the productpage from the first cluster, you should only get the `v1` and `v2` versions (the local ones).
 
 This updated diagram shows the flow of the requests using the local services:
 
@@ -2420,6 +2434,7 @@ And also delete the different objects we've created:
 
 ```bash
 kubectl --context ${CLUSTER1} -n bookinfo-frontends delete virtualdestination productpage
+kubectl --context ${CLUSTER1} -n bookinfo-frontends delete failoverpolicy failover
 kubectl --context ${CLUSTER1} -n bookinfo-frontends delete outlierdetectionpolicy outlier-detection
 ```
 
