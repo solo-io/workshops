@@ -1,9 +1,0 @@
-var chai = require('chai');
-var expect = chai.expect;
-
-describe("Required environment variables should contain value", () => {
-  it("The environment variables GITHUB_TOKEN and GOPATH should not be empty", () => {
-    expect(process.env.GITHUB_TOKEN).to.not.be.empty
-    expect(process.env.GOPATH).to.not.be.empty
-  });
-});
