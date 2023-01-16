@@ -1,0 +1,46 @@
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: echo-v1
+  name: echo-v1
+spec:
+  ports:
+  - name: http
+    port: 8080
+    protocol: TCP
+    targetPort: 5678
+  selector:
+    app: echo-v1
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: echo-v1
+    version: v1
+  name: echo-v1
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: echo-v1
+      version: v1
+  template:
+    metadata:
+      labels:
+        app: echo-v1
+        version: v1
+    spec:
+      containers:
+      - image: hashicorp/http-echo:0.2.3
+        imagePullPolicy: IfNotPresent
+        name: echo-v1
+        args:
+        - "-text=version-1"        
+        ports:
+        - containerPort: 5678
+          name: http
+          protocol: TCP
+        securityContext:
+          privileged: false
