@@ -2386,7 +2386,7 @@ spec:
       istioOperatorSpec:
         profile: minimal
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.16.0-solo
+        tag: 1.16.1-solo
         namespace: istio-system
         values:
           global:
@@ -2448,7 +2448,7 @@ spec:
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.16.0-solo
+        tag: 1.16.1-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -2501,7 +2501,7 @@ spec:
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.16.0-solo
+        tag: 1.16.1-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -2668,7 +2668,7 @@ spec:
       istioOperatorSpec:
         profile: minimal
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.16.0-solo
+        tag: 1.16.1-solo
         namespace: istio-system
         values:
           global:
@@ -2711,7 +2711,7 @@ spec:
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.16.0-solo
+        tag: 1.16.1-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -2738,7 +2738,7 @@ spec:
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.16.0-solo
+        tag: 1.16.1-solo
         values:
           gateways:
             istio-ingressgateway:
