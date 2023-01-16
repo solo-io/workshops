@@ -151,7 +151,7 @@ kubectl config use-context ${MGMT}
 First of all, let's install the `meshctl` CLI:
 
 ```bash
-export GLOO_MESH_VERSION=v2.2.0-rc1
+export GLOO_MESH_VERSION=v2.2.0-rc2
 curl -sL https://run.solo.io/meshctl/install | sh -
 export PATH=$HOME/.gloo-mesh/bin:$PATH
 ```
@@ -196,8 +196,11 @@ helm repo update
 kubectl --context ${MGMT} create ns gloo-mesh 
 helm upgrade --install gloo-mesh-enterprise gloo-mesh-enterprise/gloo-mesh-enterprise \
 --namespace gloo-mesh --kube-context ${MGMT} \
---version=2.2.0-rc1 \
+--version=2.2.0-rc2 \
 --set glooMeshMgmtServer.ports.healthcheck=8091 \
+--set legacyMetricsPipeline.enabled=false \
+--set metricsgateway.enabled=true \
+--set metricsgateway.service.type=LoadBalancer \
 --set glooMeshUi.serviceType=LoadBalancer \
 --set mgmtClusterName=${MGMT} \
 --set global.cluster=${MGMT} \
@@ -240,6 +243,7 @@ mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${te
 ```bash
 export ENDPOINT_GLOO_MESH=$(kubectl --context ${MGMT} -n gloo-mesh get svc gloo-mesh-mgmt-server -o jsonpath='{.status.loadBalancer.ingress[0].*}'):9900
 export HOST_GLOO_MESH=$(echo ${ENDPOINT_GLOO_MESH} | cut -d: -f1)
+export ENDPOINT_METRICS_GATEWAY=$(kubectl --context ${MGMT} -n gloo-mesh get svc gloo-metrics-gateway -o jsonpath='{.status.loadBalancer.ingress[0].*}'):4317
 ```
 
 Check that the variables have correct values:
@@ -308,7 +312,9 @@ helm upgrade --install gloo-mesh-agent gloo-mesh-agent/gloo-mesh-agent \
   --set rate-limiter.enabled=false \
   --set ext-auth-service.enabled=false \
   --set cluster=cluster1 \
-  --version 2.2.0-rc1
+  --set metricscollector.enabled=true \
+  --set metricscollector.config.exporters.otlp.endpoint=\"${ENDPOINT_METRICS_GATEWAY}\" \
+  --version 2.2.0-rc2
 ```
 
 Note that the registration can also be performed using `meshctl cluster register`.
@@ -343,7 +349,9 @@ helm upgrade --install gloo-mesh-agent gloo-mesh-agent/gloo-mesh-agent \
   --set rate-limiter.enabled=false \
   --set ext-auth-service.enabled=false \
   --set cluster=cluster2 \
-  --version 2.2.0-rc1
+  --set metricscollector.enabled=true \
+  --set metricscollector.config.exporters.otlp.endpoint=\"${ENDPOINT_METRICS_GATEWAY}\" \
+  --version 2.2.0-rc2
 ```
 
 You can check the cluster(s) have been registered correctly using the following commands:
@@ -573,7 +581,7 @@ spec:
       istioOperatorSpec:
         profile: minimal
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.15.4-solo
+        tag: 1.16.1-solo
         namespace: istio-system
         values:
           global:
@@ -583,9 +591,7 @@ spec:
             network: cluster1
         meshConfig:
           accessLogFile: /dev/stdout
-          defaultConfig:
-            envoyMetricsService:
-              address: gloo-mesh-agent.gloo-mesh:9977        
+          defaultConfig:        
             proxyMetadata:
               ISTIO_META_DNS_CAPTURE: "true"
               ISTIO_META_DNS_AUTO_ALLOCATE: "true"
@@ -616,7 +622,7 @@ spec:
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.15.4-solo
+        tag: 1.16.1-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -643,7 +649,7 @@ spec:
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.15.4-solo
+        tag: 1.16.1-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -680,7 +686,7 @@ spec:
       istioOperatorSpec:
         profile: minimal
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.15.4-solo
+        tag: 1.16.1-solo
         namespace: istio-system
         values:
           global:
@@ -690,9 +696,7 @@ spec:
             network: cluster2
         meshConfig:
           accessLogFile: /dev/stdout
-          defaultConfig:
-            envoyMetricsService:
-              address: gloo-mesh-agent.gloo-mesh:9977        
+          defaultConfig:        
             proxyMetadata:
               ISTIO_META_DNS_CAPTURE: "true"
               ISTIO_META_DNS_AUTO_ALLOCATE: "true"
@@ -723,7 +727,7 @@ spec:
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.15.4-solo
+        tag: 1.16.1-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -750,7 +754,7 @@ spec:
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.15.4-solo
+        tag: 1.16.1-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -1199,7 +1203,7 @@ helm upgrade --install gloo-mesh-agent-addons gloo-mesh-agent/gloo-mesh-agent \
   --set glooMeshAgent.enabled=false \
   --set rate-limiter.enabled=true \
   --set ext-auth-service.enabled=true \
-  --version 2.2.0-rc1
+  --version 2.2.0-rc2
 
 helm upgrade --install gloo-mesh-agent-addons gloo-mesh-agent/gloo-mesh-agent \
   --namespace gloo-mesh-addons \
@@ -1207,7 +1211,7 @@ helm upgrade --install gloo-mesh-agent-addons gloo-mesh-agent/gloo-mesh-agent \
   --set glooMeshAgent.enabled=false \
   --set rate-limiter.enabled=true \
   --set ext-auth-service.enabled=true \
-  --version 2.2.0-rc1
+  --version 2.2.0-rc2
 ```
 
 This is how to environment looks like now:
@@ -2147,31 +2151,41 @@ echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
 -->
 
-If you try to access it from the first cluster, you can see that the traffic is still sent to the local `productpage` service.
+Now, if you try to access it from the first cluster, you can see that you now get the `v3` version of the `reviews` service (red stars).
 
-If the local `productpage` service becomes unavailable, it will automatically failover to the `productpage` service running on the remote cluster.
+This diagram shows the flow of the request (through both Istio ingress gateways):
 
-If you take a look at the Istio `DestinationRule` corresponding to the `VirtualDestination`, you'll see the following `trafficPolicy` configuration:
+![Gloo Mesh Virtual Destination Both](images/steps/virtual-destination/gloo-mesh-virtual-destination-both.svg)
 
+It's nice, but you generally want to direct the traffic to the local services if they're available and failover to the remote cluster only when they're not.
+
+In order to do that we need to create 2 other policies.
+
+The first one is a `FailoverPolicy`:
+
+```bash
+kubectl --context ${CLUSTER1} apply -f - <<EOF
+apiVersion: resilience.policy.gloo.solo.io/v2
+kind: FailoverPolicy
+metadata:
+  name: failover
+  namespace: bookinfo-frontends
+spec:
+  applyToDestinations:
+  - kind: VIRTUAL_DESTINATION
+    selector:
+      labels:
+        failover: "true"
+  config:
+    localityMappings: []
+EOF
 ```
-    trafficPolicy:
-      loadBalancer:
-        localityLbSetting:
-          enabled: true
-          failoverPriority:
-          - topology.istio.io/network
-          - topology.kubernetes.io/region
-          - topology.kubernetes.io/zone
-          - topology.istio.io/subzone
-      outlierDetection:
-        baseEjectionTime: 900s
-        consecutive5xxErrors: 7
-        interval: 300s
-```
 
-You can change these default settings by attaching a `FailoverPolicy` or/and an `OutlierDetectionPolicy` to the `VirtualDestination`.
+It will update the Istio `DestinationRule` to enable failover.
 
-In our case, we'll create an `OutlierDetectionPolicy` to failover faster:
+Note that failover is enabled by default, so creating this `FailoverPolicy` is optional. By default, it will try to failover to the same zone, then same region and finally anywhere. A `FailoverPolicy` is generally used when you want to change this default behavior. For example, if you have many regions, you may want to failover only to a specific region.
+
+The second one is an `OutlierDetectionPolicy`:
 
 ```bash
 kubectl --context ${CLUSTER1} apply -f - <<EOF
@@ -2194,7 +2208,9 @@ spec:
 EOF
 ```
 
-As you can see, the policy will be applied to `VirtualDestination` objects that have the label `failover` set to `"true"`.
+It will update the Istio `DestinationRule` to specify how/when we want the failover to happen.
+
+As you can see, both policies will be applied to `VirtualDestination` objects that have the label `failover` set to `"true"`.
 
 So we need to update the `VirtualDestination`:
 
@@ -2235,6 +2251,8 @@ tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
 -->
+
+Now, if you try to access the productpage from the first cluster, you should only get the `v1` and `v2` versions (the local ones).
 
 This updated diagram shows the flow of the requests using the local services:
 
@@ -2355,6 +2373,7 @@ And also delete the different objects we've created:
 
 ```bash
 kubectl --context ${CLUSTER1} -n bookinfo-frontends delete virtualdestination productpage
+kubectl --context ${CLUSTER1} -n bookinfo-frontends delete failoverpolicy failover
 kubectl --context ${CLUSTER1} -n bookinfo-frontends delete outlierdetectionpolicy outlier-detection
 ```
 
