@@ -631,8 +631,8 @@ spec:
           defaultConfig:        
             proxyMetadata:
               ISTIO_META_DNS_CAPTURE: "true"
-              ISTIO_META_DNS_AUTO_ALLOCATE: "true"        
-        components:        
+              ISTIO_META_DNS_AUTO_ALLOCATE: "true"
+        components:
           pilot:
             k8s:
               env:
@@ -758,8 +758,8 @@ spec:
           defaultConfig:        
             proxyMetadata:
               ISTIO_META_DNS_CAPTURE: "true"
-              ISTIO_META_DNS_AUTO_ALLOCATE: "true"        
-        components:        
+              ISTIO_META_DNS_AUTO_ALLOCATE: "true"
+        components:
           pilot:
             k8s:
               env:
