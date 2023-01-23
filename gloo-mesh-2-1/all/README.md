@@ -604,8 +604,8 @@ spec:
               address: gloo-mesh-agent.gloo-mesh:9977        
             proxyMetadata:
               ISTIO_META_DNS_CAPTURE: "true"
-              ISTIO_META_DNS_AUTO_ALLOCATE: "true"        
-        components:        
+              ISTIO_META_DNS_AUTO_ALLOCATE: "true"
+        components:
           pilot:
             k8s:
               env:
@@ -711,8 +711,8 @@ spec:
               address: gloo-mesh-agent.gloo-mesh:9977        
             proxyMetadata:
               ISTIO_META_DNS_CAPTURE: "true"
-              ISTIO_META_DNS_AUTO_ALLOCATE: "true"        
-        components:        
+              ISTIO_META_DNS_AUTO_ALLOCATE: "true"
+        components:
           pilot:
             k8s:
               env:
