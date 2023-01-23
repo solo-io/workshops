@@ -284,6 +284,7 @@ Note that the few Openshift specific commands used in this lab are documented on
 First of all, let's create Kubernetes services for the gateways:
 
 ```bash
+registry=localhost:5000
 kubectl --context ${CLUSTER1} create ns istio-gateways
 kubectl --context ${CLUSTER1} label namespace istio-gateways istio.io/rev=1-16
 
@@ -420,8 +421,8 @@ spec:
               address: gloo-mesh-agent.gloo-mesh:9977        
             proxyMetadata:
               ISTIO_META_DNS_CAPTURE: "true"
-              ISTIO_META_DNS_AUTO_ALLOCATE: "true"
-        components:
+              ISTIO_META_DNS_AUTO_ALLOCATE: "true"        
+        components:        
           pilot:
             k8s:
               env:
@@ -508,7 +509,7 @@ EOF
 ```
 
 <!--bash
-until [[ $(kubectl --context ${CLUSTER1} -n istio-system get deploy -o json | jq '[.items[].status.readyReplicas] | add') -eq 1 ]]; do
+until [[ $(kubectl --context ${CLUSTER1} -n istio-system get deploy -o json | jq '[.items[].status.readyReplicas] | add') -ge 1 ]]; do
   sleep 1
 done
 until [[ $(kubectl --context ${CLUSTER1} -n istio-gateways get deploy -o json | jq '[.items[].status.readyReplicas] | add') -eq 2 ]]; do
