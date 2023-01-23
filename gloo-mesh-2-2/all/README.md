@@ -159,7 +159,7 @@ kubectl config use-context ${MGMT}
 First of all, let's install the `meshctl` CLI:
 
 ```bash
-export GLOO_MESH_VERSION=v2.2.0-rc3
+export GLOO_MESH_VERSION=v2.2.0
 curl -sL https://run.solo.io/meshctl/install | sh -
 export PATH=$HOME/.gloo-mesh/bin:$PATH
 ```
@@ -204,7 +204,7 @@ helm repo update
 kubectl --context ${MGMT} create ns gloo-mesh 
 helm upgrade --install gloo-mesh-enterprise gloo-mesh-enterprise/gloo-mesh-enterprise \
 --namespace gloo-mesh --kube-context ${MGMT} \
---version=2.2.0-rc3 \
+--version=2.2.0 \
 --set glooMeshMgmtServer.ports.healthcheck=8091 \
 --set legacyMetricsPipeline.enabled=false \
 --set metricsgateway.enabled=true \
@@ -322,7 +322,7 @@ helm upgrade --install gloo-mesh-agent gloo-mesh-agent/gloo-mesh-agent \
   --set cluster=cluster1 \
   --set metricscollector.enabled=true \
   --set metricscollector.config.exporters.otlp.endpoint=\"${ENDPOINT_METRICS_GATEWAY}\" \
-  --version 2.2.0-rc3
+  --version 2.2.0
 ```
 
 Note that the registration can also be performed using `meshctl cluster register`.
@@ -359,7 +359,7 @@ helm upgrade --install gloo-mesh-agent gloo-mesh-agent/gloo-mesh-agent \
   --set cluster=cluster2 \
   --set metricscollector.enabled=true \
   --set metricscollector.config.exporters.otlp.endpoint=\"${ENDPOINT_METRICS_GATEWAY}\" \
-  --version 2.2.0-rc3
+  --version 2.2.0
 ```
 
 You can check the cluster(s) have been registered correctly using the following commands:
@@ -429,6 +429,7 @@ We are going to deploy Istio using Gloo Mesh Lifecycle Manager.
 First of all, let's create Kubernetes services for the gateways:
 
 ```bash
+registry=localhost:5000
 kubectl --context ${CLUSTER1} create ns istio-gateways
 kubectl --context ${CLUSTER1} label namespace istio-gateways istio.io/rev=1-15
 
@@ -610,8 +611,8 @@ spec:
           defaultConfig:        
             proxyMetadata:
               ISTIO_META_DNS_CAPTURE: "true"
-              ISTIO_META_DNS_AUTO_ALLOCATE: "true"
-        components:
+              ISTIO_META_DNS_AUTO_ALLOCATE: "true"        
+        components:        
           pilot:
             k8s:
               env:
@@ -715,8 +716,8 @@ spec:
           defaultConfig:        
             proxyMetadata:
               ISTIO_META_DNS_CAPTURE: "true"
-              ISTIO_META_DNS_AUTO_ALLOCATE: "true"
-        components:
+              ISTIO_META_DNS_AUTO_ALLOCATE: "true"        
+        components:        
           pilot:
             k8s:
               env:
@@ -793,13 +794,13 @@ EOF
 ```
 
 <!--bash
-until [[ $(kubectl --context ${CLUSTER1} -n istio-system get deploy -o json | jq '[.items[].status.readyReplicas] | add') -eq 1 ]]; do
+until [[ $(kubectl --context ${CLUSTER1} -n istio-system get deploy -o json | jq '[.items[].status.readyReplicas] | add') -ge 1 ]]; do
   sleep 1
 done
 until [[ $(kubectl --context ${CLUSTER1} -n istio-gateways get deploy -o json | jq '[.items[].status.readyReplicas] | add') -eq 2 ]]; do
   sleep 1
 done
-until [[ $(kubectl --context ${CLUSTER2} -n istio-system get deploy -o json | jq '[.items[].status.readyReplicas] | add') -eq 1 ]]; do
+until [[ $(kubectl --context ${CLUSTER2} -n istio-system get deploy -o json | jq '[.items[].status.readyReplicas] | add') -ge 1 ]]; do
   sleep 1
 done
 until [[ $(kubectl --context ${CLUSTER2} -n istio-gateways get deploy -o json | jq '[.items[].status.readyReplicas] | add') -eq 2 ]]; do
@@ -1219,7 +1220,7 @@ helm upgrade --install gloo-mesh-agent-addons gloo-mesh-agent/gloo-mesh-agent \
   --set glooMeshAgent.enabled=false \
   --set rate-limiter.enabled=true \
   --set ext-auth-service.enabled=true \
-  --version 2.2.0-rc3
+  --version 2.2.0
 
 helm upgrade --install gloo-mesh-agent-addons gloo-mesh-agent/gloo-mesh-agent \
   --namespace gloo-mesh-addons \
@@ -1227,7 +1228,7 @@ helm upgrade --install gloo-mesh-agent-addons gloo-mesh-agent/gloo-mesh-agent \
   --set glooMeshAgent.enabled=false \
   --set rate-limiter.enabled=true \
   --set ext-auth-service.enabled=true \
-  --version 2.2.0-rc3
+  --version 2.2.0
 ```
 
 This is how to environment looks like now:
@@ -5747,7 +5748,7 @@ helm repo update
 kubectl --context ${MGMT2} create ns gloo-mesh 
 helm upgrade --install gloo-mesh-enterprise gloo-mesh-enterprise/gloo-mesh-enterprise \
 --namespace gloo-mesh --kube-context ${MGMT2} \
---version=2.2.0-rc3 \
+--version=2.2.0 \
 --set glooMeshMgmtServer.ports.healthcheck=8091 \
 --set glooMeshUi.serviceType=LoadBalancer \
 --set mgmtClusterName=${MGMT} \
@@ -5904,7 +5905,7 @@ helm upgrade --install gloo-mesh-agent gloo-mesh-agent/gloo-mesh-agent \
   --set rate-limiter.enabled=false \
   --set ext-auth-service.enabled=false \
   --set cluster=cluster1 \
-  --version 2.2.0-rc3
+  --version 2.2.0
 
 kubectl --context ${CLUSTER2} create ns gloo-mesh
 
@@ -5916,7 +5917,7 @@ helm upgrade --install gloo-mesh-agent gloo-mesh-agent/gloo-mesh-agent \
   --set rate-limiter.enabled=false \
   --set ext-auth-service.enabled=false \
   --set cluster=cluster2 \
-  --version 2.2.0-rc3
+  --version 2.2.0
 ```
 
 Let's scale up the management plane:
