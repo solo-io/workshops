@@ -176,14 +176,14 @@ do
   done
 done
 
-wget https://storage.googleapis.com/gloo-mesh-enterprise/gloo-mesh-agent/gloo-mesh-agent-2.2.0-rc3.tgz
-tar zxvf gloo-mesh-agent-2.2.0-rc3.tgz
+wget https://storage.googleapis.com/gloo-mesh-enterprise/gloo-mesh-agent/gloo-mesh-agent-2.2.0.tgz
+tar zxvf gloo-mesh-agent-2.2.0.tgz
 find gloo-mesh-agent -name "values.yaml" | while read file; do
   cat $file | yq eval -j | jq -r '.. | .image? | select(. != null) | (if .hub then .hub + "/" + .repository + ":" + .tag else (if .registry then (if .registry == "docker.io" then "docker.io/library" else .registry end) + "/" else "" end) + .repository + ":" + (.tag | tostring) end)'
 done | sort -u >> images.txt
 
-wget https://storage.googleapis.com/gloo-mesh-enterprise/gloo-mesh-enterprise/gloo-mesh-enterprise-2.2.0-rc3.tgz
-tar zxvf gloo-mesh-enterprise-2.2.0-rc3.tgz
+wget https://storage.googleapis.com/gloo-mesh-enterprise/gloo-mesh-enterprise/gloo-mesh-enterprise-2.2.0.tgz
+tar zxvf gloo-mesh-enterprise-2.2.0.tgz
 find gloo-mesh-enterprise -name "values.yaml" | while read file; do
   cat $file | yq eval -j | jq -r '.. | .image? | select(. != null) | (if .hub then .hub + "/" + .repository + ":" + .tag else (if .registry then (if .registry == "docker.io" then "docker.io/library" else .registry end) + "/" else "" end) + .repository + ":" + (.tag | tostring) end)'
 done | sort -u >> images.txt
@@ -211,7 +211,7 @@ done
 First of all, let's install the `meshctl` CLI:
 
 ```bash
-export GLOO_MESH_VERSION=v2.2.0-rc3
+export GLOO_MESH_VERSION=v2.2.0
 curl -sL https://run.solo.io/meshctl/install | sh -
 export PATH=$HOME/.gloo-mesh/bin:$PATH
 ```
@@ -256,7 +256,7 @@ helm repo update
 kubectl --context ${MGMT} create ns gloo-mesh 
 helm upgrade --install gloo-mesh-enterprise gloo-mesh-enterprise/gloo-mesh-enterprise \
 --namespace gloo-mesh --kube-context ${MGMT} \
---version=2.2.0-rc3 \
+--version=2.2.0 \
 --set glooMeshMgmtServer.ports.healthcheck=8091 \
 --set legacyMetricsPipeline.enabled=false \
 --set metricsgateway.enabled=true \
@@ -384,7 +384,7 @@ helm upgrade --install gloo-mesh-agent gloo-mesh-agent/gloo-mesh-agent \
   --set metricscollector.config.exporters.otlp.endpoint=\"${ENDPOINT_METRICS_GATEWAY}\" \
   --set glooMeshAgent.image.registry=${registry}/gloo-mesh \
   --set metricscollector.image.repository=${registry}/gloo-mesh/gloo-otel-collector \
-  --version 2.2.0-rc3
+  --version 2.2.0
 ```
 
 Note that the registration can also be performed using `meshctl cluster register`.
@@ -423,7 +423,7 @@ helm upgrade --install gloo-mesh-agent gloo-mesh-agent/gloo-mesh-agent \
   --set metricscollector.config.exporters.otlp.endpoint=\"${ENDPOINT_METRICS_GATEWAY}\" \
   --set glooMeshAgent.image.registry=${registry}/gloo-mesh \
   --set metricscollector.image.repository=${registry}/gloo-mesh/gloo-otel-collector \
-  --version 2.2.0-rc3
+  --version 2.2.0
 ```
 
 You can check the cluster(s) have been registered correctly using the following commands:
@@ -493,6 +493,7 @@ We are going to deploy Istio using Gloo Mesh Lifecycle Manager.
 First of all, let's create Kubernetes services for the gateways:
 
 ```bash
+registry=localhost:5000
 kubectl --context ${CLUSTER1} create ns istio-gateways
 kubectl --context ${CLUSTER1} label namespace istio-gateways istio.io/rev=1-16
 
@@ -857,13 +858,13 @@ EOF
 ```
 
 <!--bash
-until [[ $(kubectl --context ${CLUSTER1} -n istio-system get deploy -o json | jq '[.items[].status.readyReplicas] | add') -eq 1 ]]; do
+until [[ $(kubectl --context ${CLUSTER1} -n istio-system get deploy -o json | jq '[.items[].status.readyReplicas] | add') -ge 1 ]]; do
   sleep 1
 done
 until [[ $(kubectl --context ${CLUSTER1} -n istio-gateways get deploy -o json | jq '[.items[].status.readyReplicas] | add') -eq 2 ]]; do
   sleep 1
 done
-until [[ $(kubectl --context ${CLUSTER2} -n istio-system get deploy -o json | jq '[.items[].status.readyReplicas] | add') -eq 1 ]]; do
+until [[ $(kubectl --context ${CLUSTER2} -n istio-system get deploy -o json | jq '[.items[].status.readyReplicas] | add') -ge 1 ]]; do
   sleep 1
 done
 until [[ $(kubectl --context ${CLUSTER2} -n istio-gateways get deploy -o json | jq '[.items[].status.readyReplicas] | add') -eq 2 ]]; do
@@ -1290,7 +1291,7 @@ helm upgrade --install gloo-mesh-agent-addons gloo-mesh-agent/gloo-mesh-agent \
 --set ext-auth-service.extAuth.image.registry=${registry}/gloo-mesh \
 --set rate-limiter.rateLimiter.image.registry=${registry}/gloo-mesh \
 --set rate-limiter.redis.image.registry=${registry} \
-  --version 2.2.0-rc3
+  --version 2.2.0
 
 helm upgrade --install gloo-mesh-agent-addons gloo-mesh-agent/gloo-mesh-agent \
   --namespace gloo-mesh-addons \
@@ -1301,7 +1302,7 @@ helm upgrade --install gloo-mesh-agent-addons gloo-mesh-agent/gloo-mesh-agent \
 --set ext-auth-service.extAuth.image.registry=${registry}/gloo-mesh \
 --set rate-limiter.rateLimiter.image.registry=${registry}/gloo-mesh \
 --set rate-limiter.redis.image.registry=${registry} \
-  --version 2.2.0-rc3
+  --version 2.2.0
 ```
 
 This is how to environment looks like now:

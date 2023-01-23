@@ -362,6 +362,7 @@ We are going to deploy Istio using Gloo Mesh Lifecycle Manager.
 First of all, let's create Kubernetes services for the gateways:
 
 ```bash
+registry=localhost:5000
 kubectl --context ${CLUSTER1} create ns istio-gateways
 kubectl --context ${CLUSTER1} label namespace istio-gateways istio.io/rev=1-16
 
@@ -550,7 +551,7 @@ EOF
 ```
 
 <!--bash
-until [[ $(kubectl --context ${CLUSTER1} -n istio-system get deploy -o json | jq '[.items[].status.readyReplicas] | add') -eq 1 ]]; do
+until [[ $(kubectl --context ${CLUSTER1} -n istio-system get deploy -o json | jq '[.items[].status.readyReplicas] | add') -ge 1 ]]; do
   sleep 1
 done
 until [[ $(kubectl --context ${CLUSTER1} -n istio-gateways get deploy -o json | jq '[.items[].status.readyReplicas] | add') -eq 2 ]]; do
