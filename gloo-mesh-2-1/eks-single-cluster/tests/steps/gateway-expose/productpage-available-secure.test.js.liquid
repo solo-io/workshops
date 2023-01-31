@@ -1,5 +1,0 @@
-const helpers = require('./tests/chai-http');
-
-describe("Productpage is available (HTTPS)", () => {
-  it('/productpage is available in cluster1', () => helpers.checkURL({ host: 'https://' + process.env.ENDPOINT_HTTPS_GW_CLUSTER1, path: '/productpage', retCode: 200 }));
-})
