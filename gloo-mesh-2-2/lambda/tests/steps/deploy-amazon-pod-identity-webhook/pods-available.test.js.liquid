@@ -1,5 +1,0 @@
-const helpers = require('./tests/chai-exec');
-
-describe("Amazon EKS pod identity webhook", () => {
-  it('Amazon EKS pod identity webhook is ready in cluster1', () => helpers.checkDeployment({ context: process.env.CLUSTER1, namespace: "default", k8sObj: "pod-identity-webhook" }));
-});
