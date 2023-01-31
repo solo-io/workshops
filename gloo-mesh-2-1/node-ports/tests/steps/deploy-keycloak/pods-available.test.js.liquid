@@ -1,5 +1,0 @@
-const helpers = require('./tests/chai-exec');
-
-describe("Keycloak", () => {
-  it('keycloak pods are ready in cluster1', () => helpers.checkDeployment({ context: process.env.MGMT, namespace: "keycloak", k8sObj: "keycloak" }));
-});
