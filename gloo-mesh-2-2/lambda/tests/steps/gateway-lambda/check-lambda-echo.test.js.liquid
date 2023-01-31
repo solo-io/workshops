@@ -1,5 +1,0 @@
-const helpersHttp = require('./tests/chai-http');
-
-describe("Lambda integration is working properly", () => {
-  it('Checking text \'"path":"/lambda"\' in ' + process.env.CLUSTER1, () => helpersHttp.checkBody({ host: 'https://' + process.env.ENDPOINT_HTTPS_GW_CLUSTER1, path: '/lambda', body: '"path":"/lambda"', match: true }));
-})
