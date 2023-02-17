@@ -14,26 +14,25 @@ source ./scripts/assert.sh
 
 ## Table of Contents
 * [Introduction](#introduction)
-* [Lab 1 - Deploy a KinD cluster](#lab-1---deploy-a-kind-cluster-)
-* [Lab 2 - Prepare airgap environment](#lab-2---prepare-airgap-environment-)
-* [Lab 3 - Deploy and register Gloo Mesh](#lab-3---deploy-and-register-gloo-mesh-)
-* [Lab 4 - Deploy Istio using Gloo Mesh Lifecycle Manager](#lab-4---deploy-istio-using-gloo-mesh-lifecycle-manager-)
-* [Lab 5 - Deploy the Bookinfo demo app](#lab-5---deploy-the-bookinfo-demo-app-)
-* [Lab 6 - Deploy the httpbin demo app](#lab-6---deploy-the-httpbin-demo-app-)
-* [Lab 7 - Deploy Gloo Mesh Addons](#lab-7---deploy-gloo-mesh-addons-)
-* [Lab 8 - Create the gateways workspace](#lab-8---create-the-gateways-workspace-)
-* [Lab 9 - Create the bookinfo workspace](#lab-9---create-the-bookinfo-workspace-)
-* [Lab 10 - Expose the productpage through a gateway](#lab-10---expose-the-productpage-through-a-gateway-)
-* [Lab 11 - Traffic policies](#lab-11---traffic-policies-)
-* [Lab 12 - Zero trust](#lab-12---zero-trust-)
-* [Lab 13 - Create the httpbin workspace](#lab-13---create-the-httpbin-workspace-)
-* [Lab 14 - Expose an external service](#lab-14---expose-an-external-service-)
-* [Lab 15 - Deploy Keycloak](#lab-15---deploy-keycloak-)
-* [Lab 16 - Securing the access with OAuth](#lab-16---securing-the-access-with-oauth-)
-* [Lab 17 - Use the JWT filter to create headers from claims](#lab-17---use-the-jwt-filter-to-create-headers-from-claims-)
-* [Lab 18 - Use the transformation filter to manipulate headers](#lab-18---use-the-transformation-filter-to-manipulate-headers-)
-* [Lab 19 - Apply rate limiting to the Gateway](#lab-19---apply-rate-limiting-to-the-gateway-)
-* [Lab 20 - Use the Web Application Firewall filter](#lab-20---use-the-web-application-firewall-filter-)
+* [Lab 1 - Deploy the Kubernetes clusters manually](#lab-1---deploy-the-kubernetes-clusters-manually-)
+* [Lab 2 - Deploy and register Gloo Mesh](#lab-2---deploy-and-register-gloo-mesh-)
+* [Lab 3 - Deploy Istio using Gloo Mesh Lifecycle Manager](#lab-3---deploy-istio-using-gloo-mesh-lifecycle-manager-)
+* [Lab 4 - Deploy the Bookinfo demo app](#lab-4---deploy-the-bookinfo-demo-app-)
+* [Lab 5 - Deploy the httpbin demo app](#lab-5---deploy-the-httpbin-demo-app-)
+* [Lab 6 - Deploy Gloo Mesh Addons](#lab-6---deploy-gloo-mesh-addons-)
+* [Lab 7 - Create the gateways workspace](#lab-7---create-the-gateways-workspace-)
+* [Lab 8 - Create the bookinfo workspace](#lab-8---create-the-bookinfo-workspace-)
+* [Lab 9 - Expose the productpage through a gateway](#lab-9---expose-the-productpage-through-a-gateway-)
+* [Lab 10 - Traffic policies](#lab-10---traffic-policies-)
+* [Lab 11 - Zero trust](#lab-11---zero-trust-)
+* [Lab 12 - Create the httpbin workspace](#lab-12---create-the-httpbin-workspace-)
+* [Lab 13 - Expose an external service](#lab-13---expose-an-external-service-)
+* [Lab 14 - Deploy Keycloak](#lab-14---deploy-keycloak-)
+* [Lab 15 - Securing the access with OAuth](#lab-15---securing-the-access-with-oauth-)
+* [Lab 16 - Use the JWT filter to create headers from claims](#lab-16---use-the-jwt-filter-to-create-headers-from-claims-)
+* [Lab 17 - Use the transformation filter to manipulate headers](#lab-17---use-the-transformation-filter-to-manipulate-headers-)
+* [Lab 18 - Apply rate limiting to the Gateway](#lab-18---apply-rate-limiting-to-the-gateway-)
+* [Lab 19 - Use the Web Application Firewall filter](#lab-19---use-the-web-application-firewall-filter-)
 
 
 
@@ -74,7 +73,7 @@ You can find more information about Gloo Mesh in the official documentation:
 
 
 
-## Lab 1 - Deploy a KinD cluster <a name="lab-1---deploy-a-kind-cluster-"></a>
+## Lab 1 - Deploy the Kubernetes clusters manually <a name="lab-1---deploy-the-kubernetes-clusters-manually-"></a>
 
 
 Clone this repository and go to the directory where this `README.md` file is.
@@ -82,107 +81,38 @@ Clone this repository and go to the directory where this `README.md` file is.
 Set the context environment variables:
 
 ```bash
-export MGMT=cluster1
+export MGMT=mgmt
 export CLUSTER1=cluster1
 ```
 
-Run the following commands to deploy a Kubernetes cluster using [Kind](https://kind.sigs.k8s.io/):
-    
+> Note that in case you can't have a Kubernetes cluster dedicated for the management plane, you would set the variables like that:
+> ```
+> export MGMT=cluster1
+> export CLUSTER1=cluster1
+> ```
+
+You also need to rename the Kubernete contexts of each Kubernetes cluster to match `mgmt`, `cluster1`, ...
+
+Here is an example showing how to rename a Kubernetes context:
+
+```
+kubectl config rename-context <context to rename> <new context name>
+```
+
+Run the following command to make `mgmt` the current cluster.
 
 ```bash
-./scripts/deploy.sh 1 cluster1 us-west us-west-1
-```
-
-Then run the following commands to wait for all the Pods to be ready:
-
-```bash
-./scripts/check.sh cluster1
-```
-
-**Note:** If you run the `check.sh` script immediately after the `deploy.sh` script, you may see a jsonpath error. If that happens, simply wait a few seconds and try again.
-
-Once the `check.sh` script completes, when you execute the `kubectl get pods -A` command, you should see the following:
-
-```
-NAMESPACE            NAME                                          READY   STATUS    RESTARTS   AGE
-kube-system          calico-kube-controllers-59d85c5c84-sbk4k      1/1     Running   0          4h26m
-kube-system          calico-node-przxs                             1/1     Running   0          4h26m
-kube-system          coredns-6955765f44-ln8f5                      1/1     Running   0          4h26m
-kube-system          coredns-6955765f44-s7xxx                      1/1     Running   0          4h26m
-kube-system          etcd-cluster1-control-plane                   1/1     Running   0          4h27m
-kube-system          kube-apiserver-cluster1-control-plane         1/1     Running   0          4h27m
-kube-system          kube-controller-manager-cluster1-control-plane1/1     Running   0          4h27m
-kube-system          kube-proxy-ksvzw                              1/1     Running   0          4h26m
-kube-system          kube-scheduler-cluster1-control-plane         1/1     Running   0          4h27m
-local-path-storage   local-path-provisioner-58f6947c7-lfmdx        1/1     Running   0          4h26m
-metallb-system       controller-5c9894b5cd-cn9x2                   1/1     Running   0          4h26m
-metallb-system       speaker-d7jkp                                 1/1     Running   0          4h26m
+kubectl config use-context ${MGMT}
 ```
 
 
 
-## Lab 2 - Prepare airgap environment <a name="lab-2---prepare-airgap-environment-"></a>
-
-Set the registry variable:
-```bash
-registry=localhost:5000
-```
-
-Pull and push locally the Docker images needed:
-
-```bash
-cat <<EOF > images.txt
-us-docker.pkg.dev/gloo-mesh/istio-workshops/operator:1.16.2-solo
-us-docker.pkg.dev/gloo-mesh/istio-workshops/pilot:1.16.2-solo
-us-docker.pkg.dev/gloo-mesh/istio-workshops/proxyv2:1.16.2-solo
-quay.io/keycloak/keycloak:20.0.1
-docker.io/kennethreitz/httpbin
-EOF
-
-for url in https://raw.githubusercontent.com/istio/istio/release-1.16/samples/bookinfo/platform/kube/bookinfo.yaml https://raw.githubusercontent.com/istio/istio/release-1.16/samples/bookinfo/networking/bookinfo-gateway.yaml
-do
-  for image in $(curl -sfL ${url}|grep image:|awk '{print $2}')
-  do
-    echo $image >> images.txt
-  done
-done
-
-wget https://storage.googleapis.com/gloo-mesh-enterprise/gloo-mesh-agent/gloo-mesh-agent-2.2.4.tgz
-tar zxvf gloo-mesh-agent-*.tgz
-find gloo-mesh-agent -name "values.yaml" | while read file; do
-  cat $file | yq eval -j | jq -r '.. | .image? | select(. != null) | (if .hub then .hub + "/" + .repository + ":" + .tag else (if .registry then (if .registry == "docker.io" then "docker.io/library" else .registry end) + "/" else "" end) + .repository + ":" + (.tag | tostring) end)'
-done | sort -u >> images.txt
-
-wget https://storage.googleapis.com/gloo-mesh-enterprise/gloo-mesh-enterprise/gloo-mesh-enterprise-2.2.4.tgz
-tar zxvf gloo-mesh-enterprise-*.tgz
-find gloo-mesh-enterprise -name "values.yaml" | while read file; do
-  cat $file | yq eval -j | jq -r '.. | .image? | select(. != null) | (if .hub then .hub + "/" + .repository + ":" + .tag else (if .registry then (if .registry == "docker.io" then "docker.io/library" else .registry end) + "/" else "" end) + .repository + ":" + (.tag | tostring) end)'
-done | sort -u >> images.txt
-
-cat images.txt | while read image; do
-  nohup sh -c "echo $image | xargs -P10 -n1 docker pull" </dev/null >nohup.out 2>nohup.err &
-done
-
-cat images.txt | while read image; do
-  src=$(echo $image | sed 's/^docker\.io\///g' | sed 's/^library\///g')
-  dst=$(echo $image | awk -F/ '{ if(NF>3){ print $3"/"$4}else{if(NF>2){ print $2"/"$3}else{if($1=="docker.io"){print $2}else{print $1"/"$2}}}}' | sed 's/^library\///g')
-  docker pull $image
-
-  id=$(docker images $src  --format "{{.ID}}") 
-
-  docker tag $id ${registry}/$dst
-  docker push ${registry}/$dst
-done
-```
-
-
-
-## Lab 3 - Deploy and register Gloo Mesh <a name="lab-3---deploy-and-register-gloo-mesh-"></a>
+## Lab 2 - Deploy and register Gloo Mesh <a name="lab-2---deploy-and-register-gloo-mesh-"></a>
 
 First of all, let's install the `meshctl` CLI:
 
 ```bash
-export GLOO_MESH_VERSION=v2.2.4
+export GLOO_MESH_VERSION=v2.3.0-beta1
 curl -sL https://run.solo.io/meshctl/install | sh -
 export PATH=$HOME/.gloo-mesh/bin:$PATH
 ```
@@ -214,7 +144,7 @@ describe("Required environment variables should contain value", () => {
   });
 });
 EOF
-echo "executing test dist/gloo-mesh-2-0-single-cluster-airgap/build/templates/steps/deploy-and-register-gloo-mesh/tests/environment-variables.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-eks-single-cluster-beta/build/templates/steps/deploy-and-register-gloo-mesh/tests/environment-variables.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -226,19 +156,11 @@ helm repo update
 kubectl --context ${MGMT} create ns gloo-mesh 
 helm upgrade --install gloo-mesh-enterprise gloo-mesh-enterprise/gloo-mesh-enterprise \
 --namespace gloo-mesh --kube-context ${MGMT} \
---version=2.2.4 \
+--version=2.3.0-beta1 \
 --set glooMeshMgmtServer.ports.healthcheck=8091 \
 --set legacyMetricsPipeline.enabled=false \
 --set metricsgateway.enabled=true \
 --set metricsgateway.service.type=LoadBalancer \
---set glooMeshMgmtServer.image.registry=${registry}/gloo-mesh \
---set glooMeshUi.image.registry=${registry}/gloo-mesh \
---set glooMeshUi.sidecars.console.image.registry=${registry}/gloo-mesh \
---set glooMeshUi.sidecars.envoy.image.registry=${registry}/gloo-mesh \
---set metricsgateway.image.repository=${registry}/gloo-mesh/gloo-otel-collector \
---set prometheus.configmapReload.prometheus.image.repository=${registry}/jimmidyson/configmap-reload \
---set prometheus.server.image.repository=${registry}/prometheus/prometheus \
---set glooMeshRedis.image.registry=${registry} \
 --set glooMeshUi.serviceType=LoadBalancer \
 --set mgmtClusterName=${MGMT} \
 --set global.cluster=${MGMT} \
@@ -267,7 +189,7 @@ describe("MGMT server is healthy", () => {
   });
 });
 EOF
-echo "executing test dist/gloo-mesh-2-0-single-cluster-airgap/build/templates/steps/deploy-and-register-gloo-mesh/tests/check-deployment.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-eks-single-cluster-beta/build/templates/steps/deploy-and-register-gloo-mesh/tests/check-deployment.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -288,7 +210,7 @@ afterEach(function (done) {
   }
 });
 EOF
-echo "executing test dist/gloo-mesh-2-0-single-cluster-airgap/build/templates/steps/deploy-and-register-gloo-mesh/tests/get-gloo-mesh-mgmt-server-ip.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-eks-single-cluster-beta/build/templates/steps/deploy-and-register-gloo-mesh/tests/get-gloo-mesh-mgmt-server-ip.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -336,9 +258,7 @@ helm upgrade --install gloo-mesh-agent gloo-mesh-agent/gloo-mesh-agent \
   --set cluster=cluster1 \
   --set metricscollector.enabled=true \
   --set metricscollector.config.exporters.otlp.endpoint=\"${ENDPOINT_METRICS_GATEWAY}\" \
-  --set glooMeshAgent.image.registry=${registry}/gloo-mesh \
-  --set metricscollector.image.repository=${registry}/gloo-mesh/gloo-otel-collector \
-  --version 2.2.4
+  --version 2.3.0-beta1
 ```
 
 Note that the registration can also be performed using `meshctl cluster register`.
@@ -346,8 +266,11 @@ Note that the registration can also be performed using `meshctl cluster register
 You can check the cluster(s) have been registered correctly using the following commands:
 
 ```
-pod=$(kubectl --context ${MGMT} -n gloo-mesh get pods -l app=gloo-mesh-mgmt-server -o jsonpath='{.items[0].metadata.name}')
-kubectl --context ${MGMT} -n gloo-mesh debug -q -i ${pod} --image=curlimages/curl -- curl -s http://localhost:9091/metrics | grep relay_push_clients_connected
+kubectl --context ${MGMT} -n gloo-mesh port-forward deploy/gloo-mesh-mgmt-server 9091 &
+PID=$!
+sleep 3
+curl -s http://localhost:9091/metrics | grep relay_push_clients_connected
+kill $PID
 ```
 
 You should get an output similar to this:
@@ -363,15 +286,9 @@ cat <<'EOF' > ./test.js
 var chai = require('chai');
 var expect = chai.expect;
 const helpers = require('./tests/chai-exec');
-describe("Cluster registration", () => {
-  it("cluster1 is registered", () => {
-    podName = helpers.getOutputForCommand({ command: "kubectl -n gloo-mesh get pods -l app=gloo-mesh-mgmt-server -o jsonpath='{.items[0].metadata.name}' --context " + process.env.MGMT }).replaceAll("'", "");
-    command = helpers.getOutputForCommand({ command: "kubectl --context " + process.env.MGMT + " -n gloo-mesh debug -q -i " + podName + " --image=curlimages/curl -- curl -s http://localhost:9091/metrics" }).replaceAll("'", "");
-    expect(command).to.contain("cluster1");
-  });
-});
+//TODO: Create test without ephemeral container
 EOF
-echo "executing test dist/gloo-mesh-2-0-single-cluster-airgap/build/templates/steps/deploy-and-register-gloo-mesh/tests/cluster-registration.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-eks-single-cluster-beta/build/templates/steps/deploy-and-register-gloo-mesh/tests/cluster-registration.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -379,7 +296,7 @@ mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${te
 
 
 
-## Lab 4 - Deploy Istio using Gloo Mesh Lifecycle Manager <a name="lab-4---deploy-istio-using-gloo-mesh-lifecycle-manager-"></a>
+## Lab 3 - Deploy Istio using Gloo Mesh Lifecycle Manager <a name="lab-3---deploy-istio-using-gloo-mesh-lifecycle-manager-"></a>
 
 We are going to deploy Istio using Gloo Mesh Lifecycle Manager.
 
@@ -439,7 +356,7 @@ spec:
       revision: 1-16
       istioOperatorSpec:
         profile: minimal
-        hub: ${registry}/istio-workshops
+        hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
         tag: 1.16.2-solo
         namespace: istio-system
         values:
@@ -480,7 +397,7 @@ spec:
       gatewayRevision: 1-16
       istioOperatorSpec:
         profile: empty
-        hub: ${registry}/istio-workshops
+        hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
         tag: 1.16.2-solo
         values:
           gateways:
@@ -507,7 +424,7 @@ spec:
       gatewayRevision: 1-16
       istioOperatorSpec:
         profile: empty
-        hub: ${registry}/istio-workshops
+        hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
         tag: 1.16.2-solo
         values:
           gateways:
@@ -573,7 +490,7 @@ describe("Checking Istio installation", function() {
 });
 
 EOF
-echo "executing test dist/gloo-mesh-2-0-single-cluster-airgap/build/templates/steps/istio-lifecycle-manager-install/tests/istio-ready.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-eks-single-cluster-beta/build/templates/steps/istio-lifecycle-manager-install/tests/istio-ready.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -620,20 +537,16 @@ mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${te
 
 
 
-## Lab 5 - Deploy the Bookinfo demo app <a name="lab-5---deploy-the-bookinfo-demo-app-"></a>
+## Lab 4 - Deploy the Bookinfo demo app <a name="lab-4---deploy-the-bookinfo-demo-app-"></a>
 
 We're going to deploy the bookinfo application to demonstrate several features of Gloo Mesh.
 
 You can find more information about this application [here](https://istio.io/latest/docs/examples/bookinfo/).
-Download the bookinfo yaml and update the registry:
-```bash
-curl https://raw.githubusercontent.com/istio/istio/release-1.16/samples/bookinfo/platform/kube/bookinfo.yaml | sed "s/image: docker.io/image: ${registry}/g" > bookinfo.yaml
-```
 
 Run the following commands to deploy the bookinfo application on `cluster1`:
 
 ```bash
-
+curl https://raw.githubusercontent.com/istio/istio/release-1.16/samples/bookinfo/platform/kube/bookinfo.yaml > bookinfo.yaml
 
 kubectl --context ${CLUSTER1} create ns bookinfo-frontends
 kubectl --context ${CLUSTER1} create ns bookinfo-backends
@@ -690,7 +603,7 @@ describe("Bookinfo app", () => {
   });
 });
 EOF
-echo "executing test dist/gloo-mesh-2-0-single-cluster-airgap/build/templates/steps/apps/bookinfo/deploy-bookinfo/tests/check-bookinfo.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-eks-single-cluster-beta/build/templates/steps/apps/bookinfo/deploy-bookinfo/tests/check-bookinfo.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -699,7 +612,7 @@ mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${te
 
 
 
-## Lab 6 - Deploy the httpbin demo app <a name="lab-6---deploy-the-httpbin-demo-app-"></a>
+## Lab 5 - Deploy the httpbin demo app <a name="lab-5---deploy-the-httpbin-demo-app-"></a>
 
 We're going to deploy the httpbin application to demonstrate several features of Gloo Mesh.
 
@@ -752,7 +665,7 @@ spec:
     spec:
       serviceAccountName: not-in-mesh
       containers:
-      - image: ${registry}/kennethreitz/httpbin
+      - image: docker.io/kennethreitz/httpbin
         imagePullPolicy: IfNotPresent
         name: not-in-mesh
         ports:
@@ -804,7 +717,7 @@ spec:
     spec:
       serviceAccountName: in-mesh
       containers:
-      - image: ${registry}/kennethreitz/httpbin
+      - image: docker.io/kennethreitz/httpbin
         imagePullPolicy: IfNotPresent
         name: in-mesh
         ports:
@@ -838,7 +751,7 @@ describe("httpbin app", () => {
   });
 });
 EOF
-echo "executing test dist/gloo-mesh-2-0-single-cluster-airgap/build/templates/steps/apps/httpbin/deploy-httpbin/tests/check-httpbin.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-eks-single-cluster-beta/build/templates/steps/apps/httpbin/deploy-httpbin/tests/check-httpbin.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -846,7 +759,7 @@ mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${te
 
 
 
-## Lab 7 - Deploy Gloo Mesh Addons <a name="lab-7---deploy-gloo-mesh-addons-"></a>
+## Lab 6 - Deploy Gloo Mesh Addons <a name="lab-6---deploy-gloo-mesh-addons-"></a>
 
 To use the Gloo Mesh Gateway advanced features (external authentication, rate limiting, ...), you need to install the Gloo Mesh addons.
 
@@ -867,10 +780,7 @@ helm upgrade --install gloo-mesh-agent-addons gloo-mesh-agent/gloo-mesh-agent \
   --set glooMeshPortalServer.enabled=false \
   --set rate-limiter.enabled=true \
   --set ext-auth-service.enabled=true \
---set ext-auth-service.extAuth.image.registry=${registry}/gloo-mesh \
---set rate-limiter.rateLimiter.image.registry=${registry}/gloo-mesh \
---set rate-limiter.redis.image.registry=${registry} \
-  --version 2.2.4
+  --version 2.3.0-beta1
 ```
 
 This is how to environment looks like now:
@@ -880,7 +790,7 @@ This is how to environment looks like now:
 
 
 
-## Lab 8 - Create the gateways workspace <a name="lab-8---create-the-gateways-workspace-"></a>
+## Lab 7 - Create the gateways workspace <a name="lab-7---create-the-gateways-workspace-"></a>
 
 We're going to create a workspace for the team in charge of the Gateways.
 
@@ -938,7 +848,7 @@ The Gateway team has decided to import the following from the workspaces that ha
 
 
 
-## Lab 9 - Create the bookinfo workspace <a name="lab-9---create-the-bookinfo-workspace-"></a>
+## Lab 8 - Create the bookinfo workspace <a name="lab-8---create-the-bookinfo-workspace-"></a>
 
 We're going to create a workspace for the team in charge of the Bookinfo application.
 
@@ -1006,7 +916,7 @@ This is how the environment looks like with the workspaces:
 
 
 
-## Lab 10 - Expose the productpage through a gateway <a name="lab-10---expose-the-productpage-through-a-gateway-"></a>
+## Lab 9 - Expose the productpage through a gateway <a name="lab-9---expose-the-productpage-through-a-gateway-"></a>
 
 In this step, we're going to expose the `productpage` service through the Ingress Gateway using Gloo Mesh.
 
@@ -1117,7 +1027,7 @@ describe("Productpage is available (HTTP)", () => {
   it('/productpage is available in cluster1', () => helpers.checkURL({ host: 'http://' + process.env.ENDPOINT_HTTP_GW_CLUSTER1, path: '/productpage', retCode: 200 }));
 })
 EOF
-echo "executing test dist/gloo-mesh-2-0-single-cluster-airgap/build/templates/steps/apps/bookinfo/gateway-expose/tests/productpage-available.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-eks-single-cluster-beta/build/templates/steps/apps/bookinfo/gateway-expose/tests/productpage-available.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -1191,7 +1101,7 @@ describe("Productpage is available (HTTPS)", () => {
   it('/productpage is available in cluster1', () => helpers.checkURL({ host: 'https://' + process.env.ENDPOINT_HTTPS_GW_CLUSTER1, path: '/productpage', retCode: 200 }));
 })
 EOF
-echo "executing test dist/gloo-mesh-2-0-single-cluster-airgap/build/templates/steps/apps/bookinfo/gateway-expose/tests/productpage-available-secure.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-eks-single-cluster-beta/build/templates/steps/apps/bookinfo/gateway-expose/tests/productpage-available-secure.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -1204,7 +1114,7 @@ This diagram shows the flow of the request (through the Istio Ingress Gateway):
 
 
 
-## Lab 11 - Traffic policies <a name="lab-11---traffic-policies-"></a>
+## Lab 10 - Traffic policies <a name="lab-10---traffic-policies-"></a>
 
 We're going to use Gloo Mesh policies to inject faults and configure timeouts.
 
@@ -1357,7 +1267,7 @@ describe("Reviews shouldn't be available", () => {
 });
 
 EOF
-echo "executing test dist/gloo-mesh-2-0-single-cluster-airgap/build/templates/steps/apps/bookinfo/traffic-policies/tests/traffic-policies-reviews-unavailable.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-eks-single-cluster-beta/build/templates/steps/apps/bookinfo/traffic-policies/tests/traffic-policies-reviews-unavailable.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -1382,7 +1292,7 @@ kubectl --context ${CLUSTER1} -n bookinfo-backends delete routetable reviews
 
 
 
-## Lab 12 - Zero trust <a name="lab-12---zero-trust-"></a>
+## Lab 11 - Zero trust <a name="lab-11---zero-trust-"></a>
 
 In the previous step, we federated multiple meshes and established a shared root CA for a shared identity domain.
 
@@ -1399,8 +1309,7 @@ Let's validate this.
 Run the following commands to initiate a communication from a service which isn't in the mesh to a service which is in the mesh:
 
 ```
-pod=$(kubectl --context ${CLUSTER1} -n httpbin get pods -l app=not-in-mesh -o jsonpath='{.items[0].metadata.name}')
-kubectl --context ${CLUSTER1} -n httpbin debug -i -q ${pod} --image=curlimages/curl -- curl -s -o /dev/null -w "%{http_code}" http://reviews.bookinfo-backends.svc.cluster.local:9080/reviews/0
+kubectl --context ${CLUSTER1} run test --restart=Never --rm -it --image curlimages/curl -- curl -s -o /dev/null -w "%{http_code}" http://reviews.bookinfo-backends.svc.cluster.local:9080/reviews/0
 ```
 
 You should get a `200` response code which confirm that the communication is currently allowed.
@@ -1418,7 +1327,7 @@ describe("Communication allowed", () => {
   });
 });
 EOF
-echo "executing test dist/gloo-mesh-2-0-single-cluster-airgap/build/templates/steps/apps/bookinfo/zero-trust/tests/not-in-mesh-to-in-mesh-allowed.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-eks-single-cluster-beta/build/templates/steps/apps/bookinfo/zero-trust/tests/not-in-mesh-to-in-mesh-allowed.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -1427,8 +1336,7 @@ mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${te
 Run the following commands to initiate a communication from a service which is in the mesh to another service which is in the mesh:
 
 ```
-pod=$(kubectl --context ${CLUSTER1} -n httpbin get pods -l app=in-mesh -o jsonpath='{.items[0].metadata.name}')
-kubectl --context ${CLUSTER1} -n httpbin debug -i -q ${pod} --image=curlimages/curl -- curl -s -o /dev/null -w "%{http_code}" http://reviews.bookinfo-backends.svc.cluster.local:9080/reviews/0
+kubectl --context ${CLUSTER1} -n gloo-mesh-addons run test --restart=Never --rm -it --image curlimages/curl -- curl -s -o /dev/null -w "%{http_code}" http://reviews.bookinfo-backends.svc.cluster.local:9080/reviews/0
 ```
 
 <!--bash
@@ -1444,7 +1352,7 @@ describe("Communication allowed", () => {
   });
 });
 EOF
-echo "executing test dist/gloo-mesh-2-0-single-cluster-airgap/build/templates/steps/apps/bookinfo/zero-trust/tests/in-mesh-to-in-mesh-allowed.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-eks-single-cluster-beta/build/templates/steps/apps/bookinfo/zero-trust/tests/in-mesh-to-in-mesh-allowed.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -1503,8 +1411,7 @@ If you refresh the browser, you'll see that the bookinfo application is still ex
 Run the following commands to initiate a communication from a service which isn't in the mesh to a service which is in the mesh:
 
 ```
-pod=$(kubectl --context ${CLUSTER1} -n httpbin get pods -l app=not-in-mesh -o jsonpath='{.items[0].metadata.name}')
-kubectl --context ${CLUSTER1} -n httpbin debug -i -q ${pod} --image=curlimages/curl -- curl -s -o /dev/null -w "%{http_code}" http://reviews.bookinfo-backends.svc.cluster.local:9080/reviews/0
+kubectl --context ${CLUSTER1} -n default run test --restart=Never --rm -it --image curlimages/curl -- curl -s -o /dev/null -w "%{http_code}" http://reviews.bookinfo-backends.svc.cluster.local:9080/reviews/0
 ```
 
 You should get a `000` response code which means that the communication can't be established.
@@ -1522,7 +1429,7 @@ describe("Communication not allowed", () => {
   });
 });
 EOF
-echo "executing test dist/gloo-mesh-2-0-single-cluster-airgap/build/templates/steps/apps/bookinfo/zero-trust/tests/not-in-mesh-to-in-mesh-not-allowed.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-eks-single-cluster-beta/build/templates/steps/apps/bookinfo/zero-trust/tests/not-in-mesh-to-in-mesh-not-allowed.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -1531,8 +1438,7 @@ mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${te
 Run the following commands to initiate a communication from a service which is in the mesh to another service which is in the mesh:
 
 ```
-pod=$(kubectl --context ${CLUSTER1} -n httpbin get pods -l app=in-mesh -o jsonpath='{.items[0].metadata.name}')
-kubectl --context ${CLUSTER1} -n httpbin debug -i -q ${pod} --image=curlimages/curl -- curl -s -o /dev/null -w "%{http_code}" http://reviews.bookinfo-backends.svc.cluster.local:9080/reviews/0
+kubectl --context ${CLUSTER1} -n gloo-mesh-addons run test --restart=Never --rm -it --image curlimages/curl -- curl -s -o /dev/null -w "%{http_code}" http://reviews.bookinfo-backends.svc.cluster.local:9080/reviews/0
 ```
 
 <!--bash
@@ -1548,7 +1454,7 @@ describe("Communication not allowed", () => {
   });
 });
 EOF
-echo "executing test dist/gloo-mesh-2-0-single-cluster-airgap/build/templates/steps/apps/bookinfo/zero-trust/tests/in-mesh-to-in-mesh-not-allowed.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-eks-single-cluster-beta/build/templates/steps/apps/bookinfo/zero-trust/tests/in-mesh-to-in-mesh-not-allowed.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -1696,7 +1602,7 @@ describe("Communication allowed", () => {
 });
 
 EOF
-echo "executing test dist/gloo-mesh-2-0-single-cluster-airgap/build/templates/steps/apps/bookinfo/zero-trust/tests/bookinfo-access.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-eks-single-cluster-beta/build/templates/steps/apps/bookinfo/zero-trust/tests/bookinfo-access.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -1740,7 +1646,7 @@ kubectl --context ${CLUSTER1} delete accesspolicies -n bookinfo-frontends --all
 
 
 
-## Lab 13 - Create the httpbin workspace <a name="lab-13---create-the-httpbin-workspace-"></a>
+## Lab 12 - Create the httpbin workspace <a name="lab-12---create-the-httpbin-workspace-"></a>
 
 We're going to create a workspace for the team in charge of the httpbin application.
 
@@ -1800,7 +1706,7 @@ The Httpbin team has decided to export the following to the `gateway` workspace 
 
 
 
-## Lab 14 - Expose an external service <a name="lab-14---expose-an-external-service-"></a>
+## Lab 13 - Expose an external service <a name="lab-13---expose-an-external-service-"></a>
 
 In this step, we're going to expose an external service through a Gateway using Gloo Mesh and show how we can then migrate this service to the Mesh.
 
@@ -1865,7 +1771,7 @@ describe("httpbin from the external service", () => {
   it('Checking text \'X-Amzn-Trace-Id\' in ' + process.env.CLUSTER1, () => helpersHttp.checkBody({ host: 'https://' + process.env.ENDPOINT_HTTPS_GW_CLUSTER1, path: '/get', body: 'X-Amzn-Trace-Id', match: true }));
 })
 EOF
-echo "executing test dist/gloo-mesh-2-0-single-cluster-airgap/build/templates/steps/apps/httpbin/gateway-external-service/tests/httpbin-from-external.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-eks-single-cluster-beta/build/templates/steps/apps/httpbin/gateway-external-service/tests/httpbin-from-external.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -1921,7 +1827,7 @@ describe("httpbin from the local service", () => {
   it('Checking text \'X-Amzn-Trace-Id\' not in ' + process.env.CLUSTER1, () => helpersHttp.checkBody({ host: 'https://' + process.env.ENDPOINT_HTTPS_GW_CLUSTER1, path: '/get', body: 'X-Amzn-Trace-Id', match: false }));
 })
 EOF
-echo "executing test dist/gloo-mesh-2-0-single-cluster-airgap/build/templates/steps/apps/httpbin/gateway-external-service/tests/httpbin-from-local.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-eks-single-cluster-beta/build/templates/steps/apps/httpbin/gateway-external-service/tests/httpbin-from-local.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -1934,7 +1840,7 @@ describe("httpbin from the external service", () => {
   it('Checking text \'X-Amzn-Trace-Id\' in ' + process.env.CLUSTER1, () => helpersHttp.checkBody({ host: 'https://' + process.env.ENDPOINT_HTTPS_GW_CLUSTER1, path: '/get', body: 'X-Amzn-Trace-Id', match: true }));
 })
 EOF
-echo "executing test dist/gloo-mesh-2-0-single-cluster-airgap/build/templates/steps/apps/httpbin/gateway-external-service/tests/httpbin-from-external.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-eks-single-cluster-beta/build/templates/steps/apps/httpbin/gateway-external-service/tests/httpbin-from-external.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -1981,7 +1887,7 @@ describe("httpbin from the local service", () => {
   it('Checking text \'X-Amzn-Trace-Id\' not in ' + process.env.CLUSTER1, () => helpersHttp.checkBody({ host: 'https://' + process.env.ENDPOINT_HTTPS_GW_CLUSTER1, path: '/get', body: 'X-Amzn-Trace-Id', match: false }));
 })
 EOF
-echo "executing test dist/gloo-mesh-2-0-single-cluster-airgap/build/templates/steps/apps/httpbin/gateway-external-service/tests/httpbin-from-local.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-eks-single-cluster-beta/build/templates/steps/apps/httpbin/gateway-external-service/tests/httpbin-from-local.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -1995,7 +1901,7 @@ This diagram shows the flow of the requests :
 
 
 
-## Lab 15 - Deploy Keycloak <a name="lab-15---deploy-keycloak-"></a>
+## Lab 14 - Deploy Keycloak <a name="lab-14---deploy-keycloak-"></a>
 
 In many use cases, you need to restrict the access to your applications to authenticated users. 
 
@@ -2009,7 +1915,7 @@ Let's install it:
 
 ```bash
 kubectl --context ${MGMT} create namespace keycloak
-cat data/steps/deploy-keycloak/keycloak.yaml | sed "s/image: quay.io/image: ${registry}/g" | kubectl --context ${MGMT} -n keycloak apply -f -
+cat data/steps/deploy-keycloak/keycloak.yaml | kubectl --context ${MGMT} -n keycloak apply -f -
 
 kubectl --context ${MGMT} -n keycloak rollout status deploy/keycloak
 ```
@@ -2022,7 +1928,7 @@ describe("Keycloak", () => {
   it('keycloak pods are ready in cluster1', () => helpers.checkDeployment({ context: process.env.MGMT, namespace: "keycloak", k8sObj: "keycloak" }));
 });
 EOF
-echo "executing test dist/gloo-mesh-2-0-single-cluster-airgap/build/templates/steps/deploy-keycloak/tests/pods-available.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-eks-single-cluster-beta/build/templates/steps/deploy-keycloak/tests/pods-available.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -2052,7 +1958,7 @@ describe("Retrieve enterprise-networking ip", () => {
   });
 });
 EOF
-echo "executing test dist/gloo-mesh-2-0-single-cluster-airgap/build/templates/steps/deploy-keycloak/tests/keycloak-ip-is-attached.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-eks-single-cluster-beta/build/templates/steps/deploy-keycloak/tests/keycloak-ip-is-attached.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -2146,7 +2052,7 @@ KEYCLOAK_TOKEN=$(curl -d "client_id=admin-cli" -d "username=admin" -d "password=
 
 
 
-## Lab 16 - Securing the access with OAuth <a name="lab-16---securing-the-access-with-oauth-"></a>
+## Lab 15 - Securing the access with OAuth <a name="lab-15---securing-the-access-with-oauth-"></a>
 
 
 In this step, we're going to secure the access to the `httpbin` service using OAuth.
@@ -2282,7 +2188,7 @@ describe("Authentication is working properly", function() {
 });
 
 EOF
-echo "executing test dist/gloo-mesh-2-0-single-cluster-airgap/build/templates/steps/apps/httpbin/gateway-extauth-oauth/tests/authentication.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-eks-single-cluster-beta/build/templates/steps/apps/httpbin/gateway-extauth-oauth/tests/authentication.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -2375,7 +2281,7 @@ This diagram shows the flow of the request (with the Istio ingress gateway lever
 
 
 
-## Lab 17 - Use the JWT filter to create headers from claims <a name="lab-17---use-the-jwt-filter-to-create-headers-from-claims-"></a>
+## Lab 16 - Use the JWT filter to create headers from claims <a name="lab-16---use-the-jwt-filter-to-create-headers-from-claims-"></a>
 
 
 In this step, we're going to validate the JWT token and to create a new header from the `email` claim.
@@ -2487,7 +2393,7 @@ describe("Claim to header is working properly", function() {
 });
 
 EOF
-echo "executing test dist/gloo-mesh-2-0-single-cluster-airgap/build/templates/steps/apps/httpbin/gateway-jwt/tests/header-added.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-eks-single-cluster-beta/build/templates/steps/apps/httpbin/gateway-jwt/tests/header-added.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -2495,7 +2401,7 @@ mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${te
 
 
 
-## Lab 18 - Use the transformation filter to manipulate headers <a name="lab-18---use-the-transformation-filter-to-manipulate-headers-"></a>
+## Lab 17 - Use the transformation filter to manipulate headers <a name="lab-17---use-the-transformation-filter-to-manipulate-headers-"></a>
 
 
 In this step, we're going to use a regular expression to extract a part of an existing header and to create a new one:
@@ -2554,7 +2460,7 @@ describe("Tranformation is working properly", function() {
 });
 
 EOF
-echo "executing test dist/gloo-mesh-2-0-single-cluster-airgap/build/templates/steps/apps/httpbin/gateway-transformation/tests/header-added.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-eks-single-cluster-beta/build/templates/steps/apps/httpbin/gateway-transformation/tests/header-added.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -2562,7 +2468,7 @@ mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${te
 
 
 
-## Lab 19 - Apply rate limiting to the Gateway <a name="lab-19---apply-rate-limiting-to-the-gateway-"></a>
+## Lab 18 - Apply rate limiting to the Gateway <a name="lab-18---apply-rate-limiting-to-the-gateway-"></a>
 
 
 In this step, we're going to apply rate limiting to the Gateway to only allow 3 requests per minute for the users of the `solo.io` organization.
@@ -2720,7 +2626,7 @@ describe("Rate limiting is working properly", function() {
 });
 
 EOF
-echo "executing test dist/gloo-mesh-2-0-single-cluster-airgap/build/templates/steps/apps/httpbin/gateway-ratelimiting/tests/rate-limited.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-eks-single-cluster-beta/build/templates/steps/apps/httpbin/gateway-ratelimiting/tests/rate-limited.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -2771,7 +2677,7 @@ kubectl --context ${CLUSTER1} -n httpbin delete ratelimitserversettings rate-lim
 
 
 
-## Lab 20 - Use the Web Application Firewall filter <a name="lab-20---use-the-web-application-firewall-filter-"></a>
+## Lab 19 - Use the Web Application Firewall filter <a name="lab-19---use-the-web-application-firewall-filter-"></a>
 
 
 A web application firewall (WAF) protects web applications by monitoring, filtering, and blocking potentially harmful traffic and attacks that can overtake or exploit them.
@@ -2856,7 +2762,7 @@ describe("WAF is working properly", function() {
 });
 
 EOF
-echo "executing test dist/gloo-mesh-2-0-single-cluster-airgap/build/templates/steps/apps/httpbin/gateway-waf/tests/waf.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-eks-single-cluster-beta/build/templates/steps/apps/httpbin/gateway-waf/tests/waf.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
