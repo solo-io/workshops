@@ -27,21 +27,25 @@ source ./scripts/assert.sh
 * [Lab 11 - Create the Root Trust Policy](#lab-11---create-the-root-trust-policy-)
 * [Lab 12 - Leverage Virtual Destinations](#lab-12---leverage-virtual-destinations-)
 * [Lab 13 - Zero trust](#lab-13---zero-trust-)
-* [Lab 14 - Create the httpbin workspace](#lab-14---create-the-httpbin-workspace-)
-* [Lab 15 - Expose an external service](#lab-15---expose-an-external-service-)
-* [Lab 16 - Deploy Keycloak](#lab-16---deploy-keycloak-)
-* [Lab 17 - Securing the access with OAuth](#lab-17---securing-the-access-with-oauth-)
-* [Lab 18 - Use the JWT filter to create headers from claims](#lab-18---use-the-jwt-filter-to-create-headers-from-claims-)
-* [Lab 19 - Use the transformation filter to manipulate headers](#lab-19---use-the-transformation-filter-to-manipulate-headers-)
-* [Lab 20 - Apply rate limiting to the Gateway](#lab-20---apply-rate-limiting-to-the-gateway-)
-* [Lab 21 - Use the Web Application Firewall filter](#lab-21---use-the-web-application-firewall-filter-)
-* [Lab 22 - Upgrade Istio using Gloo Mesh Lifecycle Manager](#lab-22---upgrade-istio-using-gloo-mesh-lifecycle-manager-)
-* [Lab 23 - Extend Envoy with WebAssembly](#lab-23---extend-envoy-with-webassembly-)
-* [Lab 24 - VM integration](#lab-24---vm-integration-)
-* [Lab 25 - Expose the bookinfo application through GraphQL](#lab-25---expose-the-bookinfo-application-through-graphql-)
-* [Lab 26 - Use the JWT filter to protect a service](#lab-26---use-the-jwt-filter-to-protect-a-service-)
-* [Lab 27 - Apply rate limiting to east west communication](#lab-27---apply-rate-limiting-to-east-west-communication-)
-* [Lab 28 - Gloo Mesh Management Plane failover](#lab-28---gloo-mesh-management-plane-failover-)
+* [Lab 14 - Use the JWT filter to protect a service](#lab-14---use-the-jwt-filter-to-protect-a-service-)
+* [Lab 15 - Apply rate limiting to east west communication](#lab-15---apply-rate-limiting-to-east-west-communication-)
+* [Lab 16 - See how Gloo Platform can help with observability](#lab-16---see-how-gloo-platform-can-help-with-observability-)
+* [Lab 17 - Create the httpbin workspace](#lab-17---create-the-httpbin-workspace-)
+* [Lab 18 - Expose an external service](#lab-18---expose-an-external-service-)
+* [Lab 19 - Deploy Keycloak](#lab-19---deploy-keycloak-)
+* [Lab 20 - Securing the access with OAuth](#lab-20---securing-the-access-with-oauth-)
+* [Lab 21 - Use the JWT filter to create headers from claims](#lab-21---use-the-jwt-filter-to-create-headers-from-claims-)
+* [Lab 22 - Use the transformation filter to manipulate headers](#lab-22---use-the-transformation-filter-to-manipulate-headers-)
+* [Lab 23 - Apply rate limiting to the Gateway](#lab-23---apply-rate-limiting-to-the-gateway-)
+* [Lab 24 - Use the Web Application Firewall filter](#lab-24---use-the-web-application-firewall-filter-)
+* [Lab 25 - Upgrade Istio using Gloo Mesh Lifecycle Manager](#lab-25---upgrade-istio-using-gloo-mesh-lifecycle-manager-)
+* [Lab 26 - Extend Envoy with WebAssembly](#lab-26---extend-envoy-with-webassembly-)
+* [Lab 27 - VM integration](#lab-27---vm-integration-)
+* [Lab 28 - Expose the bookinfo application through GraphQL](#lab-28---expose-the-bookinfo-application-through-graphql-)
+* [Lab 29 - Deploy the Amazon pod identity webhook](#lab-29---deploy-the-amazon-pod-identity-webhook-)
+* [Lab 30 - Execute Lambda functions](#lab-30---execute-lambda-functions-)
+* [Lab 31 - Expose an external service with mTLS](#lab-31---expose-an-external-service-with-mtls-)
+* [Lab 32 - Gloo Mesh Management Plane failover](#lab-32---gloo-mesh-management-plane-failover-)
 
 
 
@@ -2893,7 +2897,453 @@ kubectl --context ${CLUSTER1} delete accesspolicies -n bookinfo-frontends --all
 
 
 
-## Lab 14 - Create the httpbin workspace <a name="lab-14---create-the-httpbin-workspace-"></a>
+## Lab 14 - Use the JWT filter to protect a service <a name="lab-14---use-the-jwt-filter-to-protect-a-service-"></a>
+
+
+In this step, we're going to craft a JWT token and use it to authenticate the requests to `details` service.
+
+### Create the private key
+Let's start by creating a private key that we will use to sign our JWTs:
+```bash
+openssl genrsa 2048 > private-key.pem
+openssl rsa -pubout -in private-key.pem -out public-key.pem
+```
+> Storing a key on your laptop as done here is not considered secure! Do not use this workflow for production workloads. Use appropriate secret management tools to store sensitive information.
+
+### Create the JSON Web Token (JWT)
+We have everything we need to sign and verify a custom JWT with our custom claims. We will use the [jwt.io](https://jwt.io) debugger to do so easily.
+
+- Go to https://jwt.io.
+- In the "Debugger" section, change the algorithm combo-box to "RS256".
+- In the "VERIFY SIGNATURE" section, paste the contents of the file `private-key.pem` to the 
+  bottom box (labeled "Private Key").
+- Paste the following to the payload data (replacing what is already there):
+
+Payload:
+```json
+{
+  "iss": "solo.io",
+  "sub": "1234567890",
+  "solo.io/company":"solo"
+}
+```
+
+You should now have an encoded JWT token in the "Encoded" box. Copy it and save to to a file called token.jwt
+
+```sh
+cat <<EOF > token.jwt
+# paste the encoded JWT here
+EOF
+```
+
+> You may have noticed **jwt.io** complaining about an invalid signature in the bottom left corner. This is fine because we don't need the public key to create > an encoded JWT.If you'd like to resolve the invalid signature, under the "VERIFY SIGNATURE" section, paste the output of `public-key.pem` to the bottom box (labeled "Public Key")
+
+Here is an image of how the page should look like:
+
+![jwt-io](images/steps/eastwest-jwt/jwt-io.png)
+
+Now, we can create a `JWTPolicy` to extract the claim.
+
+Create the policy:
+
+```bash
+kubectl --context ${CLUSTER1} apply -f - <<EOF
+apiVersion: security.policy.gloo.solo.io/v2
+kind: JWTPolicy
+metadata:
+  name: jwt-productpage-details
+  namespace: bookinfo-frontends
+spec:
+  applyToRoutes:
+  - route:
+      labels:
+        jwt: "true"
+  config:
+    providers:
+      solo-io:
+        issuer: solo.io
+        local:
+          inline: |
+$(cat public-key.pem | sed -e 's/^/            /;')
+        claimsToHeaders:
+        - claim: solo.io/company
+          header: X-Company
+EOF
+```
+
+As you can see, it will be applied to all the routes that have the label `jwt` set to "true".
+
+So, you need to create a RouteTable with this label set in the corresponding route.
+
+```bash
+kubectl --context ${CLUSTER1} apply -f - <<EOF
+apiVersion: networking.gloo.solo.io/v2
+kind: RouteTable
+metadata:
+  name: details
+  namespace: bookinfo-frontends
+spec:
+  hosts:
+    - details.bookinfo-backends.svc.cluster.local
+  workloadSelectors:
+  - selector:
+      labels:
+        app: productpage
+  http:
+    - name: details
+      labels:
+        jwt: "true"
+      matchers:
+      - uri:
+          prefix: /
+      forwardTo:
+        destinations:
+          - ref:
+              name: details
+              namespace: bookinfo-backends
+            port:
+              number: 9080
+EOF
+```
+
+Now you can test the policy by sending a request to the `details` service without the token
+
+```sh
+kubectl --context $CLUSTER1 -n bookinfo-frontends exec deploy/productpage-v1 -- python -c "import requests; r = requests.get('http://details.bookinfo-backends:9080/details/0'); print(r.status_code)"
+```
+
+And then with the token:
+```sh
+kubectl --context $CLUSTER1 -n bookinfo-frontends exec deploy/productpage-v1 -- python -c "import requests; headers = {'Authorization': 'Bearer $(cat token.jwt)'}; r = requests.get('http://details.bookinfo-backends:9080/details/0', headers=headers); print(r.status_code)"
+```
+
+<!--bash
+cat <<'EOF' > ./test.js
+var chai = require('chai');
+var expect = chai.expect;
+const helpers = require('./tests/chai-exec');
+
+describe("Communication allowed only with valid token", () => {
+  it("Response code should be 401", () => {
+    const command = helpers.getOutputForCommand({ command: "kubectl --context " + process.env.CLUSTER1 + " -n bookinfo-frontends exec deploy/productpage-v1 -- python -c \"import requests; r = requests.get('http://details.bookinfo-backends:9080/details/0'); print(r.status_code)\"" }).replaceAll("'", "");
+    expect(command).to.contain("401");
+  });
+});
+
+EOF
+echo "executing test dist/gloo-mesh-2-0-all-beta/build/templates/steps/apps/bookinfo/eastwest-jwt/tests/jwt-access.test.js.liquid"
+tempfile=$(mktemp)
+echo "saving errors in ${tempfile}"
+mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
+-->
+
+We can now delete the different objects we've created:
+
+```bash
+kubectl --context ${CLUSTER1} -n bookinfo-frontends delete routetable details
+kubectl --context ${CLUSTER1} -n bookinfo-frontends delete jwtpolicy jwt-productpage-details
+```
+
+
+
+
+## Lab 15 - Apply rate limiting to east west communication <a name="lab-15---apply-rate-limiting-to-east-west-communication-"></a>
+
+
+In this step, we're going to apply rate limiting to east west traffic to only allow 3 requests per minute from the `productpage` to the `details` service.
+
+First, we need to create a `RateLimitClientConfig` object to define the descriptors:
+
+```bash
+kubectl --context ${CLUSTER1} apply -f - <<EOF
+apiVersion: trafficcontrol.policy.gloo.solo.io/v2
+kind: RateLimitClientConfig
+metadata:
+  name: details
+  namespace: bookinfo-backends
+spec:
+  raw:
+    rateLimits:
+    - actions:
+      - genericKey:
+          descriptorValue: counter
+EOF
+```
+
+Then, we need to create a `RateLimitServerConfig` object to define the limits based on the descriptors:
+
+```bash
+kubectl --context ${CLUSTER1} apply -f - <<EOF
+apiVersion: admin.gloo.solo.io/v2
+kind: RateLimitServerConfig
+metadata:
+  name: details
+  namespace: bookinfo-backends
+spec:
+  destinationServers:
+  - ref:
+      cluster: cluster1
+      name: rate-limiter
+      namespace: gloo-mesh-addons
+    port:
+      name: grpc
+  raw:
+    descriptors:
+    - key: generic_key
+      rateLimit:
+        requestsPerUnit: 3
+        unit: MINUTE
+      value: counter
+EOF
+```
+
+After that, we need to create a `RateLimitPolicy` object to define the descriptors:
+
+```bash
+kubectl --context ${CLUSTER1} apply -f - <<EOF
+apiVersion: trafficcontrol.policy.gloo.solo.io/v2
+kind: RateLimitPolicy
+metadata:
+  name: details
+  namespace: bookinfo-backends
+spec:
+  applyToDestinations:
+  - port:
+      number: 9080
+    selector:
+      labels:
+        app: details
+  config:
+    serverSettings:
+      name: rate-limit-server
+      namespace: bookinfo-backends
+      cluster: cluster1
+    ratelimitClientConfig:
+      name: details
+      namespace: bookinfo-backends
+      cluster: cluster1
+    ratelimitServerConfig:
+      name: details
+      namespace: bookinfo-backends
+      cluster: cluster1
+EOF
+```
+
+We also need to create a `RateLimitServerSettings`, which is a CRD that define which extauth server to use: 
+
+```bash
+kubectl --context ${CLUSTER1} apply -f - <<EOF
+apiVersion: admin.gloo.solo.io/v2
+kind: RateLimitServerSettings
+metadata:
+  name: rate-limit-server
+  namespace: bookinfo-backends
+spec:
+  destinationServer:
+    ref:
+      cluster: cluster1
+      name: rate-limiter
+      namespace: gloo-mesh-addons
+    port:
+      name: grpc
+EOF
+```
+
+Now, run the following command several time:
+
+```
+kubectl --context $CLUSTER1 -n bookinfo-frontends exec -it $(kubectl --context $CLUSTER1 -n bookinfo-frontends get pods -l app=productpage -o jsonpath='{.items[0].metadata.name}') -- python -c "import requests; r = requests.get('http://details.bookinfo-backends:9080/details/0'); print(r.status_code)"
+```
+
+It sends a request from the `productpage` to the `details` service and display the HTTP response status code.
+
+You should get a `200` response code the first 3 time and a `429` response code after.
+
+<!--bash
+cat <<'EOF' > ./test.js
+const helpers = require('./tests/chai-exec');
+
+describe("The productpage service should be rate limited after calling the details service more than 3 times", () => {
+  const podName = helpers.getOutputForCommand({ command: "kubectl -n bookinfo-frontends get pods -l app=productpage -o jsonpath='{.items[0].metadata.name}' --context " + process.env.CLUSTER1 }).replaceAll("'", "");
+  const command = "kubectl -n bookinfo-frontends exec " + podName + " --context " + process.env.CLUSTER1 + " -- python -c \"import requests; r = requests.get('http://details.bookinfo-backends:9080/details/0'); print(r.status_code)\"";
+  it('Got the expected status code 429', () => helpers.genericCommand({ command: command, responseContains: "429" }));
+});
+EOF
+echo "executing test dist/gloo-mesh-2-0-all-beta/build/templates/steps/apps/bookinfo/eastwest-ratelimiting/tests/rate-limited.test.js.liquid"
+tempfile=$(mktemp)
+echo "saving errors in ${tempfile}"
+mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
+-->
+
+And also delete the different objects we've created:
+
+```bash
+kubectl --context ${CLUSTER1} -n bookinfo-backends delete ratelimitpolicy details
+kubectl --context ${CLUSTER1} -n bookinfo-backends delete ratelimitclientconfig details
+kubectl --context ${CLUSTER1} -n bookinfo-backends delete ratelimitserverconfig details
+kubectl --context ${CLUSTER1} -n bookinfo-backends delete ratelimitserversettings rate-limit-server
+```
+
+
+
+
+## Lab 16 - See how Gloo Platform can help with observability <a name="lab-16---see-how-gloo-platform-can-help-with-observability-"></a>
+
+# Observability with Gloo Platform
+
+Let's take a look at how Gloo Platform can help with observability!
+
+![Gloo Platform OTel arch](images/steps/gloo-platform-observability/metrics-architecture-otel.svg)
+
+Our telemetry pipeline's main goal is to collect all the metrics, and securely forward them to the management cluster, making all the metrics available for our UI to visualize the service graph.
+
+Since our pipeline is leveraging OpenTelemetry, this pipeline can be customized and extended to cover all possible use-cases, e.g. collecting telemetry from other workloads, or integrating with centralized observability platform/SaaS solutions.
+
+## Gloo Platform Operational Dashboard 
+
+First let's deploy the usual Prometheus stack, and explore our management plane metrics.
+
+```bash
+helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+helm repo update
+
+helm upgrade --install kube-prometheus-stack \
+prometheus-community/kube-prometheus-stack \
+--version 44.3.1 \
+--namespace monitoring \
+--create-namespace \
+--values - <<EOF
+grafana:
+  service:
+    type: LoadBalancer
+    port: 3000
+  additionalDataSources:
+  - name: prometheus-GM
+    uid: prometheus-GM
+    type: prometheus
+    url: http://prometheus-server.gloo-mesh:80
+EOF
+```
+
+Let's install a few dashboards!
+
+Now, you can go the the Grafana tab, log in with the default login credentials, admin/prom-operator, and import the dashboard of Istio control plane.
+
+Add the Operational Dashboard
+=============================
+
+
+Our Gloo components are all instrumented with Prometheus compatible metrics, providing an easy way to pinpoint a potential degradation.
+
+You can import the following dashboard to see our Operational Dashboard, covering all of our components in the stack.
+
+Here, you have specific rows for each components, such as the management server, the agent, the telemetry collectors, and some additional information regarding resource usage.
+
+```bash
+kubectl -n monitoring create cm operational-dashboard \
+--from-file=data/steps/gloo-platform-observability/operational-dashboard.json
+kubectl label -n monitoring cm operational-dashboard grafana_dashboard=1
+```
+
+Out-of-box alerting
+=============================
+			    
+Our Prometheus comes with useful alerts by default, making it easier to get notified if something breaks.
+
+All of the default alerts have corresponding panels on the Operational Dashboard.
+
+You can click the "Bell" icon on the left, and choose "Alert rules", and check "GlooPlatformAlerts" to take a closer look at them. 
+
+Let's trigger one of the alerts!
+
+If you scale down the Gloo Agent in let's say `cluster1`, you should have an alert called `GlooPlatformAgentsAreDisconnected` go into first PENDING, then FIRING, let's check this!
+
+```sh
+kubectl --context $CLUSTER1 scale deployment.apps/gloo-mesh-agent -n gloo-mesh --replicas=0
+```
+
+The alert will fire in 5m, but even before that, it will reach PENDING state, let's wait for this!
+
+Don't forget to scale it up after:
+
+```sh
+kubectl --context $CLUSTER1 scale deployment.apps/gloo-mesh-agent -n gloo-mesh --replicas=1
+```
+
+Collect remote IstioD metrics securely
+=============================
+
+Let's take a look how easy it is to modify the metrics collection in the workload clusters, to collect IstioD metrics, and ship them to the management cluster over TLS.
+
+```bash
+helm upgrade --install gloo-mesh-agent gloo-mesh-agent/gloo-mesh-agent \
+  --namespace gloo-mesh \
+  --kube-context=${CLUSTER1} \
+  --set relay.serverAddress=${ENDPOINT_GLOO_MESH} \
+  --set relay.authority=gloo-mesh-mgmt-server.gloo-mesh \
+  --set rate-limiter.enabled=false \
+  --set ext-auth-service.enabled=false \
+  --set cluster=cluster1 \
+  --set metricscollector.enabled=true \
+  --set metricscollector.config.exporters.otlp.endpoint=${ENDPOINT_METRICS_GATEWAY} \
+  --version 2.3.0-beta1 \
+  --values - <<EOF
+metricscollectorCustomization:
+  extraProcessors:
+    batch/istiod:
+      send_batch_size: 10000
+      timeout: 10s
+    filter/istiod:
+      metrics:
+        include:
+          match_type: regexp
+          metric_names:
+            - "pilot.*"
+            - "process.*"
+            - "go.*"
+            - "container.*"
+            - "envoy.*"
+            - "galley.*"
+            - "sidecar.*"
+            - "istio_build.*"
+  extraPipelines:
+    metrics/istiod:
+      receivers:
+      - prometheus
+      processors:
+      - memory_limiter
+      - batch/istiod
+      - filter/istiod
+      exporters:
+      - otlp
+EOF
+```
+
+This hotfix is currently required to patch the `istiod` scrape config due to label mismatch across installation methods:
+
+```bash
+kubectl --context $CLUSTER1 get cm gloo-metrics-collector-config -n gloo-mesh -o yaml | sed "s|regex: pilot|regex: istiod|"  > patch.yaml | kubectl --context $CLUSTER1 apply -f patch.yaml
+```
+
+This configuration update will
+  - create a new processor, called `filter/istiod`, that will enable all the IstioD/Pilot related metrics
+  - create a new pipeline, called `metrics/istiod`, that will have the aforementioned processor to include the control plane metrics
+
+Then, we just need to perform a rollout restart for the metrics collector, so the new pods can pick up the config change.
+
+```bash
+kubectl --context $CLUSTER1 rollout restart daemonset/gloo-metrics-collector-agent -n gloo-mesh
+```
+
+```bash
+kubectl -n monitoring create cm istio-control-plane-dashboard \
+--from-file=data/steps/gloo-platform-observability/istio-control-plane-dashboard.json
+kubectl label -n monitoring cm istio-control-plane-dashboard grafana_dashboard=1
+```
+
+
+
+## Lab 17 - Create the httpbin workspace <a name="lab-17---create-the-httpbin-workspace-"></a>
 
 We're going to create a workspace for the team in charge of the httpbin application.
 
@@ -2953,7 +3403,7 @@ The Httpbin team has decided to export the following to the `gateway` workspace 
 
 
 
-## Lab 15 - Expose an external service <a name="lab-15---expose-an-external-service-"></a>
+## Lab 18 - Expose an external service <a name="lab-18---expose-an-external-service-"></a>
 
 In this step, we're going to expose an external service through a Gateway using Gloo Mesh and show how we can then migrate this service to the Mesh.
 
@@ -3148,7 +3598,7 @@ This diagram shows the flow of the requests :
 
 
 
-## Lab 16 - Deploy Keycloak <a name="lab-16---deploy-keycloak-"></a>
+## Lab 19 - Deploy Keycloak <a name="lab-19---deploy-keycloak-"></a>
 
 In many use cases, you need to restrict the access to your applications to authenticated users. 
 
@@ -3299,7 +3749,7 @@ KEYCLOAK_TOKEN=$(curl -d "client_id=admin-cli" -d "username=admin" -d "password=
 
 
 
-## Lab 17 - Securing the access with OAuth <a name="lab-17---securing-the-access-with-oauth-"></a>
+## Lab 20 - Securing the access with OAuth <a name="lab-20---securing-the-access-with-oauth-"></a>
 
 
 In this step, we're going to secure the access to the `httpbin` service using OAuth.
@@ -3528,7 +3978,7 @@ This diagram shows the flow of the request (with the Istio ingress gateway lever
 
 
 
-## Lab 18 - Use the JWT filter to create headers from claims <a name="lab-18---use-the-jwt-filter-to-create-headers-from-claims-"></a>
+## Lab 21 - Use the JWT filter to create headers from claims <a name="lab-21---use-the-jwt-filter-to-create-headers-from-claims-"></a>
 
 
 In this step, we're going to validate the JWT token and to create a new header from the `email` claim.
@@ -3648,7 +4098,7 @@ mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${te
 
 
 
-## Lab 19 - Use the transformation filter to manipulate headers <a name="lab-19---use-the-transformation-filter-to-manipulate-headers-"></a>
+## Lab 22 - Use the transformation filter to manipulate headers <a name="lab-22---use-the-transformation-filter-to-manipulate-headers-"></a>
 
 
 In this step, we're going to use a regular expression to extract a part of an existing header and to create a new one:
@@ -3715,7 +4165,7 @@ mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${te
 
 
 
-## Lab 20 - Apply rate limiting to the Gateway <a name="lab-20---apply-rate-limiting-to-the-gateway-"></a>
+## Lab 23 - Apply rate limiting to the Gateway <a name="lab-23---apply-rate-limiting-to-the-gateway-"></a>
 
 
 In this step, we're going to apply rate limiting to the Gateway to only allow 3 requests per minute for the users of the `solo.io` organization.
@@ -3924,7 +4374,7 @@ kubectl --context ${CLUSTER1} -n httpbin delete ratelimitserversettings rate-lim
 
 
 
-## Lab 21 - Use the Web Application Firewall filter <a name="lab-21---use-the-web-application-firewall-filter-"></a>
+## Lab 24 - Use the Web Application Firewall filter <a name="lab-24---use-the-web-application-firewall-filter-"></a>
 
 
 A web application firewall (WAF) protects web applications by monitoring, filtering, and blocking potentially harmful traffic and attacks that can overtake or exploit them.
@@ -4070,7 +4520,7 @@ kubectl --context ${CLUSTER1} -n httpbin delete wafpolicies.security.policy.gloo
 
 
 
-## Lab 22 - Upgrade Istio using Gloo Mesh Lifecycle Manager <a name="lab-22---upgrade-istio-using-gloo-mesh-lifecycle-manager-"></a>
+## Lab 25 - Upgrade Istio using Gloo Mesh Lifecycle Manager <a name="lab-25---upgrade-istio-using-gloo-mesh-lifecycle-manager-"></a>
 
 Set the variables corresponding to the old and new revision tags:
 
@@ -4864,7 +5314,7 @@ mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${te
 
 
 
-## Lab 23 - Extend Envoy with WebAssembly <a name="lab-23---extend-envoy-with-webassembly-"></a>
+## Lab 26 - Extend Envoy with WebAssembly <a name="lab-26---extend-envoy-with-webassembly-"></a>
 
 WebAssembly (WASM) is the future of cloud-native infrastructure extensibility.
 
@@ -5118,7 +5568,7 @@ kubectl --context ${CLUSTER1} -n bookinfo-backends delete wasmdeploymentpolicy r
 
 
 
-## Lab 24 - VM integration <a name="lab-24---vm-integration-"></a>
+## Lab 27 - VM integration <a name="lab-27---vm-integration-"></a>
 
 Let's see how we can configure a VM to be part of the Mesh.
 
@@ -5598,7 +6048,7 @@ mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${te
 
 
 
-## Lab 25 - Expose the bookinfo application through GraphQL <a name="lab-25---expose-the-bookinfo-application-through-graphql-"></a>
+## Lab 28 - Expose the bookinfo application through GraphQL <a name="lab-28---expose-the-bookinfo-application-through-graphql-"></a>
 
 Gloo Mesh is enhancing the Istio Ingress Gateway to allow exposing some REST services as a GraphQL API.
 
@@ -5878,297 +6328,567 @@ EOF
 
 
 
-## Lab 26 - Use the JWT filter to protect a service <a name="lab-26---use-the-jwt-filter-to-protect-a-service-"></a>
+## Lab 29 - Deploy the Amazon pod identity webhook <a name="lab-29---deploy-the-amazon-pod-identity-webhook-"></a>
 
+To use the AWS Lambda integration, we need to deploy the Amazon EKS pod identity webhook.
 
-In this step, we're going to craft a JWT token and use it to authenticate the requests to `details` service.
+A pre requisite is to install [Cert Manager](https://cert-manager.io/):
 
-### Create the private key
-Let's start by creating a private key that we will use to sign our JWTs:
 ```bash
-openssl genrsa 2048 > private-key.pem
-openssl rsa -pubout -in private-key.pem -out public-key.pem
-```
-> Storing a key on your laptop as done here is not considered secure! Do not use this workflow for production workloads. Use appropriate secret management tools to store sensitive information.
-
-### Create the JSON Web Token (JWT)
-We have everything we need to sign and verify a custom JWT with our custom claims. We will use the [jwt.io](https://jwt.io) debugger to do so easily.
-
-- Go to https://jwt.io.
-- In the "Debugger" section, change the algorithm combo-box to "RS256".
-- In the "VERIFY SIGNATURE" section, paste the contents of the file `private-key.pem` to the 
-  bottom box (labeled "Private Key").
-- Paste the following to the payload data (replacing what is already there):
-
-Payload:
-```json
-{
-  "iss": "solo.io",
-  "sub": "1234567890",
-  "solo.io/company":"solo"
-}
+kubectl --context ${CLUSTER1} apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.10.1/cert-manager.yaml
+kubectl --context ${CLUSTER1} -n cert-manager rollout status deploy cert-manager
+kubectl --context ${CLUSTER1} -n cert-manager rollout status deploy cert-manager-cainjector
+kubectl --context ${CLUSTER1} -n cert-manager rollout status deploy cert-manager-webhook
 ```
 
-You should now have an encoded JWT token in the "Encoded" box. Copy it and save to to a file called token.jwt
+Now, you can install the Amazon EKS pod identity webhook:
 
-```sh
-cat <<EOF > token.jwt
-# paste the encoded JWT here
+```bash
+kubectl --context ${CLUSTER1} apply -f data/steps/deploy-amazon-pod-identity-webhook
+kubectl --context ${CLUSTER1} rollout status deploy/pod-identity-webhook
+```
+
+<!--bash
+cat <<'EOF' > ./test.js
+const helpers = require('./tests/chai-exec');
+
+describe("Amazon EKS pod identity webhook", () => {
+  it('Amazon EKS pod identity webhook is ready in cluster1', () => helpers.checkDeployment({ context: process.env.CLUSTER1, namespace: "default", k8sObj: "pod-identity-webhook" }));
+});
 EOF
+echo "executing test dist/gloo-mesh-2-0-all-beta/build/templates/steps/deploy-amazon-pod-identity-webhook/tests/pods-available.test.js.liquid"
+tempfile=$(mktemp)
+echo "saving errors in ${tempfile}"
+mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
+-->
+
+
+
+## Lab 30 - Execute Lambda functions <a name="lab-30---execute-lambda-functions-"></a>
+
+
+First of all, you need to annotate the service account used by the Istio ingress gateway to allow it to assume an AWS role which can invoke the `echo` Lambda function:
+
+```bash
+kubectl --context ${CLUSTER1} -n istio-gateways annotate sa -l istio=ingressgateway "eks.amazonaws.com/role-arn=arn:aws:iam::253915036081:role/lambda-workshop"
+kubectl --context ${CLUSTER1} -n istio-gateways rollout restart deploy $(kubectl --context ${CLUSTER1} -n istio-gateways get deploy -l istio=ingressgateway -o jsonpath='{.items[0].metadata.name}')
 ```
 
-> You may have noticed **jwt.io** complaining about an invalid signature in the bottom left corner. This is fine because we don't need the public key to create > an encoded JWT.If you'd like to resolve the invalid signature, under the "VERIFY SIGNATURE" section, paste the output of `public-key.pem` to the bottom box (labeled "Public Key")
-
-Here is an image of how the page should look like:
-
-![jwt-io](images/steps/eastwest-jwt/jwt-io.png)
-
-Now, we can create a `JWTPolicy` to extract the claim.
-
-Create the policy:
+Then, you can create a `CloudProvider` object corresponding to the AWS role:
 
 ```bash
 kubectl --context ${CLUSTER1} apply -f - <<EOF
-apiVersion: security.policy.gloo.solo.io/v2
-kind: JWTPolicy
+apiVersion: networking.gloo.solo.io/v2
+kind: CloudProvider
 metadata:
-  name: jwt-productpage-details
-  namespace: bookinfo-frontends
+  name: aws
+  namespace: httpbin
 spec:
-  applyToRoutes:
-  - route:
-      labels:
-        jwt: "true"
-  config:
-    providers:
-      solo-io:
-        issuer: solo.io
-        local:
-          inline: |
-$(cat public-key.pem | sed -e 's/^/            /;')
-        claimsToHeaders:
-        - claim: solo.io/company
-          header: X-Company
+  aws:
+    stsEndpoint: sts.amazonaws.com
+    accountId: "253915036081"
+    region: eu-west-1
+    lambda:
+      invokeRoleName: lambda-workshop
 EOF
 ```
 
-As you can see, it will be applied to all the routes that have the label `jwt` set to "true".
+After that, you can create a `CloudResources` object which defines the `echo` Lambda function:
 
-So, you need to create a RouteTable with this label set in the corresponding route.
+```bash
+kubectl --context ${CLUSTER1} apply -f - <<'EOF'
+apiVersion: networking.gloo.solo.io/v2
+kind: CloudResources
+metadata:
+  name: aws
+  namespace: httpbin
+spec:
+  provider: aws
+  lambda:
+  - logicalName: echo
+    lambdaFunctionName: workshop-echo
+    qualifier: $LATEST
+
+EOF
+```
+
+Finally, you can create a `RouteTable` to expose the `echo` Lambda function through the gateway:
 
 ```bash
 kubectl --context ${CLUSTER1} apply -f - <<EOF
 apiVersion: networking.gloo.solo.io/v2
 kind: RouteTable
 metadata:
-  name: details
-  namespace: bookinfo-frontends
+  name: aws
+  namespace: httpbin
+  labels:
+    expose: "true"
+spec:
+  http:
+  - name: lambda
+    matchers:
+    - uri:
+        prefix: /lambda
+    labels:
+      route: lambda
+    forwardTo:
+      destinations:
+      - ref:
+          name: aws
+          namespace: httpbin
+          cluster: cluster1
+        kind: CLOUD_PROVIDER
+        function:
+          logicalName: echo
+EOF
+```
+
+The `echo` lambda function is a simple Node.js function returning the even it receives:
+
+```,nocopy
+exports.handler = async (event) => {
+    return event;
+};
+```
+
+You should now be able to invoke the Lambda function using the following command:
+
+```bash
+curl -k "https://${ENDPOINT_HTTPS_GW_CLUSTER1}/lambda" | jq .
+```
+
+You should get a response like below:
+
+```js,nocopy
+{
+  "headers": {
+    ":authority": "172.19.2.1",
+    ":method": "GET",
+    ":path": "/lambda",
+    ":scheme": "https",
+    "accept": "*/*",
+    "user-agent": "curl/7.81.0",
+    "x-envoy-decorator-operation": "dummy-route-o4bo-WppHSxD6Ox2.badHost.solo.io:8443/lambda*",
+    "x-envoy-internal": "true",
+    "x-envoy-peer-metadata": "ChQKDkFQUF9DT05UQUlORVJTEgIaAAoYCgpDTFVTVEVSX0lEEgoaCGNsdXN0ZXIxCh0KDElOU1RBTkNFX0lQUxINGgsxMC4xMDIuMC4zMAoeCg1JU1RJT19WRVJTSU9OEg0aCzEuMTUuNC1zb2xvCrkDCgZMQUJFTFMSrgMqqwMKHQoDYXBwEhYaFGlzdGlvLWluZ3Jlc3NnYXRld2F5CjYKKWluc3RhbGwub3BlcmF0b3IuaXN0aW8uaW8vb3duaW5nLXJlc291cmNlEgkaB3Vua25vd24KGQoFaXN0aW8SEBoOaW5ncmVzc2dhdGV3YXkKFgoMaXN0aW8uaW8vcmV2EgYaBDEtMTUKMAobb3BlcmF0b3IuaXN0aW8uaW8vY29tcG9uZW50EhEaD0luZ3Jlc3NHYXRld2F5cwohChFwb2QtdGVtcGxhdGUtaGFzaBIMGgo1ZjU1NjVmNjU0ChIKCHJldmlzaW9uEgYaBDEtMTUKOQofc2VydmljZS5pc3Rpby5pby9jYW5vbmljYWwtbmFtZRIWGhRpc3Rpby1pbmdyZXNzZ2F0ZXdheQovCiNzZXJ2aWNlLmlzdGlvLmlvL2Nhbm9uaWNhbC1yZXZpc2lvbhIIGgZsYXRlc3QKIQoXc2lkZWNhci5pc3Rpby5pby9pbmplY3QSBhoEdHJ1ZQonChl0b3BvbG9neS5pc3Rpby5pby9uZXR3b3JrEgoaCGNsdXN0ZXIxChIKB01FU0hfSUQSBxoFbWVzaDEKNAoETkFNRRIsGippc3Rpby1pbmdyZXNzZ2F0ZXdheS0xLTE1LTVmNTU2NWY2NTQtbXBkdzUKHQoJTkFNRVNQQUNFEhAaDmlzdGlvLWdhdGV3YXlzCmQKBU9XTkVSElsaWWt1YmVybmV0ZXM6Ly9hcGlzL2FwcHMvdjEvbmFtZXNwYWNlcy9pc3Rpby1nYXRld2F5cy9kZXBsb3ltZW50cy9pc3Rpby1pbmdyZXNzZ2F0ZXdheS0xLTE1ChcKEVBMQVRGT1JNX01FVEFEQVRBEgIqAAosCg1XT1JLTE9BRF9OQU1FEhsaGWlzdGlvLWluZ3Jlc3NnYXRld2F5LTEtMTU=",
+    "x-envoy-peer-metadata-id": "router~10.102.0.30~istio-ingressgateway-1-15-5f5565f654-mpdw5.istio-gateways~istio-gateways.svc.cluster.local",
+    "x-forwarded-for": "10.102.0.1",
+    "x-forwarded-proto": "https",
+    "x-request-id": "79cccfc1-beab-4249-b6ad-d71a410aff5f"
+  },
+  "httpMethod": "GET",
+  "path": "/lambda",
+  "queryString": ""
+}
+```
+
+It's very similar to what the `httpbin` application provides. It displays information about the request is has received.
+
+<!--bash
+cat <<'EOF' > ./test.js
+const helpersHttp = require('./tests/chai-http');
+
+describe("Lambda integration is working properly", () => {
+  it('Checking text \'"path":"/lambda"\' in ' + process.env.CLUSTER1, () => helpersHttp.checkBody({ host: 'https://' + process.env.ENDPOINT_HTTPS_GW_CLUSTER1, path: '/lambda', body: '"path":"/lambda"', match: true }));
+})
+EOF
+echo "executing test dist/gloo-mesh-2-0-all-beta/build/templates/steps/apps/httpbin/gateway-lambda/tests/check-lambda-echo.test.js.liquid"
+tempfile=$(mktemp)
+echo "saving errors in ${tempfile}"
+mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
+-->
+
+But when a Lambda function is exposed through an AWS API Gateway, the response of the function should be in a specific format (see this [example](https://docs.aws.amazon.com/apigateway/latest/developerguide/api-gateway-create-api-as-simple-proxy-for-lambda.html)).
+
+The Gloo Gateway integration has the ability to understand this format and to process the response in the same way an AWS API gateway would.
+
+Here is the Node.js Lambda function we're going to use to demonstrate this capability:
+
+```js,nocopy
+export const handler = async(event) => {
+    const response = {
+        "statusCode": 201,
+        "headers": {
+            "key": "value"
+        },
+        "isBase64Encoded": false,
+        "multiValueHeaders": { 
+            "X-Custom-Header": ["My value", "My other value"],
+        },
+        "body": JSON.stringify({TotalCodeSize: 104330022,FunctionCount: 26})
+    }
+    return response;
+};
+```
+
+Let's update the `CloudResources` object to define the new Lambda function:
+
+```bash
+kubectl --context ${CLUSTER1} apply -f - <<'EOF'
+apiVersion: networking.gloo.solo.io/v2
+kind: CloudResources
+metadata:
+  name: aws
+  namespace: httpbin
+spec:
+  provider: aws
+  lambda:
+  - logicalName: api-gateway
+    lambdaFunctionName: workshop-api-gateway
+    qualifier: $LATEST
+
+EOF
+```
+
+Then, we can update the `RouteTable` as well:
+
+```bash
+kubectl --context ${CLUSTER1} apply -f - <<EOF
+apiVersion: networking.gloo.solo.io/v2
+kind: RouteTable
+metadata:
+  name: aws
+  namespace: httpbin
+  labels:
+    expose: "true"
+spec:
+  http:
+  - name: lambda
+    matchers:
+    - uri:
+        prefix: /lambda
+    labels:
+      route: lambda
+    forwardTo:
+      destinations:
+      - ref:
+          name: aws
+          namespace: httpbin
+          cluster: cluster1
+        kind: CLOUD_PROVIDER
+        function:
+          logicalName: api-gateway
+          awsLambda:
+            responseTransformation: UNWRAP_AS_API_GATEWAY
+EOF
+```
+
+The `unwrapAsApiGateway` instruct Gloo Gateway to parse the response differently.
+
+You should now be able to invoke the Lambda function using the following command:
+
+```sh
+curl -k "https://${ENDPOINT_HTTPS_GW_CLUSTER1}/lambda"
+```
+
+You should get a response like below:
+
+```js,nocopy
+{
+  "TotalCodeSize": 104330022,
+  "FunctionCount": 26
+}
+```
+
+Now, let's have a look at the response headers:
+
+```sh
+curl -k "https://${ENDPOINT_HTTPS_GW_CLUSTER1}/lambda" -I
+```
+
+You should get a response like below:
+
+```js,nocopy
+HTTP/2 201 
+content-type: application/json
+key: value
+x-custom-header: My value,My other value
+content-length: 55
+date: Fri, 13 Jan 2023 10:37:54 GMT
+server: istio-envoy
+```
+
+You can see the `key` and `x-custom-header` added by the Lambda function.
+
+<!--bash
+cat <<'EOF' > ./test.js
+const helpersHttp = require('./tests/chai-http');
+
+describe("Lambda integration is working properly", () => {
+  it('Checking text \'"TotalCodeSize": 104330022\' in ' + process.env.CLUSTER1, () => helpersHttp.checkBody({ host: 'https://' + process.env.ENDPOINT_HTTPS_GW_CLUSTER1, path: '/lambda', body: '"TotalCodeSize": 104330022', match: true }));
+  it('Checking headers in ' + process.env.CLUSTER1, () => helpersHttp.checkHeaders({ host: 'https://' + process.env.ENDPOINT_HTTPS_GW_CLUSTER1, path: '/lambda', expectedHeaders: [{key: "key", value: "value"}, {key: "x-custom-header", value: "My value,My other value"}], match: true }));
+})
+EOF
+echo "executing test dist/gloo-mesh-2-0-all-beta/build/templates/steps/apps/httpbin/gateway-lambda/tests/check-lambda-api-gateway.test.js.liquid"
+tempfile=$(mktemp)
+echo "saving errors in ${tempfile}"
+mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
+-->
+
+
+
+## Lab 31 - Expose an external service with mTLS <a name="lab-31---expose-an-external-service-with-mtls-"></a>
+
+In this step, we're going to connect with an external service using mTLS.
+
+Usually, to to be able to do mTLS inside the mesh, you need to have a common root of trust. In this case, we are going to assume that the external service is using a different root of trust, so we will have to add to each other cert 'pools'.
+
+Let's start creating the certificates for both the external service and the mesh.
+```bash
+# create server certificates
+openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+   -keyout server.key -out server.crt -subj "/C=NT/ST=Zamunda/O=Solo.io/OU=Solo.io/CN=*"
+
+# create client certificates
+openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+   -keyout client.key -out client.crt -subj "/C=NT/ST=Wakanda/O=Solo.io/OU=Solo.io/CN=*"
+```
+
+Then, you have to store them in a Kubernetes secret running the following command:
+```bash
+kubectl --context ${MGMT} create namespace mtls
+kubectl --context ${MGMT} -n mtls create secret generic mtls-server-secret \
+--from-file=server.key=server.key \
+--from-file=server.crt=server.crt \
+--from-file=ca.crt=client.crt
+```
+
+Now, we will create the 'external' mTLS server, that will be NOT be part of the mesh
+```bash
+kubectl --context ${MGMT} apply -f - <<EOF
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mtls-server
+  namespace: mtls
+spec:
+  selector:
+    matchLabels:
+      app: mtls-server
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: mtls-server
+    spec:
+      containers:
+        - name: mtls-server
+          image: gcr.io/solo-test-236622/mtls-test:0.0.6
+          ports:
+            - containerPort: 443
+          volumeMounts:
+            - mountPath: /certs
+              name: secret-volume
+      volumes:
+        - name: secret-volume
+          secret:
+            secretName: mtls-server-secret
+            optional: true
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mtls-server
+  namespace: mtls
+  labels:
+    app: mtls-server
+spec:
+  ports:
+    - port: 9443
+      targetPort: 443
+      protocol: TCP
+  selector:
+    app: mtls-server
+  type: LoadBalancer
+EOF
+```
+
+We can check that the server is running:
+```bash
+export ENDPOINT_MTLS_SERVER=$(kubectl --context ${MGMT} -n mtls get svc -l app=mtls-server -o jsonpath='{.items[0].status.loadBalancer.ingress[0].*}')
+curl --cert client.crt --key client.key --cacert server.crt \
+     https://${ENDPOINT_MTLS_SERVER}:9443/ -isk
+```
+
+Now we have to inject the cert in istio ingress gateway, so it can use it to connect to the external service.
+```bash
+kubectl --context ${CLUSTER1} -n istio-gateways create secret generic istio-ingressgateway-certs \
+--from-file=client.key=client.key \
+--from-file=client.crt=client.crt \
+--from-file=ca.crt=server.crt
+```
+
+After this, we can create an ExternalService representing mTLS server
+```bash
+kubectl --context ${CLUSTER1} apply -f - <<EOF
+apiVersion: networking.gloo.solo.io/v2
+kind: ExternalEndpoint
+metadata:
+  name: mtls-server
+  namespace: httpbin
+  labels:
+    host: mtls-server
+spec:
+  address: ${ENDPOINT_MTLS_SERVER}
+  ports:
+    - name: http
+      number: 9443
+---
+apiVersion: networking.gloo.solo.io/v2
+kind: ExternalService
+metadata:
+  name: mtls-server
+  namespace: httpbin
+  labels:
+    expose: "true"
 spec:
   hosts:
-    - details.bookinfo-backends.svc.cluster.local
-  workloadSelectors:
-  - selector:
-      labels:
-        app: productpage
+    - mtls.external
+  ports:
+    - name: https
+      number: 9443
+      protocol: HTTPS
+      clientsideTls:
+        mode: MUTUAL
+        caCertificates: /etc/istio/ingressgateway-certs/ca.crt
+        clientCertificate: /etc/istio/ingressgateway-certs/client.crt
+        privateKey: /etc/istio/ingressgateway-certs/client.key
+  selector:
+    host: mtls-server
+EOF
+```
+
+And finally, expose it through the gateway
+```bash
+kubectl --context ${CLUSTER1} apply -f - <<EOF
+apiVersion: networking.gloo.solo.io/v2
+kind: RouteTable
+metadata:
+  name: mtls-server
+  namespace: httpbin
+  labels:
+    expose: "true"
+spec:
   http:
-    - name: details
-      labels:
-        jwt: "true"
+    - name: mtls-server
       matchers:
-      - uri:
-          prefix: /
+        - uri:
+            prefix: /
       forwardTo:
         destinations:
-          - ref:
-              name: details
-              namespace: bookinfo-backends
+          - kind: EXTERNAL_SERVICE
             port:
-              number: 9080
+              number: 9443
+            ref:
+              name: mtls-server
+              namespace: httpbin
 EOF
 ```
+If you refresh your browser, you should see that we can connect to the external service using mTLS.
 
-Now you can test the policy by sending a request to the `details` service without the token
+![mTLS-2](images/steps/gateway-external-service-mtls/mTLS-1.svg)
 
-```sh
-kubectl --context $CLUSTER1 -n bookinfo-frontends exec deploy/productpage-v1 -- python -c "import requests; r = requests.get('http://details.bookinfo-backends:9080/details/0'); print(r.status_code)"
+Get the URL to access the `mtls-server` service using the following command:
 ```
-
-And then with the token:
-```sh
-kubectl --context $CLUSTER1 -n bookinfo-frontends exec deploy/productpage-v1 -- python -c "import requests; headers = {'Authorization': 'Bearer $(cat token.jwt)'}; r = requests.get('http://details.bookinfo-backends:9080/details/0', headers=headers); print(r.status_code)"
+echo "https://${ENDPOINT_HTTPS_GW_CLUSTER1}/"
 ```
 
 <!--bash
 cat <<'EOF' > ./test.js
-var chai = require('chai');
-var expect = chai.expect;
-const helpers = require('./tests/chai-exec');
+const helpersHttp = require('./tests/chai-http');
 
-describe("Communication allowed only with valid token", () => {
-  it("Response code should be 401", () => {
-    const command = helpers.getOutputForCommand({ command: "kubectl --context " + process.env.CLUSTER1 + " -n bookinfo-frontends exec deploy/productpage-v1 -- python -c \"import requests; r = requests.get('http://details.bookinfo-backends:9080/details/0'); print(r.status_code)\"" }).replaceAll("'", "");
-    expect(command).to.contain("401");
-  });
-});
-
+describe("mTLS from the external service", () => {
+  it('Checking text \'Hello from mTLS server\' in ' + process.env.CLUSTER1, () => helpersHttp.checkBody({ host: 'https://' + process.env.ENDPOINT_HTTPS_GW_CLUSTER1, path: '/', body: 'Hello from mTLS server', match: true }));
+})
 EOF
-echo "executing test dist/gloo-mesh-2-0-all-beta/build/templates/steps/apps/bookinfo/eastwest-jwt/tests/jwt-access.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-all-beta/build/templates/steps/apps/mtls-server/gateway-external-service-mtls/tests/mtls-from-external.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
 -->
 
-We can now delete the different objects we've created:
+Now we will try the other way around, connecting to the mesh from a external service, with mTLS.
 
+We will update the tls settings of the Istio Ingress Gateway to require mTLS:
 ```bash
-kubectl --context ${CLUSTER1} -n bookinfo-frontends delete routetable details
-kubectl --context ${CLUSTER1} -n bookinfo-frontends delete jwtpolicy jwt-productpage-details
+kubectl --context ${CLUSTER1} apply -f - <<EOF
+apiVersion: networking.gloo.solo.io/v2
+kind: VirtualGateway
+metadata:
+  name: north-south-gw
+  namespace: istio-gateways
+spec:
+  workloads:
+    - selector:
+        labels:
+          istio: ingressgateway
+        cluster: cluster1
+  listeners: 
+    - http: {}
+      port:
+        number: 80
+      httpsRedirect: true
+    - http: {}
+      port:
+        number: 443
+      tls:
+        mode: MUTUAL
+        files:
+          caCerts: /etc/istio/ingressgateway-certs/ca.crt
+          serverCert: /etc/istio/ingressgateway-certs/client.crt
+          privateKey: /etc/istio/ingressgateway-certs/client.key
+      allowedRouteTables:
+        - host: '*'
+EOF
 ```
 
+Finally, we can check that we can connect to the Istio Ingress Gateway using mTLS:
+```bash
+curl --cert server.crt --key server.key --cacert client.crt \
+     https://${ENDPOINT_HTTPS_GW_CLUSTER1}/mtls-server -isk
+```
 
+This is how the traffic flow looks like:
+![mTLS-2](images/steps/gateway-external-service-mtls/mTLS-2.svg)
 
-
-## Lab 27 - Apply rate limiting to east west communication <a name="lab-27---apply-rate-limiting-to-east-west-communication-"></a>
-
-
-In this step, we're going to apply rate limiting to east west traffic to only allow 3 requests per minute from the `productpage` to the `details` service.
-
-First, we need to create a `RateLimitClientConfig` object to define the descriptors:
+Let's revert the changes we made to the VirtualGateway
 
 ```bash
 kubectl --context ${CLUSTER1} apply -f - <<EOF
-apiVersion: trafficcontrol.policy.gloo.solo.io/v2
-kind: RateLimitClientConfig
+apiVersion: networking.gloo.solo.io/v2
+kind: VirtualGateway
 metadata:
-  name: details
-  namespace: bookinfo-backends
+  name: north-south-gw
+  namespace: istio-gateways
 spec:
-  raw:
-    rateLimits:
-    - actions:
-      - genericKey:
-          descriptorValue: counter
+  workloads:
+    - selector:
+        labels:
+          istio: ingressgateway
+        cluster: cluster1
+  listeners: 
+    - http: {}
+      port:
+        number: 80
+# ---------------- Redirect to https --------------------
+      httpsRedirect: true
+# -------------------------------------------------------
+    - http: {}
+# ---------------- SSL config ---------------------------
+      port:
+        number: 443
+      tls:
+        mode: SIMPLE
+        secretName: tls-secret
+# -------------------------------------------------------
+      allowedRouteTables:
+        - host: '*'
 EOF
 ```
 
-Then, we need to create a `RateLimitServerConfig` object to define the limits based on the descriptors:
-
-```bash
-kubectl --context ${CLUSTER1} apply -f - <<EOF
-apiVersion: admin.gloo.solo.io/v2
-kind: RateLimitServerConfig
-metadata:
-  name: details
-  namespace: bookinfo-backends
-spec:
-  destinationServers:
-  - ref:
-      cluster: cluster1
-      name: rate-limiter
-      namespace: gloo-mesh-addons
-    port:
-      name: grpc
-  raw:
-    descriptors:
-    - key: generic_key
-      rateLimit:
-        requestsPerUnit: 3
-        unit: MINUTE
-      value: counter
-EOF
-```
-
-After that, we need to create a `RateLimitPolicy` object to define the descriptors:
-
-```bash
-kubectl --context ${CLUSTER1} apply -f - <<EOF
-apiVersion: trafficcontrol.policy.gloo.solo.io/v2
-kind: RateLimitPolicy
-metadata:
-  name: details
-  namespace: bookinfo-backends
-spec:
-  applyToDestinations:
-  - port:
-      number: 9080
-    selector:
-      labels:
-        app: details
-  config:
-    serverSettings:
-      name: rate-limit-server
-      namespace: bookinfo-backends
-      cluster: cluster1
-    ratelimitClientConfig:
-      name: details
-      namespace: bookinfo-backends
-      cluster: cluster1
-    ratelimitServerConfig:
-      name: details
-      namespace: bookinfo-backends
-      cluster: cluster1
-EOF
-```
-
-We also need to create a `RateLimitServerSettings`, which is a CRD that define which extauth server to use: 
-
-```bash
-kubectl --context ${CLUSTER1} apply -f - <<EOF
-apiVersion: admin.gloo.solo.io/v2
-kind: RateLimitServerSettings
-metadata:
-  name: rate-limit-server
-  namespace: bookinfo-backends
-spec:
-  destinationServer:
-    ref:
-      cluster: cluster1
-      name: rate-limiter
-      namespace: gloo-mesh-addons
-    port:
-      name: grpc
-EOF
-```
-
-Now, run the following command several time:
-
-```
-kubectl --context $CLUSTER1 -n bookinfo-frontends exec -it $(kubectl --context $CLUSTER1 -n bookinfo-frontends get pods -l app=productpage -o jsonpath='{.items[0].metadata.name}') -- python -c "import requests; r = requests.get('http://details.bookinfo-backends:9080/details/0'); print(r.status_code)"
-```
-
-It sends a request from the `productpage` to the `details` service and display the HTTP response status code.
-
-You should get a `200` response code the first 3 time and a `429` response code after.
-
-<!--bash
-cat <<'EOF' > ./test.js
-const helpers = require('./tests/chai-exec');
-
-describe("The productpage service should be rate limited after calling the details service more than 3 times", () => {
-  const podName = helpers.getOutputForCommand({ command: "kubectl -n bookinfo-frontends get pods -l app=productpage -o jsonpath='{.items[0].metadata.name}' --context " + process.env.CLUSTER1 }).replaceAll("'", "");
-  const command = "kubectl -n bookinfo-frontends exec " + podName + " --context " + process.env.CLUSTER1 + " -- python -c \"import requests; r = requests.get('http://details.bookinfo-backends:9080/details/0'); print(r.status_code)\"";
-  it('Got the expected status code 429', () => helpers.genericCommand({ command: command, responseContains: "429" }));
-});
-EOF
-echo "executing test dist/gloo-mesh-2-0-all-beta/build/templates/steps/apps/bookinfo/eastwest-ratelimiting/tests/rate-limited.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
--->
-
-And also delete the different objects we've created:
-
-```bash
-kubectl --context ${CLUSTER1} -n bookinfo-backends delete ratelimitpolicy details
-kubectl --context ${CLUSTER1} -n bookinfo-backends delete ratelimitclientconfig details
-kubectl --context ${CLUSTER1} -n bookinfo-backends delete ratelimitserverconfig details
-kubectl --context ${CLUSTER1} -n bookinfo-backends delete ratelimitserversettings rate-limit-server
-```
 
 
-
-
-## Lab 28 - Gloo Mesh Management Plane failover <a name="lab-28---gloo-mesh-management-plane-failover-"></a>
+## Lab 32 - Gloo Mesh Management Plane failover <a name="lab-32---gloo-mesh-management-plane-failover-"></a>
 
 Before we start the failover procedure, let's capture the current output snapshot:
 
