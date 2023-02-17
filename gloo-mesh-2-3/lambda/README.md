@@ -87,6 +87,7 @@ export CLUSTER2=cluster2
 > ```
 
 Run the following commands to deploy three Kubernetes clusters using [Kind](https://kind.sigs.k8s.io/):
+Here we use the script that includes the certificates to be able to execute some test lambda functions. If you are not going to try the lambda integration, you can use the `deploy.sh` script instead.
     
 
 ```bash
