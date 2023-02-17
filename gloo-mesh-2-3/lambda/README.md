@@ -1815,7 +1815,7 @@ The Gloo Gateway integration has the ability to understand this format and to pr
 
 Here is the Node.js Lambda function we're going to use to demonstrate this capability:
 
-```,nocopy
+```js,nocopy
 export const handler = async(event) => {
     const response = {
         "statusCode": 201,
@@ -1888,7 +1888,7 @@ The `unwrapAsApiGateway` instruct Gloo Gateway to parse the response differently
 
 You should now be able to invoke the Lambda function using the following command:
 
-```
+```sh
 curl -k "https://${ENDPOINT_HTTPS_GW_CLUSTER1}/lambda"
 ```
 
@@ -1903,7 +1903,7 @@ You should get a response like below:
 
 Now, let's have a look at the response headers:
 
-```
+```sh
 curl -k "https://${ENDPOINT_HTTPS_GW_CLUSTER1}/lambda" -I
 ```
 
