@@ -325,7 +325,7 @@ First of all, let's create Kubernetes services for the gateways:
 ```bash
 registry=localhost:5000
 kubectl --context ${CLUSTER1} create ns istio-gateways
-kubectl --context ${CLUSTER1} label namespace istio-gateways istio.io/rev=1-16
+kubectl --context ${CLUSTER1} label namespace istio-gateways istio.io/rev=1-16 --overwrite
 
 cat << EOF | kubectl --context ${CLUSTER1} apply -f -
 apiVersion: v1
@@ -437,7 +437,9 @@ spec:
           - name: istio-ingressgateway
             enabled: false
 EOF
-
+<!--bash
+kubectl --context mgmt -n gloo-mesh wait --timeout=180s --for=jsonpath='{.status.clusters.cluster1.installations.*.state}'=HEALTHY istiolifecyclemanagers/cluster1-installation
+-->
 cat << EOF | kubectl --context ${MGMT} apply -f -
 
 apiVersion: admin.gloo.solo.io/v2
@@ -624,8 +626,8 @@ metadata:
   name: istio-cni
 EOF
 
-kubectl --context ${CLUSTER1} label namespace bookinfo-frontends istio.io/rev=1-16
-kubectl --context ${CLUSTER1} label namespace bookinfo-backends istio.io/rev=1-16
+kubectl --context ${CLUSTER1} label namespace bookinfo-frontends istio.io/rev=1-16 --overwrite
+kubectl --context ${CLUSTER1} label namespace bookinfo-backends istio.io/rev=1-16 --overwrite
 
 # deploy the frontend bookinfo service in the bookinfo-frontends namespace
 kubectl --context ${CLUSTER1} -n bookinfo-frontends apply -f bookinfo.yaml -l 'account in (productpage)'
@@ -851,7 +853,7 @@ First, you need to create a namespace for the addons, with Istio injection enabl
 
 ```bash
 kubectl --context ${CLUSTER1} create namespace gloo-mesh-addons
-kubectl --context ${CLUSTER1} label namespace gloo-mesh-addons istio.io/rev=1-16
+kubectl --context ${CLUSTER1} label namespace gloo-mesh-addons istio.io/rev=1-16 --overwrite
 oc --context ${CLUSTER1} adm policy add-scc-to-group anyuid system:serviceaccounts:gloo-mesh-addons
 
 cat <<EOF | oc --context ${CLUSTER1} -n gloo-mesh-addons create -f -
