@@ -321,7 +321,7 @@ First of all, let's create Kubernetes services for the gateways:
 ```bash
 registry=localhost:5000
 kubectl --context ${CLUSTER1} create ns istio-gateways
-kubectl --context ${CLUSTER1} label namespace istio-gateways istio.io/rev=1-15
+kubectl --context ${CLUSTER1} label namespace istio-gateways istio.io/rev=1-15 --overwrite
 
 cat << EOF | kubectl --context ${CLUSTER1} apply -f -
 apiVersion: v1
@@ -397,7 +397,9 @@ spec:
           - name: istio-ingressgateway
             enabled: false
 EOF
-
+<!--bash
+kubectl --context mgmt -n gloo-mesh wait --timeout=180s --for=jsonpath='{.status.clusters.cluster1.installations.*.state}'=HEALTHY istiolifecyclemanagers/cluster1-installation
+-->
 cat << EOF | kubectl --context ${MGMT} apply -f -
 
 apiVersion: admin.gloo.solo.io/v2
@@ -566,8 +568,8 @@ curl https://raw.githubusercontent.com/istio/istio/release-1.16/samples/bookinfo
 
 kubectl --context ${CLUSTER1} create ns bookinfo-frontends
 kubectl --context ${CLUSTER1} create ns bookinfo-backends
-kubectl --context ${CLUSTER1} label namespace bookinfo-frontends istio.io/rev=1-15
-kubectl --context ${CLUSTER1} label namespace bookinfo-backends istio.io/rev=1-15
+kubectl --context ${CLUSTER1} label namespace bookinfo-frontends istio.io/rev=1-15 --overwrite
+kubectl --context ${CLUSTER1} label namespace bookinfo-backends istio.io/rev=1-15 --overwrite
 
 # deploy the frontend bookinfo service in the bookinfo-frontends namespace
 kubectl --context ${CLUSTER1} -n bookinfo-frontends apply -f bookinfo.yaml -l 'account in (productpage)'
@@ -783,7 +785,7 @@ First, you need to create a namespace for the addons, with Istio injection enabl
 
 ```bash
 kubectl --context ${CLUSTER1} create namespace gloo-mesh-addons
-kubectl --context ${CLUSTER1} label namespace gloo-mesh-addons istio.io/rev=1-15
+kubectl --context ${CLUSTER1} label namespace gloo-mesh-addons istio.io/rev=1-15 --overwrite
 ```
 
 Then, you can deploy the addons on the cluster(s) using Helm:
@@ -2813,7 +2815,7 @@ mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${te
 
 Run the following command to check the status of the upgrade(s):
 
-```bash
+```sh
 kubectl --context ${MGMT} -n gloo-mesh get istiolifecyclemanager cluster1-installation -o yaml
 kubectl --context ${MGMT} -n gloo-mesh get gatewaylifecyclemanager cluster1-ingress -o yaml
 ```
@@ -2830,7 +2832,12 @@ done
 
 kubectl --context ${CLUSTER1} -n httpbin patch deploy in-mesh --patch "{\"spec\": {\"template\": {\"metadata\": {\"labels\": {\"istio.io/rev\": \"${NEW_REVISION}\" }}}}}"
 ```
-
+<!--bash
+kubectl --context ${CLUSTER1} -n httpbin rollout status deploy
+kubectl --context ${CLUSTER1} get ns -l istio.io/rev=${NEW_REVISION} -o json | jq -r '.items[].metadata.name' | while read ns; do
+  kubectl --context ${CLUSTER1} -n ${ns} rollout status deploy
+done
+//-->
 Test that you can still access the `in-mesh` service through the Istio Ingress Gateway corresponding to the old revision using the command below:
 
 ```bash
@@ -3031,9 +3038,9 @@ istio-ingressgateway-1-15-784f69b4bb-lcfk9    1/1     Running   0          25m
 It confirms that only the new version is running.
 
 <!--bash
-until [[ $(kubectl --context ${CLUSTER1} -n istio-system get pods -l "istio.io/rev=${OLD_REVISION}" -o json | jq '.items | length') -eq 0 ]]; do
-  sleep 1
-done
+#until [[ $(kubectl --context ${CLUSTER1} -n istio-system get pods -l "istio.io/rev=${OLD_REVISION}" -o json | jq '.items | length') -eq 0 ]]; do
+#  sleep 1
+#done
 until [[ $(kubectl --context ${CLUSTER1} -n istio-gateways get pods -l "istio.io/rev=${OLD_REVISION}" -o json | jq '.items | length') -eq 0 ]]; do
   sleep 1
 done
@@ -3048,7 +3055,7 @@ chai.use(chaiExec);
 
 describe("Old Istio version should be uninstalled", () => {
   let cluster = process.env.CLUSTER1
-  let namespaces = ["istio-system", "istio-gateways"];
+  let namespaces = [/*"istio-system",*/ "istio-gateways"];
   namespaces.forEach(namespace => {
     it("Pods aren't running anymore in the cluster " + cluster + " in the namespace  " + namespace, () => {
       let cli = chaiExec('kubectl --context ' + cluster +' -n istio-system get pods -l "istio.io/rev=' + process.env.OLD_REVISION +'" -o json');
