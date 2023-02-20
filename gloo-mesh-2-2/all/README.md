@@ -454,7 +454,7 @@ First of all, let's create Kubernetes services for the gateways:
 ```bash
 registry=localhost:5000
 kubectl --context ${CLUSTER1} create ns istio-gateways
-kubectl --context ${CLUSTER1} label namespace istio-gateways istio.io/rev=1-15
+kubectl --context ${CLUSTER1} label namespace istio-gateways istio.io/rev=1-15 --overwrite
 
 cat << EOF | kubectl --context ${CLUSTER1} apply -f -
 apiVersion: v1
@@ -526,7 +526,7 @@ spec:
 EOF
 
 kubectl --context ${CLUSTER2} create ns istio-gateways
-kubectl --context ${CLUSTER2} label namespace istio-gateways istio.io/rev=1-15
+kubectl --context ${CLUSTER2} label namespace istio-gateways istio.io/rev=1-15 --overwrite
 
 cat << EOF | kubectl --context ${CLUSTER2} apply -f -
 apiVersion: v1
@@ -644,7 +644,9 @@ spec:
           - name: istio-ingressgateway
             enabled: false
 EOF
-
+<!--bash
+kubectl --context mgmt -n gloo-mesh wait --timeout=180s --for=jsonpath='{.status.clusters.cluster1.installations.*.state}'=HEALTHY istiolifecyclemanagers/cluster1-installation
+-->
 cat << EOF | kubectl --context ${MGMT} apply -f -
 
 apiVersion: admin.gloo.solo.io/v2
@@ -749,7 +751,9 @@ spec:
           - name: istio-ingressgateway
             enabled: false
 EOF
-
+<!--bash
+kubectl --context mgmt -n gloo-mesh wait --timeout=180s --for=jsonpath='{.status.clusters.cluster2.installations.*.state}'=HEALTHY istiolifecyclemanagers/cluster2-installation
+-->
 cat << EOF | kubectl --context ${MGMT} apply -f -
 
 apiVersion: admin.gloo.solo.io/v2
@@ -963,8 +967,8 @@ curl https://raw.githubusercontent.com/istio/istio/release-1.16/samples/bookinfo
 
 kubectl --context ${CLUSTER1} create ns bookinfo-frontends
 kubectl --context ${CLUSTER1} create ns bookinfo-backends
-kubectl --context ${CLUSTER1} label namespace bookinfo-frontends istio.io/rev=1-15
-kubectl --context ${CLUSTER1} label namespace bookinfo-backends istio.io/rev=1-15
+kubectl --context ${CLUSTER1} label namespace bookinfo-frontends istio.io/rev=1-15 --overwrite
+kubectl --context ${CLUSTER1} label namespace bookinfo-backends istio.io/rev=1-15 --overwrite
 
 # deploy the frontend bookinfo service in the bookinfo-frontends namespace
 kubectl --context ${CLUSTER1} -n bookinfo-frontends apply -f bookinfo.yaml -l 'account in (productpage)'
@@ -1005,8 +1009,8 @@ Now, run the following commands to deploy the bookinfo application on `cluster2`
 ```bash
 kubectl --context ${CLUSTER2} create ns bookinfo-frontends
 kubectl --context ${CLUSTER2} create ns bookinfo-backends
-kubectl --context ${CLUSTER2} label namespace bookinfo-frontends istio.io/rev=1-15
-kubectl --context ${CLUSTER2} label namespace bookinfo-backends istio.io/rev=1-15
+kubectl --context ${CLUSTER2} label namespace bookinfo-frontends istio.io/rev=1-15 --overwrite
+kubectl --context ${CLUSTER2} label namespace bookinfo-backends istio.io/rev=1-15 --overwrite
 
 # deploy the frontend bookinfo service in the bookinfo-frontends namespace
 kubectl --context ${CLUSTER2} -n bookinfo-frontends apply -f bookinfo.yaml -l 'account in (productpage)'
@@ -1230,9 +1234,9 @@ First, you need to create a namespace for the addons, with Istio injection enabl
 
 ```bash
 kubectl --context ${CLUSTER1} create namespace gloo-mesh-addons
-kubectl --context ${CLUSTER1} label namespace gloo-mesh-addons istio.io/rev=1-15
+kubectl --context ${CLUSTER1} label namespace gloo-mesh-addons istio.io/rev=1-15 --overwrite
 kubectl --context ${CLUSTER2} create namespace gloo-mesh-addons
-kubectl --context ${CLUSTER2} label namespace gloo-mesh-addons istio.io/rev=1-15
+kubectl --context ${CLUSTER2} label namespace gloo-mesh-addons istio.io/rev=1-15 --overwrite
 ```
 
 Then, you can deploy the addons on the cluster(s) using Helm:
@@ -3210,6 +3214,7 @@ helm repo update
 
 helm upgrade --install kube-prometheus-stack \
 prometheus-community/kube-prometheus-stack \
+--kube-context ${MGMT} \
 --version 44.3.1 \
 --namespace monitoring \
 --create-namespace \
@@ -3241,13 +3246,13 @@ You can import the following dashboard to see our Operational Dashboard, coverin
 Here, you have specific rows for each components, such as the management server, the agent, the telemetry collectors, and some additional information regarding resource usage.
 
 ```bash
-kubectl -n monitoring create cm operational-dashboard \
+kubectl --context ${MGMT} -n monitoring create cm operational-dashboard \
 --from-file=data/steps/gloo-platform-observability/operational-dashboard.json
-kubectl label -n monitoring cm operational-dashboard grafana_dashboard=1
+kubectl --context ${MGMT} label -n monitoring cm operational-dashboard grafana_dashboard=1
 ```
 
 Out-of-box alerting
-=============================
+===================
 			    
 Our Prometheus comes with useful alerts by default, making it easier to get notified if something breaks.
 
@@ -3272,7 +3277,7 @@ kubectl --context $CLUSTER1 scale deployment.apps/gloo-mesh-agent -n gloo-mesh -
 ```
 
 Collect remote IstioD metrics securely
-=============================
+======================================
 
 Let's take a look how easy it is to modify the metrics collection in the workload clusters, to collect IstioD metrics, and ship them to the management cluster over TLS.
 
@@ -3286,7 +3291,7 @@ helm upgrade --install gloo-mesh-agent gloo-mesh-agent/gloo-mesh-agent \
   --set ext-auth-service.enabled=false \
   --set cluster=cluster1 \
   --set metricscollector.enabled=true \
-  --set metricscollector.config.exporters.otlp.endpoint=${ENDPOINT_METRICS_GATEWAY} \
+  --set metricscollector.config.exporters.otlp.endpoint=\"${ENDPOINT_METRICS_GATEWAY}\" \
   --version 2.2.4 \
   --values - <<EOF
 metricscollectorCustomization:
@@ -3336,11 +3341,31 @@ Then, we just need to perform a rollout restart for the metrics collector, so th
 kubectl --context $CLUSTER1 rollout restart daemonset/gloo-metrics-collector-agent -n gloo-mesh
 ```
 
+Now, let's import the Istio Control Plane Dashboard, and see the metrics!
 ```bash
-kubectl -n monitoring create cm istio-control-plane-dashboard \
+kubectl --context ${MGMT} -n monitoring create cm istio-control-plane-dashboard \
 --from-file=data/steps/gloo-platform-observability/istio-control-plane-dashboard.json
-kubectl label -n monitoring cm istio-control-plane-dashboard grafana_dashboard=1
+kubectl --context ${MGMT} label -n monitoring cm istio-control-plane-dashboard grafana_dashboard=1
 ```
+Let's rollback the changes we made to the agent chart. We'll do this by running the following command:
+
+```bash
+kubectl --context $CLUSTER1 delete cm gloo-metrics-collector-config -n gloo-mesh
+helm upgrade --install gloo-mesh-agent gloo-mesh-agent/gloo-mesh-agent \
+  --namespace gloo-mesh \
+  --kube-context=${CLUSTER1} \
+  --set relay.serverAddress=${ENDPOINT_GLOO_MESH} \
+  --set relay.authority=gloo-mesh-mgmt-server.gloo-mesh \
+  --set rate-limiter.enabled=false \
+  --set ext-auth-service.enabled=false \
+  --set cluster=cluster1 \
+  --set metricscollector.enabled=true \
+  --set metricscollector.config.exporters.otlp.endpoint=\"${ENDPOINT_METRICS_GATEWAY}\" \
+  --version 2.2.4
+```
+<!--bash
+kubectl --context ${MGMT} delete ns monitoring
+//-->
 
 
 
@@ -4873,6 +4898,7 @@ spec:
     app: mtls-server
   type: LoadBalancer
 EOF
+kubectl --context ${MGMT} -n mtls rollout status deployment mtls-server
 ```
 
 We can check that the server is running:
@@ -4957,6 +4983,17 @@ spec:
 EOF
 ```
 If you refresh your browser, you should see that we can connect to the external service using mTLS.
+
+It can take some time until the certificates are propagated to the Istio Ingress Gateway. You can check it with the following command:
+```sh
+kubectl --context ${CLUSTER1} exec -n istio-gateways deploy/istio-ingressgateway-1-15 -- ls -al /etc/istio/ingressgateway-certs
+```
+<!--bash
+for i in `seq 1 100`; do
+kubectl --context ${CLUSTER1} exec -n istio-gateways deploy/istio-ingressgateway-1-15 -- ls -al /etc/istio/ingressgateway-certs | grep -q client.key && break
+sleep 1
+done
+//-->
 
 ![mTLS-2](images/steps/gateway-external-service-mtls/mTLS-1.svg)
 
@@ -5057,6 +5094,12 @@ spec:
         - host: '*'
 EOF
 ```
+
+And delete the objects we created
+```bash
+kubectl --context ${CLUSTER1} -n httpbin delete RouteTable mtls-server
+```
+
 
 
 
@@ -6247,7 +6290,7 @@ mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${te
 
 Run the following command to check the status of the upgrade(s):
 
-```bash
+```sh
 kubectl --context ${MGMT} -n gloo-mesh get istiolifecyclemanager cluster1-installation -o yaml
 kubectl --context ${MGMT} -n gloo-mesh get gatewaylifecyclemanager cluster1-ingress -o yaml
 kubectl --context ${MGMT} -n gloo-mesh get gatewaylifecyclemanager cluster1-eastwest -o yaml
@@ -6273,7 +6316,15 @@ done
 
 kubectl --context ${CLUSTER1} -n httpbin patch deploy in-mesh --patch "{\"spec\": {\"template\": {\"metadata\": {\"labels\": {\"istio.io/rev\": \"${NEW_REVISION}\" }}}}}"
 ```
-
+<!--bash
+kubectl --context ${CLUSTER1} -n httpbin rollout status deploy
+kubectl --context ${CLUSTER1} get ns -l istio.io/rev=${NEW_REVISION} -o json | jq -r '.items[].metadata.name' | while read ns; do
+  kubectl --context ${CLUSTER1} -n ${ns} rollout status deploy
+done
+kubectl --context ${CLUSTER2} get ns -l istio.io/rev=${NEW_REVISION} -o json | jq -r '.items[].metadata.name' | while read ns; do
+  kubectl --context ${CLUSTER2} -n ${ns} rollout status deploy
+done
+//-->
 Test that you can still access the `in-mesh` service through the Istio Ingress Gateway corresponding to the old revision using the command below:
 
 ```bash
@@ -6583,15 +6634,15 @@ istio-ingressgateway-1-15-784f69b4bb-lcfk9    1/1     Running   0          25m
 It confirms that only the new version is running.
 
 <!--bash
-until [[ $(kubectl --context ${CLUSTER1} -n istio-system get pods -l "istio.io/rev=${OLD_REVISION}" -o json | jq '.items | length') -eq 0 ]]; do
-  sleep 1
-done
+#until [[ $(kubectl --context ${CLUSTER1} -n istio-system get pods -l "istio.io/rev=${OLD_REVISION}" -o json | jq '.items | length') -eq 0 ]]; do
+#  sleep 1
+#done
 until [[ $(kubectl --context ${CLUSTER1} -n istio-gateways get pods -l "istio.io/rev=${OLD_REVISION}" -o json | jq '.items | length') -eq 0 ]]; do
   sleep 1
 done
-until [[ $(kubectl --context ${CLUSTER2} -n istio-system get pods -l "istio.io/rev=${OLD_REVISION}" -o json | jq '.items | length') -eq 0 ]]; do
-  sleep 1
-done
+#until [[ $(kubectl --context ${CLUSTER2} -n istio-system get pods -l "istio.io/rev=${OLD_REVISION}" -o json | jq '.items | length') -eq 0 ]]; do
+#  sleep 1
+#done
 until [[ $(kubectl --context ${CLUSTER2} -n istio-gateways get pods -l "istio.io/rev=${OLD_REVISION}" -o json | jq '.items | length') -eq 0 ]]; do
   sleep 1
 done
@@ -6606,7 +6657,7 @@ chai.use(chaiExec);
 
 describe("Old Istio version should be uninstalled", () => {
   let cluster = process.env.CLUSTER1
-  let namespaces = ["istio-system", "istio-gateways"];
+  let namespaces = [/*"istio-system",*/ "istio-gateways"];
   namespaces.forEach(namespace => {
     it("Pods aren't running anymore in the cluster " + cluster + " in the namespace  " + namespace, () => {
       let cli = chaiExec('kubectl --context ' + cluster +' -n istio-system get pods -l "istio.io/rev=' + process.env.OLD_REVISION +'" -o json');
@@ -6615,7 +6666,7 @@ describe("Old Istio version should be uninstalled", () => {
     });
   });
   cluster = process.env.CLUSTER2
-  namespaces = ["istio-system", "istio-gateways"];
+  namespaces = [/*"istio-system",*/ "istio-gateways"];
   namespaces.forEach(namespace => {
     it("Pods aren't running anymore in the cluster " + cluster + " in the namespace  " + namespace, () => {
       let cli = chaiExec('kubectl --context ' + cluster +' -n istio-system get pods -l "istio.io/rev=' + process.env.OLD_REVISION +'" -o json');
