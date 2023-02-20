@@ -398,7 +398,10 @@ spec:
             enabled: false
 EOF
 <!--bash
-kubectl --context mgmt -n gloo-mesh wait --timeout=180s --for=jsonpath='{.status.clusters.cluster1.installations.*.state}'=HEALTHY istiolifecyclemanagers/cluster1-installation
+until kubectl --context ${MGMT} -n gloo-mesh wait --timeout=180s --for=jsonpath='{.status.clusters.cluster1.installations.*.state}'=HEALTHY istiolifecyclemanagers/cluster1-installation; do
+  echo "Waiting for the Istio installation to complete"
+  sleep 1
+done
 -->
 cat << EOF | kubectl --context ${MGMT} apply -f -
 
@@ -2833,11 +2836,8 @@ done
 kubectl --context ${CLUSTER1} -n httpbin patch deploy in-mesh --patch "{\"spec\": {\"template\": {\"metadata\": {\"labels\": {\"istio.io/rev\": \"${NEW_REVISION}\" }}}}}"
 ```
 <!--bash
-kubectl --context ${CLUSTER1} -n httpbin rollout status deploy
-kubectl --context ${CLUSTER1} get ns -l istio.io/rev=${NEW_REVISION} -o json | jq -r '.items[].metadata.name' | while read ns; do
-  kubectl --context ${CLUSTER1} -n ${ns} rollout status deploy
-done
-//-->
+kubectl --context ${CLUSTER1} -n httpbin rollout status deploy in-mesh
+-->
 Test that you can still access the `in-mesh` service through the Istio Ingress Gateway corresponding to the old revision using the command below:
 
 ```bash
@@ -3038,9 +3038,9 @@ istio-ingressgateway-1-15-784f69b4bb-lcfk9    1/1     Running   0          25m
 It confirms that only the new version is running.
 
 <!--bash
-#until [[ $(kubectl --context ${CLUSTER1} -n istio-system get pods -l "istio.io/rev=${OLD_REVISION}" -o json | jq '.items | length') -eq 0 ]]; do
-#  sleep 1
-#done
+until [[ $(kubectl --context ${CLUSTER1} -n istio-system get pods -l "istio.io/rev=${OLD_REVISION}" -o json | jq '.items | length') -eq 0 ]]; do
+  sleep 1
+done
 until [[ $(kubectl --context ${CLUSTER1} -n istio-gateways get pods -l "istio.io/rev=${OLD_REVISION}" -o json | jq '.items | length') -eq 0 ]]; do
   sleep 1
 done
@@ -3055,7 +3055,7 @@ chai.use(chaiExec);
 
 describe("Old Istio version should be uninstalled", () => {
   let cluster = process.env.CLUSTER1
-  let namespaces = [/*"istio-system",*/ "istio-gateways"];
+  let namespaces = ["istio-system", "istio-gateways"];
   namespaces.forEach(namespace => {
     it("Pods aren't running anymore in the cluster " + cluster + " in the namespace  " + namespace, () => {
       let cli = chaiExec('kubectl --context ' + cluster +' -n istio-system get pods -l "istio.io/rev=' + process.env.OLD_REVISION +'" -o json');
