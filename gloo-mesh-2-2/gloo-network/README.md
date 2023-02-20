@@ -235,7 +235,7 @@ describe("Bookinfo app", () => {
   });
 });
 EOF
-echo "executing test dist/gloo-mesh-2-0-gloo-network-beta/build/templates/steps/apps/bookinfo/deploy-bookinfo/tests/check-bookinfo.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-gloo-network/build/templates/steps/apps/bookinfo/deploy-bookinfo/tests/check-bookinfo.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -248,63 +248,64 @@ mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${te
 
 We're going to deploy the httpbin application to demonstrate several features of Gloo Mesh.
 
-You can find more infrmation about this application [here](http://httpbin.org/).
+You can find more information about this application [here](http://httpbin.org/).
 
 
-Run the following commands to deploy the httpbin app on `cluster1`.
+
+Run the following commands to deploy the httpbin app on `cluster1`. The deployment will be called `not-in-mesh` and won't have the sidecar injected (because we don't label the namespace).
 
 ```bash
 kubectl --context ${CLUSTER1} create ns httpbin
-
 kubectl --context ${CLUSTER1} apply -n httpbin -f - <<EOF
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: httpbin
+  name: not-in-mesh
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: httpbin
+  name: not-in-mesh
   labels:
-    app: httpbin
-    service: httpbin
+    app: not-in-mesh
+    service: not-in-mesh
 spec:
   ports:
   - name: http
     port: 8000
     targetPort: 80
   selector:
-    app: httpbin
+    app: not-in-mesh
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: httpbin
+  name: not-in-mesh
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: httpbin
+      app: not-in-mesh
       version: v1
   template:
     metadata:
       labels:
-        app: httpbin
+        app: not-in-mesh
         version: v1
     spec:
-      serviceAccountName: httpbin
+      serviceAccountName: not-in-mesh
       containers:
       - image: docker.io/kennethreitz/httpbin
         imagePullPolicy: IfNotPresent
-        name: httpbin
+        name: not-in-mesh
         ports:
         - containerPort: 80
-
 EOF
 ```
 
-You can check that the app is running using
+
+
+You can follow the progress using the following command:
 
 ```
 kubectl --context ${CLUSTER1} -n httpbin get pods
@@ -312,9 +313,8 @@ kubectl --context ${CLUSTER1} -n httpbin get pods
 
 ```
 NAME                           READY   STATUS    RESTARTS   AGE
-httpbin-5c64bb49cd-m9kwm   1/1     Running   0          11s
+not-in-mesh-5c64bb49cd-m9kwm   1/1     Running   0          11s
 ```
-
 <!--bash
 cat <<'EOF' > ./test.js
 const helpers = require('./tests/chai-exec');
@@ -322,14 +322,14 @@ const helpers = require('./tests/chai-exec');
 describe("httpbin app", () => {
   let cluster = process.env.CLUSTER1
   
-  let deployments = ["httpbin"];
+  let deployments = ["not-in-mesh"];
   
   deployments.forEach(deploy => {
     it(deploy + ' pods are ready in ' + cluster, () => helpers.checkDeployment({ context: cluster, namespace: "httpbin", k8sObj: deploy }));
   });
 });
 EOF
-echo "executing test dist/gloo-mesh-2-0-gloo-network-beta/build/templates/steps/apps/httpbin/deploy-httpbin/tests/check-httpbin.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-gloo-network/build/templates/steps/apps/httpbin/deploy-httpbin/tests/check-httpbin.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -342,7 +342,7 @@ mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${te
 First of all, let's install the `meshctl` CLI:
 
 ```bash
-export GLOO_MESH_VERSION=v2.2.1
+export GLOO_MESH_VERSION=v2.2.4
 curl -sL https://run.solo.io/meshctl/install | sh -
 export PATH=$HOME/.gloo-mesh/bin:$PATH
 ```
@@ -375,7 +375,7 @@ describe("Required environment variables should contain value", () => {
   });
 });
 EOF
-echo "executing test dist/gloo-mesh-2-0-gloo-network-beta/build/templates/steps/deploy-and-register-gloo-mesh/tests/environment-variables.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-gloo-network/build/templates/steps/deploy-and-register-gloo-mesh/tests/environment-variables.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -387,7 +387,7 @@ helm repo update
 kubectl --context ${MGMT} create ns gloo-mesh 
 helm upgrade --install gloo-mesh-enterprise gloo-mesh-enterprise/gloo-mesh-enterprise \
 --namespace gloo-mesh --kube-context ${MGMT} \
---version=2.2.1 \
+--version=2.2.4 \
 --set glooMeshMgmtServer.ports.healthcheck=8091 \
 --set legacyMetricsPipeline.enabled=false \
 --set metricsgateway.enabled=true \
@@ -420,7 +420,7 @@ describe("MGMT server is healthy", () => {
   });
 });
 EOF
-echo "executing test dist/gloo-mesh-2-0-gloo-network-beta/build/templates/steps/deploy-and-register-gloo-mesh/tests/check-deployment.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-gloo-network/build/templates/steps/deploy-and-register-gloo-mesh/tests/check-deployment.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -441,7 +441,7 @@ afterEach(function (done) {
   }
 });
 EOF
-echo "executing test dist/gloo-mesh-2-0-gloo-network-beta/build/templates/steps/deploy-and-register-gloo-mesh/tests/get-gloo-mesh-mgmt-server-ip.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-gloo-network/build/templates/steps/deploy-and-register-gloo-mesh/tests/get-gloo-mesh-mgmt-server-ip.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -521,7 +521,7 @@ helm upgrade --install gloo-mesh-agent gloo-mesh-agent/gloo-mesh-agent \
   --set cluster=cluster1 \
   --set metricscollector.enabled=true \
   --set metricscollector.config.exporters.otlp.endpoint=\"${ENDPOINT_METRICS_GATEWAY}\" \
-  --version 2.2.1
+  --version 2.2.4
 ```
 
 Note that the registration can also be performed using `meshctl cluster register`.
@@ -558,7 +558,7 @@ helm upgrade --install gloo-mesh-agent gloo-mesh-agent/gloo-mesh-agent \
   --set cluster=cluster2 \
   --set metricscollector.enabled=true \
   --set metricscollector.config.exporters.otlp.endpoint=\"${ENDPOINT_METRICS_GATEWAY}\" \
-  --version 2.2.1
+  --version 2.2.4
 ```
 
 You can check the cluster(s) have been registered correctly using the following commands:
@@ -595,7 +595,7 @@ describe("Cluster registration", () => {
   });
 });
 EOF
-echo "executing test dist/gloo-mesh-2-0-gloo-network-beta/build/templates/steps/deploy-and-register-gloo-mesh/tests/cluster-registration.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-gloo-network/build/templates/steps/deploy-and-register-gloo-mesh/tests/cluster-registration.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -789,7 +789,7 @@ describe("Communication allowed", () => {
   });
 });
 EOF
-echo "executing test dist/gloo-mesh-2-0-gloo-network-beta/build/templates/steps/apps/bookinfo/l4-zero-trust/tests/different-workspaces-allowed.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-gloo-network/build/templates/steps/apps/bookinfo/l4-zero-trust/tests/different-workspaces-allowed.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -912,7 +912,7 @@ describe("Communication not allowed", () => {
   });
 });
 EOF
-echo "executing test dist/gloo-mesh-2-0-gloo-network-beta/build/templates/steps/apps/bookinfo/l4-zero-trust/tests/different-workspaces-not-allowed.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-gloo-network/build/templates/steps/apps/bookinfo/l4-zero-trust/tests/different-workspaces-not-allowed.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -938,7 +938,7 @@ describe("Communication allowed", () => {
   });
 });
 EOF
-echo "executing test dist/gloo-mesh-2-0-gloo-network-beta/build/templates/steps/apps/bookinfo/l4-zero-trust/tests/same-workspace-allowed.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-gloo-network/build/templates/steps/apps/bookinfo/l4-zero-trust/tests/same-workspace-allowed.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
