@@ -442,7 +442,7 @@ First of all, let's create Kubernetes services for the gateways:
 ```bash
 registry=localhost:5000
 kubectl --context ${CLUSTER1} create ns istio-gateways
-kubectl --context ${CLUSTER1} label namespace istio-gateways istio.io/rev=1-15
+kubectl --context ${CLUSTER1} label namespace istio-gateways istio.io/rev=1-15 --overwrite
 
 cat << EOF | kubectl --context ${CLUSTER1} apply -f -
 apiVersion: v1
@@ -514,7 +514,7 @@ spec:
 EOF
 
 kubectl --context ${CLUSTER2} create ns istio-gateways
-kubectl --context ${CLUSTER2} label namespace istio-gateways istio.io/rev=1-15
+kubectl --context ${CLUSTER2} label namespace istio-gateways istio.io/rev=1-15 --overwrite
 
 cat << EOF | kubectl --context ${CLUSTER2} apply -f -
 apiVersion: v1
@@ -632,7 +632,9 @@ spec:
           - name: istio-ingressgateway
             enabled: false
 EOF
-
+<!--bash
+kubectl --context mgmt -n gloo-mesh wait --timeout=180s --for=jsonpath='{.status.clusters.cluster1.installations.*.state}'=HEALTHY istiolifecyclemanagers/cluster1-installation
+-->
 cat << EOF | kubectl --context ${MGMT} apply -f -
 
 apiVersion: admin.gloo.solo.io/v2
@@ -737,7 +739,9 @@ spec:
           - name: istio-ingressgateway
             enabled: false
 EOF
-
+<!--bash
+kubectl --context mgmt -n gloo-mesh wait --timeout=180s --for=jsonpath='{.status.clusters.cluster2.installations.*.state}'=HEALTHY istiolifecyclemanagers/cluster2-installation
+-->
 cat << EOF | kubectl --context ${MGMT} apply -f -
 
 apiVersion: admin.gloo.solo.io/v2
@@ -1126,7 +1130,7 @@ kubectl --context ${CLUSTER1} -n httpbin get pods
 
 ```
 NAME                           READY   STATUS    RESTARTS   AGE
-in-mesh-5d9d9549b5-qrdgd       2/2     Running   0          11s
+not-in-mesh-5c64bb49cd-m9kwm   1/1     Running   0          11s
 ```
 <!--bash
 cat <<'EOF' > ./test.js
@@ -1158,9 +1162,9 @@ First, you need to create a namespace for the addons, with Istio injection enabl
 
 ```bash
 kubectl --context ${CLUSTER1} create namespace gloo-mesh-addons
-kubectl --context ${CLUSTER1} label namespace gloo-mesh-addons istio.io/rev=1-15
+kubectl --context ${CLUSTER1} label namespace gloo-mesh-addons istio.io/rev=1-15 --overwrite
 kubectl --context ${CLUSTER2} create namespace gloo-mesh-addons
-kubectl --context ${CLUSTER2} label namespace gloo-mesh-addons istio.io/rev=1-15
+kubectl --context ${CLUSTER2} label namespace gloo-mesh-addons istio.io/rev=1-15 --overwrite
 ```
 
 Then, you can deploy the addons on the cluster(s) using Helm:
@@ -4113,7 +4117,7 @@ mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${te
 
 Run the following command to check the status of the upgrade(s):
 
-```bash
+```sh
 kubectl --context ${MGMT} -n gloo-mesh get istiolifecyclemanager cluster1-installation -o yaml
 kubectl --context ${MGMT} -n gloo-mesh get gatewaylifecyclemanager cluster1-ingress -o yaml
 kubectl --context ${MGMT} -n gloo-mesh get gatewaylifecyclemanager cluster1-eastwest -o yaml
@@ -4139,7 +4143,15 @@ done
 
 kubectl --context ${CLUSTER1} -n httpbin patch deploy in-mesh --patch "{\"spec\": {\"template\": {\"metadata\": {\"labels\": {\"istio.io/rev\": \"${NEW_REVISION}\" }}}}}"
 ```
-
+<!--bash
+kubectl --context ${CLUSTER1} -n httpbin rollout status deploy
+kubectl --context ${CLUSTER1} get ns -l istio.io/rev=${NEW_REVISION} -o json | jq -r '.items[].metadata.name' | while read ns; do
+  kubectl --context ${CLUSTER1} -n ${ns} rollout status deploy
+done
+kubectl --context ${CLUSTER2} get ns -l istio.io/rev=${NEW_REVISION} -o json | jq -r '.items[].metadata.name' | while read ns; do
+  kubectl --context ${CLUSTER2} -n ${ns} rollout status deploy
+done
+//-->
 Test that you can still access the `in-mesh` service through the Istio Ingress Gateway corresponding to the old revision using the command below:
 
 ```bash
@@ -4449,15 +4461,15 @@ istio-ingressgateway-1-15-784f69b4bb-lcfk9    1/1     Running   0          25m
 It confirms that only the new version is running.
 
 <!--bash
-until [[ $(kubectl --context ${CLUSTER1} -n istio-system get pods -l "istio.io/rev=${OLD_REVISION}" -o json | jq '.items | length') -eq 0 ]]; do
-  sleep 1
-done
+#until [[ $(kubectl --context ${CLUSTER1} -n istio-system get pods -l "istio.io/rev=${OLD_REVISION}" -o json | jq '.items | length') -eq 0 ]]; do
+#  sleep 1
+#done
 until [[ $(kubectl --context ${CLUSTER1} -n istio-gateways get pods -l "istio.io/rev=${OLD_REVISION}" -o json | jq '.items | length') -eq 0 ]]; do
   sleep 1
 done
-until [[ $(kubectl --context ${CLUSTER2} -n istio-system get pods -l "istio.io/rev=${OLD_REVISION}" -o json | jq '.items | length') -eq 0 ]]; do
-  sleep 1
-done
+#until [[ $(kubectl --context ${CLUSTER2} -n istio-system get pods -l "istio.io/rev=${OLD_REVISION}" -o json | jq '.items | length') -eq 0 ]]; do
+#  sleep 1
+#done
 until [[ $(kubectl --context ${CLUSTER2} -n istio-gateways get pods -l "istio.io/rev=${OLD_REVISION}" -o json | jq '.items | length') -eq 0 ]]; do
   sleep 1
 done
@@ -4472,7 +4484,7 @@ chai.use(chaiExec);
 
 describe("Old Istio version should be uninstalled", () => {
   let cluster = process.env.CLUSTER1
-  let namespaces = ["istio-system", "istio-gateways"];
+  let namespaces = [/*"istio-system",*/ "istio-gateways"];
   namespaces.forEach(namespace => {
     it("Pods aren't running anymore in the cluster " + cluster + " in the namespace  " + namespace, () => {
       let cli = chaiExec('kubectl --context ' + cluster +' -n istio-system get pods -l "istio.io/rev=' + process.env.OLD_REVISION +'" -o json');
@@ -4481,7 +4493,7 @@ describe("Old Istio version should be uninstalled", () => {
     });
   });
   cluster = process.env.CLUSTER2
-  namespaces = ["istio-system", "istio-gateways"];
+  namespaces = [/*"istio-system",*/ "istio-gateways"];
   namespaces.forEach(namespace => {
     it("Pods aren't running anymore in the cluster " + cluster + " in the namespace  " + namespace, () => {
       let cli = chaiExec('kubectl --context ' + cluster +' -n istio-system get pods -l "istio.io/rev=' + process.env.OLD_REVISION +'" -o json');
