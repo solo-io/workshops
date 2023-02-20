@@ -668,7 +668,10 @@ spec:
             enabled: false
 EOF
 <!--bash
-kubectl --context mgmt -n gloo-mesh wait --timeout=180s --for=jsonpath='{.status.clusters.cluster1.installations.*.state}'=HEALTHY istiolifecyclemanagers/cluster1-installation
+until kubectl --context ${MGMT} -n gloo-mesh wait --timeout=180s --for=jsonpath='{.status.clusters.cluster1.installations.*.state}'=HEALTHY istiolifecyclemanagers/cluster1-installation; do
+  echo "Waiting for the Istio installation to complete"
+  sleep 1
+done
 -->
 cat << EOF | kubectl --context ${MGMT} apply -f -
 
@@ -797,7 +800,10 @@ spec:
             enabled: false
 EOF
 <!--bash
-kubectl --context mgmt -n gloo-mesh wait --timeout=180s --for=jsonpath='{.status.clusters.cluster2.installations.*.state}'=HEALTHY istiolifecyclemanagers/cluster2-installation
+until kubectl --context ${MGMT} -n gloo-mesh wait --timeout=180s --for=jsonpath='{.status.clusters.cluster2.installations.*.state}'=HEALTHY istiolifecyclemanagers/cluster2-installation; do
+  echo "Waiting for the Istio installation to complete"
+  sleep 1
+done
 -->
 cat << EOF | kubectl --context ${MGMT} apply -f -
 
