@@ -431,7 +431,7 @@ First of all, let's create Kubernetes services for the gateways:
 ```bash
 registry=localhost:5000
 kubectl --context ${CLUSTER1} create ns istio-gateways
-kubectl --context ${CLUSTER1} label namespace istio-gateways istio.io/rev=
+kubectl --context ${CLUSTER1} label namespace istio-gateways istio.io/rev= --overwrite
 
 cat << EOF | kubectl --context ${CLUSTER1} apply -f -
 apiVersion: v1
@@ -503,7 +503,7 @@ spec:
 EOF
 
 kubectl --context ${CLUSTER2} create ns istio-gateways
-kubectl --context ${CLUSTER2} label namespace istio-gateways istio.io/rev=
+kubectl --context ${CLUSTER2} label namespace istio-gateways istio.io/rev= --overwrite
 
 cat << EOF | kubectl --context ${CLUSTER2} apply -f -
 apiVersion: v1
@@ -621,7 +621,9 @@ spec:
           - name: istio-ingressgateway
             enabled: false
 EOF
-
+<!--bash
+kubectl --context mgmt -n gloo-mesh wait --timeout=180s --for=jsonpath='{.status.clusters.cluster1.installations.*.state}'=HEALTHY istiolifecyclemanagers/cluster1-installation
+-->
 cat << EOF | kubectl --context ${MGMT} apply -f -
 
 apiVersion: admin.gloo.solo.io/v2
@@ -726,7 +728,9 @@ spec:
           - name: istio-ingressgateway
             enabled: false
 EOF
-
+<!--bash
+kubectl --context mgmt -n gloo-mesh wait --timeout=180s --for=jsonpath='{.status.clusters.cluster2.installations.*.state}'=HEALTHY istiolifecyclemanagers/cluster2-installation
+-->
 cat << EOF | kubectl --context ${MGMT} apply -f -
 
 apiVersion: admin.gloo.solo.io/v2
