@@ -716,12 +716,6 @@ spec:
           - name: istio-ingressgateway
             enabled: false
 EOF
-<!--bash
-until kubectl --context ${MGMT} -n gloo-mesh wait --timeout=180s --for=jsonpath='{.status.clusters.cluster1.installations.*.state}'=HEALTHY istiolifecyclemanagers/cluster1-installation; do
-  echo "Waiting for the Istio installation to complete"
-  sleep 1
-done
--->
 cat << EOF | kubectl --context ${MGMT} apply -f -
 
 apiVersion: admin.gloo.solo.io/v2
@@ -826,12 +820,6 @@ spec:
           - name: istio-ingressgateway
             enabled: false
 EOF
-<!--bash
-until kubectl --context ${MGMT} -n gloo-mesh wait --timeout=180s --for=jsonpath='{.status.clusters.cluster2.installations.*.state}'=HEALTHY istiolifecyclemanagers/cluster2-installation; do
-  echo "Waiting for the Istio installation to complete"
-  sleep 1
-done
--->
 cat << EOF | kubectl --context ${MGMT} apply -f -
 
 apiVersion: admin.gloo.solo.io/v2
@@ -898,10 +886,18 @@ EOF
 ```
 
 <!--bash
+until kubectl --context ${MGMT} -n gloo-mesh wait --timeout=180s --for=jsonpath='{.status.clusters.cluster1.installations.*.state}'=HEALTHY istiolifecyclemanagers/cluster1-installation; do
+  echo "Waiting for the Istio installation to complete"
+  sleep 1
+done
 until [[ $(kubectl --context ${CLUSTER1} -n istio-system get deploy -o json | jq '[.items[].status.readyReplicas] | add') -ge 1 ]]; do
   sleep 1
 done
 until [[ $(kubectl --context ${CLUSTER1} -n istio-gateways get deploy -o json | jq '[.items[].status.readyReplicas] | add') -eq 2 ]]; do
+  sleep 1
+done
+until kubectl --context ${MGMT} -n gloo-mesh wait --timeout=180s --for=jsonpath='{.status.clusters.cluster2.installations.*.state}'=HEALTHY istiolifecyclemanagers/cluster2-installation; do
+  echo "Waiting for the Istio installation to complete"
   sleep 1
 done
 until [[ $(kubectl --context ${CLUSTER2} -n istio-system get deploy -o json | jq '[.items[].status.readyReplicas] | add') -ge 1 ]]; do
@@ -6544,7 +6540,7 @@ spec:
   installations:
     - clusters:
       - name: cluster1
-        defaultRevision: false
+        defaultRevision: true
       revision: ${NEW_REVISION}
       istioOperatorSpec:
         profile: minimal
@@ -6585,7 +6581,7 @@ spec:
   installations:
     - clusters:
       - name: cluster1
-        activeGateway: false
+        activeGateway: true
       gatewayRevision: ${NEW_REVISION}
       istioOperatorSpec:
         profile: empty
@@ -6649,7 +6645,7 @@ spec:
   installations:
     - clusters:
       - name: cluster2
-        defaultRevision: false
+        defaultRevision: true
       revision: ${NEW_REVISION}
       istioOperatorSpec:
         profile: minimal
@@ -6690,7 +6686,7 @@ spec:
   installations:
     - clusters:
       - name: cluster2
-        activeGateway: false
+        activeGateway: true
       gatewayRevision: ${NEW_REVISION}
       istioOperatorSpec:
         profile: empty
