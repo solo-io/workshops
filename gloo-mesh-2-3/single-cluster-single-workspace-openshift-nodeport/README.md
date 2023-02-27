@@ -346,7 +346,7 @@ spec:
     app: istio-ingressgateway
     istio: ingressgateway
     revision: 1-16
-  type: LoadBalancer
+  type: NodePort
 
 EOF
 ```
