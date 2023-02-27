@@ -463,7 +463,7 @@ spec:
     app: istio-ingressgateway
     istio: ingressgateway
     revision: 1-16
-  type: LoadBalancer
+  type: NodePort
 
 EOF
 cat << EOF | kubectl --context ${CLUSTER1} apply -f -
@@ -504,7 +504,7 @@ spec:
     istio: eastwestgateway
     revision: 1-16
     topology.istio.io/network: cluster1
-  type: LoadBalancer
+  type: NodePort
 
 EOF
 
@@ -535,7 +535,7 @@ spec:
     app: istio-ingressgateway
     istio: ingressgateway
     revision: 1-16
-  type: LoadBalancer
+  type: NodePort
 
 EOF
 
@@ -577,7 +577,7 @@ spec:
     istio: eastwestgateway
     revision: 1-16
     topology.istio.io/network: cluster2
-  type: LoadBalancer
+  type: NodePort
 
 EOF
 ```
