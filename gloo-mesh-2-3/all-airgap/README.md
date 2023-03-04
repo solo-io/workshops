@@ -40,7 +40,7 @@ source ./scripts/assert.sh
 * [Lab 24 - Apply rate limiting to the Gateway](#lab-24---apply-rate-limiting-to-the-gateway-)
 * [Lab 25 - Use the Web Application Firewall filter](#lab-25---use-the-web-application-firewall-filter-)
 * [Lab 26 - Expose the bookinfo application through GraphQL](#lab-26---expose-the-bookinfo-application-through-graphql-)
-* [Lab 27 - Expose an external service with mTLS](#lab-27---expose-an-external-service-with-mtls-)
+* [Lab 27 - Interacting with mTLS](#lab-27---interacting-with-mtls-)
 * [Lab 28 - Deploy the Amazon pod identity webhook](#lab-28---deploy-the-amazon-pod-identity-webhook-)
 * [Lab 29 - Execute Lambda functions](#lab-29---execute-lambda-functions-)
 * [Lab 30 - VM integration](#lab-30---vm-integration-)
@@ -4914,7 +4914,7 @@ EOF
 
 
 
-## Lab 27 - Expose an external service with mTLS <a name="lab-27---expose-an-external-service-with-mtls-"></a>
+## Lab 27 - Interacting with mTLS <a name="lab-27---interacting-with-mtls-"></a>
 
 Services that are part of the mesh are able to communicate using mtLS by default, but you can also have mtLS with services that are **not** part of the mesh, and this lab it is going to show you how.
 
@@ -5017,7 +5017,7 @@ metadata:
 spec:
   address: ${ENDPOINT_MTLS_SERVER}
   ports:
-    - name: http
+    - name: https
       number: 9443
 ---
 apiVersion: networking.gloo.solo.io/v2
@@ -5031,9 +5031,11 @@ spec:
   hosts:
     - mtls.external
   ports:
-    - name: https
-      number: 9443
-      protocol: HTTPS
+    - name: http
+      number: 80
+      protocol: HTTP
+      targetPort:
+        name: https
       clientsideTls:
         mode: MUTUAL
         caCertificates: /etc/istio/ingressgateway-certs/ca.crt
@@ -5059,12 +5061,12 @@ spec:
     - name: mtls-server
       matchers:
         - uri:
-            prefix: /
+            prefix: /mtls-server
       forwardTo:
         destinations:
           - kind: EXTERNAL_SERVICE
             port:
-              number: 9443
+              name: http
             ref:
               name: mtls-server
               namespace: httpbin
@@ -5087,7 +5089,7 @@ done
 
 Get the URL to access the `mtls-server` service using the following command:
 ```
-echo "https://${ENDPOINT_HTTPS_GW_CLUSTER1}/"
+curl https://${ENDPOINT_HTTPS_GW_CLUSTER1}/mtls-server -isk
 ```
 
 <!--bash
@@ -5095,7 +5097,7 @@ cat <<'EOF' > ./test.js
 const helpersHttp = require('./tests/chai-http');
 
 describe("mTLS from the external service", () => {
-  it('Checking text \'Hello from mTLS server\' in ' + process.env.CLUSTER1, () => helpersHttp.checkBody({ host: 'https://' + process.env.ENDPOINT_HTTPS_GW_CLUSTER1, path: '/', body: 'Hello from mTLS server', match: true }));
+  it('Checking text \'Hello from mTLS server\' in ' + process.env.CLUSTER1, () => helpersHttp.checkBody({ host: 'https://' + process.env.ENDPOINT_HTTPS_GW_CLUSTER1, path: '/mtls-server', body: 'Hello from mTLS server', match: true }));
 })
 EOF
 echo "executing test dist/gloo-mesh-2-0-all-airgap-beta/build/templates/steps/apps/mtls-server/gateway-external-service-mtls/tests/mtls-from-external.test.js.liquid"
@@ -5108,6 +5110,11 @@ Now we will try the other way around, connecting to the mesh from a external ser
 
 We will update the tls settings of the Istio Ingress Gateway to require mTLS:
 ```bash
+kubectl --context ${CLUSTER1} create -n istio-gateways secret generic mtls-credential \
+  --from-file=tls.key=client.key \
+  --from-file=tls.crt=client.crt \
+  --from-file=ca.crt=server.crt
+
 kubectl --context ${CLUSTER1} apply -f - <<EOF
 apiVersion: networking.gloo.solo.io/v2
 kind: VirtualGateway
@@ -5130,17 +5137,14 @@ spec:
         number: 443
       tls:
         mode: MUTUAL
-        files:
-          caCerts: /etc/istio/ingressgateway-certs/ca.crt
-          serverCert: /etc/istio/ingressgateway-certs/client.crt
-          privateKey: /etc/istio/ingressgateway-certs/client.key
+        secretName: mtls-credential
       allowedRouteTables:
         - host: '*'
 EOF
 ```
 
 Finally, we can check that we can connect to the Istio Ingress Gateway using mTLS:
-```bash
+```shell
 curl --cert server.crt --key server.key --cacert client.crt \
      https://${ENDPOINT_HTTPS_GW_CLUSTER1}/mtls-server -isk
 ```
@@ -5148,6 +5152,71 @@ curl --cert server.crt --key server.key --cacert client.crt \
 This is how the traffic flow looks like:
 ![mTLS-2](images/steps/gateway-external-service-mtls/mTLS-2.svg)
 
+Let's do the same now but for east-west traffic. This is useful for example to connect with a service that is part of another mesh, and it doesn't have our same root trust.
+
+First, we create a secret to hold the certificates:
+```bash
+kubectl --context ${CLUSTER1} create -n httpbin secret generic istio-sidecar-certs \
+  --from-file=client.key=client.key \
+  --from-file=client.crt=client.crt \
+  --from-file=ca.crt=server.crt
+```
+
+Then, we create a new pod that will start the communication:
+```bash
+kubectl --context ${CLUSTER1} apply -f - <<EOF
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sleep
+  namespace: httpbin
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: sleep
+      version: v1
+  template:
+    metadata:
+      labels:
+        app: sleep
+        version: v1
+        sidecar.istio.io/inject: "true"
+      annotations:
+        sidecar.istio.io/userVolumeMount: '[{"name":"istio-sidecar-certs", "mountPath":"/etc/istio/ingressgateway-certs/", "readonly":true}]'
+        sidecar.istio.io/userVolume: '[{"name":"istio-sidecar-certs", "secret":{"secretName":"istio-sidecar-certs"}}]'
+    spec:
+      containers:
+      - name: sleep
+        image: curlimages/curl
+        command: ["/bin/sleep", "3650d"]
+        imagePullPolicy: IfNotPresent
+EOF
+```
+
+We can check now that the our sleep app can connect seamlessly to the mTLS server:
+```shell
+kubectl --context ${CLUSTER1} exec -n httpbin deploy/sleep -- curl mtls.external -isk
+```
+<!--bash
+cat <<'EOF' > ./test.js
+var chai = require('chai');
+var expect = chai.expect;
+const helpers = require('./tests/chai-exec');
+
+describe("mTLS from the external service", () => {
+  it('Checking text \'Hello from mTLS server\' in ' + process.env.CLUSTER1, () => {
+    const command = helpers.getOutputForCommand({ command: "kubectl --context " + process.env.CLUSTER1 + " -n httpbin exec deploy/sleep -- curl mtls.external -isk" }).replaceAll("'", "");
+    expect(command).to.contain("Hello from mTLS server");
+  });
+});
+
+EOF
+echo "executing test dist/gloo-mesh-2-0-all-airgap-beta/build/templates/steps/apps/mtls-server/gateway-external-service-mtls/tests/mtls-from-eastwest.test.js.liquid"
+tempfile=$(mktemp)
+echo "saving errors in ${tempfile}"
+mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
+-->
 Let's revert the changes we made to the VirtualGateway
 
 ```bash
@@ -5186,6 +5255,8 @@ EOF
 And delete the objects we created
 ```bash
 kubectl --context ${CLUSTER1} -n httpbin delete RouteTable mtls-server
+kubectl --context ${CLUSTER1} -n httpbin delete externalservices mtls-server
+kubectl --context ${CLUSTER1} -n httpbin delete deploy sleep
 ```
 
 
@@ -6444,12 +6515,12 @@ kubectl --context ${CLUSTER2} get ns -l istio.io/rev=${OLD_REVISION} -o json | j
   kubectl --context ${CLUSTER2} label ns ${ns} istio.io/rev=${NEW_REVISION} --overwrite
   kubectl --context ${CLUSTER2} -n ${ns} rollout restart deploy
 done
-
 kubectl --context ${CLUSTER1} -n httpbin patch deploy in-mesh --patch "{\"spec\": {\"template\": {\"metadata\": {\"labels\": {\"istio.io/rev\": \"${NEW_REVISION}\" }}}}}"
 ```
 <!--bash
 kubectl --context ${CLUSTER1} -n httpbin rollout status deploy in-mesh
 -->
+
 Test that you can still access the `in-mesh` service through the Istio Ingress Gateway corresponding to the old revision using the command below:
 
 ```bash
