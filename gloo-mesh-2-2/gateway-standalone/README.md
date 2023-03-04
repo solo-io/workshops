@@ -838,7 +838,7 @@ spec:
     resources:
     - kind: SERVICE
       labels:
-        app: in-mesh
+        app: not-in-mesh
     - kind: ALL
       labels:
         expose: "true"
@@ -846,7 +846,7 @@ EOF
 ```
 
 The Httpbin team has decided to export the following to the `gateway` workspace (using a reference):
-- the `in-mesh` Kubernetes service
+- the `not-in-mesh` Kubernetes service
 - all the resources (RouteTables, VirtualDestination, ...) that have the label `expose` set to `true`
 
 
