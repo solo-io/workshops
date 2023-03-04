@@ -2300,7 +2300,7 @@ spec:
     resources:
     - kind: SERVICE
       labels:
-        app: in-mesh
+        app: not-in-mesh
     - kind: ALL
       labels:
         expose: "true"
@@ -2308,7 +2308,7 @@ EOF
 ```
 
 The Httpbin team has decided to export the following to the `gateway` workspace (using a reference):
-- the `in-mesh` Kubernetes service
+- the `not-in-mesh` Kubernetes service
 - all the resources (RouteTables, VirtualDestination, ...) that have the label `expose` set to `true`
 
 
@@ -4142,12 +4142,7 @@ kubectl --context ${CLUSTER2} get ns -l istio.io/rev=${OLD_REVISION} -o json | j
   kubectl --context ${CLUSTER2} -n ${ns} rollout restart deploy
 done
 
-kubectl --context ${CLUSTER1} -n httpbin patch deploy in-mesh --patch "{\"spec\": {\"template\": {\"metadata\": {\"labels\": {\"istio.io/rev\": \"${NEW_REVISION}\" }}}}}"
-```
-<!--bash
-kubectl --context ${CLUSTER1} -n httpbin rollout status deploy in-mesh
--->
-Test that you can still access the `in-mesh` service through the Istio Ingress Gateway corresponding to the old revision using the command below:
+Test that you can still access the `not-in-mesh` service through the Istio Ingress Gateway corresponding to the old revision using the command below:
 
 ```bash
 curl -k "https://${ENDPOINT_HTTPS_GW_CLUSTER1}/get" -I
@@ -4190,7 +4185,7 @@ kubectl --context ${CLUSTER2} -n istio-gateways patch svc istio-ingressgateway -
 kubectl --context ${CLUSTER2} -n istio-gateways patch svc istio-eastwestgateway --patch "{\"spec\": {\"selector\": {\"revision\": \"${NEW_REVISION}\" }}}"
 ```
 
-Test that you can still access the `in-mesh` service:
+Test that you can still access the `not-in-mesh` service:
 
 ```bash
 curl -k "https://${ENDPOINT_HTTPS_GW_CLUSTER1}/get" -I
