@@ -2830,12 +2830,12 @@ kubectl --context ${CLUSTER1} get ns -l istio.io/rev=${OLD_REVISION} -o json | j
   kubectl --context ${CLUSTER1} label ns ${ns} istio.io/rev=${NEW_REVISION} --overwrite
   kubectl --context ${CLUSTER1} -n ${ns} rollout restart deploy
 done
-
 kubectl --context ${CLUSTER1} -n httpbin patch deploy in-mesh --patch "{\"spec\": {\"template\": {\"metadata\": {\"labels\": {\"istio.io/rev\": \"${NEW_REVISION}\" }}}}}"
 ```
 <!--bash
 kubectl --context ${CLUSTER1} -n httpbin rollout status deploy in-mesh
 -->
+
 Test that you can still access the `in-mesh` service through the Istio Ingress Gateway corresponding to the old revision using the command below:
 
 ```bash
