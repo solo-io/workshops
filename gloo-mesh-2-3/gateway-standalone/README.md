@@ -180,6 +180,12 @@ helm upgrade --install gloo-mesh-enterprise gloo-mesh-enterprise/gloo-mesh-enter
 # such as to run the management cluster also as a workload cluster in a single-cluster setup
 registerMgmtPlane:
   enabled: true
+  metricscollector:
+    enabled: true
+    config:
+      exporters:
+        otlp:
+          endpoint: gloo-metrics-gateway.gloo-mesh:4317
   # Configuration for managed Istio control plane and gateway installations by using the Istio Lifecycle Manager
   managedInstallations:
     enabled: true
