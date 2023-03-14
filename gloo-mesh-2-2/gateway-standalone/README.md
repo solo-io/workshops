@@ -123,7 +123,7 @@ metallb-system       speaker-d7jkp                                 1/1     Runni
 First of all, let's install the `meshctl` CLI:
 
 ```bash
-export GLOO_MESH_VERSION=v2.2.4
+export GLOO_MESH_VERSION=v2.2.5
 curl -sL https://run.solo.io/meshctl/install | sh -
 export PATH=$HOME/.gloo-mesh/bin:$PATH
 ```
@@ -167,7 +167,7 @@ helm repo update
 kubectl --context ${MGMT} create ns gloo-mesh 
 helm upgrade --install gloo-mesh-enterprise gloo-mesh-enterprise/gloo-mesh-enterprise \
 --namespace gloo-mesh --kube-context ${MGMT} \
---version=2.2.4 \
+--version=2.2.5 \
 --set glooMeshMgmtServer.ports.healthcheck=8091 \
 --set legacyMetricsPipeline.enabled=false \
 --set metricsgateway.enabled=true \
@@ -189,11 +189,11 @@ registerMgmtPlane:
   # Configuration for managed Istio control plane and gateway installations by using the Istio Lifecycle Manager
   managedInstallations:
     enabled: true
-    revision: 1-15
+    revision: 1-16
     defaultRevision: true
     images:
       hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-      tag: 1.16.2-solo
+      tag: 1.17.1-solo
     controlPlane:
       enabled: true
       overrides: {}
@@ -413,13 +413,13 @@ First, you need to create a namespace for the addons, with Istio injection enabl
 
 ```bash
 kubectl --context ${CLUSTER1} create namespace gloo-mesh-addons
-kubectl --context ${CLUSTER1} label namespace gloo-mesh-addons istio.io/rev=1-15 --overwrite
+kubectl --context ${CLUSTER1} label namespace gloo-mesh-addons istio.io/rev=1-16 --overwrite
 ```
 
 Then, you can deploy the addons on the cluster(s) using Helm:
 
 ```bash
-until [[ $(kubectl --context ${MGMT} -n istio-system get deploy istiod-1-15 -o json | jq '.status.availableReplicas') -gt 0 ]]; do
+until [[ $(kubectl --context ${MGMT} -n istio-system get deploy istiod-1-16 -o json | jq '.status.availableReplicas') -gt 0 ]]; do
   sleep 1
 done
 helm repo add gloo-mesh-agent https://storage.googleapis.com/gloo-mesh-enterprise/gloo-mesh-agent
@@ -428,10 +428,10 @@ helm upgrade --install gloo-mesh-agent-addons gloo-mesh-agent/gloo-mesh-agent \
   --namespace gloo-mesh-addons \
   --kube-context=${CLUSTER1} \
   --set glooMeshAgent.enabled=false \
-  --set glooMeshPortalServer.enabled=false \
+  --set glooMeshPortalServer.enabled=true \
   --set rate-limiter.enabled=true \
   --set ext-auth-service.enabled=true \
-  --version 2.2.4
+  --version 2.2.5
 ```
 Set the environment variable for the service corresponding to the Istio Ingress Gateway of the cluster(s):
 
