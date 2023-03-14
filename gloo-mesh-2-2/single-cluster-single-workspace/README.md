@@ -122,7 +122,7 @@ metallb-system       speaker-d7jkp                                 1/1     Runni
 First of all, let's install the `meshctl` CLI:
 
 ```bash
-export GLOO_MESH_VERSION=v2.2.4
+export GLOO_MESH_VERSION=v2.2.5
 curl -sL https://run.solo.io/meshctl/install | sh -
 export PATH=$HOME/.gloo-mesh/bin:$PATH
 ```
@@ -166,7 +166,7 @@ helm repo update
 kubectl --context ${MGMT} create ns gloo-mesh 
 helm upgrade --install gloo-mesh-enterprise gloo-mesh-enterprise/gloo-mesh-enterprise \
 --namespace gloo-mesh --kube-context ${MGMT} \
---version=2.2.4 \
+--version=2.2.5 \
 --set glooMeshMgmtServer.ports.healthcheck=8091 \
 --set legacyMetricsPipeline.enabled=false \
 --set metricsgateway.enabled=true \
@@ -265,10 +265,11 @@ helm upgrade --install gloo-mesh-agent gloo-mesh-agent/gloo-mesh-agent \
   --set relay.authority=gloo-mesh-mgmt-server.gloo-mesh \
   --set rate-limiter.enabled=false \
   --set ext-auth-service.enabled=false \
+  --set glooMeshPortalServer.enabled=false \
   --set cluster=cluster1 \
   --set metricscollector.enabled=true \
   --set metricscollector.config.exporters.otlp.endpoint=\"${ENDPOINT_METRICS_GATEWAY}\" \
-  --version 2.2.4
+  --version 2.2.5
 ```
 
 Note that the registration can also be performed using `meshctl cluster register`.
@@ -318,7 +319,7 @@ First of all, let's create Kubernetes services for the gateways:
 ```bash
 registry=localhost:5000
 kubectl --context ${CLUSTER1} create ns istio-gateways
-kubectl --context ${CLUSTER1} label namespace istio-gateways istio.io/rev=1-16 --overwrite
+kubectl --context ${CLUSTER1} label namespace istio-gateways istio.io/rev=1-17 --overwrite
 
 cat << EOF | kubectl --context ${CLUSTER1} apply -f -
 apiVersion: v1
@@ -327,7 +328,6 @@ metadata:
   labels:
     app: istio-ingressgateway
     istio: ingressgateway
-    revision: 1-16
   name: istio-ingressgateway
   namespace: istio-gateways
 spec:
@@ -343,7 +343,7 @@ spec:
   selector:
     app: istio-ingressgateway
     istio: ingressgateway
-    revision: 1-16
+    revision: 1-17
   type: LoadBalancer
 
 EOF
@@ -366,11 +366,11 @@ spec:
     - clusters:
       - name: cluster1
         defaultRevision: true
-      revision: 1-16
+      revision: 1-17
       istioOperatorSpec:
         profile: minimal
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.16.2-solo
+        tag: 1.17.1-solo
         namespace: istio-system
         values:
           global:
@@ -393,6 +393,7 @@ spec:
           ingressGateways:
           - name: istio-ingressgateway
             enabled: false
+
 EOF
 cat << EOF | kubectl --context ${MGMT} apply -f -
 
@@ -406,11 +407,11 @@ spec:
     - clusters:
       - name: cluster1
         activeGateway: false
-      gatewayRevision: 1-16
+      gatewayRevision: 1-17
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.16.2-solo
+        tag: 1.17.1-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -433,11 +434,11 @@ spec:
     - clusters:
       - name: cluster1
         activeGateway: false
-      gatewayRevision: 1-16
+      gatewayRevision: 1-17
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.16.2-solo
+        tag: 1.17.1-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -456,6 +457,7 @@ spec:
                     value: "sni-dnat"
                   - name: ISTIO_META_REQUESTED_NETWORK_VIEW
                     value: cluster1
+
 EOF
 ```
 
@@ -566,8 +568,8 @@ curl https://raw.githubusercontent.com/istio/istio/release-1.16/samples/bookinfo
 
 kubectl --context ${CLUSTER1} create ns bookinfo-frontends
 kubectl --context ${CLUSTER1} create ns bookinfo-backends
-kubectl --context ${CLUSTER1} label namespace bookinfo-frontends istio.io/rev=1-16 --overwrite
-kubectl --context ${CLUSTER1} label namespace bookinfo-backends istio.io/rev=1-16 --overwrite
+kubectl --context ${CLUSTER1} label namespace bookinfo-frontends istio.io/rev=1-17 --overwrite
+kubectl --context ${CLUSTER1} label namespace bookinfo-backends istio.io/rev=1-17 --overwrite
 
 # deploy the frontend bookinfo service in the bookinfo-frontends namespace
 kubectl --context ${CLUSTER1} -n bookinfo-frontends apply -f bookinfo.yaml -l 'account in (productpage)'
@@ -729,7 +731,7 @@ spec:
       labels:
         app: in-mesh
         version: v1
-        istio.io/rev: 1-16
+        istio.io/rev: 1-17
     spec:
       serviceAccountName: in-mesh
       containers:
@@ -783,7 +785,7 @@ First, you need to create a namespace for the addons, with Istio injection enabl
 
 ```bash
 kubectl --context ${CLUSTER1} create namespace gloo-mesh-addons
-kubectl --context ${CLUSTER1} label namespace gloo-mesh-addons istio.io/rev=1-16 --overwrite
+kubectl --context ${CLUSTER1} label namespace gloo-mesh-addons istio.io/rev=1-17 --overwrite
 ```
 
 Then, you can deploy the addons on the cluster(s) using Helm:
@@ -793,10 +795,10 @@ helm upgrade --install gloo-mesh-agent-addons gloo-mesh-agent/gloo-mesh-agent \
   --namespace gloo-mesh-addons \
   --kube-context=${CLUSTER1} \
   --set glooMeshAgent.enabled=false \
-  --set glooMeshPortalServer.enabled=false \
+  --set glooMeshPortalServer.enabled=true \
   --set rate-limiter.enabled=true \
   --set ext-auth-service.enabled=true \
-  --version 2.2.4
+  --version 2.2.5
 ```
 
 This is how to environment looks like now:
