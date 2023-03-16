@@ -84,26 +84,25 @@ EOF
 
 kind create cluster --name kind${number} --config kind${number}.yaml
 
-kubectl --context=kind-kind${number} apply -f https://raw.githubusercontent.com/metallb/metallb/v0.9.3/manifests/namespace.yaml
-kubectl --context=kind-kind${number} apply -f https://raw.githubusercontent.com/metallb/metallb/v0.9.3/manifests/metallb.yaml
+kubectl --context=kind-kind${number} apply -f https://raw.githubusercontent.com/metallb/metallb/v0.13.9/config/manifests/metallb-native.yaml
 kubectl --context=kind-kind${number} create secret generic -n metallb-system memberlist --from-literal=secretkey="$(openssl rand -base64 128)"
-
-ipkind=$(docker inspect kind${number}-control-plane | jq -r '.[0].NetworkSettings.Networks[].GlobalIPv6Address')
-networkkind=$(echo ${ipkind} | rev | cut -d: -f2- | rev):
+kubectl --context=kind-kind${number} -n metallb-system rollout status deploy controller
 
 cat << EOF > metallb${number}.yaml
-apiVersion: v1
-kind: ConfigMap
+apiVersion: metallb.io/v1beta1
+kind: IPAddressPool
 metadata:
+  name: first-pool
   namespace: metallb-system
-  name: config
-data:
-  config: |
-    address-pools:
-    - name: default
-      protocol: layer2
-      addresses:
-      - ${networkkind}${number}1-${networkkind}${number}9
+spec:
+  addresses:
+  - ${networkkind}.1${twodigits}.1-${networkkind}.1${twodigits}.254
+---
+apiVersion: metallb.io/v1beta1
+kind: L2Advertisement
+metadata:
+  name: empty
+  namespace: metallb-system
 EOF
 
 kubectl --context=kind-kind${number} apply -f metallb${number}.yaml
