@@ -566,6 +566,10 @@ helm upgrade --install gloo-mesh-agent gloo-mesh-agent/gloo-mesh-agent \
 You can check the cluster(s) have been registered correctly using the following commands:
 
 ```
+meshctl --kubecontext ${MGMT} check
+```
+
+```
 pod=$(kubectl --context ${MGMT} -n gloo-mesh get pods -l app=gloo-mesh-mgmt-server -o jsonpath='{.items[0].metadata.name}')
 kubectl --context ${MGMT} -n gloo-mesh debug -q -i ${pod} --image=curlimages/curl -- curl -s http://localhost:9091/metrics | grep relay_push_clients_connected
 ```
