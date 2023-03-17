@@ -268,6 +268,10 @@ Note that the registration can also be performed using `meshctl cluster register
 You can check the cluster(s) have been registered correctly using the following commands:
 
 ```
+meshctl --kubecontext ${MGMT} check
+```
+
+```
 kubectl --context ${MGMT} -n gloo-mesh port-forward deploy/gloo-mesh-mgmt-server 9091 &
 PID=$!
 sleep 3
