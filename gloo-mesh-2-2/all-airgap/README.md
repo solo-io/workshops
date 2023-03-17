@@ -108,8 +108,6 @@ export CLUSTER2=cluster2
 > ```
 
 Run the following commands to deploy three Kubernetes clusters using [Kind](https://kind.sigs.k8s.io/):
-Here we use the script that includes the certificates to be able to execute some test lambda functions. If you are not going to try the lambda integration, you can use the `deploy.sh` script instead.
-    
 
 ```bash
 ./scripts/deploy-aws.sh 1 mgmt
@@ -292,6 +290,7 @@ kubectl --context ${MGMT} -n gloo-mesh rollout status deploy/gloo-mesh-mgmt-serv
 ```
 <!--bash
 kubectl --context ${MGMT} scale --replicas=0 -n gloo-mesh deploy/gloo-mesh-ui
+kubectl --context ${MGMT} rollout status -n gloo-mesh deploy/gloo-mesh-ui
 -->
 <!--bash
 kubectl wait --context ${MGMT} --for=condition=Ready -n gloo-mesh --all pod
@@ -460,6 +459,10 @@ helm upgrade --install gloo-mesh-agent gloo-mesh-agent/gloo-mesh-agent \
 ```
 
 You can check the cluster(s) have been registered correctly using the following commands:
+
+```
+meshctl --kubecontext ${MGMT} check
+```
 
 ```
 pod=$(kubectl --context ${MGMT} -n gloo-mesh get pods -l app=gloo-mesh-mgmt-server -o jsonpath='{.items[0].metadata.name}')
@@ -1325,6 +1328,7 @@ Then, you can deploy the addons on the cluster(s) using Helm:
 helm upgrade --install gloo-mesh-agent-addons gloo-mesh-agent/gloo-mesh-agent \
   --namespace gloo-mesh-addons \
   --kube-context=${CLUSTER1} \
+  --set cluster=cluster1 \
   --set glooMeshAgent.enabled=false \
   --set glooMeshPortalServer.enabled=true \
   --set rate-limiter.enabled=true \
@@ -1337,6 +1341,7 @@ helm upgrade --install gloo-mesh-agent-addons gloo-mesh-agent/gloo-mesh-agent \
 helm upgrade --install gloo-mesh-agent-addons gloo-mesh-agent/gloo-mesh-agent \
   --namespace gloo-mesh-addons \
   --kube-context=${CLUSTER2} \
+  --set cluster=cluster2 \
   --set glooMeshAgent.enabled=false \
   --set glooMeshPortalServer.enabled=true \
   --set rate-limiter.enabled=true \
@@ -3948,7 +3953,7 @@ spec:
 EOF
 ```
 
-Finally, you need to update the `RouteTable` to use this `AuthConfig`:
+Finally, you need to update the `RouteTable` to use this `ExtAuthPolicy`:
 
 ```bash
 kubectl --context ${CLUSTER1} apply -f - <<EOF
@@ -4035,7 +4040,7 @@ data:
 EOF
 ```
 
-Then, you need to update the `AuthConfig` object to add the authorization step:
+Then, you need to update the `ExtAuthPolicy` object to add the authorization step:
 
 ```bash
 kubectl --context ${CLUSTER1} apply -f - <<EOF
@@ -7107,8 +7112,6 @@ export HOST_GLOO_MESH=$(echo ${ENDPOINT_GLOO_MESH} | cut -d: -f1)
 Now, let's update the agents to use the new management plane.
 
 ```bash
-kubectl --context ${CLUSTER1} create ns gloo-mesh
-
 helm upgrade --install gloo-mesh-agent gloo-mesh-agent/gloo-mesh-agent \
   --namespace gloo-mesh \
   --kube-context=${CLUSTER1} \
@@ -7116,10 +7119,13 @@ helm upgrade --install gloo-mesh-agent gloo-mesh-agent/gloo-mesh-agent \
   --set relay.authority=gloo-mesh-mgmt-server.gloo-mesh \
   --set rate-limiter.enabled=false \
   --set ext-auth-service.enabled=false \
+  --set glooMeshPortalServer.enabled=false \
   --set cluster=cluster1 \
+  --set metricscollector.enabled=true \
+  --set metricscollector.config.exporters.otlp.endpoint=\"${ENDPOINT_METRICS_GATEWAY}\" \
+  --set glooMeshAgent.image.registry=${registry}/gloo-mesh \
+  --set metricscollector.image.repository=${registry}/gloo-mesh/gloo-otel-collector \
   --version 2.2.5
-
-kubectl --context ${CLUSTER2} create ns gloo-mesh
 
 helm upgrade --install gloo-mesh-agent gloo-mesh-agent/gloo-mesh-agent \
   --namespace gloo-mesh \
@@ -7128,7 +7134,12 @@ helm upgrade --install gloo-mesh-agent gloo-mesh-agent/gloo-mesh-agent \
   --set relay.authority=gloo-mesh-mgmt-server.gloo-mesh \
   --set rate-limiter.enabled=false \
   --set ext-auth-service.enabled=false \
+  --set glooMeshPortalServer.enabled=false \
   --set cluster=cluster2 \
+  --set metricscollector.enabled=true \
+  --set metricscollector.config.exporters.otlp.endpoint=\"${ENDPOINT_METRICS_GATEWAY}\" \
+  --set glooMeshAgent.image.registry=${registry}/gloo-mesh \
+  --set metricscollector.image.repository=${registry}/gloo-mesh/gloo-otel-collector \
   --version 2.2.5
 ```
 

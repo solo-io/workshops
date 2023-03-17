@@ -184,6 +184,7 @@ kubectl --context ${MGMT} -n gloo-mesh rollout status deploy/gloo-mesh-mgmt-serv
 ```
 <!--bash
 kubectl --context ${MGMT} scale --replicas=0 -n gloo-mesh deploy/gloo-mesh-ui
+kubectl --context ${MGMT} rollout status -n gloo-mesh deploy/gloo-mesh-ui
 -->
 <!--bash
 kubectl wait --context ${MGMT} --for=condition=Ready -n gloo-mesh --all pod
@@ -362,6 +363,10 @@ helm upgrade --install gloo-mesh-agent gloo-mesh-agent/gloo-mesh-agent \
 ```
 
 You can check the cluster(s) have been registered correctly using the following commands:
+
+```
+meshctl --kubecontext ${MGMT} check
+```
 
 ```
 pod=$(kubectl --context ${MGMT} -n gloo-mesh get pods -l app=gloo-mesh-mgmt-server -o jsonpath='{.items[0].metadata.name}')
@@ -1355,6 +1360,7 @@ Then, you can deploy the addons on the cluster(s) using Helm:
 helm upgrade --install gloo-mesh-agent-addons gloo-mesh-agent/gloo-mesh-agent \
   --namespace gloo-mesh-addons \
   --kube-context=${CLUSTER1} \
+  --set cluster=cluster1 \
   --set glooMeshAgent.enabled=false \
   --set glooMeshPortalServer.enabled=true \
   --set rate-limiter.enabled=true \
@@ -1365,6 +1371,7 @@ helm upgrade --install gloo-mesh-agent-addons gloo-mesh-agent/gloo-mesh-agent \
 helm upgrade --install gloo-mesh-agent-addons gloo-mesh-agent/gloo-mesh-agent \
   --namespace gloo-mesh-addons \
   --kube-context=${CLUSTER2} \
+  --set cluster=cluster2 \
   --set glooMeshAgent.enabled=false \
   --set glooMeshPortalServer.enabled=true \
   --set rate-limiter.enabled=true \
@@ -3503,7 +3510,7 @@ spec:
 EOF
 ```
 
-Finally, you need to update the `RouteTable` to use this `AuthConfig`:
+Finally, you need to update the `RouteTable` to use this `ExtAuthPolicy`:
 
 ```bash
 kubectl --context ${CLUSTER1} apply -f - <<EOF
@@ -3590,7 +3597,7 @@ data:
 EOF
 ```
 
-Then, you need to update the `AuthConfig` object to add the authorization step:
+Then, you need to update the `ExtAuthPolicy` object to add the authorization step:
 
 ```bash
 kubectl --context ${CLUSTER1} apply -f - <<EOF

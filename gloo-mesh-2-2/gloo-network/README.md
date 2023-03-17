@@ -72,7 +72,6 @@ export CLUSTER2=cluster2
 > ```
 
 Run the following commands to deploy three Kubernetes clusters using [Kind](https://kind.sigs.k8s.io/):
-    
 
 ```bash
 ./scripts/deploy-multi-with-cilium.sh 1 mgmt
@@ -400,6 +399,7 @@ kubectl --context ${MGMT} -n gloo-mesh rollout status deploy/gloo-mesh-mgmt-serv
 ```
 <!--bash
 kubectl --context ${MGMT} scale --replicas=0 -n gloo-mesh deploy/gloo-mesh-ui
+kubectl --context ${MGMT} rollout status -n gloo-mesh deploy/gloo-mesh-ui
 -->
 <!--bash
 kubectl wait --context ${MGMT} --for=condition=Ready -n gloo-mesh --all pod
@@ -564,6 +564,10 @@ helm upgrade --install gloo-mesh-agent gloo-mesh-agent/gloo-mesh-agent \
 ```
 
 You can check the cluster(s) have been registered correctly using the following commands:
+
+```
+meshctl --kubecontext ${MGMT} check
+```
 
 ```
 pod=$(kubectl --context ${MGMT} -n gloo-mesh get pods -l app=gloo-mesh-mgmt-server -o jsonpath='{.items[0].metadata.name}')
