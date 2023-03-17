@@ -110,11 +110,8 @@ export CLUSTER2=cluster2
 Run the following commands to deploy three Kubernetes clusters using [Kind](https://kind.sigs.k8s.io/):
 
 ```bash
-Here we use the script that includes the certificates to be able to execute some test lambda functions. If you are not going to try the lambda integration, you can use the `deploy.sh` script instead.
 ./scripts/deploy-aws.sh 1 mgmt
-Here we use the script that includes the certificates to be able to execute some test lambda functions. If you are not going to try the lambda integration, you can use the `deploy.sh` script instead.
 ./scripts/deploy-aws.sh 2 cluster1 us-west us-west-1
-Here we use the script that includes the certificates to be able to execute some test lambda functions. If you are not going to try the lambda integration, you can use the `deploy.sh` script instead.
 ./scripts/deploy-aws.sh 3 cluster2 us-west us-west-2
 ```
 
@@ -462,6 +459,10 @@ helm upgrade --install gloo-mesh-agent gloo-mesh-agent/gloo-mesh-agent \
 ```
 
 You can check the cluster(s) have been registered correctly using the following commands:
+
+```
+meshctl --kubecontext ${MGMT} check
+```
 
 ```
 pod=$(kubectl --context ${MGMT} -n gloo-mesh get pods -l app=gloo-mesh-mgmt-server -o jsonpath='{.items[0].metadata.name}')
