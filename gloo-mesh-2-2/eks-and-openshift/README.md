@@ -348,6 +348,10 @@ helm upgrade --install gloo-mesh-agent gloo-mesh-agent/gloo-mesh-agent \
 You can check the cluster(s) have been registered correctly using the following commands:
 
 ```
+meshctl --kubecontext ${MGMT} check
+```
+
+```
 kubectl --context ${MGMT} -n gloo-mesh port-forward deploy/gloo-mesh-mgmt-server 9091 &
 PID=$!
 sleep 3
