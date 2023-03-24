@@ -184,6 +184,7 @@ docker network connect "kind" gcr || true
 
 printf "Renaming context kind-kind${number} to ${name}\n"
 for i in {1..100}; do
+  (kubectl config get-contexts -oname | grep ${name}) && break
   kubectl config rename-context kind-kind${number} ${name} && break
   printf " $i"/100
   sleep 2
