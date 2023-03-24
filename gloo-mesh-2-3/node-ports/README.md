@@ -2074,7 +2074,7 @@ afterEach(function (done) {
 
 describe("Certificate issued by Gloo Mesh", () => {
   var expectedOutput = "i:O = gloo-mesh";
-  
+
   it('Gloo mesh is the organization for ' + process.env.CLUSTER1 + ' certificate', () => {
     let cli = chaiExec("kubectl --context " + process.env.CLUSTER1 + " exec -t -n bookinfo-backends deploy/reviews-v1 -c istio-proxy -- openssl s_client -showcerts -connect ratings:9080 -alpn istio");
 
@@ -2082,12 +2082,14 @@ describe("Certificate issued by Gloo Mesh", () => {
     expect(cli).stderr.to.not.be.empty;
   });
 
+
   it('Gloo mesh is the organization for ' + process.env.CLUSTER2 + ' certificate', () => {
     let cli = chaiExec("kubectl --context " + process.env.CLUSTER2 + " exec -t -n bookinfo-backends deploy/reviews-v1 -c istio-proxy -- openssl s_client -showcerts -connect ratings:9080 -alpn istio");
 
     expect(cli).stdout.to.contain(expectedOutput);
     expect(cli).stderr.to.not.be.empty;
   });
+
 });
 EOF
 echo "executing test dist/gloo-mesh-2-0-node-ports-beta/build/templates/steps/root-trust-policy/tests/certificate-issued-by-gloo-mesh.test.js.liquid"
