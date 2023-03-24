@@ -1,10 +1,12 @@
 #!/usr/bin/env bash
+set -o errexit
 
 number=$1
 name=$2
 region=$3
 zone=$4
 twodigits=$(printf "%02d\n" $number)
+kindest_node='kindest/node:v1.24.7@sha256:577c630ce8e509131eab1aea12c022190978dd2f745aac5eb1fe65c0807eb315'
 
 if [ -z "$3" ]; then
   region=us-east-1
@@ -25,7 +27,7 @@ reg_port='5000'
 running="$(docker inspect -f '{{.State.Running}}' "${reg_name}" 2>/dev/null || true)"
 if [ "${running}" != 'true' ]; then
   docker run \
-    -d --restart=always -p "127.0.0.1:${reg_port}:5000" --name "${reg_name}" \
+    -d --restart=always -p "0.0.0.0:${reg_port}:5000" --name "${reg_name}" \
     registry:2
 fi
 
@@ -33,6 +35,7 @@ cache_port='5000'
 cat > registries <<EOF
 docker https://registry-1.docker.io
 us-docker https://us-docker.pkg.dev
+us-central1-docker https://us-central1-docker.pkg.dev
 quay https://quay.io
 gcr https://gcr.io
 EOF
@@ -76,14 +79,14 @@ featureGates:
   EphemeralContainers: true
 nodes:
 - role: control-plane
-  image: kindest/node:v1.24.7@sha256:577c630ce8e509131eab1aea12c022190978dd2f745aac5eb1fe65c0807eb315
+  image: ${kindest_node}
   extraPortMappings:
   - containerPort: 6443
     hostPort: 70${twodigits}
 - role: worker
-  image: kindest/node:v1.24.7@sha256:577c630ce8e509131eab1aea12c022190978dd2f745aac5eb1fe65c0807eb315
+  image: ${kindest_node}
 - role: worker
-  image: kindest/node:v1.24.7@sha256:577c630ce8e509131eab1aea12c022190978dd2f745aac5eb1fe65c0807eb315
+  image: ${kindest_node}
 networking:
   disableDefaultCNI: true
   serviceSubnet: "10.$(echo $twodigits | sed 's/^0*//').0.0/16"
@@ -113,6 +116,8 @@ containerdConfigPatches:
     endpoint = ["http://docker:${cache_port}"]
   [plugins."io.containerd.grpc.v1.cri".registry.mirrors."us-docker.pkg.dev"]
     endpoint = ["http://us-docker:${cache_port}"]
+  [plugins."io.containerd.grpc.v1.cri".registry.mirrors."us-central1-docker.pkg.dev"]
+    endpoint = ["http://us-central1-docker:${cache_port}"]
   [plugins."io.containerd.grpc.v1.cri".registry.mirrors."quay.io"]
     endpoint = ["http://quay:${cache_port}"]
   [plugins."io.containerd.grpc.v1.cri".registry.mirrors."gcr.io"]
@@ -149,13 +154,26 @@ EOF
 
 kubectl --context=kind-kind${number} apply -f metallb${number}.yaml
 
+# connect the registry to the cluster network if not already connected
 docker network connect "kind" "${reg_name}" || true
 docker network connect "kind" docker || true
 docker network connect "kind" us-docker || true
+docker network connect "kind" us-central1-docker || true
 docker network connect "kind" quay || true
 docker network connect "kind" gcr || true
 
-cat <<EOF | kubectl apply -f -
+printf "Renaming context kind-kind${number} to ${name}\n"
+for i in {1..100}; do
+  (kubectl config get-contexts -oname | grep ${name}) && break
+  kubectl config rename-context kind-kind${number} ${name} && break
+  printf " $i"/100
+  sleep 2
+  [ $i -lt 100 ] || exit 1
+done
+
+# Document the local registry
+# https://github.com/kubernetes/enhancements/tree/master/keps/sig-cluster-lifecycle/generic/1755-communicating-a-local-registry
+cat <<EOF | kubectl --context=${name} apply -f -
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -167,4 +185,3 @@ data:
     help: "https://kind.sigs.k8s.io/docs/user/local-registry/"
 EOF
 
-kubectl config rename-context kind-kind${number} ${name}
