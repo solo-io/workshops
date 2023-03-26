@@ -110,7 +110,7 @@ kubectl config use-context ${MGMT}
 First of all, let's install the `meshctl` CLI:
 
 ```bash
-export GLOO_MESH_VERSION=v2.2.5
+export GLOO_MESH_VERSION=v2.2.6
 curl -sL https://run.solo.io/meshctl/install | sh -
 export PATH=$HOME/.gloo-mesh/bin:$PATH
 ```
@@ -154,7 +154,7 @@ helm repo update
 kubectl --context ${MGMT} create ns gloo-mesh 
 helm upgrade --install gloo-mesh-enterprise gloo-mesh-enterprise/gloo-mesh-enterprise \
 --namespace gloo-mesh --kube-context ${MGMT} \
---version=2.2.5 \
+--version=2.2.6 \
 --set glooMeshMgmtServer.ports.healthcheck=8091 \
 --set legacyMetricsPipeline.enabled=false \
 --set metricsgateway.enabled=true \
@@ -270,7 +270,7 @@ helm upgrade --install gloo-mesh-agent gloo-mesh-agent/gloo-mesh-agent \
   --set metricscollector.ports.jaeger-grpc.hostPort=0 \
   --set metricscollector.ports.zipkin.hostPort=0 \
   --set glooMeshAgent.floatingUserId=true \
-  --version 2.2.5
+  --version 2.2.6
 ```
 
 Note that the registration can also be performed using `meshctl cluster register`.
@@ -865,7 +865,7 @@ helm upgrade --install gloo-mesh-agent-addons gloo-mesh-agent/gloo-mesh-agent \
   --set rate-limiter.enabled=true \
   --set ext-auth-service.enabled=true \
   --set glooMeshAgent.floatingUserId=true \
-  --version 2.2.5
+  --version 2.2.6
 ```
 
 This is how to environment looks like now:
