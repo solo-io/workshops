@@ -123,7 +123,7 @@ metallb-system       speaker-d7jkp                                 1/1     Runni
 First of all, let's install the `meshctl` CLI:
 
 ```bash
-export GLOO_MESH_VERSION=v2.2.5
+export GLOO_MESH_VERSION=v2.2.6
 curl -sL https://run.solo.io/meshctl/install | sh -
 export PATH=$HOME/.gloo-mesh/bin:$PATH
 ```
@@ -167,7 +167,7 @@ helm repo update
 kubectl --context ${MGMT} create ns gloo-mesh 
 helm upgrade --install gloo-mesh-enterprise gloo-mesh-enterprise/gloo-mesh-enterprise \
 --namespace gloo-mesh --kube-context ${MGMT} \
---version=2.2.5 \
+--version=2.2.6 \
 --set glooMeshMgmtServer.ports.healthcheck=8091 \
 --set legacyMetricsPipeline.enabled=false \
 --set metricsgateway.enabled=true \
@@ -433,7 +433,7 @@ helm upgrade --install gloo-mesh-agent-addons gloo-mesh-agent/gloo-mesh-agent \
   --set glooMeshPortalServer.enabled=true \
   --set rate-limiter.enabled=true \
   --set ext-auth-service.enabled=true \
-  --version 2.2.5
+  --version 2.2.6
 ```
 Set the environment variable for the service corresponding to the Istio Ingress Gateway of the cluster(s):
 
