@@ -33,6 +33,7 @@ source "googlecompute" "workshop" {
   disk_type    = "pd-balanced"
 
   ssh_username = "solo"
+  //temporary_key_pair_type = "ed25519"
 
   tags = ["packer"]
 }
@@ -42,29 +43,31 @@ build {
 
   provisioner "ansible" {
     playbook_file = "./ansible-playbook.yml"
-    extra_arguments = [ "-e", "reboot_vm_machine=no", "-e", "provision=yes" ]
+    use_proxy = false
+    extra_arguments = [ "-e", "reboot_vm_machine=no", "-e", "provision=yes", "--scp-extra-args", "'-O'" ]
+    ansible_ssh_extra_args = ["-oHostKeyAlgorithms=+ssh-rsa -oPubkeyAcceptedKeyTypes=+ssh-rsa -o IdentitiesOnly=yes"]
   }
 }
 
-source "vagrant" "workshop" {
-  communicator = "ssh"
-  source_path = "ubuntu/focal64"
-  provider = "virtualbox"
-  skip_add = true
-  template = "Vagrantfile-tpl"
-}
+// source "vagrant" "workshop" {
+//   communicator = "ssh"
+//   source_path = "ubuntu/focal64"
+//   provider = "virtualbox"
+//   skip_add = true
+//   template = "Vagrantfile-tpl"
+// }
 
-build {
-  sources = ["source.vagrant.workshop"]
+// build {
+//   sources = ["source.vagrant.workshop"]
 
-  provisioner "ansible" {
-    playbook_file = "./ansible-playbook.yml"
-    extra_arguments = [ "-e", "reboot_vm_machine=no", "-e", "vagrant=yes", "-e", "provision=yes" ]
-  }
-  post-processor "shell-local" {
-    inline = [
-      "aws s3 cp output-workshop/package.box s3://artifacts.solo.io/vagrant-images/workshop-generic-v${formatdate("YYYYMMDD", timestamp())}-vagrant.box",
-      "aws s3 cp output-workshop/Vagrantfile s3://artifacts.solo.io/vagrant-images/workshop-generic-v${formatdate("YYYYMMDD", timestamp())}-vagrant.Vagrantfile",
-    ]
-  }
-}
+//   provisioner "ansible" {
+//     playbook_file = "./ansible-playbook.yml"
+//     extra_arguments = [ "-e", "reboot_vm_machine=no", "-e", "vagrant=yes", "-e", "provision=yes" ]
+//   }
+//   post-processor "shell-local" {
+//     inline = [
+//       "aws s3 cp output-workshop/package.box s3://artifacts.solo.io/vagrant-images/workshop-generic-v${formatdate("YYYYMMDD", timestamp())}-vagrant.box",
+//       "aws s3 cp output-workshop/Vagrantfile s3://artifacts.solo.io/vagrant-images/workshop-generic-v${formatdate("YYYYMMDD", timestamp())}-vagrant.Vagrantfile",
+//     ]
+//   }
+// }
