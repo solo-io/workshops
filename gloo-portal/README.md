@@ -634,11 +634,11 @@ spec:
   displayName: E-commerce Portal
   description: The Gloo Portal for the Petstore API and much more!
   banner:
-    fetchUrl: https://i.imgur.com/EXbBN1a.jpg
+    fetchUrl: https://i.imgur.com/FThdBv8.png
   favicon:
-    fetchUrl: https://i.imgur.com/QQwlQG3.png
+    fetchUrl: https://i.imgur.com/RepvURn.png
   primaryLogo:
-    fetchUrl: https://i.imgur.com/hjgPMNP.png
+    fetchUrl: https://i.imgur.com/rTKtJhO.png
   customStyling: {}
   staticPages: []
 
