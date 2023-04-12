@@ -128,6 +128,9 @@ kubectl config set-cluster kind-kind${number} --server=https://${myip}:70${twodi
 
 kubectl --context kind-kind${number} apply -f https://raw.githubusercontent.com/projectcalico/calico/v3.25.0/manifests/calico.yaml
 
+# to allow eBPF redirection with Istio Ambient Mesh
+kubectl --context kind-kind${number} -n kube-system patch ds calico-node -p '{"spec":{"template":{"spec":{"containers":[{"name": "calico-node", "env":[{"name":"FELIX_WORKLOADSOURCESPOOFING","value":"Any"}]}]}}}}'
+
 kubectl --context=kind-kind${number} apply -f https://raw.githubusercontent.com/metallb/metallb/v0.13.9/config/manifests/metallb-native.yaml
 kubectl --context=kind-kind${number} create secret generic -n metallb-system memberlist --from-literal=secretkey="$(openssl rand -base64 128)"
 kubectl --context=kind-kind${number} -n metallb-system rollout status deploy controller
