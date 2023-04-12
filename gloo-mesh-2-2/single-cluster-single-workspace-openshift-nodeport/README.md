@@ -107,6 +107,7 @@ kubectl config use-context ${MGMT}
 
 ## Lab 2 - Deploy and register Gloo Mesh <a name="lab-2---deploy-and-register-gloo-mesh-"></a>
 
+
 First of all, let's install the `meshctl` CLI:
 
 ```bash
@@ -183,6 +184,7 @@ kubectl --context ${MGMT} rollout status -n gloo-mesh deploy/gloo-mesh-ui
 Then, you need to set the environment variable to tell the Gloo Mesh agents how to communicate with the management plane:
 <!--bash
 cat <<'EOF' > ./test.js
+
 const helpers = require('./tests/chai-exec');
 
 describe("MGMT server is healthy", () => {
@@ -223,7 +225,7 @@ mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${te
 ```bash
 export ENDPOINT_GLOO_MESH=gloo-mesh-mgmt-server:9900
 export HOST_GLOO_MESH=$(echo ${ENDPOINT_GLOO_MESH} | cut -d: -f1)
-export ENDPOINT_METRICS_GATEWAY=gloo-metrics-gateway:4317
+export ENDPOINT_TELEMETRY_GATEWAY=gloo-metrics-gateway:4317
 ```
 
 Check that the variables have correct values:
@@ -239,6 +241,7 @@ Here is how you register the first one:
 ```bash
 helm repo add gloo-mesh-agent https://storage.googleapis.com/gloo-mesh-enterprise/gloo-mesh-agent
 helm repo update
+
 
 kubectl apply --context ${MGMT} -f- <<EOF
 apiVersion: admin.gloo.solo.io/v2
@@ -262,7 +265,7 @@ helm upgrade --install gloo-mesh-agent gloo-mesh-agent/gloo-mesh-agent \
   --set glooMeshPortalServer.enabled=false \
   --set cluster=cluster1 \
   --set metricscollector.enabled=true \
-  --set metricscollector.config.exporters.otlp.endpoint=\"${ENDPOINT_METRICS_GATEWAY}\" \
+  --set metricscollector.config.exporters.otlp.endpoint=\"${ENDPOINT_TELEMETRY_GATEWAY}\" \
   --set metricscollector.ports.otlp.hostPort=0 \
   --set metricscollector.ports.otlp-http.hostPort=0 \
   --set metricscollector.ports.jaeger-compact.hostPort=0 \
@@ -856,12 +859,12 @@ EOF
 Then, you can deploy the addons on the cluster(s) using Helm:
 
 ```bash
+
 helm upgrade --install gloo-mesh-agent-addons gloo-mesh-agent/gloo-mesh-agent \
   --namespace gloo-mesh-addons \
   --kube-context=${CLUSTER1} \
   --set cluster=cluster1 \
   --set glooMeshAgent.enabled=false \
-  --set glooMeshPortalServer.enabled=true \
   --set rate-limiter.enabled=true \
   --set ext-auth-service.enabled=true \
   --set glooMeshAgent.floatingUserId=true \
@@ -963,6 +966,7 @@ spec:
         routeTables:
           - labels:
               expose: "true"
+        sortMethod: ROUTE_SPECIFICITY
 EOF
 ```
 
