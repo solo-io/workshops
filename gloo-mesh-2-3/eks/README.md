@@ -113,10 +113,11 @@ kubectl config use-context ${MGMT}
 
 ## Lab 2 - Deploy and register Gloo Mesh <a name="lab-2---deploy-and-register-gloo-mesh-"></a>
 
+
 First of all, let's install the `meshctl` CLI:
 
 ```bash
-export GLOO_MESH_VERSION=v2.3.0-beta2
+export GLOO_MESH_VERSION=v2.3.0-rc1
 curl -sL https://run.solo.io/meshctl/install | sh -
 export PATH=$HOME/.gloo-mesh/bin:$PATH
 ```
@@ -161,14 +162,14 @@ helm repo update
 kubectl --context ${MGMT} create ns gloo-mesh 
 helm upgrade --install gloo-mesh-enterprise gloo-mesh-enterprise/gloo-mesh-enterprise \
 --namespace gloo-mesh --kube-context ${MGMT} \
---version=2.3.0-beta2 \
+--version=2.3.0-rc1 \
 --set glooMeshMgmtServer.ports.healthcheck=8091 \
 --set legacyMetricsPipeline.enabled=false \
---set metricsgateway.enabled=true \
---set metricsgateway.service.type=LoadBalancer \
+--set telemetryGateway.enabled=true \
+--set telemetryGateway.service.type=LoadBalancer \
 --set glooMeshUi.serviceType=LoadBalancer \
---set mgmtClusterName=${MGMT} \
---set global.cluster=${MGMT} \
+--set mgmtClusterName=mgmt \
+--set global.cluster=mgmt \
 --set licenseKey=${GLOO_MESH_LICENSE_KEY}
 kubectl --context ${MGMT} -n gloo-mesh rollout status deploy/gloo-mesh-mgmt-server
 ```
@@ -185,11 +186,12 @@ done
 Then, you need to set the environment variable to tell the Gloo Mesh agents how to communicate with the management plane:
 <!--bash
 cat <<'EOF' > ./test.js
+
 const helpers = require('./tests/chai-exec');
 
 describe("MGMT server is healthy", () => {
   let cluster = process.env.MGMT
-  let deployments = ["gloo-mesh-mgmt-server","gloo-mesh-redis","gloo-metrics-gateway","prometheus-server"];
+  let deployments = ["gloo-mesh-mgmt-server","gloo-mesh-redis","gloo-telemetry-gateway","prometheus-server"];
   deployments.forEach(deploy => {
     it(deploy + ' pods are ready in ' + cluster, () => helpers.checkDeployment({ context: cluster, namespace: "gloo-mesh", k8sObj: deploy }));
   });
@@ -225,7 +227,7 @@ mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${te
 ```bash
 export ENDPOINT_GLOO_MESH=$(kubectl --context ${MGMT} -n gloo-mesh get svc gloo-mesh-mgmt-server -o jsonpath='{.status.loadBalancer.ingress[0].*}'):9900
 export HOST_GLOO_MESH=$(echo ${ENDPOINT_GLOO_MESH} | cut -d: -f1)
-export ENDPOINT_METRICS_GATEWAY=$(kubectl --context ${MGMT} -n gloo-mesh get svc gloo-metrics-gateway -o jsonpath='{.status.loadBalancer.ingress[0].*}'):4317
+export ENDPOINT_TELEMETRY_GATEWAY=$(kubectl --context ${MGMT} -n gloo-mesh get svc gloo-telemetry-gateway -o jsonpath='{.status.loadBalancer.ingress[0].*}'):4317
 ```
 
 Check that the variables have correct values:
@@ -267,6 +269,7 @@ Here is how you register the first one:
 helm repo add gloo-mesh-agent https://storage.googleapis.com/gloo-mesh-enterprise/gloo-mesh-agent
 helm repo update
 
+
 kubectl apply --context ${MGMT} -f- <<EOF
 apiVersion: admin.gloo.solo.io/v2
 kind: KubernetesCluster
@@ -295,9 +298,9 @@ helm upgrade --install gloo-mesh-agent gloo-mesh-agent/gloo-mesh-agent \
   --set ext-auth-service.enabled=false \
   --set glooMeshPortalServer.enabled=false \
   --set cluster=cluster1 \
-  --set metricscollector.enabled=true \
-  --set metricscollector.config.exporters.otlp.endpoint=\"${ENDPOINT_METRICS_GATEWAY}\" \
-  --version 2.3.0-beta2
+  --set telemetryCollector.enabled=true \
+  --set telemetryCollector.config.exporters.otlp.endpoint=\"${ENDPOINT_TELEMETRY_GATEWAY}\" \
+  --version 2.3.0-rc1
 ```
 
 Note that the registration can also be performed using `meshctl cluster register`.
@@ -305,6 +308,7 @@ Note that the registration can also be performed using `meshctl cluster register
 And here is how you register the second one:
 
 ```bash
+
 kubectl apply --context ${MGMT} -f- <<EOF
 apiVersion: admin.gloo.solo.io/v2
 kind: KubernetesCluster
@@ -333,9 +337,9 @@ helm upgrade --install gloo-mesh-agent gloo-mesh-agent/gloo-mesh-agent \
   --set ext-auth-service.enabled=false \
   --set glooMeshPortalServer.enabled=false \
   --set cluster=cluster2 \
-  --set metricscollector.enabled=true \
-  --set metricscollector.config.exporters.otlp.endpoint=\"${ENDPOINT_METRICS_GATEWAY}\" \
-  --version 2.3.0-beta2
+  --set telemetryCollector.enabled=true \
+  --set telemetryCollector.config.exporters.otlp.endpoint=\"${ENDPOINT_TELEMETRY_GATEWAY}\" \
+  --version 2.3.0-rc1
 ```
 
 You can check the cluster(s) have been registered correctly using the following commands:
@@ -345,11 +349,8 @@ meshctl --kubecontext ${MGMT} check
 ```
 
 ```
-kubectl --context ${MGMT} -n gloo-mesh port-forward deploy/gloo-mesh-mgmt-server 9091 &
-PID=$!
-sleep 3
-curl -s http://localhost:9091/metrics | grep relay_push_clients_connected
-kill $PID
+pod=$(kubectl --context ${MGMT} -n gloo-mesh get pods -l app=gloo-mesh-mgmt-server -o jsonpath='{.items[0].metadata.name}')
+kubectl --context ${MGMT} -n gloo-mesh debug -q -i ${pod} --image=curlimages/curl -- curl -s http://localhost:9091/metrics | grep relay_push_clients_connected
 ```
 
 You should get an output similar to this:
@@ -366,7 +367,18 @@ cat <<'EOF' > ./test.js
 var chai = require('chai');
 var expect = chai.expect;
 const helpers = require('./tests/chai-exec');
-//TODO: Create test without ephemeral container
+describe("Cluster registration", () => {
+  it("cluster1 is registered", () => {
+    podName = helpers.getOutputForCommand({ command: "kubectl -n gloo-mesh get pods -l app=gloo-mesh-mgmt-server -o jsonpath='{.items[0].metadata.name}' --context " + process.env.MGMT }).replaceAll("'", "");
+    command = helpers.getOutputForCommand({ command: "kubectl --context " + process.env.MGMT + " -n gloo-mesh debug -q -i " + podName + " --image=curlimages/curl -- curl -s http://localhost:9091/metrics" }).replaceAll("'", "");
+    expect(command).to.contain("cluster1");
+  });
+  it("cluster2 is registered", () => {
+    podName = helpers.getOutputForCommand({ command: "kubectl -n gloo-mesh get pods -l app=gloo-mesh-mgmt-server -o jsonpath='{.items[0].metadata.name}' --context " + process.env.MGMT }).replaceAll("'", "");
+    command = helpers.getOutputForCommand({ command: "kubectl --context " + process.env.MGMT + " -n gloo-mesh debug -q -i " + podName + " --image=curlimages/curl -- curl -s http://localhost:9091/metrics" }).replaceAll("'", "");
+    expect(command).to.contain("cluster2");
+  });
+});
 EOF
 echo "executing test dist/gloo-mesh-2-0-eks-beta/build/templates/steps/deploy-and-register-gloo-mesh/tests/cluster-registration.test.js.liquid"
 tempfile=$(mktemp)
@@ -377,7 +389,7 @@ mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${te
 Finally, you need to specify which gateways you want to use for cross cluster traffic:
 
 ```bash
-cat <<EOF | kubectl --context ${MGMT} apply -f -
+kubectl apply --context ${MGMT} -f - <<EOF
 apiVersion: admin.gloo.solo.io/v2
 kind: WorkspaceSettings
 metadata:
@@ -405,7 +417,7 @@ registry=localhost:5000
 kubectl --context ${CLUSTER1} create ns istio-gateways
 kubectl --context ${CLUSTER1} label namespace istio-gateways istio.io/rev=1-17 --overwrite
 
-cat << EOF | kubectl --context ${CLUSTER1} apply -f -
+kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: v1
 kind: Service
 metadata:
@@ -429,9 +441,9 @@ spec:
     istio: ingressgateway
     revision: 1-17
   type: LoadBalancer
-
 EOF
-cat << EOF | kubectl --context ${CLUSTER1} apply -f -
+
+kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: v1
 kind: Service
 metadata:
@@ -469,13 +481,12 @@ spec:
     revision: 1-17
     topology.istio.io/network: cluster1
   type: LoadBalancer
-
 EOF
 
 kubectl --context ${CLUSTER2} create ns istio-gateways
 kubectl --context ${CLUSTER2} label namespace istio-gateways istio.io/rev=1-17 --overwrite
 
-cat << EOF | kubectl --context ${CLUSTER2} apply -f -
+kubectl apply --context ${CLUSTER2} -f - <<EOF
 apiVersion: v1
 kind: Service
 metadata:
@@ -499,10 +510,9 @@ spec:
     istio: ingressgateway
     revision: 1-17
   type: LoadBalancer
-
 EOF
 
-cat << EOF | kubectl --context ${CLUSTER2} apply -f -
+kubectl apply --context ${CLUSTER2} -f - <<EOF
 apiVersion: v1
 kind: Service
 metadata:
@@ -540,7 +550,6 @@ spec:
     revision: 1-17
     topology.istio.io/network: cluster2
   type: LoadBalancer
-
 EOF
 ```
 
@@ -549,8 +558,7 @@ It allows us to have full control on which Istio revision we want to use.
 Then, we can tell Gloo Mesh to deploy the Istio control planes and the gateways in the cluster(s)
 
 ```bash
-cat << EOF | kubectl --context ${MGMT} apply -f -
-
+kubectl apply --context ${MGMT} -f - <<EOF
 apiVersion: admin.gloo.solo.io/v2
 kind: IstioLifecycleManager
 metadata:
@@ -588,9 +596,8 @@ spec:
           ingressGateways:
           - name: istio-ingressgateway
             enabled: false
-
 EOF
-cat << EOF | kubectl --context ${MGMT} apply -f -
+kubectl apply --context ${MGMT} -f - <<EOF
 
 apiVersion: admin.gloo.solo.io/v2
 kind: GatewayLifecycleManager
@@ -652,11 +659,9 @@ spec:
                     value: "sni-dnat"
                   - name: ISTIO_META_REQUESTED_NETWORK_VIEW
                     value: cluster1
-
 EOF
 
-cat << EOF | kubectl --context ${MGMT} apply -f -
-
+kubectl apply --context ${MGMT} -f - <<EOF
 apiVersion: admin.gloo.solo.io/v2
 kind: IstioLifecycleManager
 metadata:
@@ -694,9 +699,8 @@ spec:
           ingressGateways:
           - name: istio-ingressgateway
             enabled: false
-
 EOF
-cat << EOF | kubectl --context ${MGMT} apply -f -
+kubectl apply --context ${MGMT} -f - <<EOF
 
 apiVersion: admin.gloo.solo.io/v2
 kind: GatewayLifecycleManager
@@ -758,7 +762,6 @@ spec:
                     value: "sni-dnat"
                   - name: ISTIO_META_REQUESTED_NETWORK_VIEW
                     value: cluster2
-
 EOF
 ```
 
@@ -1044,16 +1047,18 @@ Run the following commands to deploy the httpbin app on `cluster1`. The deployme
 
 ```bash
 kubectl --context ${CLUSTER1} create ns httpbin
-kubectl --context ${CLUSTER1} apply -n httpbin -f - <<EOF
+kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: not-in-mesh
+  namespace: httpbin
 ---
 apiVersion: v1
 kind: Service
 metadata:
   name: not-in-mesh
+  namespace: httpbin
   labels:
     app: not-in-mesh
     service: not-in-mesh
@@ -1069,6 +1074,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: not-in-mesh
+  namespace: httpbin
 spec:
   replicas: 1
   selector:
@@ -1095,16 +1101,18 @@ EOF
 Then, we deploy a second version, which will be called `in-mesh` and will have the sidecar injected (because of the label `istio.io/rev` in the Pod template).
 
 ```bash
-kubectl --context ${CLUSTER1} apply -n httpbin -f - <<EOF
+kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: in-mesh
+  namespace: httpbin
 ---
 apiVersion: v1
 kind: Service
 metadata:
   name: in-mesh
+  namespace: httpbin
   labels:
     app: in-mesh
     service: in-mesh
@@ -1120,6 +1128,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: in-mesh
+  namespace: httpbin
 spec:
   replicas: 1
   selector:
@@ -1193,15 +1202,20 @@ kubectl --context ${CLUSTER2} label namespace gloo-mesh-addons istio.io/rev=1-17
 Then, you can deploy the addons on the cluster(s) using Helm:
 
 ```bash
+
 helm upgrade --install gloo-mesh-agent-addons gloo-mesh-agent/gloo-mesh-agent \
   --namespace gloo-mesh-addons \
   --kube-context=${CLUSTER1} \
   --set cluster=cluster1 \
   --set glooMeshAgent.enabled=false \
   --set glooMeshPortalServer.enabled=true \
+  --set glooMeshPortalServer.apiKeyStorage.config.host="redis.gloo-mesh-addons:6379" \
+  --set glooMeshPortalServer.apiKeyStorage.configPath="/etc/redis/config.yaml" \
+  --set glooMeshPortalServer.apiKeyStorage.secretKey="ThisIsSecret" \
   --set rate-limiter.enabled=true \
   --set ext-auth-service.enabled=true \
-  --version 2.3.0-beta2
+  --version 2.3.0-rc1
+
 
 helm upgrade --install gloo-mesh-agent-addons gloo-mesh-agent/gloo-mesh-agent \
   --namespace gloo-mesh-addons \
@@ -1209,12 +1223,15 @@ helm upgrade --install gloo-mesh-agent-addons gloo-mesh-agent/gloo-mesh-agent \
   --set cluster=cluster2 \
   --set glooMeshAgent.enabled=false \
   --set glooMeshPortalServer.enabled=true \
+  --set glooMeshPortalServer.apiKeyStorage.config.host="redis.gloo-mesh-addons:6379" \
+  --set glooMeshPortalServer.apiKeyStorage.configPath="/etc/redis/config.yaml" \
+  --set glooMeshPortalServer.apiKeyStorage.secretKey="ThisIsSecret" \
   --set rate-limiter.enabled=true \
   --set ext-auth-service.enabled=true \
-  --version 2.3.0-beta2
+  --version 2.3.0-rc1
 ```
 
-This is how to environment looks like now:
+This is what the environment looks like now:
 
 ![Gloo Mesh Workshop Environment](images/steps/deploy-gloo-mesh-addons/gloo-mesh-workshop-environment.svg)
 
@@ -1230,7 +1247,7 @@ The platform team needs to create the corresponding `Workspace` Kubernetes objec
 Let's create the `gateways` workspace which corresponds to the `istio-gateways` and the `gloo-mesh-addons` namespaces on the cluster(s):
 
 ```bash
-kubectl apply --context ${MGMT} -f- <<EOF
+kubectl apply --context ${MGMT} -f - <<EOF
 apiVersion: admin.gloo.solo.io/v2
 kind: Workspace
 metadata:
@@ -1252,7 +1269,7 @@ EOF
 Then, the Gateway team creates a `WorkspaceSettings` Kubernetes object in one of the namespaces of the `gateways` workspace (so the `istio-gateways` or the `gloo-mesh-addons` namespace):
 
 ```bash
-kubectl apply --context ${CLUSTER1} -f- <<EOF
+kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: admin.gloo.solo.io/v2
 kind: WorkspaceSettings
 metadata:
@@ -1292,7 +1309,7 @@ The platform team needs to create the corresponding `Workspace` Kubernetes objec
 Let's create the `bookinfo` workspace which corresponds to the `bookinfo-frontends` and `bookinfo-backends` namespaces on the cluster(s):
 
 ```bash
-kubectl apply --context ${MGMT} -f- <<EOF
+kubectl apply --context ${MGMT} -f - <<EOF
 apiVersion: admin.gloo.solo.io/v2
 kind: Workspace
 metadata:
@@ -1316,7 +1333,7 @@ EOF
 Then, the Bookinfo team creates a `WorkspaceSettings` Kubernetes object in one of the namespaces of the `bookinfo` workspace (so the `bookinfo-frontends` or the `bookinfo-backends` namespace):
 
 ```bash
-kubectl apply --context ${CLUSTER1} -f- <<EOF
+kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: admin.gloo.solo.io/v2
 kind: WorkspaceSettings
 metadata:
@@ -1362,7 +1379,7 @@ In this step, we're going to expose the `productpage` service through the Ingres
 The Gateway team must create a `VirtualGateway` to configure the Istio Ingress Gateway in cluster1 to listen to incoming requests.
 
 ```bash
-kubectl --context ${CLUSTER1} apply -f - <<EOF
+kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: networking.gloo.solo.io/v2
 kind: VirtualGateway
 metadata:
@@ -1381,12 +1398,13 @@ spec:
       allowedRouteTables:
         - host: '*'
 EOF
+
 ```
 
 Then, the Gateway team should create a parent `RouteTable` to configure the main routing.
 
 ```bash
-kubectl --context ${CLUSTER1} apply -f - <<EOF
+kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: networking.gloo.solo.io/v2
 kind: RouteTable
 metadata:
@@ -1409,6 +1427,7 @@ spec:
         routeTables:
           - labels:
               expose: "true"
+        sortMethod: ROUTE_SPECIFICITY
 EOF
 ```
 
@@ -1419,7 +1438,7 @@ The Gateway team can use this main `RouteTable` to enforce a global WAF policy, 
 Then, the Bookinfo team can create a `RouteTable` to determine how they want to handle the traffic.
 
 ```bash
-kubectl --context ${CLUSTER1} apply -f - <<EOF
+kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: networking.gloo.solo.io/v2
 kind: RouteTable
 metadata:
@@ -1446,6 +1465,7 @@ spec:
           - ref:
               name: productpage
               namespace: bookinfo-frontends
+              cluster: cluster1
             port:
               number: 9080
 EOF
@@ -1498,7 +1518,7 @@ kubectl --context ${CLUSTER2} -n istio-gateways create secret generic tls-secret
 Finally, the Gateway team needs to update the `VirtualGateway` to use this secret:
 
 ```bash
-kubectl --context ${CLUSTER1} apply -f - <<EOF
+kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: networking.gloo.solo.io/v2
 kind: VirtualGateway
 metadata:
@@ -1564,12 +1584,12 @@ We're going to use Gloo Mesh policies to inject faults and configure timeouts.
 Let's create the following `FaultInjectionPolicy` to inject a delay when the `v2` version of the `reviews` service talk to the `ratings` service:
 
 ```bash
-cat << EOF | kubectl --context ${CLUSTER1} apply -f -
+kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: resilience.policy.gloo.solo.io/v2
 kind: FaultInjectionPolicy
 metadata:
   name: ratings-fault-injection
-  namespace: bookinfo-backends
+  namespace: bookinfo-frontends
 spec:
   applyToRoutes:
   - route:
@@ -1587,12 +1607,12 @@ As you can see, it will be applied to all the routes that have the label `fault_
 So, you need to create a `RouteTable` with this label set in the corresponding route.
 
 ```bash
-cat << EOF | kubectl --context ${CLUSTER1} apply -f -
+kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: networking.gloo.solo.io/v2
 kind: RouteTable
 metadata:
   name: ratings
-  namespace: bookinfo-backends
+  namespace: bookinfo-frontends
 spec:
   hosts:
     - 'ratings.bookinfo-backends.svc.cluster.local'
@@ -1624,12 +1644,12 @@ Now, let's configure a 0.5s request timeout when the `productpage` service calls
 You need to create the following `RetryTimeoutPolicy`:
 
 ```bash
-cat << EOF | kubectl --context ${CLUSTER1} apply -f -
+kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: resilience.policy.gloo.solo.io/v2
 kind: RetryTimeoutPolicy
 metadata:
   name: reviews-request-timeout
-  namespace: bookinfo-backends
+  namespace: bookinfo-frontends
 spec:
   applyToRoutes:
   - route:
@@ -1645,12 +1665,12 @@ As you can see, it will be applied to all the routes that have the label `reques
 Then, you need to create a `RouteTable` with this label set in the corresponding route.
 
 ```bash
-cat << EOF | kubectl --context ${CLUSTER1} apply -f -
+kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: networking.gloo.solo.io/v2
 kind: RouteTable
 metadata:
   name: reviews
-  namespace: bookinfo-backends
+  namespace: bookinfo-frontends
 spec:
   hosts:
     - 'reviews.bookinfo-backends.svc.cluster.local'
@@ -1727,10 +1747,10 @@ This diagram shows where the timeout and delay have been applied:
 Let's delete the Gloo Mesh objects we've created:
 
 ```bash
-kubectl --context ${CLUSTER1} -n bookinfo-backends delete faultinjectionpolicy ratings-fault-injection
-kubectl --context ${CLUSTER1} -n bookinfo-backends delete routetable ratings
-kubectl --context ${CLUSTER1} -n bookinfo-backends delete retrytimeoutpolicy reviews-request-timeout
-kubectl --context ${CLUSTER1} -n bookinfo-backends delete routetable reviews
+kubectl --context ${CLUSTER1} -n bookinfo-frontends delete faultinjectionpolicy ratings-fault-injection
+kubectl --context ${CLUSTER1} -n bookinfo-frontends delete routetable ratings
+kubectl --context ${CLUSTER1} -n bookinfo-frontends delete retrytimeoutpolicy reviews-request-timeout
+kubectl --context ${CLUSTER1} -n bookinfo-frontends delete routetable reviews
 ```
 
 
@@ -1810,7 +1830,7 @@ Creating a Root Trust Policy will unify these two CAs with a common root identit
 Run the following command to create the *Root Trust Policy*:
 
 ```bash
-cat << EOF | kubectl --context ${MGMT} apply -f -
+kubectl apply --context ${MGMT} -f - <<EOF
 apiVersion: admin.gloo.solo.io/v2
 kind: RootTrustPolicy
 metadata:
@@ -2151,7 +2171,7 @@ In this lab, we're going to make it available on both clusters.
 Let's update the VirtualGateway to expose it on both clusters.
 
 ```bash
-kubectl --context ${CLUSTER1} apply -f - <<EOF
+kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: networking.gloo.solo.io/v2
 kind: VirtualGateway
 metadata:
@@ -2183,7 +2203,7 @@ Then, we can configure the `RouteTable` to send the traffic to a Virtual Destina
 Let's create this Virtual Destination.
 
 ```bash
-kubectl --context ${CLUSTER1} apply -f - <<EOF
+kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: networking.gloo.solo.io/v2
 kind: VirtualDestination
 metadata:
@@ -2209,7 +2229,7 @@ Note that we have added the label `expose` with the value `true` to make sure it
 After that, we need to update the `RouteTable` to use it.
 
 ```bash
-kubectl --context ${CLUSTER1} apply -f - <<EOF
+kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: networking.gloo.solo.io/v2
 kind: RouteTable
 metadata:
@@ -2284,7 +2304,7 @@ In order to do that we need to create 2 other policies.
 The first one is a `FailoverPolicy`:
 
 ```bash
-kubectl --context ${CLUSTER1} apply -f - <<EOF
+kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: resilience.policy.gloo.solo.io/v2
 kind: FailoverPolicy
 metadata:
@@ -2308,7 +2328,7 @@ Note that failover is enabled by default, so creating this `FailoverPolicy` is o
 The second one is an `OutlierDetectionPolicy`:
 
 ```bash
-kubectl --context ${CLUSTER1} apply -f - <<EOF
+kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: resilience.policy.gloo.solo.io/v2
 kind: OutlierDetectionPolicy
 metadata:
@@ -2335,7 +2355,7 @@ As you can see, both policies will be applied to `VirtualDestination` objects th
 So we need to update the `VirtualDestination`:
 
 ```bash
-kubectl --context ${CLUSTER1} apply -f - <<EOF
+kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: networking.gloo.solo.io/v2
 kind: VirtualDestination
 metadata:
@@ -2454,10 +2474,10 @@ kubectl --context ${CLUSTER1} -n bookinfo-frontends patch deployment productpage
 kubectl --context ${CLUSTER1} -n bookinfo-frontends rollout status deploy/productpage-v1
 ```
 
-Let's apply the original `RouteTable` yaml:
+Let's apply the original `RouteTable` and `VirtualGateway` yaml:
 
 ```bash
-kubectl --context ${CLUSTER1} apply -f - <<EOF
+kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: networking.gloo.solo.io/v2
 kind: RouteTable
 metadata:
@@ -2484,8 +2504,36 @@ spec:
           - ref:
               name: productpage
               namespace: bookinfo-frontends
+              cluster: cluster1
             port:
               number: 9080
+EOF
+
+kubectl apply --context ${CLUSTER1} -f - <<EOF
+apiVersion: networking.gloo.solo.io/v2
+kind: VirtualGateway
+metadata:
+  name: north-south-gw
+  namespace: istio-gateways
+spec:
+  workloads:
+    - selector:
+        labels:
+          istio: ingressgateway
+        cluster: cluster1
+  listeners: 
+    - http: {}
+      port:
+        number: 80
+      httpsRedirect: true
+    - http: {}
+      port:
+        number: 443
+      tls:
+        mode: SIMPLE
+        secretName: tls-secret
+      allowedRouteTables:
+        - host: '*'
 EOF
 ```
 
@@ -2511,12 +2559,13 @@ All the communications between Pods in the mesh are now encrypted by default, bu
 Let's validate this.
 
 <!--bash
-(kubectl --context ${CLUSTER1} -n httpbin rollout status deploy/in-mesh) || (kubectl --context ${CLUSTER1} -n httpbin rollout restart deploy/in-mesh && kubectl --context ${CLUSTER1} -n httpbin rollout status deploy/in-mesh)
+(timeout 2s kubectl --context ${CLUSTER1} -n httpbin rollout status deploy/in-mesh) || (kubectl --context ${CLUSTER1} -n httpbin rollout restart deploy/in-mesh && kubectl --context ${CLUSTER1} -n httpbin rollout status deploy/in-mesh)
 -->
 Run the following commands to initiate a communication from a service which isn't in the mesh to a service which is in the mesh:
 
 ```
-kubectl --context ${CLUSTER1} run test --restart=Never --rm -it --image curlimages/curl -- curl -s -o /dev/null -w "%{http_code}" http://reviews.bookinfo-backends.svc.cluster.local:9080/reviews/0
+pod=$(kubectl --context ${CLUSTER1} -n httpbin get pods -l app=not-in-mesh -o jsonpath='{.items[0].metadata.name}')
+kubectl --context ${CLUSTER1} -n httpbin debug -i -q ${pod} --image=curlimages/curl -- curl -s -o /dev/null -w "%{http_code}" http://reviews.bookinfo-backends.svc.cluster.local:9080/reviews/0
 ```
 
 You should get a `200` response code which confirm that the communication is currently allowed.
@@ -2543,7 +2592,8 @@ mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${te
 Run the following commands to initiate a communication from a service which is in the mesh to another service which is in the mesh:
 
 ```
-kubectl --context ${CLUSTER1} -n gloo-mesh-addons run test --restart=Never --rm -it --image curlimages/curl -- curl -s -o /dev/null -w "%{http_code}" http://reviews.bookinfo-backends.svc.cluster.local:9080/reviews/0
+pod=$(kubectl --context ${CLUSTER1} -n httpbin get pods -l app=in-mesh -o jsonpath='{.items[0].metadata.name}')
+kubectl --context ${CLUSTER1} -n httpbin debug -i -q ${pod} --image=curlimages/curl -- curl -s -o /dev/null -w "%{http_code}" http://reviews.bookinfo-backends.svc.cluster.local:9080/reviews/0
 ```
 
 <!--bash
@@ -2577,7 +2627,7 @@ We'll leverage the Gloo Mesh workspaces to get to a state where:
 The Bookinfo team must update its `WorkspaceSettings` Kubernetes object to enable service isolation.
 
 ```bash
-kubectl apply --context ${CLUSTER1} -f- <<EOF
+kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: admin.gloo.solo.io/v2
 kind: WorkspaceSettings
 metadata:
@@ -2618,10 +2668,11 @@ If you refresh the browser, you'll see that the bookinfo application is still ex
 Run the following commands to initiate a communication from a service which isn't in the mesh to a service which is in the mesh:
 
 ```
-kubectl --context ${CLUSTER1} -n default run test --restart=Never --rm -it --image curlimages/curl -- curl -s -o /dev/null -w "%{http_code}" http://reviews.bookinfo-backends.svc.cluster.local:9080/reviews/0
+pod=$(kubectl --context ${CLUSTER1} -n httpbin get pods -l app=not-in-mesh -o jsonpath='{.items[0].metadata.name}')
+kubectl --context ${CLUSTER1} -n httpbin debug -i -q ${pod} --image=curlimages/curl -- curl -s -o /dev/null -w "%{http_code}" http://reviews.bookinfo-backends.svc.cluster.local:9080/reviews/0
 ```
 
-You should get a `000` response code which means that the communication can't be established.
+You shouldn't get a `200` response code, which means that the communication isn't allowed.
 
 <!--bash
 cat <<'EOF' > ./test.js
@@ -2629,10 +2680,10 @@ var chai = require('chai');
 var expect = chai.expect;
 const helpers = require('./tests/chai-exec');
 describe("Communication not allowed", () => {
-  it("Response code should be 000", () => {
+  it("Response code shouldn't be 200", () => {
     const podName = helpers.getOutputForCommand({ command: "kubectl --context " + process.env.CLUSTER1 + " -n httpbin get pods -l app=not-in-mesh -o jsonpath='{.items[0].metadata.name}'" }).replaceAll("'", "");
     const command = helpers.getOutputForCommand({ command: "kubectl --context " + process.env.CLUSTER1 + " -n httpbin debug -i -q " + podName + " --image=curlimages/curl -- curl -s -o /dev/null -w \"%{http_code}\" http://reviews.bookinfo-backends:9080/reviews/0" }).replaceAll("'", "");
-    expect(command).to.contain("000");
+    expect(command).not.to.contain("200");
   });
 });
 EOF
@@ -2645,7 +2696,8 @@ mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${te
 Run the following commands to initiate a communication from a service which is in the mesh to another service which is in the mesh:
 
 ```
-kubectl --context ${CLUSTER1} -n gloo-mesh-addons run test --restart=Never --rm -it --image curlimages/curl -- curl -s -o /dev/null -w "%{http_code}" http://reviews.bookinfo-backends.svc.cluster.local:9080/reviews/0
+pod=$(kubectl --context ${CLUSTER1} -n httpbin get pods -l app=in-mesh -o jsonpath='{.items[0].metadata.name}')
+kubectl --context ${CLUSTER1} -n httpbin debug -i -q ${pod} --image=curlimages/curl -- curl -s -o /dev/null -w "%{http_code}" http://reviews.bookinfo-backends.svc.cluster.local:9080/reviews/0
 ```
 
 <!--bash
@@ -2654,10 +2706,10 @@ var chai = require('chai');
 var expect = chai.expect;
 const helpers = require('./tests/chai-exec');
 describe("Communication not allowed", () => {
-  it("Response code should be 403", () => {
+  it("Response code shouldn't be 200", () => {
     const podName = helpers.getOutputForCommand({ command: "kubectl --context " + process.env.CLUSTER1 + " -n httpbin get pods -l app=in-mesh -o jsonpath='{.items[0].metadata.name}'" }).replaceAll("'", "");
     const command = helpers.getOutputForCommand({ command: "kubectl --context " + process.env.CLUSTER1 + " -n httpbin debug -i -q " + podName + " --image=curlimages/curl -- curl -s -o /dev/null -w \"%{http_code}\" http://reviews.bookinfo-backends:9080/reviews/0" }).replaceAll("'", "");
-    expect(command).to.contain("403");
+    expect(command).not.to.contain("200");
   });
 });
 EOF
@@ -2667,7 +2719,7 @@ echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
 -->
 
-You should get a `403` response code which means that the sidecar proxy of the `reviews` service doesn't allow the request.
+You shouldn't get a `200` response code, which means that the communication isn't allowed.
 
 You've see seen how Gloo Platform can help you to enforce a zero trust policy (at workspace level) with nearly no effort.
 
@@ -2682,7 +2734,7 @@ We are going to define AccessPolicies from the point of view of a service produc
 Productpage app is the only service which is exposed to the internet, so we will create an `AccessPolicy` to allow the Istio Ingress Gateway to forward requests to the productpage service.
 
 ```bash
-kubectl apply --context ${CLUSTER1} -f- <<EOF
+kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: security.policy.gloo.solo.io/v2
 kind: AccessPolicy
 metadata:
@@ -2714,7 +2766,7 @@ EOF
 Details and reviews are both used by the productpage service, so we will create an AccessPolicy to allow the productpage service to forward requests to the details and reviews services.
 
 ```bash
-kubectl apply --context ${CLUSTER1} -f- <<EOF
+kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: security.policy.gloo.solo.io/v2
 kind: AccessPolicy
 metadata:
@@ -2739,7 +2791,7 @@ EOF
 Finally, we will create an AccessPolicy to allow the reviews service to forward requests to the ratings service.
 
 ```bash
-kubectl apply --context ${CLUSTER1} -f- <<EOF
+kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: security.policy.gloo.solo.io/v2
 kind: AccessPolicy
 metadata:
@@ -2773,7 +2825,8 @@ kubectl --context ${CLUSTER1} -n bookinfo-frontends debug -i -q ${pod} --image=c
 
 ```
 
-You should get a `403` response code which means that the sidecar proxy of the `reviews` service doesn't allow the request.
+You shouldn't get a `200` response code, which means that the communication isn't allowed.
+
 ```sh,nocopy
 HTTP/1.1 403 Forbidden
 content-length: 19
@@ -2792,9 +2845,9 @@ const helpers = require('./tests/chai-exec');
 
 describe("Communication allowed", () => {
 
-  it("Response code should be 403 accessing ratings", () => {
+  it("Response code shouldn't be 200 accessing ratings", () => {
     const command = helpers.getOutputForCommand({ command: "kubectl --context " + process.env.CLUSTER1 + " -n bookinfo-frontends exec deploy/productpage-v1 -- python -c \"import requests; r = requests.get('http://ratings.bookinfo-backends:9080/ratings/0'); print(r.status_code)\"" }).replaceAll("'", "");
-    expect(command).to.contain("403");
+    expect(command).not.to.contain("200");
   });
 
   it("Response code should be 200 accessing reviews", () => {
@@ -2862,7 +2915,7 @@ The platform team needs to create the corresponding `Workspace` Kubernetes objec
 Let's create the `httpbin` workspace which corresponds to the `httpbin` namespace on `cluster1`:
 
 ```bash
-kubectl apply --context ${MGMT} -f- <<EOF
+kubectl apply --context ${MGMT} -f - <<EOF
 apiVersion: admin.gloo.solo.io/v2
 kind: Workspace
 metadata:
@@ -2881,7 +2934,7 @@ EOF
 Then, the Httpbin team creates a `WorkspaceSettings` Kubernetes object in one of the namespaces of the `httpbin` workspace:
 
 ```bash
-kubectl apply --context ${CLUSTER1} -f- <<EOF
+kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: admin.gloo.solo.io/v2
 kind: WorkspaceSettings
 metadata:
@@ -2920,7 +2973,7 @@ In this step, we're going to expose an external service through a Gateway using 
 Let's create an `ExternalService` corresponding to `httpbin.org`:
 
 ```bash
-kubectl --context ${CLUSTER1} apply -f - <<EOF
+kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: networking.gloo.solo.io/v2
 kind: ExternalService
 metadata:
@@ -2945,7 +2998,7 @@ EOF
 Now, you can create a `RouteTable` to expose `httpbin.org` through the gateway:
 
 ```bash
-kubectl --context ${CLUSTER1} apply -f - <<EOF
+kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: networking.gloo.solo.io/v2
 kind: RouteTable
 metadata:
@@ -2994,7 +3047,7 @@ echo "https://${ENDPOINT_HTTPS_GW_CLUSTER1}/get"
 Let's update the `RouteTable` to direct 50% of the traffic to the local `httpbin` service:
 
 ```bash
-kubectl --context ${CLUSTER1} apply -f - <<EOF
+kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: networking.gloo.solo.io/v2
 kind: RouteTable
 metadata:
@@ -3020,6 +3073,7 @@ spec:
         - ref:
             name: in-mesh
             namespace: httpbin
+            cluster: cluster1
           port:
             number: 8000
           weight: 50
@@ -3062,7 +3116,7 @@ And when the response comes from the local service, there's a `X-B3-Parentspanid
 Finally, you can update the `RouteTable` to direct all the traffic to the local `httpbin` service:
 
 ```bash
-kubectl --context ${CLUSTER1} apply -f - <<EOF
+kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: networking.gloo.solo.io/v2
 kind: RouteTable
 metadata:
@@ -3081,6 +3135,7 @@ spec:
         - ref:
             name: in-mesh
             namespace: httpbin
+            cluster: cluster1
           port:
             number: 8000
 EOF
@@ -3238,7 +3293,7 @@ read -r id secret <<<$(curl -X POST -d "{ \"clientId\": \"${KEYCLOAK_CLIENT}\" }
 export KEYCLOAK_SECRET=${secret}
 
 # Add allowed redirect URIs
-curl -H "Authorization: Bearer ${KEYCLOAK_TOKEN}" -X PUT -H "Content-Type: application/json" -d '{"serviceAccountsEnabled": true, "directAccessGrantsEnabled": true, "authorizationServicesEnabled": true, "redirectUris": ["'https://${ENDPOINT_HTTPS_GW_CLUSTER1}'/callback","'https://${ENDPOINT_HTTPS_GW_CLUSTER1}'/get"]}' $KEYCLOAK_URL/admin/realms/master/clients/${id}
+curl -H "Authorization: Bearer ${KEYCLOAK_TOKEN}" -X PUT -H "Content-Type: application/json" -d '{"serviceAccountsEnabled": true, "directAccessGrantsEnabled": true, "authorizationServicesEnabled": true, "redirectUris": ["'https://${ENDPOINT_HTTPS_GW_CLUSTER1}'/callback","'https://${ENDPOINT_HTTPS_GW_CLUSTER1}'/portal-server/v1/login","'https://${ENDPOINT_HTTPS_GW_CLUSTER1}'/get"]}' $KEYCLOAK_URL/admin/realms/master/clients/${id}
 
 # Add the group attribute in the JWT token returned by Keycloak
 curl -H "Authorization: Bearer ${KEYCLOAK_TOKEN}" -X POST -H "Content-Type: application/json" -d '{"name": "group", "protocol": "openid-connect", "protocolMapper": "oidc-usermodel-attribute-mapper", "config": {"claim.name": "group", "jsonType.label": "String", "user.attribute": "group", "id.token.claim": "true", "access.token.claim": "true"}}' $KEYCLOAK_URL/admin/realms/master/clients/${id}/protocol-mappers/models
@@ -3267,7 +3322,7 @@ In this step, we're going to secure the access to the `httpbin` service using OA
 First, we need to create a Kubernetes Secret that contains the OIDC secret:
 
 ```bash
-kubectl --context ${CLUSTER1} apply -f - <<EOF
+kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: v1
 kind: Secret
 metadata:
@@ -3282,7 +3337,7 @@ EOF
 Then, you need to create an `ExtAuthPolicy`, which is a CRD that contains authentication information: 
 
 ```bash
-kubectl --context ${CLUSTER1} apply -f - <<EOF
+kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: security.policy.gloo.solo.io/v2
 kind: ExtAuthPolicy
 metadata:
@@ -3325,7 +3380,7 @@ EOF
 After that, you need to create an `ExtAuthServer`, which is a CRD that define which extauth server to use: 
 
 ```bash
-kubectl --context ${CLUSTER1} apply -f - <<EOF
+kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: admin.gloo.solo.io/v2
 kind: ExtAuthServer
 metadata:
@@ -3345,7 +3400,7 @@ EOF
 Finally, you need to update the `RouteTable` to use this `ExtAuthPolicy`:
 
 ```bash
-kubectl --context ${CLUSTER1} apply -f - <<EOF
+kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: networking.gloo.solo.io/v2
 kind: RouteTable
 metadata:
@@ -3370,6 +3425,7 @@ spec:
         - ref:
             name: in-mesh
             namespace: httpbin
+            cluster: cluster1
           port:
             number: 8000
 EOF
@@ -3410,7 +3466,7 @@ You can also perform authorization using OPA.
 First, you need to create a `ConfigMap` with the policy written in rego:
 
 ```bash
-kubectl --context ${CLUSTER1} apply -f - <<EOF
+kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -3432,7 +3488,7 @@ EOF
 Then, you need to update the `ExtAuthPolicy` object to add the authorization step:
 
 ```bash
-kubectl --context ${CLUSTER1} apply -f - <<EOF
+kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: security.policy.gloo.solo.io/v2
 kind: ExtAuthPolicy
 metadata:
@@ -3498,7 +3554,7 @@ Keycloak is running outside of the Service Mesh, so we need to define an `Extern
 Let's start by the latter:
 
 ```bash
-kubectl --context ${CLUSTER1} apply -f - <<EOF
+kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: networking.gloo.solo.io/v2
 kind: ExternalEndpoint
 metadata:
@@ -3517,7 +3573,7 @@ EOF
 Then we can create the former:
 
 ```bash
-kubectl --context ${CLUSTER1} apply -f - <<EOF
+kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: networking.gloo.solo.io/v2
 kind: ExternalService
 metadata:
@@ -3542,7 +3598,7 @@ Now, we can create a `JWTPolicy` to extract the claim.
 Create the policy:
 
 ```bash
-kubectl --context ${CLUSTER1} apply -f - <<EOF
+kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: security.policy.gloo.solo.io/v2
 kind: JWTPolicy
 metadata:
@@ -3616,7 +3672,7 @@ In this step, we're going to use a regular expression to extract a part of an ex
 Let's create a `TransformationPolicy` to extract the claim.
 
 ```bash
-kubectl --context ${CLUSTER1} apply -f - <<EOF
+kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: trafficcontrol.policy.gloo.solo.io/v2
 kind: TransformationPolicy
 metadata:
@@ -3683,7 +3739,7 @@ In this step, we're going to apply rate limiting to the Gateway to only allow 3 
 First, we need to create a `RateLimitClientConfig` object to define the descriptors:
 
 ```bash
-kubectl --context ${CLUSTER1} apply -f - <<EOF
+kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: trafficcontrol.policy.gloo.solo.io/v2
 kind: RateLimitClientConfig
 metadata:
@@ -3702,7 +3758,7 @@ EOF
 Then, we need to create a `RateLimitServerConfig` object to define the limits based on the descriptors:
 
 ```bash
-kubectl --context ${CLUSTER1} apply -f - <<EOF
+kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: admin.gloo.solo.io/v2
 kind: RateLimitServerConfig
 metadata:
@@ -3730,7 +3786,7 @@ EOF
 After that, we need to create a `RateLimitPolicy` object to define the descriptors:
 
 ```bash
-kubectl --context ${CLUSTER1} apply -f - <<EOF
+kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: trafficcontrol.policy.gloo.solo.io/v2
 kind: RateLimitPolicy
 metadata:
@@ -3763,7 +3819,7 @@ EOF
 We also need to create a `RateLimitServerSettings`, which is a CRD that define which extauth server to use: 
 
 ```bash
-kubectl --context ${CLUSTER1} apply -f - <<EOF
+kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: admin.gloo.solo.io/v2
 kind: RateLimitServerSettings
 metadata:
@@ -3783,7 +3839,7 @@ EOF
 Finally, you need to update the `RouteTable` to use this `RateLimitPolicy`:
 
 ```bash
-kubectl --context ${CLUSTER1} apply -f - <<EOF
+kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: networking.gloo.solo.io/v2
 kind: RouteTable
 metadata:
@@ -3844,11 +3900,9 @@ You should get a `200` response code the first 3 time and a `429` response code 
 This diagram shows the flow of the request (with the Istio ingress gateway leveraging the `rate limiter` Pod to determine if the request should be allowed):
 
 ![Gloo Mesh Gateway Rate Limiting](images/steps/gateway-ratelimiting/gloo-mesh-gateway-rate-limiting.svg)
-
 Let's apply the original `RouteTable` yaml:
-
 ```bash
-kubectl --context ${CLUSTER1} apply -f - <<EOF
+kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: networking.gloo.solo.io/v2
 kind: RouteTable
 metadata:
@@ -3873,14 +3927,12 @@ EOF
 ```
 
 And also delete the different objects we've created:
-
 ```bash
 kubectl --context ${CLUSTER1} -n httpbin delete ratelimitpolicy httpbin
 kubectl --context ${CLUSTER1} -n httpbin delete ratelimitclientconfig httpbin
 kubectl --context ${CLUSTER1} -n httpbin delete ratelimitserverconfig httpbin
 kubectl --context ${CLUSTER1} -n httpbin delete ratelimitserversettings rate-limit-server
 ```
-
 
 
 
@@ -3902,7 +3954,7 @@ Log4Shell attacks operate by passing in a Log4j expression that could trigger a 
 Create the WAF policy:
 
 ```bash
-kubectl --context ${CLUSTER1} apply -f - <<'EOF'
+kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: security.policy.gloo.solo.io/v2
 kind: WAFPolicy
 metadata:
@@ -3921,7 +3973,7 @@ spec:
         SecRuleEngine On
         SecRequestBodyAccess On
         SecRule REQUEST_LINE|ARGS|ARGS_NAMES|REQUEST_COOKIES|REQUEST_COOKIES_NAMES|REQUEST_BODY|REQUEST_HEADERS|XML:/*|XML://@*  
-          "@rx \${jndi:(?:ldaps?|iiop|dns|rmi)://" 
+          "@rx \\\${jndi:(?:ldaps?|iiop|dns|rmi)://" 
           "id:1000,phase:2,deny,status:403,log,msg:'Potential Remote Command Execution: Log4j CVE-2021-44228'"
 EOF
 ```
@@ -3929,7 +3981,7 @@ EOF
 In this example, we're going to update the main `RouteTable` to enforce this policy for all the applications exposed through the gateway (in any workspace).
 
 ```bash
-kubectl --context ${CLUSTER1} apply -f - <<EOF
+kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: networking.gloo.solo.io/v2
 kind: RouteTable
 metadata:

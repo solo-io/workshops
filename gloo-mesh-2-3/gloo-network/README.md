@@ -255,16 +255,18 @@ Run the following commands to deploy the httpbin app on `cluster1`. The deployme
 
 ```bash
 kubectl --context ${CLUSTER1} create ns httpbin
-kubectl --context ${CLUSTER1} apply -n httpbin -f - <<EOF
+kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: not-in-mesh
+  namespace: httpbin
 ---
 apiVersion: v1
 kind: Service
 metadata:
   name: not-in-mesh
+  namespace: httpbin
   labels:
     app: not-in-mesh
     service: not-in-mesh
@@ -280,6 +282,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: not-in-mesh
+  namespace: httpbin
 spec:
   replicas: 1
   selector:
@@ -338,10 +341,11 @@ mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${te
 
 ## Lab 4 - Deploy and register Gloo Mesh <a name="lab-4---deploy-and-register-gloo-mesh-"></a>
 
+
 First of all, let's install the `meshctl` CLI:
 
 ```bash
-export GLOO_MESH_VERSION=v2.3.0-beta2
+export GLOO_MESH_VERSION=v2.3.0-rc1
 curl -sL https://run.solo.io/meshctl/install | sh -
 export PATH=$HOME/.gloo-mesh/bin:$PATH
 ```
@@ -386,14 +390,15 @@ helm repo update
 kubectl --context ${MGMT} create ns gloo-mesh 
 helm upgrade --install gloo-mesh-enterprise gloo-mesh-enterprise/gloo-mesh-enterprise \
 --namespace gloo-mesh --kube-context ${MGMT} \
---version=2.3.0-beta2 \
+--version=2.3.0-rc1 \
 --set glooMeshMgmtServer.ports.healthcheck=8091 \
 --set legacyMetricsPipeline.enabled=false \
---set metricsgateway.enabled=true \
---set metricsgateway.service.type=LoadBalancer \
+--set telemetryGateway.enabled=true \
+--set telemetryGateway.service.type=LoadBalancer \
 --set glooMeshUi.serviceType=LoadBalancer \
---set mgmtClusterName=${MGMT} \
---set global.cluster=${MGMT} \
+--set glooNetwork.enabled=true \
+--set mgmtClusterName=mgmt \
+--set global.cluster=mgmt \
 --set licenseKey=${GLOO_MESH_LICENSE_KEY}
 kubectl --context ${MGMT} -n gloo-mesh rollout status deploy/gloo-mesh-mgmt-server
 ```
@@ -410,11 +415,12 @@ done
 Then, you need to set the environment variable to tell the Gloo Mesh agents how to communicate with the management plane:
 <!--bash
 cat <<'EOF' > ./test.js
+
 const helpers = require('./tests/chai-exec');
 
 describe("MGMT server is healthy", () => {
   let cluster = process.env.MGMT
-  let deployments = ["gloo-mesh-mgmt-server","gloo-mesh-redis","gloo-metrics-gateway","prometheus-server"];
+  let deployments = ["gloo-mesh-mgmt-server","gloo-mesh-redis","gloo-telemetry-gateway","prometheus-server"];
   deployments.forEach(deploy => {
     it(deploy + ' pods are ready in ' + cluster, () => helpers.checkDeployment({ context: cluster, namespace: "gloo-mesh", k8sObj: deploy }));
   });
@@ -450,7 +456,7 @@ mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${te
 ```bash
 export ENDPOINT_GLOO_MESH=$(kubectl --context ${MGMT} -n gloo-mesh get svc gloo-mesh-mgmt-server -o jsonpath='{.status.loadBalancer.ingress[0].*}'):9900
 export HOST_GLOO_MESH=$(echo ${ENDPOINT_GLOO_MESH} | cut -d: -f1)
-export ENDPOINT_METRICS_GATEWAY=$(kubectl --context ${MGMT} -n gloo-mesh get svc gloo-metrics-gateway -o jsonpath='{.status.loadBalancer.ingress[0].*}'):4317
+export ENDPOINT_TELEMETRY_GATEWAY=$(kubectl --context ${MGMT} -n gloo-mesh get svc gloo-telemetry-gateway -o jsonpath='{.status.loadBalancer.ingress[0].*}'):4317
 ```
 
 Check that the variables have correct values:
@@ -492,6 +498,7 @@ Here is how you register the first one:
 helm repo add gloo-mesh-agent https://storage.googleapis.com/gloo-mesh-enterprise/gloo-mesh-agent
 helm repo update
 
+
 kubectl apply --context ${MGMT} -f- <<EOF
 apiVersion: admin.gloo.solo.io/v2
 kind: KubernetesCluster
@@ -520,9 +527,9 @@ helm upgrade --install gloo-mesh-agent gloo-mesh-agent/gloo-mesh-agent \
   --set ext-auth-service.enabled=false \
   --set glooMeshPortalServer.enabled=false \
   --set cluster=cluster1 \
-  --set metricscollector.enabled=true \
-  --set metricscollector.config.exporters.otlp.endpoint=\"${ENDPOINT_METRICS_GATEWAY}\" \
-  --version 2.3.0-beta2
+  --set telemetryCollector.enabled=true \
+  --set telemetryCollector.config.exporters.otlp.endpoint=\"${ENDPOINT_TELEMETRY_GATEWAY}\" \
+  --version 2.3.0-rc1
 ```
 
 Note that the registration can also be performed using `meshctl cluster register`.
@@ -530,6 +537,7 @@ Note that the registration can also be performed using `meshctl cluster register
 And here is how you register the second one:
 
 ```bash
+
 kubectl apply --context ${MGMT} -f- <<EOF
 apiVersion: admin.gloo.solo.io/v2
 kind: KubernetesCluster
@@ -558,9 +566,9 @@ helm upgrade --install gloo-mesh-agent gloo-mesh-agent/gloo-mesh-agent \
   --set ext-auth-service.enabled=false \
   --set glooMeshPortalServer.enabled=false \
   --set cluster=cluster2 \
-  --set metricscollector.enabled=true \
-  --set metricscollector.config.exporters.otlp.endpoint=\"${ENDPOINT_METRICS_GATEWAY}\" \
-  --version 2.3.0-beta2
+  --set telemetryCollector.enabled=true \
+  --set telemetryCollector.config.exporters.otlp.endpoint=\"${ENDPOINT_TELEMETRY_GATEWAY}\" \
+  --version 2.3.0-rc1
 ```
 
 You can check the cluster(s) have been registered correctly using the following commands:
@@ -618,7 +626,7 @@ The platform team needs to create the corresponding `Workspace` Kubernetes objec
 Let's create the `bookinfo` workspace which corresponds to the `bookinfo-frontends` and `bookinfo-backends` namespaces on the cluster(s):
 
 ```bash
-kubectl apply --context ${MGMT} -f- <<EOF
+kubectl apply --context ${MGMT} -f - <<EOF
 apiVersion: admin.gloo.solo.io/v2
 kind: Workspace
 metadata:
@@ -640,15 +648,21 @@ EOF
 Then, the Bookinfo team creates a `WorkspaceSettings` Kubernetes object in one of the namespaces of the `bookinfo` workspace (so the `bookinfo-frontends` or the `bookinfo-backends` namespace):
 
 ```bash
-kubectl apply --context ${CLUSTER1} -f- <<EOF
+kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: admin.gloo.solo.io/v2
 kind: WorkspaceSettings
 metadata:
   name: bookinfo
   namespace: bookinfo-frontends
-spec: {}
+spec:
+  {}
 EOF
 ```
+
+
+This is how the environment looks like with the workspaces:
+
+![Gloo Mesh Workspaces](images/steps/create-bookinfo-workspace/gloo-mesh-workspaces.svg)
 
 
 
@@ -662,7 +676,7 @@ The platform team needs to create the corresponding `Workspace` Kubernetes objec
 Let's create the `httpbin` workspace which corresponds to the `httpbin` namespace on `cluster1`:
 
 ```bash
-kubectl apply --context ${MGMT} -f- <<EOF
+kubectl apply --context ${MGMT} -f - <<EOF
 apiVersion: admin.gloo.solo.io/v2
 kind: Workspace
 metadata:
@@ -679,13 +693,14 @@ EOF
 Then, the Httpbin team creates a `WorkspaceSettings` Kubernetes object in one of the namespaces of the `httpbin` workspace:
 
 ```bash
-kubectl apply --context ${CLUSTER1} -f- <<EOF
+kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: admin.gloo.solo.io/v2
 kind: WorkspaceSettings
 metadata:
   name: httpbin
   namespace: httpbin
-spec: {}
+spec:
+  {}
 EOF
 ```
 
