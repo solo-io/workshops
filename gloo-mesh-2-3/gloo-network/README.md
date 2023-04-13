@@ -255,16 +255,18 @@ Run the following commands to deploy the httpbin app on `cluster1`. The deployme
 
 ```bash
 kubectl --context ${CLUSTER1} create ns httpbin
-kubectl --context ${CLUSTER1} apply -n httpbin -f - <<EOF
+kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: not-in-mesh
+  namespace: httpbin
 ---
 apiVersion: v1
 kind: Service
 metadata:
   name: not-in-mesh
+  namespace: httpbin
   labels:
     app: not-in-mesh
     service: not-in-mesh
@@ -280,6 +282,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: not-in-mesh
+  namespace: httpbin
 spec:
   replicas: 1
   selector:
@@ -394,8 +397,8 @@ helm upgrade --install gloo-mesh-enterprise gloo-mesh-enterprise/gloo-mesh-enter
 --set telemetryGateway.service.type=LoadBalancer \
 --set glooMeshUi.serviceType=LoadBalancer \
 --set glooNetwork.enabled=true \
---set mgmtClusterName=${MGMT} \
---set global.cluster=${MGMT} \
+--set mgmtClusterName=mgmt \
+--set global.cluster=mgmt \
 --set licenseKey=${GLOO_MESH_LICENSE_KEY}
 kubectl --context ${MGMT} -n gloo-mesh rollout status deploy/gloo-mesh-mgmt-server
 ```
@@ -623,7 +626,7 @@ The platform team needs to create the corresponding `Workspace` Kubernetes objec
 Let's create the `bookinfo` workspace which corresponds to the `bookinfo-frontends` and `bookinfo-backends` namespaces on the cluster(s):
 
 ```bash
-kubectl apply --context ${MGMT} -f- <<EOF
+kubectl apply --context ${MGMT} -f - <<EOF
 apiVersion: admin.gloo.solo.io/v2
 kind: Workspace
 metadata:
@@ -645,15 +648,21 @@ EOF
 Then, the Bookinfo team creates a `WorkspaceSettings` Kubernetes object in one of the namespaces of the `bookinfo` workspace (so the `bookinfo-frontends` or the `bookinfo-backends` namespace):
 
 ```bash
-kubectl apply --context ${CLUSTER1} -f- <<EOF
+kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: admin.gloo.solo.io/v2
 kind: WorkspaceSettings
 metadata:
   name: bookinfo
   namespace: bookinfo-frontends
-spec: {}
+spec:
+  {}
 EOF
 ```
+
+
+This is how the environment looks like with the workspaces:
+
+![Gloo Mesh Workspaces](images/steps/create-bookinfo-workspace/gloo-mesh-workspaces.svg)
 
 
 
@@ -667,7 +676,7 @@ The platform team needs to create the corresponding `Workspace` Kubernetes objec
 Let's create the `httpbin` workspace which corresponds to the `httpbin` namespace on `cluster1`:
 
 ```bash
-kubectl apply --context ${MGMT} -f- <<EOF
+kubectl apply --context ${MGMT} -f - <<EOF
 apiVersion: admin.gloo.solo.io/v2
 kind: Workspace
 metadata:
@@ -684,13 +693,14 @@ EOF
 Then, the Httpbin team creates a `WorkspaceSettings` Kubernetes object in one of the namespaces of the `httpbin` workspace:
 
 ```bash
-kubectl apply --context ${CLUSTER1} -f- <<EOF
+kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: admin.gloo.solo.io/v2
 kind: WorkspaceSettings
 metadata:
   name: httpbin
   namespace: httpbin
-spec: {}
+spec:
+  {}
 EOF
 ```
 
