@@ -128,7 +128,6 @@ kubectl --context kind-kind${number} apply -f https://raw.githubusercontent.com/
 kubectl --context kind-kind${number} -n kube-system patch ds calico-node -p '{"spec":{"template":{"spec":{"containers":[{"name": "calico-node", "env":[{"name":"FELIX_WORKLOADSOURCESPOOFING","value":"Any"}]}]}}}}'
 
 kubectl --context=kind-kind${number} apply -f https://raw.githubusercontent.com/metallb/metallb/v0.13.9/config/manifests/metallb-native.yaml
-kubectl --context=kind-kind${number} create secret generic -n metallb-system memberlist --from-literal=secretkey="$(openssl rand -base64 128)"
 kubectl --context=kind-kind${number} -n metallb-system rollout status deploy controller
 
 cat << EOF > metallb${number}.yaml
