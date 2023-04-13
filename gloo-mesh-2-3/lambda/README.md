@@ -141,10 +141,11 @@ kubectl config use-context ${MGMT}
 
 ## Lab 2 - Deploy and register Gloo Mesh <a name="lab-2---deploy-and-register-gloo-mesh-"></a>
 
+
 First of all, let's install the `meshctl` CLI:
 
 ```bash
-export GLOO_MESH_VERSION=v2.3.0-beta2
+export GLOO_MESH_VERSION=v2.3.0-rc1
 curl -sL https://run.solo.io/meshctl/install | sh -
 export PATH=$HOME/.gloo-mesh/bin:$PATH
 ```
@@ -189,11 +190,11 @@ helm repo update
 kubectl --context ${MGMT} create ns gloo-mesh 
 helm upgrade --install gloo-mesh-enterprise gloo-mesh-enterprise/gloo-mesh-enterprise \
 --namespace gloo-mesh --kube-context ${MGMT} \
---version=2.3.0-beta2 \
+--version=2.3.0-rc1 \
 --set glooMeshMgmtServer.ports.healthcheck=8091 \
 --set legacyMetricsPipeline.enabled=false \
---set metricsgateway.enabled=true \
---set metricsgateway.service.type=LoadBalancer \
+--set telemetryGateway.enabled=true \
+--set telemetryGateway.service.type=LoadBalancer \
 --set glooMeshUi.serviceType=LoadBalancer \
 --set mgmtClusterName=${MGMT} \
 --set global.cluster=${MGMT} \
@@ -213,11 +214,12 @@ done
 Then, you need to set the environment variable to tell the Gloo Mesh agents how to communicate with the management plane:
 <!--bash
 cat <<'EOF' > ./test.js
+
 const helpers = require('./tests/chai-exec');
 
 describe("MGMT server is healthy", () => {
   let cluster = process.env.MGMT
-  let deployments = ["gloo-mesh-mgmt-server","gloo-mesh-redis","gloo-metrics-gateway","prometheus-server"];
+  let deployments = ["gloo-mesh-mgmt-server","gloo-mesh-redis","gloo-telemetry-gateway","prometheus-server"];
   deployments.forEach(deploy => {
     it(deploy + ' pods are ready in ' + cluster, () => helpers.checkDeployment({ context: cluster, namespace: "gloo-mesh", k8sObj: deploy }));
   });
@@ -253,7 +255,7 @@ mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${te
 ```bash
 export ENDPOINT_GLOO_MESH=$(kubectl --context ${MGMT} -n gloo-mesh get svc gloo-mesh-mgmt-server -o jsonpath='{.status.loadBalancer.ingress[0].*}'):9900
 export HOST_GLOO_MESH=$(echo ${ENDPOINT_GLOO_MESH} | cut -d: -f1)
-export ENDPOINT_METRICS_GATEWAY=$(kubectl --context ${MGMT} -n gloo-mesh get svc gloo-metrics-gateway -o jsonpath='{.status.loadBalancer.ingress[0].*}'):4317
+export ENDPOINT_TELEMETRY_GATEWAY=$(kubectl --context ${MGMT} -n gloo-mesh get svc gloo-telemetry-gateway -o jsonpath='{.status.loadBalancer.ingress[0].*}'):4317
 ```
 
 Check that the variables have correct values:
@@ -295,6 +297,7 @@ Here is how you register the first one:
 helm repo add gloo-mesh-agent https://storage.googleapis.com/gloo-mesh-enterprise/gloo-mesh-agent
 helm repo update
 
+
 kubectl apply --context ${MGMT} -f- <<EOF
 apiVersion: admin.gloo.solo.io/v2
 kind: KubernetesCluster
@@ -323,9 +326,9 @@ helm upgrade --install gloo-mesh-agent gloo-mesh-agent/gloo-mesh-agent \
   --set ext-auth-service.enabled=false \
   --set glooMeshPortalServer.enabled=false \
   --set cluster=cluster1 \
-  --set metricscollector.enabled=true \
-  --set metricscollector.config.exporters.otlp.endpoint=\"${ENDPOINT_METRICS_GATEWAY}\" \
-  --version 2.3.0-beta2
+  --set telemetryCollector.enabled=true \
+  --set telemetryCollector.config.exporters.otlp.endpoint=\"${ENDPOINT_TELEMETRY_GATEWAY}\" \
+  --version 2.3.0-rc1
 ```
 
 Note that the registration can also be performed using `meshctl cluster register`.
@@ -333,6 +336,7 @@ Note that the registration can also be performed using `meshctl cluster register
 And here is how you register the second one:
 
 ```bash
+
 kubectl apply --context ${MGMT} -f- <<EOF
 apiVersion: admin.gloo.solo.io/v2
 kind: KubernetesCluster
@@ -361,9 +365,9 @@ helm upgrade --install gloo-mesh-agent gloo-mesh-agent/gloo-mesh-agent \
   --set ext-auth-service.enabled=false \
   --set glooMeshPortalServer.enabled=false \
   --set cluster=cluster2 \
-  --set metricscollector.enabled=true \
-  --set metricscollector.config.exporters.otlp.endpoint=\"${ENDPOINT_METRICS_GATEWAY}\" \
-  --version 2.3.0-beta2
+  --set telemetryCollector.enabled=true \
+  --set telemetryCollector.config.exporters.otlp.endpoint=\"${ENDPOINT_TELEMETRY_GATEWAY}\" \
+  --version 2.3.0-rc1
 ```
 
 You can check the cluster(s) have been registered correctly using the following commands:
@@ -1229,15 +1233,20 @@ kubectl --context ${CLUSTER2} label namespace gloo-mesh-addons istio.io/rev=1-16
 Then, you can deploy the addons on the cluster(s) using Helm:
 
 ```bash
+
 helm upgrade --install gloo-mesh-agent-addons gloo-mesh-agent/gloo-mesh-agent \
   --namespace gloo-mesh-addons \
   --kube-context=${CLUSTER1} \
   --set cluster=cluster1 \
   --set glooMeshAgent.enabled=false \
   --set glooMeshPortalServer.enabled=true \
+  --set glooMeshPortalServer.apiKeyStorage.config.host="redis.gloo-mesh-addons:6379" \
+  --set glooMeshPortalServer.apiKeyStorage.configPath="/etc/redis/config.yaml" \
+  --set glooMeshPortalServer.apiKeyStorage.secretKey="ThisIsSecret" \
   --set rate-limiter.enabled=true \
   --set ext-auth-service.enabled=true \
-  --version 2.3.0-beta2
+  --version 2.3.0-rc1
+
 
 helm upgrade --install gloo-mesh-agent-addons gloo-mesh-agent/gloo-mesh-agent \
   --namespace gloo-mesh-addons \
@@ -1245,9 +1254,12 @@ helm upgrade --install gloo-mesh-agent-addons gloo-mesh-agent/gloo-mesh-agent \
   --set cluster=cluster2 \
   --set glooMeshAgent.enabled=false \
   --set glooMeshPortalServer.enabled=true \
+  --set glooMeshPortalServer.apiKeyStorage.config.host="redis.gloo-mesh-addons:6379" \
+  --set glooMeshPortalServer.apiKeyStorage.configPath="/etc/redis/config.yaml" \
+  --set glooMeshPortalServer.apiKeyStorage.secretKey="ThisIsSecret" \
   --set rate-limiter.enabled=true \
   --set ext-auth-service.enabled=true \
-  --version 2.3.0-beta2
+  --version 2.3.0-rc1
 ```
 
 This is how to environment looks like now:
@@ -1445,6 +1457,7 @@ spec:
         routeTables:
           - labels:
               expose: "true"
+        sortMethod: ROUTE_SPECIFICITY
 EOF
 ```
 
@@ -1655,12 +1668,17 @@ The Httpbin team has decided to export the following to the `gateway` workspace 
 
 ## Lab 11 - Deploy the Amazon pod identity webhook <a name="lab-11---deploy-the-amazon-pod-identity-webhook-"></a>
 
+
 To use the AWS Lambda integration, we need to deploy the Amazon EKS pod identity webhook.
 
 A pre requisite is to install [Cert Manager](https://cert-manager.io/):
 
 ```bash
 kubectl --context ${CLUSTER1} apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.10.1/cert-manager.yaml
+kubectl --context ${MGMT} apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.10.1/cert-manager.yaml
+kubectl --context ${MGMT} -n cert-manager rollout status deploy cert-manager
+kubectl --context ${MGMT} -n cert-manager rollout status deploy cert-manager-cainjector
+kubectl --context ${MGMT} -n cert-manager rollout status deploy cert-manager-webhook
 kubectl --context ${CLUSTER1} -n cert-manager rollout status deploy cert-manager
 kubectl --context ${CLUSTER1} -n cert-manager rollout status deploy cert-manager-cainjector
 kubectl --context ${CLUSTER1} -n cert-manager rollout status deploy cert-manager-webhook
@@ -1670,6 +1688,8 @@ Now, you can install the Amazon EKS pod identity webhook:
 
 ```bash
 kubectl --context ${CLUSTER1} apply -f data/steps/deploy-amazon-pod-identity-webhook
+kubectl --context ${MGMT} apply -f data/steps/deploy-amazon-pod-identity-webhook
+kubectl --context ${MGMT} rollout status deploy/pod-identity-webhook
 kubectl --context ${CLUSTER1} rollout status deploy/pod-identity-webhook
 ```
 
@@ -1702,12 +1722,12 @@ kubectl --context ${CLUSTER1} -n istio-gateways rollout restart deploy $(kubectl
 Then, you can create a `CloudProvider` object corresponding to the AWS role:
 
 ```bash
-kubectl --context ${CLUSTER1} apply -f - <<EOF
-apiVersion: networking.gloo.solo.io/v2
+kubectl --context ${MGMT} apply -f - <<EOF
+apiVersion: infrastructure.gloo.solo.io/v2
 kind: CloudProvider
 metadata:
   name: aws
-  namespace: httpbin
+  namespace: gloo-mesh
 spec:
   aws:
     stsEndpoint: sts.amazonaws.com
@@ -1715,27 +1735,20 @@ spec:
     region: eu-west-1
     lambda:
       invokeRoleName: lambda-workshop
+      discovery:
+        enabled: true
+        roleName: lambda-workshop
 EOF
 ```
 
-After that, you can create a `CloudResources` object which defines the `echo` Lambda function:
+Now you need to annotate the service account used by the mgmt server, so it can discover existing lambdas:
 
 ```bash
-kubectl --context ${CLUSTER1} apply -f - <<'EOF'
-apiVersion: networking.gloo.solo.io/v2
-kind: CloudResources
-metadata:
-  name: aws
-  namespace: httpbin
-spec:
-  provider: aws
-  lambda:
-  - logicalName: echo
-    lambdaFunctionName: workshop-echo
-    qualifier: $LATEST
-
-EOF
+kubectl --context ${MGMT} -n gloo-mesh annotate sa -l app=gloo-mesh-mgmt-server "eks.amazonaws.com/role-arn=arn:aws:iam::253915036081:role/lambda-workshop"
+kubectl --context ${MGMT} -n gloo-mesh rollout restart deploy gloo-mesh-mgmt-server
 ```
+
+After a few seconds, `CloudResources` objects will be created with the discovered Lambda functions.
 
 Finally, you can create a `RouteTable` to expose the `echo` Lambda function through the gateway:
 
@@ -1758,13 +1771,14 @@ spec:
       route: lambda
     forwardTo:
       destinations:
-      - ref:
-          name: aws
-          namespace: httpbin
-          cluster: cluster1
-        kind: CLOUD_PROVIDER
-        function:
-          logicalName: echo
+      - awsLambda:
+          cloudProvider:
+            name: aws
+            namespace: gloo-mesh
+            cluster: mgmt
+          function: workshop-echo
+          options:
+            responseTransformation: RESPONSE_DISABLE
 EOF
 ```
 
@@ -1808,7 +1822,6 @@ You should get a response like below:
 ```
 
 It's very similar to what the `httpbin` application provides. It displays information about the request is has received.
-
 <!--bash
 cat <<'EOF' > ./test.js
 const helpersHttp = require('./tests/chai-http');
@@ -1822,7 +1835,6 @@ tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
 -->
-
 But when a Lambda function is exposed through an AWS API Gateway, the response of the function should be in a specific format (see this [example](https://docs.aws.amazon.com/apigateway/latest/developerguide/api-gateway-create-api-as-simple-proxy-for-lambda.html)).
 
 The Gloo Gateway integration has the ability to understand this format and to process the response in the same way an AWS API gateway would.
@@ -1846,26 +1858,7 @@ export const handler = async(event) => {
 };
 ```
 
-Let's update the `CloudResources` object to define the new Lambda function:
-
-```bash
-kubectl --context ${CLUSTER1} apply -f - <<'EOF'
-apiVersion: networking.gloo.solo.io/v2
-kind: CloudResources
-metadata:
-  name: aws
-  namespace: httpbin
-spec:
-  provider: aws
-  lambda:
-  - logicalName: api-gateway
-    lambdaFunctionName: workshop-api-gateway
-    qualifier: $LATEST
-
-EOF
-```
-
-Then, we can update the `RouteTable` as well:
+Let's update the `RouteTable`:
 
 ```bash
 kubectl --context ${CLUSTER1} apply -f - <<EOF
@@ -1886,19 +1879,18 @@ spec:
       route: lambda
     forwardTo:
       destinations:
-      - ref:
-          name: aws
-          namespace: httpbin
-          cluster: cluster1
-        kind: CLOUD_PROVIDER
-        function:
-          logicalName: api-gateway
-          awsLambda:
-            responseTransformation: UNWRAP_AS_API_GATEWAY
+      - awsLambda:
+          cloudProvider:
+            name: aws
+            namespace: gloo-mesh
+            cluster: mgmt
+          function: workshop-api-gateway
+          options:
+            responseTransformation: RESPONSE_DEFAULT
 EOF
 ```
 
-The `unwrapAsApiGateway` instruct Gloo Gateway to parse the response differently.
+The `RESPONSE_DEFAULT` instructs Gloo Gateway to parse the response differently.
 
 You should now be able to invoke the Lambda function using the following command:
 
@@ -1934,7 +1926,6 @@ server: istio-envoy
 ```
 
 You can see the `key` and `x-custom-header` added by the Lambda function.
-
 <!--bash
 cat <<'EOF' > ./test.js
 const helpersHttp = require('./tests/chai-http');
@@ -1949,19 +1940,19 @@ tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
 -->
-
-Let's remove the annotation and restart the gateway:
+Let's remove the annotation and restart the pods:
 
 ```bash
 kubectl --context ${CLUSTER1} -n istio-gateways annotate sa -l istio=ingressgateway "eks.amazonaws.com/role-arn-"
 kubectl --context ${CLUSTER1} -n istio-gateways rollout restart deploy $(kubectl --context ${CLUSTER1} -n istio-gateways get deploy -l istio=ingressgateway -o jsonpath='{.items[0].metadata.name}')
+kubectl --context ${MGMT} -n gloo-mesh annotate sa -l app=gloo-mesh-mgmt-server "eks.amazonaws.com/role-arn-"
+kubectl --context ${MGMT} -n gloo-mesh rollout restart deploy gloo-mesh-mgmt-server
 ```
 
 And also delete the different objects we've created:
 
 ```bash
-kubectl --context ${CLUSTER1} -n httpbin delete cloudprovider aws
-kubectl --context ${CLUSTER1} -n httpbin delete cloudresources aws
+kubectl --context ${MGMT} -n gloo-mesh delete cloudprovider aws
 ```
 
 
