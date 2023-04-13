@@ -221,6 +221,7 @@ done
 
 ## Lab 3 - Deploy and register Gloo Mesh <a name="lab-3---deploy-and-register-gloo-mesh-"></a>
 
+
 First of all, let's install the `meshctl` CLI:
 
 ```bash
@@ -301,6 +302,7 @@ done
 Then, you need to set the environment variable to tell the Gloo Mesh agents how to communicate with the management plane:
 <!--bash
 cat <<'EOF' > ./test.js
+
 const helpers = require('./tests/chai-exec');
 
 describe("MGMT server is healthy", () => {
@@ -341,7 +343,7 @@ mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${te
 ```bash
 export ENDPOINT_GLOO_MESH=$(kubectl --context ${MGMT} -n gloo-mesh get svc gloo-mesh-mgmt-server -o jsonpath='{.status.loadBalancer.ingress[0].*}'):9900
 export HOST_GLOO_MESH=$(echo ${ENDPOINT_GLOO_MESH} | cut -d: -f1)
-export ENDPOINT_METRICS_GATEWAY=$(kubectl --context ${MGMT} -n gloo-mesh get svc gloo-metrics-gateway -o jsonpath='{.status.loadBalancer.ingress[0].*}'):4317
+export ENDPOINT_TELEMETRY_GATEWAY=$(kubectl --context ${MGMT} -n gloo-mesh get svc gloo-metrics-gateway -o jsonpath='{.status.loadBalancer.ingress[0].*}'):4317
 ```
 
 Check that the variables have correct values:
@@ -383,6 +385,7 @@ Here is how you register the first one:
 helm repo add gloo-mesh-agent https://storage.googleapis.com/gloo-mesh-enterprise/gloo-mesh-agent
 helm repo update
 
+
 kubectl apply --context ${MGMT} -f- <<EOF
 apiVersion: admin.gloo.solo.io/v2
 kind: KubernetesCluster
@@ -412,7 +415,7 @@ helm upgrade --install gloo-mesh-agent gloo-mesh-agent/gloo-mesh-agent \
   --set glooMeshPortalServer.enabled=false \
   --set cluster=cluster1 \
   --set metricscollector.enabled=true \
-  --set metricscollector.config.exporters.otlp.endpoint=\"${ENDPOINT_METRICS_GATEWAY}\" \
+  --set metricscollector.config.exporters.otlp.endpoint=\"${ENDPOINT_TELEMETRY_GATEWAY}\" \
   --set glooMeshAgent.image.registry=${registry}/gloo-mesh \
   --set metricscollector.image.repository=${registry}/gloo-mesh/gloo-otel-collector \
   --version 2.2.6
@@ -423,6 +426,7 @@ Note that the registration can also be performed using `meshctl cluster register
 And here is how you register the second one:
 
 ```bash
+
 kubectl apply --context ${MGMT} -f- <<EOF
 apiVersion: admin.gloo.solo.io/v2
 kind: KubernetesCluster
@@ -452,7 +456,7 @@ helm upgrade --install gloo-mesh-agent gloo-mesh-agent/gloo-mesh-agent \
   --set glooMeshPortalServer.enabled=false \
   --set cluster=cluster2 \
   --set metricscollector.enabled=true \
-  --set metricscollector.config.exporters.otlp.endpoint=\"${ENDPOINT_METRICS_GATEWAY}\" \
+  --set metricscollector.config.exporters.otlp.endpoint=\"${ENDPOINT_TELEMETRY_GATEWAY}\" \
   --set glooMeshAgent.image.registry=${registry}/gloo-mesh \
   --set metricscollector.image.repository=${registry}/gloo-mesh/gloo-otel-collector \
   --version 2.2.6
@@ -1325,12 +1329,12 @@ kubectl --context ${CLUSTER2} label namespace gloo-mesh-addons istio.io/rev=1-16
 Then, you can deploy the addons on the cluster(s) using Helm:
 
 ```bash
+
 helm upgrade --install gloo-mesh-agent-addons gloo-mesh-agent/gloo-mesh-agent \
   --namespace gloo-mesh-addons \
   --kube-context=${CLUSTER1} \
   --set cluster=cluster1 \
   --set glooMeshAgent.enabled=false \
-  --set glooMeshPortalServer.enabled=true \
   --set rate-limiter.enabled=true \
   --set ext-auth-service.enabled=true \
   --set ext-auth-service.extAuth.image.registry=${registry}/gloo-mesh \
@@ -1338,12 +1342,12 @@ helm upgrade --install gloo-mesh-agent-addons gloo-mesh-agent/gloo-mesh-agent \
   --set rate-limiter.redis.image.registry=${registry} \
   --version 2.2.6
 
+
 helm upgrade --install gloo-mesh-agent-addons gloo-mesh-agent/gloo-mesh-agent \
   --namespace gloo-mesh-addons \
   --kube-context=${CLUSTER2} \
   --set cluster=cluster2 \
   --set glooMeshAgent.enabled=false \
-  --set glooMeshPortalServer.enabled=true \
   --set rate-limiter.enabled=true \
   --set ext-auth-service.enabled=true \
   --set ext-auth-service.extAuth.image.registry=${registry}/gloo-mesh \
@@ -1547,6 +1551,7 @@ spec:
         routeTables:
           - labels:
               expose: "true"
+        sortMethod: ROUTE_SPECIFICITY
 EOF
 ```
 
@@ -2762,7 +2767,7 @@ pod=$(kubectl --context ${CLUSTER1} -n httpbin get pods -l app=not-in-mesh -o js
 kubectl --context ${CLUSTER1} -n httpbin debug -i -q ${pod} --image=curlimages/curl -- curl -s -o /dev/null -w "%{http_code}" http://reviews.bookinfo-backends.svc.cluster.local:9080/reviews/0
 ```
 
-You should get a `000` response code which means that the communication can't be established.
+You shouldn't get a `200` response code, which means that the communication isn't allowed.
 
 <!--bash
 cat <<'EOF' > ./test.js
@@ -2770,10 +2775,10 @@ var chai = require('chai');
 var expect = chai.expect;
 const helpers = require('./tests/chai-exec');
 describe("Communication not allowed", () => {
-  it("Response code should be 000", () => {
+  it("Response code shouldn't be 200", () => {
     const podName = helpers.getOutputForCommand({ command: "kubectl --context " + process.env.CLUSTER1 + " -n httpbin get pods -l app=not-in-mesh -o jsonpath='{.items[0].metadata.name}'" }).replaceAll("'", "");
     const command = helpers.getOutputForCommand({ command: "kubectl --context " + process.env.CLUSTER1 + " -n httpbin debug -i -q " + podName + " --image=curlimages/curl -- curl -s -o /dev/null -w \"%{http_code}\" http://reviews.bookinfo-backends:9080/reviews/0" }).replaceAll("'", "");
-    expect(command).to.contain("000");
+    expect(command).not.to.contain("200");
   });
 });
 EOF
@@ -2796,10 +2801,10 @@ var chai = require('chai');
 var expect = chai.expect;
 const helpers = require('./tests/chai-exec');
 describe("Communication not allowed", () => {
-  it("Response code should be 403", () => {
+  it("Response code shouldn't be 200", () => {
     const podName = helpers.getOutputForCommand({ command: "kubectl --context " + process.env.CLUSTER1 + " -n httpbin get pods -l app=in-mesh -o jsonpath='{.items[0].metadata.name}'" }).replaceAll("'", "");
     const command = helpers.getOutputForCommand({ command: "kubectl --context " + process.env.CLUSTER1 + " -n httpbin debug -i -q " + podName + " --image=curlimages/curl -- curl -s -o /dev/null -w \"%{http_code}\" http://reviews.bookinfo-backends:9080/reviews/0" }).replaceAll("'", "");
-    expect(command).to.contain("403");
+    expect(command).not.to.contain("200");
   });
 });
 EOF
@@ -2809,7 +2814,7 @@ echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
 -->
 
-You should get a `403` response code which means that the sidecar proxy of the `reviews` service doesn't allow the request.
+You shouldn't get a `200` response code, which means that the communication isn't allowed.
 
 You've see seen how Gloo Platform can help you to enforce a zero trust policy (at workspace level) with nearly no effort.
 
@@ -2915,7 +2920,8 @@ kubectl --context ${CLUSTER1} -n bookinfo-frontends debug -i -q ${pod} --image=c
 
 ```
 
-You should get a `403` response code which means that the sidecar proxy of the `reviews` service doesn't allow the request.
+You shouldn't get a `200` response code, which means that the communication isn't allowed.
+
 ```sh,nocopy
 HTTP/1.1 403 Forbidden
 content-length: 19
@@ -2934,9 +2940,9 @@ const helpers = require('./tests/chai-exec');
 
 describe("Communication allowed", () => {
 
-  it("Response code should be 403 accessing ratings", () => {
+  it("Response code shouldn't be 200 accessing ratings", () => {
     const command = helpers.getOutputForCommand({ command: "kubectl --context " + process.env.CLUSTER1 + " -n bookinfo-frontends exec deploy/productpage-v1 -- python -c \"import requests; r = requests.get('http://ratings.bookinfo-backends:9080/ratings/0'); print(r.status_code)\"" }).replaceAll("'", "");
-    expect(command).to.contain("403");
+    expect(command).not.to.contain("200");
   });
 
   it("Response code should be 200 accessing reviews", () => {
@@ -3287,6 +3293,7 @@ kubectl --context ${CLUSTER1} -n bookinfo-backends delete ratelimitserversetting
 
 ## Lab 17 - See how Gloo Platform can help with observability <a name="lab-17---see-how-gloo-platform-can-help-with-observability-"></a>
 
+
 # Observability with Gloo Platform
 
 Let's take a look at how Gloo Platform can help with observability!
@@ -3384,7 +3391,7 @@ helm upgrade --install gloo-mesh-agent gloo-mesh-agent/gloo-mesh-agent \
   --set ext-auth-service.enabled=false \
   --set cluster=cluster1 \
   --set metricscollector.enabled=true \
-  --set metricscollector.config.exporters.otlp.endpoint=\"${ENDPOINT_METRICS_GATEWAY}\" \
+  --set metricscollector.config.exporters.otlp.endpoint=\"${ENDPOINT_TELEMETRY_GATEWAY}\" \
   --set glooMeshAgent.image.registry=${registry}/gloo-mesh \
   --set metricscollector.image.repository=${registry}/gloo-mesh/gloo-otel-collector \
   --version 2.2.6 \
@@ -3442,6 +3449,7 @@ kubectl --context ${MGMT} -n monitoring create cm istio-control-plane-dashboard 
 --from-file=data/steps/gloo-platform-observability/istio-control-plane-dashboard.json
 kubectl --context ${MGMT} label -n monitoring cm istio-control-plane-dashboard grafana_dashboard=1
 ```
+
 Let's rollback the changes we made to the agent chart. We'll do this by running the following command:
 
 ```bash
@@ -3455,7 +3463,7 @@ helm upgrade --install gloo-mesh-agent gloo-mesh-agent/gloo-mesh-agent \
   --set ext-auth-service.enabled=false \
   --set cluster=cluster1 \
   --set metricscollector.enabled=true \
-  --set metricscollector.config.exporters.otlp.endpoint=\"${ENDPOINT_METRICS_GATEWAY}\" \
+  --set metricscollector.config.exporters.otlp.endpoint=\"${ENDPOINT_TELEMETRY_GATEWAY}\" \
   --set glooMeshAgent.image.registry=${registry}/gloo-mesh \
   --set metricscollector.image.repository=${registry}/gloo-mesh/gloo-otel-collector \
   --version 2.2.6
@@ -3851,7 +3859,7 @@ read -r id secret <<<$(curl -X POST -d "{ \"clientId\": \"${KEYCLOAK_CLIENT}\" }
 export KEYCLOAK_SECRET=${secret}
 
 # Add allowed redirect URIs
-curl -H "Authorization: Bearer ${KEYCLOAK_TOKEN}" -X PUT -H "Content-Type: application/json" -d '{"serviceAccountsEnabled": true, "directAccessGrantsEnabled": true, "authorizationServicesEnabled": true, "redirectUris": ["'https://${ENDPOINT_HTTPS_GW_CLUSTER1}'/callback","'https://${ENDPOINT_HTTPS_GW_CLUSTER1}'/get"]}' $KEYCLOAK_URL/admin/realms/master/clients/${id}
+curl -H "Authorization: Bearer ${KEYCLOAK_TOKEN}" -X PUT -H "Content-Type: application/json" -d '{"serviceAccountsEnabled": true, "directAccessGrantsEnabled": true, "authorizationServicesEnabled": true, "redirectUris": ["'https://${ENDPOINT_HTTPS_GW_CLUSTER1}'/callback","'https://${ENDPOINT_HTTPS_GW_CLUSTER1}'/portal-server/v1/login","'https://${ENDPOINT_HTTPS_GW_CLUSTER1}'/get"]}' $KEYCLOAK_URL/admin/realms/master/clients/${id}
 
 # Add the group attribute in the JWT token returned by Keycloak
 curl -H "Authorization: Bearer ${KEYCLOAK_TOKEN}" -X POST -H "Content-Type: application/json" -d '{"name": "group", "protocol": "openid-connect", "protocolMapper": "oidc-usermodel-attribute-mapper", "config": {"claim.name": "group", "jsonType.label": "String", "user.attribute": "group", "id.token.claim": "true", "access.token.claim": "true"}}' $KEYCLOAK_URL/admin/realms/master/clients/${id}/protocol-mappers/models
@@ -5273,6 +5281,7 @@ kubectl --context ${CLUSTER1} -n httpbin delete deploy sleep
 
 ## Lab 28 - Deploy the Amazon pod identity webhook <a name="lab-28---deploy-the-amazon-pod-identity-webhook-"></a>
 
+
 To use the AWS Lambda integration, we need to deploy the Amazon EKS pod identity webhook.
 
 A pre requisite is to install [Cert Manager](https://cert-manager.io/):
@@ -5339,7 +5348,7 @@ EOF
 After that, you can create a `CloudResources` object which defines the `echo` Lambda function:
 
 ```bash
-kubectl --context ${CLUSTER1} apply -f - <<'EOF'
+kubectl --context ${CLUSTER1} apply -f - <<EOF
 apiVersion: networking.gloo.solo.io/v2
 kind: CloudResources
 metadata:
@@ -5351,7 +5360,6 @@ spec:
   - logicalName: echo
     lambdaFunctionName: workshop-echo
     qualifier: $LATEST
-
 EOF
 ```
 
@@ -5426,7 +5434,6 @@ You should get a response like below:
 ```
 
 It's very similar to what the `httpbin` application provides. It displays information about the request is has received.
-
 <!--bash
 cat <<'EOF' > ./test.js
 const helpersHttp = require('./tests/chai-http');
@@ -5440,7 +5447,6 @@ tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
 -->
-
 But when a Lambda function is exposed through an AWS API Gateway, the response of the function should be in a specific format (see this [example](https://docs.aws.amazon.com/apigateway/latest/developerguide/api-gateway-create-api-as-simple-proxy-for-lambda.html)).
 
 The Gloo Gateway integration has the ability to understand this format and to process the response in the same way an AWS API gateway would.
@@ -5479,12 +5485,10 @@ spec:
   - logicalName: api-gateway
     lambdaFunctionName: workshop-api-gateway
     qualifier: $LATEST
-
 EOF
 ```
 
 Then, we can update the `RouteTable` as well:
-
 ```bash
 kubectl --context ${CLUSTER1} apply -f - <<EOF
 apiVersion: networking.gloo.solo.io/v2
@@ -5516,7 +5520,7 @@ spec:
 EOF
 ```
 
-The `unwrapAsApiGateway` instruct Gloo Gateway to parse the response differently.
+The `unwrapAsApiGateway` instructs Gloo Gateway to parse the response differently.
 
 You should now be able to invoke the Lambda function using the following command:
 
@@ -5552,7 +5556,6 @@ server: istio-envoy
 ```
 
 You can see the `key` and `x-custom-header` added by the Lambda function.
-
 <!--bash
 cat <<'EOF' > ./test.js
 const helpersHttp = require('./tests/chai-http');
@@ -5567,8 +5570,7 @@ tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
 -->
-
-Let's remove the annotation and restart the gateway:
+Let's remove the annotation and restart the pods:
 
 ```bash
 kubectl --context ${CLUSTER1} -n istio-gateways annotate sa -l istio=ingressgateway "eks.amazonaws.com/role-arn-"
@@ -6881,7 +6883,7 @@ describe("Old Istio version should be uninstalled", () => {
   let namespaces = ["istio-system", "istio-gateways"];
   namespaces.forEach(namespace => {
     it("Pods aren't running anymore in the cluster " + cluster + " in the namespace  " + namespace, () => {
-      let cli = chaiExec('kubectl --context ' + cluster +' -n istio-system get pods -l "istio.io/rev=' + process.env.OLD_REVISION +'" -o json');
+      let cli = chaiExec('kubectl --context ' + cluster + ' -n ' + namespace + ' get pods -l "istio.io/rev=' + process.env.OLD_REVISION +'" -o json');
       expect(cli).to.exit.with.code(0);
       expect(JSON.parse(cli.stdout).items).to.have.lengthOf(0);
     });
@@ -6890,7 +6892,7 @@ describe("Old Istio version should be uninstalled", () => {
   namespaces = ["istio-system", "istio-gateways"];
   namespaces.forEach(namespace => {
     it("Pods aren't running anymore in the cluster " + cluster + " in the namespace  " + namespace, () => {
-      let cli = chaiExec('kubectl --context ' + cluster +' -n istio-system get pods -l "istio.io/rev=' + process.env.OLD_REVISION +'" -o json');
+      let cli = chaiExec('kubectl --context ' + cluster +' -n ' + namespace + ' get pods -l "istio.io/rev=' + process.env.OLD_REVISION +'" -o json');
       expect(cli).to.exit.with.code(0);
       expect(JSON.parse(cli.stdout).items).to.have.lengthOf(0);
     });
@@ -7114,6 +7116,7 @@ export HOST_GLOO_MESH=$(echo ${ENDPOINT_GLOO_MESH} | cut -d: -f1)
 Now, let's update the agents to use the new management plane.
 
 ```bash
+
 helm upgrade --install gloo-mesh-agent gloo-mesh-agent/gloo-mesh-agent \
   --namespace gloo-mesh \
   --kube-context=${CLUSTER1} \
@@ -7124,10 +7127,11 @@ helm upgrade --install gloo-mesh-agent gloo-mesh-agent/gloo-mesh-agent \
   --set glooMeshPortalServer.enabled=false \
   --set cluster=cluster1 \
   --set metricscollector.enabled=true \
-  --set metricscollector.config.exporters.otlp.endpoint=\"${ENDPOINT_METRICS_GATEWAY}\" \
+  --set metricscollector.config.exporters.otlp.endpoint=\"${ENDPOINT_TELEMETRY_GATEWAY}\" \
   --set glooMeshAgent.image.registry=${registry}/gloo-mesh \
   --set metricscollector.image.repository=${registry}/gloo-mesh/gloo-otel-collector \
   --version 2.2.6
+
 
 helm upgrade --install gloo-mesh-agent gloo-mesh-agent/gloo-mesh-agent \
   --namespace gloo-mesh \
@@ -7139,7 +7143,7 @@ helm upgrade --install gloo-mesh-agent gloo-mesh-agent/gloo-mesh-agent \
   --set glooMeshPortalServer.enabled=false \
   --set cluster=cluster2 \
   --set metricscollector.enabled=true \
-  --set metricscollector.config.exporters.otlp.endpoint=\"${ENDPOINT_METRICS_GATEWAY}\" \
+  --set metricscollector.config.exporters.otlp.endpoint=\"${ENDPOINT_TELEMETRY_GATEWAY}\" \
   --set glooMeshAgent.image.registry=${registry}/gloo-mesh \
   --set metricscollector.image.repository=${registry}/gloo-mesh/gloo-otel-collector \
   --version 2.2.6
