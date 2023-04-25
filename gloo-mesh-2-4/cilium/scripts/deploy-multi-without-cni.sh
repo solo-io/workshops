@@ -85,7 +85,10 @@ nodes:
     hostPort: 70${twodigits}
 - role: worker
   image: ${kindest_node}
+- role: worker
+  image: ${kindest_node}
 networking:
+  disableDefaultCNI: true
   serviceSubnet: "10.$(echo $twodigits | sed 's/^0*//').0.0/16"
   podSubnet: "10.1${twodigits}.0.0/16"
 kubeadmConfigPatches:
@@ -128,8 +131,7 @@ networkkind=$(echo ${ipkind} | awk -F. '{ print $1"."$2 }')
 
 kubectl config set-cluster kind-kind${number} --server=https://${myip}:70${twodigits} --insecure-skip-tls-verify=true
 
-kubectl --context=kind-kind${number} apply -f https://raw.githubusercontent.com/metallb/metallb/v0.13.9/config/manifests/metallb-native.yaml
-kubectl --context=kind-kind${number} -n metallb-system rollout status deploy controller
+curl -s https://raw.githubusercontent.com/metallb/metallb/v0.13.9/config/manifests/metallb-native.yaml | sed 's/Fail/Ignore/' | kubectl --context=kind-kind${number} apply -f -
 
 cat << EOF > metallb${number}.yaml
 apiVersion: metallb.io/v1beta1
