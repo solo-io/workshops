@@ -5,6 +5,7 @@ name=$2
 region=$3
 zone=$4
 twodigits=$(printf "%02d\n" $number)
+kindest_node='kindest/node:v1.24.7@sha256:577c630ce8e509131eab1aea12c022190978dd2f745aac5eb1fe65c0807eb315'
 
 if [ -z "$3" ]; then
   region=us-east-1
@@ -76,14 +77,14 @@ featureGates:
   EphemeralContainers: true
 nodes:
 - role: control-plane
-  image: kindest/node:v1.24.7@sha256:577c630ce8e509131eab1aea12c022190978dd2f745aac5eb1fe65c0807eb315
+  image: ${kindest_node}
   extraPortMappings:
   - containerPort: 6443
     hostPort: 70${twodigits}
 - role: worker
-  image: kindest/node:v1.24.7@sha256:577c630ce8e509131eab1aea12c022190978dd2f745aac5eb1fe65c0807eb315
+  image: ${kindest_node}
 - role: worker
-  image: kindest/node:v1.24.7@sha256:577c630ce8e509131eab1aea12c022190978dd2f745aac5eb1fe65c0807eb315
+  image: ${kindest_node}
 networking:
   disableDefaultCNI: true
   serviceSubnet: "10.$(echo $twodigits | sed 's/^0*//').0.0/16"
