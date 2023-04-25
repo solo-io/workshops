@@ -7,8 +7,8 @@ source ./scripts/assert.sh
 
 
 
-![Gloo Gateway](images/gloo-gateway.png)
-# <center>Gloo Gateway Workshop</center>
+![Gloo Mesh Enterprise](images/gloo-mesh-enterprise.png)
+# <center>Gloo Mesh Workshop</center>
 
 
 
@@ -31,7 +31,6 @@ source ./scripts/assert.sh
 * [Lab 15 - Apply rate limiting to the Gateway](#lab-15---apply-rate-limiting-to-the-gateway-)
 * [Lab 16 - Use the Web Application Firewall filter](#lab-16---use-the-web-application-firewall-filter-)
 * [Lab 17 - Expose the bookinfo application through GraphQL](#lab-17---expose-the-bookinfo-application-through-graphql-)
-* [Lab 18 - Leverage GraphQL stitching](#lab-18---leverage-graphql-stitching-)
 
 
 
@@ -125,7 +124,7 @@ metallb-system       speaker-d7jkp                                 1/1     Runni
 First of all, let's install the `meshctl` CLI:
 
 ```bash
-export GLOO_MESH_VERSION=v2.3.0-rc1
+export GLOO_MESH_VERSION=v2.3.0
 curl -sL https://run.solo.io/meshctl/install | sh -
 export PATH=$HOME/.gloo-mesh/bin:$PATH
 ```
@@ -157,7 +156,7 @@ describe("Required environment variables should contain value", () => {
   });
 });
 EOF
-echo "executing test dist/gloo-mesh-2-0-gateway-standalone-beta/build/templates/steps/deploy-and-register-gloo-mesh/tests/environment-variables.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-gateway-standalone/build/templates/steps/deploy-and-register-gloo-mesh/tests/environment-variables.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -169,7 +168,7 @@ helm repo update
 kubectl --context ${MGMT} create ns gloo-mesh 
 helm upgrade --install gloo-mesh-enterprise gloo-mesh-enterprise/gloo-mesh-enterprise \
 --namespace gloo-mesh --kube-context ${MGMT} \
---version=2.3.0-rc1 \
+--version=2.3.0 \
 --set glooMeshMgmtServer.ports.healthcheck=8091 \
 --set legacyMetricsPipeline.enabled=false \
 --set telemetryGateway.enabled=true \
@@ -194,7 +193,7 @@ registerMgmtPlane:
     controlPlane:
       enabled: true
       installations:
-      - revision: 1-17
+      - revision: 1-16
         clusters:
         - name: ${MGMT}
           defaultRevision: true
@@ -205,7 +204,7 @@ registerMgmtPlane:
     - enabled: true
       name: north-south-gateway
       installations:
-      - gatewayRevision: 1-17
+      - gatewayRevision: 1-16
         istioOperatorSpec:
           components:
             ingressGateways:
@@ -310,7 +309,7 @@ describe("Bookinfo app", () => {
   });
 });
 EOF
-echo "executing test dist/gloo-mesh-2-0-gateway-standalone-beta/build/templates/steps/apps/bookinfo/deploy-bookinfo/tests/check-bookinfo.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-gateway-standalone/build/templates/steps/apps/bookinfo/deploy-bookinfo/tests/check-bookinfo.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -407,7 +406,7 @@ describe("httpbin app", () => {
   });
 });
 EOF
-echo "executing test dist/gloo-mesh-2-0-gateway-standalone-beta/build/templates/steps/apps/httpbin/deploy-httpbin/tests/check-httpbin.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-gateway-standalone/build/templates/steps/apps/httpbin/deploy-httpbin/tests/check-httpbin.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -423,13 +422,13 @@ First, you need to create a namespace for the addons, with Istio injection enabl
 
 ```bash
 kubectl --context ${CLUSTER1} create namespace gloo-mesh-addons
-kubectl --context ${CLUSTER1} label namespace gloo-mesh-addons istio.io/rev=1-17 --overwrite
+kubectl --context ${CLUSTER1} label namespace gloo-mesh-addons istio.io/rev=1-16 --overwrite
 ```
 
 Then, you can deploy the addons on the cluster(s) using Helm:
 
 ```bash
-until [[ $(kubectl --context ${MGMT} -n istio-system get deploy istiod-1-17 -o json | jq '.status.availableReplicas') -gt 0 ]]; do
+until [[ $(kubectl --context ${MGMT} -n istio-system get deploy istiod-1-16 -o json | jq '.status.availableReplicas') -gt 0 ]]; do
   sleep 1
 done
 helm repo add gloo-mesh-agent https://storage.googleapis.com/gloo-mesh-enterprise/gloo-mesh-agent
@@ -446,7 +445,7 @@ helm upgrade --install gloo-mesh-agent-addons gloo-mesh-agent/gloo-mesh-agent \
   --set glooMeshPortalServer.apiKeyStorage.secretKey="ThisIsSecret" \
   --set rate-limiter.enabled=true \
   --set ext-auth-service.enabled=true \
-  --version 2.3.0-rc1
+  --version 2.3.0
 ```
 Set the environment variable for the service corresponding to the Istio Ingress Gateway of the cluster(s):
 
@@ -729,7 +728,7 @@ describe("Productpage is available (HTTP)", () => {
   it('/productpage is available in cluster1', () => helpers.checkURL({ host: 'http://' + process.env.ENDPOINT_HTTP_GW_CLUSTER1, path: '/productpage', retCode: 200 }));
 })
 EOF
-echo "executing test dist/gloo-mesh-2-0-gateway-standalone-beta/build/templates/steps/apps/bookinfo/gateway-expose/tests/productpage-available.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-gateway-standalone/build/templates/steps/apps/bookinfo/gateway-expose/tests/productpage-available.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -803,7 +802,7 @@ describe("Productpage is available (HTTPS)", () => {
   it('/productpage is available in cluster1', () => helpers.checkURL({ host: 'https://' + process.env.ENDPOINT_HTTPS_GW_CLUSTER1, path: '/productpage', retCode: 200 }));
 })
 EOF
-echo "executing test dist/gloo-mesh-2-0-gateway-standalone-beta/build/templates/steps/apps/bookinfo/gateway-expose/tests/productpage-available-secure.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-gateway-standalone/build/templates/steps/apps/bookinfo/gateway-expose/tests/productpage-available-secure.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -941,7 +940,7 @@ describe("httpbin from the external service", () => {
   it('Checking text \'X-Amzn-Trace-Id\' in ' + process.env.CLUSTER1, () => helpersHttp.checkBody({ host: 'https://' + process.env.ENDPOINT_HTTPS_GW_CLUSTER1, path: '/get', body: 'X-Amzn-Trace-Id', match: true }));
 })
 EOF
-echo "executing test dist/gloo-mesh-2-0-gateway-standalone-beta/build/templates/steps/apps/httpbin/gateway-external-service/tests/httpbin-from-external.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-gateway-standalone/build/templates/steps/apps/httpbin/gateway-external-service/tests/httpbin-from-external.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -998,7 +997,7 @@ describe("httpbin from the local service", () => {
   it('Checking text \'X-Amzn-Trace-Id\' not in ' + process.env.CLUSTER1, () => helpersHttp.checkBody({ host: 'https://' + process.env.ENDPOINT_HTTPS_GW_CLUSTER1, path: '/get', body: 'X-Amzn-Trace-Id', match: false }));
 })
 EOF
-echo "executing test dist/gloo-mesh-2-0-gateway-standalone-beta/build/templates/steps/apps/httpbin/gateway-external-service/tests/httpbin-from-local.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-gateway-standalone/build/templates/steps/apps/httpbin/gateway-external-service/tests/httpbin-from-local.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -1011,7 +1010,7 @@ describe("httpbin from the external service", () => {
   it('Checking text \'X-Amzn-Trace-Id\' in ' + process.env.CLUSTER1, () => helpersHttp.checkBody({ host: 'https://' + process.env.ENDPOINT_HTTPS_GW_CLUSTER1, path: '/get', body: 'X-Amzn-Trace-Id', match: true }));
 })
 EOF
-echo "executing test dist/gloo-mesh-2-0-gateway-standalone-beta/build/templates/steps/apps/httpbin/gateway-external-service/tests/httpbin-from-external.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-gateway-standalone/build/templates/steps/apps/httpbin/gateway-external-service/tests/httpbin-from-external.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -1059,7 +1058,7 @@ describe("httpbin from the local service", () => {
   it('Checking text \'X-Amzn-Trace-Id\' not in ' + process.env.CLUSTER1, () => helpersHttp.checkBody({ host: 'https://' + process.env.ENDPOINT_HTTPS_GW_CLUSTER1, path: '/get', body: 'X-Amzn-Trace-Id', match: false }));
 })
 EOF
-echo "executing test dist/gloo-mesh-2-0-gateway-standalone-beta/build/templates/steps/apps/httpbin/gateway-external-service/tests/httpbin-from-local.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-gateway-standalone/build/templates/steps/apps/httpbin/gateway-external-service/tests/httpbin-from-local.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -1100,7 +1099,7 @@ describe("Keycloak", () => {
   it('keycloak pods are ready in cluster1', () => helpers.checkDeployment({ context: process.env.MGMT, namespace: "keycloak", k8sObj: "keycloak" }));
 });
 EOF
-echo "executing test dist/gloo-mesh-2-0-gateway-standalone-beta/build/templates/steps/deploy-keycloak/tests/pods-available.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-gateway-standalone/build/templates/steps/deploy-keycloak/tests/pods-available.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -1130,7 +1129,7 @@ describe("Retrieve enterprise-networking ip", () => {
   });
 });
 EOF
-echo "executing test dist/gloo-mesh-2-0-gateway-standalone-beta/build/templates/steps/deploy-keycloak/tests/keycloak-ip-is-attached.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-gateway-standalone/build/templates/steps/deploy-keycloak/tests/keycloak-ip-is-attached.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -1361,7 +1360,7 @@ describe("Authentication is working properly", function() {
 });
 
 EOF
-echo "executing test dist/gloo-mesh-2-0-gateway-standalone-beta/build/templates/steps/apps/httpbin/gateway-extauth-oauth/tests/authentication.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-gateway-standalone/build/templates/steps/apps/httpbin/gateway-extauth-oauth/tests/authentication.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -1566,7 +1565,7 @@ describe("Claim to header is working properly", function() {
 });
 
 EOF
-echo "executing test dist/gloo-mesh-2-0-gateway-standalone-beta/build/templates/steps/apps/httpbin/gateway-jwt/tests/header-added.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-gateway-standalone/build/templates/steps/apps/httpbin/gateway-jwt/tests/header-added.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -1633,7 +1632,7 @@ describe("Tranformation is working properly", function() {
 });
 
 EOF
-echo "executing test dist/gloo-mesh-2-0-gateway-standalone-beta/build/templates/steps/apps/httpbin/gateway-transformation/tests/header-added.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-gateway-standalone/build/templates/steps/apps/httpbin/gateway-transformation/tests/header-added.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -1799,7 +1798,7 @@ describe("Rate limiting is working properly", function() {
 });
 
 EOF
-echo "executing test dist/gloo-mesh-2-0-gateway-standalone-beta/build/templates/steps/apps/httpbin/gateway-ratelimiting/tests/rate-limited.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-gateway-standalone/build/templates/steps/apps/httpbin/gateway-ratelimiting/tests/rate-limited.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -1916,6 +1915,7 @@ spec:
         routeTables:
           - labels:
               expose: "true"
+        sortMethod: ROUTE_SPECIFICITY
 EOF
 ```
 
@@ -1931,7 +1931,7 @@ describe("WAF is working properly", function() {
 });
 
 EOF
-echo "executing test dist/gloo-mesh-2-0-gateway-standalone-beta/build/templates/steps/apps/httpbin/gateway-waf/tests/waf.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-gateway-standalone/build/templates/steps/apps/httpbin/gateway-waf/tests/waf.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -1981,6 +1981,7 @@ spec:
         routeTables:
           - labels:
               expose: "true"
+        sortMethod: ROUTE_SPECIFICITY
 EOF
 ```
 
@@ -2237,7 +2238,7 @@ describe("GraphQL", function() {
   })
 });
 EOF
-echo "executing test dist/gloo-mesh-2-0-gateway-standalone-beta/build/templates/steps/apps/bookinfo/gateway-graphql/tests/graphql.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-gateway-standalone/build/templates/steps/apps/bookinfo/gateway-graphql/tests/graphql.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -2269,368 +2270,5 @@ spec:
     - regex: ".*"
 EOF
 ```
-
-
-
-## Lab 18 - Leverage GraphQL stitching <a name="lab-18---leverage-graphql-stitching-"></a>
-
-In this lab, we're going to expose and External REST API as a GraphQL API and then to stitch is with the GraphQL API we've created previously.
-
-First, you need to create an `ApiDoc` to define your GraphQL API:
-
-```bash
-kubectl apply --context ${CLUSTER1} -f - <<EOF
-apiVersion: apimanagement.gloo.solo.io/v2
-kind: ApiDoc
-metadata:
-  name: openlibrary-api-doc
-  namespace: bookinfo-frontends
-  labels:
-    expose: "true"
-spec:
-  graphql:
-    schemaDefinition: |-
-      type Query {
-        product(title: String!): Product
-      }
-      type Product {
-        title: String
-        languages: [String]
-      }
-EOF
-```
-
-You also need to create an external service to define how to access the host `openlibrary.org`:
-
-```bash
-kubectl apply --context ${CLUSTER1} -f - <<EOF
-apiVersion: networking.gloo.solo.io/v2
-kind: ExternalService
-metadata:
-  name: openlibrary
-  namespace: bookinfo-frontends
-  labels:
-    expose: "true"
-spec:
-  hosts:
-  - openlibrary.org
-  ports:
-  - name: http
-    number: 80
-    protocol: HTTP
-  - name: https
-    number: 443
-    protocol: HTTPS
-    clientsideTls: {}
-EOF
-```
-
-Then, you need to create a `GraphQLResolverMap` to define the resolvers:
-
-```bash
-kubectl apply --context ${CLUSTER1} -f - <<EOF
-apiVersion: apimanagement.gloo.solo.io/v2
-kind: GraphQLResolverMap
-metadata:
-  name: openlibrary-graphql-resolvers
-  namespace: bookinfo-frontends
-  labels:
-    expose: "true"
-spec:
-  types:
-    Query:
-      fields:
-        product:
-          variables:
-            titleVar:
-              graphqlArg: title
-            resolverResultVar:
-              resolverResult: {}
-          resolvers:
-          - restResolver:
-              destinations:
-              - port:
-                  number: 80
-                kind: EXTERNAL_SERVICE
-                ref:
-                  name: openlibrary
-                  namespace: bookinfo-frontends
-                  cluster: cluster1
-              request:
-                headers:
-                  :authority:
-                    jq: '"openlibrary.org"'
-                  :path:
-                    jq: '"/search.json"'
-                queryParams:
-                  title:
-                    jq: '.titleVar | @uri'
-                  fields:
-                    jq: '"language"'
-            resolverResultTransform:
-              jq: '{title: .titleVar, languages: [.resolverResultVar.docs[] | select(.language != null) | .language] | add | unique}'
-EOF
-```
-
-After that, you need to create an `ApiSchema` which references the `ApiDoc` and the `GraphQLResolverMap`:
-
-```bash
-kubectl apply --context ${CLUSTER1} -f - <<EOF
-apiVersion: apimanagement.gloo.solo.io/v2
-kind: GraphQLSchema
-metadata:
-  name: openlibrary-graphql-schema
-  namespace: bookinfo-frontends
-  labels:
-    expose: "true"
-spec:
-  schemaRef:
-    name: openlibrary-api-doc
-    namespace: bookinfo-frontends
-    clusterName: cluster1
-  resolved:
-    options: {}
-    resolverMapRefs:
-    - name: openlibrary-graphql-resolvers
-      namespace: bookinfo-frontends
-      clusterName: cluster1
-EOF
-```
-
-Finally, you can create a `RouteTable` to expose the GraphQL API:
-
-```bash
-kubectl apply --context ${CLUSTER1} -f - <<EOF
-apiVersion: networking.gloo.solo.io/v2
-kind: RouteTable
-metadata:
-  name: openlibrary
-  namespace: bookinfo-frontends
-  labels:
-    expose: "true"
-spec:
-  http:
-  - graphql:
-      options:
-        logSensitiveInfo: true
-      schema:
-        name: openlibrary-graphql-schema
-        namespace: bookinfo-frontends
-        clusterName: cluster1
-    matchers:
-    - uri:
-        prefix: /openlibrary
-    labels:
-      graphql: "true"
-EOF
-```
-
-Now, you can try to access the GraphQL API:
-
-```
-curl -ks "https://${ENDPOINT_HTTPS_GW_CLUSTER1}/openlibrary" --data '{"query":"{product(title: \"The Comedy of Errors\"){title languages}}"}' -X POST | jq .
-```
-
-Here is the expected output:
-
-```
-{
-  "data": {
-    "product": {
-      "title": "The Comedy of Errors",
-      "languages": [
-        "chi",
-        "dut",
-        "eng",
-        "esp",
-        "fin",
-        "fre",
-        "ger",
-        "heb",
-        "ita",
-        "mul",
-        "nor",
-        "slo",
-        "spa",
-        "tsw",
-        "tur",
-        "und"
-      ]
-    }
-  }
-}
-```
-
-<!--bash
-cat <<'EOF' > ./test.js
-const chaiExec = require("@jsdevtools/chai-exec");
-var chai = require('chai');
-var expect = chai.expect;
-chai.use(chaiExec);
-
-afterEach(function (done) {
-  if (this.currentTest.currentRetry() > 0) {
-    process.stdout.write(".");
-    setTimeout(done, 1000);
-  } else {
-    done();
-  }
-});
-
-describe("GraphQL", function() {
-  it('GraphQL query returning the expected output', function () {
-    expect(process.env.ENDPOINT_HTTPS_GW_CLUSTER1).to.not.be.empty
-    let command = `curl -ks "https://${process.env.ENDPOINT_HTTPS_GW_CLUSTER1}/openlibrary" --data '{"query":"{product(title: \\"The Comedy of Errors\\"){title languages}}"}'`
-    let cli = chaiExec(command);
-    expect(cli).to.exit.with.code(0);
-    expect(cli).output.to.contain('{"data":{"product":{"title":"The Comedy of Errors","languages":["chi","dut","eng","esp","fin","fre","ger","heb","ita","mul","nor","slo","spa","tsw","tur","und"]}}}');
-  })
-});
-EOF
-echo "executing test dist/gloo-mesh-2-0-gateway-standalone-beta/build/templates/steps/apps/bookinfo/gateway-graphql-stitching/tests/graphql.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
--->
-
-Let's now stitch together the 2 GraphQL API.
-
-For this, you need to create a `GraphQLStitchedSchema` which references the 2 existing `GraphQLSchema` and how to merge them:
-
-```bash
-kubectl apply --context ${CLUSTER1} -f - <<EOF
-apiVersion: apimanagement.gloo.solo.io/v2
-kind: GraphQLStitchedSchema
-metadata:
-  name: openlibrary-graphql-stitched-schema
-  namespace: bookinfo-frontends
-  labels:
-    expose: "true"
-spec:
-  subschemas:
-  - schema:
-      name: bookinfo-graphql-schema
-      namespace: bookinfo-frontends
-      clusterName: cluster1
-  - schema:
-      name: openlibrary-graphql-schema
-      namespace: bookinfo-frontends
-      clusterName: cluster1
-    typeMerge:
-      Product:
-        selectionSet: '{ title }'
-        queryName: product
-        args:
-          title: title
-EOF
-```
-
-Then, you can create a new `RouteTable` to expose the stitched GraphQL API:
-
-```bash
-kubectl apply --context ${CLUSTER1} -f - <<EOF
-apiVersion: networking.gloo.solo.io/v2
-kind: RouteTable
-metadata:
-  name: graphql-stitched
-  namespace: bookinfo-frontends
-  labels:
-    expose: "true"
-spec:
-  http:
-  - graphql:
-      stitchedSchema:
-        name: openlibrary-graphql-stitched-schema
-        namespace: bookinfo-frontends
-        clusterName: cluster1
-    matchers:
-    - uri:
-        prefix: /graphql-stitched
-    labels:
-      graphql: "true"
-EOF
-```
-
-Now, you can try to access the GraphQL API:
-
-```
-curl -ks "https://${ENDPOINT_HTTPS_GW_CLUSTER1}/graphql-stitched" --data '{"query":" {productsForHome { title languages ratings {reviewer numStars}}}"}' -X POST | jq .
-```
-
-Here is the expected output:
-
-```
-{
-  "data": {
-    "productsForHome": [
-      {
-        "title": "The Comedy of Errors",
-        "languages": [
-          "chi",
-          "dut",
-          "eng",
-          "esp",
-          "fin",
-          "fre",
-          "ger",
-          "heb",
-          "ita",
-          "mul",
-          "nor",
-          "slo",
-          "spa",
-          "tsw",
-          "tur",
-          "und"
-        ],
-        "ratings": [
-          {
-            "reviewer": "Reviewer1",
-            "numStars": 5
-          },
-          {
-            "reviewer": "Reviewer2",
-            "numStars": 4
-          }
-        ]
-      }
-    ]
-  }
-}
-```
-
-You can see we have an output which combines the data obtained from the 2 GraphQL APIs.
-
-<!--bash
-cat <<'EOF' > ./test.js
-const chaiExec = require("@jsdevtools/chai-exec");
-var chai = require('chai');
-var expect = chai.expect;
-chai.use(chaiExec);
-
-afterEach(function (done) {
-  if (this.currentTest.currentRetry() > 0) {
-    process.stdout.write(".");
-    setTimeout(done, 1000);
-  } else {
-    done();
-  }
-});
-
-describe("GraphQL stitched", function() {
-  it('GraphQL query returning the expected output', function () {
-    expect(process.env.ENDPOINT_HTTPS_GW_CLUSTER1).to.not.be.empty
-    let command = `curl -ks "https://${process.env.ENDPOINT_HTTPS_GW_CLUSTER1}/graphql-stitched" --data '{"query":" {productsForHome { title languages ratings {reviewer numStars}}}"}'`
-    let cli = chaiExec(command);
-    expect(cli).to.exit.with.code(0);
-    expect(cli).output.to.contain('{"data":{"productsForHome":[{"title":"The Comedy of Errors","languages":["chi","dut","eng","esp","fin","fre","ger","heb","ita","mul","nor","slo","spa","tsw","tur","und"],"ratings":[{"reviewer":"Reviewer1","numStars":5},{"reviewer":"Reviewer2","numStars":4}]}]}}');
-  })
-});
-EOF
-echo "executing test dist/gloo-mesh-2-0-gateway-standalone-beta/build/templates/steps/apps/bookinfo/gateway-graphql-stitching/tests/graphql-stitched.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
--->
 
 
