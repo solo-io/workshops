@@ -5,6 +5,7 @@ name=$2
 region=$3
 zone=$4
 twodigits=$(printf "%02d\n" $number)
+kindest_node='kindest/node:v1.24.7@sha256:577c630ce8e509131eab1aea12c022190978dd2f745aac5eb1fe65c0807eb315'
 
 if [ -z "$3" ]; then
   region=us-east-1
@@ -76,7 +77,7 @@ featureGates:
   EphemeralContainers: true
 nodes:
 - role: control-plane
-  image: kindest/node:v1.24.7@sha256:577c630ce8e509131eab1aea12c022190978dd2f745aac5eb1fe65c0807eb315
+  image: ${kindest_node}
   extraPortMappings:
   - containerPort: 6443
     hostPort: 70${twodigits}
@@ -123,9 +124,6 @@ networkkind=$(echo ${ipkind} | awk -F. '{ print $1"."$2 }')
 kubectl config set-cluster kind-kind${number} --server=https://${myip}:70${twodigits} --insecure-skip-tls-verify=true
 
 kubectl --context kind-kind${number} apply -f https://raw.githubusercontent.com/projectcalico/calico/v3.25.0/manifests/calico.yaml
-
-# to allow eBPF redirection with Istio Ambient Mesh
-kubectl --context kind-kind${number} -n kube-system patch ds calico-node -p '{"spec":{"template":{"spec":{"containers":[{"name": "calico-node", "env":[{"name":"FELIX_WORKLOADSOURCESPOOFING","value":"Any"}]}]}}}}'
 
 kubectl --context=kind-kind${number} apply -f https://raw.githubusercontent.com/metallb/metallb/v0.13.9/config/manifests/metallb-native.yaml
 kubectl --context=kind-kind${number} -n metallb-system rollout status deploy controller
