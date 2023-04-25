@@ -85,7 +85,10 @@ nodes:
     hostPort: 70${twodigits}
 - role: worker
   image: ${kindest_node}
+- role: worker
+  image: ${kindest_node}
 networking:
+  disableDefaultCNI: true
   serviceSubnet: "10.$(echo $twodigits | sed 's/^0*//').0.0/16"
   podSubnet: "10.1${twodigits}.0.0/16"
 kubeadmConfigPatches:
@@ -127,6 +130,26 @@ ipkind=$(docker inspect kind${number}-control-plane | jq -r '.[0].NetworkSetting
 networkkind=$(echo ${ipkind} | awk -F. '{ print $1"."$2 }')
 
 kubectl config set-cluster kind-kind${number} --server=https://${myip}:70${twodigits} --insecure-skip-tls-verify=true
+
+helm repo add cilium https://helm.cilium.io/
+
+helm --kube-context kind-kind${number} install cilium cilium/cilium --version 1.12.0 \
+   --namespace kube-system \
+   --set prometheus.enabled=true \
+   --set operator.prometheus.enabled=true \
+   --set hubble.enabled=true \
+   --set hubble.metrics.enabled="{dns:destinationContext=pod|ip;sourceContext=pod|ip,drop:destinationContext=pod|ip;sourceContext=pod|ip,tcp:destinationContext=pod|ip;sourceContext=pod|ip,flow:destinationContext=pod|ip;sourceContext=pod|ip,port-distribution:destinationContext=pod|ip;sourceContext=pod|ip}" \
+   --set hubble.relay.enabled=true \
+   --set hubble.ui.enabled=true \
+   --set kubeProxyReplacement=partial \
+   --set hostServices.enabled=false \
+   --set hostServices.protocols="tcp" \
+   --set externalIPs.enabled=true \
+   --set nodePort.enabled=true \
+   --set hostPort.enabled=true \
+   --set bpf.masquerade=false \
+   --set image.pullPolicy=IfNotPresent \
+   --set ipam.mode=kubernetes
 
 kubectl --context=kind-kind${number} apply -f https://raw.githubusercontent.com/metallb/metallb/v0.13.9/config/manifests/metallb-native.yaml
 kubectl --context=kind-kind${number} -n metallb-system rollout status deploy controller
