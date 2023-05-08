@@ -165,6 +165,8 @@ us-docker.pkg.dev/gloo-mesh/istio-workshops/pilot:1.17.1-solo
 us-docker.pkg.dev/gloo-mesh/istio-workshops/proxyv2:1.17.1-solo
 quay.io/keycloak/keycloak:20.0.1
 docker.io/kennethreitz/httpbin
+gcr.io/gloo-mesh/rate-limiter:0.8.0
+gcr.io/gloo-mesh/ext-auth-service:0.35.2
 EOF
 
 for url in https://raw.githubusercontent.com/istio/istio/release-1.16/samples/bookinfo/platform/kube/bookinfo.yaml https://raw.githubusercontent.com/istio/istio/release-1.16/samples/bookinfo/networking/bookinfo-gateway.yaml
@@ -175,15 +177,15 @@ do
   done
 done
 
-wget https://storage.googleapis.com/gloo-platform-dev/helm-charts/gloo-mesh-agent/gloo-mesh-agent-2.4.0-beta0-2023-04-24-main-1ca5e5b38.tgz
-tar zxvf gloo-mesh-agent-*.tgz
-find gloo-mesh-agent -name "values.yaml" | while read file; do
+wget https://storage.googleapis.com/gloo-platform-dev/platform-charts/helm-charts/gloo-platform-2.4.0-beta0-2023-05-03-main-2ac6fc362.tgz
+tar zxvf gloo-platform-*.tgz
+find gloo-platform -name "values.yaml" | while read file; do
   cat $file | yq eval -j | jq -r '.. | .image? | select(. != null) | (if .hub then .hub + "/" + .repository + ":" + .tag else (if .registry then (if .registry == "docker.io" then "docker.io/library" else .registry end) + "/" else "" end) + .repository + ":" + (.tag | tostring) end)'
 done | sort -u >> images.txt
 
-wget https://storage.googleapis.com/gloo-platform-dev/helm-charts/gloo-mesh-enterprise/gloo-mesh-enterprise-2.4.0-beta0-2023-04-24-main-1ca5e5b38.tgz
-tar zxvf gloo-mesh-enterprise-*.tgz
-find gloo-mesh-enterprise -name "values.yaml" | while read file; do
+wget https://storage.googleapis.com/gloo-platform-dev/platform-charts/helm-charts/gloo-platform-2.4.0-beta0-2023-05-03-main-2ac6fc362.tgz
+tar zxvf gloo-platform-*.tgz
+find gloo-platform -name "values.yaml" | while read file; do
   cat $file | yq eval -j | jq -r '.. | .image? | select(. != null) | (if .hub then .hub + "/" + .repository + ":" + .tag else (if .registry then (if .registry == "docker.io" then "docker.io/library" else .registry end) + "/" else "" end) + .repository + ":" + (.tag | tostring) end)'
 done | sort -u >> images.txt
 
@@ -214,7 +216,7 @@ done
 First of all, let's install the `meshctl` CLI:
 
 ```bash
-export GLOO_MESH_VERSION=v2.4.0-beta0-2023-04-24-main-1ca5e5b38
+export GLOO_MESH_VERSION=v2.4.0-beta0-2023-05-07-main-ee13ad9fa
 curl -sL https://run.solo.io/meshctl/install | sh -
 export PATH=$HOME/.gloo-mesh/bin:$PATH
 ```
@@ -254,30 +256,61 @@ mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${te
 -->
 
 ```bash
-helm repo add gloo-mesh-enterprise https://storage.googleapis.com/gloo-mesh-enterprise/gloo-mesh-enterprise 
+helm repo add gloo-platform https://storage.googleapis.com/gloo-platform/helm-charts
 helm repo update
-kubectl --context ${MGMT} create ns gloo-mesh 
-helm upgrade --install gloo-mesh-enterprise https://storage.googleapis.com/gloo-platform-dev/helm-charts/gloo-mesh-enterprise/gloo-mesh-enterprise-2.4.0-beta0-2023-04-24-main-1ca5e5b38.tgz \
---namespace gloo-mesh --kube-context ${MGMT} \
---version=2.4.0-beta0-2023-04-24-main-1ca5e5b38 \
---set glooMeshMgmtServer.ports.healthcheck=8091 \
---set legacyMetricsPipeline.enabled=false \
---set telemetryGateway.enabled=true \
---set telemetryGateway.service.type=LoadBalancer \
-  --set telemetryCollector.image.repository=gcr.io/solo-test-236622/gloo-platform-dev/gloo-otel-collector \
-  --set telemetryGateway.image.repository=gcr.io/solo-test-236622/gloo-platform-dev/gloo-otel-collector \
---set glooMeshMgmtServer.image.registry=${registry}/gloo-mesh \
---set glooMeshUi.image.registry=${registry}/gloo-mesh \
---set glooMeshUi.sidecars.console.image.registry=${registry}/gloo-mesh \
---set glooMeshUi.sidecars.envoy.image.registry=${registry}/gloo-mesh \
---set telemetryGateway.image.repository=${registry}/gloo-mesh/gloo-otel-collector \
---set prometheus.configmapReload.prometheus.image.repository=${registry}/jimmidyson/configmap-reload \
---set prometheus.server.image.repository=${registry}/prometheus/prometheus \
---set glooMeshRedis.image.registry=${registry} \
---set glooMeshUi.serviceType=LoadBalancer \
---set mgmtClusterName=mgmt \
---set global.cluster=mgmt \
---set licenseKey=${GLOO_MESH_LICENSE_KEY}
+kubectl --context ${MGMT} create ns gloo-mesh
+helm upgrade --install gloo-platform-crds https://storage.googleapis.com/gloo-platform-dev/platform-charts/helm-charts/gloo-platform-crds-2.4.0-beta0-2023-05-03-main-2ac6fc362.tgz \
+--namespace gloo-mesh \
+--kube-context ${MGMT} \
+--version=2.4.0-beta0-2023-05-07-main-ee13ad9fa
+helm upgrade --install gloo-platform https://storage.googleapis.com/gloo-platform-dev/platform-charts/helm-charts/gloo-platform-2.4.0-beta0-2023-05-03-main-2ac6fc362.tgz \
+--namespace gloo-mesh \
+--kube-context ${MGMT} \
+--version=2.4.0-beta0-2023-05-07-main-ee13ad9fa \
+ -f -<<EOF
+licensing:
+  licenseKey: ${GLOO_MESH_LICENSE_KEY}
+common:
+  cluster: mgmt
+glooMgmtServer:
+  enabled: true
+  ports:
+    healthcheck: 8091
+  image:
+    registry: ${registry}/gloo-mesh
+prometheus:
+  enabled: true
+  configmapReload:
+    prometheus:
+      image:
+        repository: ${registry}/jimmidyson/configmap-reload
+  server:
+    image:
+      repository: ${registry}/prometheus/prometheus
+redis:
+  deployment:
+    enabled: true
+    image:
+      registry: ${registry}
+telemetryGateway:
+  enabled: true
+  service:
+    type: LoadBalancer
+  image:
+    repository: gcr.io/solo-test-236622/gloo-platform-dev/gloo-otel-collector
+glooUi:
+  enabled: true
+  serviceType: LoadBalancer
+  image:
+    registry: ${registry}/gloo-mesh
+  sidecars:
+    console:
+      image:
+        registry: ${registry}/gloo-mesh
+    envoy:
+      image:
+        registry: ${registry}/gloo-mesh
+EOF
 kubectl --context ${MGMT} -n gloo-mesh rollout status deploy/gloo-mesh-mgmt-server
 ```
 <!--bash
@@ -367,16 +400,11 @@ tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
 -->
-
 Finally, you need to register the cluster(s).
 
 Here is how you register the first one:
 
 ```bash
-helm repo add gloo-mesh-agent https://storage.googleapis.com/gloo-mesh-enterprise/gloo-mesh-agent
-helm repo update
-
-
 kubectl apply --context ${MGMT} -f- <<EOF
 apiVersion: admin.gloo.solo.io/v2
 kind: KubernetesCluster
@@ -386,7 +414,6 @@ metadata:
 spec:
   clusterDomain: cluster.local
 EOF
-
 kubectl --context ${CLUSTER1} create ns gloo-mesh
 kubectl get secret relay-root-tls-secret -n gloo-mesh --context ${MGMT} -o jsonpath='{.data.ca\.crt}' | base64 -d > ca.crt
 kubectl create secret generic relay-root-tls-secret -n gloo-mesh --context ${CLUSTER1} --from-file ca.crt=ca.crt
@@ -395,22 +422,33 @@ rm ca.crt
 kubectl get secret relay-identity-token-secret -n gloo-mesh --context ${MGMT} -o jsonpath='{.data.token}' | base64 -d > token
 kubectl create secret generic relay-identity-token-secret -n gloo-mesh --context ${CLUSTER1} --from-file token=token
 rm token
-
-helm upgrade --install gloo-mesh-agent https://storage.googleapis.com/gloo-platform-dev/helm-charts/gloo-mesh-agent/gloo-mesh-agent-2.4.0-beta0-2023-04-24-main-1ca5e5b38.tgz \
-  --namespace gloo-mesh \
+helm upgrade --install gloo-platform-crds https://storage.googleapis.com/gloo-platform-dev/platform-charts/helm-charts/gloo-platform-crds-2.4.0-beta0-2023-05-03-main-2ac6fc362.tgz  \
+--namespace=gloo-mesh \
+--kube-context=${CLUSTER1} \
+--version=2.4.0-beta0-2023-05-07-main-ee13ad9fa
+helm upgrade --install gloo-platform https://storage.googleapis.com/gloo-platform-dev/platform-charts/helm-charts/gloo-platform-2.4.0-beta0-2023-05-03-main-2ac6fc362.tgz \
+  --namespace=gloo-mesh \
   --kube-context=${CLUSTER1} \
-  --set relay.serverAddress=${ENDPOINT_GLOO_MESH} \
-  --set relay.authority=gloo-mesh-mgmt-server.gloo-mesh \
-  --set rate-limiter.enabled=false \
-  --set ext-auth-service.enabled=false \
-  --set glooMeshPortalServer.enabled=false \
-  --set cluster=cluster1 \
-  --set telemetryCollector.enabled=true \
-  --set telemetryCollector.config.exporters.otlp.endpoint=\"${ENDPOINT_TELEMETRY_GATEWAY}\" \
-  --set telemetryCollector.image.repository=gcr.io/solo-test-236622/gloo-platform-dev/gloo-otel-collector \
-  --set glooMeshAgent.image.registry=${registry}/gloo-mesh \
-  --set telemetryCollector.image.repository=${registry}/gloo-mesh/gloo-otel-collector \
-  --version 2.4.0-beta0-2023-04-24-main-1ca5e5b38
+  --version=2.4.0-beta0-2023-05-07-main-ee13ad9fa \
+ -f -<<EOF
+common:
+  cluster: cluster1
+glooAgent:
+  enabled: true
+  relay:
+    serverAddress: ${ENDPOINT_GLOO_MESH}
+    authority: gloo-mesh-mgmt-server.gloo-mesh
+  image:
+    registry: ${registry}/gloo-mesh
+telemetryCollector:
+  enabled: true
+  config:
+    exporters:
+      otlp:
+        endpoint: \"${ENDPOINT_TELEMETRY_GATEWAY}\"
+  image:
+    repository: gcr.io/solo-test-236622/gloo-platform-dev/gloo-otel-collector
+EOF
 ```
 
 Note that the registration can also be performed using `meshctl cluster register`.
@@ -418,7 +456,6 @@ Note that the registration can also be performed using `meshctl cluster register
 And here is how you register the second one:
 
 ```bash
-
 kubectl apply --context ${MGMT} -f- <<EOF
 apiVersion: admin.gloo.solo.io/v2
 kind: KubernetesCluster
@@ -428,7 +465,6 @@ metadata:
 spec:
   clusterDomain: cluster.local
 EOF
-
 kubectl --context ${CLUSTER2} create ns gloo-mesh
 kubectl get secret relay-root-tls-secret -n gloo-mesh --context ${MGMT} -o jsonpath='{.data.ca\.crt}' | base64 -d > ca.crt
 kubectl create secret generic relay-root-tls-secret -n gloo-mesh --context ${CLUSTER2} --from-file ca.crt=ca.crt
@@ -437,22 +473,33 @@ rm ca.crt
 kubectl get secret relay-identity-token-secret -n gloo-mesh --context ${MGMT} -o jsonpath='{.data.token}' | base64 -d > token
 kubectl create secret generic relay-identity-token-secret -n gloo-mesh --context ${CLUSTER2} --from-file token=token
 rm token
-
-helm upgrade --install gloo-mesh-agent https://storage.googleapis.com/gloo-platform-dev/helm-charts/gloo-mesh-agent/gloo-mesh-agent-2.4.0-beta0-2023-04-24-main-1ca5e5b38.tgz \
-  --namespace gloo-mesh \
+helm upgrade --install gloo-platform-crds https://storage.googleapis.com/gloo-platform-dev/platform-charts/helm-charts/gloo-platform-crds-2.4.0-beta0-2023-05-03-main-2ac6fc362.tgz  \
+--namespace=gloo-mesh \
+--kube-context=${CLUSTER2} \
+--version=2.4.0-beta0-2023-05-07-main-ee13ad9fa
+helm upgrade --install gloo-platform https://storage.googleapis.com/gloo-platform-dev/platform-charts/helm-charts/gloo-platform-2.4.0-beta0-2023-05-03-main-2ac6fc362.tgz \
+  --namespace=gloo-mesh \
   --kube-context=${CLUSTER2} \
-  --set relay.serverAddress=${ENDPOINT_GLOO_MESH} \
-  --set relay.authority=gloo-mesh-mgmt-server.gloo-mesh \
-  --set rate-limiter.enabled=false \
-  --set ext-auth-service.enabled=false \
-  --set glooMeshPortalServer.enabled=false \
-  --set cluster=cluster2 \
-  --set telemetryCollector.enabled=true \
-  --set telemetryCollector.config.exporters.otlp.endpoint=\"${ENDPOINT_TELEMETRY_GATEWAY}\" \
-  --set telemetryCollector.image.repository=gcr.io/solo-test-236622/gloo-platform-dev/gloo-otel-collector \
-  --set glooMeshAgent.image.registry=${registry}/gloo-mesh \
-  --set telemetryCollector.image.repository=${registry}/gloo-mesh/gloo-otel-collector \
-  --version 2.4.0-beta0-2023-04-24-main-1ca5e5b38
+  --version=2.4.0-beta0-2023-05-07-main-ee13ad9fa \
+ -f -<<EOF
+common:
+  cluster: cluster2
+glooAgent:
+  enabled: true
+  relay:
+    serverAddress: ${ENDPOINT_GLOO_MESH}
+    authority: gloo-mesh-mgmt-server.gloo-mesh
+  image:
+    registry: ${registry}/gloo-mesh
+telemetryCollector:
+  enabled: true
+  config:
+    exporters:
+      otlp:
+        endpoint: \"${ENDPOINT_TELEMETRY_GATEWAY}\"
+  image:
+    repository: gcr.io/solo-test-236622/gloo-platform-dev/gloo-otel-collector
+EOF
 ```
 
 You can check the cluster(s) have been registered correctly using the following commands:
@@ -1319,39 +1366,71 @@ kubectl --context ${CLUSTER2} label namespace gloo-mesh-addons istio.io/rev=1-17
 Then, you can deploy the addons on the cluster(s) using Helm:
 
 ```bash
-
-helm upgrade --install gloo-mesh-agent-addons https://storage.googleapis.com/gloo-platform-dev/helm-charts/gloo-mesh-agent/gloo-mesh-agent-2.4.0-beta0-2023-04-24-main-1ca5e5b38.tgz \
+helm upgrade --install gloo-platform https://storage.googleapis.com/gloo-platform-dev/platform-charts/helm-charts/gloo-platform-2.4.0-beta0-2023-05-03-main-2ac6fc362.tgz \
   --namespace gloo-mesh-addons \
   --kube-context=${CLUSTER1} \
-  --set cluster=cluster1 \
-  --set glooMeshAgent.enabled=false \
-  --set glooMeshPortalServer.enabled=true \
-  --set glooMeshPortalServer.apiKeyStorage.config.host="redis.gloo-mesh-addons:6379" \
-  --set glooMeshPortalServer.apiKeyStorage.configPath="/etc/redis/config.yaml" \
-  --set glooMeshPortalServer.apiKeyStorage.secretKey="ThisIsSecret" \
-  --set rate-limiter.enabled=true \
-  --set ext-auth-service.enabled=true \
-  --set ext-auth-service.extAuth.image.registry=${registry}/gloo-mesh \
-  --set rate-limiter.rateLimiter.image.registry=${registry}/gloo-mesh \
-  --set rate-limiter.redis.image.registry=${registry} \
-  --version 2.4.0-beta0-2023-04-24-main-1ca5e5b38
+  --version 2.4.0-beta0-2023-05-07-main-ee13ad9fa \
+ -f -<<EOF
+common:
+  cluster: cluster1
+glooPortalServer:
+  enabled: true
+  apiKeyStorage:
+    config:
+      host: redis.gloo-mesh-addons:6379
+    configPath: /etc/redis/config.yaml
+    secretKey: ThisIsSecret
+  image:
+    registry: ${registry}/gloo-mesh
+glooAgent:
+  enabled: false
+extAuthService:
+  enabled: true
+  extAuth:
+    image:
+      registry: ${registry}/gloo-mesh
+rateLimiter:
+  enabled: true
+  rateLimiter:
+    image:
+      registry: ${registry}/gloo-mesh
+  redis:
+    image:
+      registry: ${registry}
+EOF
 
-
-helm upgrade --install gloo-mesh-agent-addons https://storage.googleapis.com/gloo-platform-dev/helm-charts/gloo-mesh-agent/gloo-mesh-agent-2.4.0-beta0-2023-04-24-main-1ca5e5b38.tgz \
+helm upgrade --install gloo-platform https://storage.googleapis.com/gloo-platform-dev/platform-charts/helm-charts/gloo-platform-2.4.0-beta0-2023-05-03-main-2ac6fc362.tgz \
   --namespace gloo-mesh-addons \
   --kube-context=${CLUSTER2} \
-  --set cluster=cluster2 \
-  --set glooMeshAgent.enabled=false \
-  --set glooMeshPortalServer.enabled=true \
-  --set glooMeshPortalServer.apiKeyStorage.config.host="redis.gloo-mesh-addons:6379" \
-  --set glooMeshPortalServer.apiKeyStorage.configPath="/etc/redis/config.yaml" \
-  --set glooMeshPortalServer.apiKeyStorage.secretKey="ThisIsSecret" \
-  --set rate-limiter.enabled=true \
-  --set ext-auth-service.enabled=true \
-  --set ext-auth-service.extAuth.image.registry=${registry}/gloo-mesh \
-  --set rate-limiter.rateLimiter.image.registry=${registry}/gloo-mesh \
-  --set rate-limiter.redis.image.registry=${registry} \
-  --version 2.4.0-beta0-2023-04-24-main-1ca5e5b38
+  --version 2.4.0-beta0-2023-05-07-main-ee13ad9fa \
+ -f -<<EOF
+common:
+  cluster: cluster2
+glooPortalServer:
+  enabled: true
+  apiKeyStorage:
+    config:
+      host: redis.gloo-mesh-addons:6379
+    configPath: /etc/redis/config.yaml
+    secretKey: ThisIsSecret
+  image:
+    registry: ${registry}/gloo-mesh
+glooAgent:
+  enabled: false
+extAuthService:
+  enabled: true
+  extAuth:
+    image:
+      registry: ${registry}/gloo-mesh
+rateLimiter:
+  enabled: true
+  rateLimiter:
+    image:
+      registry: ${registry}/gloo-mesh
+  redis:
+    image:
+      registry: ${registry}
+EOF
 ```
 
 This is what the environment looks like now:
