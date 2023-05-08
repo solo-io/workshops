@@ -150,6 +150,7 @@ metadata:
 EOF
 
 kubectl --context=kind-kind${number} apply -f metallb${number}.yaml
+kubectl --context=kind-kind${number} apply -f https://raw.githubusercontent.com/metallb/metallb/v0.13.9/config/manifests/metallb-native.yaml
 
 docker network connect "kind" "${reg_name}" || true
 docker network connect "kind" docker || true
