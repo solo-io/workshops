@@ -18,20 +18,19 @@ source ./scripts/assert.sh
 * [Lab 2 - Deploy and register Gloo Mesh](#lab-2---deploy-and-register-gloo-mesh-)
 * [Lab 3 - Deploy the Bookinfo demo app](#lab-3---deploy-the-bookinfo-demo-app-)
 * [Lab 4 - Deploy the httpbin demo app](#lab-4---deploy-the-httpbin-demo-app-)
-* [Lab 5 - Deploy Gloo Mesh Addons](#lab-5---deploy-gloo-mesh-addons-)
-* [Lab 6 - Create the gateways workspace](#lab-6---create-the-gateways-workspace-)
-* [Lab 7 - Create the bookinfo workspace](#lab-7---create-the-bookinfo-workspace-)
-* [Lab 8 - Expose the productpage through a gateway](#lab-8---expose-the-productpage-through-a-gateway-)
-* [Lab 9 - Create the httpbin workspace](#lab-9---create-the-httpbin-workspace-)
-* [Lab 10 - Expose an external service](#lab-10---expose-an-external-service-)
-* [Lab 11 - Deploy Keycloak](#lab-11---deploy-keycloak-)
-* [Lab 12 - Securing the access with OAuth](#lab-12---securing-the-access-with-oauth-)
-* [Lab 13 - Use the JWT filter to create headers from claims](#lab-13---use-the-jwt-filter-to-create-headers-from-claims-)
-* [Lab 14 - Use the transformation filter to manipulate headers](#lab-14---use-the-transformation-filter-to-manipulate-headers-)
-* [Lab 15 - Apply rate limiting to the Gateway](#lab-15---apply-rate-limiting-to-the-gateway-)
-* [Lab 16 - Use the Web Application Firewall filter](#lab-16---use-the-web-application-firewall-filter-)
-* [Lab 17 - Expose the bookinfo application through GraphQL](#lab-17---expose-the-bookinfo-application-through-graphql-)
-* [Lab 18 - Leverage GraphQL stitching](#lab-18---leverage-graphql-stitching-)
+* [Lab 5 - Create the gateways workspace](#lab-5---create-the-gateways-workspace-)
+* [Lab 6 - Create the bookinfo workspace](#lab-6---create-the-bookinfo-workspace-)
+* [Lab 7 - Expose the productpage through a gateway](#lab-7---expose-the-productpage-through-a-gateway-)
+* [Lab 8 - Create the httpbin workspace](#lab-8---create-the-httpbin-workspace-)
+* [Lab 9 - Expose an external service](#lab-9---expose-an-external-service-)
+* [Lab 10 - Deploy Keycloak](#lab-10---deploy-keycloak-)
+* [Lab 11 - Securing the access with OAuth](#lab-11---securing-the-access-with-oauth-)
+* [Lab 12 - Use the JWT filter to create headers from claims](#lab-12---use-the-jwt-filter-to-create-headers-from-claims-)
+* [Lab 13 - Use the transformation filter to manipulate headers](#lab-13---use-the-transformation-filter-to-manipulate-headers-)
+* [Lab 14 - Apply rate limiting to the Gateway](#lab-14---apply-rate-limiting-to-the-gateway-)
+* [Lab 15 - Use the Web Application Firewall filter](#lab-15---use-the-web-application-firewall-filter-)
+* [Lab 16 - Expose the bookinfo application through GraphQL](#lab-16---expose-the-bookinfo-application-through-graphql-)
+* [Lab 17 - Leverage GraphQL stitching](#lab-17---leverage-graphql-stitching-)
 
 
 
@@ -125,7 +124,7 @@ metallb-system       speaker-d7jkp                                 1/1     Runni
 First of all, let's install the `meshctl` CLI:
 
 ```bash
-export GLOO_MESH_VERSION=v2.4.0-beta0-2023-04-24-main-1ca5e5b38
+export GLOO_MESH_VERSION=v2.4.0-beta0-2023-05-07-main-ee13ad9fa
 curl -sL https://run.solo.io/meshctl/install | sh -
 export PATH=$HOME/.gloo-mesh/bin:$PATH
 ```
@@ -164,77 +163,105 @@ mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${te
 -->
 
 ```bash
-helm repo add gloo-mesh-enterprise https://storage.googleapis.com/gloo-mesh-enterprise/gloo-mesh-enterprise 
+helm repo add gloo-platform https://storage.googleapis.com/gloo-platform/helm-charts
 helm repo update
-kubectl --context ${MGMT} create ns gloo-mesh 
-helm upgrade --install gloo-mesh-enterprise https://storage.googleapis.com/gloo-platform-dev/helm-charts/gloo-mesh-enterprise/gloo-mesh-enterprise-2.4.0-beta0-2023-04-24-main-1ca5e5b38.tgz \
---namespace gloo-mesh --kube-context ${MGMT} \
---version=2.4.0-beta0-2023-04-24-main-1ca5e5b38 \
---set glooMeshMgmtServer.ports.healthcheck=8091 \
---set legacyMetricsPipeline.enabled=false \
---set telemetryGateway.enabled=true \
---set telemetryGateway.service.type=LoadBalancer \
-  --set telemetryCollector.image.repository=gcr.io/solo-test-236622/gloo-platform-dev/gloo-otel-collector \
-  --set telemetryGateway.image.repository=gcr.io/solo-test-236622/gloo-platform-dev/gloo-otel-collector \
---set glooMeshUi.serviceType=LoadBalancer \
---set mgmtClusterName=cluster1 \
---set global.cluster=cluster1 \
---set licenseKey=${GLOO_MESH_LICENSE_KEY} -f - <<EOF
-# Install the Gloo agent alongside the management server,
-# such as to run the management cluster also as a workload cluster in a single-cluster setup
-registerMgmtPlane:
+kubectl --context ${MGMT} create ns gloo-mesh
+kubectl --context ${MGMT} create ns gloo-mesh-addons
+helm upgrade --install gloo-platform-crds https://storage.googleapis.com/gloo-platform-dev/platform-charts/helm-charts/gloo-platform-crds-2.4.0-beta0-2023-05-03-main-2ac6fc362.tgz \
+--namespace gloo-mesh \
+--kube-context ${MGMT} \
+--version=2.4.0-beta0-2023-05-07-main-ee13ad9fa
+helm upgrade --install gloo-platform https://storage.googleapis.com/gloo-platform-dev/platform-charts/helm-charts/gloo-platform-2.4.0-beta0-2023-05-03-main-2ac6fc362.tgz \
+--namespace gloo-mesh \
+--kube-context ${MGMT} \
+--version=2.4.0-beta0-2023-05-07-main-ee13ad9fa \
+ -f -<<EOF
+licensing:
+  licenseKey: ${GLOO_MESH_LICENSE_KEY}
+common:
+  cluster: cluster1
+glooMgmtServer:
   enabled: true
-  metricscollector:
+  ports:
+    healthcheck: 8091
+  registerCluster: true
+prometheus:
+  enabled: true
+redis:
+  deployment:
     enabled: true
+telemetryGateway:
+  enabled: true
+  service:
+    type: LoadBalancer
+  image:
+    repository: gcr.io/solo-test-236622/gloo-platform-dev/gloo-otel-collector
+glooUi:
+  enabled: true
+  serviceType: LoadBalancer
+glooPortalServer:
+  enabled: true
+  apiKeyStorage:
     config:
-      exporters:
-        otlp:
-          endpoint: gloo-metrics-gateway.gloo-mesh:4317
-  # Configuration for managed Istio control plane and gateway installations by using the Istio Lifecycle Manager
-  managedInstallations:
-    enabled: true
-    controlPlane:
-      enabled: true
-      installations:
-      - revision: 1-17
-        clusters:
-        - name: ${MGMT}
-          defaultRevision: true
-        istioOperatorSpec:
-          hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-          tag: 1.17.1-solo
-    northSouthGateways:
+      host: gloo-mesh-redis.gloo-mesh:6379
+    configPath: /etc/redis/config.yaml
+    secretKey: ThisIsSecret
+extAuthService:
+  enabled: true
+  extAuth: 
+    apiKeyStorage: 
+      name: redis
+      config: 
+        connection: 
+          host: gloo-mesh-redis.gloo-mesh-addons:6379
+      secretKey: ThisIsSecret
+    image:
+      registry: gcr.io/gloo-mesh
+rateLimiter:
+  enabled: true
+  rateLimiter:
+    image:
+      registry: gcr.io/gloo-mesh
+istioInstallations:
+  enabled: true
+  northSouthGateways:
     - enabled: true
-      name: north-south-gateway
+      name: istio-ingressgateway
       installations:
-      - gatewayRevision: 1-17
-        istioOperatorSpec:
-          components:
-            ingressGateways:
-            - name: north-south-gateway
-              enabled: true
-              namespace: istio-gateways
-              label:
-                app: north-south-gateway
-                istio: ingressgateway
-              k8s:
-                service:
-                  type: LoadBalancer
-                  ports:
-                    # health check port (required to be first for aws elbs)
-                    - name: status-port
-                      port: 15021
-                      targetPort: 15021
-                    # main http ingress port
-                    - port: 80
-                      targetPort: 8080
-                      name: http2
-                    # main https ingress port
-                    - port: 443
-                      targetPort: 8443
-                      name: https
+        - clusters:
+          - name: cluster1
+            activeGateway: false
+          gatewayRevision: auto
+          istioOperatorSpec:
+            hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
+            tag: 1.17.1-solo
+            profile: empty
+            components:
+              ingressGateways:
+                - name: istio-ingressgateway
+                  namespace: istio-gateways
+                  enabled: true
+                  label:
+                    istio: ingressgateway
+glooAgent:
+  enabled: true
+  relay:
+    serverAddress: gloo-mesh-mgmt-server:9900
+    authority: gloo-mesh-mgmt-server.gloo-mesh
+telemetryCollector:
+  enabled: true
+  config:
+    exporters:
+      otlp:
+        endpoint: gloo-telemetry-gateway:4317
+  image:
+    repository: gcr.io/solo-test-236622/gloo-platform-dev/gloo-otel-collector
 EOF
 kubectl --context ${MGMT} -n gloo-mesh rollout status deploy/gloo-mesh-mgmt-server
+kubectl --context ${MGMT} delete workspaces -A --all
+until [[ $(kubectl --context ${MGMT} -n istio-gateways get deploy -o json | jq '[.items[].status.readyReplicas] | add') -ge 1 ]]; do
+  sleep 1
+done
 ```
 <!--bash
 kubectl --context ${MGMT} scale --replicas=0 -n gloo-mesh deploy/gloo-mesh-ui
@@ -246,6 +273,13 @@ until [[ $(kubectl --context ${MGMT} -n gloo-mesh get svc gloo-mesh-mgmt-server 
   sleep 1
 done
 -->
+Set the environment variable for the service corresponding to the Istio Ingress Gateway of the cluster(s):
+
+```bash
+export ENDPOINT_HTTP_GW_CLUSTER1=$(kubectl --context ${CLUSTER1} -n istio-gateways get svc -l istio=ingressgateway -o jsonpath='{.items[].status.loadBalancer.ingress[0].*}'):80
+export ENDPOINT_HTTPS_GW_CLUSTER1=$(kubectl --context ${CLUSTER1} -n istio-gateways get svc -l istio=ingressgateway -o jsonpath='{.items[].status.loadBalancer.ingress[0].*}'):443
+export HOST_GW_CLUSTER1=$(echo ${ENDPOINT_HTTP_GW_CLUSTER1} | cut -d: -f1)
+```
 
 
 
@@ -417,81 +451,7 @@ mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${te
 
 
 
-## Lab 5 - Deploy Gloo Mesh Addons <a name="lab-5---deploy-gloo-mesh-addons-"></a>
-
-To use the Gloo Mesh Gateway advanced features (external authentication, rate limiting, ...), you need to install the Gloo Mesh addons.
-
-First, you need to create a namespace for the addons, with Istio injection enabled:
-
-```bash
-kubectl --context ${CLUSTER1} create namespace gloo-mesh-addons
-kubectl --context ${CLUSTER1} label namespace gloo-mesh-addons istio.io/rev=1-17 --overwrite
-```
-
-Then, you can deploy the addons on the cluster(s) using Helm:
-
-```bash
-until [[ $(kubectl --context ${MGMT} -n istio-system get deploy istiod-1-17 -o json | jq '.status.availableReplicas') -gt 0 ]]; do
-  sleep 1
-done
-helm repo add gloo-mesh-agent https://storage.googleapis.com/gloo-mesh-enterprise/gloo-mesh-agent
-helm repo update
-
-helm upgrade --install gloo-mesh-agent-addons https://storage.googleapis.com/gloo-platform-dev/helm-charts/gloo-mesh-agent/gloo-mesh-agent-2.4.0-beta0-2023-04-24-main-1ca5e5b38.tgz \
-  --namespace gloo-mesh-addons \
-  --kube-context=${CLUSTER1} \
-  --set cluster=cluster1 \
-  --set glooMeshAgent.enabled=false \
-  --set glooMeshPortalServer.enabled=true \
-  --set glooMeshPortalServer.apiKeyStorage.config.host="redis.gloo-mesh-addons:6379" \
-  --set glooMeshPortalServer.apiKeyStorage.configPath="/etc/redis/config.yaml" \
-  --set glooMeshPortalServer.apiKeyStorage.secretKey="ThisIsSecret" \
-  --set rate-limiter.enabled=true \
-  --set ext-auth-service.enabled=true \
-  --version 2.4.0-beta0-2023-04-24-main-1ca5e5b38
-```
-Set the environment variable for the service corresponding to the Istio Ingress Gateway of the cluster(s):
-
-```bash
-export ENDPOINT_HTTP_GW_CLUSTER1=$(kubectl --context ${CLUSTER1} -n istio-gateways get svc -l istio=ingressgateway -o jsonpath='{.items[0].status.loadBalancer.ingress[0].*}'):80
-export ENDPOINT_HTTPS_GW_CLUSTER1=$(kubectl --context ${CLUSTER1} -n istio-gateways get svc -l istio=ingressgateway -o jsonpath='{.items[0].status.loadBalancer.ingress[0].*}'):443
-export HOST_GW_CLUSTER1=$(echo ${ENDPOINT_HTTP_GW_CLUSTER1} | cut -d: -f1)
-```
-
-<!--bash
-cat <<'EOF' > ./test.js
-const dns = require('dns');
-const chaiHttp = require("chai-http");
-const chai = require("chai");
-const expect = chai.expect;
-chai.use(chaiHttp);
-const { waitOnFailedTest } = require('./tests/utils');
-
-afterEach(function(done) { waitOnFailedTest(done, this.currentTest.currentRetry())});
-
-describe("Address '" + process.env.HOST_GW_CLUSTER1 + "' can be resolved in DNS", () => {
-    it(process.env.HOST_GW_CLUSTER1 + ' can be resolved', (done) => {
-        return dns.lookup(process.env.HOST_GW_CLUSTER1, (err, address, family) => {
-            expect(address).to.be.an.ip;
-            done();
-        });
-    });
-});
-EOF
-echo "executing test ./gloo-mesh-2-0/tests/can-resolve.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
--->
-
-This is what the environment looks like now:
-
-![Gloo Mesh Workshop Environment](images/steps/deploy-gloo-mesh-addons/gloo-mesh-workshop-environment.svg)
-
-
-
-
-## Lab 6 - Create the gateways workspace <a name="lab-6---create-the-gateways-workspace-"></a>
+## Lab 5 - Create the gateways workspace <a name="lab-5---create-the-gateways-workspace-"></a>
 
 We're going to create a workspace for the team in charge of the Gateways.
 
@@ -549,7 +509,7 @@ The Gateway team has decided to import the following from the workspaces that ha
 
 
 
-## Lab 7 - Create the bookinfo workspace <a name="lab-7---create-the-bookinfo-workspace-"></a>
+## Lab 6 - Create the bookinfo workspace <a name="lab-6---create-the-bookinfo-workspace-"></a>
 
 We're going to create a workspace for the team in charge of the Bookinfo application.
 
@@ -617,7 +577,7 @@ This is how the environment looks like with the workspaces:
 
 
 
-## Lab 8 - Expose the productpage through a gateway <a name="lab-8---expose-the-productpage-through-a-gateway-"></a>
+## Lab 7 - Expose the productpage through a gateway <a name="lab-7---expose-the-productpage-through-a-gateway-"></a>
 
 In this step, we're going to expose the `productpage` service through the Ingress Gateway using Gloo Mesh.
 
@@ -818,7 +778,7 @@ This diagram shows the flow of the request (through the Istio Ingress Gateway):
 
 
 
-## Lab 9 - Create the httpbin workspace <a name="lab-9---create-the-httpbin-workspace-"></a>
+## Lab 8 - Create the httpbin workspace <a name="lab-8---create-the-httpbin-workspace-"></a>
 
 We're going to create a workspace for the team in charge of the httpbin application.
 
@@ -878,7 +838,7 @@ The Httpbin team has decided to export the following to the `gateway` workspace 
 
 
 
-## Lab 10 - Expose an external service <a name="lab-10---expose-an-external-service-"></a>
+## Lab 9 - Expose an external service <a name="lab-9---expose-an-external-service-"></a>
 
 In this step, we're going to expose an external service through a Gateway using Gloo Mesh and show how we can then migrate this service to the Mesh.
 
@@ -1075,7 +1035,7 @@ This diagram shows the flow of the requests :
 
 
 
-## Lab 11 - Deploy Keycloak <a name="lab-11---deploy-keycloak-"></a>
+## Lab 10 - Deploy Keycloak <a name="lab-10---deploy-keycloak-"></a>
 
 In many use cases, you need to restrict the access to your applications to authenticated users. 
 
@@ -1226,7 +1186,7 @@ KEYCLOAK_TOKEN=$(curl -d "client_id=admin-cli" -d "username=admin" -d "password=
 
 
 
-## Lab 12 - Securing the access with OAuth <a name="lab-12---securing-the-access-with-oauth-"></a>
+## Lab 11 - Securing the access with OAuth <a name="lab-11---securing-the-access-with-oauth-"></a>
 
 
 In this step, we're going to secure the access to the `httpbin` service using OAuth.
@@ -1456,7 +1416,7 @@ This diagram shows the flow of the request (with the Istio ingress gateway lever
 
 
 
-## Lab 13 - Use the JWT filter to create headers from claims <a name="lab-13---use-the-jwt-filter-to-create-headers-from-claims-"></a>
+## Lab 12 - Use the JWT filter to create headers from claims <a name="lab-12---use-the-jwt-filter-to-create-headers-from-claims-"></a>
 
 
 In this step, we're going to validate the JWT token and to create a new header from the `email` claim.
@@ -1576,7 +1536,7 @@ mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${te
 
 
 
-## Lab 14 - Use the transformation filter to manipulate headers <a name="lab-14---use-the-transformation-filter-to-manipulate-headers-"></a>
+## Lab 13 - Use the transformation filter to manipulate headers <a name="lab-13---use-the-transformation-filter-to-manipulate-headers-"></a>
 
 
 In this step, we're going to use a regular expression to extract a part of an existing header and to create a new one:
@@ -1643,7 +1603,7 @@ mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${te
 
 
 
-## Lab 15 - Apply rate limiting to the Gateway <a name="lab-15---apply-rate-limiting-to-the-gateway-"></a>
+## Lab 14 - Apply rate limiting to the Gateway <a name="lab-14---apply-rate-limiting-to-the-gateway-"></a>
 
 
 In this step, we're going to apply rate limiting to the Gateway to only allow 3 requests per minute for the users of the `solo.io` organization.
@@ -1848,7 +1808,7 @@ kubectl --context ${CLUSTER1} -n httpbin delete ratelimitserversettings rate-lim
 
 
 
-## Lab 16 - Use the Web Application Firewall filter <a name="lab-16---use-the-web-application-firewall-filter-"></a>
+## Lab 15 - Use the Web Application Firewall filter <a name="lab-15---use-the-web-application-firewall-filter-"></a>
 
 
 A web application firewall (WAF) protects web applications by monitoring, filtering, and blocking potentially harmful traffic and attacks that can overtake or exploit them.
@@ -1996,7 +1956,7 @@ kubectl --context ${CLUSTER1} -n httpbin delete wafpolicies.security.policy.gloo
 
 
 
-## Lab 17 - Expose the bookinfo application through GraphQL <a name="lab-17---expose-the-bookinfo-application-through-graphql-"></a>
+## Lab 16 - Expose the bookinfo application through GraphQL <a name="lab-16---expose-the-bookinfo-application-through-graphql-"></a>
 
 Gloo Mesh is enhancing the Istio Ingress Gateway to allow exposing some REST services as a GraphQL API.
 
@@ -2276,7 +2236,7 @@ EOF
 
 
 
-## Lab 18 - Leverage GraphQL stitching <a name="lab-18---leverage-graphql-stitching-"></a>
+## Lab 17 - Leverage GraphQL stitching <a name="lab-17---leverage-graphql-stitching-"></a>
 
 In this lab, we're going to expose and External REST API as a GraphQL API and then to stitch is with the GraphQL API we've created previously.
 

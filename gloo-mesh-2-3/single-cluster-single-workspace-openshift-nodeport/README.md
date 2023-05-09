@@ -111,7 +111,7 @@ kubectl config use-context ${MGMT}
 First of all, let's install the `meshctl` CLI:
 
 ```bash
-export GLOO_MESH_VERSION=v2.3.0
+export GLOO_MESH_VERSION=v2.3.1
 curl -sL https://run.solo.io/meshctl/install | sh -
 export PATH=$HOME/.gloo-mesh/bin:$PATH
 ```
@@ -150,99 +150,83 @@ mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${te
 -->
 
 ```bash
-helm repo add gloo-mesh-enterprise https://storage.googleapis.com/gloo-mesh-enterprise/gloo-mesh-enterprise 
+helm repo add gloo-platform https://storage.googleapis.com/gloo-platform/helm-charts
 helm repo update
-kubectl --context ${MGMT} create ns gloo-mesh 
-helm upgrade --install gloo-mesh-enterprise gloo-mesh-enterprise/gloo-mesh-enterprise \
---namespace gloo-mesh --kube-context ${MGMT} \
---version=2.3.0 \
---set glooMeshMgmtServer.ports.healthcheck=8091 \
---set legacyMetricsPipeline.enabled=false \
---set telemetryGateway.enabled=true \
---set telemetryGateway.service.type=LoadBalancer \
-  --set telemetryCollector.ports.otlp.hostPort=0 \
-  --set telemetryCollector.ports.otlp-http.hostPort=0 \
-  --set telemetryCollector.ports.jaeger-compact.hostPort=0 \
-  --set telemetryCollector.ports.jaeger-thrift.hostPort=0 \
-  --set telemetryCollector.ports.jaeger-grpc.hostPort=0 \
-  --set telemetryCollector.ports.zipkin.hostPort=0 \
---set glooMeshMgmtServer.floatingUserId=true \
---set glooMeshUi.floatingUserId=true \
---set glooMeshRedis.floatingUserId=true \
---set prometheus.server.securityContext=false \
---set glooMeshMgmtServer.serviceType=NodePort \
---set glooMeshUi.serviceType=NodePort \
---set mgmtClusterName=cluster1 \
---set global.cluster=cluster1 \
---set licenseKey=${GLOO_MESH_LICENSE_KEY}
+kubectl --context ${MGMT} create ns gloo-mesh
+helm upgrade --install gloo-platform-crds gloo-platform/gloo-platform-crds \
+--namespace gloo-mesh \
+--kube-context ${MGMT} \
+--version=2.3.1
+helm upgrade --install gloo-platform gloo-platform/gloo-platform \
+--namespace gloo-mesh \
+--kube-context ${MGMT} \
+--version=2.3.1 \
+ -f -<<EOF
+licensing:
+  licenseKey: ${GLOO_MESH_LICENSE_KEY}
+common:
+  cluster: cluster1
+glooMgmtServer:
+  enabled: true
+  ports:
+    healthcheck: 8091
+  floatingUserId: true
+  serviceType: NodePort
+prometheus:
+  enabled: true
+  server:
+    image:
+      repository: ${registry}/prometheus/prometheus
+    securityContext: false
+redis:
+  deployment:
+    enabled: true
+    floatingUserId: true
+telemetryGateway:
+  enabled: true
+  service:
+    type: LoadBalancer
+glooUi:
+  enabled: true
+  serviceType: 
+  floatingUserId: true
+glooAgent:
+  enabled: true
+  relay:
+    serverAddress: gloo-mesh-mgmt-server:9900
+    authority: gloo-mesh-mgmt-server.gloo-mesh
+  floatingUserId: true
+telemetryCollector:
+  enabled: true
+  config:
+    exporters:
+      otlp:
+        endpoint: gloo-telemetry-gateway:4317
+  ports:
+    otlp:
+      hostPort: 0
+    otlp-http:
+      hostPort: 0
+    jaeger-compact:
+      hostPort: 0
+    jaeger-thrift:
+      hostPort: 0
+    jaeger-grpc:
+      hostPort: 0
+    zipkin:
+      hostPort: 0
+EOF
 kubectl --context ${MGMT} -n gloo-mesh rollout status deploy/gloo-mesh-mgmt-server
 ```
 <!--bash
 kubectl --context ${MGMT} scale --replicas=0 -n gloo-mesh deploy/gloo-mesh-ui
 kubectl --context ${MGMT} rollout status -n gloo-mesh deploy/gloo-mesh-ui
 -->
-Then, you need to set the environment variable to tell the Gloo Mesh agents how to communicate with the management plane:
-<!--bash
-cat <<'EOF' > ./test.js
-
-const helpers = require('./tests/chai-exec');
-
-describe("MGMT server is healthy", () => {
-  let cluster = process.env.MGMT
-  let deployments = ["gloo-mesh-mgmt-server","gloo-mesh-redis","gloo-telemetry-gateway","prometheus-server"];
-  deployments.forEach(deploy => {
-    it(deploy + ' pods are ready in ' + cluster, () => helpers.checkDeployment({ context: cluster, namespace: "gloo-mesh", k8sObj: deploy }));
-  });
-});
-EOF
-echo "executing test dist/gloo-mesh-2-0-single-cluster-single-workspace-openshift-nodeport/build/templates/steps/deploy-and-register-gloo-mesh/tests/check-deployment.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
--->
-<!--bash
-cat <<'EOF' > ./test.js
-const chaiExec = require("@jsdevtools/chai-exec");
-var chai = require('chai');
-var expect = chai.expect;
-chai.use(chaiExec);
-
-afterEach(function (done) {
-  if (this.currentTest.currentRetry() > 0) {
-    process.stdout.write(".");
-    setTimeout(done, 1000);
-  } else {
-    done();
-  }
-});
-EOF
-echo "executing test dist/gloo-mesh-2-0-single-cluster-single-workspace-openshift-nodeport/build/templates/steps/deploy-and-register-gloo-mesh/tests/get-gloo-mesh-mgmt-server-ip.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
--->
-
-```bash
-export ENDPOINT_GLOO_MESH=gloo-mesh-mgmt-server:9900
-export HOST_GLOO_MESH=$(echo ${ENDPOINT_GLOO_MESH} | cut -d: -f1)
-export ENDPOINT_TELEMETRY_GATEWAY=gloo-telemetry-gateway:4317
-```
-
-Check that the variables have correct values:
-```
-echo $HOST_GLOO_MESH
-echo $ENDPOINT_GLOO_MESH
-```
-
 Finally, you need to register the cluster(s).
 
 Here is how you register the first one:
 
 ```bash
-helm repo add gloo-mesh-agent https://storage.googleapis.com/gloo-mesh-enterprise/gloo-mesh-agent
-helm repo update
-
-
 kubectl apply --context ${MGMT} -f- <<EOF
 apiVersion: admin.gloo.solo.io/v2
 kind: KubernetesCluster
@@ -252,26 +236,6 @@ metadata:
 spec:
   clusterDomain: cluster.local
 EOF
-
-helm upgrade --install gloo-mesh-agent gloo-mesh-agent/gloo-mesh-agent \
-  --namespace gloo-mesh \
-  --kube-context=${CLUSTER1} \
-  --set relay.serverAddress=${ENDPOINT_GLOO_MESH} \
-  --set relay.authority=gloo-mesh-mgmt-server.gloo-mesh \
-  --set rate-limiter.enabled=false \
-  --set ext-auth-service.enabled=false \
-  --set glooMeshPortalServer.enabled=false \
-  --set cluster=cluster1 \
-  --set telemetryCollector.enabled=true \
-  --set telemetryCollector.config.exporters.otlp.endpoint=\"${ENDPOINT_TELEMETRY_GATEWAY}\" \
-  --set telemetryCollector.ports.otlp.hostPort=0 \
-  --set telemetryCollector.ports.otlp-http.hostPort=0 \
-  --set telemetryCollector.ports.jaeger-compact.hostPort=0 \
-  --set telemetryCollector.ports.jaeger-thrift.hostPort=0 \
-  --set telemetryCollector.ports.jaeger-grpc.hostPort=0 \
-  --set telemetryCollector.ports.zipkin.hostPort=0 \
-  --set glooMeshAgent.floatingUserId=true \
-  --version 2.3.0
 ```
 
 Note that the registration can also be performed using `meshctl cluster register`.
@@ -859,20 +823,35 @@ EOF
 Then, you can deploy the addons on the cluster(s) using Helm:
 
 ```bash
-
-helm upgrade --install gloo-mesh-agent-addons gloo-mesh-agent/gloo-mesh-agent \
+helm upgrade --install gloo-platform gloo-platform/gloo-platform \
   --namespace gloo-mesh-addons \
   --kube-context=${CLUSTER1} \
-  --set cluster=cluster1 \
-  --set glooMeshAgent.enabled=false \
-  --set glooMeshPortalServer.enabled=true \
-  --set glooMeshPortalServer.apiKeyStorage.config.host="redis.gloo-mesh-addons:6379" \
-  --set glooMeshPortalServer.apiKeyStorage.configPath="/etc/redis/config.yaml" \
-  --set glooMeshPortalServer.apiKeyStorage.secretKey="ThisIsSecret" \
-  --set rate-limiter.enabled=true \
-  --set ext-auth-service.enabled=true \
-  --set glooMeshAgent.floatingUserId=true \
-  --version 2.3.0
+  --version 2.3.1 \
+ -f -<<EOF
+common:
+  cluster: cluster1
+glooPortalServer:
+  enabled: true
+  apiKeyStorage:
+    config:
+      host: redis.gloo-mesh-addons:6379
+    configPath: /etc/redis/config.yaml
+    secretKey: ThisIsSecret
+glooAgent:
+  enabled: false
+  floatingUserId: true
+extAuthService:
+  enabled: true
+  extAuth: 
+    apiKeyStorage: 
+      name: redis
+      config: 
+        connection: 
+          host: redis.gloo-mesh-addons:6379
+      secretKey: ThisIsSecret
+rateLimiter:
+  enabled: true
+EOF
 ```
 
 This is what the environment looks like now:

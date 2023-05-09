@@ -27,25 +27,24 @@ source ./scripts/assert.sh
 * [Lab 11 - Create the Root Trust Policy](#lab-11---create-the-root-trust-policy-)
 * [Lab 12 - Leverage Virtual Destinations](#lab-12---leverage-virtual-destinations-)
 * [Lab 13 - Zero trust](#lab-13---zero-trust-)
-* [Lab 14 - Use the JWT filter to protect a service](#lab-14---use-the-jwt-filter-to-protect-a-service-)
-* [Lab 15 - Apply rate limiting to east west communication](#lab-15---apply-rate-limiting-to-east-west-communication-)
-* [Lab 16 - See how Gloo Platform can help with observability](#lab-16---see-how-gloo-platform-can-help-with-observability-)
-* [Lab 17 - Create the httpbin workspace](#lab-17---create-the-httpbin-workspace-)
-* [Lab 18 - Expose an external service](#lab-18---expose-an-external-service-)
-* [Lab 19 - Deploy Keycloak](#lab-19---deploy-keycloak-)
-* [Lab 20 - Securing the access with OAuth](#lab-20---securing-the-access-with-oauth-)
-* [Lab 21 - Use the JWT filter to create headers from claims](#lab-21---use-the-jwt-filter-to-create-headers-from-claims-)
-* [Lab 22 - Use the transformation filter to manipulate headers](#lab-22---use-the-transformation-filter-to-manipulate-headers-)
-* [Lab 23 - Apply rate limiting to the Gateway](#lab-23---apply-rate-limiting-to-the-gateway-)
-* [Lab 24 - Use the Web Application Firewall filter](#lab-24---use-the-web-application-firewall-filter-)
-* [Lab 25 - Expose the bookinfo application through GraphQL](#lab-25---expose-the-bookinfo-application-through-graphql-)
-* [Lab 26 - Interacting with mTLS](#lab-26---interacting-with-mtls-)
-* [Lab 27 - Deploy the Amazon pod identity webhook](#lab-27---deploy-the-amazon-pod-identity-webhook-)
-* [Lab 28 - Execute Lambda functions](#lab-28---execute-lambda-functions-)
-* [Lab 29 - VM integration](#lab-29---vm-integration-)
-* [Lab 30 - Upgrade Istio using Gloo Mesh Lifecycle Manager](#lab-30---upgrade-istio-using-gloo-mesh-lifecycle-manager-)
-* [Lab 31 - Gloo Mesh Management Plane failover](#lab-31---gloo-mesh-management-plane-failover-)
-* [Lab 32 - Extend Envoy with WebAssembly](#lab-32---extend-envoy-with-webassembly-)
+* [Lab 14 - Apply rate limiting to east west communication](#lab-14---apply-rate-limiting-to-east-west-communication-)
+* [Lab 15 - See how Gloo Platform can help with observability](#lab-15---see-how-gloo-platform-can-help-with-observability-)
+* [Lab 16 - Create the httpbin workspace](#lab-16---create-the-httpbin-workspace-)
+* [Lab 17 - Expose an external service](#lab-17---expose-an-external-service-)
+* [Lab 18 - Deploy Keycloak](#lab-18---deploy-keycloak-)
+* [Lab 19 - Securing the access with OAuth](#lab-19---securing-the-access-with-oauth-)
+* [Lab 20 - Use the JWT filter to create headers from claims](#lab-20---use-the-jwt-filter-to-create-headers-from-claims-)
+* [Lab 21 - Use the transformation filter to manipulate headers](#lab-21---use-the-transformation-filter-to-manipulate-headers-)
+* [Lab 22 - Apply rate limiting to the Gateway](#lab-22---apply-rate-limiting-to-the-gateway-)
+* [Lab 23 - Use the Web Application Firewall filter](#lab-23---use-the-web-application-firewall-filter-)
+* [Lab 24 - Expose the bookinfo application through GraphQL](#lab-24---expose-the-bookinfo-application-through-graphql-)
+* [Lab 25 - Interacting with mTLS](#lab-25---interacting-with-mtls-)
+* [Lab 26 - Deploy the Amazon pod identity webhook](#lab-26---deploy-the-amazon-pod-identity-webhook-)
+* [Lab 27 - Execute Lambda functions](#lab-27---execute-lambda-functions-)
+* [Lab 28 - VM integration](#lab-28---vm-integration-)
+* [Lab 29 - Upgrade Istio using Gloo Mesh Lifecycle Manager](#lab-29---upgrade-istio-using-gloo-mesh-lifecycle-manager-)
+* [Lab 30 - Gloo Mesh Management Plane failover](#lab-30---gloo-mesh-management-plane-failover-)
+* [Lab 31 - Extend Envoy with WebAssembly](#lab-31---extend-envoy-with-webassembly-)
 
 
 
@@ -165,7 +164,7 @@ kubectl config use-context ${MGMT}
 First of all, let's install the `meshctl` CLI:
 
 ```bash
-export GLOO_MESH_VERSION=v2.3.0
+export GLOO_MESH_VERSION=v2.3.1
 curl -sL https://run.solo.io/meshctl/install | sh -
 export PATH=$HOME/.gloo-mesh/bin:$PATH
 ```
@@ -205,20 +204,39 @@ mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${te
 -->
 
 ```bash
-helm repo add gloo-mesh-enterprise https://storage.googleapis.com/gloo-mesh-enterprise/gloo-mesh-enterprise 
+helm repo add gloo-platform https://storage.googleapis.com/gloo-platform/helm-charts
 helm repo update
-kubectl --context ${MGMT} create ns gloo-mesh 
-helm upgrade --install gloo-mesh-enterprise gloo-mesh-enterprise/gloo-mesh-enterprise \
---namespace gloo-mesh --kube-context ${MGMT} \
---version=2.3.0 \
---set glooMeshMgmtServer.ports.healthcheck=8091 \
---set legacyMetricsPipeline.enabled=false \
---set telemetryGateway.enabled=true \
---set telemetryGateway.service.type=LoadBalancer \
---set glooMeshUi.serviceType=LoadBalancer \
---set mgmtClusterName=mgmt \
---set global.cluster=mgmt \
---set licenseKey=${GLOO_MESH_LICENSE_KEY}
+kubectl --context ${MGMT} create ns gloo-mesh
+helm upgrade --install gloo-platform-crds gloo-platform/gloo-platform-crds \
+--namespace gloo-mesh \
+--kube-context ${MGMT} \
+--version=2.3.1
+helm upgrade --install gloo-platform gloo-platform/gloo-platform \
+--namespace gloo-mesh \
+--kube-context ${MGMT} \
+--version=2.3.1 \
+ -f -<<EOF
+licensing:
+  licenseKey: ${GLOO_MESH_LICENSE_KEY}
+common:
+  cluster: mgmt
+glooMgmtServer:
+  enabled: true
+  ports:
+    healthcheck: 8091
+prometheus:
+  enabled: true
+redis:
+  deployment:
+    enabled: true
+telemetryGateway:
+  enabled: true
+  service:
+    type: LoadBalancer
+glooUi:
+  enabled: true
+  serviceType: LoadBalancer
+EOF
 kubectl --context ${MGMT} -n gloo-mesh rollout status deploy/gloo-mesh-mgmt-server
 ```
 <!--bash
@@ -308,16 +326,11 @@ tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
 -->
-
 Finally, you need to register the cluster(s).
 
 Here is how you register the first one:
 
 ```bash
-helm repo add gloo-mesh-agent https://storage.googleapis.com/gloo-mesh-enterprise/gloo-mesh-agent
-helm repo update
-
-
 kubectl apply --context ${MGMT} -f- <<EOF
 apiVersion: admin.gloo.solo.io/v2
 kind: KubernetesCluster
@@ -327,7 +340,6 @@ metadata:
 spec:
   clusterDomain: cluster.local
 EOF
-
 kubectl --context ${CLUSTER1} create ns gloo-mesh
 kubectl get secret relay-root-tls-secret -n gloo-mesh --context ${MGMT} -o jsonpath='{.data.ca\.crt}' | base64 -d > ca.crt
 kubectl create secret generic relay-root-tls-secret -n gloo-mesh --context ${CLUSTER1} --from-file ca.crt=ca.crt
@@ -336,19 +348,29 @@ rm ca.crt
 kubectl get secret relay-identity-token-secret -n gloo-mesh --context ${MGMT} -o jsonpath='{.data.token}' | base64 -d > token
 kubectl create secret generic relay-identity-token-secret -n gloo-mesh --context ${CLUSTER1} --from-file token=token
 rm token
-
-helm upgrade --install gloo-mesh-agent gloo-mesh-agent/gloo-mesh-agent \
-  --namespace gloo-mesh \
+helm upgrade --install gloo-platform-crds gloo-platform/gloo-platform-crds  \
+--namespace=gloo-mesh \
+--kube-context=${CLUSTER1} \
+--version=2.3.1
+helm upgrade --install gloo-platform gloo-platform/gloo-platform \
+  --namespace=gloo-mesh \
   --kube-context=${CLUSTER1} \
-  --set relay.serverAddress=${ENDPOINT_GLOO_MESH} \
-  --set relay.authority=gloo-mesh-mgmt-server.gloo-mesh \
-  --set rate-limiter.enabled=false \
-  --set ext-auth-service.enabled=false \
-  --set glooMeshPortalServer.enabled=false \
-  --set cluster=cluster1 \
-  --set telemetryCollector.enabled=true \
-  --set telemetryCollector.config.exporters.otlp.endpoint=\"${ENDPOINT_TELEMETRY_GATEWAY}\" \
-  --version 2.3.0
+  --version=2.3.1 \
+ -f -<<EOF
+common:
+  cluster: cluster1
+glooAgent:
+  enabled: true
+  relay:
+    serverAddress: ${ENDPOINT_GLOO_MESH}
+    authority: gloo-mesh-mgmt-server.gloo-mesh
+telemetryCollector:
+  enabled: true
+  config:
+    exporters:
+      otlp:
+        endpoint: \"${ENDPOINT_TELEMETRY_GATEWAY}\"
+EOF
 ```
 
 Note that the registration can also be performed using `meshctl cluster register`.
@@ -356,7 +378,6 @@ Note that the registration can also be performed using `meshctl cluster register
 And here is how you register the second one:
 
 ```bash
-
 kubectl apply --context ${MGMT} -f- <<EOF
 apiVersion: admin.gloo.solo.io/v2
 kind: KubernetesCluster
@@ -366,7 +387,6 @@ metadata:
 spec:
   clusterDomain: cluster.local
 EOF
-
 kubectl --context ${CLUSTER2} create ns gloo-mesh
 kubectl get secret relay-root-tls-secret -n gloo-mesh --context ${MGMT} -o jsonpath='{.data.ca\.crt}' | base64 -d > ca.crt
 kubectl create secret generic relay-root-tls-secret -n gloo-mesh --context ${CLUSTER2} --from-file ca.crt=ca.crt
@@ -375,19 +395,29 @@ rm ca.crt
 kubectl get secret relay-identity-token-secret -n gloo-mesh --context ${MGMT} -o jsonpath='{.data.token}' | base64 -d > token
 kubectl create secret generic relay-identity-token-secret -n gloo-mesh --context ${CLUSTER2} --from-file token=token
 rm token
-
-helm upgrade --install gloo-mesh-agent gloo-mesh-agent/gloo-mesh-agent \
-  --namespace gloo-mesh \
+helm upgrade --install gloo-platform-crds gloo-platform/gloo-platform-crds  \
+--namespace=gloo-mesh \
+--kube-context=${CLUSTER2} \
+--version=2.3.1
+helm upgrade --install gloo-platform gloo-platform/gloo-platform \
+  --namespace=gloo-mesh \
   --kube-context=${CLUSTER2} \
-  --set relay.serverAddress=${ENDPOINT_GLOO_MESH} \
-  --set relay.authority=gloo-mesh-mgmt-server.gloo-mesh \
-  --set rate-limiter.enabled=false \
-  --set ext-auth-service.enabled=false \
-  --set glooMeshPortalServer.enabled=false \
-  --set cluster=cluster2 \
-  --set telemetryCollector.enabled=true \
-  --set telemetryCollector.config.exporters.otlp.endpoint=\"${ENDPOINT_TELEMETRY_GATEWAY}\" \
-  --version 2.3.0
+  --version=2.3.1 \
+ -f -<<EOF
+common:
+  cluster: cluster2
+glooAgent:
+  enabled: true
+  relay:
+    serverAddress: ${ENDPOINT_GLOO_MESH}
+    authority: gloo-mesh-mgmt-server.gloo-mesh
+telemetryCollector:
+  enabled: true
+  config:
+    exporters:
+      otlp:
+        endpoint: \"${ENDPOINT_TELEMETRY_GATEWAY}\"
+EOF
 ```
 
 You can check the cluster(s) have been registered correctly using the following commands:
@@ -621,7 +651,7 @@ spec:
       istioOperatorSpec:
         profile: minimal
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.16.2-solo
+        tag: 1.16.4-solo
         namespace: istio-system
         values:
           global:
@@ -661,7 +691,7 @@ spec:
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.16.2-solo
+        tag: 1.16.4-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -688,7 +718,7 @@ spec:
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.16.2-solo
+        tag: 1.16.4-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -724,7 +754,7 @@ spec:
       istioOperatorSpec:
         profile: minimal
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.16.2-solo
+        tag: 1.16.4-solo
         namespace: istio-system
         values:
           global:
@@ -764,7 +794,7 @@ spec:
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.16.2-solo
+        tag: 1.16.4-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -791,7 +821,7 @@ spec:
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.16.2-solo
+        tag: 1.16.4-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -1250,33 +1280,63 @@ kubectl --context ${CLUSTER2} label namespace gloo-mesh-addons istio.io/rev=1-16
 Then, you can deploy the addons on the cluster(s) using Helm:
 
 ```bash
-
-helm upgrade --install gloo-mesh-agent-addons gloo-mesh-agent/gloo-mesh-agent \
+helm upgrade --install gloo-platform gloo-platform/gloo-platform \
   --namespace gloo-mesh-addons \
   --kube-context=${CLUSTER1} \
-  --set cluster=cluster1 \
-  --set glooMeshAgent.enabled=false \
-  --set glooMeshPortalServer.enabled=true \
-  --set glooMeshPortalServer.apiKeyStorage.config.host="redis.gloo-mesh-addons:6379" \
-  --set glooMeshPortalServer.apiKeyStorage.configPath="/etc/redis/config.yaml" \
-  --set glooMeshPortalServer.apiKeyStorage.secretKey="ThisIsSecret" \
-  --set rate-limiter.enabled=true \
-  --set ext-auth-service.enabled=true \
-  --version 2.3.0
+  --version 2.3.1 \
+ -f -<<EOF
+common:
+  cluster: cluster1
+glooPortalServer:
+  enabled: true
+  apiKeyStorage:
+    config:
+      host: redis.gloo-mesh-addons:6379
+    configPath: /etc/redis/config.yaml
+    secretKey: ThisIsSecret
+glooAgent:
+  enabled: false
+extAuthService:
+  enabled: true
+  extAuth: 
+    apiKeyStorage: 
+      name: redis
+      config: 
+        connection: 
+          host: redis.gloo-mesh-addons:6379
+      secretKey: ThisIsSecret
+rateLimiter:
+  enabled: true
+EOF
 
-
-helm upgrade --install gloo-mesh-agent-addons gloo-mesh-agent/gloo-mesh-agent \
+helm upgrade --install gloo-platform gloo-platform/gloo-platform \
   --namespace gloo-mesh-addons \
   --kube-context=${CLUSTER2} \
-  --set cluster=cluster2 \
-  --set glooMeshAgent.enabled=false \
-  --set glooMeshPortalServer.enabled=true \
-  --set glooMeshPortalServer.apiKeyStorage.config.host="redis.gloo-mesh-addons:6379" \
-  --set glooMeshPortalServer.apiKeyStorage.configPath="/etc/redis/config.yaml" \
-  --set glooMeshPortalServer.apiKeyStorage.secretKey="ThisIsSecret" \
-  --set rate-limiter.enabled=true \
-  --set ext-auth-service.enabled=true \
-  --version 2.3.0
+  --version 2.3.1 \
+ -f -<<EOF
+common:
+  cluster: cluster2
+glooPortalServer:
+  enabled: true
+  apiKeyStorage:
+    config:
+      host: redis.gloo-mesh-addons:6379
+    configPath: /etc/redis/config.yaml
+    secretKey: ThisIsSecret
+glooAgent:
+  enabled: false
+extAuthService:
+  enabled: true
+  extAuth: 
+    apiKeyStorage: 
+      name: redis
+      config: 
+        connection: 
+          host: redis.gloo-mesh-addons:6379
+      secretKey: ThisIsSecret
+rateLimiter:
+  enabled: true
+EOF
 ```
 
 This is what the environment looks like now:
@@ -2945,158 +3005,7 @@ kubectl --context ${CLUSTER1} delete accesspolicies -n bookinfo-frontends --all
 
 
 
-## Lab 14 - Use the JWT filter to protect a service <a name="lab-14---use-the-jwt-filter-to-protect-a-service-"></a>
-
-
-In this step, we're going to craft a JWT token and use it to authenticate the requests to `details` service.
-
-### Create the private key
-Let's start by creating a private key that we will use to sign our JWTs:
-```bash
-openssl genrsa 2048 > private-key.pem
-openssl rsa -pubout -in private-key.pem -out public-key.pem
-```
-> Storing a key on your laptop as done here is not considered secure! Do not use this workflow for production workloads. Use appropriate secret management tools to store sensitive information.
-
-### Create the JSON Web Token (JWT)
-We have everything we need to sign and verify a custom JWT with our custom claims. We will use the [jwt.io](https://jwt.io) debugger to do so easily.
-
-- Go to https://jwt.io.
-- In the "Debugger" section, change the algorithm combo-box to "RS256".
-- In the "VERIFY SIGNATURE" section, paste the contents of the file `private-key.pem` to the 
-  bottom box (labeled "Private Key").
-- Paste the following to the payload data (replacing what is already there):
-
-Payload:
-```json
-{
-  "iss": "solo.io",
-  "sub": "1234567890",
-  "solo.io/company":"solo"
-}
-```
-
-You should now have an encoded JWT token in the "Encoded" box. Copy it and save to to a file called token.jwt
-
-```sh
-cat <<EOF > token.jwt
-# paste the encoded JWT here
-EOF
-```
-
-> You may have noticed **jwt.io** complaining about an invalid signature in the bottom left corner. This is fine because we don't need the public key to create > an encoded JWT.If you'd like to resolve the invalid signature, under the "VERIFY SIGNATURE" section, paste the output of `public-key.pem` to the bottom box (labeled "Public Key")
-
-Here is an image of how the page should look like:
-
-![jwt-io](images/steps/eastwest-jwt/jwt-io.png)
-
-Now, we can create a `JWTPolicy` to extract the claim.
-
-Create the policy:
-
-```bash
-kubectl apply --context ${CLUSTER1} -f - <<EOF
-apiVersion: security.policy.gloo.solo.io/v2
-kind: JWTPolicy
-metadata:
-  name: jwt-productpage-details
-  namespace: bookinfo-frontends
-spec:
-  applyToRoutes:
-  - route:
-      labels:
-        jwt: "true"
-  config:
-    providers:
-      solo-io:
-        issuer: solo.io
-        local:
-          inline: |
-$(cat public-key.pem | sed -e 's/^/            /;')
-        claimsToHeaders:
-        - claim: solo.io/company
-          header: X-Company
-EOF
-```
-
-As you can see, it will be applied to all the routes that have the label `jwt` set to "true".
-
-So, you need to create a RouteTable with this label set in the corresponding route.
-
-```bash
-kubectl apply --context ${CLUSTER1} -f - <<EOF
-apiVersion: networking.gloo.solo.io/v2
-kind: RouteTable
-metadata:
-  name: details
-  namespace: bookinfo-frontends
-spec:
-  hosts:
-    - details.bookinfo-backends.svc.cluster.local
-  workloadSelectors:
-  - selector:
-      labels:
-        app: productpage
-  http:
-    - name: details
-      labels:
-        jwt: "true"
-      matchers:
-      - uri:
-          prefix: /
-      forwardTo:
-        destinations:
-          - ref:
-              name: details
-              namespace: bookinfo-backends
-              cluster: cluster1
-            port:
-              number: 9080
-EOF
-```
-
-Now you can test the policy by sending a request to the `details` service without the token
-
-```sh
-kubectl --context $CLUSTER1 -n bookinfo-frontends exec deploy/productpage-v1 -- python -c "import requests; r = requests.get('http://details.bookinfo-backends:9080/details/0'); print(r.status_code)"
-```
-
-And then with the token:
-```sh
-kubectl --context $CLUSTER1 -n bookinfo-frontends exec deploy/productpage-v1 -- python -c "import requests; headers = {'Authorization': 'Bearer $(cat token.jwt)'}; r = requests.get('http://details.bookinfo-backends:9080/details/0', headers=headers); print(r.status_code)"
-```
-
-<!--bash
-cat <<'EOF' > ./test.js
-var chai = require('chai');
-var expect = chai.expect;
-const helpers = require('./tests/chai-exec');
-
-describe("Communication allowed only with valid token", () => {
-  it("Response code should be 401", () => {
-    const command = helpers.getOutputForCommand({ command: "kubectl --context " + process.env.CLUSTER1 + " -n bookinfo-frontends exec deploy/productpage-v1 -- python -c \"import requests; r = requests.get('http://details.bookinfo-backends:9080/details/0'); print(r.status_code)\"" }).replaceAll("'", "");
-    expect(command).to.contain("401");
-  });
-});
-
-EOF
-echo "executing test dist/gloo-mesh-2-0-all-mgmt-as-workload/build/templates/steps/apps/bookinfo/eastwest-jwt/tests/jwt-access.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
--->
-
-We can now delete the different objects we've created:
-
-```bash
-kubectl --context ${CLUSTER1} -n bookinfo-frontends delete routetable details
-kubectl --context ${CLUSTER1} -n bookinfo-frontends delete jwtpolicy jwt-productpage-details
-```
-
-
-
-
-## Lab 15 - Apply rate limiting to east west communication <a name="lab-15---apply-rate-limiting-to-east-west-communication-"></a>
+## Lab 14 - Apply rate limiting to east west communication <a name="lab-14---apply-rate-limiting-to-east-west-communication-"></a>
 
 
 In this step, we're going to apply rate limiting to east west traffic to only allow 3 requests per minute from the `productpage` to the `details` service.
@@ -3236,8 +3145,7 @@ kubectl --context ${CLUSTER1} -n bookinfo-frontends delete ratelimitserversettin
 
 
 
-## Lab 16 - See how Gloo Platform can help with observability <a name="lab-16---see-how-gloo-platform-can-help-with-observability-"></a>
-
+## Lab 15 - See how Gloo Platform can help with observability <a name="lab-15---see-how-gloo-platform-can-help-with-observability-"></a>
 
 # Observability with Gloo Platform
 
@@ -3327,17 +3235,11 @@ Collect remote IstioD metrics securely
 Let's take a look how easy it is to modify the metrics collection in the workload clusters, to collect IstioD metrics, and ship them to the management cluster over TLS.
 
 ```bash
-helm upgrade --install gloo-mesh-agent gloo-mesh-agent/gloo-mesh-agent \
+helm upgrade --install gloo-platform gloo-platform/gloo-platform \
   --namespace gloo-mesh \
   --kube-context=${CLUSTER1} \
-  --set relay.serverAddress=${ENDPOINT_GLOO_MESH} \
-  --set relay.authority=gloo-mesh-mgmt-server.gloo-mesh \
-  --set rate-limiter.enabled=false \
-  --set ext-auth-service.enabled=false \
-  --set cluster=cluster1 \
-  --set telemetryCollector.enabled=true \
-  --set telemetryCollector.config.exporters.otlp.endpoint=\"${ENDPOINT_TELEMETRY_GATEWAY}\" \
-  --version 2.3.0 \
+  --reuse-values \
+  --version 2.3.1 \
   --values - <<EOF
 telemetryCollectorCustomization:
   extraProcessors:
@@ -3392,22 +3294,29 @@ kubectl --context ${MGMT} -n monitoring create cm istio-control-plane-dashboard 
 --from-file=data/steps/gloo-platform-observability/istio-control-plane-dashboard.json
 kubectl --context ${MGMT} label -n monitoring cm istio-control-plane-dashboard grafana_dashboard=1
 ```
-
 Let's rollback the changes we made to the agent chart. We'll do this by running the following command:
 
 ```bash
 kubectl --context $CLUSTER1 delete cm gloo-metrics-collector-config -n gloo-mesh
-helm upgrade --install gloo-mesh-agent gloo-mesh-agent/gloo-mesh-agent \
-  --namespace gloo-mesh \
+helm upgrade --install gloo-platform gloo-platform/gloo-platform \
+  --namespace=gloo-mesh \
   --kube-context=${CLUSTER1} \
-  --set relay.serverAddress=${ENDPOINT_GLOO_MESH} \
-  --set relay.authority=gloo-mesh-mgmt-server.gloo-mesh \
-  --set rate-limiter.enabled=false \
-  --set ext-auth-service.enabled=false \
-  --set cluster=cluster1 \
-  --set telemetryCollector.enabled=true \
-  --set telemetryCollector.config.exporters.otlp.endpoint=\"${ENDPOINT_TELEMETRY_GATEWAY}\" \
-  --version 2.3.0
+  --version=2.3.1 \
+ -f -<<EOF
+common:
+  cluster: 
+glooAgent:
+  enabled: true
+  relay:
+    serverAddress: ${ENDPOINT_GLOO_MESH}
+    authority: gloo-mesh-mgmt-server.gloo-mesh
+telemetryCollector:
+  enabled: true
+  config:
+    exporters:
+      otlp:
+        endpoint: \"${ENDPOINT_TELEMETRY_GATEWAY}\"
+EOF
 ```
 <!--bash
 kubectl --context ${MGMT} delete ns monitoring
@@ -3415,7 +3324,7 @@ kubectl --context ${MGMT} delete ns monitoring
 
 
 
-## Lab 17 - Create the httpbin workspace <a name="lab-17---create-the-httpbin-workspace-"></a>
+## Lab 16 - Create the httpbin workspace <a name="lab-16---create-the-httpbin-workspace-"></a>
 
 We're going to create a workspace for the team in charge of the httpbin application.
 
@@ -3475,7 +3384,7 @@ The Httpbin team has decided to export the following to the `gateway` workspace 
 
 
 
-## Lab 18 - Expose an external service <a name="lab-18---expose-an-external-service-"></a>
+## Lab 17 - Expose an external service <a name="lab-17---expose-an-external-service-"></a>
 
 In this step, we're going to expose an external service through a Gateway using Gloo Mesh and show how we can then migrate this service to the Mesh.
 
@@ -3672,7 +3581,7 @@ This diagram shows the flow of the requests :
 
 
 
-## Lab 19 - Deploy Keycloak <a name="lab-19---deploy-keycloak-"></a>
+## Lab 18 - Deploy Keycloak <a name="lab-18---deploy-keycloak-"></a>
 
 In many use cases, you need to restrict the access to your applications to authenticated users. 
 
@@ -3823,7 +3732,7 @@ KEYCLOAK_TOKEN=$(curl -d "client_id=admin-cli" -d "username=admin" -d "password=
 
 
 
-## Lab 20 - Securing the access with OAuth <a name="lab-20---securing-the-access-with-oauth-"></a>
+## Lab 19 - Securing the access with OAuth <a name="lab-19---securing-the-access-with-oauth-"></a>
 
 
 In this step, we're going to secure the access to the `httpbin` service using OAuth.
@@ -4053,7 +3962,7 @@ This diagram shows the flow of the request (with the Istio ingress gateway lever
 
 
 
-## Lab 21 - Use the JWT filter to create headers from claims <a name="lab-21---use-the-jwt-filter-to-create-headers-from-claims-"></a>
+## Lab 20 - Use the JWT filter to create headers from claims <a name="lab-20---use-the-jwt-filter-to-create-headers-from-claims-"></a>
 
 
 In this step, we're going to validate the JWT token and to create a new header from the `email` claim.
@@ -4173,7 +4082,7 @@ mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${te
 
 
 
-## Lab 22 - Use the transformation filter to manipulate headers <a name="lab-22---use-the-transformation-filter-to-manipulate-headers-"></a>
+## Lab 21 - Use the transformation filter to manipulate headers <a name="lab-21---use-the-transformation-filter-to-manipulate-headers-"></a>
 
 
 In this step, we're going to use a regular expression to extract a part of an existing header and to create a new one:
@@ -4240,7 +4149,7 @@ mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${te
 
 
 
-## Lab 23 - Apply rate limiting to the Gateway <a name="lab-23---apply-rate-limiting-to-the-gateway-"></a>
+## Lab 22 - Apply rate limiting to the Gateway <a name="lab-22---apply-rate-limiting-to-the-gateway-"></a>
 
 
 In this step, we're going to apply rate limiting to the Gateway to only allow 3 requests per minute for the users of the `solo.io` organization.
@@ -4445,7 +4354,7 @@ kubectl --context ${CLUSTER1} -n httpbin delete ratelimitserversettings rate-lim
 
 
 
-## Lab 24 - Use the Web Application Firewall filter <a name="lab-24---use-the-web-application-firewall-filter-"></a>
+## Lab 23 - Use the Web Application Firewall filter <a name="lab-23---use-the-web-application-firewall-filter-"></a>
 
 
 A web application firewall (WAF) protects web applications by monitoring, filtering, and blocking potentially harmful traffic and attacks that can overtake or exploit them.
@@ -4593,7 +4502,7 @@ kubectl --context ${CLUSTER1} -n httpbin delete wafpolicies.security.policy.gloo
 
 
 
-## Lab 25 - Expose the bookinfo application through GraphQL <a name="lab-25---expose-the-bookinfo-application-through-graphql-"></a>
+## Lab 24 - Expose the bookinfo application through GraphQL <a name="lab-24---expose-the-bookinfo-application-through-graphql-"></a>
 
 Gloo Mesh is enhancing the Istio Ingress Gateway to allow exposing some REST services as a GraphQL API.
 
@@ -4873,7 +4782,7 @@ EOF
 
 
 
-## Lab 26 - Interacting with mTLS <a name="lab-26---interacting-with-mtls-"></a>
+## Lab 25 - Interacting with mTLS <a name="lab-25---interacting-with-mtls-"></a>
 
 Services that are part of the mesh are able to communicate using mtLS by default, but you can also have mtLS with services that are **not** part of the mesh, and this lab it is going to show you how.
 
@@ -5223,7 +5132,7 @@ kubectl --context ${CLUSTER1} -n httpbin delete deploy sleep
 
 
 
-## Lab 27 - Deploy the Amazon pod identity webhook <a name="lab-27---deploy-the-amazon-pod-identity-webhook-"></a>
+## Lab 26 - Deploy the Amazon pod identity webhook <a name="lab-26---deploy-the-amazon-pod-identity-webhook-"></a>
 
 
 To use the AWS Lambda integration, we need to deploy the Amazon EKS pod identity webhook.
@@ -5266,7 +5175,7 @@ mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${te
 
 
 
-## Lab 28 - Execute Lambda functions <a name="lab-28---execute-lambda-functions-"></a>
+## Lab 27 - Execute Lambda functions <a name="lab-27---execute-lambda-functions-"></a>
 
 First of all, you need to annotate the service account used by the Istio ingress gateway to allow it to assume an AWS role which can invoke the `echo` Lambda function:
 
@@ -5517,7 +5426,7 @@ kubectl --context ${MGMT} -n gloo-mesh delete cloudprovider aws
 
 
 
-## Lab 29 - VM integration <a name="lab-29---vm-integration-"></a>
+## Lab 28 - VM integration <a name="lab-28---vm-integration-"></a>
 
 Let's see how we can configure a VM to be part of the Mesh.
 
@@ -5670,10 +5579,10 @@ spec:
 EOF
 ```
 
-Download istio 1.16.2:
+Download istio 1.16.4:
 
 ```bash
-export ISTIO_VERSION=1.16.2
+export ISTIO_VERSION=1.16.4
 curl -L https://istio.io/downloadIstio | sh -
 ```
 
@@ -5686,7 +5595,7 @@ Use the istioctl x workload entry command to generate:
 - hosts: An addendum to /etc/hosts that the proxy will use to reach istiod for xDS.*
 
 ```bash
-./istio-1.16.2/bin/istioctl --context ${CLUSTER1} x workload entry configure -f workloadgroup.yaml -o "${WORK_DIR}" --clusterID "${CLUSTER}" -r 1-16
+./istio-1.16.4/bin/istioctl --context ${CLUSTER1} x workload entry configure -f workloadgroup.yaml -o "${WORK_DIR}" --clusterID "${CLUSTER}" -r 1-16
 ```
 
 Run a Docker container that we'll use to simulate a VM:
@@ -5735,7 +5644,7 @@ docker exec vm1 cp /vm/istio-token /var/run/secrets/tokens/istio-token
 Install the deb package containing the Istio virtual machine integration runtime:
 
 ```bash
-docker exec vm1 curl -LO https://storage.googleapis.com/istio-release/releases/1.16.2/deb/istio-sidecar.deb
+docker exec vm1 curl -LO https://storage.googleapis.com/istio-release/releases/1.16.4/deb/istio-sidecar.deb
 docker exec vm1 dpkg -i istio-sidecar.deb
 ```
 
@@ -5971,7 +5880,7 @@ EOF
 Deploy a new version of the ratings service that is using the database and scale down the current version:
 
 ```bash
-kubectl --context ${CLUSTER1} -n bookinfo-backends apply -f ./istio-1.16.2/samples/bookinfo/platform/kube/bookinfo-ratings-v2-mysql-vm.yaml
+kubectl --context ${CLUSTER1} -n bookinfo-backends apply -f ./istio-1.16.4/samples/bookinfo/platform/kube/bookinfo-ratings-v2-mysql-vm.yaml
 kubectl --context ${CLUSTER1} -n bookinfo-backends set env deploy/ratings-v2-mysql-vm MYSQL_DB_HOST=${VM_APP}.virtualmachines.svc.cluster.local
 kubectl --context ${CLUSTER1} -n bookinfo-backends set serviceaccount deploy/ratings-v2-mysql-vm bookinfo-ratings
 pod=$(kubectl --context ${CLUSTER1} -n bookinfo-backends get pods -l "app=ratings,version=v1" -o jsonpath='{.items[0].metadata.name}')
@@ -6005,7 +5914,7 @@ kubectl --context ${CLUSTER1} -n "${VM_NAMESPACE}" delete serviceaccount "${SERV
 kubectl --context ${CLUSTER1} -n "${VM_NAMESPACE}" delete serviceentry ${VM_APP}
 kubectl --context ${CLUSTER1} -n "${VM_NAMESPACE}" delete workloadentry ${VM_APP}
 kubectl --context ${CLUSTER1} delete namespace "${VM_NAMESPACE}"
-kubectl --context ${CLUSTER1} -n bookinfo-backends delete -f ./istio-1.16.2/samples/bookinfo/platform/kube/bookinfo-ratings-v2-mysql-vm.yaml
+kubectl --context ${CLUSTER1} -n bookinfo-backends delete -f ./istio-1.16.4/samples/bookinfo/platform/kube/bookinfo-ratings-v2-mysql-vm.yaml
 kubectl --context ${CLUSTER1} -n bookinfo-backends scale deploy/ratings-v1 --replicas=1
 ```
 
@@ -6041,7 +5950,7 @@ docker rm -f vm1
 
 
 
-## Lab 30 - Upgrade Istio using Gloo Mesh Lifecycle Manager <a name="lab-30---upgrade-istio-using-gloo-mesh-lifecycle-manager-"></a>
+## Lab 29 - Upgrade Istio using Gloo Mesh Lifecycle Manager <a name="lab-29---upgrade-istio-using-gloo-mesh-lifecycle-manager-"></a>
 
 Set the variables corresponding to the old and new revision tags:
 
@@ -6069,7 +5978,7 @@ spec:
       istioOperatorSpec:
         profile: minimal
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.16.2-solo
+        tag: 1.16.4-solo
         namespace: istio-system
         values:
           global:
@@ -6140,7 +6049,7 @@ spec:
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.16.2-solo
+        tag: 1.16.4-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -6186,7 +6095,7 @@ spec:
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.16.2-solo
+        tag: 1.16.4-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -6249,7 +6158,7 @@ spec:
       istioOperatorSpec:
         profile: minimal
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.16.2-solo
+        tag: 1.16.4-solo
         namespace: istio-system
         values:
           global:
@@ -6320,7 +6229,7 @@ spec:
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.16.2-solo
+        tag: 1.16.4-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -6366,7 +6275,7 @@ spec:
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.16.2-solo
+        tag: 1.16.4-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -6836,7 +6745,8 @@ mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${te
 
 
 
-## Lab 31 - Gloo Mesh Management Plane failover <a name="lab-31---gloo-mesh-management-plane-failover-"></a>
+## Lab 30 - Gloo Mesh Management Plane failover <a name="lab-30---gloo-mesh-management-plane-failover-"></a>
+
 
 Before we start the failover procedure, let's capture the current output snapshot:
 
@@ -6886,20 +6796,39 @@ After that, we can deploy Gloo Platform on this cluster.
 Run the following commands to deploy the Gloo Platform management plane (and scale it down):
 
 ```bash
-helm repo add gloo-mesh-enterprise https://storage.googleapis.com/gloo-mesh-enterprise/gloo-mesh-enterprise 
+helm repo add gloo-platform https://storage.googleapis.com/gloo-platform/helm-charts
 helm repo update
-kubectl --context ${MGMT2} create ns gloo-mesh 
-helm upgrade --install gloo-mesh-enterprise gloo-mesh-enterprise/gloo-mesh-enterprise \
---namespace gloo-mesh --kube-context ${MGMT2} \
---version=2.3.0 \
---set glooMeshMgmtServer.ports.healthcheck=8091 \
---set legacyMetricsPipeline.enabled=false \
---set .enabled=true \
---set .service.type=LoadBalancer \
---set glooMeshUi.serviceType=LoadBalancer \
---set mgmtClusterName=mgmt \
---set global.cluster=mgmt \
---set licenseKey=${GLOO_MESH_LICENSE_KEY}
+kubectl --context ${MGMT2} create ns gloo-mesh
+helm upgrade --install gloo-platform-crds gloo-platform/gloo-platform-crds \
+--namespace gloo-mesh \
+--kube-context ${MGMT2} \
+--version=2.3.1
+helm upgrade --install gloo-platform gloo-platform/gloo-platform \
+--namespace gloo-mesh \
+--kube-context ${MGMT2} \
+--version=2.3.1 \
+ -f -<<EOF
+licensing:
+  licenseKey: ${GLOO_MESH_LICENSE_KEY}
+common:
+  cluster: mgmt
+glooMgmtServer:
+  enabled: true
+  ports:
+    healthcheck: 8091
+prometheus:
+  enabled: true
+redis:
+  deployment:
+    enabled: true
+telemetryGateway:
+  enabled: true
+  service:
+    type: LoadBalancer
+glooUi:
+  enabled: true
+  serviceType: LoadBalancer
+EOF
 kubectl --context ${MGMT2} -n gloo-mesh rollout status deploy/gloo-mesh-mgmt-server
 
 kubectl --context ${MGMT2} -n gloo-mesh scale deploy/gloo-mesh-mgmt-server --replicas=0
@@ -7042,32 +6971,46 @@ Now, let's update the agents to use the new management plane.
 
 ```bash
 
-helm upgrade --install gloo-mesh-agent gloo-mesh-agent/gloo-mesh-agent \
-  --namespace gloo-mesh \
+helm upgrade --install gloo-platform gloo-platform/gloo-platform \
+  --namespace=gloo-mesh \
   --kube-context=${CLUSTER1} \
-  --set relay.serverAddress=${ENDPOINT_GLOO_MESH} \
-  --set relay.authority=gloo-mesh-mgmt-server.gloo-mesh \
-  --set rate-limiter.enabled=false \
-  --set ext-auth-service.enabled=false \
-  --set glooMeshPortalServer.enabled=false \
-  --set cluster=cluster1 \
-  --set telemetryCollector.enabled=true \
-  --set telemetryCollector.config.exporters.otlp.endpoint=\"${ENDPOINT_TELEMETRY_GATEWAY}\" \
-  --version 2.3.0
+  --version=2.3.1 \
+ -f -<<EOF
+common:
+  cluster: cluster1
+glooAgent:
+  enabled: true
+  relay:
+    serverAddress: ${ENDPOINT_GLOO_MESH}
+    authority: gloo-mesh-mgmt-server.gloo-mesh
+telemetryCollector:
+  enabled: true
+  config:
+    exporters:
+      otlp:
+        endpoint: \"${ENDPOINT_TELEMETRY_GATEWAY}\"
+EOF
 
 
-helm upgrade --install gloo-mesh-agent gloo-mesh-agent/gloo-mesh-agent \
-  --namespace gloo-mesh \
+helm upgrade --install gloo-platform gloo-platform/gloo-platform \
+  --namespace=gloo-mesh \
   --kube-context=${CLUSTER2} \
-  --set relay.serverAddress=${ENDPOINT_GLOO_MESH} \
-  --set relay.authority=gloo-mesh-mgmt-server.gloo-mesh \
-  --set rate-limiter.enabled=false \
-  --set ext-auth-service.enabled=false \
-  --set glooMeshPortalServer.enabled=false \
-  --set cluster=cluster2 \
-  --set telemetryCollector.enabled=true \
-  --set telemetryCollector.config.exporters.otlp.endpoint=\"${ENDPOINT_TELEMETRY_GATEWAY}\" \
-  --version 2.3.0
+  --version=2.3.1 \
+ -f -<<EOF
+common:
+  cluster: cluster2
+glooAgent:
+  enabled: true
+  relay:
+    serverAddress: ${ENDPOINT_GLOO_MESH}
+    authority: gloo-mesh-mgmt-server.gloo-mesh
+telemetryCollector:
+  enabled: true
+  config:
+    exporters:
+      otlp:
+        endpoint: \"${ENDPOINT_TELEMETRY_GATEWAY}\"
+EOF
 ```
 
 Let's scale up the management plane:
@@ -7101,7 +7044,7 @@ mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${te
 
 
 
-## Lab 32 - Extend Envoy with WebAssembly <a name="lab-32---extend-envoy-with-webassembly-"></a>
+## Lab 31 - Extend Envoy with WebAssembly <a name="lab-31---extend-envoy-with-webassembly-"></a>
 
 WebAssembly (WASM) is the future of cloud-native infrastructure extensibility.
 
