@@ -443,7 +443,7 @@ telemetryCollector:
   config:
     exporters:
       otlp:
-        endpoint: \"${ENDPOINT_TELEMETRY_GATEWAY}\"
+        endpoint: ${ENDPOINT_TELEMETRY_GATEWAY}
   image:
     repository: ${registry}/gloo-mesh/gloo-otel-collector
 EOF
@@ -494,7 +494,7 @@ telemetryCollector:
   config:
     exporters:
       otlp:
-        endpoint: \"${ENDPOINT_TELEMETRY_GATEWAY}\"
+        endpoint: ${ENDPOINT_TELEMETRY_GATEWAY}
   image:
     repository: ${registry}/gloo-mesh/gloo-otel-collector
 EOF
