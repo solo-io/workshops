@@ -552,7 +552,7 @@ telemetryCollector:
   config:
     exporters:
       otlp:
-        endpoint: \"${ENDPOINT_TELEMETRY_GATEWAY}\"
+        endpoint: ${ENDPOINT_TELEMETRY_GATEWAY}
 EOF
 ```
 
@@ -599,7 +599,7 @@ telemetryCollector:
   config:
     exporters:
       otlp:
-        endpoint: \"${ENDPOINT_TELEMETRY_GATEWAY}\"
+        endpoint: ${ENDPOINT_TELEMETRY_GATEWAY}
 EOF
 ```
 
