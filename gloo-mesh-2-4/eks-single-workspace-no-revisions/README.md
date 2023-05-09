@@ -1279,7 +1279,13 @@ glooAgent:
   enabled: false
 extAuthService:
   enabled: true
-  extAuth:
+  extAuth: 
+    apiKeyStorage: 
+      name: redis
+      config: 
+        connection: 
+          host: redis.gloo-mesh-addons:6379
+      secretKey: ThisIsSecret
     image:
       registry: gcr.io/gloo-mesh
 rateLimiter:
@@ -1307,7 +1313,13 @@ glooAgent:
   enabled: false
 extAuthService:
   enabled: true
-  extAuth:
+  extAuth: 
+    apiKeyStorage: 
+      name: redis
+      config: 
+        connection: 
+          host: redis.gloo-mesh-addons:6379
+      secretKey: ThisIsSecret
     image:
       registry: gcr.io/gloo-mesh
 rateLimiter:
