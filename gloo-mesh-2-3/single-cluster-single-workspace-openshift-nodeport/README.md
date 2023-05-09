@@ -842,6 +842,13 @@ glooAgent:
   floatingUserId: true
 extAuthService:
   enabled: true
+  extAuth: 
+    apiKeyStorage: 
+      name: redis
+      config: 
+        connection: 
+          host: redis.gloo-mesh-addons:6379
+      secretKey: ThisIsSecret
 rateLimiter:
   enabled: true
 EOF
