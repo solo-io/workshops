@@ -361,7 +361,7 @@ telemetryCollector:
   config:
     exporters:
       otlp:
-        endpoint: \"${ENDPOINT_TELEMETRY_GATEWAY}\"
+        endpoint: ${ENDPOINT_TELEMETRY_GATEWAY}
   image:
     repository: gcr.io/solo-test-236622/gloo-platform-dev/gloo-otel-collector
 EOF
@@ -410,7 +410,7 @@ telemetryCollector:
   config:
     exporters:
       otlp:
-        endpoint: \"${ENDPOINT_TELEMETRY_GATEWAY}\"
+        endpoint: ${ENDPOINT_TELEMETRY_GATEWAY}
   image:
     repository: gcr.io/solo-test-236622/gloo-platform-dev/gloo-otel-collector
 EOF
