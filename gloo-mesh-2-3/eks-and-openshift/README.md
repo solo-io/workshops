@@ -323,7 +323,7 @@ telemetryCollector:
   config:
     exporters:
       otlp:
-        endpoint: \"${ENDPOINT_TELEMETRY_GATEWAY}\"
+        endpoint: ${ENDPOINT_TELEMETRY_GATEWAY}
   ports:
     otlp:
       hostPort: 0
@@ -383,7 +383,7 @@ telemetryCollector:
   config:
     exporters:
       otlp:
-        endpoint: \"${ENDPOINT_TELEMETRY_GATEWAY}\"
+        endpoint: ${ENDPOINT_TELEMETRY_GATEWAY}
 EOF
 ```
 
