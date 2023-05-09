@@ -205,6 +205,13 @@ glooPortalServer:
     secretKey: ThisIsSecret
 extAuthService:
   enabled: true
+  extAuth: 
+    apiKeyStorage: 
+      name: redis
+      config: 
+        connection: 
+          host: gloo-mesh-redis.gloo-mesh-addons:6379
+      secretKey: ThisIsSecret
 rateLimiter:
   enabled: true
 istioInstallations:
