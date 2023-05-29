@@ -175,9 +175,9 @@ us-docker.pkg.dev/gloo-mesh/istio-workshops/pilot:1.16.4-solo
 us-docker.pkg.dev/gloo-mesh/istio-workshops/proxyv2:1.16.4-solo
 quay.io/keycloak/keycloak:20.0.1
 docker.io/kennethreitz/httpbin
-us-docker.pkg.dev/gloo-mesh/istio-workshops/operator:1.17.1-solo
-us-docker.pkg.dev/gloo-mesh/istio-workshops/pilot:1.17.1-solo
-us-docker.pkg.dev/gloo-mesh/istio-workshops/proxyv2:1.17.1-solo
+us-docker.pkg.dev/gloo-mesh/istio-workshops/operator:1.17.2-solo
+us-docker.pkg.dev/gloo-mesh/istio-workshops/pilot:1.17.2-solo
+us-docker.pkg.dev/gloo-mesh/istio-workshops/proxyv2:1.17.2-solo
 EOF
 
 for url in https://raw.githubusercontent.com/istio/istio/release-1.16/samples/bookinfo/platform/kube/bookinfo.yaml https://raw.githubusercontent.com/istio/istio/release-1.16/samples/bookinfo/networking/bookinfo-gateway.yaml
@@ -188,13 +188,13 @@ do
   done
 done
 
-wget https://storage.googleapis.com/gloo-platform/helm-charts/gloo-platform-2.3.1.tgz
+wget https://storage.googleapis.com/gloo-platform/helm-charts/gloo-platform-2.3.3.tgz
 tar zxvf gloo-platform-*.tgz
 find gloo-platform -name "values.yaml" | while read file; do
   cat $file | yq eval -j | jq -r '.. | .image? | select(. != null) | (if .hub then .hub + "/" + .repository + ":" + .tag else (if .registry then (if .registry == "docker.io" then "docker.io/library" else .registry end) + "/" else "" end) + .repository + ":" + (.tag | tostring) end)'
 done | sort -u >> images.txt
 
-wget https://storage.googleapis.com/gloo-platform/helm-charts/gloo-platform-2.3.1.tgz
+wget https://storage.googleapis.com/gloo-platform/helm-charts/gloo-platform-2.3.3.tgz
 tar zxvf gloo-platform-*.tgz
 find gloo-platform -name "values.yaml" | while read file; do
   cat $file | yq eval -j | jq -r '.. | .image? | select(. != null) | (if .hub then .hub + "/" + .repository + ":" + .tag else (if .registry then (if .registry == "docker.io" then "docker.io/library" else .registry end) + "/" else "" end) + .repository + ":" + (.tag | tostring) end)'
@@ -227,7 +227,7 @@ done
 First of all, let's install the `meshctl` CLI:
 
 ```bash
-export GLOO_MESH_VERSION=v2.3.1
+export GLOO_MESH_VERSION=v2.3.3
 curl -sL https://run.solo.io/meshctl/install | sh -
 export PATH=$HOME/.gloo-mesh/bin:$PATH
 ```
@@ -273,11 +273,11 @@ kubectl --context ${MGMT} create ns gloo-mesh
 helm upgrade --install gloo-platform-crds gloo-platform/gloo-platform-crds \
 --namespace gloo-mesh \
 --kube-context ${MGMT} \
---version=2.3.1
+--version=2.3.3
 helm upgrade --install gloo-platform gloo-platform/gloo-platform \
 --namespace gloo-mesh \
 --kube-context ${MGMT} \
---version=2.3.1 \
+--version=2.3.3 \
  -f -<<EOF
 licensing:
   licenseKey: ${GLOO_MESH_LICENSE_KEY}
@@ -436,11 +436,11 @@ rm token
 helm upgrade --install gloo-platform-crds gloo-platform/gloo-platform-crds  \
 --namespace=gloo-mesh \
 --kube-context=${CLUSTER1} \
---version=2.3.1
+--version=2.3.3
 helm upgrade --install gloo-platform gloo-platform/gloo-platform \
   --namespace=gloo-mesh \
   --kube-context=${CLUSTER1} \
-  --version=2.3.1 \
+  --version=2.3.3 \
  -f -<<EOF
 common:
   cluster: cluster1
@@ -487,11 +487,11 @@ rm token
 helm upgrade --install gloo-platform-crds gloo-platform/gloo-platform-crds  \
 --namespace=gloo-mesh \
 --kube-context=${CLUSTER2} \
---version=2.3.1
+--version=2.3.3
 helm upgrade --install gloo-platform gloo-platform/gloo-platform \
   --namespace=gloo-mesh \
   --kube-context=${CLUSTER2} \
-  --version=2.3.1 \
+  --version=2.3.3 \
  -f -<<EOF
 common:
   cluster: cluster2
@@ -1380,7 +1380,7 @@ Then, you can deploy the addons on the cluster(s) using Helm:
 helm upgrade --install gloo-platform gloo-platform/gloo-platform \
   --namespace gloo-mesh-addons \
   --kube-context=${CLUSTER1} \
-  --version 2.3.1 \
+  --version 2.3.3 \
  -f -<<EOF
 common:
   cluster: cluster1
@@ -1419,7 +1419,7 @@ EOF
 helm upgrade --install gloo-platform gloo-platform/gloo-platform \
   --namespace gloo-mesh-addons \
   --kube-context=${CLUSTER2} \
-  --version 2.3.1 \
+  --version 2.3.3 \
  -f -<<EOF
 common:
   cluster: cluster2
@@ -1680,10 +1680,6 @@ spec:
       - uri:
           prefix: /static
       - uri:
-          exact: /login
-      - uri:
-          exact: /logout
-      - uri:
           prefix: /api/v1/products
       forwardTo:
         destinations:
@@ -1790,6 +1786,27 @@ describe("Productpage is available (HTTPS)", () => {
 })
 EOF
 echo "executing test dist/gloo-mesh-2-0-all-airgap/build/templates/steps/apps/bookinfo/gateway-expose/tests/productpage-available-secure.test.js.liquid"
+tempfile=$(mktemp)
+echo "saving errors in ${tempfile}"
+mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
+-->
+<!--bash
+cat <<'EOF' > ./test.js
+var chai = require('chai');
+var expect = chai.expect;
+const helpers = require('./tests/chai-exec');
+
+describe("Otel metrics", () => {
+  it("cluster1 is sending metrics to telemetryGateway", () => {
+    podName = helpers.getOutputForCommand({ command: "kubectl -n gloo-mesh get pods -l app=prometheus -o jsonpath='{.items[0].metadata.name}' --context " + process.env.MGMT }).replaceAll("'", "");
+    command = helpers.getOutputForCommand({ command: "kubectl --context " + process.env.MGMT + " -n gloo-mesh debug -q -i " + podName + " --image=curlimages/curl -- curl -s http://localhost:9090/api/v1/query?query=istio_requests_total" }).replaceAll("'", "");
+    expect(command).to.contain("cluster\":\"cluster1");
+  });
+});
+
+
+EOF
+echo "executing test dist/gloo-mesh-2-0-all-airgap/build/templates/steps/apps/bookinfo/gateway-expose/tests/otel-metrics.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -2473,10 +2490,6 @@ spec:
       - uri:
           prefix: /static
       - uri:
-          exact: /login
-      - uri:
-          exact: /logout
-      - uri:
           prefix: /api/v1/products
       forwardTo:
         destinations:
@@ -2721,10 +2734,6 @@ spec:
       - uri:
           prefix: /static
       - uri:
-          exact: /login
-      - uri:
-          exact: /logout
-      - uri:
           prefix: /api/v1/products
       forwardTo:
         destinations:
@@ -2810,7 +2819,7 @@ describe("Communication allowed", () => {
   });
 });
 EOF
-echo "executing test dist/gloo-mesh-2-0-all-airgap/build/templates/steps/apps/bookinfo/zero-trust/tests/not-in-mesh-to-in-mesh-allowed.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-all-airgap/build/templates/steps/apps/httpbin/zero-trust/tests/not-in-mesh-to-in-mesh-allowed.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -2836,7 +2845,7 @@ describe("Communication allowed", () => {
   });
 });
 EOF
-echo "executing test dist/gloo-mesh-2-0-all-airgap/build/templates/steps/apps/bookinfo/zero-trust/tests/in-mesh-to-in-mesh-allowed.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-all-airgap/build/templates/steps/apps/httpbin/zero-trust/tests/in-mesh-to-in-mesh-allowed.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -2914,7 +2923,7 @@ describe("Communication not allowed", () => {
   });
 });
 EOF
-echo "executing test dist/gloo-mesh-2-0-all-airgap/build/templates/steps/apps/bookinfo/zero-trust/tests/not-in-mesh-to-in-mesh-not-allowed.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-all-airgap/build/templates/steps/apps/httpbin/zero-trust/tests/not-in-mesh-to-in-mesh-not-allowed.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -2940,7 +2949,7 @@ describe("Communication not allowed", () => {
   });
 });
 EOF
-echo "executing test dist/gloo-mesh-2-0-all-airgap/build/templates/steps/apps/bookinfo/zero-trust/tests/in-mesh-to-in-mesh-not-allowed.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-all-airgap/build/templates/steps/apps/httpbin/zero-trust/tests/in-mesh-to-in-mesh-not-allowed.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -3078,7 +3087,7 @@ describe("Communication status", () => {
 });
 
 EOF
-echo "executing test dist/gloo-mesh-2-0-all-airgap/build/templates/steps/apps/bookinfo/zero-trust/tests/bookinfo-access.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-all-airgap/build/templates/steps/apps/httpbin/zero-trust/tests/bookinfo-access.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -3356,7 +3365,7 @@ helm upgrade --install gloo-platform gloo-platform/gloo-platform \
   --namespace gloo-mesh \
   --kube-context=${CLUSTER1} \
   --reuse-values \
-  --version 2.3.1 \
+  --version 2.3.3 \
   --values - <<EOF
 telemetryCollectorCustomization:
   extraProcessors:
@@ -3387,22 +3396,14 @@ telemetryCollectorCustomization:
       exporters:
       - otlp
 EOF
-```
-
-This hotfix is currently required to patch the `istiod` scrape config due to label mismatch across installation methods:
-
-```bash
-kubectl --context $CLUSTER1 get cm gloo-metrics-collector-config -n gloo-mesh -o yaml | sed "s|regex: pilot|regex: istiod|"  > patch.yaml | kubectl --context $CLUSTER1 apply -f patch.yaml
-```
-
-This configuration update will
+```This configuration update will
   - create a new processor, called `filter/istiod`, that will enable all the IstioD/Pilot related metrics
   - create a new pipeline, called `metrics/istiod`, that will have the aforementioned processor to include the control plane metrics
 
 Then, we just need to perform a rollout restart for the metrics collector, so the new pods can pick up the config change.
 
 ```bash
-kubectl --context $CLUSTER1 rollout restart daemonset/gloo-metrics-collector-agent -n gloo-mesh
+kubectl --context $CLUSTER1 rollout restart daemonset/gloo-telemetry-collector-agent -n gloo-mesh
 ```
 
 Now, let's import the Istio Control Plane Dashboard, and see the metrics!
@@ -3411,37 +3412,7 @@ kubectl --context ${MGMT} -n monitoring create cm istio-control-plane-dashboard 
 --from-file=data/steps/gloo-platform-observability/istio-control-plane-dashboard.json
 kubectl --context ${MGMT} label -n monitoring cm istio-control-plane-dashboard grafana_dashboard=1
 ```
-Let's rollback the changes we made to the agent chart. We'll do this by running the following command:
 
-```bash
-kubectl --context $CLUSTER1 delete cm gloo-metrics-collector-config -n gloo-mesh
-helm upgrade --install gloo-platform gloo-platform/gloo-platform \
-  --namespace=gloo-mesh \
-  --kube-context=${CLUSTER1} \
-  --version=2.3.1 \
- -f -<<EOF
-common:
-  cluster: 
-glooAgent:
-  enabled: true
-  relay:
-    serverAddress: ${ENDPOINT_GLOO_MESH}
-    authority: gloo-mesh-mgmt-server.gloo-mesh
-  image:
-    registry: ${registry}/gloo-mesh
-telemetryCollector:
-  enabled: true
-  config:
-    exporters:
-      otlp:
-        endpoint: ${ENDPOINT_TELEMETRY_GATEWAY}
-  image:
-    repository: ${registry}/gloo-mesh/gloo-otel-collector
-EOF
-```
-<!--bash
-kubectl --context ${MGMT} delete ns monitoring
-//-->
 
 
 
@@ -3699,6 +3670,12 @@ If you refresh your browser, you should see that you get responses only from the
 This diagram shows the flow of the requests :
 
 ![Gloo Mesh Gateway EXternal Service](images/steps/gateway-external-service/gloo-mesh-gateway-external-service.svg)
+
+Let's delete the `ExternalService` we've created:
+
+```bash
+kubectl --context ${CLUSTER1} -n httpbin delete externalservices.networking.gloo.solo.io httpbin
+```
 
 
 
@@ -6129,7 +6106,7 @@ spec:
       istioOperatorSpec:
         profile: minimal
         hub: ${registry}/istio-workshops
-        tag: 1.17.1-solo
+        tag: 1.17.2-solo
         namespace: istio-system
         values:
           global:
@@ -6189,7 +6166,7 @@ spec:
       istioOperatorSpec:
         profile: empty
         hub: ${registry}/istio-workshops
-        tag: 1.17.1-solo
+        tag: 1.17.2-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -6242,7 +6219,7 @@ spec:
       istioOperatorSpec:
         profile: empty
         hub: ${registry}/istio-workshops
-        tag: 1.17.1-solo
+        tag: 1.17.2-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -6309,7 +6286,7 @@ spec:
       istioOperatorSpec:
         profile: minimal
         hub: ${registry}/istio-workshops
-        tag: 1.17.1-solo
+        tag: 1.17.2-solo
         namespace: istio-system
         values:
           global:
@@ -6369,7 +6346,7 @@ spec:
       istioOperatorSpec:
         profile: empty
         hub: ${registry}/istio-workshops
-        tag: 1.17.1-solo
+        tag: 1.17.2-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -6422,7 +6399,7 @@ spec:
       istioOperatorSpec:
         profile: empty
         hub: ${registry}/istio-workshops
-        tag: 1.17.1-solo
+        tag: 1.17.2-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -6602,7 +6579,7 @@ spec:
       istioOperatorSpec:
         profile: minimal
         hub: ${registry}/istio-workshops
-        tag: 1.17.1-solo
+        tag: 1.17.2-solo
         namespace: istio-system
         values:
           global:
@@ -6643,7 +6620,7 @@ spec:
       istioOperatorSpec:
         profile: empty
         hub: ${registry}/istio-workshops
-        tag: 1.17.1-solo
+        tag: 1.17.2-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -6670,7 +6647,7 @@ spec:
       istioOperatorSpec:
         profile: empty
         hub: ${registry}/istio-workshops
-        tag: 1.17.1-solo
+        tag: 1.17.2-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -6707,7 +6684,7 @@ spec:
       istioOperatorSpec:
         profile: minimal
         hub: ${registry}/istio-workshops
-        tag: 1.17.1-solo
+        tag: 1.17.2-solo
         namespace: istio-system
         values:
           global:
@@ -6748,7 +6725,7 @@ spec:
       istioOperatorSpec:
         profile: empty
         hub: ${registry}/istio-workshops
-        tag: 1.17.1-solo
+        tag: 1.17.2-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -6775,7 +6752,7 @@ spec:
       istioOperatorSpec:
         profile: empty
         hub: ${registry}/istio-workshops
-        tag: 1.17.1-solo
+        tag: 1.17.2-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -6816,16 +6793,28 @@ istio-ingressgateway-1-16-784f69b4bb-lcfk9    1/1     Running   0          25m
 It confirms that only the new version is running.
 
 <!--bash
-until [[ $(kubectl --context ${CLUSTER1} -n istio-system get pods -l "istio.io/rev=${OLD_REVISION}" -o json | jq '.items | length') -eq 0 ]]; do
+ATTEMPTS=1
+until [[ $(kubectl --context ${CLUSTER1} -n istio-system get pods -l "istio.io/rev=${OLD_REVISION}" -o json | jq '.items | length') -eq 0 ]] || [ $ATTEMPTS -gt 120 ]; do
+  printf "."
+  ATTEMPTS=$((ATTEMPTS + 1))
   sleep 1
 done
-until [[ $(kubectl --context ${CLUSTER1} -n istio-gateways get pods -l "istio.io/rev=${OLD_REVISION}" -o json | jq '.items | length') -eq 0 ]]; do
+ATTEMPTS=1
+until [[ $(kubectl --context ${CLUSTER1} -n istio-gateways get pods -l "istio.io/rev=${OLD_REVISION}" -o json | jq '.items | length') -eq 0 ]] || [ $ATTEMPTS -gt 60 ]; do
+  printf "."
+  ATTEMPTS=$((ATTEMPTS + 1))
   sleep 1
 done
-until [[ $(kubectl --context ${CLUSTER2} -n istio-system get pods -l "istio.io/rev=${OLD_REVISION}" -o json | jq '.items | length') -eq 0 ]]; do
+ATTEMPTS=1
+until [[ $(kubectl --context ${CLUSTER2} -n istio-system get pods -l "istio.io/rev=${OLD_REVISION}" -o json | jq '.items | length') -eq 0 ]] || [ $ATTEMPTS -gt 10 ]; do
+  printf "."
+  ATTEMPTS=$((ATTEMPTS + 1))
   sleep 1
 done
-until [[ $(kubectl --context ${CLUSTER2} -n istio-gateways get pods -l "istio.io/rev=${OLD_REVISION}" -o json | jq '.items | length') -eq 0 ]]; do
+ATTEMPTS=1
+until [[ $(kubectl --context ${CLUSTER2} -n istio-gateways get pods -l "istio.io/rev=${OLD_REVISION}" -o json | jq '.items | length') -eq 0 ]] || [ $ATTEMPTS -gt 10 ]; do
+  printf "."
+  ATTEMPTS=$((ATTEMPTS + 1))
   sleep 1
 done
 -->
@@ -6923,11 +6912,11 @@ kubectl --context ${MGMT2} create ns gloo-mesh
 helm upgrade --install gloo-platform-crds gloo-platform/gloo-platform-crds \
 --namespace gloo-mesh \
 --kube-context ${MGMT2} \
---version=2.3.1
+--version=2.3.3
 helm upgrade --install gloo-platform gloo-platform/gloo-platform \
 --namespace gloo-mesh \
 --kube-context ${MGMT2} \
---version=2.3.1 \
+--version=2.3.3 \
  -f -<<EOF
 licensing:
   licenseKey: ${GLOO_MESH_LICENSE_KEY}
@@ -7117,7 +7106,7 @@ Now, let's update the agents to use the new management plane.
 helm upgrade --install gloo-platform gloo-platform/gloo-platform \
   --namespace=gloo-mesh \
   --kube-context=${CLUSTER1} \
-  --version=2.3.1 \
+  --version=2.3.3 \
  -f -<<EOF
 common:
   cluster: cluster1
@@ -7142,7 +7131,7 @@ EOF
 helm upgrade --install gloo-platform gloo-platform/gloo-platform \
   --namespace=gloo-mesh \
   --kube-context=${CLUSTER2} \
-  --version=2.3.1 \
+  --version=2.3.3 \
  -f -<<EOF
 common:
   cluster: cluster2
@@ -7168,6 +7157,12 @@ Let's scale up the management plane:
 
 ```bash
 kubectl --context ${MGMT2} -n gloo-mesh scale deploy/gloo-mesh-mgmt-server --replicas=1
+```
+
+And update the variables to use the new management plane from now on:
+
+```bash
+export MGMT=${MGMT2}
 ```
 
 <!--bash
