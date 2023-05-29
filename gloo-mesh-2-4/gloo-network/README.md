@@ -345,7 +345,7 @@ mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${te
 First of all, let's install the `meshctl` CLI:
 
 ```bash
-export GLOO_MESH_VERSION=v2.4.0-beta0-2023-05-07-main-ee13ad9fa
+export GLOO_MESH_VERSION=v2.4.0-beta1
 curl -sL https://run.solo.io/meshctl/install | sh -
 export PATH=$HOME/.gloo-mesh/bin:$PATH
 ```
@@ -388,14 +388,14 @@ mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${te
 helm repo add gloo-platform https://storage.googleapis.com/gloo-platform/helm-charts
 helm repo update
 kubectl --context ${MGMT} create ns gloo-mesh
-helm upgrade --install gloo-platform-crds https://storage.googleapis.com/gloo-platform-dev/platform-charts/helm-charts/gloo-platform-crds-2.4.0-beta0-2023-05-03-main-2ac6fc362.tgz \
+helm upgrade --install gloo-platform-crds gloo-platform/gloo-platform-crds \
 --namespace gloo-mesh \
 --kube-context ${MGMT} \
---version=2.4.0-beta0-2023-05-07-main-ee13ad9fa
-helm upgrade --install gloo-platform https://storage.googleapis.com/gloo-platform-dev/platform-charts/helm-charts/gloo-platform-2.4.0-beta0-2023-05-03-main-2ac6fc362.tgz \
+--version=2.4.0-beta1
+helm upgrade --install gloo-platform gloo-platform/gloo-platform \
 --namespace gloo-mesh \
 --kube-context ${MGMT} \
---version=2.4.0-beta0-2023-05-07-main-ee13ad9fa \
+--version=2.4.0-beta1 \
  -f -<<EOF
 licensing:
   licenseKey: ${GLOO_MESH_LICENSE_KEY}
@@ -414,8 +414,6 @@ telemetryGateway:
   enabled: true
   service:
     type: LoadBalancer
-  image:
-    repository: gcr.io/solo-test-236622/gloo-platform-dev/gloo-otel-collector
 glooUi:
   enabled: true
   serviceType: LoadBalancer
@@ -533,14 +531,14 @@ rm ca.crt
 kubectl get secret relay-identity-token-secret -n gloo-mesh --context ${MGMT} -o jsonpath='{.data.token}' | base64 -d > token
 kubectl create secret generic relay-identity-token-secret -n gloo-mesh --context ${CLUSTER1} --from-file token=token
 rm token
-helm upgrade --install gloo-platform-crds https://storage.googleapis.com/gloo-platform-dev/platform-charts/helm-charts/gloo-platform-crds-2.4.0-beta0-2023-05-03-main-2ac6fc362.tgz  \
+helm upgrade --install gloo-platform-crds gloo-platform/gloo-platform-crds  \
 --namespace=gloo-mesh \
 --kube-context=${CLUSTER1} \
---version=2.4.0-beta0-2023-05-07-main-ee13ad9fa
-helm upgrade --install gloo-platform https://storage.googleapis.com/gloo-platform-dev/platform-charts/helm-charts/gloo-platform-2.4.0-beta0-2023-05-03-main-2ac6fc362.tgz \
+--version=2.4.0-beta1
+helm upgrade --install gloo-platform gloo-platform/gloo-platform \
   --namespace=gloo-mesh \
   --kube-context=${CLUSTER1} \
-  --version=2.4.0-beta0-2023-05-07-main-ee13ad9fa \
+  --version=2.4.0-beta1 \
  -f -<<EOF
 common:
   cluster: cluster1
@@ -555,8 +553,6 @@ telemetryCollector:
     exporters:
       otlp:
         endpoint: ${ENDPOINT_TELEMETRY_GATEWAY}
-  image:
-    repository: gcr.io/solo-test-236622/gloo-platform-dev/gloo-otel-collector
 EOF
 ```
 
@@ -582,14 +578,14 @@ rm ca.crt
 kubectl get secret relay-identity-token-secret -n gloo-mesh --context ${MGMT} -o jsonpath='{.data.token}' | base64 -d > token
 kubectl create secret generic relay-identity-token-secret -n gloo-mesh --context ${CLUSTER2} --from-file token=token
 rm token
-helm upgrade --install gloo-platform-crds https://storage.googleapis.com/gloo-platform-dev/platform-charts/helm-charts/gloo-platform-crds-2.4.0-beta0-2023-05-03-main-2ac6fc362.tgz  \
+helm upgrade --install gloo-platform-crds gloo-platform/gloo-platform-crds  \
 --namespace=gloo-mesh \
 --kube-context=${CLUSTER2} \
---version=2.4.0-beta0-2023-05-07-main-ee13ad9fa
-helm upgrade --install gloo-platform https://storage.googleapis.com/gloo-platform-dev/platform-charts/helm-charts/gloo-platform-2.4.0-beta0-2023-05-03-main-2ac6fc362.tgz \
+--version=2.4.0-beta1
+helm upgrade --install gloo-platform gloo-platform/gloo-platform \
   --namespace=gloo-mesh \
   --kube-context=${CLUSTER2} \
-  --version=2.4.0-beta0-2023-05-07-main-ee13ad9fa \
+  --version=2.4.0-beta1 \
  -f -<<EOF
 common:
   cluster: cluster2
@@ -604,8 +600,6 @@ telemetryCollector:
     exporters:
       otlp:
         endpoint: ${ENDPOINT_TELEMETRY_GATEWAY}
-  image:
-    repository: gcr.io/solo-test-236622/gloo-platform-dev/gloo-otel-collector
 EOF
 ```
 
