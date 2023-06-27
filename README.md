@@ -15,3 +15,4 @@
 - [Gloo Platform Workshop using a single workspace](gloo-mesh-2-4/single-workspace/README.md) - this is the same as the standard workshop but with a single workspace (when no multi-tenancy is needed)
 - [Gloo Platform Workshop using a single cluster](gloo-mesh-2-4/single-cluster/README.md) - this is a workshop based on a single Kubernetes cluster (for both the management plane and Istio) which shows all the benefits when multi-cluster capabilities are not (yet) needed
 - [Gloo Platform Workshop using a single workspace on a single cluster](gloo-mesh-2-4/single-cluster-single-workspace/README.md) - this is a combination of the single cluster and the single workspace workshops 
+- [Gloo Portal Workshop](gloo-mesh-2-4/portal/README.md) - this is a workshop exploring the possibilities and features of GLoo Portal module in Gloo Platform
