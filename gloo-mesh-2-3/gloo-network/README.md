@@ -51,6 +51,7 @@ You can find more information about Gloo Mesh in the official documentation:
 
 
 
+
 ## Lab 1 - Deploy KinD clusters <a name="lab-1---deploy-kind-clusters-"></a>
 
 
@@ -125,6 +126,7 @@ kubectl config use-context ${MGMT}
 
 
 ## Lab 2 - Deploy the Bookinfo demo app <a name="lab-2---deploy-the-bookinfo-demo-app-"></a>
+[<img src="https://img.youtube.com/vi/nzYcrjalY5A/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/nzYcrjalY5A "Video Link")
 
 We're going to deploy the bookinfo application to demonstrate several features of Gloo Mesh.
 
@@ -244,6 +246,7 @@ mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${te
 
 
 ## Lab 3 - Deploy the httpbin demo app <a name="lab-3---deploy-the-httpbin-demo-app-"></a>
+[<img src="https://img.youtube.com/vi/w1xB-o_gHs0/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/w1xB-o_gHs0 "Video Link")
 
 We're going to deploy the httpbin application to demonstrate several features of Gloo Mesh.
 
@@ -340,12 +343,13 @@ mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${te
 
 
 ## Lab 4 - Deploy and register Gloo Mesh <a name="lab-4---deploy-and-register-gloo-mesh-"></a>
+[<img src="https://img.youtube.com/vi/djfFiepK4GY/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/djfFiepK4GY "Video Link")
 
 
 First of all, let's install the `meshctl` CLI:
 
 ```bash
-export GLOO_MESH_VERSION=v2.3.3
+export GLOO_MESH_VERSION=v2.3.5
 curl -sL https://run.solo.io/meshctl/install | sh -
 export PATH=$HOME/.gloo-mesh/bin:$PATH
 ```
@@ -391,11 +395,11 @@ kubectl --context ${MGMT} create ns gloo-mesh
 helm upgrade --install gloo-platform-crds gloo-platform/gloo-platform-crds \
 --namespace gloo-mesh \
 --kube-context ${MGMT} \
---version=2.3.3
+--version=2.3.5
 helm upgrade --install gloo-platform gloo-platform/gloo-platform \
 --namespace gloo-mesh \
 --kube-context ${MGMT} \
---version=2.3.3 \
+--version=2.3.5 \
  -f -<<EOF
 licensing:
   licenseKey: ${GLOO_MESH_LICENSE_KEY}
@@ -475,7 +479,7 @@ mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${te
 
 ```bash
 export ENDPOINT_GLOO_MESH=$(kubectl --context ${MGMT} -n gloo-mesh get svc gloo-mesh-mgmt-server -o jsonpath='{.status.loadBalancer.ingress[0].*}'):9900
-export HOST_GLOO_MESH=$(echo ${ENDPOINT_GLOO_MESH} | cut -d: -f1)
+export HOST_GLOO_MESH=$(echo ${ENDPOINT_GLOO_MESH%:*})
 export ENDPOINT_TELEMETRY_GATEWAY=$(kubectl --context ${MGMT} -n gloo-mesh get svc gloo-telemetry-gateway -o jsonpath='{.status.loadBalancer.ingress[0].*}'):4317
 ```
 
@@ -534,25 +538,25 @@ rm token
 helm upgrade --install gloo-platform-crds gloo-platform/gloo-platform-crds  \
 --namespace=gloo-mesh \
 --kube-context=${CLUSTER1} \
---version=2.3.3
+--version=2.3.5
 helm upgrade --install gloo-platform gloo-platform/gloo-platform \
   --namespace=gloo-mesh \
   --kube-context=${CLUSTER1} \
-  --version=2.3.3 \
+  --version=2.3.5 \
  -f -<<EOF
 common:
   cluster: cluster1
 glooAgent:
   enabled: true
   relay:
-    serverAddress: ${ENDPOINT_GLOO_MESH}
+    serverAddress: "${ENDPOINT_GLOO_MESH}"
     authority: gloo-mesh-mgmt-server.gloo-mesh
 telemetryCollector:
   enabled: true
   config:
     exporters:
       otlp:
-        endpoint: ${ENDPOINT_TELEMETRY_GATEWAY}
+        endpoint: "\"${ENDPOINT_TELEMETRY_GATEWAY}\""
 EOF
 ```
 
@@ -581,25 +585,25 @@ rm token
 helm upgrade --install gloo-platform-crds gloo-platform/gloo-platform-crds  \
 --namespace=gloo-mesh \
 --kube-context=${CLUSTER2} \
---version=2.3.3
+--version=2.3.5
 helm upgrade --install gloo-platform gloo-platform/gloo-platform \
   --namespace=gloo-mesh \
   --kube-context=${CLUSTER2} \
-  --version=2.3.3 \
+  --version=2.3.5 \
  -f -<<EOF
 common:
   cluster: cluster2
 glooAgent:
   enabled: true
   relay:
-    serverAddress: ${ENDPOINT_GLOO_MESH}
+    serverAddress: "${ENDPOINT_GLOO_MESH}"
     authority: gloo-mesh-mgmt-server.gloo-mesh
 telemetryCollector:
   enabled: true
   config:
     exporters:
       otlp:
-        endpoint: ${ENDPOINT_TELEMETRY_GATEWAY}
+        endpoint: "\"${ENDPOINT_TELEMETRY_GATEWAY}\""
 EOF
 ```
 
@@ -1055,5 +1059,6 @@ kubectl --context ${CLUSTER1} -n httpbin debug -i -q ${pod} --image=curlimages/c
 ```
 
 You've achieved zero trust with nearly no effort.
+
 
 
