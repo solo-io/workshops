@@ -1246,13 +1246,6 @@ helm upgrade --install gloo-platform gloo-platform/gloo-platform \
  -f -<<EOF
 common:
   cluster: cluster1
-glooPortalServer:
-  enabled: true
-  apiKeyStorage:
-    config:
-      host: redis.gloo-mesh-addons:6379
-    configPath: /etc/redis/config.yaml
-    secretKey: ThisIsSecret
 glooAgent:
   enabled: false
 extAuthService:
@@ -1260,6 +1253,7 @@ extAuthService:
   extAuth: 
     apiKeyStorage: 
       name: redis
+      enabled: true
       config: 
         connection: 
           host: redis.gloo-mesh-addons:6379
@@ -1275,13 +1269,6 @@ helm upgrade --install gloo-platform gloo-platform/gloo-platform \
  -f -<<EOF
 common:
   cluster: cluster2
-glooPortalServer:
-  enabled: true
-  apiKeyStorage:
-    config:
-      host: redis.gloo-mesh-addons:6379
-    configPath: /etc/redis/config.yaml
-    secretKey: ThisIsSecret
 glooAgent:
   enabled: false
 extAuthService:
@@ -1289,6 +1276,7 @@ extAuthService:
   extAuth: 
     apiKeyStorage: 
       name: redis
+      enabled: true
       config: 
         connection: 
           host: redis.gloo-mesh-addons:6379
@@ -4076,7 +4064,6 @@ And also delete the different objects we've created:
 kubectl --context ${CLUSTER1} -n httpbin delete ratelimitpolicy httpbin
 kubectl --context ${CLUSTER1} -n httpbin delete ratelimitclientconfig httpbin
 kubectl --context ${CLUSTER1} -n httpbin delete ratelimitserverconfig httpbin
-kubectl --context ${CLUSTER1} -n httpbin delete ratelimitserversettings rate-limit-server
 ```
 
 
