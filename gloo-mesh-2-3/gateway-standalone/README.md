@@ -198,21 +198,15 @@ telemetryGateway:
 glooUi:
   enabled: true
   serviceType: LoadBalancer
-glooPortalServer:
-  enabled: true
-  apiKeyStorage:
-    config:
-      host: gloo-mesh-redis.gloo-mesh:6379
-    configPath: /etc/redis/config.yaml
-    secretKey: ThisIsSecret
 extAuthService:
   enabled: true
   extAuth: 
     apiKeyStorage: 
       name: redis
+      enabled: true
       config: 
         connection: 
-          host: gloo-mesh-redis.gloo-mesh-addons:6379
+          host: redis.gloo-mesh-addons:6379
       secretKey: ThisIsSecret
 rateLimiter:
   enabled: true
@@ -1888,7 +1882,6 @@ And also delete the different objects we've created:
 kubectl --context ${CLUSTER1} -n httpbin delete ratelimitpolicy httpbin
 kubectl --context ${CLUSTER1} -n httpbin delete ratelimitclientconfig httpbin
 kubectl --context ${CLUSTER1} -n httpbin delete ratelimitserverconfig httpbin
-kubectl --context ${CLUSTER1} -n httpbin delete ratelimitserversettings rate-limit-server
 ```
 
 
