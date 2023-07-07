@@ -16,23 +16,28 @@ source ./scripts/assert.sh
 * [Introduction](#introduction)
 * [Lab 1 - Deploy a KinD cluster](#lab-1---deploy-a-kind-cluster-)
 * [Lab 2 - Deploy and register Gloo Mesh](#lab-2---deploy-and-register-gloo-mesh-)
-* [Lab 3 - Deploy the Bookinfo demo app](#lab-3---deploy-the-bookinfo-demo-app-)
-* [Lab 4 - Deploy the httpbin demo app](#lab-4---deploy-the-httpbin-demo-app-)
-* [Lab 5 - Deploy Keycloak](#lab-5---deploy-keycloak-)
-* [Lab 6 - Create the gateways workspace](#lab-6---create-the-gateways-workspace-)
-* [Lab 7 - Create the bookinfo workspace](#lab-7---create-the-bookinfo-workspace-)
-* [Lab 8 - Expose the productpage through a gateway](#lab-8---expose-the-productpage-through-a-gateway-)
-* [Lab 9 - Create the httpbin workspace](#lab-9---create-the-httpbin-workspace-)
-* [Lab 10 - Expose the httpbin service](#lab-10---expose-the-httpbin-service-)
-* [Lab 11 - Securing the access with OAuth](#lab-11---securing-the-access-with-oauth-)
-* [Lab 12 - Use the JWT filter to create headers from claims](#lab-12---use-the-jwt-filter-to-create-headers-from-claims-)
-* [Lab 13 - Use the transformation filter to manipulate headers](#lab-13---use-the-transformation-filter-to-manipulate-headers-)
-* [Lab 14 - Use the WAF to block based on source country](#lab-14---use-the-waf-to-block-based-on-source-country-)
-* [Lab 15 - Expose the productpage API securely](#lab-15---expose-the-productpage-api-securely-)
-* [Lab 16 - Expose the dev portal backend](#lab-16---expose-the-dev-portal-backend-)
-* [Lab 17 - Deploy and expose the dev portal frontend](#lab-17---deploy-and-expose-the-dev-portal-frontend-)
-* [Lab 18 - Allow users to create their own API keys](#lab-18---allow-users-to-create-their-own-api-keys-)
-* [Lab 19 - Dev portal monetization](#lab-19---dev-portal-monetization-)
+* [Lab 3 - Deploy Istio using Gloo Mesh Lifecycle Manager](#lab-3---deploy-istio-using-gloo-mesh-lifecycle-manager-)
+* [Lab 4 - Deploy the Bookinfo demo app](#lab-4---deploy-the-bookinfo-demo-app-)
+* [Lab 5 - Deploy the httpbin demo app](#lab-5---deploy-the-httpbin-demo-app-)
+* [Lab 6 - Deploy Keycloak](#lab-6---deploy-keycloak-)
+* [Lab 7 - Create the gateways workspace](#lab-7---create-the-gateways-workspace-)
+* [Lab 8 - Create the bookinfo workspace](#lab-8---create-the-bookinfo-workspace-)
+* [Lab 9 - Expose the productpage through a gateway](#lab-9---expose-the-productpage-through-a-gateway-)
+* [Lab 10 - Create the httpbin workspace](#lab-10---create-the-httpbin-workspace-)
+* [Lab 11 - Expose the httpbin service](#lab-11---expose-the-httpbin-service-)
+* [Lab 12 - Securing the access with OAuth](#lab-12---securing-the-access-with-oauth-)
+* [Lab 13 - Use the JWT filter to create headers from claims](#lab-13---use-the-jwt-filter-to-create-headers-from-claims-)
+* [Lab 14 - Use the transformation filter to manipulate headers](#lab-14---use-the-transformation-filter-to-manipulate-headers-)
+* [Lab 15 - Use the WAF to block based on source country](#lab-15---use-the-waf-to-block-based-on-source-country-)
+* [Lab 16 - Expose the productpage API securely](#lab-16---expose-the-productpage-api-securely-)
+* [Lab 17 - Envoy attributes to headers with WebAssembly](#lab-17---envoy-attributes-to-headers-with-webassembly-)
+* [Lab 18 - Validate user information based on API key metadata](#lab-18---validate-user-information-based-on-api-key-metadata-)
+* [Lab 19 - Expose the dev portal backend](#lab-19---expose-the-dev-portal-backend-)
+* [Lab 20 - Deploy and expose the dev portal frontend](#lab-20---deploy-and-expose-the-dev-portal-frontend-)
+* [Lab 21 - Validate user information with API key metadata and an external service](#lab-21---validate-user-information-with-api-key-metadata-and-an-external-service-)
+* [Lab 22 - Allow users to create their own API keys](#lab-22---allow-users-to-create-their-own-api-keys-)
+* [Lab 23 - Allow users to import API keys from an external system](#lab-23---allow-users-to-import-api-keys-from-an-external-system-)
+* [Lab 24 - Dev portal monetization](#lab-24---dev-portal-monetization-)
 
 
 
@@ -162,7 +167,7 @@ describe("Required environment variables should contain value", () => {
   });
 });
 EOF
-echo "executing test dist/stdalone-portal-md/build/templates/steps/deploy-and-register-gloo-mesh/tests/environment-variables.test.js.liquid"
+echo "executing test dist/beta2/build/templates/steps/deploy-and-register-gloo-mesh/tests/environment-variables.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -330,7 +335,249 @@ export HOST_GW_CLUSTER1=$(echo ${ENDPOINT_HTTP_GW_CLUSTER1} | cut -d: -f1)
 
 
 
-## Lab 3 - Deploy the Bookinfo demo app <a name="lab-3---deploy-the-bookinfo-demo-app-"></a>
+## Lab 3 - Deploy Istio using Gloo Mesh Lifecycle Manager <a name="lab-3---deploy-istio-using-gloo-mesh-lifecycle-manager-"></a>
+[<img src="https://img.youtube.com/vi/f76-KOEjqHs/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/f76-KOEjqHs "Video Link")
+
+We are going to deploy Istio using Gloo Mesh Lifecycle Manager.
+
+First of all, let's create Kubernetes services for the gateways:
+
+```bash
+registry=localhost:5000
+kubectl --context ${CLUSTER1} create ns istio-gateways
+kubectl --context ${CLUSTER1} label namespace istio-gateways istio.io/rev=1-17 --overwrite
+
+kubectl apply --context ${CLUSTER1} -f - <<EOF
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: istio-ingressgateway
+    istio: ingressgateway
+  name: istio-ingressgateway
+  namespace: istio-gateways
+spec:
+  ports:
+  - name: http2
+    port: 80
+    protocol: TCP
+    targetPort: 8080
+  - name: https
+    port: 443
+    protocol: TCP
+    targetPort: 8443
+  selector:
+    app: istio-ingressgateway
+    istio: ingressgateway
+    revision: 1-17
+  type: LoadBalancer
+EOF
+```
+
+It allows us to have full control on which Istio revision we want to use.
+
+Then, we can tell Gloo Mesh to deploy the Istio control planes and the gateways in the cluster(s)
+
+```bash
+kubectl apply --context ${MGMT} -f - <<EOF
+apiVersion: admin.gloo.solo.io/v2
+kind: IstioLifecycleManager
+metadata:
+  name: cluster1-installation
+  namespace: gloo-mesh
+spec:
+  installations:
+    - clusters:
+      - name: cluster1
+        defaultRevision: true
+      revision: 1-17
+      istioOperatorSpec:
+        profile: minimal
+        hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
+        tag: 1.17.2-solo
+        namespace: istio-system
+        values:
+          global:
+            meshID: mesh1
+            multiCluster:
+              clusterName: cluster1
+            network: cluster1
+        meshConfig:
+          accessLogFile: /dev/stdout
+          defaultConfig:        
+            proxyMetadata:
+              ISTIO_META_DNS_CAPTURE: "true"
+              ISTIO_META_DNS_AUTO_ALLOCATE: "true"
+        components:
+          pilot:
+            k8s:
+              env:
+                - name: PILOT_ENABLE_K8S_SELECT_WORKLOAD_ENTRIES
+                  value: "false"
+          ingressGateways:
+          - name: istio-ingressgateway
+            enabled: false
+EOF
+kubectl apply --context ${MGMT} -f - <<EOF
+
+apiVersion: admin.gloo.solo.io/v2
+kind: GatewayLifecycleManager
+metadata:
+  name: cluster1-ingress
+  namespace: gloo-mesh
+spec:
+  installations:
+    - clusters:
+      - name: cluster1
+        activeGateway: false
+      gatewayRevision: 1-17
+      istioOperatorSpec:
+        profile: empty
+        hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
+        tag: 1.17.2-solo
+        values:
+          gateways:
+            istio-ingressgateway:
+              customService: true
+        components:
+          ingressGateways:
+            - name: istio-ingressgateway
+              namespace: istio-gateways
+              enabled: true
+              label:
+                istio: ingressgateway
+---
+apiVersion: admin.gloo.solo.io/v2
+kind: GatewayLifecycleManager
+metadata:
+  name: cluster1-eastwest
+  namespace: gloo-mesh
+spec:
+  installations:
+    - clusters:
+      - name: cluster1
+        activeGateway: false
+      gatewayRevision: 1-17
+      istioOperatorSpec:
+        profile: empty
+        hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
+        tag: 1.17.2-solo
+        values:
+          gateways:
+            istio-ingressgateway:
+              customService: true
+        components:
+          ingressGateways:
+            - name: istio-eastwestgateway
+              namespace: istio-gateways
+              enabled: true
+              label:
+                istio: eastwestgateway
+                topology.istio.io/network: cluster1
+              k8s:
+                env:
+                  - name: ISTIO_META_ROUTER_MODE
+                    value: "sni-dnat"
+                  - name: ISTIO_META_REQUESTED_NETWORK_VIEW
+                    value: cluster1
+EOF
+```
+
+<!--bash
+until kubectl --context ${MGMT} -n gloo-mesh wait --timeout=180s --for=jsonpath='{.status.clusters.cluster1.installations.*.state}'=HEALTHY istiolifecyclemanagers/cluster1-installation; do
+  echo "Waiting for the Istio installation to complete"
+  sleep 1
+done
+until [[ $(kubectl --context ${CLUSTER1} -n istio-system get deploy -o json | jq '[.items[].status.readyReplicas] | add') -ge 1 ]]; do
+  sleep 1
+done
+until [[ $(kubectl --context ${CLUSTER1} -n istio-gateways get deploy -o json | jq '[.items[].status.readyReplicas] | add') -eq 2 ]]; do
+  sleep 1
+done
+-->
+
+<!--bash
+cat <<'EOF' > ./test.js
+
+const helpers = require('./tests/chai-exec');
+
+const chaiExec = require("@jsdevtools/chai-exec");
+const helpersHttp = require('./tests/chai-http');
+const chai = require("chai");
+const expect = chai.expect;
+
+afterEach(function (done) {
+  if (this.currentTest.currentRetry() > 0) {
+    process.stdout.write(".");
+    setTimeout(done, 1000);
+  } else {
+    done();
+  }
+});
+
+describe("Checking Istio installation", function() {
+  it('istiod pods are ready in cluster ' + process.env.CLUSTER1, () => helpers.checkDeploymentsWithLabels({ context: process.env.CLUSTER1, namespace: "istio-system", labels: "app=istiod", instances: 1 }));
+  it('gateway pods are ready in cluster ' + process.env.CLUSTER1, () => helpers.checkDeploymentsWithLabels({ context: process.env.CLUSTER1, namespace: "istio-gateways", labels: "app=istio-ingressgateway", instances: 2 }));
+  it("Gateways have an ip attached in cluster " + process.env.CLUSTER1, () => {
+    let cli = chaiExec("kubectl --context " + process.env.CLUSTER1 + " -n istio-gateways get svc -l app=istio-ingressgateway -o jsonpath='{.items}'");
+    cli.stderr.should.be.empty;
+    let deployments = JSON.parse(cli.stdout.slice(1,-1));
+    expect(deployments).to.have.lengthOf(1);
+    deployments.forEach((deployment) => {
+      expect(deployment.status.loadBalancer).to.have.property("ingress");
+    });
+  });
+});
+
+EOF
+echo "executing test dist/beta2/build/templates/steps/istio-lifecycle-manager-install/tests/istio-ready.test.js.liquid"
+tempfile=$(mktemp)
+echo "saving errors in ${tempfile}"
+mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
+-->
+<!--bash
+until [[ $(kubectl --context ${CLUSTER1} -n istio-gateways get svc -l istio=ingressgateway -o json | jq '.items[0].status.loadBalancer | length') -gt 0 ]]; do
+  sleep 1
+done
+-->
+
+Set the environment variable for the service corresponding to the Istio Ingress Gateway of the cluster(s):
+
+```bash
+export ENDPOINT_HTTP_GW_CLUSTER1=$(kubectl --context ${CLUSTER1} -n istio-gateways get svc -l istio=ingressgateway -o jsonpath='{.items[0].status.loadBalancer.ingress[0].*}'):80
+export ENDPOINT_HTTPS_GW_CLUSTER1=$(kubectl --context ${CLUSTER1} -n istio-gateways get svc -l istio=ingressgateway -o jsonpath='{.items[0].status.loadBalancer.ingress[0].*}'):443
+export HOST_GW_CLUSTER1=$(echo ${ENDPOINT_HTTP_GW_CLUSTER1%:*})
+```
+
+<!--bash
+cat <<'EOF' > ./test.js
+const dns = require('dns');
+const chaiHttp = require("chai-http");
+const chai = require("chai");
+const expect = chai.expect;
+chai.use(chaiHttp);
+const { waitOnFailedTest } = require('./tests/utils');
+
+afterEach(function(done) { waitOnFailedTest(done, this.currentTest.currentRetry())});
+
+describe("Address '" + process.env.HOST_GW_CLUSTER1 + "' can be resolved in DNS", () => {
+    it(process.env.HOST_GW_CLUSTER1 + ' can be resolved', (done) => {
+        return dns.lookup(process.env.HOST_GW_CLUSTER1, (err, address, family) => {
+            expect(address).to.be.an.ip;
+            done();
+        });
+    });
+});
+EOF
+echo "executing test ./gloo-mesh-2-0/tests/can-resolve.test.js.liquid"
+tempfile=$(mktemp)
+echo "saving errors in ${tempfile}"
+mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
+-->
+
+
+
+## Lab 4 - Deploy the Bookinfo demo app <a name="lab-4---deploy-the-bookinfo-demo-app-"></a>
 [<img src="https://img.youtube.com/vi/nzYcrjalY5A/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/nzYcrjalY5A "Video Link")
 
 We're going to deploy the bookinfo application to demonstrate several features of Gloo Mesh.
@@ -394,7 +641,7 @@ describe("Bookinfo app", () => {
   });
 });
 EOF
-echo "executing test dist/stdalone-portal-md/build/templates/steps/apps/bookinfo/deploy-bookinfo/tests/check-bookinfo.test.js.liquid"
+echo "executing test dist/beta2/build/templates/steps/apps/bookinfo/deploy-bookinfo/tests/check-bookinfo.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -403,7 +650,7 @@ mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${te
 
 
 
-## Lab 4 - Deploy the httpbin demo app <a name="lab-4---deploy-the-httpbin-demo-app-"></a>
+## Lab 5 - Deploy the httpbin demo app <a name="lab-5---deploy-the-httpbin-demo-app-"></a>
 [<img src="https://img.youtube.com/vi/w1xB-o_gHs0/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/w1xB-o_gHs0 "Video Link")
 
 We're going to deploy the httpbin application to demonstrate several features of Gloo Mesh.
@@ -492,7 +739,7 @@ describe("httpbin app", () => {
   });
 });
 EOF
-echo "executing test dist/stdalone-portal-md/build/templates/steps/apps/httpbin/deploy-httpbin/tests/check-httpbin.test.js.liquid"
+echo "executing test dist/beta2/build/templates/steps/apps/httpbin/deploy-httpbin/tests/check-httpbin.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -500,7 +747,7 @@ mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${te
 
 
 
-## Lab 5 - Deploy Keycloak <a name="lab-5---deploy-keycloak-"></a>
+## Lab 6 - Deploy Keycloak <a name="lab-6---deploy-keycloak-"></a>
 
 In many use cases, you need to restrict the access to your applications to authenticated users. 
 
@@ -582,7 +829,7 @@ describe("Keycloak", () => {
   it('keycloak pods are ready in cluster1', () => helpers.checkDeployment({ context: process.env.MGMT, namespace: "keycloak", k8sObj: "keycloak" }));
 });
 EOF
-echo "executing test dist/stdalone-portal-md/build/templates/steps/deploy-keycloak/tests/pods-available.test.js.liquid"
+echo "executing test dist/beta2/build/templates/steps/deploy-keycloak/tests/pods-available.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -612,7 +859,7 @@ describe("Retrieve enterprise-networking ip", () => {
   });
 });
 EOF
-echo "executing test dist/stdalone-portal-md/build/templates/steps/deploy-keycloak/tests/keycloak-ip-is-attached.test.js.liquid"
+echo "executing test dist/beta2/build/templates/steps/deploy-keycloak/tests/keycloak-ip-is-attached.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -710,7 +957,7 @@ KEYCLOAK_TOKEN=$(curl -m 2 -d "client_id=admin-cli" -d "username=admin" -d "pass
 
 
 
-## Lab 6 - Create the gateways workspace <a name="lab-6---create-the-gateways-workspace-"></a>
+## Lab 7 - Create the gateways workspace <a name="lab-7---create-the-gateways-workspace-"></a>
 [<img src="https://img.youtube.com/vi/QeVBH0eswWw/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/QeVBH0eswWw "Video Link")
 
 We're going to create a workspace for the team in charge of the Gateways.
@@ -769,7 +1016,7 @@ The Gateway team has decided to import the following from the workspaces that ha
 
 
 
-## Lab 7 - Create the bookinfo workspace <a name="lab-7---create-the-bookinfo-workspace-"></a>
+## Lab 8 - Create the bookinfo workspace <a name="lab-8---create-the-bookinfo-workspace-"></a>
 
 We're going to create a workspace for the team in charge of the Bookinfo application.
 
@@ -837,7 +1084,7 @@ This is how the environment looks like with the workspaces:
 
 
 
-## Lab 8 - Expose the productpage through a gateway <a name="lab-8---expose-the-productpage-through-a-gateway-"></a>
+## Lab 9 - Expose the productpage through a gateway <a name="lab-9---expose-the-productpage-through-a-gateway-"></a>
 [<img src="https://img.youtube.com/vi/emyIu99AOOA/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/emyIu99AOOA "Video Link")
 
 In this step, we're going to expose the `productpage` service through the Ingress Gateway using Gloo Mesh.
@@ -948,7 +1195,7 @@ describe("Productpage is available (HTTP)", () => {
   it('/productpage is available in cluster1', () => helpers.checkURL({ host: 'http://' + process.env.ENDPOINT_HTTP_GW_CLUSTER1, path: '/productpage', retCode: 200 }));
 })
 EOF
-echo "executing test dist/stdalone-portal-md/build/templates/steps/apps/bookinfo/gateway-expose/tests/productpage-available.test.js.liquid"
+echo "executing test dist/beta2/build/templates/steps/apps/bookinfo/gateway-expose/tests/productpage-available.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -1047,7 +1294,7 @@ describe("Productpage is available (HTTPS)", () => {
   it('/productpage is available in cluster1', () => helpers.checkURL({ host: 'https://' + process.env.ENDPOINT_HTTPS_GW_CLUSTER1, path: '/productpage', retCode: 200 }));
 })
 EOF
-echo "executing test dist/stdalone-portal-md/build/templates/steps/apps/bookinfo/gateway-expose/tests/productpage-available-secure.test.js.liquid"
+echo "executing test dist/beta2/build/templates/steps/apps/bookinfo/gateway-expose/tests/productpage-available-secure.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -1068,7 +1315,7 @@ describe("Otel metrics", () => {
 
 
 EOF
-echo "executing test dist/stdalone-portal-md/build/templates/steps/apps/bookinfo/gateway-expose/tests/otel-metrics.test.js.liquid"
+echo "executing test dist/beta2/build/templates/steps/apps/bookinfo/gateway-expose/tests/otel-metrics.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -1081,7 +1328,7 @@ This diagram shows the flow of the request (through the Istio Ingress Gateway):
 
 
 
-## Lab 9 - Create the httpbin workspace <a name="lab-9---create-the-httpbin-workspace-"></a>
+## Lab 10 - Create the httpbin workspace <a name="lab-10---create-the-httpbin-workspace-"></a>
 
 We're going to create a workspace for the team in charge of the httpbin application.
 
@@ -1141,7 +1388,7 @@ The Httpbin team has decided to export the following to the `gateway` workspace 
 
 
 
-## Lab 10 - Expose the httpbin service <a name="lab-10---expose-the-httpbin-service-"></a>
+## Lab 11 - Expose the httpbin service <a name="lab-11---expose-the-httpbin-service-"></a>
 
 In this step, we're going to expose the httpbin service through the Gateway.
 
@@ -1181,7 +1428,7 @@ describe("httpbin from the local service", () => {
   it('Checking text \'X-Amzn-Trace-Id\' not in ' + process.env.CLUSTER1, () => helpersHttp.checkBody({ host: 'https://' + process.env.ENDPOINT_HTTPS_GW_CLUSTER1, path: '/get', body: 'X-Amzn-Trace-Id', match: false }));
 })
 EOF
-echo "executing test dist/stdalone-portal-md/build/templates/steps/apps/httpbin/expose-httpbin/tests/httpbin-from-local.test.js.liquid"
+echo "executing test dist/beta2/build/templates/steps/apps/httpbin/expose-httpbin/tests/httpbin-from-local.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -1196,7 +1443,7 @@ echo "https://${ENDPOINT_HTTPS_GW_CLUSTER1}/get"
 
 
 
-## Lab 11 - Securing the access with OAuth <a name="lab-11---securing-the-access-with-oauth-"></a>
+## Lab 12 - Securing the access with OAuth <a name="lab-12---securing-the-access-with-oauth-"></a>
 [<img src="https://img.youtube.com/vi/fKZjr0AYxYs/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/fKZjr0AYxYs "Video Link")
 
 
@@ -1314,7 +1561,7 @@ describe("Authentication is working properly", function() {
 });
 
 EOF
-echo "executing test dist/stdalone-portal-md/build/templates/steps/apps/httpbin/gateway-extauth-oauth/tests/authentication.test.js.liquid"
+echo "executing test dist/beta2/build/templates/steps/apps/httpbin/gateway-extauth-oauth/tests/authentication.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -1407,7 +1654,7 @@ This diagram shows the flow of the request (with the Istio ingress gateway lever
 
 
 
-## Lab 12 - Use the JWT filter to create headers from claims <a name="lab-12---use-the-jwt-filter-to-create-headers-from-claims-"></a>
+## Lab 13 - Use the JWT filter to create headers from claims <a name="lab-13---use-the-jwt-filter-to-create-headers-from-claims-"></a>
 [<img src="https://img.youtube.com/vi/bpFKbhUIwgM/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/bpFKbhUIwgM "Video Link")
 
 
@@ -1520,7 +1767,7 @@ describe("Claim to header is working properly", function() {
 });
 
 EOF
-echo "executing test dist/stdalone-portal-md/build/templates/steps/apps/httpbin/gateway-jwt/tests/header-added.test.js.liquid"
+echo "executing test dist/beta2/build/templates/steps/apps/httpbin/gateway-jwt/tests/header-added.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -1528,7 +1775,7 @@ mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${te
 
 
 
-## Lab 13 - Use the transformation filter to manipulate headers <a name="lab-13---use-the-transformation-filter-to-manipulate-headers-"></a>
+## Lab 14 - Use the transformation filter to manipulate headers <a name="lab-14---use-the-transformation-filter-to-manipulate-headers-"></a>
 
 
 In this step, we're going to use a regular expression to extract a part of an existing header and to create a new one:
@@ -1587,7 +1834,7 @@ describe("Tranformation is working properly", function() {
 });
 
 EOF
-echo "executing test dist/stdalone-portal-md/build/templates/steps/apps/httpbin/gateway-transformation/tests/header-added.test.js.liquid"
+echo "executing test dist/beta2/build/templates/steps/apps/httpbin/gateway-transformation/tests/header-added.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -1595,7 +1842,7 @@ mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${te
 
 
 
-## Lab 14 - Use the WAF to block based on source country <a name="lab-14---use-the-waf-to-block-based-on-source-country-"></a>
+## Lab 15 - Use the WAF to block based on source country <a name="lab-15---use-the-waf-to-block-based-on-source-country-"></a>
 
 A web application firewall (WAF) protects web applications by monitoring, filtering, and blocking potentially harmful traffic and attacks that can overtake or exploit them.
 
@@ -1736,7 +1983,7 @@ kubectl --context ${CLUSTER1} -n istio-gateways patch svc $(kubectl --context ${
 
 
 
-## Lab 15 - Expose the productpage API securely <a name="lab-15---expose-the-productpage-api-securely-"></a>
+## Lab 16 - Expose the productpage API securely <a name="lab-16---expose-the-productpage-api-securely-"></a>
 [<img src="https://img.youtube.com/vi/pkzeYaTj9k0/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/pkzeYaTj9k0 "Video Link")
 
 Gloo Platform includes a developer portal, which is well integrated with its core API.
@@ -1755,7 +2002,7 @@ kubectl --context ${CLUSTER1} -n bookinfo-frontends annotate service productpage
 <!--bash
 until kubectl --context ${CLUSTER1} -n bookinfo-frontends get apidoc productpage-service; do
   kubectl --context ${CLUSTER1} -n bookinfo-frontends rollout restart deploy productpage-v1
-  sleep 1
+  sleep 10
 done
 -->
 
@@ -1773,7 +2020,7 @@ describe("APIDoc has been created", () => {
     it('APIDoc is present', () => helpers.k8sObjectIsPresent({ context: process.env.CLUSTER1, namespace: "bookinfo-frontends", k8sType: "apidoc", k8sObj: "productpage-service" }));
 });
 EOF
-echo "executing test dist/stdalone-portal-md/build/templates/steps/apps/bookinfo/dev-portal-api/tests/apidoc-created.test.js.liquid"
+echo "executing test dist/beta2/build/templates/steps/apps/bookinfo/dev-portal-api/tests/apidoc-created.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -1908,7 +2155,7 @@ describe("Access the API without authentication", () => {
   it('Checking text \'The Comedy of Errors\' in the response', () => helpersHttp.checkBody({ host: 'https://' + process.env.ENDPOINT_HTTPS_GW_CLUSTER1, path: '/api/bookinfo', body: 'The Comedy of Errors', match: true }));
 })
 EOF
-echo "executing test dist/stdalone-portal-md/build/templates/steps/apps/bookinfo/dev-portal-api/tests/access-api-no-auth.test.js.liquid"
+echo "executing test dist/beta2/build/templates/steps/apps/bookinfo/dev-portal-api/tests/access-api-no-auth.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -1971,7 +2218,7 @@ describe("Access to API unauthorized", () => {
   it('Response code is 401', () => helpers.checkURL({ host: 'https://' + process.env.ENDPOINT_HTTPS_GW_CLUSTER1, path: '/api/bookinfo', retCode: 401 }));
 })
 EOF
-echo "executing test dist/stdalone-portal-md/build/templates/steps/apps/bookinfo/dev-portal-api/tests/access-api-unauthorized.test.js.liquid"
+echo "executing test dist/beta2/build/templates/steps/apps/bookinfo/dev-portal-api/tests/access-api-unauthorized.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -2021,7 +2268,7 @@ describe("Access to API authorized", () => {
   it('Response code is 200', () => helpers.checkURL({ host: 'https://' + process.env.ENDPOINT_HTTPS_GW_CLUSTER1, path: '/api/bookinfo', headers: [{key: 'api-key', value: process.env.API_KEY_USER1}], retCode: 200 }));
 })
 EOF
-echo "executing test dist/stdalone-portal-md/build/templates/steps/apps/bookinfo/dev-portal-api/tests/access-api-authorized.test.js.liquid"
+echo "executing test dist/beta2/build/templates/steps/apps/bookinfo/dev-portal-api/tests/access-api-authorized.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -2168,7 +2415,297 @@ server: istio-envoy
 
 
 
-## Lab 16 - Expose the dev portal backend <a name="lab-16---expose-the-dev-portal-backend-"></a>
+## Lab 17 - Envoy attributes to headers with WebAssembly <a name="lab-17---envoy-attributes-to-headers-with-webassembly-"></a>
+
+WebAssembly (Wasm) is the future of cloud-native infrastructure extensibility.
+
+Wasm is a safe, secure, and dynamic way of extending infrastructure with the language of your choice. WASM tool chains compile your code from any of the supported languages into a type-safe, binary format that can be loaded dynamically in a WASM sandbox/VM.
+
+In this lab, we're going to build a new Wasm plugin to capture any [Envoy attribute](https://www.envoyproxy.io/docs/envoy/latest/intro/arch_overview/advanced/attributes) into a header.
+
+[TinyGo](https://tinygo.org/) must be installed.
+
+Let's build an OCI image for that purpose:
+
+```bash
+pushd data/steps/web-assembly-attributes
+go mod init web-assembly-attributes
+go get github.com/tetratelabs/proxy-wasm-go-sdk/proxywasm
+go get github.com/tetratelabs/proxy-wasm-go-sdk/proxywasm/types
+go get github.com/tidwall/gjson
+tinygo build -o plugin.wasm -scheduler=none -target=wasi ./main.go
+docker build -t localhost:5000/metadata-headers:0.1 .
+docker push localhost:5000/metadata-headers:0.1
+popd
+```
+
+We can now deploy the Wasm plugin on the gateway:
+
+```bash
+kubectl apply --context ${CLUSTER1} -f - <<EOF
+apiVersion: extensions.istio.io/v1alpha1
+kind: WasmPlugin
+metadata:
+  name: attributes-to-headers
+  namespace: istio-gateways
+spec:
+  selector:
+    matchLabels:
+      istio: ingressgateway
+  url: oci://kind-registry:5000/metadata-headers:0.1
+  phase: AUTHN
+  pluginConfig:
+    attributes:
+    - source.address
+    - source.port
+    - connection.mtls
+    - connection.tls_version
+EOF
+```
+
+This Wasm plugin is going to create new headers for the following attributes and convert them to string:
+
+- source.address
+- source.port
+- connection.mtls
+- connection.tls_version
+
+Let's test it:
+
+```bash
+curl -k "https://${ENDPOINT_HTTPS_GW_CLUSTER1}/get"
+```
+
+Here is the expected result:
+
+```
+{
+  "args": {}, 
+  "headers": {
+    "Accept": "*/*", 
+    "Host": "172.18.102.1", 
+    "User-Agent": "curl/7.81.0", 
+    "X-Attribute-Connection-Mtls": "false", 
+    "X-Attribute-Connection-Tls-Version": "TLSv1.3", 
+    "X-Attribute-Source-Address": "10.102.0.1:33995", 
+    "X-Attribute-Source-Port": "33995", 
+    "X-B3-Parentspanid": "470e3748edae7184", 
+    "X-B3-Sampled": "0", 
+    "X-B3-Spanid": "f74647f6886ff109", 
+    "X-B3-Traceid": "6e53524939ef1c68470e3748edae7184", 
+    "X-Envoy-Attempt-Count": "1", 
+    "X-Envoy-Internal": "true", 
+    "X-Forwarded-Client-Cert": "By=spiffe://cluster1/ns/httpbin/sa/in-mesh;Hash=ab8866dec1e59f345480ce67dae56f9da5b0fbec4d530bbfc98507e892fb2087;Subject=\"\";URI=spiffe://cluster1/ns/istio-gateways/sa/istio-ingressgateway-1-17-service-account"
+  }, 
+  "origin": "10.102.0.1", 
+  "url": "https://172.18.102.1/get"
+}
+```
+
+<!--bash
+cat <<'EOF' > ./test.js
+const chaiExec = require("@jsdevtools/chai-exec");
+const helpersHttp = require('./tests/chai-http');
+var chai = require('chai');
+var expect = chai.expect;
+
+describe("Headers have been added", function() {
+  it('The X-Attribute-Connection-Tls-Version header has been added', () => helpersHttp.checkBody({ host: 'https://' + process.env.ENDPOINT_HTTPS_GW_CLUSTER1, path: '/get', body: '"X-Attribute-Connection-Tls-Version": "TLSv1.3"' }));
+});
+
+EOF
+echo "executing test dist/beta2/build/templates/steps/apps/httpbin/web-assembly-attributes/tests/headers-added.test.js.liquid"
+tempfile=$(mktemp)
+echo "saving errors in ${tempfile}"
+mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
+-->
+
+Note that you can then use these new headers in other policies (TransformationPolicies, ...)
+
+
+
+
+
+## Lab 18 - Validate user information based on API key metadata <a name="lab-18---validate-user-information-based-on-api-key-metadata-"></a>
+
+In this lab, we will explore how to expose information from the API key and use it to authorize requests.
+
+Let's first add more user information to the API key of user1:
+```bash
+export API_KEY_USER1=apikey1
+kubectl apply --context ${CLUSTER1} -f - <<EOF
+apiVersion: v1
+kind: Secret
+metadata:
+  name: user1
+  namespace: bookinfo-frontends
+  labels:
+    auth: api-key
+type: extauth.solo.io/apikey
+data:
+  api-key: YXBpa2V5MQ==
+  user-id: dXNlcjE=
+  user-email: dXNlcjFAc29sby5pbw==
+  plan: Z29sZA==
+  tlsversion: VExTdjEuMw==
+EOF
+```
+
+We will ask for a minimum TLS version based on user metadata, using OPA to enforce it:
+```bash
+kubectl apply --context ${CLUSTER1} -f - <<EOF
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: opa-policy
+  namespace: gloo-mesh-addons
+data:
+  policy.rego: |
+    package test
+    default allow = false
+    allow {
+      input.http_request.headers["x-attribute-connection-tls-version"] >= input.state["X-AppConfig-Tls"]
+    }
+EOF
+```
+
+Let's put it all together in an `ExtAuthPolicy`:
+```bash
+kubectl apply --context ${CLUSTER1} -f - <<EOF
+apiVersion: security.policy.gloo.solo.io/v2
+kind: ExtAuthPolicy
+metadata:
+  name: bookinfo-apiauth
+  namespace: bookinfo-frontends
+spec:
+  applyToRoutes:
+  - route:
+      labels:
+        apikeys: "true"
+  config:
+    server:
+      name: ext-auth-server
+      namespace: gloo-mesh-addons
+      cluster: cluster1
+    glooAuth:
+      configs:
+        - apiKeyAuth:
+            headerName: api-key
+            headersFromMetadataEntry:
+              X-Solo-Plan:
+                name: plan
+                required: true
+              X-AppConfig-Tls:
+                name: tlsversion
+                required: true
+            k8sSecretApikeyStorage:
+              labelSelector:
+                auth: api-key
+        - opaAuth:
+            modules:
+            - name: opa-policy
+              namespace: gloo-mesh-addons
+            query: "data.test.allow == true"
+EOF
+```
+
+Finally, we will test our setup:
+
+```shell
+echo $API_KEY_USER1
+curl --tlsv1.2 --tls-max 1.2 -ki -H "api-key: ${API_KEY_USER1}" "https://${ENDPOINT_HTTPS_GW_CLUSTER1}/api/bookinfo"
+
+curl --tlsv1.3 --tls-max 1.3 -ki -H "api-key: ${API_KEY_USER1}" "https://${ENDPOINT_HTTPS_GW_CLUSTER1}/api/bookinfo"
+```
+
+You can see that the first request fails, while the second one succeeds.
+
+```http,nocopy
+HTTP/2 403 
+date: Fri, 07 Jul 2023 07:38:38 GMT
+server: istio-envoy
+
+HTTP/2 200 
+content-type: application/json
+content-length: 395
+server: istio-envoy
+date: Fri, 07 Jul 2023 07:38:38 GMT
+x-envoy-upstream-service-time: 11
+
+[{"id": 0, "title": "The Comedy of Errors", "descriptionHtml": "<a href=\"https://en.wikipedia.org/wiki/The_Comedy_of_Errors\">Wikipedia Summary</a>: The Comedy of Errors is one of <b>William Shakespeare's</b> early plays. It is his shortest and one of his most farcical comedies, with a major part of the humour coming from slapstick and mistaken identity, in addition to puns and word play."}]
+```
+
+Optionally, we can also sanitize the headers that are finally sent to the upstream service. Check the custom metadata is present or not in the request:
+
+```shell
+kubectl apply --context ${CLUSTER1} -f - <<EOF
+apiVersion: networking.istio.io/v1alpha3
+kind: EnvoyFilter
+metadata:
+  name: ingressgateway-access-logging
+  namespace: istio-system
+spec:
+  workloadSelector:
+    labels:
+      istio: ingressgateway
+  configPatches:
+  - applyTo: NETWORK_FILTER
+    match:
+      context: GATEWAY
+      listener:
+        filterChain:
+          filter:
+            name: "envoy.filters.network.http_connection_manager"
+    patch:
+      operation: MERGE
+      value:
+        typed_config:
+          "@type": "type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager"
+          access_log:
+          - name: envoy.access_loggers.file
+            typed_config:
+              "@type": "type.googleapis.com/envoy.extensions.access_loggers.file.v3.FileAccessLog"
+              path: /dev/stdout
+              log_format:
+                json_format:
+                  status: "%RESPONSE_CODE%"
+                  requestId: "%REQ(X-REQUEST-ID)%"
+                  X-Solo-Plan: "%REQ(X-SOLO-PLAN)%"
+                  X-AppConfig-Tls: "%REQ(X-APPCONFIG-TLS)%"
+                  X-Downstream-Tls: "%REQ(X-DOWNSTREAM-TLS)%"
+EOF
+```
+
+```shell
+kubectl --context ${CLUSTER1} logs -n istio-gateways -l istio=ingressgateway
+```
+
+And then sanitize the headers:
+```bash
+kubectl apply --context ${CLUSTER1} -f - <<EOF
+apiVersion: trafficcontrol.policy.gloo.solo.io/v2
+kind: HeaderManipulationPolicy
+metadata:
+  name: add-tls-header
+  namespace: bookinfo-frontends
+spec:
+  applyToRoutes:
+  - route:
+      labels:
+        apikeys: "true"
+  config:
+    removeRequestHeaders:
+    - X-Attribute-Connection-Mtls
+    - X-Attribute-Connection-Tls-Version
+    - X-Attribute-Source-Address
+    - X-Attribute-Source-Port
+    - X-AppConfig-Tls
+EOF
+```
+
+
+
+## Lab 19 - Expose the dev portal backend <a name="lab-19---expose-the-dev-portal-backend-"></a>
 [<img src="https://img.youtube.com/vi/mfXww6udYFs/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/mfXww6udYFs "Video Link")
 
 Now that your API has been exposed securely and our plans defined, you probably want to advertise it through a developer portal.
@@ -2238,7 +2775,7 @@ describe("Access the portal API without authentication", () => {
   it('Checking text \'portal config not found\' in the response', () => helpersHttp.checkBody({ host: 'https://' + process.env.ENDPOINT_HTTPS_GW_CLUSTER1, path: '/portal-server/v1/apis', body: 'portal config not found', match: true }));
 })
 EOF
-echo "executing test dist/stdalone-portal-md/build/templates/steps/apps/bookinfo/dev-portal-backend/tests/access-portal-api-no-auth-no-config.test.js.liquid"
+echo "executing test dist/beta2/build/templates/steps/apps/bookinfo/dev-portal-backend/tests/access-portal-api-no-auth-no-config.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -2299,7 +2836,7 @@ describe("Access the portal API without authentication", () => {
   it('Checking text \'[]\' in the response', () => helpersHttp.checkBody({ host: 'https://' + process.env.ENDPOINT_HTTPS_GW_CLUSTER1, path: '/portal-server/v1/apis', body: '[]', match: true }));
 })
 EOF
-echo "executing test dist/stdalone-portal-md/build/templates/steps/apps/bookinfo/dev-portal-backend/tests/access-portal-api-no-auth-empty.test.js.liquid"
+echo "executing test dist/beta2/build/templates/steps/apps/bookinfo/dev-portal-backend/tests/access-portal-api-no-auth-empty.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -2342,7 +2879,7 @@ The `RouteTable` we have created for the `bookinfo` API has this label.
 
 
 
-## Lab 17 - Deploy and expose the dev portal frontend <a name="lab-17---deploy-and-expose-the-dev-portal-frontend-"></a>
+## Lab 20 - Deploy and expose the dev portal frontend <a name="lab-20---deploy-and-expose-the-dev-portal-frontend-"></a>
 
 The developer frontend is provided as a fully functional template to allow you to customize it based on your own requirements.
 
@@ -2454,7 +2991,7 @@ describe("Access the portal frontend without authentication", () => {
   it('Checking text \'Developer Portal\' in the response', () => helpersHttp.checkBody({ host: 'https://' + process.env.ENDPOINT_HTTPS_GW_CLUSTER1, path: '/index.html', body: 'Developer Portal', match: true }));
 })
 EOF
-echo "executing test dist/stdalone-portal-md/build/templates/steps/apps/bookinfo/dev-portal-frontend/tests/access-portal-frontend-no-auth.test.js.liquid"
+echo "executing test dist/beta2/build/templates/steps/apps/bookinfo/dev-portal-frontend/tests/access-portal-frontend-no-auth.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -2622,7 +3159,7 @@ describe("Authentication is working properly", function() {
   it("The portal frontend is accessible after authenticating", () => helpersHttp.checkURL({ host: 'https://' + process.env.ENDPOINT_HTTPS_GW_CLUSTER1, path: '/index.html', headers: [{key: 'Authorization', value: 'Bearer ' + keycloak_token}], retCode: 200 }));
 });
 EOF
-echo "executing test dist/stdalone-portal-md/build/templates/steps/apps/bookinfo/dev-portal-frontend/tests/access-portal-frontend-authenticated.test.js.liquid"
+echo "executing test dist/beta2/build/templates/steps/apps/bookinfo/dev-portal-frontend/tests/access-portal-frontend-authenticated.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -2638,7 +3175,166 @@ Now, if you click on the `VIEW APIS` button, you should see the `Bookinfo REST A
 
 
 
-## Lab 18 - Allow users to create their own API keys <a name="lab-18---allow-users-to-create-their-own-api-keys-"></a>
+## Lab 21 - Validate user information with API key metadata and an external service <a name="lab-21---validate-user-information-with-api-key-metadata-and-an-external-service-"></a>
+
+In this lab, we will explore how to expose information from the API key and use it to authorize requests.
+
+Specifically, we'll store a list of prohibited countries in the metadata of the API key, and then enforce that requests must come from a country not on that list the be successfully authorized.
+
+Identify the two-character ISO 3166-1 code representing the country you're in and set it in a variable that we'll use in the API key's metadata. For example, use `US` for the USA, or `GB` for the United Kingdom. A comprehensive collection of country codes is in [this list](https://en.wikipedia.org/wiki/ISO_3166-1_alpha-2#Officially_assigned_code_elements).
+
+```bash
+export PROHIBITED_COUNTRY=GB
+```
+
+Add this country as a "prohibited country" in the metadata of user1's API key:
+
+```bash
+export API_KEY_USER1=apikey1
+kubectl apply --context ${CLUSTER1} -f - <<EOF
+apiVersion: v1
+kind: Secret
+metadata:
+  name: user1
+  namespace: bookinfo-frontends
+  labels:
+    auth: api-key
+type: extauth.solo.io/apikey
+data:
+  api-key: $(echo -n "${API_KEY_USER1}" | base64)
+  user-id: dXNlcjE=
+  user-email: dXNlcjFAc29sby5pbw==
+  plan: Z29sZA==
+  prohibitedCountries: $(echo -n "${PROHIBITED_COUNTRY}" | base64)
+EOF
+```
+
+We'll configure the `ExtAuthPolicy` to do a few things:
+ - Add the API key's list of prohibited countries to the request when authenticating the key
+ - Add the request's originating country to the request metadata (implemented by an external service)
+ - Compare the requestor country with the list of prohibited countries using an OPA rule
+
+The OPA rule will cause authorization to fail if the requestor country is in the list of prohibited countries. We'll create this rule first:
+
+```bash
+kubectl apply --context ${CLUSTER1} -f - <<EOF
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: deny-prohibited-countries
+  namespace: bookinfo-frontends
+data:
+  policy.rego: |-
+    package test
+
+    import future.keywords.if
+    import future.keywords.in
+
+    default allow = false
+
+    allow if not input.state["X-AppConfig-Prohibited-Countries"]
+
+    allow if not input.state["geo-CountryCode"]
+
+    allow if input.state["geo-CountryCode"] == ""
+
+    allow if {
+        not input.state["geo-CountryCode"] in split(input.state["X-AppConfig-Prohibited-Countries"], ",")
+    }
+EOF
+```
+
+Let's also create the external service that will perform the country code lookup for requests as they arrive:
+
+```bash
+kubectl apply --context ${CLUSTER1} -f - <<EOF
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: extauth-grpcservice
+  namespace: gloo-mesh-addons
+spec:
+  selector:
+    matchLabels:
+      app: grpc-extauth
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: grpc-extauth
+    spec:
+      containers:
+      - name: grpc-extauth
+        image: gcr.io/field-engineering-eu/jesus-passthrough-grpc-service:0.2.6
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 9001
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: example-grpc-auth-service
+  namespace: gloo-mesh-addons
+  labels:
+      app: grpc-extauth
+spec:
+  ports:
+  - port: 9001
+    protocol: TCP
+  selector:
+      app: grpc-extauth
+EOF
+```
+
+Then we can apply the `ExtAuthPolicy`:
+
+```bash
+kubectl apply --context ${CLUSTER1} -f - <<EOF
+apiVersion: security.policy.gloo.solo.io/v2
+kind: ExtAuthPolicy
+metadata:
+  name: bookinfo-apiauth
+  namespace: bookinfo-frontends
+spec:
+  applyToRoutes:
+  - route:
+      labels:
+        apikeys: "true"
+  config:
+    server:
+      name: ext-auth-server
+      namespace: gloo-mesh-addons
+      cluster: cluster1
+    glooAuth:
+      configs:
+      - apiKeyAuth:
+          headerName: api-key
+          headersFromMetadataEntry:
+            X-AppConfig-Prohibited-Countries:
+              name: prohibitedCountries
+          k8sSecretApikeyStorage:
+            labelSelector:
+              auth: api-key
+      - passThroughAuth:
+          grpc:
+            address: example-grpc-auth-service.gloo-mesh-addons.svc.cluster.local:9001
+      - opaAuth:
+          modules:
+          - name: deny-prohibited-countries
+            namespace: bookinfo-frontends
+          query: "data.test.allow == true"
+EOF
+```
+
+Let's test that the API key's prohibited country list is enforced. We'll do this by using the Swagger API documentation in the portal to send a test request to the API itself.
+
+In the Portal UI, make sure you're logged in as "user1" and click the "**APIs**" menu item. Select "**BookInfo REST API**", click to switch to the "**Swagger View**", then click "**Authorize**" and enter our API key, `apikey1`.
+
+Now, pick a resource to test. For example, use "**GET /api/bookinfo**" and click "**Try it out**", then "**Execute**". This will send a request through our authorization flow using the API key that we've added metadata to. We should see a server response of `403 Error: Forbidden`, as the authorization server has rejected your request on the basis of the country your requests are coming from.
+
+
+
+## Lab 22 - Allow users to create their own API keys <a name="lab-22---allow-users-to-create-their-own-api-keys-"></a>
 [<img src="https://img.youtube.com/vi/fipCEZqijcQ/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/fipCEZqijcQ "Video Link")
 
 In the previous steps, we've used Kubernetes secrets to store API keys and we've created them manually.
@@ -2689,7 +3385,7 @@ Copy the key. If you don't do that, you won't be able to see it again. You'll ne
 
 You can now use the key to try out the API.
 
-You'll need to use the `Swagger View`and then to click on the `Authorize` button to paste your API key.
+You'll need to use the `Swagger View` and then to click on the `Authorize` button to paste your API key.
 
 Before we continue, let's update the API_KEY_USER1 variable with its current value:
 <!--bash
@@ -2727,7 +3423,7 @@ describe("API key creation working properly", function() {
   it("Authentication is working with the generated API key", () => helpersHttp.checkURL({ host: 'https://' + process.env.ENDPOINT_HTTPS_GW_CLUSTER1, path: '/api/bookinfo', headers: [{key: 'api-key', value: process.env.API_KEY_USER1}], retCode: 200 }));
 });
 EOF
-echo "executing test dist/stdalone-portal-md/build/templates/steps/apps/bookinfo/dev-portal-self-service/tests/api-key.test.js.liquid"
+echo "executing test dist/beta2/build/templates/steps/apps/bookinfo/dev-portal-self-service/tests/api-key.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=150 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -2735,7 +3431,165 @@ mocha ./test.js --timeout 10000 --retries=150 --bail 2> ${tempfile} || { cat ${t
 
 
 
-## Lab 19 - Dev portal monetization <a name="lab-19---dev-portal-monetization-"></a>
+## Lab 23 - Allow users to import API keys from an external system <a name="lab-23---allow-users-to-import-api-keys-from-an-external-system-"></a>
+
+In this lab, we will guide you through the process of creating a Go program to import the keys from another system. We will also show you how to use the additional metadata to add information to the key.
+
+Check the list of apikeys to be imported and the additional metadata we are adding to the user:
+```shell
+cat data/steps/dev-portal-import-keys/apikeys.txt
+cat data/steps/dev-portal-import-keys/additional-metadata.txt
+```
+
+Let's put all information into kubernetes secrets and configmaps:
+
+```bash
+kubectl --context ${CLUSTER1} -n gloo-mesh-addons create configmap apikey-migration --from-file=data/steps/dev-portal-import-keys/additional-metadata.txt --from-file=data/steps/dev-portal-import-keys/migrate.go --from-file=data/steps/dev-portal-import-keys/go.mod
+kubectl --context ${CLUSTER1} -n gloo-mesh-addons create secret generic apikey-migration --from-file=data/steps/dev-portal-import-keys/apikeys.txt
+```
+
+Next, we will run a kubernetes job, that will read the apikeys from the file and import them into Gloo Platform:
+
+```bash
+kubectl apply --context ${CLUSTER1} -f - <<EOF
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: import-keys
+  namespace: gloo-mesh-addons
+spec:
+  backoffLimit: 0
+  template:
+    metadata:
+      annotations:
+        sidecar.istio.io/inject: "false"
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: runner
+          image: golang:1.19
+          env:
+            - name: REDIS_ADDR
+              value: redis.gloo-mesh-addons:6379
+            - name: AUTHCONFIG_ID
+              value: gloo-mesh-addons.bookinfo-apiauth-bookinfo-frontends-cluster1-ext-auth-service
+            - name: USERNAME
+              value: user1@example.com
+            - name: ADDITIONAL_METADATA
+              valueFrom:
+                configMapKeyRef:
+                  name: apikey-migration
+                  key: additional-metadata.txt
+            - name: APIKEY_STORAGE_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  key: key
+                  name: portal-storage-secret-key
+            - name: REDIS_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  key: username
+                  name: portal-redis-credentials
+                  optional: true
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  key: password
+                  name: portal-redis-credentials
+                  optional: true
+          command:
+          - /bin/sh
+          - -c
+          - |
+            cp -r /app-cm /app
+            cd /app
+            go mod tidy
+            go run /app/migrate.go
+          volumeMounts:
+          - name: apikey-migration-cm
+            mountPath: /app-cm
+          - name: apikey-migration-secret
+            mountPath: /run/secrets/apikeys.txt
+            readOnly: true
+            subPath: apikeys.txt
+      volumes:
+        - name: apikey-migration-cm
+          configMap:
+            name: apikey-migration
+        - name: apikey-migration-secret
+          secret:
+            secretName: apikey-migration
+            items:
+              - key: apikeys.txt
+                path: apikeys.txt
+
+
+EOF
+```
+
+Our metadata includes an additional header. It's important to verify that this header is present to ensure the correct processing of the metadata.
+
+```bash
+kubectl apply --context ${CLUSTER1} -f - <<EOF
+apiVersion: security.policy.gloo.solo.io/v2
+kind: ExtAuthPolicy
+metadata:
+  name: bookinfo-apiauth
+  namespace: bookinfo-frontends
+spec:
+  applyToRoutes:
+  - route:
+      labels:
+        apikeys: "true"
+  config:
+    server:
+      name: ext-auth-server
+      namespace: gloo-mesh-addons
+      cluster: cluster1
+    glooAuth:
+      configs:
+        - apiKeyAuth:
+            headerName: api-key
+            headersFromMetadataEntry:
+              X-Solo-Plan:
+                name: usagePlan
+                required: true
+              X-AppConfig-Prohibited-Countries:
+                name: prohibitedCountries
+                required: true
+              X-AppConfig-Tls:
+                name: tlsversion
+                required: true
+
+EOF
+```
+
+Finally, we will test our setup:
+
+```shell
+API_KEY_USER1=$(kubectl --context ${CLUSTER1} -n gloo-mesh-addons get secret apikey-migration -o jsonpath='{.data.apikeys\.txt}' | base64 --decode | head -n 1)
+echo $API_KEY_USER1
+curl -ki -H "api-key: ${API_KEY_USER1}" "https://${ENDPOINT_HTTPS_GW_CLUSTER1}/api/bookinfo"
+```
+
+<!--bash
+cat <<'EOF' > ./test.js
+const helpersHttp = require('./tests/chai-http');
+
+describe("API key creation working properly", function() {
+  it("Authentication is working with the generated API key", () => helpersHttp.checkURL({ host: 'https://' + process.env.ENDPOINT_HTTPS_GW_CLUSTER1, path: '/api/bookinfo', headers: [{key: 'api-key', value: 'apikey1'}], retCode: 200 }));
+  it("Authentication is NOT working with a fake API key", () => helpersHttp.checkURL({ host: 'https://' + process.env.ENDPOINT_HTTPS_GW_CLUSTER1, path: '/api/bookinfo', headers: [{key: 'api-key', value: 'apikey99'}], retCode: 401 }));
+});
+EOF
+echo "executing test dist/beta2/build/templates/steps/apps/bookinfo/dev-portal-import-keys/tests/api-key.test.js.liquid"
+tempfile=$(mktemp)
+echo "saving errors in ${tempfile}"
+mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
+-->
+
+
+
+## Lab 24 - Dev portal monetization <a name="lab-24---dev-portal-monetization-"></a>
 [<img src="https://img.youtube.com/vi/VTvQ7YQi2eA/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/VTvQ7YQi2eA "Video Link")
 
 The recommended way to monetize your API is to leverage the usage plans we've defined in the previous labs.
@@ -2892,7 +3746,7 @@ describe("Monetization is working", () => {
   });
 });
 EOF
-echo "executing test dist/stdalone-portal-md/build/templates/steps/apps/bookinfo/dev-portal-monetization/tests/monetization.test.js.liquid"
+echo "executing test dist/beta2/build/templates/steps/apps/bookinfo/dev-portal-monetization/tests/monetization.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=150 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
