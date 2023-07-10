@@ -43,9 +43,9 @@ source ./scripts/assert.sh
 * [Lab 27 - Deploy the Amazon pod identity webhook](#lab-27---deploy-the-amazon-pod-identity-webhook-)
 * [Lab 28 - Execute Lambda functions](#lab-28---execute-lambda-functions-)
 * [Lab 29 - VM integration](#lab-29---vm-integration-)
-* [Lab 30 - Upgrade Istio using Gloo Mesh Lifecycle Manager](#lab-30---upgrade-istio-using-gloo-mesh-lifecycle-manager-)
-* [Lab 31 - Gloo Mesh Management Plane failover](#lab-31---gloo-mesh-management-plane-failover-)
-* [Lab 32 - Extend Envoy with WebAssembly](#lab-32---extend-envoy-with-webassembly-)
+* [Lab 30 - Extend Envoy with WebAssembly](#lab-30---extend-envoy-with-webassembly-)
+* [Lab 31 - Upgrade Istio using Gloo Mesh Lifecycle Manager](#lab-31---upgrade-istio-using-gloo-mesh-lifecycle-manager-)
+* [Lab 32 - Gloo Mesh Management Plane failover](#lab-32---gloo-mesh-management-plane-failover-)
 
 
 
@@ -171,14 +171,14 @@ Pull and push locally the Docker images needed:
 
 ```bash
 cat <<EOF > images.txt
-us-docker.pkg.dev/gloo-mesh/istio-workshops/operator:1.16.4-solo
-us-docker.pkg.dev/gloo-mesh/istio-workshops/pilot:1.16.4-solo
-us-docker.pkg.dev/gloo-mesh/istio-workshops/proxyv2:1.16.4-solo
+us-docker.pkg.dev/gloo-mesh/istio-workshops/operator:1.17.3-solo
+us-docker.pkg.dev/gloo-mesh/istio-workshops/pilot:1.17.3-solo
+us-docker.pkg.dev/gloo-mesh/istio-workshops/proxyv2:1.17.3-solo
 quay.io/keycloak/keycloak:20.0.1
 docker.io/kennethreitz/httpbin
-us-docker.pkg.dev/gloo-mesh/istio-workshops/operator:1.17.2-solo
-us-docker.pkg.dev/gloo-mesh/istio-workshops/pilot:1.17.2-solo
-us-docker.pkg.dev/gloo-mesh/istio-workshops/proxyv2:1.17.2-solo
+us-docker.pkg.dev/gloo-mesh/istio-workshops/operator:1.18.0-solo
+us-docker.pkg.dev/gloo-mesh/istio-workshops/pilot:1.18.0-solo
+us-docker.pkg.dev/gloo-mesh/istio-workshops/proxyv2:1.18.0-solo
 EOF
 
 for url in https://raw.githubusercontent.com/istio/istio/release-1.16/samples/bookinfo/platform/kube/bookinfo.yaml https://raw.githubusercontent.com/istio/istio/release-1.16/samples/bookinfo/networking/bookinfo-gateway.yaml
@@ -589,7 +589,7 @@ First of all, let's create Kubernetes services for the gateways:
 ```bash
 registry=localhost:5000
 kubectl --context ${CLUSTER1} create ns istio-gateways
-kubectl --context ${CLUSTER1} label namespace istio-gateways istio.io/rev=1-16 --overwrite
+kubectl --context ${CLUSTER1} label namespace istio-gateways istio.io/rev=1-17 --overwrite
 
 kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: v1
@@ -613,7 +613,7 @@ spec:
   selector:
     app: istio-ingressgateway
     istio: ingressgateway
-    revision: 1-16
+    revision: 1-17
   type: LoadBalancer
 EOF
 
@@ -652,13 +652,13 @@ spec:
   selector:
     app: istio-ingressgateway
     istio: eastwestgateway
-    revision: 1-16
+    revision: 1-17
     topology.istio.io/network: cluster1
   type: LoadBalancer
 EOF
 
 kubectl --context ${CLUSTER2} create ns istio-gateways
-kubectl --context ${CLUSTER2} label namespace istio-gateways istio.io/rev=1-16 --overwrite
+kubectl --context ${CLUSTER2} label namespace istio-gateways istio.io/rev=1-17 --overwrite
 
 kubectl apply --context ${CLUSTER2} -f - <<EOF
 apiVersion: v1
@@ -682,7 +682,7 @@ spec:
   selector:
     app: istio-ingressgateway
     istio: ingressgateway
-    revision: 1-16
+    revision: 1-17
   type: LoadBalancer
 EOF
 
@@ -721,7 +721,7 @@ spec:
   selector:
     app: istio-ingressgateway
     istio: eastwestgateway
-    revision: 1-16
+    revision: 1-17
     topology.istio.io/network: cluster2
   type: LoadBalancer
 EOF
@@ -743,11 +743,11 @@ spec:
     - clusters:
       - name: cluster1
         defaultRevision: true
-      revision: 1-16
+      revision: 1-17
       istioOperatorSpec:
         profile: minimal
         hub: ${registry}/istio-workshops
-        tag: 1.16.4-solo
+        tag: 1.17.3-solo
         namespace: istio-system
         values:
           global:
@@ -783,11 +783,11 @@ spec:
     - clusters:
       - name: cluster1
         activeGateway: false
-      gatewayRevision: 1-16
+      gatewayRevision: 1-17
       istioOperatorSpec:
         profile: empty
         hub: ${registry}/istio-workshops
-        tag: 1.16.4-solo
+        tag: 1.17.3-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -810,11 +810,11 @@ spec:
     - clusters:
       - name: cluster1
         activeGateway: false
-      gatewayRevision: 1-16
+      gatewayRevision: 1-17
       istioOperatorSpec:
         profile: empty
         hub: ${registry}/istio-workshops
-        tag: 1.16.4-solo
+        tag: 1.17.3-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -846,11 +846,11 @@ spec:
     - clusters:
       - name: cluster2
         defaultRevision: true
-      revision: 1-16
+      revision: 1-17
       istioOperatorSpec:
         profile: minimal
         hub: ${registry}/istio-workshops
-        tag: 1.16.4-solo
+        tag: 1.17.3-solo
         namespace: istio-system
         values:
           global:
@@ -886,11 +886,11 @@ spec:
     - clusters:
       - name: cluster2
         activeGateway: false
-      gatewayRevision: 1-16
+      gatewayRevision: 1-17
       istioOperatorSpec:
         profile: empty
         hub: ${registry}/istio-workshops
-        tag: 1.16.4-solo
+        tag: 1.17.3-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -913,11 +913,11 @@ spec:
     - clusters:
       - name: cluster2
         activeGateway: false
-      gatewayRevision: 1-16
+      gatewayRevision: 1-17
       istioOperatorSpec:
         profile: empty
         hub: ${registry}/istio-workshops
-        tag: 1.16.4-solo
+        tag: 1.17.3-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -1100,8 +1100,8 @@ Run the following commands to deploy the bookinfo application on `cluster1`:
 
 kubectl --context ${CLUSTER1} create ns bookinfo-frontends
 kubectl --context ${CLUSTER1} create ns bookinfo-backends
-kubectl --context ${CLUSTER1} label namespace bookinfo-frontends istio.io/rev=1-16 --overwrite
-kubectl --context ${CLUSTER1} label namespace bookinfo-backends istio.io/rev=1-16 --overwrite
+kubectl --context ${CLUSTER1} label namespace bookinfo-frontends istio.io/rev=1-17 --overwrite
+kubectl --context ${CLUSTER1} label namespace bookinfo-backends istio.io/rev=1-17 --overwrite
 
 # deploy the frontend bookinfo service in the bookinfo-frontends namespace
 kubectl --context ${CLUSTER1} -n bookinfo-frontends apply -f bookinfo.yaml -l 'account in (productpage)'
@@ -1142,8 +1142,8 @@ Now, run the following commands to deploy the bookinfo application on `cluster2`
 ```bash
 kubectl --context ${CLUSTER2} create ns bookinfo-frontends
 kubectl --context ${CLUSTER2} create ns bookinfo-backends
-kubectl --context ${CLUSTER2} label namespace bookinfo-frontends istio.io/rev=1-16 --overwrite
-kubectl --context ${CLUSTER2} label namespace bookinfo-backends istio.io/rev=1-16 --overwrite
+kubectl --context ${CLUSTER2} label namespace bookinfo-frontends istio.io/rev=1-17 --overwrite
+kubectl --context ${CLUSTER2} label namespace bookinfo-backends istio.io/rev=1-17 --overwrite
 
 # deploy the frontend bookinfo service in the bookinfo-frontends namespace
 kubectl --context ${CLUSTER2} -n bookinfo-frontends apply -f bookinfo.yaml -l 'account in (productpage)'
@@ -1320,7 +1320,7 @@ spec:
       labels:
         app: in-mesh
         version: v1
-        istio.io/rev: 1-16
+        istio.io/rev: 1-17
     spec:
       serviceAccountName: in-mesh
       containers:
@@ -1375,9 +1375,9 @@ First, you need to create a namespace for the addons, with Istio injection enabl
 
 ```bash
 kubectl --context ${CLUSTER1} create namespace gloo-mesh-addons
-kubectl --context ${CLUSTER1} label namespace gloo-mesh-addons istio.io/rev=1-16 --overwrite
+kubectl --context ${CLUSTER1} label namespace gloo-mesh-addons istio.io/rev=1-17 --overwrite
 kubectl --context ${CLUSTER2} create namespace gloo-mesh-addons
-kubectl --context ${CLUSTER2} label namespace gloo-mesh-addons istio.io/rev=1-16 --overwrite
+kubectl --context ${CLUSTER2} label namespace gloo-mesh-addons istio.io/rev=1-17 --overwrite
 ```
 
 Then, you can deploy the addons on the cluster(s) using Helm:
@@ -3029,10 +3029,10 @@ spec:
     authz:
       allowedClients:
       - serviceAccountSelector:
-          name: istio-ingressgateway-1-16-service-account
+          name: istio-ingressgateway-1-17-service-account
           namespace: istio-gateways
       - serviceAccountSelector:
-          name: istio-eastwestgateway-1-16-service-account
+          name: istio-eastwestgateway-1-17-service-account
           namespace: istio-gateways
       - serviceAccountSelector:
           name: ext-auth-service
@@ -4483,6 +4483,7 @@ You should get a `200` response code the first 3 time and a `429` response code 
 This diagram shows the flow of the request (with the Istio ingress gateway leveraging the `rate limiter` Pod to determine if the request should be allowed):
 
 ![Gloo Mesh Gateway Rate Limiting](images/steps/gateway-ratelimiting/gloo-mesh-gateway-rate-limiting.svg)
+
 Let's apply the original `RouteTable` yaml:
 ```bash
 kubectl apply --context ${CLUSTER1} -f - <<EOF
@@ -4515,6 +4516,7 @@ kubectl --context ${CLUSTER1} -n httpbin delete ratelimitpolicy httpbin
 kubectl --context ${CLUSTER1} -n httpbin delete ratelimitclientconfig httpbin
 kubectl --context ${CLUSTER1} -n httpbin delete ratelimitserverconfig httpbin
 ```
+
 
 
 
@@ -5217,7 +5219,7 @@ spec:
       labels:
         app: sleep
         version: v1
-        istio.io/rev: 1-16
+        istio.io/rev: 1-17
       annotations:
         sidecar.istio.io/userVolumeMount: '[{"name":"istio-sidecar-certs", "mountPath":"/etc/istio/ingressgateway-certs/", "readonly":true}]'
         sidecar.istio.io/userVolume: '[{"name":"istio-sidecar-certs", "secret":{"secretName":"istio-sidecar-certs"}}]'
@@ -5651,7 +5653,7 @@ metadata:
   namespace: istio-gateways
 spec:
   hosts:
-  - istiod-1-16.istio-system.svc.cluster.local
+  - istiod-1-17.istio-system.svc.cluster.local
   gateways:
   - istiod-gateway
   tcp:
@@ -5659,14 +5661,14 @@ spec:
     - port: 15012
     route:
     - destination:
-        host: istiod-1-16.istio-system.svc.cluster.local
+        host: istiod-1-17.istio-system.svc.cluster.local
         port:
           number: 15012
   - match:
     - port: 15017
     route:
     - destination:
-        host: istiod-1-16.istio-system.svc.cluster.local
+        host: istiod-1-17.istio-system.svc.cluster.local
         port:
           number: 443
 ---
@@ -5676,7 +5678,7 @@ metadata:
   name: istiod-dr
   namespace: istio-gateways
 spec:
-  host: istiod-1-16.istio-system.svc.cluster.local
+  host: istiod-1-17.istio-system.svc.cluster.local
   trafficPolicy:
     portLevelSettings:
     - port:
@@ -5746,10 +5748,10 @@ spec:
 EOF
 ```
 
-Download istio 1.16.4:
+Download istio 1.17.3:
 
 ```bash
-export ISTIO_VERSION=1.16.4
+export ISTIO_VERSION=1.17.3
 curl -L https://istio.io/downloadIstio | sh -
 ```
 
@@ -5762,7 +5764,7 @@ Use the istioctl x workload entry command to generate:
 - hosts: An addendum to /etc/hosts that the proxy will use to reach istiod for xDS.*
 
 ```bash
-./istio-1.16.4/bin/istioctl --context ${CLUSTER1} x workload entry configure -f workloadgroup.yaml -o "${WORK_DIR}" --clusterID "${CLUSTER}" -r 1-16
+./istio-1.17.3/bin/istioctl --context ${CLUSTER1} x workload entry configure -f workloadgroup.yaml -o "${WORK_DIR}" --clusterID "${CLUSTER}" -r 1-17
 ```
 
 Run a Docker container that we'll use to simulate a VM:
@@ -5791,7 +5793,7 @@ docker exec vm1 $(kubectl --context ${CLUSTER2} get nodes -o=jsonpath='{range .i
 Add an entry in the hosts file to resolve the address of istiod by the IP address of the Istio Ingress Gateway:
 
 ```bash
-echo "$(kubectl --context ${CLUSTER1} -n istio-gateways get svc istio-eastwestgateway -o jsonpath='{.status.loadBalancer.ingress[0].*}') istiod.istio-system.svc istiod-1-16.istio-system.svc" > "${WORK_DIR}"/hosts
+echo "$(kubectl --context ${CLUSTER1} -n istio-gateways get svc istio-eastwestgateway -o jsonpath='{.status.loadBalancer.ingress[0].*}') istiod.istio-system.svc istiod-1-17.istio-system.svc" > "${WORK_DIR}"/hosts
 ```
 
 Install the root certificate at /var/run/secrets/istio:
@@ -5811,7 +5813,7 @@ docker exec vm1 cp /vm/istio-token /var/run/secrets/tokens/istio-token
 Install the deb package containing the Istio virtual machine integration runtime:
 
 ```bash
-docker exec vm1 curl -LO https://storage.googleapis.com/istio-release/releases/1.16.4/deb/istio-sidecar.deb
+docker exec vm1 curl -LO https://storage.googleapis.com/istio-release/releases/1.17.3/deb/istio-sidecar.deb
 docker exec vm1 dpkg -i istio-sidecar.deb
 ```
 
@@ -6047,7 +6049,7 @@ EOF
 Deploy a new version of the ratings service that is using the database and scale down the current version:
 
 ```bash
-kubectl --context ${CLUSTER1} -n bookinfo-backends apply -f ./istio-1.16.4/samples/bookinfo/platform/kube/bookinfo-ratings-v2-mysql-vm.yaml
+kubectl --context ${CLUSTER1} -n bookinfo-backends apply -f ./istio-1.17.3/samples/bookinfo/platform/kube/bookinfo-ratings-v2-mysql-vm.yaml
 kubectl --context ${CLUSTER1} -n bookinfo-backends set env deploy/ratings-v2-mysql-vm MYSQL_DB_HOST=${VM_APP}.virtualmachines.svc.cluster.local
 kubectl --context ${CLUSTER1} -n bookinfo-backends set serviceaccount deploy/ratings-v2-mysql-vm bookinfo-ratings
 pod=$(kubectl --context ${CLUSTER1} -n bookinfo-backends get pods -l "app=ratings,version=v1" -o jsonpath='{.items[0].metadata.name}')
@@ -6081,7 +6083,7 @@ kubectl --context ${CLUSTER1} -n "${VM_NAMESPACE}" delete serviceaccount "${SERV
 kubectl --context ${CLUSTER1} -n "${VM_NAMESPACE}" delete serviceentry ${VM_APP}
 kubectl --context ${CLUSTER1} -n "${VM_NAMESPACE}" delete workloadentry ${VM_APP}
 kubectl --context ${CLUSTER1} delete namespace "${VM_NAMESPACE}"
-kubectl --context ${CLUSTER1} -n bookinfo-backends delete -f ./istio-1.16.4/samples/bookinfo/platform/kube/bookinfo-ratings-v2-mysql-vm.yaml
+kubectl --context ${CLUSTER1} -n bookinfo-backends delete -f ./istio-1.17.3/samples/bookinfo/platform/kube/bookinfo-ratings-v2-mysql-vm.yaml
 kubectl --context ${CLUSTER1} -n bookinfo-backends scale deploy/ratings-v1 --replicas=1
 ```
 
@@ -6117,1151 +6119,7 @@ docker rm -f vm1
 
 
 
-## Lab 30 - Upgrade Istio using Gloo Mesh Lifecycle Manager <a name="lab-30---upgrade-istio-using-gloo-mesh-lifecycle-manager-"></a>
-[<img src="https://img.youtube.com/vi/6DtGVkecArs/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/6DtGVkecArs "Video Link")
-
-Set the variables corresponding to the old and new revision tags:
-
-```bash
-export OLD_REVISION=1-16
-export NEW_REVISION=1-17
-```
-
-We are going to upgrade Istio using Gloo Mesh Lifecycle Manager.
-
-```bash
-cat << EOF | kubectl --context ${MGMT} apply -f -
-
-apiVersion: admin.gloo.solo.io/v2
-kind: IstioLifecycleManager
-metadata:
-  name: cluster1-installation
-  namespace: gloo-mesh
-spec:
-  installations:
-    - clusters:
-      - name: cluster1
-        defaultRevision: true
-      revision: ${OLD_REVISION}
-      istioOperatorSpec:
-        profile: minimal
-        hub: ${registry}/istio-workshops
-        tag: 1.16.4-solo
-        namespace: istio-system
-        values:
-          global:
-            meshID: mesh1
-            multiCluster:
-              clusterName: cluster1
-            network: cluster1
-        meshConfig:
-          accessLogFile: /dev/stdout
-          defaultConfig:
-            proxyMetadata:
-              ISTIO_META_DNS_CAPTURE: "true"
-              ISTIO_META_DNS_AUTO_ALLOCATE: "true"
-        components:
-          pilot:
-            k8s:
-              env:
-                - name: PILOT_ENABLE_K8S_SELECT_WORKLOAD_ENTRIES
-                  value: "false"
-          ingressGateways:
-          - name: istio-ingressgateway
-            enabled: false
-    - clusters:
-      - name: cluster1
-        defaultRevision: false
-      revision: ${NEW_REVISION}
-      istioOperatorSpec:
-        profile: minimal
-        hub: ${registry}/istio-workshops
-        tag: 1.17.2-solo
-        namespace: istio-system
-        values:
-          global:
-            meshID: mesh1
-            multiCluster:
-              clusterName: cluster1
-            network: cluster1
-        meshConfig:
-          accessLogFile: /dev/stdout
-          defaultConfig:
-            proxyMetadata:
-              ISTIO_META_DNS_CAPTURE: "true"
-              ISTIO_META_DNS_AUTO_ALLOCATE: "true"
-        components:
-          pilot:
-            k8s:
-              env:
-                - name: PILOT_ENABLE_K8S_SELECT_WORKLOAD_ENTRIES
-                  value: "false"
-          ingressGateways:
-          - name: istio-ingressgateway
-            enabled: false
-EOF
-
-cat << EOF | kubectl --context ${MGMT} apply -f -
-
-apiVersion: admin.gloo.solo.io/v2
-kind: GatewayLifecycleManager
-metadata:
-  name: cluster1-ingress
-  namespace: gloo-mesh
-spec:
-  installations:
-    - clusters:
-      - name: cluster1
-        activeGateway: false
-      gatewayRevision: ${OLD_REVISION}
-      istioOperatorSpec:
-        profile: empty
-        hub: ${registry}/istio-workshops
-        tag: 1.16.4-solo
-        values:
-          gateways:
-            istio-ingressgateway:
-              customService: true
-        components:
-          ingressGateways:
-            - name: istio-ingressgateway
-              namespace: istio-gateways
-              enabled: true
-              label:
-                istio: ingressgateway
-    - clusters:
-      - name: cluster1
-        activeGateway: false
-      gatewayRevision: ${NEW_REVISION}
-      istioOperatorSpec:
-        profile: empty
-        hub: ${registry}/istio-workshops
-        tag: 1.17.2-solo
-        values:
-          gateways:
-            istio-ingressgateway:
-              customService: true
-        components:
-          ingressGateways:
-            - name: istio-ingressgateway
-              namespace: istio-gateways
-              enabled: true
-              label:
-                istio: ingressgateway
----
-apiVersion: admin.gloo.solo.io/v2
-kind: GatewayLifecycleManager
-metadata:
-  name: cluster1-eastwest
-  namespace: gloo-mesh
-spec:
-  installations:
-    - clusters:
-      - name: cluster1
-        activeGateway: false
-      gatewayRevision: ${OLD_REVISION}
-      istioOperatorSpec:
-        profile: empty
-        hub: ${registry}/istio-workshops
-        tag: 1.16.4-solo
-        values:
-          gateways:
-            istio-ingressgateway:
-              customService: true
-        components:
-          ingressGateways:
-            - name: istio-eastwestgateway
-              namespace: istio-gateways
-              enabled: true
-              label:
-                istio: eastwestgateway
-                topology.istio.io/network: cluster1
-              k8s:
-                env:
-                  - name: ISTIO_META_ROUTER_MODE
-                    value: "sni-dnat"
-                  - name: ISTIO_META_REQUESTED_NETWORK_VIEW
-                    value: cluster1
-    - clusters:
-      - name: cluster1
-        activeGateway: false
-      gatewayRevision: ${NEW_REVISION}
-      istioOperatorSpec:
-        profile: empty
-        hub: ${registry}/istio-workshops
-        tag: 1.17.2-solo
-        values:
-          gateways:
-            istio-ingressgateway:
-              customService: true
-        components:
-          ingressGateways:
-            - name: istio-eastwestgateway
-              namespace: istio-gateways
-              enabled: true
-              label:
-                istio: eastwestgateway
-                topology.istio.io/network: cluster1
-              k8s:
-                env:
-                  - name: ISTIO_META_ROUTER_MODE
-                    value: "sni-dnat"
-                  - name: ISTIO_META_REQUESTED_NETWORK_VIEW
-                    value: cluster1
-EOF
-
-cat << EOF | kubectl --context ${MGMT} apply -f -
-
-apiVersion: admin.gloo.solo.io/v2
-kind: IstioLifecycleManager
-metadata:
-  name: cluster2-installation
-  namespace: gloo-mesh
-spec:
-  installations:
-    - clusters:
-      - name: cluster2
-        defaultRevision: true
-      revision: ${OLD_REVISION}
-      istioOperatorSpec:
-        profile: minimal
-        hub: ${registry}/istio-workshops
-        tag: 1.16.4-solo
-        namespace: istio-system
-        values:
-          global:
-            meshID: mesh1
-            multiCluster:
-              clusterName: cluster2
-            network: cluster2
-        meshConfig:
-          accessLogFile: /dev/stdout
-          defaultConfig:
-            proxyMetadata:
-              ISTIO_META_DNS_CAPTURE: "true"
-              ISTIO_META_DNS_AUTO_ALLOCATE: "true"
-        components:
-          pilot:
-            k8s:
-              env:
-                - name: PILOT_ENABLE_K8S_SELECT_WORKLOAD_ENTRIES
-                  value: "false"
-          ingressGateways:
-          - name: istio-ingressgateway
-            enabled: false
-    - clusters:
-      - name: cluster2
-        defaultRevision: false
-      revision: ${NEW_REVISION}
-      istioOperatorSpec:
-        profile: minimal
-        hub: ${registry}/istio-workshops
-        tag: 1.17.2-solo
-        namespace: istio-system
-        values:
-          global:
-            meshID: mesh1
-            multiCluster:
-              clusterName: cluster2
-            network: cluster2
-        meshConfig:
-          accessLogFile: /dev/stdout
-          defaultConfig:
-            proxyMetadata:
-              ISTIO_META_DNS_CAPTURE: "true"
-              ISTIO_META_DNS_AUTO_ALLOCATE: "true"
-        components:
-          pilot:
-            k8s:
-              env:
-                - name: PILOT_ENABLE_K8S_SELECT_WORKLOAD_ENTRIES
-                  value: "false"
-          ingressGateways:
-          - name: istio-ingressgateway
-            enabled: false
-EOF
-
-cat << EOF | kubectl --context ${MGMT} apply -f -
-
-apiVersion: admin.gloo.solo.io/v2
-kind: GatewayLifecycleManager
-metadata:
-  name: cluster2-ingress
-  namespace: gloo-mesh
-spec:
-  installations:
-    - clusters:
-      - name: cluster2
-        activeGateway: false
-      gatewayRevision: ${OLD_REVISION}
-      istioOperatorSpec:
-        profile: empty
-        hub: ${registry}/istio-workshops
-        tag: 1.16.4-solo
-        values:
-          gateways:
-            istio-ingressgateway:
-              customService: true
-        components:
-          ingressGateways:
-            - name: istio-ingressgateway
-              namespace: istio-gateways
-              enabled: true
-              label:
-                istio: ingressgateway
-    - clusters:
-      - name: cluster2
-        activeGateway: false
-      gatewayRevision: ${NEW_REVISION}
-      istioOperatorSpec:
-        profile: empty
-        hub: ${registry}/istio-workshops
-        tag: 1.17.2-solo
-        values:
-          gateways:
-            istio-ingressgateway:
-              customService: true
-        components:
-          ingressGateways:
-            - name: istio-ingressgateway
-              namespace: istio-gateways
-              enabled: true
-              label:
-                istio: ingressgateway
----
-apiVersion: admin.gloo.solo.io/v2
-kind: GatewayLifecycleManager
-metadata:
-  name: cluster2-eastwest
-  namespace: gloo-mesh
-spec:
-  installations:
-    - clusters:
-      - name: cluster2
-        activeGateway: false
-      gatewayRevision: ${OLD_REVISION}
-      istioOperatorSpec:
-        profile: empty
-        hub: ${registry}/istio-workshops
-        tag: 1.16.4-solo
-        values:
-          gateways:
-            istio-ingressgateway:
-              customService: true
-        components:
-          ingressGateways:
-            - name: istio-eastwestgateway
-              namespace: istio-gateways
-              enabled: true
-              label:
-                istio: eastwestgateway
-                topology.istio.io/network: cluster2
-              k8s:
-                env:
-                  - name: ISTIO_META_ROUTER_MODE
-                    value: "sni-dnat"
-                  - name: ISTIO_META_REQUESTED_NETWORK_VIEW
-                    value: cluster2
-    - clusters:
-      - name: cluster2
-        activeGateway: false
-      gatewayRevision: ${NEW_REVISION}
-      istioOperatorSpec:
-        profile: empty
-        hub: ${registry}/istio-workshops
-        tag: 1.17.2-solo
-        values:
-          gateways:
-            istio-ingressgateway:
-              customService: true
-        components:
-          ingressGateways:
-            - name: istio-eastwestgateway
-              namespace: istio-gateways
-              enabled: true
-              label:
-                istio: eastwestgateway
-                topology.istio.io/network: cluster2
-              k8s:
-                env:
-                  - name: ISTIO_META_ROUTER_MODE
-                    value: "sni-dnat"
-                  - name: ISTIO_META_REQUESTED_NETWORK_VIEW
-                    value: cluster2
-EOF
-```
-
-<!--bash
-cat <<'EOF' > ./test.js
-
-const helpers = require('./tests/chai-exec');
-
-const chaiExec = require("@jsdevtools/chai-exec");
-const helpersHttp = require('./tests/chai-http');
-const chai = require("chai");
-const expect = chai.expect;
-
-afterEach(function (done) {
-  if (this.currentTest.currentRetry() > 0) {
-    process.stdout.write(".");
-    setTimeout(done, 1000);
-  } else {
-    done();
-  }
-});
-
-describe("Checking Istio installation", function() {
-  it('istiod pods are ready in cluster ' + process.env.CLUSTER1, () => helpers.checkDeploymentsWithLabels({ context: process.env.CLUSTER1, namespace: "istio-system", labels: "app=istiod", instances: 2 }));
-  it('gateway pods are ready in cluster ' + process.env.CLUSTER1, () => helpers.checkDeploymentsWithLabels({ context: process.env.CLUSTER1, namespace: "istio-gateways", labels: "app=istio-ingressgateway", instances: 4 }));
-  it('istiod pods are ready in cluster ' + process.env.CLUSTER2, () => helpers.checkDeploymentsWithLabels({ context: process.env.CLUSTER1, namespace: "istio-system", labels: "app=istiod", instances: 2 }));
-  it('gateway pods are ready in cluster ' + process.env.CLUSTER2, () => helpers.checkDeploymentsWithLabels({ context: process.env.CLUSTER1, namespace: "istio-gateways", labels: "app=istio-ingressgateway", instances: 4 }));
-});
-
-EOF
-echo "executing test dist/gloo-mesh-2-0-all-airgap/build/templates/steps/istio-lifecycle-manager-upgrade/tests/istio-ready.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
--->
-
-Run the following command to check the status of the upgrade(s):
-
-```sh
-kubectl --context ${MGMT} -n gloo-mesh get istiolifecyclemanager cluster1-installation -o yaml
-kubectl --context ${MGMT} -n gloo-mesh get gatewaylifecyclemanager cluster1-ingress -o yaml
-kubectl --context ${MGMT} -n gloo-mesh get gatewaylifecyclemanager cluster1-eastwest -o yaml
-kubectl --context ${MGMT} -n gloo-mesh get istiolifecyclemanager cluster2-installation -o yaml
-kubectl --context ${MGMT} -n gloo-mesh get gatewaylifecyclemanager cluster2-ingress -o yaml
-kubectl --context ${MGMT} -n gloo-mesh get gatewaylifecyclemanager cluster2-eastwest -o yaml
-```
-
-When the upgrade is completed, the state at the end of the objects will be `HEALTHY`.
-
-Now, let's restart all the Istio Pods to use the new revision:
-
-```bash
-kubectl --context ${CLUSTER1} get ns -l istio.io/rev=${OLD_REVISION} -o json | jq -r '.items[].metadata.name' | while read ns; do
-  kubectl --context ${CLUSTER1} label ns ${ns} istio.io/rev=${NEW_REVISION} --overwrite
-  kubectl --context ${CLUSTER1} -n ${ns} rollout restart deploy
-done
-kubectl --context ${CLUSTER2} get ns -l istio.io/rev=${OLD_REVISION} -o json | jq -r '.items[].metadata.name' | while read ns; do
-  kubectl --context ${CLUSTER2} label ns ${ns} istio.io/rev=${NEW_REVISION} --overwrite
-  kubectl --context ${CLUSTER2} -n ${ns} rollout restart deploy
-done
-kubectl --context ${CLUSTER1} -n httpbin patch deploy in-mesh --patch "{\"spec\": {\"template\": {\"metadata\": {\"labels\": {\"istio.io/rev\": \"${NEW_REVISION}\" }}}}}"
-```
-<!--bash
-kubectl --context ${CLUSTER1} -n httpbin rollout status deploy in-mesh
--->
-
-Test that you can still access the `in-mesh` service through the Istio Ingress Gateway corresponding to the old revision using the command below:
-
-```bash
-curl -k "https://${ENDPOINT_HTTPS_GW_CLUSTER1}/get" -I
-```
-
-You should get a response similar to the following one:
-
-```
-HTTP/2 200 
-server: istio-envoy
-date: Wed, 24 Aug 2022 14:58:22 GMT
-content-type: application/json
-content-length: 670
-access-control-allow-origin: *
-access-control-allow-credentials: true
-x-envoy-upstream-service-time: 7
-```
-
-<!--bash
-cat <<'EOF' > ./test.js
-const helpers = require('./tests/chai-http');
-
-describe("httpbin is accessible", () => {
-  it('/get is available in cluster1', () => helpers.checkURL({ host: 'https://' + process.env.ENDPOINT_HTTPS_GW_CLUSTER1, path: '/get', retCode: 200 }));
-})
-
-EOF
-echo "executing test dist/gloo-mesh-2-0-all-airgap/build/templates/steps/istio-lifecycle-manager-upgrade/tests/httpbin-available.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
--->
-
-All good, so we can now switch to the Istio gateways corresponding to the new revision:
-
-```bash
-kubectl --context ${CLUSTER1} -n istio-gateways patch svc istio-ingressgateway --patch "{\"spec\": {\"selector\": {\"revision\": \"${NEW_REVISION}\" }}}"
-kubectl --context ${CLUSTER1} -n istio-gateways patch svc istio-eastwestgateway --patch "{\"spec\": {\"selector\": {\"revision\": \"${NEW_REVISION}\" }}}"
-kubectl --context ${CLUSTER2} -n istio-gateways patch svc istio-ingressgateway --patch "{\"spec\": {\"selector\": {\"revision\": \"${NEW_REVISION}\" }}}"
-kubectl --context ${CLUSTER2} -n istio-gateways patch svc istio-eastwestgateway --patch "{\"spec\": {\"selector\": {\"revision\": \"${NEW_REVISION}\" }}}"
-```
-
-Test that you can still access the `in-mesh` service:
-
-```bash
-curl -k "https://${ENDPOINT_HTTPS_GW_CLUSTER1}/get" -I
-```
-
-You should get a response similar to the following one:
-
-```
-HTTP/2 200 
-server: istio-envoy
-date: Wed, 24 Aug 2022 14:58:22 GMT
-content-type: application/json
-content-length: 670
-access-control-allow-origin: *
-access-control-allow-credentials: true
-```
-
-<!--bash
-cat <<'EOF' > ./test.js
-const helpers = require('./tests/chai-http');
-
-describe("httpbin is accessible", () => {
-  it('/get is available in cluster1', () => helpers.checkURL({ host: 'https://' + process.env.ENDPOINT_HTTPS_GW_CLUSTER1, path: '/get', retCode: 200 }));
-})
-
-EOF
-echo "executing test dist/gloo-mesh-2-0-all-airgap/build/templates/steps/istio-lifecycle-manager-upgrade/tests/httpbin-available.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
--->
-
-Now that everything is working well with the new version, we can uninstall the previous version:
-
-```bash
-cat << EOF | kubectl --context ${MGMT} apply -f -
-
-apiVersion: admin.gloo.solo.io/v2
-kind: IstioLifecycleManager
-metadata:
-  name: cluster1-installation
-  namespace: gloo-mesh
-spec:
-  installations:
-    - clusters:
-      - name: cluster1
-        defaultRevision: true
-      revision: ${NEW_REVISION}
-      istioOperatorSpec:
-        profile: minimal
-        hub: ${registry}/istio-workshops
-        tag: 1.17.2-solo
-        namespace: istio-system
-        values:
-          global:
-            meshID: mesh1
-            multiCluster:
-              clusterName: cluster1
-            network: cluster1
-        meshConfig:
-          accessLogFile: /dev/stdout
-          defaultConfig:
-            proxyMetadata:
-              ISTIO_META_DNS_CAPTURE: "true"
-              ISTIO_META_DNS_AUTO_ALLOCATE: "true"
-        components:
-          pilot:
-            k8s:
-              env:
-                - name: PILOT_ENABLE_K8S_SELECT_WORKLOAD_ENTRIES
-                  value: "false"
-          ingressGateways:
-          - name: istio-ingressgateway
-            enabled: false
-EOF
-
-cat << EOF | kubectl --context ${MGMT} apply -f -
-
-apiVersion: admin.gloo.solo.io/v2
-kind: GatewayLifecycleManager
-metadata:
-  name: cluster1-ingress
-  namespace: gloo-mesh
-spec:
-  installations:
-    - clusters:
-      - name: cluster1
-        activeGateway: true
-      gatewayRevision: ${NEW_REVISION}
-      istioOperatorSpec:
-        profile: empty
-        hub: ${registry}/istio-workshops
-        tag: 1.17.2-solo
-        values:
-          gateways:
-            istio-ingressgateway:
-              customService: true
-        components:
-          ingressGateways:
-            - name: istio-ingressgateway
-              namespace: istio-gateways
-              enabled: true
-              label:
-                istio: ingressgateway
----
-apiVersion: admin.gloo.solo.io/v2
-kind: GatewayLifecycleManager
-metadata:
-  name: cluster1-eastwest
-  namespace: gloo-mesh
-spec:
-  installations:
-    - clusters:
-      - name: cluster1
-        activeGateway: false
-      gatewayRevision: ${NEW_REVISION}
-      istioOperatorSpec:
-        profile: empty
-        hub: ${registry}/istio-workshops
-        tag: 1.17.2-solo
-        values:
-          gateways:
-            istio-ingressgateway:
-              customService: true
-        components:
-          ingressGateways:
-            - name: istio-eastwestgateway
-              namespace: istio-gateways
-              enabled: true
-              label:
-                istio: eastwestgateway
-                topology.istio.io/network: cluster1
-              k8s:
-                env:
-                  - name: ISTIO_META_ROUTER_MODE
-                    value: "sni-dnat"
-                  - name: ISTIO_META_REQUESTED_NETWORK_VIEW
-                    value: cluster1
-EOF
-
-cat << EOF | kubectl --context ${MGMT} apply -f -
-
-apiVersion: admin.gloo.solo.io/v2
-kind: IstioLifecycleManager
-metadata:
-  name: cluster2-installation
-  namespace: gloo-mesh
-spec:
-  installations:
-    - clusters:
-      - name: cluster2
-        defaultRevision: true
-      revision: ${NEW_REVISION}
-      istioOperatorSpec:
-        profile: minimal
-        hub: ${registry}/istio-workshops
-        tag: 1.17.2-solo
-        namespace: istio-system
-        values:
-          global:
-            meshID: mesh1
-            multiCluster:
-              clusterName: cluster2
-            network: cluster2
-        meshConfig:
-          accessLogFile: /dev/stdout
-          defaultConfig:
-            proxyMetadata:
-              ISTIO_META_DNS_CAPTURE: "true"
-              ISTIO_META_DNS_AUTO_ALLOCATE: "true"
-        components:
-          pilot:
-            k8s:
-              env:
-                - name: PILOT_ENABLE_K8S_SELECT_WORKLOAD_ENTRIES
-                  value: "false"
-          ingressGateways:
-          - name: istio-ingressgateway
-            enabled: false
-EOF
-
-cat << EOF | kubectl --context ${MGMT} apply -f -
-
-apiVersion: admin.gloo.solo.io/v2
-kind: GatewayLifecycleManager
-metadata:
-  name: cluster2-ingress
-  namespace: gloo-mesh
-spec:
-  installations:
-    - clusters:
-      - name: cluster2
-        activeGateway: true
-      gatewayRevision: ${NEW_REVISION}
-      istioOperatorSpec:
-        profile: empty
-        hub: ${registry}/istio-workshops
-        tag: 1.17.2-solo
-        values:
-          gateways:
-            istio-ingressgateway:
-              customService: true
-        components:
-          ingressGateways:
-            - name: istio-ingressgateway
-              namespace: istio-gateways
-              enabled: true
-              label:
-                istio: ingressgateway
----
-apiVersion: admin.gloo.solo.io/v2
-kind: GatewayLifecycleManager
-metadata:
-  name: cluster2-eastwest
-  namespace: gloo-mesh
-spec:
-  installations:
-    - clusters:
-      - name: cluster2
-        activeGateway: false
-      gatewayRevision: ${NEW_REVISION}
-      istioOperatorSpec:
-        profile: empty
-        hub: ${registry}/istio-workshops
-        tag: 1.17.2-solo
-        values:
-          gateways:
-            istio-ingressgateway:
-              customService: true
-        components:
-          ingressGateways:
-            - name: istio-eastwestgateway
-              namespace: istio-gateways
-              enabled: true
-              label:
-                istio: eastwestgateway
-                topology.istio.io/network: cluster2
-              k8s:
-                env:
-                  - name: ISTIO_META_ROUTER_MODE
-                    value: "sni-dnat"
-                  - name: ISTIO_META_REQUESTED_NETWORK_VIEW
-                    value: cluster2
-EOF
-```
-
-Run the following command:
-
-```bash
-kubectl --context ${CLUSTER1} -n istio-system get pods && kubectl --context ${CLUSTER1} -n istio-gateways get pods
-```
-
-You should get the following output:
-
-```
-NAME                           READY   STATUS    RESTARTS   AGE
-istiod-1-16-796fffbdf5-n6xc9   1/1     Running   0          25m
-NAME                                          READY   STATUS    RESTARTS   AGE
-istio-eastwestgateway-1-16-546446c77b-zg5hd   1/1     Running   0          25m
-istio-ingressgateway-1-16-784f69b4bb-lcfk9    1/1     Running   0          25m
-```
-
-It confirms that only the new version is running.
-
-<!--bash
-ATTEMPTS=1
-until [[ $(kubectl --context ${CLUSTER1} -n istio-system get pods -l "istio.io/rev=${OLD_REVISION}" -o json | jq '.items | length') -eq 0 ]] || [ $ATTEMPTS -gt 120 ]; do
-  printf "."
-  ATTEMPTS=$((ATTEMPTS + 1))
-  sleep 1
-done
-ATTEMPTS=1
-until [[ $(kubectl --context ${CLUSTER1} -n istio-gateways get pods -l "istio.io/rev=${OLD_REVISION}" -o json | jq '.items | length') -eq 0 ]] || [ $ATTEMPTS -gt 60 ]; do
-  printf "."
-  ATTEMPTS=$((ATTEMPTS + 1))
-  sleep 1
-done
-ATTEMPTS=1
-until [[ $(kubectl --context ${CLUSTER2} -n istio-system get pods -l "istio.io/rev=${OLD_REVISION}" -o json | jq '.items | length') -eq 0 ]] || [ $ATTEMPTS -gt 10 ]; do
-  printf "."
-  ATTEMPTS=$((ATTEMPTS + 1))
-  sleep 1
-done
-ATTEMPTS=1
-until [[ $(kubectl --context ${CLUSTER2} -n istio-gateways get pods -l "istio.io/rev=${OLD_REVISION}" -o json | jq '.items | length') -eq 0 ]] || [ $ATTEMPTS -gt 10 ]; do
-  printf "."
-  ATTEMPTS=$((ATTEMPTS + 1))
-  sleep 1
-done
--->
-
-<!--bash
-cat <<'EOF' > ./test.js
-const chaiExec = require("@jsdevtools/chai-exec");
-var chai = require('chai');
-var expect = chai.expect;
-chai.use(chaiExec);
-
-describe("Old Istio version should be uninstalled", () => {
-  let cluster = process.env.CLUSTER1
-  let namespaces = ["istio-system", "istio-gateways"];
-  namespaces.forEach(namespace => {
-    it("Pods aren't running anymore in the cluster " + cluster + " in the namespace  " + namespace, () => {
-      let cli = chaiExec('kubectl --context ' + cluster + ' -n ' + namespace + ' get pods -l "istio.io/rev=' + process.env.OLD_REVISION +'" -o json');
-      expect(cli).to.exit.with.code(0);
-      expect(JSON.parse(cli.stdout).items).to.have.lengthOf(0);
-    });
-  });
-  cluster = process.env.CLUSTER2
-  namespaces = ["istio-system", "istio-gateways"];
-  namespaces.forEach(namespace => {
-    it("Pods aren't running anymore in the cluster " + cluster + " in the namespace  " + namespace, () => {
-      let cli = chaiExec('kubectl --context ' + cluster +' -n ' + namespace + ' get pods -l "istio.io/rev=' + process.env.OLD_REVISION +'" -o json');
-      expect(cli).to.exit.with.code(0);
-      expect(JSON.parse(cli.stdout).items).to.have.lengthOf(0);
-    });
-  });
-});
-EOF
-echo "executing test dist/gloo-mesh-2-0-all-airgap/build/templates/steps/istio-lifecycle-manager-upgrade/tests/previous-version-uninstalled.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
--->
-
-
-
-## Lab 31 - Gloo Mesh Management Plane failover <a name="lab-31---gloo-mesh-management-plane-failover-"></a>
-
-
-Before we start the failover procedure, let's capture the current output snapshot:
-
-```bash
-pod=$(kubectl --context ${MGMT} -n gloo-mesh get pods -l app=gloo-mesh-mgmt-server -o jsonpath='{.items[0].metadata.name}')
-kubectl --context ${MGMT} -n gloo-mesh debug -q -i ${pod} --image=curlimages/curl -- curl -s http://localhost:9091/snapshots/output > output
-```
-
-We can use it later to check the translation produces the same output on the new management plane.
-
-Also, let's find what's the last `resourceVersion` of all the Istio objects on `cluster1`:
-
-```bash
-kubectl --context ${CLUSTER1} get gw,vs,dr,se,we,envoyfilters -A -o json | jq -r '.items[].metadata.resourceVersion' | sort -u | tail -1 > last
-```
-
-We can use it later to check the failover hasn't impacted the Istio configuration (no objects have been modified).
-We're going to deploy a new Kubernetes cluster to host the standby Gloo Platform management plane:
-
-```bash
-./scripts/deploy.sh 4 mgmt2
-```
-
-Then, run the following commands to wait for all the Pods to be ready:
-
-```bash
-./scripts/check.sh mgmt2
-```
-
-We also need to create a new environment variable:
-```bash
-export MGMT2=mgmt2
-```
-
-Copy the relay secrets used by the previous management plane to the new one:
-
-```bash
-kubectl --context ${MGMT2} create ns gloo-mesh
-kubectl --context ${MGMT} -n gloo-mesh get secret relay-identity-token-secret -o yaml | kubectl --context ${MGMT2} -n gloo-mesh apply -f -
-kubectl --context ${MGMT} -n gloo-mesh get secret relay-root-tls-secret -o yaml | kubectl --context ${MGMT2} -n gloo-mesh apply -f -
-kubectl --context ${MGMT} -n gloo-mesh get secret relay-server-tls-secret -o yaml | kubectl --context ${MGMT2} -n gloo-mesh apply -f -
-kubectl --context ${MGMT} -n gloo-mesh get secret relay-tls-signing-secret -o yaml | kubectl --context ${MGMT2} -n gloo-mesh apply -f -
-```
-
-After that, we can deploy Gloo Platform on this cluster.
-
-Run the following commands to deploy the Gloo Platform management plane (and scale it down):
-
-```bash
-helm repo add gloo-platform https://storage.googleapis.com/gloo-platform/helm-charts
-helm repo update
-kubectl --context ${MGMT2} create ns gloo-mesh
-helm upgrade --install gloo-platform-crds gloo-platform/gloo-platform-crds \
---namespace gloo-mesh \
---kube-context ${MGMT2} \
---version=2.3.5
-helm upgrade --install gloo-platform gloo-platform/gloo-platform \
---namespace gloo-mesh \
---kube-context ${MGMT2} \
---version=2.3.5 \
- -f -<<EOF
-licensing:
-  licenseKey: ${GLOO_MESH_LICENSE_KEY}
-common:
-  cluster: mgmt
-glooMgmtServer:
-  enabled: true
-  ports:
-    healthcheck: 8091
-  image:
-    registry: ${registry}/gloo-mesh
-prometheus:
-  enabled: true
-  configmapReload:
-    prometheus:
-      image:
-        repository: ${registry}/jimmidyson/configmap-reload
-  server:
-    image:
-      repository: ${registry}/prometheus/prometheus
-redis:
-  deployment:
-    enabled: true
-    image:
-      registry: ${registry}
-telemetryGateway:
-  enabled: true
-  service:
-    type: LoadBalancer
-  image:
-    repository: ${registry}/gloo-mesh/gloo-otel-collector
-glooUi:
-  enabled: true
-  serviceType: LoadBalancer
-  image:
-    registry: ${registry}/gloo-mesh
-  sidecars:
-    console:
-      image:
-        registry: ${registry}/gloo-mesh
-    envoy:
-      image:
-        registry: ${registry}/gloo-mesh
-EOF
-kubectl --context ${MGMT2} -n gloo-mesh rollout status deploy/gloo-mesh-mgmt-server
-
-kubectl --context ${MGMT2} -n gloo-mesh scale deploy/gloo-mesh-mgmt-server --replicas=0
-```
-
-Finally, you need to specify which gateways you want to use for cross cluster traffic:
-
-```bash
-cat <<EOF | kubectl --context ${MGMT2} apply -f -
-apiVersion: admin.gloo.solo.io/v2
-kind: WorkspaceSettings
-metadata:
-  name: global
-  namespace: gloo-mesh
-spec:
-  options:
-    eastWestGateways:
-      - selector:
-          labels:
-            istio: eastwestgateway
-EOF
-```
-
-Copy the `KubernetesCluster` objects from the previous management plane to the new one:
-
-```bash
-kubectl --context ${MGMT} -n gloo-mesh get KubernetesCluster cluster1 -o yaml | kubectl --context ${MGMT2} -n gloo-mesh apply -f -
-kubectl --context ${MGMT} -n gloo-mesh get KubernetesCluster cluster2 -o yaml | kubectl --context ${MGMT2} -n gloo-mesh apply -f -
-```
-
-Copy the secret containing the root CA certificate used by the previous management plane to the new one:
-
-```bash
-kubectl --context ${MGMT} -n gloo-mesh get secret root-trust-policy.gloo-mesh -o yaml | kubectl --context ${MGMT2} -n gloo-mesh apply -f -
-```
-
-Copy the `IstioLifecycleManager` and `GatewayLifecycleManager` objects from the previous management plane to the new one:
-
-```bash
-kubectl --context ${MGMT} -n gloo-mesh get IstioLifecycleManager cluster1-installation -o yaml | kubectl --context ${MGMT2} -n gloo-mesh apply -f -
-kubectl --context ${MGMT} -n gloo-mesh get IstioLifecycleManager cluster2-installation -o yaml | kubectl --context ${MGMT2} -n gloo-mesh apply -f -
-kubectl --context ${MGMT} -n gloo-mesh get GatewayLifecycleManager cluster1-ingress -o yaml | kubectl --context ${MGMT2} -n gloo-mesh apply -f -
-kubectl --context ${MGMT} -n gloo-mesh get GatewayLifecycleManager cluster1-eastwest -o yaml | kubectl --context ${MGMT2} -n gloo-mesh apply -f -
-kubectl --context ${MGMT} -n gloo-mesh get GatewayLifecycleManager cluster2-ingress -o yaml | kubectl --context ${MGMT2} -n gloo-mesh apply -f -
-kubectl --context ${MGMT} -n gloo-mesh get GatewayLifecycleManager cluster2-eastwest -o yaml | kubectl --context ${MGMT2} -n gloo-mesh apply -f -
-```
-
-Create the following `RootTrustPolicy` object which will create the new `cacerts` secret using the previous root CA certificate.
-
-```bash
-cat << EOF | kubectl --context ${MGMT2} apply -f -
-apiVersion: admin.gloo.solo.io/v2
-kind: RootTrustPolicy
-metadata:
-  name: root-trust-policy
-  namespace: gloo-mesh
-spec:
-  config:
-    mgmtServerCa:
-      secretRef:
-        name: root-trust-policy.gloo-mesh
-        namespace: gloo-mesh
-    autoRestartPods: false
-EOF
-```
-
-Let's create the `gateways` workspace which corresponds to the `istio-gateways` and the `gloo-mesh-addons` namespaces on the cluster(s):
-
-```bash
-kubectl apply --context ${MGMT2} -f- <<EOF
-apiVersion: admin.gloo.solo.io/v2
-kind: Workspace
-metadata:
-  name: gateways
-  namespace: gloo-mesh
-spec:
-  workloadClusters:
-  - name: cluster1
-    namespaces:
-    - name: istio-gateways
-    - name: gloo-mesh-addons
-  - name: cluster2
-    namespaces:
-    - name: istio-gateways
-    - name: gloo-mesh-addons
-EOF
-```
-
-Let's create the `bookinfo` workspace which corresponds to the `bookinfo-frontends` and `bookinfo-backends` namespaces on the cluster(s):
-
-```bash
-kubectl apply --context ${MGMT2} -f- <<EOF
-apiVersion: admin.gloo.solo.io/v2
-kind: Workspace
-metadata:
-  name: bookinfo
-  namespace: gloo-mesh
-  labels:
-    allow_ingress: "true"
-spec:
-  workloadClusters:
-  - name: cluster1
-    namespaces:
-    - name: bookinfo-frontends
-    - name: bookinfo-backends
-  - name: cluster2
-    namespaces:
-    - name: bookinfo-frontends
-    - name: bookinfo-backends
-EOF
-```
-
-Let's create the `httpbin` workspace which corresponds to the `httpbin` namespace on `cluster1`:
-
-```bash
-kubectl apply --context ${MGMT2} -f- <<EOF
-apiVersion: admin.gloo.solo.io/v2
-kind: Workspace
-metadata:
-  name: httpbin
-  namespace: gloo-mesh
-  labels:
-    allow_ingress: "true"
-spec:
-  workloadClusters:
-  - name: cluster1
-    namespaces:
-    - name: httpbin
-EOF
-```
-
-Then, you need to set the environment variable to tell the Gloo Platform agents how to communicate with the management plane:
-
-```bash
-export ENDPOINT_GLOO_MESH=$(kubectl --context ${MGMT2} -n gloo-mesh get svc gloo-mesh-mgmt-server -o jsonpath='{.status.loadBalancer.ingress[0].*}'):9900
-export HOST_GLOO_MESH=$(echo ${ENDPOINT_GLOO_MESH%:*})
-export ENDPOINT_TELEMETRY_GATEWAY=$(kubectl --context ${MGMT2} -n gloo-mesh get svc gloo-telemetry-gateway -o jsonpath='{.status.loadBalancer.ingress[0].*}'):4317
-```
-
-Now, let's update the agents to use the new management plane.
-
-```bash
-
-helm upgrade --install gloo-platform gloo-platform/gloo-platform \
-  --namespace=gloo-mesh \
-  --kube-context=${CLUSTER1} \
-  --version=2.3.5 \
- -f -<<EOF
-common:
-  cluster: cluster1
-glooAgent:
-  enabled: true
-  relay:
-    serverAddress: ${ENDPOINT_GLOO_MESH}
-    authority: gloo-mesh-mgmt-server.gloo-mesh
-  image:
-    registry: ${registry}/gloo-mesh
-telemetryCollector:
-  enabled: true
-  config:
-    exporters:
-      otlp:
-        endpoint: ${ENDPOINT_TELEMETRY_GATEWAY}
-  image:
-    repository: ${registry}/gloo-mesh/gloo-otel-collector
-EOF
-
-
-helm upgrade --install gloo-platform gloo-platform/gloo-platform \
-  --namespace=gloo-mesh \
-  --kube-context=${CLUSTER2} \
-  --version=2.3.5 \
- -f -<<EOF
-common:
-  cluster: cluster2
-glooAgent:
-  enabled: true
-  relay:
-    serverAddress: ${ENDPOINT_GLOO_MESH}
-    authority: gloo-mesh-mgmt-server.gloo-mesh
-  image:
-    registry: ${registry}/gloo-mesh
-telemetryCollector:
-  enabled: true
-  config:
-    exporters:
-      otlp:
-        endpoint: ${ENDPOINT_TELEMETRY_GATEWAY}
-  image:
-    repository: ${registry}/gloo-mesh/gloo-otel-collector
-EOF
-```
-
-Let's scale up the management plane:
-
-```bash
-kubectl --context ${MGMT2} -n gloo-mesh scale deploy/gloo-mesh-mgmt-server --replicas=1
-```
-
-And update the variables to use the new management plane from now on:
-
-```bash
-export MGMT=${MGMT2}
-```
-
-<!--bash
-cat <<'EOF' > ./test.js
-const chaiExec = require("@jsdevtools/chai-exec");
-var chai = require('chai');
-var expect = chai.expect;
-chai.use(chaiExec);
-
-describe("failover has no impact", () => {
-  it("Istio objects haven't been modified", () => {
-    let cli = chaiExec(`bash -c "kubectl --context ${process.env.CLUSTER1} get gw,vs,dr,se,we,envoyfilters -A -o json | jq -r '.items[].metadata.resourceVersion' | sort -u | tail -1"`);
-    let last = chaiExec("cat last");
-
-    expect(cli).to.exit.with.code(0);
-    expect(cli).stdout.to.contain(last.stdout);
-  });
-});
-EOF
-echo "executing test dist/gloo-mesh-2-0-all-airgap/build/templates/steps/gloo-mesh-mgmt-failover/tests/failover-has-no-impact.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
--->
-
-
-
-## Lab 32 - Extend Envoy with WebAssembly <a name="lab-32---extend-envoy-with-webassembly-"></a>
+## Lab 30 - Extend Envoy with WebAssembly <a name="lab-30---extend-envoy-with-webassembly-"></a>
 
 WebAssembly (WASM) is the future of cloud-native infrastructure extensibility.
 
@@ -7512,6 +6370,1150 @@ kubectl --context ${CLUSTER1} -n bookinfo-backends delete wasmdeploymentpolicy r
 ```
 
 
+
+
+
+## Lab 31 - Upgrade Istio using Gloo Mesh Lifecycle Manager <a name="lab-31---upgrade-istio-using-gloo-mesh-lifecycle-manager-"></a>
+[<img src="https://img.youtube.com/vi/6DtGVkecArs/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/6DtGVkecArs "Video Link")
+
+Set the variables corresponding to the old and new revision tags:
+
+```bash
+export OLD_REVISION=1-17
+export NEW_REVISION=1-18
+```
+
+We are going to upgrade Istio using Gloo Mesh Lifecycle Manager.
+
+```bash
+cat << EOF | kubectl --context ${MGMT} apply -f -
+
+apiVersion: admin.gloo.solo.io/v2
+kind: IstioLifecycleManager
+metadata:
+  name: cluster1-installation
+  namespace: gloo-mesh
+spec:
+  installations:
+    - clusters:
+      - name: cluster1
+        defaultRevision: true
+      revision: ${OLD_REVISION}
+      istioOperatorSpec:
+        profile: minimal
+        hub: ${registry}/istio-workshops
+        tag: 1.17.3-solo
+        namespace: istio-system
+        values:
+          global:
+            meshID: mesh1
+            multiCluster:
+              clusterName: cluster1
+            network: cluster1
+        meshConfig:
+          accessLogFile: /dev/stdout
+          defaultConfig:
+            proxyMetadata:
+              ISTIO_META_DNS_CAPTURE: "true"
+              ISTIO_META_DNS_AUTO_ALLOCATE: "true"
+        components:
+          pilot:
+            k8s:
+              env:
+                - name: PILOT_ENABLE_K8S_SELECT_WORKLOAD_ENTRIES
+                  value: "false"
+          ingressGateways:
+          - name: istio-ingressgateway
+            enabled: false
+    - clusters:
+      - name: cluster1
+        defaultRevision: false
+      revision: ${NEW_REVISION}
+      istioOperatorSpec:
+        profile: minimal
+        hub: ${registry}/istio-workshops
+        tag: 1.18.0-solo
+        namespace: istio-system
+        values:
+          global:
+            meshID: mesh1
+            multiCluster:
+              clusterName: cluster1
+            network: cluster1
+        meshConfig:
+          accessLogFile: /dev/stdout
+          defaultConfig:
+            proxyMetadata:
+              ISTIO_META_DNS_CAPTURE: "true"
+              ISTIO_META_DNS_AUTO_ALLOCATE: "true"
+        components:
+          pilot:
+            k8s:
+              env:
+                - name: PILOT_ENABLE_K8S_SELECT_WORKLOAD_ENTRIES
+                  value: "false"
+          ingressGateways:
+          - name: istio-ingressgateway
+            enabled: false
+EOF
+
+cat << EOF | kubectl --context ${MGMT} apply -f -
+
+apiVersion: admin.gloo.solo.io/v2
+kind: GatewayLifecycleManager
+metadata:
+  name: cluster1-ingress
+  namespace: gloo-mesh
+spec:
+  installations:
+    - clusters:
+      - name: cluster1
+        activeGateway: false
+      gatewayRevision: ${OLD_REVISION}
+      istioOperatorSpec:
+        profile: empty
+        hub: ${registry}/istio-workshops
+        tag: 1.17.3-solo
+        values:
+          gateways:
+            istio-ingressgateway:
+              customService: true
+        components:
+          ingressGateways:
+            - name: istio-ingressgateway
+              namespace: istio-gateways
+              enabled: true
+              label:
+                istio: ingressgateway
+    - clusters:
+      - name: cluster1
+        activeGateway: false
+      gatewayRevision: ${NEW_REVISION}
+      istioOperatorSpec:
+        profile: empty
+        hub: ${registry}/istio-workshops
+        tag: 1.18.0-solo
+        values:
+          gateways:
+            istio-ingressgateway:
+              customService: true
+        components:
+          ingressGateways:
+            - name: istio-ingressgateway
+              namespace: istio-gateways
+              enabled: true
+              label:
+                istio: ingressgateway
+---
+apiVersion: admin.gloo.solo.io/v2
+kind: GatewayLifecycleManager
+metadata:
+  name: cluster1-eastwest
+  namespace: gloo-mesh
+spec:
+  installations:
+    - clusters:
+      - name: cluster1
+        activeGateway: false
+      gatewayRevision: ${OLD_REVISION}
+      istioOperatorSpec:
+        profile: empty
+        hub: ${registry}/istio-workshops
+        tag: 1.17.3-solo
+        values:
+          gateways:
+            istio-ingressgateway:
+              customService: true
+        components:
+          ingressGateways:
+            - name: istio-eastwestgateway
+              namespace: istio-gateways
+              enabled: true
+              label:
+                istio: eastwestgateway
+                topology.istio.io/network: cluster1
+              k8s:
+                env:
+                  - name: ISTIO_META_ROUTER_MODE
+                    value: "sni-dnat"
+                  - name: ISTIO_META_REQUESTED_NETWORK_VIEW
+                    value: cluster1
+    - clusters:
+      - name: cluster1
+        activeGateway: false
+      gatewayRevision: ${NEW_REVISION}
+      istioOperatorSpec:
+        profile: empty
+        hub: ${registry}/istio-workshops
+        tag: 1.18.0-solo
+        values:
+          gateways:
+            istio-ingressgateway:
+              customService: true
+        components:
+          ingressGateways:
+            - name: istio-eastwestgateway
+              namespace: istio-gateways
+              enabled: true
+              label:
+                istio: eastwestgateway
+                topology.istio.io/network: cluster1
+              k8s:
+                env:
+                  - name: ISTIO_META_ROUTER_MODE
+                    value: "sni-dnat"
+                  - name: ISTIO_META_REQUESTED_NETWORK_VIEW
+                    value: cluster1
+EOF
+
+cat << EOF | kubectl --context ${MGMT} apply -f -
+
+apiVersion: admin.gloo.solo.io/v2
+kind: IstioLifecycleManager
+metadata:
+  name: cluster2-installation
+  namespace: gloo-mesh
+spec:
+  installations:
+    - clusters:
+      - name: cluster2
+        defaultRevision: true
+      revision: ${OLD_REVISION}
+      istioOperatorSpec:
+        profile: minimal
+        hub: ${registry}/istio-workshops
+        tag: 1.17.3-solo
+        namespace: istio-system
+        values:
+          global:
+            meshID: mesh1
+            multiCluster:
+              clusterName: cluster2
+            network: cluster2
+        meshConfig:
+          accessLogFile: /dev/stdout
+          defaultConfig:
+            proxyMetadata:
+              ISTIO_META_DNS_CAPTURE: "true"
+              ISTIO_META_DNS_AUTO_ALLOCATE: "true"
+        components:
+          pilot:
+            k8s:
+              env:
+                - name: PILOT_ENABLE_K8S_SELECT_WORKLOAD_ENTRIES
+                  value: "false"
+          ingressGateways:
+          - name: istio-ingressgateway
+            enabled: false
+    - clusters:
+      - name: cluster2
+        defaultRevision: false
+      revision: ${NEW_REVISION}
+      istioOperatorSpec:
+        profile: minimal
+        hub: ${registry}/istio-workshops
+        tag: 1.18.0-solo
+        namespace: istio-system
+        values:
+          global:
+            meshID: mesh1
+            multiCluster:
+              clusterName: cluster2
+            network: cluster2
+        meshConfig:
+          accessLogFile: /dev/stdout
+          defaultConfig:
+            proxyMetadata:
+              ISTIO_META_DNS_CAPTURE: "true"
+              ISTIO_META_DNS_AUTO_ALLOCATE: "true"
+        components:
+          pilot:
+            k8s:
+              env:
+                - name: PILOT_ENABLE_K8S_SELECT_WORKLOAD_ENTRIES
+                  value: "false"
+          ingressGateways:
+          - name: istio-ingressgateway
+            enabled: false
+EOF
+
+cat << EOF | kubectl --context ${MGMT} apply -f -
+
+apiVersion: admin.gloo.solo.io/v2
+kind: GatewayLifecycleManager
+metadata:
+  name: cluster2-ingress
+  namespace: gloo-mesh
+spec:
+  installations:
+    - clusters:
+      - name: cluster2
+        activeGateway: false
+      gatewayRevision: ${OLD_REVISION}
+      istioOperatorSpec:
+        profile: empty
+        hub: ${registry}/istio-workshops
+        tag: 1.17.3-solo
+        values:
+          gateways:
+            istio-ingressgateway:
+              customService: true
+        components:
+          ingressGateways:
+            - name: istio-ingressgateway
+              namespace: istio-gateways
+              enabled: true
+              label:
+                istio: ingressgateway
+    - clusters:
+      - name: cluster2
+        activeGateway: false
+      gatewayRevision: ${NEW_REVISION}
+      istioOperatorSpec:
+        profile: empty
+        hub: ${registry}/istio-workshops
+        tag: 1.18.0-solo
+        values:
+          gateways:
+            istio-ingressgateway:
+              customService: true
+        components:
+          ingressGateways:
+            - name: istio-ingressgateway
+              namespace: istio-gateways
+              enabled: true
+              label:
+                istio: ingressgateway
+---
+apiVersion: admin.gloo.solo.io/v2
+kind: GatewayLifecycleManager
+metadata:
+  name: cluster2-eastwest
+  namespace: gloo-mesh
+spec:
+  installations:
+    - clusters:
+      - name: cluster2
+        activeGateway: false
+      gatewayRevision: ${OLD_REVISION}
+      istioOperatorSpec:
+        profile: empty
+        hub: ${registry}/istio-workshops
+        tag: 1.17.3-solo
+        values:
+          gateways:
+            istio-ingressgateway:
+              customService: true
+        components:
+          ingressGateways:
+            - name: istio-eastwestgateway
+              namespace: istio-gateways
+              enabled: true
+              label:
+                istio: eastwestgateway
+                topology.istio.io/network: cluster2
+              k8s:
+                env:
+                  - name: ISTIO_META_ROUTER_MODE
+                    value: "sni-dnat"
+                  - name: ISTIO_META_REQUESTED_NETWORK_VIEW
+                    value: cluster2
+    - clusters:
+      - name: cluster2
+        activeGateway: false
+      gatewayRevision: ${NEW_REVISION}
+      istioOperatorSpec:
+        profile: empty
+        hub: ${registry}/istio-workshops
+        tag: 1.18.0-solo
+        values:
+          gateways:
+            istio-ingressgateway:
+              customService: true
+        components:
+          ingressGateways:
+            - name: istio-eastwestgateway
+              namespace: istio-gateways
+              enabled: true
+              label:
+                istio: eastwestgateway
+                topology.istio.io/network: cluster2
+              k8s:
+                env:
+                  - name: ISTIO_META_ROUTER_MODE
+                    value: "sni-dnat"
+                  - name: ISTIO_META_REQUESTED_NETWORK_VIEW
+                    value: cluster2
+EOF
+```
+
+<!--bash
+cat <<'EOF' > ./test.js
+
+const helpers = require('./tests/chai-exec');
+
+const chaiExec = require("@jsdevtools/chai-exec");
+const helpersHttp = require('./tests/chai-http');
+const chai = require("chai");
+const expect = chai.expect;
+
+afterEach(function (done) {
+  if (this.currentTest.currentRetry() > 0) {
+    process.stdout.write(".");
+    setTimeout(done, 1000);
+  } else {
+    done();
+  }
+});
+
+describe("Checking Istio installation", function() {
+  it('istiod pods are ready in cluster ' + process.env.CLUSTER1, () => helpers.checkDeploymentsWithLabels({ context: process.env.CLUSTER1, namespace: "istio-system", labels: "app=istiod", instances: 2 }));
+  it('gateway pods are ready in cluster ' + process.env.CLUSTER1, () => helpers.checkDeploymentsWithLabels({ context: process.env.CLUSTER1, namespace: "istio-gateways", labels: "app=istio-ingressgateway", instances: 4 }));
+  it('istiod pods are ready in cluster ' + process.env.CLUSTER2, () => helpers.checkDeploymentsWithLabels({ context: process.env.CLUSTER1, namespace: "istio-system", labels: "app=istiod", instances: 2 }));
+  it('gateway pods are ready in cluster ' + process.env.CLUSTER2, () => helpers.checkDeploymentsWithLabels({ context: process.env.CLUSTER1, namespace: "istio-gateways", labels: "app=istio-ingressgateway", instances: 4 }));
+});
+
+EOF
+echo "executing test dist/gloo-mesh-2-0-all-airgap/build/templates/steps/istio-lifecycle-manager-upgrade/tests/istio-ready.test.js.liquid"
+tempfile=$(mktemp)
+echo "saving errors in ${tempfile}"
+mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
+-->
+
+Run the following command to check the status of the upgrade(s):
+
+```sh
+kubectl --context ${MGMT} -n gloo-mesh get istiolifecyclemanager cluster1-installation -o yaml
+kubectl --context ${MGMT} -n gloo-mesh get gatewaylifecyclemanager cluster1-ingress -o yaml
+kubectl --context ${MGMT} -n gloo-mesh get gatewaylifecyclemanager cluster1-eastwest -o yaml
+kubectl --context ${MGMT} -n gloo-mesh get istiolifecyclemanager cluster2-installation -o yaml
+kubectl --context ${MGMT} -n gloo-mesh get gatewaylifecyclemanager cluster2-ingress -o yaml
+kubectl --context ${MGMT} -n gloo-mesh get gatewaylifecyclemanager cluster2-eastwest -o yaml
+```
+
+When the upgrade is completed, the state at the end of the objects will be `HEALTHY`.
+
+Now, let's restart all the Istio Pods to use the new revision:
+
+```bash
+kubectl --context ${CLUSTER1} get ns -l istio.io/rev=${OLD_REVISION} -o json | jq -r '.items[].metadata.name' | while read ns; do
+  kubectl --context ${CLUSTER1} label ns ${ns} istio.io/rev=${NEW_REVISION} --overwrite
+  kubectl --context ${CLUSTER1} -n ${ns} rollout restart deploy
+done
+kubectl --context ${CLUSTER2} get ns -l istio.io/rev=${OLD_REVISION} -o json | jq -r '.items[].metadata.name' | while read ns; do
+  kubectl --context ${CLUSTER2} label ns ${ns} istio.io/rev=${NEW_REVISION} --overwrite
+  kubectl --context ${CLUSTER2} -n ${ns} rollout restart deploy
+done
+kubectl --context ${CLUSTER1} -n httpbin patch deploy in-mesh --patch "{\"spec\": {\"template\": {\"metadata\": {\"labels\": {\"istio.io/rev\": \"${NEW_REVISION}\" }}}}}"
+```
+<!--bash
+kubectl --context ${CLUSTER1} -n httpbin rollout status deploy in-mesh
+-->
+
+Test that you can still access the `in-mesh` service through the Istio Ingress Gateway corresponding to the old revision using the command below:
+
+```bash
+curl -k "https://${ENDPOINT_HTTPS_GW_CLUSTER1}/get" -I
+```
+
+You should get a response similar to the following one:
+
+```
+HTTP/2 200 
+server: istio-envoy
+date: Wed, 24 Aug 2022 14:58:22 GMT
+content-type: application/json
+content-length: 670
+access-control-allow-origin: *
+access-control-allow-credentials: true
+x-envoy-upstream-service-time: 7
+```
+
+<!--bash
+cat <<'EOF' > ./test.js
+const helpers = require('./tests/chai-http');
+
+describe("httpbin is accessible", () => {
+  it('/get is available in cluster1', () => helpers.checkURL({ host: 'https://' + process.env.ENDPOINT_HTTPS_GW_CLUSTER1, path: '/get', retCode: 200 }));
+})
+
+EOF
+echo "executing test dist/gloo-mesh-2-0-all-airgap/build/templates/steps/istio-lifecycle-manager-upgrade/tests/httpbin-available.test.js.liquid"
+tempfile=$(mktemp)
+echo "saving errors in ${tempfile}"
+mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
+-->
+
+All good, so we can now switch to the Istio gateways corresponding to the new revision:
+
+```bash
+kubectl --context ${CLUSTER1} -n istio-gateways patch svc istio-ingressgateway --patch "{\"spec\": {\"selector\": {\"revision\": \"${NEW_REVISION}\" }}}"
+kubectl --context ${CLUSTER1} -n istio-gateways patch svc istio-eastwestgateway --patch "{\"spec\": {\"selector\": {\"revision\": \"${NEW_REVISION}\" }}}"
+kubectl --context ${CLUSTER2} -n istio-gateways patch svc istio-ingressgateway --patch "{\"spec\": {\"selector\": {\"revision\": \"${NEW_REVISION}\" }}}"
+kubectl --context ${CLUSTER2} -n istio-gateways patch svc istio-eastwestgateway --patch "{\"spec\": {\"selector\": {\"revision\": \"${NEW_REVISION}\" }}}"
+```
+
+Test that you can still access the `in-mesh` service:
+
+```bash
+curl -k "https://${ENDPOINT_HTTPS_GW_CLUSTER1}/get" -I
+```
+
+You should get a response similar to the following one:
+
+```
+HTTP/2 200 
+server: istio-envoy
+date: Wed, 24 Aug 2022 14:58:22 GMT
+content-type: application/json
+content-length: 670
+access-control-allow-origin: *
+access-control-allow-credentials: true
+```
+
+<!--bash
+cat <<'EOF' > ./test.js
+const helpers = require('./tests/chai-http');
+
+describe("httpbin is accessible", () => {
+  it('/get is available in cluster1', () => helpers.checkURL({ host: 'https://' + process.env.ENDPOINT_HTTPS_GW_CLUSTER1, path: '/get', retCode: 200 }));
+})
+
+EOF
+echo "executing test dist/gloo-mesh-2-0-all-airgap/build/templates/steps/istio-lifecycle-manager-upgrade/tests/httpbin-available.test.js.liquid"
+tempfile=$(mktemp)
+echo "saving errors in ${tempfile}"
+mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
+-->
+
+Now that everything is working well with the new version, we can uninstall the previous version:
+
+```bash
+cat << EOF | kubectl --context ${MGMT} apply -f -
+
+apiVersion: admin.gloo.solo.io/v2
+kind: IstioLifecycleManager
+metadata:
+  name: cluster1-installation
+  namespace: gloo-mesh
+spec:
+  installations:
+    - clusters:
+      - name: cluster1
+        defaultRevision: true
+      revision: ${NEW_REVISION}
+      istioOperatorSpec:
+        profile: minimal
+        hub: ${registry}/istio-workshops
+        tag: 1.18.0-solo
+        namespace: istio-system
+        values:
+          global:
+            meshID: mesh1
+            multiCluster:
+              clusterName: cluster1
+            network: cluster1
+        meshConfig:
+          accessLogFile: /dev/stdout
+          defaultConfig:
+            proxyMetadata:
+              ISTIO_META_DNS_CAPTURE: "true"
+              ISTIO_META_DNS_AUTO_ALLOCATE: "true"
+        components:
+          pilot:
+            k8s:
+              env:
+                - name: PILOT_ENABLE_K8S_SELECT_WORKLOAD_ENTRIES
+                  value: "false"
+          ingressGateways:
+          - name: istio-ingressgateway
+            enabled: false
+EOF
+
+cat << EOF | kubectl --context ${MGMT} apply -f -
+
+apiVersion: admin.gloo.solo.io/v2
+kind: GatewayLifecycleManager
+metadata:
+  name: cluster1-ingress
+  namespace: gloo-mesh
+spec:
+  installations:
+    - clusters:
+      - name: cluster1
+        activeGateway: true
+      gatewayRevision: ${NEW_REVISION}
+      istioOperatorSpec:
+        profile: empty
+        hub: ${registry}/istio-workshops
+        tag: 1.18.0-solo
+        values:
+          gateways:
+            istio-ingressgateway:
+              customService: true
+        components:
+          ingressGateways:
+            - name: istio-ingressgateway
+              namespace: istio-gateways
+              enabled: true
+              label:
+                istio: ingressgateway
+---
+apiVersion: admin.gloo.solo.io/v2
+kind: GatewayLifecycleManager
+metadata:
+  name: cluster1-eastwest
+  namespace: gloo-mesh
+spec:
+  installations:
+    - clusters:
+      - name: cluster1
+        activeGateway: false
+      gatewayRevision: ${NEW_REVISION}
+      istioOperatorSpec:
+        profile: empty
+        hub: ${registry}/istio-workshops
+        tag: 1.18.0-solo
+        values:
+          gateways:
+            istio-ingressgateway:
+              customService: true
+        components:
+          ingressGateways:
+            - name: istio-eastwestgateway
+              namespace: istio-gateways
+              enabled: true
+              label:
+                istio: eastwestgateway
+                topology.istio.io/network: cluster1
+              k8s:
+                env:
+                  - name: ISTIO_META_ROUTER_MODE
+                    value: "sni-dnat"
+                  - name: ISTIO_META_REQUESTED_NETWORK_VIEW
+                    value: cluster1
+EOF
+
+cat << EOF | kubectl --context ${MGMT} apply -f -
+
+apiVersion: admin.gloo.solo.io/v2
+kind: IstioLifecycleManager
+metadata:
+  name: cluster2-installation
+  namespace: gloo-mesh
+spec:
+  installations:
+    - clusters:
+      - name: cluster2
+        defaultRevision: true
+      revision: ${NEW_REVISION}
+      istioOperatorSpec:
+        profile: minimal
+        hub: ${registry}/istio-workshops
+        tag: 1.18.0-solo
+        namespace: istio-system
+        values:
+          global:
+            meshID: mesh1
+            multiCluster:
+              clusterName: cluster2
+            network: cluster2
+        meshConfig:
+          accessLogFile: /dev/stdout
+          defaultConfig:
+            proxyMetadata:
+              ISTIO_META_DNS_CAPTURE: "true"
+              ISTIO_META_DNS_AUTO_ALLOCATE: "true"
+        components:
+          pilot:
+            k8s:
+              env:
+                - name: PILOT_ENABLE_K8S_SELECT_WORKLOAD_ENTRIES
+                  value: "false"
+          ingressGateways:
+          - name: istio-ingressgateway
+            enabled: false
+EOF
+
+cat << EOF | kubectl --context ${MGMT} apply -f -
+
+apiVersion: admin.gloo.solo.io/v2
+kind: GatewayLifecycleManager
+metadata:
+  name: cluster2-ingress
+  namespace: gloo-mesh
+spec:
+  installations:
+    - clusters:
+      - name: cluster2
+        activeGateway: true
+      gatewayRevision: ${NEW_REVISION}
+      istioOperatorSpec:
+        profile: empty
+        hub: ${registry}/istio-workshops
+        tag: 1.18.0-solo
+        values:
+          gateways:
+            istio-ingressgateway:
+              customService: true
+        components:
+          ingressGateways:
+            - name: istio-ingressgateway
+              namespace: istio-gateways
+              enabled: true
+              label:
+                istio: ingressgateway
+---
+apiVersion: admin.gloo.solo.io/v2
+kind: GatewayLifecycleManager
+metadata:
+  name: cluster2-eastwest
+  namespace: gloo-mesh
+spec:
+  installations:
+    - clusters:
+      - name: cluster2
+        activeGateway: false
+      gatewayRevision: ${NEW_REVISION}
+      istioOperatorSpec:
+        profile: empty
+        hub: ${registry}/istio-workshops
+        tag: 1.18.0-solo
+        values:
+          gateways:
+            istio-ingressgateway:
+              customService: true
+        components:
+          ingressGateways:
+            - name: istio-eastwestgateway
+              namespace: istio-gateways
+              enabled: true
+              label:
+                istio: eastwestgateway
+                topology.istio.io/network: cluster2
+              k8s:
+                env:
+                  - name: ISTIO_META_ROUTER_MODE
+                    value: "sni-dnat"
+                  - name: ISTIO_META_REQUESTED_NETWORK_VIEW
+                    value: cluster2
+EOF
+```
+
+Run the following command:
+
+```bash
+kubectl --context ${CLUSTER1} -n istio-system get pods && kubectl --context ${CLUSTER1} -n istio-gateways get pods
+```
+
+You should get the following output:
+
+```
+NAME                           READY   STATUS    RESTARTS   AGE
+istiod-1-17-796fffbdf5-n6xc9   1/1     Running   0          25m
+NAME                                          READY   STATUS    RESTARTS   AGE
+istio-eastwestgateway-1-17-546446c77b-zg5hd   1/1     Running   0          25m
+istio-ingressgateway-1-17-784f69b4bb-lcfk9    1/1     Running   0          25m
+```
+
+It confirms that only the new version is running.
+
+<!--bash
+ATTEMPTS=1
+until [[ $(kubectl --context ${CLUSTER1} -n istio-system get pods -l "istio.io/rev=${OLD_REVISION}" -o json | jq '.items | length') -eq 0 ]] || [ $ATTEMPTS -gt 120 ]; do
+  printf "."
+  ATTEMPTS=$((ATTEMPTS + 1))
+  sleep 1
+done
+ATTEMPTS=1
+until [[ $(kubectl --context ${CLUSTER1} -n istio-gateways get pods -l "istio.io/rev=${OLD_REVISION}" -o json | jq '.items | length') -eq 0 ]] || [ $ATTEMPTS -gt 60 ]; do
+  printf "."
+  ATTEMPTS=$((ATTEMPTS + 1))
+  sleep 1
+done
+ATTEMPTS=1
+until [[ $(kubectl --context ${CLUSTER2} -n istio-system get pods -l "istio.io/rev=${OLD_REVISION}" -o json | jq '.items | length') -eq 0 ]] || [ $ATTEMPTS -gt 10 ]; do
+  printf "."
+  ATTEMPTS=$((ATTEMPTS + 1))
+  sleep 1
+done
+ATTEMPTS=1
+until [[ $(kubectl --context ${CLUSTER2} -n istio-gateways get pods -l "istio.io/rev=${OLD_REVISION}" -o json | jq '.items | length') -eq 0 ]] || [ $ATTEMPTS -gt 10 ]; do
+  printf "."
+  ATTEMPTS=$((ATTEMPTS + 1))
+  sleep 1
+done
+-->
+
+<!--bash
+cat <<'EOF' > ./test.js
+const chaiExec = require("@jsdevtools/chai-exec");
+var chai = require('chai');
+var expect = chai.expect;
+chai.use(chaiExec);
+
+describe("Old Istio version should be uninstalled", () => {
+  let cluster = process.env.CLUSTER1
+  let namespaces = ["istio-system", "istio-gateways"];
+  namespaces.forEach(namespace => {
+    it("Pods aren't running anymore in the cluster " + cluster + " in the namespace  " + namespace, () => {
+      let cli = chaiExec('kubectl --context ' + cluster + ' -n ' + namespace + ' get pods -l "istio.io/rev=' + process.env.OLD_REVISION +'" -o json');
+      expect(cli).to.exit.with.code(0);
+      expect(JSON.parse(cli.stdout).items).to.have.lengthOf(0);
+    });
+  });
+  cluster = process.env.CLUSTER2
+  namespaces = ["istio-system", "istio-gateways"];
+  namespaces.forEach(namespace => {
+    it("Pods aren't running anymore in the cluster " + cluster + " in the namespace  " + namespace, () => {
+      let cli = chaiExec('kubectl --context ' + cluster +' -n ' + namespace + ' get pods -l "istio.io/rev=' + process.env.OLD_REVISION +'" -o json');
+      expect(cli).to.exit.with.code(0);
+      expect(JSON.parse(cli.stdout).items).to.have.lengthOf(0);
+    });
+  });
+});
+EOF
+echo "executing test dist/gloo-mesh-2-0-all-airgap/build/templates/steps/istio-lifecycle-manager-upgrade/tests/previous-version-uninstalled.test.js.liquid"
+tempfile=$(mktemp)
+echo "saving errors in ${tempfile}"
+mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
+-->
+
+
+
+## Lab 32 - Gloo Mesh Management Plane failover <a name="lab-32---gloo-mesh-management-plane-failover-"></a>
+
+
+Before we start the failover procedure, let's capture the current output snapshot:
+
+```bash
+pod=$(kubectl --context ${MGMT} -n gloo-mesh get pods -l app=gloo-mesh-mgmt-server -o jsonpath='{.items[0].metadata.name}')
+kubectl --context ${MGMT} -n gloo-mesh debug -q -i ${pod} --image=curlimages/curl -- curl -s http://localhost:9091/snapshots/output > output
+```
+
+We can use it later to check the translation produces the same output on the new management plane.
+
+Also, let's find what's the last `resourceVersion` of all the Istio objects on `cluster1`:
+
+```bash
+kubectl --context ${CLUSTER1} get gw,vs,dr,se,we,envoyfilters -A -o json | jq -r '.items[].metadata.resourceVersion' | sort -u | tail -1 > last
+```
+
+We can use it later to check the failover hasn't impacted the Istio configuration (no objects have been modified).
+We're going to deploy a new Kubernetes cluster to host the standby Gloo Platform management plane:
+
+```bash
+./scripts/deploy-aws.sh 4 mgmt2
+```
+
+Then, run the following commands to wait for all the Pods to be ready:
+
+```bash
+./scripts/check.sh mgmt2
+```
+
+We also need to create a new environment variable:
+```bash
+export MGMT2=mgmt2
+```
+
+Copy the relay secrets used by the previous management plane to the new one:
+
+```bash
+kubectl --context ${MGMT2} create ns gloo-mesh
+kubectl --context ${MGMT} -n gloo-mesh get secret relay-identity-token-secret -o yaml | kubectl --context ${MGMT2} -n gloo-mesh apply -f -
+kubectl --context ${MGMT} -n gloo-mesh get secret relay-root-tls-secret -o yaml | kubectl --context ${MGMT2} -n gloo-mesh apply -f -
+kubectl --context ${MGMT} -n gloo-mesh get secret relay-server-tls-secret -o yaml | kubectl --context ${MGMT2} -n gloo-mesh apply -f -
+kubectl --context ${MGMT} -n gloo-mesh get secret relay-tls-signing-secret -o yaml | kubectl --context ${MGMT2} -n gloo-mesh apply -f -
+```
+
+After that, we can deploy Gloo Platform on this cluster.
+
+Run the following commands to deploy the Gloo Platform management plane (and scale it down):
+
+```bash
+helm repo add gloo-platform https://storage.googleapis.com/gloo-platform/helm-charts
+helm repo update
+kubectl --context ${MGMT2} create ns gloo-mesh
+helm upgrade --install gloo-platform-crds gloo-platform/gloo-platform-crds \
+--namespace gloo-mesh \
+--kube-context ${MGMT2} \
+--version=2.3.5
+helm upgrade --install gloo-platform gloo-platform/gloo-platform \
+--namespace gloo-mesh \
+--kube-context ${MGMT2} \
+--version=2.3.5 \
+ -f -<<EOF
+licensing:
+  licenseKey: ${GLOO_MESH_LICENSE_KEY}
+common:
+  cluster: mgmt
+glooMgmtServer:
+  enabled: true
+  ports:
+    healthcheck: 8091
+  image:
+    registry: ${registry}/gloo-mesh
+prometheus:
+  enabled: true
+  configmapReload:
+    prometheus:
+      image:
+        repository: ${registry}/jimmidyson/configmap-reload
+  server:
+    image:
+      repository: ${registry}/prometheus/prometheus
+redis:
+  deployment:
+    enabled: true
+    image:
+      registry: ${registry}
+telemetryGateway:
+  enabled: true
+  service:
+    type: LoadBalancer
+  image:
+    repository: ${registry}/gloo-mesh/gloo-otel-collector
+glooUi:
+  enabled: true
+  serviceType: LoadBalancer
+  image:
+    registry: ${registry}/gloo-mesh
+  sidecars:
+    console:
+      image:
+        registry: ${registry}/gloo-mesh
+    envoy:
+      image:
+        registry: ${registry}/gloo-mesh
+EOF
+kubectl --context ${MGMT2} -n gloo-mesh rollout status deploy/gloo-mesh-mgmt-server
+
+kubectl --context ${MGMT2} -n gloo-mesh scale deploy/gloo-mesh-mgmt-server --replicas=0
+```
+
+Finally, you need to specify which gateways you want to use for cross cluster traffic:
+
+```bash
+cat <<EOF | kubectl --context ${MGMT2} apply -f -
+apiVersion: admin.gloo.solo.io/v2
+kind: WorkspaceSettings
+metadata:
+  name: global
+  namespace: gloo-mesh
+spec:
+  options:
+    eastWestGateways:
+      - selector:
+          labels:
+            istio: eastwestgateway
+EOF
+```
+
+Copy the `KubernetesCluster` objects from the previous management plane to the new one:
+
+```bash
+kubectl --context ${MGMT} -n gloo-mesh get KubernetesCluster cluster1 -o yaml | kubectl --context ${MGMT2} -n gloo-mesh apply -f -
+kubectl --context ${MGMT} -n gloo-mesh get KubernetesCluster cluster2 -o yaml | kubectl --context ${MGMT2} -n gloo-mesh apply -f -
+```
+
+Copy the secret containing the root CA certificate used by the previous management plane to the new one:
+
+```bash
+kubectl --context ${MGMT} -n gloo-mesh get secret root-trust-policy.gloo-mesh -o yaml | kubectl --context ${MGMT2} -n gloo-mesh apply -f -
+```
+
+Copy the `IstioLifecycleManager` and `GatewayLifecycleManager` objects from the previous management plane to the new one:
+
+```bash
+kubectl --context ${MGMT} -n gloo-mesh get IstioLifecycleManager cluster1-installation -o yaml | kubectl --context ${MGMT2} -n gloo-mesh apply -f -
+kubectl --context ${MGMT} -n gloo-mesh get IstioLifecycleManager cluster2-installation -o yaml | kubectl --context ${MGMT2} -n gloo-mesh apply -f -
+kubectl --context ${MGMT} -n gloo-mesh get GatewayLifecycleManager cluster1-ingress -o yaml | kubectl --context ${MGMT2} -n gloo-mesh apply -f -
+kubectl --context ${MGMT} -n gloo-mesh get GatewayLifecycleManager cluster1-eastwest -o yaml | kubectl --context ${MGMT2} -n gloo-mesh apply -f -
+kubectl --context ${MGMT} -n gloo-mesh get GatewayLifecycleManager cluster2-ingress -o yaml | kubectl --context ${MGMT2} -n gloo-mesh apply -f -
+kubectl --context ${MGMT} -n gloo-mesh get GatewayLifecycleManager cluster2-eastwest -o yaml | kubectl --context ${MGMT2} -n gloo-mesh apply -f -
+```
+
+Create the following `RootTrustPolicy` object which will create the new `cacerts` secret using the previous root CA certificate.
+
+```bash
+cat << EOF | kubectl --context ${MGMT2} apply -f -
+apiVersion: admin.gloo.solo.io/v2
+kind: RootTrustPolicy
+metadata:
+  name: root-trust-policy
+  namespace: gloo-mesh
+spec:
+  config:
+    mgmtServerCa:
+      secretRef:
+        name: root-trust-policy.gloo-mesh
+        namespace: gloo-mesh
+    autoRestartPods: false
+EOF
+```
+
+Let's create the `gateways` workspace which corresponds to the `istio-gateways` and the `gloo-mesh-addons` namespaces on the cluster(s):
+
+```bash
+kubectl apply --context ${MGMT2} -f- <<EOF
+apiVersion: admin.gloo.solo.io/v2
+kind: Workspace
+metadata:
+  name: gateways
+  namespace: gloo-mesh
+spec:
+  workloadClusters:
+  - name: cluster1
+    namespaces:
+    - name: istio-gateways
+    - name: gloo-mesh-addons
+  - name: cluster2
+    namespaces:
+    - name: istio-gateways
+    - name: gloo-mesh-addons
+EOF
+```
+
+Let's create the `bookinfo` workspace which corresponds to the `bookinfo-frontends` and `bookinfo-backends` namespaces on the cluster(s):
+
+```bash
+kubectl apply --context ${MGMT2} -f- <<EOF
+apiVersion: admin.gloo.solo.io/v2
+kind: Workspace
+metadata:
+  name: bookinfo
+  namespace: gloo-mesh
+  labels:
+    allow_ingress: "true"
+spec:
+  workloadClusters:
+  - name: cluster1
+    namespaces:
+    - name: bookinfo-frontends
+    - name: bookinfo-backends
+  - name: cluster2
+    namespaces:
+    - name: bookinfo-frontends
+    - name: bookinfo-backends
+EOF
+```
+
+Let's create the `httpbin` workspace which corresponds to the `httpbin` namespace on `cluster1`:
+
+```bash
+kubectl apply --context ${MGMT2} -f- <<EOF
+apiVersion: admin.gloo.solo.io/v2
+kind: Workspace
+metadata:
+  name: httpbin
+  namespace: gloo-mesh
+  labels:
+    allow_ingress: "true"
+spec:
+  workloadClusters:
+  - name: cluster1
+    namespaces:
+    - name: httpbin
+EOF
+```
+
+Then, you need to set the environment variable to tell the Gloo Platform agents how to communicate with the management plane:
+
+```bash
+export ENDPOINT_GLOO_MESH=$(kubectl --context ${MGMT2} -n gloo-mesh get svc gloo-mesh-mgmt-server -o jsonpath='{.status.loadBalancer.ingress[0].*}'):9900
+export HOST_GLOO_MESH=$(echo ${ENDPOINT_GLOO_MESH%:*})
+export ENDPOINT_TELEMETRY_GATEWAY=$(kubectl --context ${MGMT2} -n gloo-mesh get svc gloo-telemetry-gateway -o jsonpath='{.status.loadBalancer.ingress[0].*}'):4317
+```
+
+Now, let's update the agents to use the new management plane.
+
+```bash
+
+helm upgrade --install gloo-platform gloo-platform/gloo-platform \
+  --namespace=gloo-mesh \
+  --kube-context=${CLUSTER1} \
+  --version=2.3.5 \
+ -f -<<EOF
+common:
+  cluster: cluster1
+glooAgent:
+  enabled: true
+  relay:
+    serverAddress: "${ENDPOINT_GLOO_MESH}"
+    authority: gloo-mesh-mgmt-server.gloo-mesh
+  image:
+    registry: ${registry}/gloo-mesh
+telemetryCollector:
+  enabled: true
+  config:
+    exporters:
+      otlp:
+        endpoint: "\"${ENDPOINT_TELEMETRY_GATEWAY}\""
+  image:
+    repository: ${registry}/gloo-mesh/gloo-otel-collector
+EOF
+
+
+helm upgrade --install gloo-platform gloo-platform/gloo-platform \
+  --namespace=gloo-mesh \
+  --kube-context=${CLUSTER2} \
+  --version=2.3.5 \
+ -f -<<EOF
+common:
+  cluster: cluster2
+glooAgent:
+  enabled: true
+  relay:
+    serverAddress: "${ENDPOINT_GLOO_MESH}"
+    authority: gloo-mesh-mgmt-server.gloo-mesh
+  image:
+    registry: ${registry}/gloo-mesh
+telemetryCollector:
+  enabled: true
+  config:
+    exporters:
+      otlp:
+        endpoint: "\"${ENDPOINT_TELEMETRY_GATEWAY}\""
+  image:
+    repository: ${registry}/gloo-mesh/gloo-otel-collector
+EOF
+```
+
+Let's scale up the management plane:
+
+```bash
+kubectl --context ${MGMT2} -n gloo-mesh scale deploy/gloo-mesh-mgmt-server --replicas=1
+```
+
+And update the variables to use the new management plane from now on:
+
+```bash
+export MGMT=${MGMT2}
+```
+
+<!--bash
+cat <<'EOF' > ./test.js
+const chaiExec = require("@jsdevtools/chai-exec");
+var chai = require('chai');
+var expect = chai.expect;
+chai.use(chaiExec);
+
+describe("failover has no impact", () => {
+  it("Istio objects haven't been modified", () => {
+    let cli = chaiExec(`bash -c "kubectl --context ${process.env.CLUSTER1} get gw,vs,dr,se,we,envoyfilters -A -o json | jq -r '.items[].metadata.resourceVersion' | sort -u | tail -1"`);
+    let last = chaiExec("cat last");
+
+    expect(cli).to.exit.with.code(0);
+    expect(cli).stdout.to.contain(last.stdout);
+  });
+});
+EOF
+echo "executing test dist/gloo-mesh-2-0-all-airgap/build/templates/steps/gloo-mesh-mgmt-failover/tests/failover-has-no-impact.test.js.liquid"
+tempfile=$(mktemp)
+echo "saving errors in ${tempfile}"
+mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
+-->
 
 
 
