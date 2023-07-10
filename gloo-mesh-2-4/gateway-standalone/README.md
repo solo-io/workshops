@@ -223,7 +223,7 @@ istioInstallations:
           gatewayRevision: auto
           istioOperatorSpec:
             hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-            tag: 1.17.2-solo
+            tag: 1.18.0-solo
             profile: empty
             components:
               ingressGateways:
@@ -1852,6 +1852,7 @@ You should get a `200` response code the first 3 time and a `429` response code 
 This diagram shows the flow of the request (with the Istio ingress gateway leveraging the `rate limiter` Pod to determine if the request should be allowed):
 
 ![Gloo Mesh Gateway Rate Limiting](images/steps/gateway-ratelimiting/gloo-mesh-gateway-rate-limiting.svg)
+
 Let's apply the original `RouteTable` yaml:
 ```bash
 kubectl apply --context ${CLUSTER1} -f - <<EOF
@@ -1884,6 +1885,7 @@ kubectl --context ${CLUSTER1} -n httpbin delete ratelimitpolicy httpbin
 kubectl --context ${CLUSTER1} -n httpbin delete ratelimitclientconfig httpbin
 kubectl --context ${CLUSTER1} -n httpbin delete ratelimitserverconfig httpbin
 ```
+
 
 
 
