@@ -1560,15 +1560,40 @@ spec:
       port:
         number: 443
       tls:
+        parameters:
+          minimumProtocolVersion: TLSv1_3
         mode: SIMPLE
         secretName: tls-secret
 # -------------------------------------------------------
       allowedRouteTables:
         - host: '*'
+
 EOF
 ```
 
 You can now access the `productpage` application securely through the browser.
+
+Notice that we specificed a minimumProtocolVersion, so if the client is trying to use an deprecated TLS version the request will be denied.
+
+To test this, we can try to send a request with `tlsv1.2`:
+
+```console
+curl --tlsv1.2 --tls-max 1.2 --key tls.key --cert tls.crt https://${ENDPOINT_HTTPS_GW_CLUSTER1}/productpage -k
+```
+
+You should get the following output:
+
+```nocopy
+curl: (35) error:1409442E:SSL routines:ssl3_read_bytes:tlsv1 alert protocol version
+```
+
+Now, you can try the most recent `tlsv1.3`:
+
+```console
+curl --tlsv1.3 --tls-max 1.3 --key tls.key --cert tls.crt https://${ENDPOINT_HTTPS_GW_CLUSTER1}/productpage -k
+```
+
+And after this you should get the actual Productpage.
 Get the URL to access the `productpage` service using the following command:
 ```
 echo "https://${ENDPOINT_HTTPS_GW_CLUSTER1}/productpage"
@@ -2102,6 +2127,17 @@ mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${te
 
 
 <!--bash
+printf "Waiting for all pods to be bounced in cluster1"
+until [ $(kubectl --context ${CLUSTER1} -n istio-system get podbouncedirectives -o jsonpath='{.items[].status.state}' | grep FINISHED -c) -eq 1 ]; do
+  printf "%s" "."
+  sleep 1
+done
+printf "Waiting for all pods needed for the test..."
+printf "\n"
+kubectl --context ${CLUSTER1} get deploy -n bookinfo-backends -oname|xargs -I {} kubectl --context ${CLUSTER1} rollout status -n bookinfo-backends {}
+printf "\n"
+-->
+<!--bash
 cat <<'EOF' > ./test.js
 const chaiExec = require("@jsdevtools/chai-exec");
 var chai = require('chai');
@@ -2514,6 +2550,7 @@ kubectl --context ${CLUSTER1} -n bookinfo-frontends patch deployment productpage
 kubectl --context ${CLUSTER1} -n bookinfo-frontends rollout status deploy/productpage-v1
 ```
 
+
 Let's apply the original `RouteTable` and `VirtualGateway` yaml:
 
 ```bash
@@ -2580,6 +2617,7 @@ kubectl --context ${CLUSTER1} -n bookinfo-frontends delete virtualdestination pr
 kubectl --context ${CLUSTER1} -n bookinfo-frontends delete failoverpolicy failover
 kubectl --context ${CLUSTER1} -n bookinfo-frontends delete outlierdetectionpolicy outlier-detection
 ```
+
 
 
 
@@ -3546,6 +3584,7 @@ This diagram shows the flow of the request (with the Istio ingress gateway lever
 
 ![Gloo Mesh Gateway Rate Limiting](images/steps/gateway-ratelimiting/gloo-mesh-gateway-rate-limiting.svg)
 
+
 Let's apply the original `RouteTable` yaml:
 ```bash
 kubectl apply --context ${CLUSTER1} -f - <<EOF
@@ -3692,6 +3731,7 @@ server: istio-envoy
 
 Log4Shell malicious payload
 ```
+
 
 Let's apply the original `RouteTable` yaml:
 
