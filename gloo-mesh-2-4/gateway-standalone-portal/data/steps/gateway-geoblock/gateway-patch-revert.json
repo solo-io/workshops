@@ -1,0 +1,18 @@
+[
+  {
+    "op": "remove",
+    "path": "/spec/template/metadata/annotations/proxy.istio.io~1config"
+  },
+  {
+    "op": "remove",
+    "path": "/spec/template/spec/volumes/0"
+  },
+  {
+    "op": "remove",
+    "path": "/spec/template/spec/containers/0/volumeMounts/0"
+  },
+  {
+    "op": "remove",
+    "path": "/spec/template/spec/initContainers/0"
+  }
+]
