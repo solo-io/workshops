@@ -1,0 +1,69 @@
+apiVersion: admin.gloo.solo.io/v2
+kind: GatewayLifecycleManager
+metadata:
+  name: cluster1-ingress-geoip
+  namespace: gloo-mesh
+spec:
+  installations:
+  - clusters:
+    - name: cluster1
+      activeGateway: false
+    gatewayRevision: 1-17
+    istioOperatorSpec:
+      profile: empty
+      hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
+      tag: 1.17.2-solo
+      values:
+        gateways:
+          istio-ingressgateway:
+            customService: true
+      components:
+        ingressGateways:
+        - name: istio-ingressgateway
+          namespace: istio-gateways
+          enabled: true
+          label:
+            istio: ingressgateway
+          k8s:
+            overlays:
+            - kind: Deployment
+              name: istio-ingressgateway-1-17
+              patches:
+              - path: spec.template.spec.volumes.[-1]
+                value:
+                  emptyDir:
+                    sizeLimit: 10Mi
+                  name: geoip
+              - path: spec.template.spec.containers.[name:istio-proxy].volumeMounts.[-1]
+                value:
+                  mountPath: /etc/geoip/database
+                  name: geoip
+                  subPath: database
+                  readOnly: true
+              - path: spec.template.spec.containers[-1]
+                value:
+                  name: geoip-update
+                  image: ghcr.io/maxmind/geoipupdate@sha256:87f4a93067ebd6b22b71bc0a7c8b99bc24d061275d9e31b35308600ee82964a1 # v5.0.4
+                  env:
+# You'll need to create the following secret with your MaxMind account details
+                  - name: GEOIPUPDATE_ACCOUNT_ID
+                    valueFrom:
+                      secretKeyRef:
+                        name: maxmind
+                        key: AccountID
+                  - name: GEOIPUPDATE_LICENSE_KEY
+                    valueFrom:
+                      secretKeyRef:
+                        name: maxmind
+                        key: LicenseKey
+                  - name: GEOIPUPDATE_EDITION_IDS
+                    value: GeoLite2-Country
+                  - name: GEOIPUPDATE_FREQUENCY
+                    value: "72"
+                  - name: GEOIPUPDATE_DB_DIR
+                    value: /etc/geoip/database/
+                  - name: GEOIPUPDATE_CONF_FILE
+                    value: /etc/geoip/GeoIP.conf
+                  volumeMounts:
+                  - mountPath: /etc/geoip
+                    name: geoip
