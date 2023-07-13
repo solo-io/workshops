@@ -1540,7 +1540,7 @@ apiVersion: admin.gloo.solo.io/v2
 kind: WorkspaceSettings
 metadata:
   name: gateways
-  namespace: istio-gateways
+  namespace: gloo-mesh-addons
 spec:
   importFrom:
   - workspaces:
@@ -1805,15 +1805,40 @@ spec:
       port:
         number: 443
       tls:
+        parameters:
+          minimumProtocolVersion: TLSv1_3
         mode: SIMPLE
         secretName: tls-secret
 # -------------------------------------------------------
       allowedRouteTables:
         - host: '*'
+
 EOF
 ```
 
 You can now access the `productpage` application securely through the browser.
+
+Notice that we specificed a minimumProtocolVersion, so if the client is trying to use an deprecated TLS version the request will be denied.
+
+To test this, we can try to send a request with `tlsv1.2`:
+
+```console
+curl --tlsv1.2 --tls-max 1.2 --key tls.key --cert tls.crt https://${ENDPOINT_HTTPS_GW_CLUSTER1}/productpage -k
+```
+
+You should get the following output:
+
+```nocopy
+curl: (35) error:1409442E:SSL routines:ssl3_read_bytes:tlsv1 alert protocol version
+```
+
+Now, you can try the most recent `tlsv1.3`:
+
+```console
+curl --tlsv1.3 --tls-max 1.3 --key tls.key --cert tls.crt https://${ENDPOINT_HTTPS_GW_CLUSTER1}/productpage -k
+```
+
+And after this you should get the actual Productpage.
 Get the URL to access the `productpage` service using the following command:
 ```
 echo "https://${ENDPOINT_HTTPS_GW_CLUSTER1}/productpage"
@@ -2347,6 +2372,17 @@ mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${te
 
 
 <!--bash
+printf "Waiting for all pods to be bounced in cluster1"
+until [ $(kubectl --context ${CLUSTER1} -n istio-system get podbouncedirectives -o jsonpath='{.items[].status.state}' | grep FINISHED -c) -eq 1 ]; do
+  printf "%s" "."
+  sleep 1
+done
+printf "Waiting for all pods needed for the test..."
+printf "\n"
+kubectl --context ${CLUSTER1} get deploy -n bookinfo-backends -oname|xargs -I {} kubectl --context ${CLUSTER1} rollout status -n bookinfo-backends {}
+printf "\n"
+-->
+<!--bash
 cat <<'EOF' > ./test.js
 const chaiExec = require("@jsdevtools/chai-exec");
 var chai = require('chai');
@@ -2759,6 +2795,7 @@ kubectl --context ${CLUSTER1} -n bookinfo-frontends patch deployment productpage
 kubectl --context ${CLUSTER1} -n bookinfo-frontends rollout status deploy/productpage-v1
 ```
 
+
 Let's apply the original `RouteTable` and `VirtualGateway` yaml:
 
 ```bash
@@ -2825,6 +2862,7 @@ kubectl --context ${CLUSTER1} -n bookinfo-frontends delete virtualdestination pr
 kubectl --context ${CLUSTER1} -n bookinfo-frontends delete failoverpolicy failover
 kubectl --context ${CLUSTER1} -n bookinfo-frontends delete outlierdetectionpolicy outlier-detection
 ```
+
 
 
 
@@ -4486,6 +4524,7 @@ This diagram shows the flow of the request (with the Istio ingress gateway lever
 
 ![Gloo Mesh Gateway Rate Limiting](images/steps/gateway-ratelimiting/gloo-mesh-gateway-rate-limiting.svg)
 
+
 Let's apply the original `RouteTable` yaml:
 ```bash
 kubectl apply --context ${CLUSTER1} -f - <<EOF
@@ -4632,6 +4671,7 @@ server: istio-envoy
 
 Log4Shell malicious payload
 ```
+
 
 Let's apply the original `RouteTable` yaml:
 
@@ -6751,28 +6791,13 @@ EOF
 
 <!--bash
 cat <<'EOF' > ./test.js
-
 const helpers = require('./tests/chai-exec');
-
-const chaiExec = require("@jsdevtools/chai-exec");
-const helpersHttp = require('./tests/chai-http');
-const chai = require("chai");
-const expect = chai.expect;
-
-afterEach(function (done) {
-  if (this.currentTest.currentRetry() > 0) {
-    process.stdout.write(".");
-    setTimeout(done, 1000);
-  } else {
-    done();
-  }
-});
 
 describe("Checking Istio installation", function() {
   it('istiod pods are ready in cluster ' + process.env.CLUSTER1, () => helpers.checkDeploymentsWithLabels({ context: process.env.CLUSTER1, namespace: "istio-system", labels: "app=istiod", instances: 2 }));
   it('gateway pods are ready in cluster ' + process.env.CLUSTER1, () => helpers.checkDeploymentsWithLabels({ context: process.env.CLUSTER1, namespace: "istio-gateways", labels: "app=istio-ingressgateway", instances: 4 }));
-  it('istiod pods are ready in cluster ' + process.env.CLUSTER2, () => helpers.checkDeploymentsWithLabels({ context: process.env.CLUSTER1, namespace: "istio-system", labels: "app=istiod", instances: 2 }));
-  it('gateway pods are ready in cluster ' + process.env.CLUSTER2, () => helpers.checkDeploymentsWithLabels({ context: process.env.CLUSTER1, namespace: "istio-gateways", labels: "app=istio-ingressgateway", instances: 4 }));
+  it('istiod pods are ready in cluster ' + process.env.CLUSTER2, () => helpers.checkDeploymentsWithLabels({ context: process.env.CLUSTER2, namespace: "istio-system", labels: "app=istiod", instances: 2 }));
+  it('gateway pods are ready in cluster ' + process.env.CLUSTER2, () => helpers.checkDeploymentsWithLabels({ context: process.env.CLUSTER2, namespace: "istio-gateways", labels: "app=istio-ingressgateway", instances: 4 }));
 });
 
 EOF
@@ -6785,13 +6810,18 @@ mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${te
 Run the following command to check the status of the upgrade(s):
 
 ```sh
-kubectl --context ${MGMT} -n gloo-mesh get istiolifecyclemanager cluster1-installation -o yaml
-kubectl --context ${MGMT} -n gloo-mesh get gatewaylifecyclemanager cluster1-ingress -o yaml
-kubectl --context ${MGMT} -n gloo-mesh get gatewaylifecyclemanager cluster1-eastwest -o yaml
-kubectl --context ${MGMT} -n gloo-mesh get istiolifecyclemanager cluster2-installation -o yaml
-kubectl --context ${MGMT} -n gloo-mesh get gatewaylifecyclemanager cluster2-ingress -o yaml
-kubectl --context ${MGMT} -n gloo-mesh get gatewaylifecyclemanager cluster2-eastwest -o yaml
+kubectl --context ${MGMT} -n gloo-mesh get istiolifecyclemanager.admin.gloo.solo.io -ojsonpath='{.items[*].status.clusters.*.installations.*}'|jq -r '[.observedOperator.components.ingressGateways[].label, .observedRevision, .state]'
+kubectl --context ${MGMT} -n gloo-mesh get gatewaylifecyclemanagers.admin.gloo.solo.io -ojsonpath='{.items[*].status.clusters.*.installations.*}'|jq -r '[.observedOperator.components.ingressGateways[].label, .observedRevision, .state]'
 ```
+<!--bash
+printf "Waiting for all istiolifecyclemanager to be HEALTHY"
+until [ $(kubectl --context ${MGMT} -n gloo-mesh get istiolifecyclemanager.admin.gloo.solo.io -ojsonpath='{.items[*].status.clusters.*.installations.*}'|jq -r '.state'|grep -v HEALTHY -c) -eq 0 ]; do
+  printf "%s" "."
+  sleep 1
+done
+printf "\n"
+kubectl --context ${CLUSTER1} -n istio-system rollout status deploy
+-->
 
 When the upgrade is completed, the state at the end of the objects will be `HEALTHY`.
 
