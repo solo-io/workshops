@@ -29,12 +29,14 @@ source ./scripts/assert.sh
 * [Lab 13 - Use the transformation filter to manipulate headers](#lab-13---use-the-transformation-filter-to-manipulate-headers-)
 * [Lab 14 - Apply rate limiting to the Gateway](#lab-14---apply-rate-limiting-to-the-gateway-)
 * [Lab 15 - Use the Web Application Firewall filter](#lab-15---use-the-web-application-firewall-filter-)
-* [Lab 16 - Expose the productpage API securely](#lab-16---expose-the-productpage-api-securely-)
-* [Lab 17 - Expose an external API and stitch it with another one](#lab-17---expose-an-external-api-and-stitch-it-with-another-one-)
-* [Lab 18 - Expose the dev portal backend](#lab-18---expose-the-dev-portal-backend-)
-* [Lab 19 - Deploy and expose the dev portal frontend](#lab-19---deploy-and-expose-the-dev-portal-frontend-)
-* [Lab 20 - Allow users to create their own API keys](#lab-20---allow-users-to-create-their-own-api-keys-)
-* [Lab 21 - Dev portal monetization](#lab-21---dev-portal-monetization-)
+* [Lab 16 - Use the WAF to block based on source country](#lab-16---use-the-waf-to-block-based-on-source-country-)
+* [Lab 17 - Expose the productpage API securely](#lab-17---expose-the-productpage-api-securely-)
+* [Lab 18 - Expose an external API and stitch it with another one](#lab-18---expose-an-external-api-and-stitch-it-with-another-one-)
+* [Lab 19 - Expose the dev portal backend](#lab-19---expose-the-dev-portal-backend-)
+* [Lab 20 - Deploy and expose the dev portal frontend](#lab-20---deploy-and-expose-the-dev-portal-frontend-)
+* [Lab 21 - Validate user information with API key metadata and an external service](#lab-21---validate-user-information-with-api-key-metadata-and-an-external-service-)
+* [Lab 22 - Allow users to create their own API keys](#lab-22---allow-users-to-create-their-own-api-keys-)
+* [Lab 23 - Dev portal monetization](#lab-23---dev-portal-monetization-)
 
 
 
@@ -535,7 +537,7 @@ apiVersion: admin.gloo.solo.io/v2
 kind: WorkspaceSettings
 metadata:
   name: gateways
-  namespace: istio-gateways
+  namespace: gloo-mesh-addons
 spec:
   importFrom:
   - workspaces:
@@ -792,15 +794,40 @@ spec:
       port:
         number: 443
       tls:
+        parameters:
+          minimumProtocolVersion: TLSv1_3
         mode: SIMPLE
         secretName: tls-secret
 # -------------------------------------------------------
       allowedRouteTables:
         - host: '*'
+
 EOF
 ```
 
 You can now access the `productpage` application securely through the browser.
+
+Notice that we specificed a minimumProtocolVersion, so if the client is trying to use an deprecated TLS version the request will be denied.
+
+To test this, we can try to send a request with `tlsv1.2`:
+
+```console
+curl --tlsv1.2 --tls-max 1.2 --key tls.key --cert tls.crt https://${ENDPOINT_HTTPS_GW_CLUSTER1}/productpage -k
+```
+
+You should get the following output:
+
+```nocopy
+curl: (35) error:1409442E:SSL routines:ssl3_read_bytes:tlsv1 alert protocol version
+```
+
+Now, you can try the most recent `tlsv1.3`:
+
+```console
+curl --tlsv1.3 --tls-max 1.3 --key tls.key --cert tls.crt https://${ENDPOINT_HTTPS_GW_CLUSTER1}/productpage -k
+```
+
+And after this you should get the actual Productpage.
 Get the URL to access the `productpage` service using the following command:
 ```
 echo "https://${ENDPOINT_HTTPS_GW_CLUSTER1}/productpage"
@@ -1871,6 +1898,7 @@ This diagram shows the flow of the request (with the Istio ingress gateway lever
 
 ![Gloo Mesh Gateway Rate Limiting](images/steps/gateway-ratelimiting/gloo-mesh-gateway-rate-limiting.svg)
 
+
 Let's apply the original `RouteTable` yaml:
 ```bash
 kubectl apply --context ${CLUSTER1} -f - <<EOF
@@ -2018,6 +2046,7 @@ server: istio-envoy
 Log4Shell malicious payload
 ```
 
+
 Let's apply the original `RouteTable` yaml:
 
 ```bash
@@ -2056,7 +2085,214 @@ kubectl --context ${CLUSTER1} -n httpbin delete wafpolicies.security.policy.gloo
 
 
 
-## Lab 16 - Expose the productpage API securely <a name="lab-16---expose-the-productpage-api-securely-"></a>
+## Lab 16 - Use the WAF to block based on source country <a name="lab-16---use-the-waf-to-block-based-on-source-country-"></a>
+
+A web application firewall (WAF) protects web applications by monitoring, filtering, and blocking potentially harmful traffic and attacks that can overtake or exploit them.
+
+Gloo Mesh includes the ability to enable the ModSecurity Web Application Firewall for any incoming and outgoing HTTP connections.
+
+In this example we will block requests that originate in a certain country. This works by configuring a WAF rule that can look up the country that the client IP address is located in then check whether that country should be blocked from accessing our services. The response returned to a client that is blocked can be configured in the rule.
+
+Before we get started, we'll need to patch the ingress gateway so that it can use the lookup database of countries and IP addresses. We'll also need to patch the gateway service to preserve the client IP address, so that the true source is used for the lookup. The following commands apply the patches:
+
+```bash
+kubectl --context ${CLUSTER1} -n istio-gateways patch deployment $(kubectl --context ${CLUSTER1} -n istio-gateways get deploy -l istio=ingressgateway -o jsonpath='{.items[0].metadata.name}') --patch-file data/steps/gateway-geoblock/gateway-patch.yaml
+kubectl --context ${CLUSTER1} -n istio-gateways patch svc $(kubectl --context ${CLUSTER1} -n istio-gateways get svc -l istio=ingressgateway -o jsonpath='{.items[0].metadata.name}') -p '{"spec":{"externalTrafficPolicy":"Local"}}'
+```
+
+<i>Note: The file at `data/steps/gateway-geoblock/glm-example.yaml` is a version of the `GatewayLifecycleManager` that uses a MaxMind agent to keep the geolocation database up to date. We don't use that here, but recommend it for production use.</i>
+
+Now, let's test blocking traffic by country. Identify the two-character ISO 3166-1 code representing the country you're in and set it in a variable that we'll use in the WAF configuration. For example, use `US` for the USA, or `GB` for the United Kingdom. A comprehensive collection of country codes is in [this list](https://en.wikipedia.org/wiki/ISO_3166-1_alpha-2#Officially_assigned_code_elements).
+
+```bash
+export COUNTRY_CODE=GB
+```
+
+Create the WAF policy that will block traffic to the country you’re in:
+
+```bash
+kubectl apply --context ${CLUSTER1} -f - <<EOF
+apiVersion: security.policy.gloo.solo.io/v2
+kind: WAFPolicy
+metadata:
+  name: geoblock
+  namespace: httpbin
+spec:
+  applyToRoutes:
+  - route:
+      labels:
+        waf: "true"
+  config:
+    disableCoreRuleSet: true
+    customInterventionMessage: 'Not available in your country'
+    customRuleSets:
+    - ruleStr: |
+        SecRuleEngine On
+        SecDebugLog /dev/stdout
+        SecDebugLogLevel 9
+        SecGeoLookupDb /etc/geoip/database/GeoLite2-Country.mmdb
+        SecRule REQUEST_HEADERS:X-Envoy-External-Address "@geoLookup" "chain,id:22,deny,status:403,msg:'Blocked in prohibited country'"
+        SecRule GEO:COUNTRY_CODE "@streq ${COUNTRY_CODE}"
+    auditLogging:
+      action: ALWAYS
+      location: DYNAMIC_METADATA
+EOF
+```
+
+In this example, we're also going to update the main `RouteTable` to enforce this policy for all the applications exposed through the gateway (in any workspace). We'll do this by adding the label `waf: "true"` to the route:
+
+```bash
+kubectl apply --context ${CLUSTER1} -f - <<EOF
+apiVersion: networking.gloo.solo.io/v2
+kind: RouteTable
+metadata:
+  name: main
+  namespace: istio-gateways
+spec:
+  hosts:
+  - '*'
+  virtualGateways:
+  - name: north-south-gw
+    namespace: istio-gateways
+    cluster: cluster1
+  workloadSelectors: []
+  http:
+  - name: root
+    labels:
+      waf: "true"
+    matchers:
+    - uri:
+        prefix: /
+    delegate:
+      routeTables:
+        - labels:
+            expose: "true"
+      sortMethod: ROUTE_SPECIFICITY
+EOF
+```
+
+Open the "httpbin" tab at the top of this page. If you are in the country that you configured to block requests from, you should see the message `Not available in your country`. You can check the headers in your browser to confirm that you got a response with HTTP status `403 Forbidden`:
+
+```,nocopy
+HTTP/3 403 Forbidden
+content-length: 29
+content-type: text/plain
+date: Fri, 30 Jun 2023 16:22:00 GMT
+server: istio-envoy
+
+Not available in your country
+```
+
+Let's update the WAF policy so that it blocks requests from a different country. Set the prohibited country to the code of a country you're *not* in:
+
+```bash
+export COUNTRY_CODE=KP #North Korea
+```
+
+Now update the policy with this restriction:
+
+```bash
+kubectl apply --context ${CLUSTER1} -f - <<EOF
+apiVersion: security.policy.gloo.solo.io/v2
+kind: WAFPolicy
+metadata:
+  name: geoblock
+  namespace: httpbin
+spec:
+  applyToRoutes:
+  - route:
+      labels:
+        waf: "true"
+  config:
+    disableCoreRuleSet: true
+    customInterventionMessage: 'Not available in your country'
+    customRuleSets:
+    - ruleStr: |
+        SecRuleEngine On
+        SecDebugLog /dev/stdout
+        SecDebugLogLevel 9
+        SecGeoLookupDb /etc/geoip/database/GeoLite2-Country.mmdb
+        SecRule REQUEST_HEADERS:X-Envoy-External-Address "@geoLookup" "chain,id:22,deny,status:403,msg:'Blocked in prohibited country'"
+        SecRule GEO:COUNTRY_CODE "@streq ${COUNTRY_CODE}"
+    auditLogging:
+      action: ALWAYS
+      location: DYNAMIC_METADATA
+EOF
+```
+
+Finally, repeat the test by refreshing the "httpbin" tab. This time you should see a successful response.
+
+Let's apply the original `RouteTable` yaml:
+
+```bash
+kubectl --context ${CLUSTER1} apply -f - <<EOF
+apiVersion: networking.gloo.solo.io/v2
+kind: RouteTable
+metadata:
+  name: main
+  namespace: istio-gateways
+spec:
+  hosts:
+  - '*'
+  virtualGateways:
+  - name: north-south-gw
+    namespace: istio-gateways
+    cluster: cluster1
+  workloadSelectors: []
+  http:
+  - name: root
+    matchers:
+    - uri:
+        prefix: /
+    delegate:
+      routeTables:
+        - labels:
+            expose: "true"
+      sortMethod: ROUTE_SPECIFICITY
+EOF
+```
+
+```bash
+kubectl apply --context ${CLUSTER1} -f - <<EOF
+apiVersion: networking.gloo.solo.io/v2
+kind: RouteTable
+metadata:
+  name: httpbin
+  namespace: httpbin
+  labels:
+    expose: "true"
+spec:
+  http:
+    - name: httpbin
+      matchers:
+      - uri:
+          exact: /get
+      forwardTo:
+        destinations:
+        - ref:
+            name: not-in-mesh
+            namespace: httpbin
+          port:
+            number: 8000
+EOF
+```
+
+Also delete the WAF policy we created:
+
+```bash
+kubectl --context ${CLUSTER1} -n httpbin delete wafpolicies.security.policy.gloo.solo.io geoblock
+```
+
+And finally, revert the patches to the ingress gateway and gateway service:
+
+```bash
+kubectl --context ${CLUSTER1} -n istio-gateways patch deployment $(kubectl --context ${CLUSTER1} -n istio-gateways get deploy -l istio=ingressgateway -o jsonpath='{.items[0].metadata.name}') --type json --patch-file data/steps/gateway-geoblock/gateway-patch-revert.json
+kubectl --context ${CLUSTER1} -n istio-gateways patch svc $(kubectl --context ${CLUSTER1} -n istio-gateways get svc -l istio=ingressgateway -o jsonpath='{.items[0].metadata.name}') -p '{"spec":{"externalTrafficPolicy":"Cluster"}}'
+```
+
+
+
+## Lab 17 - Expose the productpage API securely <a name="lab-17---expose-the-productpage-api-securely-"></a>
 [<img src="https://img.youtube.com/vi/pkzeYaTj9k0/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/pkzeYaTj9k0 "Video Link")
 
 Gloo Platform includes a developer portal, which is well integrated with its core API.
@@ -2075,7 +2311,7 @@ kubectl --context ${CLUSTER1} -n bookinfo-frontends annotate service productpage
 <!--bash
 until kubectl --context ${CLUSTER1} -n bookinfo-frontends get apidoc productpage-service; do
   kubectl --context ${CLUSTER1} -n bookinfo-frontends rollout restart deploy productpage-v1
-  sleep 1
+  sleep 10
 done
 -->
 
@@ -2488,7 +2724,7 @@ server: istio-envoy
 
 
 
-## Lab 17 - Expose an external API and stitch it with another one <a name="lab-17---expose-an-external-api-and-stitch-it-with-another-one-"></a>
+## Lab 18 - Expose an external API and stitch it with another one <a name="lab-18---expose-an-external-api-and-stitch-it-with-another-one-"></a>
 [<img src="https://img.youtube.com/vi/_GsECm06AgQ/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/_GsECm06AgQ "Video Link")
 
 You can also expose external APIs.
@@ -3191,7 +3427,7 @@ You should get something like that:
 
 
 
-## Lab 18 - Expose the dev portal backend <a name="lab-18---expose-the-dev-portal-backend-"></a>
+## Lab 19 - Expose the dev portal backend <a name="lab-19---expose-the-dev-portal-backend-"></a>
 [<img src="https://img.youtube.com/vi/mfXww6udYFs/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/mfXww6udYFs "Video Link")
 
 Now that your API has been exposed securely and our plans defined, you probably want to advertise it through a developer portal.
@@ -3365,7 +3601,7 @@ The `RouteTable` we have created for the `bookinfo` API has this label.
 
 
 
-## Lab 19 - Deploy and expose the dev portal frontend <a name="lab-19---deploy-and-expose-the-dev-portal-frontend-"></a>
+## Lab 20 - Deploy and expose the dev portal frontend <a name="lab-20---deploy-and-expose-the-dev-portal-frontend-"></a>
 
 The developer frontend is provided as a fully functional template to allow you to customize it based on your own requirements.
 
@@ -3661,7 +3897,197 @@ Now, if you click on the `VIEW APIS` button, you should see the `Bookinfo REST A
 
 
 
-## Lab 20 - Allow users to create their own API keys <a name="lab-20---allow-users-to-create-their-own-api-keys-"></a>
+## Lab 21 - Validate user information with API key metadata and an external service <a name="lab-21---validate-user-information-with-api-key-metadata-and-an-external-service-"></a>
+
+In this lab, we will explore how to expose information from the API key and use it to authorize requests.
+
+Specifically, we'll store a list of prohibited countries in the metadata of the API key, and then enforce that requests must come from a country not on that list the be successfully authorized.
+
+First, identify the two-character ISO 3166-1 code representing the country you're in. We'll use this in the API key's metadata. For example, use `US` for the USA, or `GB` for the United Kingdom. A comprehensive collection of country codes is in [this list](https://en.wikipedia.org/wiki/ISO_3166-1_alpha-2#Officially_assigned_code_elements).
+
+Set your country code in an environment variable (replace `GB` with your own):
+
+```bash
+export PROHIBITED_COUNTRY=GB
+```
+
+Add this country as a "prohibited country" in the metadata of user1's API key:
+
+```bash
+export API_KEY_USER1=apikey1
+kubectl apply --context ${CLUSTER1} -f - <<EOF
+apiVersion: v1
+kind: Secret
+metadata:
+  name: user1
+  namespace: bookinfo-frontends
+  labels:
+    auth: api-key
+type: extauth.solo.io/apikey
+data:
+  api-key: $(echo -n "${API_KEY_USER1}" | base64)
+  user-id: dXNlcjE=
+  user-email: dXNlcjFAc29sby5pbw==
+  plan: Z29sZA==
+  prohibitedCountries: $(echo -n "${PROHIBITED_COUNTRY}" | base64)
+EOF
+```
+
+We'll configure the `ExtAuthPolicy` to do a few things:
+ - Add the API key's list of prohibited countries to the request when authenticating the key
+ - Add the request's originating country to the request metadata (implemented by an external service)
+ - Compare the requestor country with the list of prohibited countries using an OPA rule
+
+The OPA rule will cause authorization to fail if the requestor country is in the list of prohibited countries. We'll create this rule first:
+
+```bash
+kubectl apply --context ${CLUSTER1} -f - <<EOF
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: deny-prohibited-countries
+  namespace: bookinfo-frontends
+data:
+  policy.rego: |-
+    package test
+
+    import future.keywords.if
+    import future.keywords.in
+
+    default allow = false
+
+    allow if not input.state["X-AppConfig-Prohibited-Countries"]
+
+    allow if not input.state["geo-CountryCode"]
+
+    allow if input.state["geo-CountryCode"] == ""
+
+    allow if {
+        not input.state["geo-CountryCode"] in split(input.state["X-AppConfig-Prohibited-Countries"], ",")
+    }
+EOF
+```
+
+Let's also create the external service that will perform the country code lookup for requests as they arrive:
+
+```bash
+kubectl apply --context ${CLUSTER1} -f - <<EOF
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: extauth-grpcservice
+  namespace: gloo-mesh-addons
+spec:
+  selector:
+    matchLabels:
+      app: grpc-extauth
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: grpc-extauth
+    spec:
+      containers:
+      - name: grpc-extauth
+        image: gcr.io/field-engineering-eu/jesus-passthrough-grpc-service:0.2.6
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 9001
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: example-grpc-auth-service
+  namespace: gloo-mesh-addons
+  labels:
+      app: grpc-extauth
+spec:
+  ports:
+  - port: 9001
+    protocol: TCP
+  selector:
+      app: grpc-extauth
+EOF
+```
+
+Then we can apply the `ExtAuthPolicy`:
+
+```bash
+kubectl apply --context ${CLUSTER1} -f - <<EOF
+apiVersion: security.policy.gloo.solo.io/v2
+kind: ExtAuthPolicy
+metadata:
+  name: bookinfo-apiauth
+  namespace: bookinfo-frontends
+spec:
+  applyToRoutes:
+  - route:
+      labels:
+        apikeys: "true"
+  config:
+    server:
+      name: ext-auth-server
+      namespace: gloo-mesh-addons
+      cluster: cluster1
+    glooAuth:
+      configs:
+      - apiKeyAuth:
+          headerName: api-key
+          headersFromMetadataEntry:
+            X-AppConfig-Prohibited-Countries:
+              name: prohibitedCountries
+          k8sSecretApikeyStorage:
+            labelSelector:
+              auth: api-key
+      - passThroughAuth:
+          grpc:
+            address: example-grpc-auth-service.gloo-mesh-addons.svc.cluster.local:9001
+      - opaAuth:
+          modules:
+          - name: deny-prohibited-countries
+            namespace: bookinfo-frontends
+          query: "data.test.allow == true"
+EOF
+```
+
+Let's test that the API key's prohibited country list is enforced. We'll do this by using the Swagger API documentation in the portal to send a test request to the API itself.
+
+In the Portal UI, make sure you're logged in as "user1" and click the "**APIs**" menu item. Select "**BookInfo REST API**", click to switch to the "**Swagger View**", then click "**Authorize**" and enter our API key, `apikey1`.
+
+Now, pick a resource to test. For example, use "**GET /api/bookinfo**" and click "**Try it out**", then "**Execute**". This will send a request through our authorization flow using the API key that we've added metadata to. We should see a server response of `403 Error: Forbidden`, as the authorization server has rejected your request on the basis of the country your requests are coming from.
+
+Let's update the API key so that it blocks requests from a different country. Set the prohibited country to the code of a country you're *not* in:
+
+```bash
+export PROHIBITED_COUNTRY=KP #North Korea
+```
+
+Now update the API key with this restriction:
+
+```bash
+kubectl apply --context ${CLUSTER1} -f - <<EOF
+apiVersion: v1
+kind: Secret
+metadata:
+  name: user1
+  namespace: bookinfo-frontends
+  labels:
+    auth: api-key
+type: extauth.solo.io/apikey
+data:
+  api-key: $(echo -n "${API_KEY_USER1}" | base64)
+  user-id: dXNlcjE=
+  user-email: dXNlcjFAc29sby5pbw==
+  plan: Z29sZA==
+  prohibitedCountries: $(echo -n "${PROHIBITED_COUNTRY}" | base64)
+EOF
+```
+
+Finally, repeat the test API call in the Swagger UI. This time you should see code `200` and a successful response.
+
+
+
+## Lab 22 - Allow users to create their own API keys <a name="lab-22---allow-users-to-create-their-own-api-keys-"></a>
 [<img src="https://img.youtube.com/vi/fipCEZqijcQ/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/fipCEZqijcQ "Video Link")
 
 In the previous steps, we've used Kubernetes secrets to store API keys and we've created them manually.
@@ -3712,7 +4138,7 @@ Copy the key. If you don't do that, you won't be able to see it again. You'll ne
 
 You can now use the key to try out the API.
 
-You'll need to use the `Swagger View`and then to click on the `Authorize` button to paste your API key.
+You'll need to use the `Swagger View` and then to click on the `Authorize` button to paste your API key.
 
 Before we continue, let's update the API_KEY_USER1 variable with its current value:
 <!--bash
@@ -3758,7 +4184,7 @@ mocha ./test.js --timeout 10000 --retries=150 --bail 2> ${tempfile} || { cat ${t
 
 
 
-## Lab 21 - Dev portal monetization <a name="lab-21---dev-portal-monetization-"></a>
+## Lab 23 - Dev portal monetization <a name="lab-23---dev-portal-monetization-"></a>
 [<img src="https://img.youtube.com/vi/VTvQ7YQi2eA/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/VTvQ7YQi2eA "Video Link")
 
 The recommended way to monetize your API is to leverage the usage plans we've defined in the previous labs.
