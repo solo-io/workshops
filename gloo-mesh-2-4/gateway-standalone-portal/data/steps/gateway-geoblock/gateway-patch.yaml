@@ -1,0 +1,27 @@
+spec:
+  template:
+    metadata:
+      annotations:
+        proxy.istio.io/config: '{"gatewayTopology" : { "numTrustedProxies": 3 } }'
+    spec:
+      containers:
+      - name: istio-proxy
+        volumeMounts:
+        - mountPath: /etc/geoip/database
+          name: geoip
+          readOnly: true
+      initContainers:
+      - name: geoipupdate
+        image: curlimages/curl
+        command:
+        - sh
+        args:
+        - -c
+        - "curl -o /etc/geoip/database/GeoLite2-Country.mmdb https://storage.googleapis.com/declan-geoip/GeoLite2-Country.mmdb"
+        volumeMounts:
+        - mountPath: /etc/geoip/database
+          name: geoip
+      volumes:
+      - emptyDir:
+          sizeLimit: 10Mi
+        name: geoip
