@@ -150,8 +150,10 @@ kubectl config use-context ${MGMT}
 First of all, let's install the `meshctl` CLI:
 
 ```bash
-export GLOO_MESH_VERSION=v2.4.0-beta2
-curl -sL https://run.solo.io/meshctl/install | sh -
+export GLOO_MESH_VERSION=v2.4.0-beta2-2023-06-28-main-ddf3e1ba7
+mkdir -p $HOME/.gloo-mesh/bin
+curl https://storage.googleapis.com/gloo-platform-dev/meshctl/$GLOO_MESH_VERSION/meshctl-$(uname | tr '[:upper:]' '[:lower:]')-amd64 > $HOME/.gloo-mesh/bin/meshctl
+chmod +x $HOME/.gloo-mesh/bin/meshctl
 export PATH=$HOME/.gloo-mesh/bin:$PATH
 ```
 
@@ -193,14 +195,14 @@ mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${te
 helm repo add gloo-platform https://storage.googleapis.com/gloo-platform/helm-charts
 helm repo update
 kubectl --context ${MGMT} create ns gloo-mesh
-helm upgrade --install gloo-platform-crds gloo-platform/gloo-platform-crds \
+helm upgrade --install gloo-platform-crds https://storage.googleapis.com/gloo-platform-dev/platform-charts/helm-charts/gloo-platform-crds-2.4.0-beta2-2023-06-28-main-ddf3e1ba7.tgz \
 --namespace gloo-mesh \
 --kube-context ${MGMT} \
---version=2.4.0-beta2
-helm upgrade --install gloo-platform gloo-platform/gloo-platform \
+--version=2.4.0-beta2-2023-06-28-main-ddf3e1ba7
+helm upgrade --install gloo-platform https://storage.googleapis.com/gloo-platform-dev/platform-charts/helm-charts/gloo-platform-2.4.0-beta2-2023-06-28-main-ddf3e1ba7.tgz \
 --namespace gloo-mesh \
 --kube-context ${MGMT} \
---version=2.4.0-beta2 \
+--version=2.4.0-beta2-2023-06-28-main-ddf3e1ba7 \
  -f -<<EOF
 licensing:
   licenseKey: ${GLOO_MESH_LICENSE_KEY}
@@ -334,14 +336,14 @@ rm ca.crt
 kubectl get secret relay-identity-token-secret -n gloo-mesh --context ${MGMT} -o jsonpath='{.data.token}' | base64 -d > token
 kubectl create secret generic relay-identity-token-secret -n gloo-mesh --context ${CLUSTER1} --from-file token=token
 rm token
-helm upgrade --install gloo-platform-crds gloo-platform/gloo-platform-crds  \
+helm upgrade --install gloo-platform-crds https://storage.googleapis.com/gloo-platform-dev/platform-charts/helm-charts/gloo-platform-crds-2.4.0-beta2-2023-06-28-main-ddf3e1ba7.tgz  \
 --namespace=gloo-mesh \
 --kube-context=${CLUSTER1} \
---version=2.4.0-beta2
-helm upgrade --install gloo-platform gloo-platform/gloo-platform \
+--version=2.4.0-beta2-2023-06-28-main-ddf3e1ba7
+helm upgrade --install gloo-platform https://storage.googleapis.com/gloo-platform-dev/platform-charts/helm-charts/gloo-platform-2.4.0-beta2-2023-06-28-main-ddf3e1ba7.tgz \
   --namespace=gloo-mesh \
   --kube-context=${CLUSTER1} \
-  --version=2.4.0-beta2 \
+  --version=2.4.0-beta2-2023-06-28-main-ddf3e1ba7 \
  -f -<<EOF
 common:
   cluster: cluster1
@@ -381,14 +383,14 @@ rm ca.crt
 kubectl get secret relay-identity-token-secret -n gloo-mesh --context ${MGMT} -o jsonpath='{.data.token}' | base64 -d > token
 kubectl create secret generic relay-identity-token-secret -n gloo-mesh --context ${CLUSTER2} --from-file token=token
 rm token
-helm upgrade --install gloo-platform-crds gloo-platform/gloo-platform-crds  \
+helm upgrade --install gloo-platform-crds https://storage.googleapis.com/gloo-platform-dev/platform-charts/helm-charts/gloo-platform-crds-2.4.0-beta2-2023-06-28-main-ddf3e1ba7.tgz  \
 --namespace=gloo-mesh \
 --kube-context=${CLUSTER2} \
---version=2.4.0-beta2
-helm upgrade --install gloo-platform gloo-platform/gloo-platform \
+--version=2.4.0-beta2-2023-06-28-main-ddf3e1ba7
+helm upgrade --install gloo-platform https://storage.googleapis.com/gloo-platform-dev/platform-charts/helm-charts/gloo-platform-2.4.0-beta2-2023-06-28-main-ddf3e1ba7.tgz \
   --namespace=gloo-mesh \
   --kube-context=${CLUSTER2} \
-  --version=2.4.0-beta2 \
+  --version=2.4.0-beta2-2023-06-28-main-ddf3e1ba7 \
  -f -<<EOF
 common:
   cluster: cluster2
@@ -1116,13 +1118,20 @@ kubectl --context ${CLUSTER2} label namespace gloo-mesh-addons istio.io/rev=1-18
 Then, you can deploy the addons on the cluster(s) using Helm:
 
 ```bash
-helm upgrade --install gloo-platform gloo-platform/gloo-platform \
+helm upgrade --install gloo-platform https://storage.googleapis.com/gloo-platform-dev/platform-charts/helm-charts/gloo-platform-2.4.0-beta2-2023-06-28-main-ddf3e1ba7.tgz \
   --namespace gloo-mesh-addons \
   --kube-context=${CLUSTER1} \
-  --version 2.4.0-beta2 \
+  --version 2.4.0-beta2-2023-06-28-main-ddf3e1ba7 \
  -f -<<EOF
 common:
   cluster: cluster1
+glooPortalServer:
+  enabled: true
+  apiKeyStorage:
+    redis:
+      enabled: true
+      address: redis.gloo-mesh-addons:6379
+    secretKey: ThisIsSecret
 glooAgent:
   enabled: false
 extAuthService:
@@ -1135,17 +1144,29 @@ extAuthService:
         connection: 
           host: redis.gloo-mesh-addons:6379
       secretKey: ThisIsSecret
+    image:
+      registry: gcr.io/gloo-mesh
 rateLimiter:
   enabled: true
+  rateLimiter:
+    image:
+      registry: gcr.io/gloo-mesh
 EOF
 
-helm upgrade --install gloo-platform gloo-platform/gloo-platform \
+helm upgrade --install gloo-platform https://storage.googleapis.com/gloo-platform-dev/platform-charts/helm-charts/gloo-platform-2.4.0-beta2-2023-06-28-main-ddf3e1ba7.tgz \
   --namespace gloo-mesh-addons \
   --kube-context=${CLUSTER2} \
-  --version 2.4.0-beta2 \
+  --version 2.4.0-beta2-2023-06-28-main-ddf3e1ba7 \
  -f -<<EOF
 common:
   cluster: cluster2
+glooPortalServer:
+  enabled: true
+  apiKeyStorage:
+    redis:
+      enabled: true
+      address: redis.gloo-mesh-addons:6379
+    secretKey: ThisIsSecret
 glooAgent:
   enabled: false
 extAuthService:
@@ -1158,8 +1179,13 @@ extAuthService:
         connection: 
           host: redis.gloo-mesh-addons:6379
       secretKey: ThisIsSecret
+    image:
+      registry: gcr.io/gloo-mesh
 rateLimiter:
   enabled: true
+  rateLimiter:
+    image:
+      registry: gcr.io/gloo-mesh
 EOF
 ```
 
@@ -1251,7 +1277,7 @@ apiVersion: admin.gloo.solo.io/v2
 kind: WorkspaceSettings
 metadata:
   name: gateways
-  namespace: istio-gateways
+  namespace: gloo-mesh-addons
 spec:
   importFrom:
   - workspaces:
@@ -1516,15 +1542,40 @@ spec:
       port:
         number: 443
       tls:
+        parameters:
+          minimumProtocolVersion: TLSv1_3
         mode: SIMPLE
         secretName: tls-secret
 # -------------------------------------------------------
       allowedRouteTables:
         - host: '*'
+
 EOF
 ```
 
 You can now access the `productpage` application securely through the browser.
+
+Notice that we specificed a minimumProtocolVersion, so if the client is trying to use an deprecated TLS version the request will be denied.
+
+To test this, we can try to send a request with `tlsv1.2`:
+
+```console
+curl --tlsv1.2 --tls-max 1.2 --key tls.key --cert tls.crt https://${ENDPOINT_HTTPS_GW_CLUSTER1}/productpage -k
+```
+
+You should get the following output:
+
+```nocopy
+curl: (35) error:1409442E:SSL routines:ssl3_read_bytes:tlsv1 alert protocol version
+```
+
+Now, you can try the most recent `tlsv1.3`:
+
+```console
+curl --tlsv1.3 --tls-max 1.3 --key tls.key --cert tls.crt https://${ENDPOINT_HTTPS_GW_CLUSTER1}/productpage -k
+```
+
+And after this you should get the actual Productpage.
 Get the URL to access the `productpage` service using the following command:
 ```
 echo "https://${ENDPOINT_HTTPS_GW_CLUSTER1}/productpage"
@@ -1801,7 +1852,7 @@ kubectl --context ${CLUSTER1} -n bookinfo-frontends annotate service productpage
 <!--bash
 until kubectl --context ${CLUSTER1} -n bookinfo-frontends get apidoc productpage-service; do
   kubectl --context ${CLUSTER1} -n bookinfo-frontends rollout restart deploy productpage-v1
-  sleep 1
+  sleep 10
 done
 -->
 
@@ -3438,7 +3489,7 @@ Copy the key. If you don't do that, you won't be able to see it again. You'll ne
 
 You can now use the key to try out the API.
 
-You'll need to use the `Swagger View`and then to click on the `Authorize` button to paste your API key.
+You'll need to use the `Swagger View` and then to click on the `Authorize` button to paste your API key.
 
 Before we continue, let's update the API_KEY_USER1 variable with its current value:
 <!--bash
