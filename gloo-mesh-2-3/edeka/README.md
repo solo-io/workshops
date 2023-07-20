@@ -15,7 +15,7 @@ source ./scripts/assert.sh
 ## Table of Contents
 * [Introduction](#introduction)
 * [Lab 1 - Deploy and register Gloo Mesh](#lab-1---deploy-and-register-gloo-mesh-)
-* [Lab 2 - Deploy Istio using Gloo Mesh Lifecycle Manager](#lab-2---deploy-istio-using-gloo-mesh-lifecycle-manager-)
+* [Lab 2 - Deploy Istio](#lab-2---deploy-istio-)
 * [Lab 3 - Deploy the Bookinfo demo app](#lab-3---deploy-the-bookinfo-demo-app-)
 * [Lab 4 - Deploy the httpbin demo app](#lab-4---deploy-the-httpbin-demo-app-)
 * [Lab 5 - Deploy Gloo Mesh Addons](#lab-5---deploy-gloo-mesh-addons-)
@@ -233,208 +233,117 @@ mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${te
 
 
 
-## Lab 2 - Deploy Istio using Gloo Mesh Lifecycle Manager <a name="lab-2---deploy-istio-using-gloo-mesh-lifecycle-manager-"></a>
-[<img src="https://img.youtube.com/vi/f76-KOEjqHs/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/f76-KOEjqHs "Video Link")
+## Lab 2 - Deploy Istio <a name="lab-2---deploy-istio-"></a>
 
-We are going to deploy Istio using Gloo Mesh Lifecycle Manager.
+We are going to deploy Istio using Helm, but there are several other options. You can find more information in the [Istio documentation](https://istio.io/latest/docs/setup/install/).
 
-First of all, let's create Kubernetes services for the gateways:
-
-```bash
-registry=localhost:5000
-kubectl --context ${CLUSTER1} create ns istio-gateways
-kubectl --context ${CLUSTER1} label namespace istio-gateways istio.io/rev=1-18 --overwrite
-
-kubectl apply --context ${CLUSTER1} -f - <<EOF
-apiVersion: v1
-kind: Service
-metadata:
-  labels:
-    app: istio-ingressgateway
-    istio: ingressgateway
-  name: istio-ingressgateway
-  namespace: istio-gateways
-spec:
-  ports:
-  - name: http2
-    port: 80
-    protocol: TCP
-    targetPort: 8080
-  - name: https
-    port: 443
-    protocol: TCP
-    targetPort: 8443
-  selector:
-    app: istio-ingressgateway
-    istio: ingressgateway
-    revision: 1-18
-  type: LoadBalancer
-EOF
-```
-
-It allows us to have full control on which Istio revision we want to use.
-
-Then, we can tell Gloo Mesh to deploy the Istio control planes and the gateways in the cluster(s)
+First of all, let's Download the Istio release 1.18.0:
 
 ```bash
-kubectl apply --context ${MGMT} -f - <<EOF
-apiVersion: admin.gloo.solo.io/v2
-kind: IstioLifecycleManager
-metadata:
-  name: cluster1-installation
-  namespace: gloo-mesh
-spec:
-  installations:
-    - clusters:
-      - name: cluster1
-        defaultRevision: true
-      revision: 1-18
-      istioOperatorSpec:
-        profile: minimal
-        hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.18.0-solo
-        namespace: istio-system
-        values:
-          global:
-            meshID: mesh1
-            multiCluster:
-              clusterName: cluster1
-            network: cluster1
-        meshConfig:
-          accessLogFile: /dev/stdout
-          defaultConfig:        
-            proxyMetadata:
-              ISTIO_META_DNS_CAPTURE: "true"
-              ISTIO_META_DNS_AUTO_ALLOCATE: "true"
-        components:
-          pilot:
-            k8s:
-              env:
-                - name: PILOT_ENABLE_K8S_SELECT_WORKLOAD_ENTRIES
-                  value: "false"
-          ingressGateways:
-          - name: istio-ingressgateway
-            enabled: false
-EOF
-kubectl apply --context ${MGMT} -f - <<EOF
-
-apiVersion: admin.gloo.solo.io/v2
-kind: GatewayLifecycleManager
-metadata:
-  name: cluster1-ingress
-  namespace: gloo-mesh
-spec:
-  installations:
-    - clusters:
-      - name: cluster1
-        activeGateway: false
-      gatewayRevision: 1-18
-      istioOperatorSpec:
-        profile: empty
-        hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.18.0-solo
-        values:
-          gateways:
-            istio-ingressgateway:
-              customService: true
-        components:
-          ingressGateways:
-            - name: istio-ingressgateway
-              namespace: istio-gateways
-              enabled: true
-              label:
-                istio: ingressgateway
----
-apiVersion: admin.gloo.solo.io/v2
-kind: GatewayLifecycleManager
-metadata:
-  name: cluster1-eastwest
-  namespace: gloo-mesh
-spec:
-  installations:
-    - clusters:
-      - name: cluster1
-        activeGateway: false
-      gatewayRevision: 1-18
-      istioOperatorSpec:
-        profile: empty
-        hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.18.0-solo
-        values:
-          gateways:
-            istio-ingressgateway:
-              customService: true
-        components:
-          ingressGateways:
-            - name: istio-eastwestgateway
-              namespace: istio-gateways
-              enabled: true
-              label:
-                istio: eastwestgateway
-                topology.istio.io/network: cluster1
-              k8s:
-                env:
-                  - name: ISTIO_META_ROUTER_MODE
-                    value: "sni-dnat"
-                  - name: ISTIO_META_REQUESTED_NETWORK_VIEW
-                    value: cluster1
-EOF
+export ISTIO_VERSION=1.18.0
+curl -L https://istio.io/downloadIstio | sh -
 ```
-
-<!--bash
-until kubectl --context ${MGMT} -n gloo-mesh wait --timeout=180s --for=jsonpath='{.status.clusters.cluster1.installations.*.state}'=HEALTHY istiolifecyclemanagers/cluster1-installation; do
-  echo "Waiting for the Istio installation to complete"
-  sleep 1
-done
-until [[ $(kubectl --context ${CLUSTER1} -n istio-system get deploy -o json | jq '[.items[].status.readyReplicas] | add') -ge 1 ]]; do
-  sleep 1
-done
-until [[ $(kubectl --context ${CLUSTER1} -n istio-gateways get deploy -o json | jq '[.items[].status.readyReplicas] | add') -eq 2 ]]; do
-  sleep 1
-done
--->
 
 <!--bash
 cat <<'EOF' > ./test.js
-
 const helpers = require('./tests/chai-exec');
 
-const chaiExec = require("@jsdevtools/chai-exec");
-const helpersHttp = require('./tests/chai-http');
-const chai = require("chai");
-const expect = chai.expect;
-
-afterEach(function (done) {
-  if (this.currentTest.currentRetry() > 0) {
-    process.stdout.write(".");
-    setTimeout(done, 1000);
-  } else {
-    done();
-  }
+describe("istioctl version", () => {
+  it("version should be correct", () => helpers.genericCommand({ responseContains: "1.18.0", command: "./istio-1.18.0/bin/istioctl version --remote=false" }));
 });
-
-describe("Checking Istio installation", function() {
-  it('istiod pods are ready in cluster ' + process.env.CLUSTER1, () => helpers.checkDeploymentsWithLabels({ context: process.env.CLUSTER1, namespace: "istio-system", labels: "app=istiod", instances: 1 }));
-  it('gateway pods are ready in cluster ' + process.env.CLUSTER1, () => helpers.checkDeploymentsWithLabels({ context: process.env.CLUSTER1, namespace: "istio-gateways", labels: "app=istio-ingressgateway", instances: 2 }));
-  it("Gateways have an ip attached in cluster " + process.env.CLUSTER1, () => {
-    let cli = chaiExec("kubectl --context " + process.env.CLUSTER1 + " -n istio-gateways get svc -l app=istio-ingressgateway -o jsonpath='{.items}'");
-    cli.stderr.should.be.empty;
-    let deployments = JSON.parse(cli.stdout.slice(1,-1));
-    expect(deployments).to.have.lengthOf(1);
-    deployments.forEach((deployment) => {
-      expect(deployment.status.loadBalancer).to.have.property("ingress");
-    });
-  });
-});
-
 EOF
-echo "executing test dist/edeka/build/templates/steps/istio-lifecycle-manager-install/tests/istio-ready.test.js.liquid"
+echo "executing test dist/edeka/build/templates/steps/deploy-istio/tests/istio-version.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
 -->
+
+Then, you need to create the `istio-system` and the `istio-gateways` namespaces on the first cluster.
+
+```bash
+kubectl --context ${CLUSTER1} create ns istio-system
+kubectl --context ${CLUSTER1} create ns istio-gateways
+```
+
+Now, let's deploy the Istio control plane on the first cluster:
+
+```bash
+helm --kube-context=${CLUSTER1} upgrade --install istio-base ./istio-1.18.0/manifests/charts/base -n istio-system --set defaultRevision=1-18
+
+helm --kube-context=${CLUSTER1} upgrade --install istio-1.18.0 ./istio-1.18.0/manifests/charts/istio-control/istio-discovery -n istio-system --values - <<EOF
+
+revision: 1-18
+global:
+  meshID: mesh1
+  multiCluster:
+    clusterName: cluster1
+  network: cluster1
+  hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
+  tag: 1.18.0-solo
+meshConfig:
+  trustDomain: cluster1
+  accessLogFile: /dev/stdout
+  enableAutoMtls: true
+  defaultConfig:
+    proxyMetadata:
+      ISTIO_META_DNS_CAPTURE: "true"
+      ISTIO_META_DNS_AUTO_ALLOCATE: "true"
+pilot:
+  env:
+    PILOT_ENABLE_K8S_SELECT_WORKLOAD_ENTRIES: "false"
+    PILOT_SKIP_VALIDATE_TRUST_DOMAIN: "true"
+
+EOF
+```
+
+Note that we set the `trust domain` to be the same as the cluster name and we configure the sidecars to send their metrics and access logs to the Gloo Mesh agent.
+
+After that, you can deploy the gateway(s):
+
+```bash
+kubectl --context ${CLUSTER1} label namespace istio-gateways istio.io/rev=1-18 --overwrite
+
+helm --kube-context=${CLUSTER1} upgrade --install istio-ingressgateway ./istio-1.18.0/manifests/charts/gateways/istio-ingress -n istio-gateways --values - <<EOF
+global:
+  hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
+  tag: 1.18.0-solo
+gateways:
+  istio-ingressgateway:
+    name: istio-ingressgateway
+    namespace: istio-gateways
+    labels:
+      istio: ingressgateway
+    injectionTemplate: gateway
+    ports:
+    - name: http2
+      port: 80
+      targetPort: 8080
+    - name: https
+      port: 443
+      targetPort: 8443
+EOF
+```
+
+As you can see, we deploy the control plane (istiod) in the `istio-system` and gateway(s) in the `istio-gateways` namespace.
+
+One gateway will be used for ingress traffic while the other one will be used for cross cluster communications. It's not mandatory to use separate gateways, but it's a best practice.
+
+Run the following command until all the Istio Pods are ready:
+
+```bash
+kubectl --context ${CLUSTER1} get pods -n istio-system && kubectl --context ${CLUSTER1} get pods -n istio-gateways
+```
+
+When they are ready, you should get this output:
+
+```
+NAME                      READY   STATUS    RESTARTS   AGE
+istiod-5c669bcf6f-2hn6c   1/1     Running   0          3m7s
+NAME                                     READY   STATUS    RESTARTS   AGE
+istio-ingressgateway-744fcf4fb-5dc7q     1/1     Running   0          2m44s
+```
 <!--bash
-until [[ $(kubectl --context ${CLUSTER1} -n istio-gateways get svc -l istio=ingressgateway -o json | jq '.items[0].status.loadBalancer | length') -gt 0 ]]; do
+until [[ $(kubectl --context ${CLUSTER1} -n istio-gateways get svc istio-ingressgateway -o json | jq '.status.loadBalancer | length') -gt 0 ]]; do
   sleep 1
 done
 -->
@@ -442,8 +351,8 @@ done
 Set the environment variable for the service corresponding to the Istio Ingress Gateway of the cluster(s):
 
 ```bash
-export ENDPOINT_HTTP_GW_CLUSTER1=$(kubectl --context ${CLUSTER1} -n istio-gateways get svc -l istio=ingressgateway -o jsonpath='{.items[0].status.loadBalancer.ingress[0].*}'):80
-export ENDPOINT_HTTPS_GW_CLUSTER1=$(kubectl --context ${CLUSTER1} -n istio-gateways get svc -l istio=ingressgateway -o jsonpath='{.items[0].status.loadBalancer.ingress[0].*}'):443
+export ENDPOINT_HTTP_GW_CLUSTER1=$(kubectl --context ${CLUSTER1} -n istio-gateways get svc istio-ingressgateway -o jsonpath='{.status.loadBalancer.ingress[0].*}'):80
+export ENDPOINT_HTTPS_GW_CLUSTER1=$(kubectl --context ${CLUSTER1} -n istio-gateways get svc istio-ingressgateway -o jsonpath='{.status.loadBalancer.ingress[0].*}'):443
 export HOST_GW_CLUSTER1=$(echo ${ENDPOINT_HTTP_GW_CLUSTER1%:*})
 ```
 
@@ -472,6 +381,7 @@ tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
 -->
+
 
 
 
