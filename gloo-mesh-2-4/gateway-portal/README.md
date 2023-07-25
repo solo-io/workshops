@@ -132,10 +132,8 @@ metallb-system       speaker-d7jkp                                 1/1     Runni
 First of all, let's install the `meshctl` CLI:
 
 ```bash
-export GLOO_MESH_VERSION=v2.4.0-beta2-2023-06-28-main-ddf3e1ba7
-mkdir -p $HOME/.gloo-mesh/bin
-curl https://storage.googleapis.com/gloo-platform-dev/meshctl/$GLOO_MESH_VERSION/meshctl-$(uname | tr '[:upper:]' '[:lower:]')-amd64 > $HOME/.gloo-mesh/bin/meshctl
-chmod +x $HOME/.gloo-mesh/bin/meshctl
+export GLOO_MESH_VERSION=v2.4.0-rc1
+curl -sL https://run.solo.io/meshctl/install | sh -
 export PATH=$HOME/.gloo-mesh/bin:$PATH
 ```
 
@@ -176,14 +174,14 @@ mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${te
 helm repo add gloo-platform https://storage.googleapis.com/gloo-platform/helm-charts
 helm repo update
 kubectl --context ${MGMT} create ns gloo-mesh
-helm upgrade --install gloo-platform-crds https://storage.googleapis.com/gloo-platform-dev/platform-charts/helm-charts/gloo-platform-crds-2.4.0-beta2-2023-06-28-main-ddf3e1ba7.tgz \
+helm upgrade --install gloo-platform-crds gloo-platform/gloo-platform-crds \
 --namespace gloo-mesh \
 --kube-context ${MGMT} \
---version=2.4.0-beta2-2023-06-28-main-ddf3e1ba7
-helm upgrade --install gloo-platform https://storage.googleapis.com/gloo-platform-dev/platform-charts/helm-charts/gloo-platform-2.4.0-beta2-2023-06-28-main-ddf3e1ba7.tgz \
+--version=2.4.0-rc1
+helm upgrade --install gloo-platform gloo-platform/gloo-platform \
 --namespace gloo-mesh \
 --kube-context ${MGMT} \
---version=2.4.0-beta2-2023-06-28-main-ddf3e1ba7 \
+--version=2.4.0-rc1 \
  -f -<<EOF
 licensing:
   licenseKey: ${GLOO_MESH_LICENSE_KEY}
@@ -774,10 +772,10 @@ kubectl --context ${CLUSTER1} label namespace gloo-mesh-addons istio.io/rev=1-18
 Then, you can deploy the addons on the cluster(s) using Helm:
 
 ```bash
-helm upgrade --install gloo-platform https://storage.googleapis.com/gloo-platform-dev/platform-charts/helm-charts/gloo-platform-2.4.0-beta2-2023-06-28-main-ddf3e1ba7.tgz \
+helm upgrade --install gloo-platform gloo-platform/gloo-platform \
   --namespace gloo-mesh-addons \
   --kube-context=${CLUSTER1} \
-  --version 2.4.0-beta2-2023-06-28-main-ddf3e1ba7 \
+  --version 2.4.0-rc1 \
  -f -<<EOF
 common:
   cluster: cluster1
@@ -800,13 +798,8 @@ extAuthService:
         connection: 
           host: redis.gloo-mesh-addons:6379
       secretKey: ThisIsSecret
-    image:
-      registry: gcr.io/gloo-mesh
 rateLimiter:
   enabled: true
-  rateLimiter:
-    image:
-      registry: gcr.io/gloo-mesh
 EOF
 ```
 
@@ -2445,6 +2438,7 @@ kubectl --context ${CLUSTER1} -n httpbin delete wafpolicies.security.policy.gloo
 ## Lab 18 - Expose the productpage API securely <a name="lab-18---expose-the-productpage-api-securely-"></a>
 [<img src="https://img.youtube.com/vi/pkzeYaTj9k0/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/pkzeYaTj9k0 "Video Link")
 
+
 Gloo Platform includes a developer portal, which is well integrated with its core API.
 
 Let's start with API discovery.
@@ -2876,6 +2870,7 @@ server: istio-envoy
 
 ## Lab 19 - Expose an external API and stitch it with another one <a name="lab-19---expose-an-external-api-and-stitch-it-with-another-one-"></a>
 [<img src="https://img.youtube.com/vi/_GsECm06AgQ/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/_GsECm06AgQ "Video Link")
+
 
 You can also expose external APIs.
 
@@ -3580,6 +3575,7 @@ You should get something like that:
 ## Lab 20 - Expose the dev portal backend <a name="lab-20---expose-the-dev-portal-backend-"></a>
 [<img src="https://img.youtube.com/vi/mfXww6udYFs/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/mfXww6udYFs "Video Link")
 
+
 Now that your API has been exposed securely and our plans defined, you probably want to advertise it through a developer portal.
 
 Two components are serving this purpose:
@@ -3752,6 +3748,7 @@ The `RouteTable` we have created for the `bookinfo` API has this label.
 
 
 ## Lab 21 - Deploy and expose the dev portal frontend <a name="lab-21---deploy-and-expose-the-dev-portal-frontend-"></a>
+
 
 The developer frontend is provided as a fully functional template to allow you to customize it based on your own requirements.
 
@@ -4050,6 +4047,7 @@ Now, if you click on the `VIEW APIS` button, you should see the `Bookinfo REST A
 ## Lab 22 - Allow users to create their own API keys <a name="lab-22---allow-users-to-create-their-own-api-keys-"></a>
 [<img src="https://img.youtube.com/vi/fipCEZqijcQ/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/fipCEZqijcQ "Video Link")
 
+
 In the previous steps, we've used Kubernetes secrets to store API keys and we've created them manually.
 
 In this steps, we're going to configure the developer portal to allow the user to create their API keys themselves and to store them on Redis (for better scalability and to support the multicluster use case).
@@ -4146,6 +4144,7 @@ mocha ./test.js --timeout 10000 --retries=150 --bail 2> ${tempfile} || { cat ${t
 
 ## Lab 23 - Dev portal monetization <a name="lab-23---dev-portal-monetization-"></a>
 [<img src="https://img.youtube.com/vi/VTvQ7YQi2eA/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/VTvQ7YQi2eA "Video Link")
+
 
 The recommended way to monetize your API is to leverage the usage plans we've defined in the previous labs.
 
