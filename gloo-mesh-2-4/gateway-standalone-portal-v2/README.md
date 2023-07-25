@@ -133,10 +133,8 @@ metallb-system       speaker-d7jkp                                 1/1     Runni
 First of all, let's install the `meshctl` CLI:
 
 ```bash
-export GLOO_MESH_VERSION=v2.4.0-beta2-2023-06-28-main-ddf3e1ba7
-mkdir -p $HOME/.gloo-mesh/bin
-curl https://storage.googleapis.com/gloo-platform-dev/meshctl/$GLOO_MESH_VERSION/meshctl-$(uname | tr '[:upper:]' '[:lower:]')-amd64 > $HOME/.gloo-mesh/bin/meshctl
-chmod +x $HOME/.gloo-mesh/bin/meshctl
+export GLOO_MESH_VERSION=v2.4.0-rc1
+curl -sL https://run.solo.io/meshctl/install | sh -
 export PATH=$HOME/.gloo-mesh/bin:$PATH
 ```
 
@@ -178,14 +176,14 @@ helm repo add gloo-platform https://storage.googleapis.com/gloo-platform/helm-ch
 helm repo update
 kubectl --context ${MGMT} create ns gloo-mesh
 kubectl --context ${MGMT} create ns gloo-mesh-addons
-helm upgrade --install gloo-platform-crds https://storage.googleapis.com/gloo-platform-dev/platform-charts/helm-charts/gloo-platform-crds-2.4.0-beta2-2023-06-28-main-ddf3e1ba7.tgz \
+helm upgrade --install gloo-platform-crds gloo-platform/gloo-platform-crds \
 --namespace gloo-mesh \
 --kube-context ${MGMT} \
---version=2.4.0-beta2-2023-06-28-main-ddf3e1ba7
-helm upgrade --install gloo-platform https://storage.googleapis.com/gloo-platform-dev/platform-charts/helm-charts/gloo-platform-2.4.0-beta2-2023-06-28-main-ddf3e1ba7.tgz \
+--version=2.4.0-rc1
+helm upgrade --install gloo-platform gloo-platform/gloo-platform \
 --namespace gloo-mesh \
 --kube-context ${MGMT} \
---version=2.4.0-beta2-2023-06-28-main-ddf3e1ba7 \
+--version=2.4.0-rc1 \
  -f -<<EOF
 licensing:
   licenseKey: ${GLOO_MESH_LICENSE_KEY}
@@ -225,13 +223,8 @@ extAuthService:
         connection: 
           host: redis.gloo-mesh-addons:6379
       secretKey: ThisIsSecret
-    image:
-      registry: gcr.io/gloo-mesh
 rateLimiter:
   enabled: true
-  rateLimiter:
-    image:
-      registry: gcr.io/gloo-mesh
 istioInstallations:
   enabled: true
   northSouthGateways:
@@ -1960,6 +1953,7 @@ kubectl --context ${CLUSTER1} -n istio-gateways patch svc $(kubectl --context ${
 ## Lab 16 - Expose the productpage API securely <a name="lab-16---expose-the-productpage-api-securely-"></a>
 [<img src="https://img.youtube.com/vi/pkzeYaTj9k0/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/pkzeYaTj9k0 "Video Link")
 
+
 Gloo Platform includes a developer portal, which is well integrated with its core API.
 
 Let's start with API discovery.
@@ -2392,6 +2386,7 @@ server: istio-envoy
 ## Lab 17 - Expose the dev portal backend <a name="lab-17---expose-the-dev-portal-backend-"></a>
 [<img src="https://img.youtube.com/vi/mfXww6udYFs/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/mfXww6udYFs "Video Link")
 
+
 Now that your API has been exposed securely and our plans defined, you probably want to advertise it through a developer portal.
 
 Two components are serving this purpose:
@@ -2564,6 +2559,7 @@ The `RouteTable` we have created for the `bookinfo` API has this label.
 
 
 ## Lab 18 - Deploy and expose the dev portal frontend <a name="lab-18---deploy-and-expose-the-dev-portal-frontend-"></a>
+
 
 The developer frontend is provided as a fully functional template to allow you to customize it based on your own requirements.
 
@@ -2972,6 +2968,7 @@ Note that you can then use these new headers in other policies (TransformationPo
 
 ## Lab 20 - Validate user information based on API key metadata <a name="lab-20---validate-user-information-based-on-api-key-metadata-"></a>
 
+
 In this lab, we will explore how to expose information from the API key and use it to authorize requests.
 
 Let's first add more user information to the API key of user1:
@@ -3150,6 +3147,7 @@ EOF
 
 
 ## Lab 21 - Validate user information with API key metadata and an external service <a name="lab-21---validate-user-information-with-api-key-metadata-and-an-external-service-"></a>
+
 
 In this lab, we will explore how to expose information from the API key and use it to authorize requests.
 
@@ -3342,6 +3340,7 @@ Finally, repeat the test API call in the Swagger UI. This time you should see co
 ## Lab 22 - Allow users to create their own API keys <a name="lab-22---allow-users-to-create-their-own-api-keys-"></a>
 [<img src="https://img.youtube.com/vi/fipCEZqijcQ/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/fipCEZqijcQ "Video Link")
 
+
 In the previous steps, we've used Kubernetes secrets to store API keys and we've created them manually.
 
 In this steps, we're going to configure the developer portal to allow the user to create their API keys themselves and to store them on Redis (for better scalability and to support the multicluster use case).
@@ -3437,6 +3436,7 @@ mocha ./test.js --timeout 10000 --retries=150 --bail 2> ${tempfile} || { cat ${t
 
 
 ## Lab 23 - Allow users to import API keys from an external system <a name="lab-23---allow-users-to-import-api-keys-from-an-external-system-"></a>
+
 
 In this lab, we will guide you through the process of creating a Go program to import the keys from another system. We will also show you how to use the additional metadata to add information to the key.
 
@@ -3596,6 +3596,7 @@ mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${te
 
 ## Lab 24 - Dev portal monetization <a name="lab-24---dev-portal-monetization-"></a>
 [<img src="https://img.youtube.com/vi/VTvQ7YQi2eA/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/VTvQ7YQi2eA "Video Link")
+
 
 The recommended way to monetize your API is to leverage the usage plans we've defined in the previous labs.
 
