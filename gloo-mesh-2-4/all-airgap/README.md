@@ -191,13 +191,13 @@ do
   done
 done
 
-wget https://storage.googleapis.com/gloo-platform/helm-charts/gloo-platform-2.4.0-beta2.tgz
+wget https://storage.googleapis.com/gloo-platform/helm-charts/gloo-platform-2.4.0-rc1.tgz
 tar zxvf gloo-platform-*.tgz
 find gloo-platform -name "values.yaml" | while read file; do
   cat $file | yq eval -j | jq -r '.. | .image? | select(. != null) | (if .hub then .hub + "/" + .repository + ":" + .tag else (if .registry then (if .registry == "docker.io" then "docker.io/library" else .registry end) + "/" else "" end) + .repository + ":" + (.tag | tostring) end)'
 done | sort -u >> images.txt
 
-wget https://storage.googleapis.com/gloo-platform/helm-charts/gloo-platform-2.4.0-beta2.tgz
+wget https://storage.googleapis.com/gloo-platform/helm-charts/gloo-platform-2.4.0-rc1.tgz
 tar zxvf gloo-platform-*.tgz
 find gloo-platform -name "values.yaml" | while read file; do
   cat $file | yq eval -j | jq -r '.. | .image? | select(. != null) | (if .hub then .hub + "/" + .repository + ":" + .tag else (if .registry then (if .registry == "docker.io" then "docker.io/library" else .registry end) + "/" else "" end) + .repository + ":" + (.tag | tostring) end)'
@@ -231,7 +231,7 @@ done
 First of all, let's install the `meshctl` CLI:
 
 ```bash
-export GLOO_MESH_VERSION=v2.4.0-beta2
+export GLOO_MESH_VERSION=v2.4.0-rc1
 curl -sL https://run.solo.io/meshctl/install | sh -
 export PATH=$HOME/.gloo-mesh/bin:$PATH
 ```
@@ -277,11 +277,11 @@ kubectl --context ${MGMT} create ns gloo-mesh
 helm upgrade --install gloo-platform-crds gloo-platform/gloo-platform-crds \
 --namespace gloo-mesh \
 --kube-context ${MGMT} \
---version=2.4.0-beta2
+--version=2.4.0-rc1
 helm upgrade --install gloo-platform gloo-platform/gloo-platform \
 --namespace gloo-mesh \
 --kube-context ${MGMT} \
---version=2.4.0-beta2 \
+--version=2.4.0-rc1 \
  -f -<<EOF
 licensing:
   licenseKey: ${GLOO_MESH_LICENSE_KEY}
@@ -440,11 +440,11 @@ rm token
 helm upgrade --install gloo-platform-crds gloo-platform/gloo-platform-crds  \
 --namespace=gloo-mesh \
 --kube-context=${CLUSTER1} \
---version=2.4.0-beta2
+--version=2.4.0-rc1
 helm upgrade --install gloo-platform gloo-platform/gloo-platform \
   --namespace=gloo-mesh \
   --kube-context=${CLUSTER1} \
-  --version=2.4.0-beta2 \
+  --version=2.4.0-rc1 \
  -f -<<EOF
 common:
   cluster: cluster1
@@ -460,7 +460,7 @@ telemetryCollector:
   config:
     exporters:
       otlp:
-        endpoint: "\"${ENDPOINT_TELEMETRY_GATEWAY}\""
+        endpoint: "${ENDPOINT_TELEMETRY_GATEWAY}"
   image:
     repository: ${registry}/gloo-mesh/gloo-otel-collector
 EOF
@@ -491,11 +491,11 @@ rm token
 helm upgrade --install gloo-platform-crds gloo-platform/gloo-platform-crds  \
 --namespace=gloo-mesh \
 --kube-context=${CLUSTER2} \
---version=2.4.0-beta2
+--version=2.4.0-rc1
 helm upgrade --install gloo-platform gloo-platform/gloo-platform \
   --namespace=gloo-mesh \
   --kube-context=${CLUSTER2} \
-  --version=2.4.0-beta2 \
+  --version=2.4.0-rc1 \
  -f -<<EOF
 common:
   cluster: cluster2
@@ -511,7 +511,7 @@ telemetryCollector:
   config:
     exporters:
       otlp:
-        endpoint: "\"${ENDPOINT_TELEMETRY_GATEWAY}\""
+        endpoint: "${ENDPOINT_TELEMETRY_GATEWAY}"
   image:
     repository: ${registry}/gloo-mesh/gloo-otel-collector
 EOF
@@ -1388,7 +1388,7 @@ Then, you can deploy the addons on the cluster(s) using Helm:
 helm upgrade --install gloo-platform gloo-platform/gloo-platform \
   --namespace gloo-mesh-addons \
   --kube-context=${CLUSTER1} \
-  --version 2.4.0-beta2 \
+  --version 2.4.0-rc1 \
  -f -<<EOF
 common:
   cluster: cluster1
@@ -1421,7 +1421,7 @@ EOF
 helm upgrade --install gloo-platform gloo-platform/gloo-platform \
   --namespace gloo-mesh-addons \
   --kube-context=${CLUSTER2} \
-  --version 2.4.0-beta2 \
+  --version 2.4.0-rc1 \
  -f -<<EOF
 common:
   cluster: cluster2
@@ -3450,7 +3450,7 @@ helm upgrade --install gloo-platform gloo-platform/gloo-platform \
   --namespace gloo-mesh \
   --kube-context=${CLUSTER1} \
   --reuse-values \
-  --version 2.4.0-beta2 \
+  --version 2.4.0-rc1 \
   --values - <<EOF
 telemetryCollectorCustomization:
   extraProcessors:
@@ -7634,11 +7634,11 @@ kubectl --context ${MGMT2} create ns gloo-mesh
 helm upgrade --install gloo-platform-crds gloo-platform/gloo-platform-crds \
 --namespace gloo-mesh \
 --kube-context ${MGMT2} \
---version=2.4.0-beta2
+--version=2.4.0-rc1
 helm upgrade --install gloo-platform gloo-platform/gloo-platform \
 --namespace gloo-mesh \
 --kube-context ${MGMT2} \
---version=2.4.0-beta2 \
+--version=2.4.0-rc1 \
  -f -<<EOF
 licensing:
   licenseKey: ${GLOO_MESH_LICENSE_KEY}
@@ -7829,7 +7829,7 @@ Now, let's update the agents to use the new management plane.
 helm upgrade --install gloo-platform gloo-platform/gloo-platform \
   --namespace=gloo-mesh \
   --kube-context=${CLUSTER1} \
-  --version=2.4.0-beta2 \
+  --version=2.4.0-rc1 \
  -f -<<EOF
 common:
   cluster: cluster1
@@ -7845,7 +7845,7 @@ telemetryCollector:
   config:
     exporters:
       otlp:
-        endpoint: "\"${ENDPOINT_TELEMETRY_GATEWAY}\""
+        endpoint: "${ENDPOINT_TELEMETRY_GATEWAY}"
   image:
     repository: ${registry}/gloo-mesh/gloo-otel-collector
 EOF
@@ -7854,7 +7854,7 @@ EOF
 helm upgrade --install gloo-platform gloo-platform/gloo-platform \
   --namespace=gloo-mesh \
   --kube-context=${CLUSTER2} \
-  --version=2.4.0-beta2 \
+  --version=2.4.0-rc1 \
  -f -<<EOF
 common:
   cluster: cluster2
@@ -7870,7 +7870,7 @@ telemetryCollector:
   config:
     exporters:
       otlp:
-        endpoint: "\"${ENDPOINT_TELEMETRY_GATEWAY}\""
+        endpoint: "${ENDPOINT_TELEMETRY_GATEWAY}"
   image:
     repository: ${registry}/gloo-mesh/gloo-otel-collector
 EOF
