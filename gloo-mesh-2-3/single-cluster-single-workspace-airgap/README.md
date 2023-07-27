@@ -130,9 +130,9 @@ Pull and push locally the Docker images needed:
 
 ```bash
 cat <<EOF > images.txt
-us-docker.pkg.dev/gloo-mesh/istio-workshops/operator:1.18.0-solo
-us-docker.pkg.dev/gloo-mesh/istio-workshops/pilot:1.18.0-solo
-us-docker.pkg.dev/gloo-mesh/istio-workshops/proxyv2:1.18.0-solo
+us-docker.pkg.dev/gloo-mesh/istio-workshops/operator:1.18.1-solo
+us-docker.pkg.dev/gloo-mesh/istio-workshops/pilot:1.18.1-solo
+us-docker.pkg.dev/gloo-mesh/istio-workshops/proxyv2:1.18.1-solo
 quay.io/keycloak/keycloak:20.0.1
 docker.io/kennethreitz/httpbin
 EOF
@@ -145,13 +145,13 @@ do
   done
 done
 
-wget https://storage.googleapis.com/gloo-platform/helm-charts/gloo-platform-2.3.5.tgz
+wget https://storage.googleapis.com/gloo-platform/helm-charts/gloo-platform-2.3.10.tgz
 tar zxvf gloo-platform-*.tgz
 find gloo-platform -name "values.yaml" | while read file; do
   cat $file | yq eval -j | jq -r '.. | .image? | select(. != null) | (if .hub then .hub + "/" + .repository + ":" + .tag else (if .registry then (if .registry == "docker.io" then "docker.io/library" else .registry end) + "/" else "" end) + .repository + ":" + (.tag | tostring) end)'
 done | sort -u >> images.txt
 
-wget https://storage.googleapis.com/gloo-platform/helm-charts/gloo-platform-2.3.5.tgz
+wget https://storage.googleapis.com/gloo-platform/helm-charts/gloo-platform-2.3.10.tgz
 tar zxvf gloo-platform-*.tgz
 find gloo-platform -name "values.yaml" | while read file; do
   cat $file | yq eval -j | jq -r '.. | .image? | select(. != null) | (if .hub then .hub + "/" + .repository + ":" + .tag else (if .registry then (if .registry == "docker.io" then "docker.io/library" else .registry end) + "/" else "" end) + .repository + ":" + (.tag | tostring) end)'
@@ -185,7 +185,7 @@ done
 First of all, let's install the `meshctl` CLI:
 
 ```bash
-export GLOO_MESH_VERSION=v2.3.5
+export GLOO_MESH_VERSION=v2.3.10
 curl -sL https://run.solo.io/meshctl/install | sh -
 export PATH=$HOME/.gloo-mesh/bin:$PATH
 ```
@@ -230,11 +230,11 @@ kubectl --context ${MGMT} create ns gloo-mesh
 helm upgrade --install gloo-platform-crds gloo-platform/gloo-platform-crds \
 --namespace gloo-mesh \
 --kube-context ${MGMT} \
---version=2.3.5
+--version=2.3.10
 helm upgrade --install gloo-platform gloo-platform/gloo-platform \
 --namespace gloo-mesh \
 --kube-context ${MGMT} \
---version=2.3.5 \
+--version=2.3.10 \
  -f -<<EOF
 licensing:
   licenseKey: ${GLOO_MESH_LICENSE_KEY}
@@ -423,7 +423,7 @@ spec:
       istioOperatorSpec:
         profile: minimal
         hub: ${registry}/istio-workshops
-        tag: 1.18.0-solo
+        tag: 1.18.1-solo
         namespace: istio-system
         values:
           global:
@@ -463,7 +463,7 @@ spec:
       istioOperatorSpec:
         profile: empty
         hub: ${registry}/istio-workshops
-        tag: 1.18.0-solo
+        tag: 1.18.1-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -490,7 +490,7 @@ spec:
       istioOperatorSpec:
         profile: empty
         hub: ${registry}/istio-workshops
-        tag: 1.18.0-solo
+        tag: 1.18.1-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -858,7 +858,7 @@ Then, you can deploy the addons on the cluster(s) using Helm:
 helm upgrade --install gloo-platform gloo-platform/gloo-platform \
   --namespace gloo-mesh-addons \
   --kube-context=${CLUSTER1} \
-  --version 2.3.5 \
+  --version 2.3.10 \
  -f -<<EOF
 common:
   cluster: cluster1
