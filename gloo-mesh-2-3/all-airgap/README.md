@@ -176,9 +176,9 @@ us-docker.pkg.dev/gloo-mesh/istio-workshops/pilot:1.17.3-solo
 us-docker.pkg.dev/gloo-mesh/istio-workshops/proxyv2:1.17.3-solo
 quay.io/keycloak/keycloak:20.0.1
 docker.io/kennethreitz/httpbin
-us-docker.pkg.dev/gloo-mesh/istio-workshops/operator:1.18.0-solo
-us-docker.pkg.dev/gloo-mesh/istio-workshops/pilot:1.18.0-solo
-us-docker.pkg.dev/gloo-mesh/istio-workshops/proxyv2:1.18.0-solo
+us-docker.pkg.dev/gloo-mesh/istio-workshops/operator:1.18.1-solo
+us-docker.pkg.dev/gloo-mesh/istio-workshops/pilot:1.18.1-solo
+us-docker.pkg.dev/gloo-mesh/istio-workshops/proxyv2:1.18.1-solo
 EOF
 
 for url in https://raw.githubusercontent.com/istio/istio/release-1.16/samples/bookinfo/platform/kube/bookinfo.yaml https://raw.githubusercontent.com/istio/istio/release-1.16/samples/bookinfo/networking/bookinfo-gateway.yaml
@@ -189,13 +189,13 @@ do
   done
 done
 
-wget https://storage.googleapis.com/gloo-platform/helm-charts/gloo-platform-2.3.5.tgz
+wget https://storage.googleapis.com/gloo-platform/helm-charts/gloo-platform-2.3.10.tgz
 tar zxvf gloo-platform-*.tgz
 find gloo-platform -name "values.yaml" | while read file; do
   cat $file | yq eval -j | jq -r '.. | .image? | select(. != null) | (if .hub then .hub + "/" + .repository + ":" + .tag else (if .registry then (if .registry == "docker.io" then "docker.io/library" else .registry end) + "/" else "" end) + .repository + ":" + (.tag | tostring) end)'
 done | sort -u >> images.txt
 
-wget https://storage.googleapis.com/gloo-platform/helm-charts/gloo-platform-2.3.5.tgz
+wget https://storage.googleapis.com/gloo-platform/helm-charts/gloo-platform-2.3.10.tgz
 tar zxvf gloo-platform-*.tgz
 find gloo-platform -name "values.yaml" | while read file; do
   cat $file | yq eval -j | jq -r '.. | .image? | select(. != null) | (if .hub then .hub + "/" + .repository + ":" + .tag else (if .registry then (if .registry == "docker.io" then "docker.io/library" else .registry end) + "/" else "" end) + .repository + ":" + (.tag | tostring) end)'
@@ -229,7 +229,7 @@ done
 First of all, let's install the `meshctl` CLI:
 
 ```bash
-export GLOO_MESH_VERSION=v2.3.5
+export GLOO_MESH_VERSION=v2.3.10
 curl -sL https://run.solo.io/meshctl/install | sh -
 export PATH=$HOME/.gloo-mesh/bin:$PATH
 ```
@@ -275,11 +275,11 @@ kubectl --context ${MGMT} create ns gloo-mesh
 helm upgrade --install gloo-platform-crds gloo-platform/gloo-platform-crds \
 --namespace gloo-mesh \
 --kube-context ${MGMT} \
---version=2.3.5
+--version=2.3.10
 helm upgrade --install gloo-platform gloo-platform/gloo-platform \
 --namespace gloo-mesh \
 --kube-context ${MGMT} \
---version=2.3.5 \
+--version=2.3.10 \
  -f -<<EOF
 licensing:
   licenseKey: ${GLOO_MESH_LICENSE_KEY}
@@ -438,11 +438,11 @@ rm token
 helm upgrade --install gloo-platform-crds gloo-platform/gloo-platform-crds  \
 --namespace=gloo-mesh \
 --kube-context=${CLUSTER1} \
---version=2.3.5
+--version=2.3.10
 helm upgrade --install gloo-platform gloo-platform/gloo-platform \
   --namespace=gloo-mesh \
   --kube-context=${CLUSTER1} \
-  --version=2.3.5 \
+  --version=2.3.10 \
  -f -<<EOF
 common:
   cluster: cluster1
@@ -489,11 +489,11 @@ rm token
 helm upgrade --install gloo-platform-crds gloo-platform/gloo-platform-crds  \
 --namespace=gloo-mesh \
 --kube-context=${CLUSTER2} \
---version=2.3.5
+--version=2.3.10
 helm upgrade --install gloo-platform gloo-platform/gloo-platform \
   --namespace=gloo-mesh \
   --kube-context=${CLUSTER2} \
-  --version=2.3.5 \
+  --version=2.3.10 \
  -f -<<EOF
 common:
   cluster: cluster2
@@ -1386,7 +1386,7 @@ Then, you can deploy the addons on the cluster(s) using Helm:
 helm upgrade --install gloo-platform gloo-platform/gloo-platform \
   --namespace gloo-mesh-addons \
   --kube-context=${CLUSTER1} \
-  --version 2.3.5 \
+  --version 2.3.10 \
  -f -<<EOF
 common:
   cluster: cluster1
@@ -1419,7 +1419,7 @@ EOF
 helm upgrade --install gloo-platform gloo-platform/gloo-platform \
   --namespace gloo-mesh-addons \
   --kube-context=${CLUSTER2} \
-  --version 2.3.5 \
+  --version 2.3.10 \
  -f -<<EOF
 common:
   cluster: cluster2
@@ -3448,7 +3448,7 @@ helm upgrade --install gloo-platform gloo-platform/gloo-platform \
   --namespace gloo-mesh \
   --kube-context=${CLUSTER1} \
   --reuse-values \
-  --version 2.3.5 \
+  --version 2.3.10 \
   --values - <<EOF
 telemetryCollectorCustomization:
   extraProcessors:
@@ -6472,7 +6472,7 @@ spec:
       istioOperatorSpec:
         profile: minimal
         hub: ${registry}/istio-workshops
-        tag: 1.18.0-solo
+        tag: 1.18.1-solo
         namespace: istio-system
         values:
           global:
@@ -6532,7 +6532,7 @@ spec:
       istioOperatorSpec:
         profile: empty
         hub: ${registry}/istio-workshops
-        tag: 1.18.0-solo
+        tag: 1.18.1-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -6585,7 +6585,7 @@ spec:
       istioOperatorSpec:
         profile: empty
         hub: ${registry}/istio-workshops
-        tag: 1.18.0-solo
+        tag: 1.18.1-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -6652,7 +6652,7 @@ spec:
       istioOperatorSpec:
         profile: minimal
         hub: ${registry}/istio-workshops
-        tag: 1.18.0-solo
+        tag: 1.18.1-solo
         namespace: istio-system
         values:
           global:
@@ -6712,7 +6712,7 @@ spec:
       istioOperatorSpec:
         profile: empty
         hub: ${registry}/istio-workshops
-        tag: 1.18.0-solo
+        tag: 1.18.1-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -6765,7 +6765,7 @@ spec:
       istioOperatorSpec:
         profile: empty
         hub: ${registry}/istio-workshops
-        tag: 1.18.0-solo
+        tag: 1.18.1-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -6802,8 +6802,8 @@ EOF
 echo "executing test dist/gloo-mesh-2-0-all-airgap/build/templates/steps/istio-lifecycle-manager-upgrade/tests/istio-ready.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
-mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
--->
+mocha ./test.js --timeout 10000 --retries=150 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
+-->s
 
 Run the following command to check the status of the upgrade(s):
 
@@ -6935,7 +6935,7 @@ spec:
       istioOperatorSpec:
         profile: minimal
         hub: ${registry}/istio-workshops
-        tag: 1.18.0-solo
+        tag: 1.18.1-solo
         namespace: istio-system
         values:
           global:
@@ -6976,7 +6976,7 @@ spec:
       istioOperatorSpec:
         profile: empty
         hub: ${registry}/istio-workshops
-        tag: 1.18.0-solo
+        tag: 1.18.1-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -7003,7 +7003,7 @@ spec:
       istioOperatorSpec:
         profile: empty
         hub: ${registry}/istio-workshops
-        tag: 1.18.0-solo
+        tag: 1.18.1-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -7040,7 +7040,7 @@ spec:
       istioOperatorSpec:
         profile: minimal
         hub: ${registry}/istio-workshops
-        tag: 1.18.0-solo
+        tag: 1.18.1-solo
         namespace: istio-system
         values:
           global:
@@ -7081,7 +7081,7 @@ spec:
       istioOperatorSpec:
         profile: empty
         hub: ${registry}/istio-workshops
-        tag: 1.18.0-solo
+        tag: 1.18.1-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -7108,7 +7108,7 @@ spec:
       istioOperatorSpec:
         profile: empty
         hub: ${registry}/istio-workshops
-        tag: 1.18.0-solo
+        tag: 1.18.1-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -7181,6 +7181,15 @@ const chaiExec = require("@jsdevtools/chai-exec");
 var chai = require('chai');
 var expect = chai.expect;
 chai.use(chaiExec);
+
+afterEach(function (done) {
+  if (this.currentTest.currentRetry() > 0) {
+    process.stdout.write(".");
+    setTimeout(done, 1000);
+  } else {
+    done();
+  }
+});
 
 describe("Old Istio version should be uninstalled", () => {
   let cluster = process.env.CLUSTER1
@@ -7268,11 +7277,11 @@ kubectl --context ${MGMT2} create ns gloo-mesh
 helm upgrade --install gloo-platform-crds gloo-platform/gloo-platform-crds \
 --namespace gloo-mesh \
 --kube-context ${MGMT2} \
---version=2.3.5
+--version=2.3.10
 helm upgrade --install gloo-platform gloo-platform/gloo-platform \
 --namespace gloo-mesh \
 --kube-context ${MGMT2} \
---version=2.3.5 \
+--version=2.3.10 \
  -f -<<EOF
 licensing:
   licenseKey: ${GLOO_MESH_LICENSE_KEY}
@@ -7463,7 +7472,7 @@ Now, let's update the agents to use the new management plane.
 helm upgrade --install gloo-platform gloo-platform/gloo-platform \
   --namespace=gloo-mesh \
   --kube-context=${CLUSTER1} \
-  --version=2.3.5 \
+  --version=2.3.10 \
  -f -<<EOF
 common:
   cluster: cluster1
@@ -7488,7 +7497,7 @@ EOF
 helm upgrade --install gloo-platform gloo-platform/gloo-platform \
   --namespace=gloo-mesh \
   --kube-context=${CLUSTER2} \
-  --version=2.3.5 \
+  --version=2.3.10 \
  -f -<<EOF
 common:
   cluster: cluster2
@@ -7528,6 +7537,15 @@ const chaiExec = require("@jsdevtools/chai-exec");
 var chai = require('chai');
 var expect = chai.expect;
 chai.use(chaiExec);
+
+afterEach(function (done) {
+  if (this.currentTest.currentRetry() > 0) {
+    process.stdout.write(".");
+    setTimeout(done, 1000);
+  } else {
+    done();
+  }
+});
 
 describe("failover has no impact", () => {
   it("Istio objects haven't been modified", () => {
