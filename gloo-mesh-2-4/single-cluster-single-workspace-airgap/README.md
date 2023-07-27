@@ -130,9 +130,9 @@ Pull and push locally the Docker images needed:
 
 ```bash
 cat <<EOF > images.txt
-us-docker.pkg.dev/gloo-mesh/istio-workshops/operator:1.18.0-solo
-us-docker.pkg.dev/gloo-mesh/istio-workshops/pilot:1.18.0-solo
-us-docker.pkg.dev/gloo-mesh/istio-workshops/proxyv2:1.18.0-solo
+us-docker.pkg.dev/gloo-mesh/istio-workshops/operator:1.18.1-solo
+us-docker.pkg.dev/gloo-mesh/istio-workshops/pilot:1.18.1-solo
+us-docker.pkg.dev/gloo-mesh/istio-workshops/proxyv2:1.18.1-solo
 quay.io/keycloak/keycloak:20.0.1
 docker.io/kennethreitz/httpbin
 EOF
@@ -423,7 +423,7 @@ spec:
       istioOperatorSpec:
         profile: minimal
         hub: ${registry}/istio-workshops
-        tag: 1.18.0-solo
+        tag: 1.18.1-solo
         namespace: istio-system
         values:
           global:
@@ -463,7 +463,7 @@ spec:
       istioOperatorSpec:
         profile: empty
         hub: ${registry}/istio-workshops
-        tag: 1.18.0-solo
+        tag: 1.18.1-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -490,7 +490,7 @@ spec:
       istioOperatorSpec:
         profile: empty
         hub: ${registry}/istio-workshops
-        tag: 1.18.0-solo
+        tag: 1.18.1-solo
         values:
           gateways:
             istio-ingressgateway:
