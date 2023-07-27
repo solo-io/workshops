@@ -38,12 +38,11 @@ source ./scripts/assert.sh
 * [Lab 22 - Apply rate limiting to the Gateway](#lab-22---apply-rate-limiting-to-the-gateway-)
 * [Lab 23 - Use the Web Application Firewall filter](#lab-23---use-the-web-application-firewall-filter-)
 * [Lab 24 - Expose the bookinfo application through GraphQL](#lab-24---expose-the-bookinfo-application-through-graphql-)
-* [Lab 25 - Interacting with mTLS](#lab-25---interacting-with-mtls-)
-* [Lab 26 - Deploy the Amazon pod identity webhook](#lab-26---deploy-the-amazon-pod-identity-webhook-)
-* [Lab 27 - Execute Lambda functions](#lab-27---execute-lambda-functions-)
-* [Lab 28 - VM integration](#lab-28---vm-integration-)
+* [Lab 25 - Deploy the Amazon pod identity webhook](#lab-25---deploy-the-amazon-pod-identity-webhook-)
+* [Lab 26 - Execute Lambda functions](#lab-26---execute-lambda-functions-)
+* [Lab 27 - VM integration](#lab-27---vm-integration-)
+* [Lab 28 - Extend Envoy with WebAssembly](#lab-28---extend-envoy-with-webassembly-)
 * [Lab 29 - Gloo Mesh Management Plane failover](#lab-29---gloo-mesh-management-plane-failover-)
-* [Lab 30 - Extend Envoy with WebAssembly](#lab-30---extend-envoy-with-webassembly-)
 
 
 
@@ -228,58 +227,46 @@ After that, you can deploy the gateway(s):
 ```bash
 kubectl --context ${CLUSTER1} label namespace istio-gateways istio.io/rev=1-17 --overwrite
 
-helm --kube-context=${CLUSTER1} upgrade --install istio-ingressgateway ./istio-1.17.3/manifests/charts/gateways/istio-ingress -n istio-gateways --values - <<EOF
-global:
-  hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-  tag: 1.17.3-solo
-gateways:
-  istio-ingressgateway:
-    name: istio-ingressgateway
-    namespace: istio-gateways
-    labels:
-      istio: ingressgateway
-    injectionTemplate: gateway
-    ports:
-    - name: http2
-      port: 80
-      targetPort: 8080
-    - name: https
-      port: 443
-      targetPort: 8443
+helm --kube-context=${CLUSTER1} upgrade --install istio-ingressgateway ./istio-1.17.3/manifests/charts/gateway -n istio-gateways --values - <<EOF
+name: istio-ingressgateway
+labels:
+  istio: ingressgateway
+service:
+  ports:
+  - name: http2
+    port: 80
+    targetPort: 8080
+  - name: https
+    port: 443
+    targetPort: 8443
 EOF
 
-helm --kube-context=${CLUSTER1} upgrade --install istio-eastwestgateway ./istio-1.17.3/manifests/charts/gateways/istio-ingress -n istio-gateways --values - <<EOF
-global:
-  hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-  tag: 1.17.3-solo
-gateways:
-  istio-ingressgateway:
-    name: istio-eastwestgateway
-    namespace: istio-gateways
-    labels:
-      istio: eastwestgateway
-      topology.istio.io/network: cluster1
-    injectionTemplate: gateway
-    ports:
-    - name: tcp-status-port
-      port: 15021
-      targetPort: 15021
-    - name: https
-      port: 16443
-      targetPort: 16443
-    - name: tls
-      port: 15443
-      targetPort: 15443
-    - name: tcp-istiod
-      port: 15012
-      targetPort: 15012
-    - name: tcp-webhook
-      port: 15017
-      targetPort: 15017
-    env:
-      ISTIO_META_ROUTER_MODE: "sni-dnat"
-      ISTIO_META_REQUESTED_NETWORK_VIEW: "cluster1"
-
+helm --kube-context=${CLUSTER1} upgrade --install istio-eastwestgateway ./istio-1.17.3/manifests/charts/gateway -n istio-gateways --values - <<EOF
+name: istio-eastwestgateway
+labels:
+  app: istio-ingressgateway
+  istio: eastwestgateway
+  topology.istio.io/network: cluster1
+service:
+  ports:
+  - name: tcp-status-port
+    port: 15021
+    targetPort: 15021
+  - name: https
+    port: 16443
+    targetPort: 16443
+  - name: tls
+    port: 15443
+    targetPort: 15443
+  - name: tcp-istiod
+    port: 15012
+    targetPort: 15012
+  - name: tcp-webhook
+    port: 15017
+    targetPort: 15017
+env:
+  ISTIO_META_ROUTER_MODE: "sni-dnat"
+  ISTIO_META_REQUESTED_NETWORK_VIEW: "cluster1"
 EOF
 ```
 
@@ -345,58 +332,46 @@ After that, you can deploy the gateways:
 ```bash
 kubectl --context ${CLUSTER2} label namespace istio-gateways istio.io/rev=1-17 --overwrite
 
-helm --kube-context=${CLUSTER2} upgrade --install istio-ingressgateway ./istio-1.17.3/manifests/charts/gateways/istio-ingress -n istio-gateways --values - <<EOF
-global:
-  hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-  tag: 1.17.3-solo
-gateways:
-  istio-ingressgateway:
-    name: istio-ingressgateway
-    namespace: istio-gateways
-    labels:
-      istio: ingressgateway
-    injectionTemplate: gateway
-    ports:
-    - name: http2
-      port: 80
-      targetPort: 8080
-    - name: https
-      port: 443
-      targetPort: 8443
+helm --kube-context=${CLUSTER2} upgrade --install istio-ingressgateway ./istio-1.17.3/manifests/charts/gateway -n istio-gateways --values - <<EOF
+name: istio-ingressgateway
+labels:
+  istio: ingressgateway
+service:
+  ports:
+  - name: http2
+    port: 80
+    targetPort: 8080
+  - name: https
+    port: 443
+    targetPort: 8443
 EOF
 
-helm --kube-context=${CLUSTER2} upgrade --install istio-eastwestgateway ./istio-1.17.3/manifests/charts/gateways/istio-ingress -n istio-gateways --values - <<EOF
-global:
-  hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-  tag: 1.17.3-solo
-gateways:
-  istio-ingressgateway:
-    name: istio-eastwestgateway
-    namespace: istio-gateways
-    labels:
-      istio: eastwestgateway
-      topology.istio.io/network: cluster2
-    injectionTemplate: gateway
-    ports:
-    - name: tcp-status-port
-      port: 15021
-      targetPort: 15021
-    - name: https
-      port: 16443
-      targetPort: 16443
-    - name: tls
-      port: 15443
-      targetPort: 15443
-    - name: tcp-istiod
-      port: 15012
-      targetPort: 15012
-    - name: tcp-webhook
-      port: 15017
-      targetPort: 15017
-    env:
-      ISTIO_META_ROUTER_MODE: "sni-dnat"
-      ISTIO_META_REQUESTED_NETWORK_VIEW: "cluster2"
-
+helm --kube-context=${CLUSTER2} upgrade --install istio-eastwestgateway ./istio-1.17.3/manifests/charts/gateway -n istio-gateways --values - <<EOF
+name: istio-eastwestgateway
+labels:
+  app: istio-ingressgateway
+  istio: eastwestgateway
+  topology.istio.io/network: cluster2
+service:
+  ports:
+  - name: tcp-status-port
+    port: 15021
+    targetPort: 15021
+  - name: https
+    port: 16443
+    targetPort: 16443
+  - name: tls
+    port: 15443
+    targetPort: 15443
+  - name: tcp-istiod
+    port: 15012
+    targetPort: 15012
+  - name: tcp-webhook
+    port: 15017
+    targetPort: 15017
+env:
+  ISTIO_META_ROUTER_MODE: "sni-dnat"
+  ISTIO_META_REQUESTED_NETWORK_VIEW: "cluster2"
 EOF
 ```
 
@@ -4748,357 +4723,7 @@ EOF
 
 
 
-## Lab 25 - Interacting with mTLS <a name="lab-25---interacting-with-mtls-"></a>
-
-Services that are part of the mesh are able to communicate using mtLS by default, but you can also have mtLS with services that are **not** part of the mesh, and this lab it is going to show you how.
-
-Let's start creating the certificates for both the external service and the mesh.
-```bash
-# create server certificates
-openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
-   -keyout server.key -out server.crt -subj "/C=NT/ST=Zamunda/O=Solo.io/OU=Solo.io/CN=*"
-
-# create client certificates
-openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
-   -keyout client.key -out client.crt -subj "/C=NT/ST=Wakanda/O=Solo.io/OU=Solo.io/CN=*"
-```
-
-Then, you have to store them in a Kubernetes secret running the following command:
-```bash
-kubectl --context ${MGMT} create namespace mtls
-kubectl --context ${MGMT} -n mtls create secret generic mtls-server-secret \
---from-file=server.key=server.key \
---from-file=server.crt=server.crt \
---from-file=ca.crt=client.crt
-```
-
-Now, we will create the *external* mTLS server, that will be **NOT** be part of the mesh
-```bash
-kubectl apply --context ${MGMT} -f - <<EOF
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: mtls-server
-  namespace: mtls
-spec:
-  selector:
-    matchLabels:
-      app: mtls-server
-  replicas: 1
-  template:
-    metadata:
-      labels:
-        app: mtls-server
-    spec:
-      containers:
-        - name: mtls-server
-          image: gcr.io/solo-test-236622/mtls-test:0.0.6
-          ports:
-            - containerPort: 443
-          volumeMounts:
-            - mountPath: /certs
-              name: secret-volume
-      volumes:
-        - name: secret-volume
-          secret:
-            secretName: mtls-server-secret
-            optional: true
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: mtls-server
-  namespace: mtls
-  labels:
-    app: mtls-server
-spec:
-  ports:
-    - port: 9443
-      targetPort: 443
-      protocol: TCP
-  selector:
-    app: mtls-server
-  type: LoadBalancer
-EOF
-kubectl --context ${MGMT} -n mtls rollout status deployment mtls-server
-```
-
-We can check that the server is running:
-```bash
-export ENDPOINT_MTLS_SERVER=$(kubectl --context ${MGMT} -n mtls get svc -l app=mtls-server -o jsonpath='{.items[0].status.loadBalancer.ingress[0].*}')
-curl --cert client.crt --key client.key --cacert server.crt \
-     https://${ENDPOINT_MTLS_SERVER}:9443/ -isk
-```
-
-Now we have to inject the cert in istio ingress gateway, so it can use it to connect to the external service.
-```bash
-kubectl --context ${CLUSTER1} -n istio-gateways create secret generic istio-ingressgateway-certs \
---from-file=client.key=client.key \
---from-file=client.crt=client.crt \
---from-file=ca.crt=server.crt
-```
-
-After this, we can create an ExternalService representing mTLS server
-```bash
-kubectl apply --context ${CLUSTER1} -f - <<EOF
-apiVersion: networking.gloo.solo.io/v2
-kind: ExternalEndpoint
-metadata:
-  name: mtls-server
-  namespace: httpbin
-  labels:
-    host: mtls-server
-spec:
-  address: ${ENDPOINT_MTLS_SERVER}
-  ports:
-    - name: https
-      number: 9443
----
-apiVersion: networking.gloo.solo.io/v2
-kind: ExternalService
-metadata:
-  name: mtls-server
-  namespace: httpbin
-  labels:
-    expose: "true"
-spec:
-  hosts:
-    - mtls.external
-  ports:
-    - name: http
-      number: 80
-      protocol: HTTP
-      targetPort:
-        name: https
-      clientsideTls:
-        mode: MUTUAL
-        caCertificates: /etc/istio/ingressgateway-certs/ca.crt
-        clientCertificate: /etc/istio/ingressgateway-certs/client.crt
-        privateKey: /etc/istio/ingressgateway-certs/client.key
-  selector:
-    host: mtls-server
-EOF
-```
-
-And finally, expose it through the gateway
-```bash
-kubectl apply --context ${CLUSTER1} -f - <<EOF
-apiVersion: networking.gloo.solo.io/v2
-kind: RouteTable
-metadata:
-  name: mtls-server
-  namespace: httpbin
-  labels:
-    expose: "true"
-spec:
-  http:
-    - name: mtls-server
-      matchers:
-        - uri:
-            prefix: /mtls-server
-      forwardTo:
-        destinations:
-          - kind: EXTERNAL_SERVICE
-            port:
-              name: http
-            ref:
-              name: mtls-server
-              namespace: httpbin
-EOF
-```
-If you refresh your browser, you should see that we can connect to the external service using mTLS.
-
-It can take some time until the certificates are propagated to the Istio Ingress Gateway. You can check it with the following command:
-```sh
-pod=$(kubectl --context ${CLUSTER1} -n istio-gateways get pods -l istio=ingressgateway -o jsonpath='{.items[0].metadata.name}')
-kubectl --context ${CLUSTER1} exec -n istio-gateways ${pod} -- ls -al /etc/istio/ingressgateway-certs
-```
-<!--bash
-for i in `seq 1 100`; do
-pod=$(kubectl --context ${CLUSTER1} -n istio-gateways get pods -l istio=ingressgateway -o jsonpath='{.items[0].metadata.name}')
-kubectl --context ${CLUSTER1} exec -n istio-gateways ${pod} -- ls -al /etc/istio/ingressgateway-certs | grep -q client.key && break
-sleep 1
-done
-//-->
-
-![mTLS-2](images/steps/gateway-external-service-mtls/mTLS-1.svg)
-
-Get the URL to access the `mtls-server` service using the following command:
-```
-curl https://${ENDPOINT_HTTPS_GW_CLUSTER1}/mtls-server -isk
-```
-
-<!--bash
-cat <<'EOF' > ./test.js
-const helpersHttp = require('./tests/chai-http');
-
-describe("mTLS from the external service", () => {
-  it('Checking text \'Hello from mTLS server\' in ' + process.env.CLUSTER1, () => helpersHttp.checkBody({ host: 'https://' + process.env.ENDPOINT_HTTPS_GW_CLUSTER1, path: '/mtls-server', body: 'Hello from mTLS server', match: true }));
-})
-EOF
-echo "executing test dist/gloo-mesh-2-0-all-no-ilm/build/templates/steps/apps/mtls-server/gateway-external-service-mtls/tests/mtls-from-external.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
--->
-
-Now we will try the other way around, connecting to the mesh from a external service, with mTLS.
-
-We will update the tls settings of the Istio Ingress Gateway to require mTLS:
-```bash
-kubectl --context ${CLUSTER1} create -n istio-gateways secret generic mtls-credential \
-  --from-file=tls.key=client.key \
-  --from-file=tls.crt=client.crt \
-  --from-file=ca.crt=server.crt
-
-kubectl apply --context ${CLUSTER1} -f - <<EOF
-apiVersion: networking.gloo.solo.io/v2
-kind: VirtualGateway
-metadata:
-  name: north-south-gw
-  namespace: istio-gateways
-spec:
-  workloads:
-    - selector:
-        labels:
-          istio: ingressgateway
-        cluster: cluster1
-  listeners:
-    - http: {}
-      port:
-        number: 80
-      httpsRedirect: true
-    - http: {}
-      port:
-        number: 443
-      tls:
-        mode: MUTUAL
-        secretName: mtls-credential
-      allowedRouteTables:
-        - host: '*'
-EOF
-```
-
-Finally, we can check that we can connect to the Istio Ingress Gateway using mTLS:
-```shell
-curl --cert server.crt --key server.key --cacert client.crt \
-     https://${ENDPOINT_HTTPS_GW_CLUSTER1}/mtls-server -isk
-```
-
-This is how the traffic flow looks like:
-![mTLS-2](images/steps/gateway-external-service-mtls/mTLS-2.svg)
-
-Let's do the same now but for east-west traffic. This is useful for example to connect with a service that is part of another mesh, and it doesn't have our same root trust.
-
-First, we create a secret to hold the certificates:
-```bash
-kubectl --context ${CLUSTER1} create -n httpbin secret generic istio-sidecar-certs \
-  --from-file=client.key=client.key \
-  --from-file=client.crt=client.crt \
-  --from-file=ca.crt=server.crt
-```
-
-Then, we create a new pod that will start the communication:
-```bash
-kubectl apply --context ${CLUSTER1} -f - <<EOF
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: sleep
-  namespace: httpbin
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: sleep
-      version: v1
-  template:
-    metadata:
-      labels:
-        app: sleep
-        version: v1
-        istio.io/rev: 1-17
-      annotations:
-        sidecar.istio.io/userVolumeMount: '[{"name":"istio-sidecar-certs", "mountPath":"/etc/istio/ingressgateway-certs/", "readonly":true}]'
-        sidecar.istio.io/userVolume: '[{"name":"istio-sidecar-certs", "secret":{"secretName":"istio-sidecar-certs"}}]'
-    spec:
-      containers:
-      - name: sleep
-        image: curlimages/curl
-        command: ["/bin/sleep", "3650d"]
-        imagePullPolicy: IfNotPresent
-EOF
-```
-
-We can check now that the our sleep app can connect seamlessly to the mTLS server:
-```shell
-kubectl --context ${CLUSTER1} exec -n httpbin deploy/sleep -- curl mtls.external -isk
-```
-<!--bash
-cat <<'EOF' > ./test.js
-var chai = require('chai');
-var expect = chai.expect;
-const helpers = require('./tests/chai-exec');
-
-describe("mTLS from the external service", () => {
-  it('Checking text \'Hello from mTLS server\' in ' + process.env.CLUSTER1, () => {
-    const command = helpers.getOutputForCommand({ command: "kubectl --context " + process.env.CLUSTER1 + " -n httpbin exec deploy/sleep -- curl mtls.external -isk" }).replaceAll("'", "");
-    expect(command).to.contain("Hello from mTLS server");
-  });
-});
-
-EOF
-echo "executing test dist/gloo-mesh-2-0-all-no-ilm/build/templates/steps/apps/mtls-server/gateway-external-service-mtls/tests/mtls-from-eastwest.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
--->
-Let's revert the changes we made to the VirtualGateway
-
-```bash
-kubectl apply --context ${CLUSTER1} -f - <<EOF
-apiVersion: networking.gloo.solo.io/v2
-kind: VirtualGateway
-metadata:
-  name: north-south-gw
-  namespace: istio-gateways
-spec:
-  workloads:
-    - selector:
-        labels:
-          istio: ingressgateway
-        cluster: cluster1
-  listeners: 
-    - http: {}
-      port:
-        number: 80
-# ---------------- Redirect to https --------------------
-      httpsRedirect: true
-# -------------------------------------------------------
-    - http: {}
-# ---------------- SSL config ---------------------------
-      port:
-        number: 443
-      tls:
-        mode: SIMPLE
-        secretName: tls-secret
-# -------------------------------------------------------
-      allowedRouteTables:
-        - host: '*'
-EOF
-```
-
-And delete the objects we've created
-```bash
-kubectl --context ${CLUSTER1} -n httpbin delete RouteTable mtls-server
-kubectl --context ${CLUSTER1} -n httpbin delete externalservices mtls-server
-kubectl --context ${CLUSTER1} -n httpbin delete deploy sleep
-```
-
-
-
-
-## Lab 26 - Deploy the Amazon pod identity webhook <a name="lab-26---deploy-the-amazon-pod-identity-webhook-"></a>
+## Lab 25 - Deploy the Amazon pod identity webhook <a name="lab-25---deploy-the-amazon-pod-identity-webhook-"></a>
 
 
 To use the AWS Lambda integration, we need to deploy the Amazon EKS pod identity webhook.
@@ -5141,7 +4766,7 @@ mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${te
 
 
 
-## Lab 27 - Execute Lambda functions <a name="lab-27---execute-lambda-functions-"></a>
+## Lab 26 - Execute Lambda functions <a name="lab-26---execute-lambda-functions-"></a>
 [<img src="https://img.youtube.com/vi/gD6GLMlP-Qc/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/gD6GLMlP-Qc "Video Link")
 
 First of all, you need to annotate the service account used by the Istio ingress gateway to allow it to assume an AWS role which can invoke the `echo` Lambda function:
@@ -5393,7 +5018,7 @@ kubectl --context ${MGMT} -n gloo-mesh delete cloudprovider aws
 
 
 
-## Lab 28 - VM integration <a name="lab-28---vm-integration-"></a>
+## Lab 27 - VM integration <a name="lab-27---vm-integration-"></a>
 
 Let's see how we can configure a VM to be part of the Mesh.
 
@@ -5917,6 +5542,260 @@ docker rm -f vm1
 
 
 
+## Lab 28 - Extend Envoy with WebAssembly <a name="lab-28---extend-envoy-with-webassembly-"></a>
+
+WebAssembly (WASM) is the future of cloud-native infrastructure extensibility.
+
+WASM is a safe, secure, and dynamic way of extending infrastructure with the language of your choice. WASM tool chains compile your code from any of the supported languages into a type-safe, binary format that can be loaded dynamically in a WASM sandbox/VM.
+
+The Envoy Wasm filter is already available, but it's not ready for production use yet. More info available in [this Blog Post](https://www.solo.io/blog/the-state-of-webassembly-in-envoy-proxy/).
+
+Both Gloo Edge and Istio are based on Envoy, so they can take advantage of WebAssembly.
+
+One of the projects for working with WASM and Envoy proxy is [WebAssembly Hub](https://webassemblyhub.io/).
+
+WebAssembly Hub is a meeting place for the community to share and consume WebAssembly Envoy extensions. You can easily search and find extensions that meet the functionality you want to add and give them a try.
+
+The main advantage of building a Wasm Envoy filter is that you can manipulate requests (and responses) exactly the way it makes sense for your specific use cases.
+
+Perhaps you want to gather some metrics only when the request contain specific headers, or you want to enrich the request by getting information from another API, it doesn't matter, you're now free to do exactly what you want.
+
+The first decision you need to take is to decide which SDK (so which language) you want to use. SDKs are currently available for C++, AssemblyScript, RUST and TinyGo.
+
+Not all the languages can be compiled to WebAssembly and don't expect that you'll be able to import any external packages (like the Amazon SDK).
+
+So, you need to determine what you want your filter to do, look at what kind of packages you'll need (Regexp, ...) and check which one of the language you already know is matching your requirements.
+
+### Prepare
+
+Our Envoy instances will fetch their wasm filters from an envoy cluster that must be defined in the static bootstrap config. We must therefore perform a one-time operation to add the wasm-agent as a cluster in the Envoy bootstrap:
+
+```bash
+cat <<EOF | kubectl apply --context ${CLUSTER1} -f -
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: gloo-mesh-custom-envoy-bootstrap
+  namespace: bookinfo-backends
+data:
+  custom_bootstrap.json: |
+    {
+      "static_resources": {
+        "clusters": [{
+          "name": "gloo_mesh_agent_cluster",
+          "type" : "STRICT_DNS",
+          "connect_timeout": "1s",
+          "lb_policy": "ROUND_ROBIN",
+          "load_assignment": {
+            "cluster_name": "gloo_mesh_agent_cluster",
+            "endpoints": [{
+              "lb_endpoints": [{
+                "endpoint": {
+                  "address":{
+                    "socket_address": {
+                      "address": "gloo-mesh-agent.gloo-mesh.svc.cluster.local",
+                      "port_value": 9977
+                    }
+                  }
+                }
+              }]
+            }]
+          },
+          "circuit_breakers": {
+            "thresholds": [
+              {
+                "priority": "DEFAULT",
+                "max_connections": 100000,
+                "max_pending_requests": 100000,
+                "max_requests": 100000
+              },
+              {
+                "priority": "HIGH",
+                "max_connections": 100000,
+                "max_pending_requests": 100000,
+                "max_requests": 100000
+              }
+            ]
+          },
+          "upstream_connection_options": {
+            "tcp_keepalive": {
+              "keepalive_time": 300
+            }
+          },
+          "max_requests_per_connection": 1,
+          "http2_protocol_options": { }
+        }]
+      }
+    }
+
+EOF
+
+cat <<EOF | kubectl apply --context ${CLUSTER2} -f -
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: gloo-mesh-custom-envoy-bootstrap
+  namespace: bookinfo-backends
+data:
+  custom_bootstrap.json: |
+    {
+      "static_resources": {
+        "clusters": [{
+          "name": "gloo_mesh_agent_cluster",
+          "type" : "STRICT_DNS",
+          "connect_timeout": "1s",
+          "lb_policy": "ROUND_ROBIN",
+          "load_assignment": {
+            "cluster_name": "gloo_mesh_agent_cluster",
+            "endpoints": [{
+              "lb_endpoints": [{
+                "endpoint": {
+                  "address":{
+                    "socket_address": {
+                      "address": "gloo-mesh-agent.gloo-mesh.svc.cluster.local",
+                      "port_value": 9977
+                    }
+                  }
+                }
+              }]
+            }]
+          },
+          "circuit_breakers": {
+            "thresholds": [
+              {
+                "priority": "DEFAULT",
+                "max_connections": 100000,
+                "max_pending_requests": 100000,
+                "max_requests": 100000
+              },
+              {
+                "priority": "HIGH",
+                "max_connections": 100000,
+                "max_pending_requests": 100000,
+                "max_requests": 100000
+              }
+            ]
+          },
+          "upstream_connection_options": {
+            "tcp_keepalive": {
+              "keepalive_time": 300
+            }
+          },
+          "max_requests_per_connection": 1,
+          "http2_protocol_options": { }
+        }]
+      }
+    }
+
+EOF
+```
+
+<!--bash
+cat <<'EOF' > ./test.js
+const helpers = require('./tests/chai-exec');
+
+describe("ConfigMaps are created", () => {
+    const clusters = [process.env.CLUSTER1, process.env.CLUSTER2];
+    clusters.forEach(cluster => {
+        it('Configmap is present in ' + cluster, () => helpers.k8sObjectIsPresent({ context: cluster, namespace: "bookinfo-backends", k8sType: "configmap", k8sObj: "gloo-mesh-custom-envoy-bootstrap" }));
+    });
+});
+
+EOF
+echo "executing test dist/gloo-mesh-2-0-all-no-ilm/build/templates/steps/apps/bookinfo/web-assembly/tests/configmaps-created.test.js.liquid"
+tempfile=$(mktemp)
+echo "saving errors in ${tempfile}"
+mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
+-->
+
+### Deploy
+
+It's now time to deploy a Wasm filter on Istio !
+
+Gloo Platform has a `WasmDeploymentPolicy` CRD (Custom Resource Definition) for that purpose.
+
+To deploy your Wasm filter on all the Pods corresponding to the version v1 of the reviews service and running in the bookinfo-backends namespace of the cluster1 cluster, use the following commands:
+
+```bash
+kubectl --context ${CLUSTER1} -n bookinfo-backends patch deployment reviews-v1 --patch='{"spec":{"template": {"metadata": {"annotations": {"sidecar.istio.io/bootstrapOverride": "gloo-mesh-custom-envoy-bootstrap"}}}}}' --type=merge
+
+kubectl apply --context ${CLUSTER1} -f - <<EOF
+apiVersion: extensions.policy.gloo.solo.io/v2
+kind: WasmDeploymentPolicy
+metadata:
+  name: reviews-wasm
+  namespace: bookinfo-backends
+spec:
+  applyToWorkloads:
+  - selector:
+      cluster: cluster1
+      labels:
+        app: reviews
+        version: v1
+      namespace: bookinfo-backends
+  config:
+    filters:
+    - filterContext: SIDECAR_INBOUND
+      wasmImageSource:
+        wasmImageTag: webassemblyhub.io/djannot/myfilter:0.2
+      staticFilterConfig:
+        '@type': type.googleapis.com/google.protobuf.StringValue
+        value: "Gloo Mesh Enterprise"
+
+EOF
+```
+
+Let's send a request from the `productpage` service to the `reviews` service:
+
+```
+kubectl --context $CLUSTER1 -n bookinfo-frontends exec -it $(kubectl --context $CLUSTER1 -n bookinfo-frontends get pods -l app=productpage -o jsonpath='{.items[0].metadata.name}') -- python -c "import requests; r = requests.get('http://reviews.bookinfo-backends:9080/reviews/0'); print(r.headers)"
+```
+
+<!--bash
+cat <<'EOF' > ./test.js
+const helpers = require('./tests/chai-exec');
+
+describe("Get WasmDeployment log traces", () => {
+  const podName = helpers.getOutputForCommand({ command: "kubectl -n bookinfo-frontends get pods -l app=productpage -o jsonpath='{.items[0].metadata.name}' --context " + process.env.CLUSTER1 }).replaceAll("'", "");
+  const command = "kubectl -n bookinfo-frontends exec " + podName + " --context " + process.env.CLUSTER1 + " -- python -c \"import requests; r = requests.get('http://reviews.bookinfo-backends:9080/reviews/0'); print(r.headers)\"";
+  const searches = ["hello", "Gloo Mesh Enterprise"];
+  searches.forEach(search => {
+    it('Got the new header "' + search + '"', () => helpers.genericCommand({ command: command, responseContains: search }));
+  });
+});
+
+EOF
+echo "executing test dist/gloo-mesh-2-0-all-no-ilm/build/templates/steps/apps/bookinfo/web-assembly/tests/check-logs.test.js.liquid"
+tempfile=$(mktemp)
+echo "saving errors in ${tempfile}"
+mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
+-->
+
+You should get either:
+
+```,nocopy
+{'x-powered-by': 'Servlet/3.1', 'content-type': 'application/json', 'date': 'Tue, 15 Dec 2020 08:23:24 GMT', 'content-language': 'en-US', 'content-length': '295', 'x-envoy-upstream-service-time': '10', 'server': 'envoy'}
+```
+
+or:
+
+```,nocopy
+{'x-powered-by': 'Servlet/3.1', 'content-type': 'application/json', 'date': 'Tue, 15 Dec 2020 08:23:25 GMT', 'content-language': 'en-US', 'content-length': '295', 'x-envoy-upstream-service-time': '17', 'hello': 'Gloo Mesh Enterprise Beta', 'server': 'envoy'}
+```
+
+We have deployed the Istio Bookinfo application with the versions `v1` and `v2` of the `reviews` service, so the new header is added half of the time.
+
+
+Delete the WasmDeploymentPolicy:
+
+```bash
+kubectl --context ${CLUSTER1} -n bookinfo-backends delete wasmdeploymentpolicy reviews-wasm
+```
+
+
+
+
+
 ## Lab 29 - Gloo Mesh Management Plane failover <a name="lab-29---gloo-mesh-management-plane-failover-"></a>
 
 
@@ -6229,260 +6108,6 @@ tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
 -->
-
-
-
-## Lab 30 - Extend Envoy with WebAssembly <a name="lab-30---extend-envoy-with-webassembly-"></a>
-
-WebAssembly (WASM) is the future of cloud-native infrastructure extensibility.
-
-WASM is a safe, secure, and dynamic way of extending infrastructure with the language of your choice. WASM tool chains compile your code from any of the supported languages into a type-safe, binary format that can be loaded dynamically in a WASM sandbox/VM.
-
-The Envoy Wasm filter is already available, but it's not ready for production use yet. More info available in [this Blog Post](https://www.solo.io/blog/the-state-of-webassembly-in-envoy-proxy/).
-
-Both Gloo Edge and Istio are based on Envoy, so they can take advantage of WebAssembly.
-
-One of the projects for working with WASM and Envoy proxy is [WebAssembly Hub](https://webassemblyhub.io/).
-
-WebAssembly Hub is a meeting place for the community to share and consume WebAssembly Envoy extensions. You can easily search and find extensions that meet the functionality you want to add and give them a try.
-
-The main advantage of building a Wasm Envoy filter is that you can manipulate requests (and responses) exactly the way it makes sense for your specific use cases.
-
-Perhaps you want to gather some metrics only when the request contain specific headers, or you want to enrich the request by getting information from another API, it doesn't matter, you're now free to do exactly what you want.
-
-The first decision you need to take is to decide which SDK (so which language) you want to use. SDKs are currently available for C++, AssemblyScript, RUST and TinyGo.
-
-Not all the languages can be compiled to WebAssembly and don't expect that you'll be able to import any external packages (like the Amazon SDK).
-
-So, you need to determine what you want your filter to do, look at what kind of packages you'll need (Regexp, ...) and check which one of the language you already know is matching your requirements.
-
-### Prepare
-
-Our Envoy instances will fetch their wasm filters from an envoy cluster that must be defined in the static bootstrap config. We must therefore perform a one-time operation to add the wasm-agent as a cluster in the Envoy bootstrap:
-
-```bash
-cat <<EOF | kubectl apply --context ${CLUSTER1} -f -
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: gloo-mesh-custom-envoy-bootstrap
-  namespace: bookinfo-backends
-data:
-  custom_bootstrap.json: |
-    {
-      "static_resources": {
-        "clusters": [{
-          "name": "gloo_mesh_agent_cluster",
-          "type" : "STRICT_DNS",
-          "connect_timeout": "1s",
-          "lb_policy": "ROUND_ROBIN",
-          "load_assignment": {
-            "cluster_name": "gloo_mesh_agent_cluster",
-            "endpoints": [{
-              "lb_endpoints": [{
-                "endpoint": {
-                  "address":{
-                    "socket_address": {
-                      "address": "gloo-mesh-agent.gloo-mesh.svc.cluster.local",
-                      "port_value": 9977
-                    }
-                  }
-                }
-              }]
-            }]
-          },
-          "circuit_breakers": {
-            "thresholds": [
-              {
-                "priority": "DEFAULT",
-                "max_connections": 100000,
-                "max_pending_requests": 100000,
-                "max_requests": 100000
-              },
-              {
-                "priority": "HIGH",
-                "max_connections": 100000,
-                "max_pending_requests": 100000,
-                "max_requests": 100000
-              }
-            ]
-          },
-          "upstream_connection_options": {
-            "tcp_keepalive": {
-              "keepalive_time": 300
-            }
-          },
-          "max_requests_per_connection": 1,
-          "http2_protocol_options": { }
-        }]
-      }
-    }
-
-EOF
-
-cat <<EOF | kubectl apply --context ${CLUSTER2} -f -
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: gloo-mesh-custom-envoy-bootstrap
-  namespace: bookinfo-backends
-data:
-  custom_bootstrap.json: |
-    {
-      "static_resources": {
-        "clusters": [{
-          "name": "gloo_mesh_agent_cluster",
-          "type" : "STRICT_DNS",
-          "connect_timeout": "1s",
-          "lb_policy": "ROUND_ROBIN",
-          "load_assignment": {
-            "cluster_name": "gloo_mesh_agent_cluster",
-            "endpoints": [{
-              "lb_endpoints": [{
-                "endpoint": {
-                  "address":{
-                    "socket_address": {
-                      "address": "gloo-mesh-agent.gloo-mesh.svc.cluster.local",
-                      "port_value": 9977
-                    }
-                  }
-                }
-              }]
-            }]
-          },
-          "circuit_breakers": {
-            "thresholds": [
-              {
-                "priority": "DEFAULT",
-                "max_connections": 100000,
-                "max_pending_requests": 100000,
-                "max_requests": 100000
-              },
-              {
-                "priority": "HIGH",
-                "max_connections": 100000,
-                "max_pending_requests": 100000,
-                "max_requests": 100000
-              }
-            ]
-          },
-          "upstream_connection_options": {
-            "tcp_keepalive": {
-              "keepalive_time": 300
-            }
-          },
-          "max_requests_per_connection": 1,
-          "http2_protocol_options": { }
-        }]
-      }
-    }
-
-EOF
-```
-
-<!--bash
-cat <<'EOF' > ./test.js
-const helpers = require('./tests/chai-exec');
-
-describe("ConfigMaps are created", () => {
-    const clusters = [process.env.CLUSTER1, process.env.CLUSTER2];
-    clusters.forEach(cluster => {
-        it('Configmap is present in ' + cluster, () => helpers.k8sObjectIsPresent({ context: cluster, namespace: "bookinfo-backends", k8sType: "configmap", k8sObj: "gloo-mesh-custom-envoy-bootstrap" }));
-    });
-});
-
-EOF
-echo "executing test dist/gloo-mesh-2-0-all-no-ilm/build/templates/steps/apps/bookinfo/web-assembly/tests/configmaps-created.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
--->
-
-### Deploy
-
-It's now time to deploy a Wasm filter on Istio !
-
-Gloo Platform has a `WasmDeploymentPolicy` CRD (Custom Resource Definition) for that purpose.
-
-To deploy your Wasm filter on all the Pods corresponding to the version v1 of the reviews service and running in the bookinfo-backends namespace of the cluster1 cluster, use the following commands:
-
-```bash
-kubectl --context ${CLUSTER1} -n bookinfo-backends patch deployment reviews-v1 --patch='{"spec":{"template": {"metadata": {"annotations": {"sidecar.istio.io/bootstrapOverride": "gloo-mesh-custom-envoy-bootstrap"}}}}}' --type=merge
-
-kubectl apply --context ${CLUSTER1} -f - <<EOF
-apiVersion: extensions.policy.gloo.solo.io/v2
-kind: WasmDeploymentPolicy
-metadata:
-  name: reviews-wasm
-  namespace: bookinfo-backends
-spec:
-  applyToWorkloads:
-  - selector:
-      cluster: cluster1
-      labels:
-        app: reviews
-        version: v1
-      namespace: bookinfo-backends
-  config:
-    filters:
-    - filterContext: SIDECAR_INBOUND
-      wasmImageSource:
-        wasmImageTag: webassemblyhub.io/djannot/myfilter:0.2
-      staticFilterConfig:
-        '@type': type.googleapis.com/google.protobuf.StringValue
-        value: "Gloo Mesh Enterprise"
-
-EOF
-```
-
-Let's send a request from the `productpage` service to the `reviews` service:
-
-```
-kubectl --context $CLUSTER1 -n bookinfo-frontends exec -it $(kubectl --context $CLUSTER1 -n bookinfo-frontends get pods -l app=productpage -o jsonpath='{.items[0].metadata.name}') -- python -c "import requests; r = requests.get('http://reviews.bookinfo-backends:9080/reviews/0'); print(r.headers)"
-```
-
-<!--bash
-cat <<'EOF' > ./test.js
-const helpers = require('./tests/chai-exec');
-
-describe("Get WasmDeployment log traces", () => {
-  const podName = helpers.getOutputForCommand({ command: "kubectl -n bookinfo-frontends get pods -l app=productpage -o jsonpath='{.items[0].metadata.name}' --context " + process.env.CLUSTER1 }).replaceAll("'", "");
-  const command = "kubectl -n bookinfo-frontends exec " + podName + " --context " + process.env.CLUSTER1 + " -- python -c \"import requests; r = requests.get('http://reviews.bookinfo-backends:9080/reviews/0'); print(r.headers)\"";
-  const searches = ["hello", "Gloo Mesh Enterprise"];
-  searches.forEach(search => {
-    it('Got the new header "' + search + '"', () => helpers.genericCommand({ command: command, responseContains: search }));
-  });
-});
-
-EOF
-echo "executing test dist/gloo-mesh-2-0-all-no-ilm/build/templates/steps/apps/bookinfo/web-assembly/tests/check-logs.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
--->
-
-You should get either:
-
-```,nocopy
-{'x-powered-by': 'Servlet/3.1', 'content-type': 'application/json', 'date': 'Tue, 15 Dec 2020 08:23:24 GMT', 'content-language': 'en-US', 'content-length': '295', 'x-envoy-upstream-service-time': '10', 'server': 'envoy'}
-```
-
-or:
-
-```,nocopy
-{'x-powered-by': 'Servlet/3.1', 'content-type': 'application/json', 'date': 'Tue, 15 Dec 2020 08:23:25 GMT', 'content-language': 'en-US', 'content-length': '295', 'x-envoy-upstream-service-time': '17', 'hello': 'Gloo Mesh Enterprise Beta', 'server': 'envoy'}
-```
-
-We have deployed the Istio Bookinfo application with the versions `v1` and `v2` of the `reviews` service, so the new header is added half of the time.
-
-
-Delete the WasmDeploymentPolicy:
-
-```bash
-kubectl --context ${CLUSTER1} -n bookinfo-backends delete wasmdeploymentpolicy reviews-wasm
-```
-
-
 
 
 
