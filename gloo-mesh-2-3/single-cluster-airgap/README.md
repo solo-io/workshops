@@ -88,7 +88,6 @@ export CLUSTER1=cluster1
 ```
 
 Run the following commands to deploy a Kubernetes cluster using [Kind](https://kind.sigs.k8s.io/):
-    
 
 ```bash
 ./scripts/deploy.sh 1 cluster1 us-west us-west-1
