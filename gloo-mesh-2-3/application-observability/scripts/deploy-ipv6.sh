@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-set -o errexit
 
 number=$1
 name=$2
 region=$3
 zone=$4
 twodigits=$(printf "%02d\n" $number)
-kindest_node='kindest/node:v1.24.7@sha256:577c630ce8e509131eab1aea12c022190978dd2f745aac5eb1fe65c0807eb315'
+# https://www.site24x7.com/tools/ipv6-subnetcalculator.html
+metalLBSubnet=(null 2001:db8::100/120 2001:db8::200/120 2001:db8::300/120)
 
 if [ -z "$3" ]; then
   region=us-east-1
@@ -16,7 +16,7 @@ if [ -z "$4" ]; then
   zone=us-east-1a
 fi
 
-if hostname -I 2>/dev/null; then
+if hostname -I; then
   myip=$(hostname -I | awk '{ print $1 }')
 else
   myip=$(ipconfig getifaddr en0)
@@ -79,29 +79,13 @@ featureGates:
   EphemeralContainers: true
 nodes:
 - role: control-plane
-  image: ${kindest_node}
+  image: kindest/node:v1.24.7@sha256:577c630ce8e509131eab1aea12c022190978dd2f745aac5eb1fe65c0807eb315
   extraPortMappings:
   - containerPort: 6443
     hostPort: 70${twodigits}
-- role: worker
-  image: ${kindest_node}
-- role: worker
-  image: ${kindest_node}
 networking:
-  disableDefaultCNI: true
-  serviceSubnet: "10.$(echo $twodigits | sed 's/^0*//').0.0/16"
-  podSubnet: "10.1${twodigits}.0.0/16"
+  ipFamily: ipv6
 kubeadmConfigPatches:
-- |
-  kind: ClusterConfiguration
-  apiServer:
-    extraArgs:
-      service-account-signing-key-file: /etc/kubernetes/pki/sa.key
-      service-account-key-file: /etc/kubernetes/pki/sa.pub
-      service-account-issuer: api
-      service-account-api-audiences: api,vault,factors
-  metadata:
-    name: config
 - |
   kind: InitConfiguration
   nodeRegistration:
@@ -125,30 +109,10 @@ EOF
 
 kind create cluster --name kind${number} --config kind${number}.yaml
 
-ipkind=$(docker inspect kind${number}-control-plane | jq -r '.[0].NetworkSettings.Networks[].IPAddress')
-networkkind=$(echo ${ipkind} | awk -F. '{ print $1"."$2 }')
+ipkind=$(docker inspect kind${number}-control-plane | jq -r '.[0].NetworkSettings.Networks[].GlobalIPv6Address')
+networkkind=$(echo ${ipkind} | rev | cut -d: -f2- | rev):
 
-kubectl config set-cluster kind-kind${number} --server=https://${myip}:70${twodigits} --insecure-skip-tls-verify=true
-
-helm repo add cilium https://helm.cilium.io/
-
-helm --kube-context kind-kind${number} install cilium cilium/cilium --version 1.12.0 \
-   --namespace kube-system \
-   --set prometheus.enabled=true \
-   --set operator.prometheus.enabled=true \
-   --set hubble.enabled=true \
-   --set hubble.metrics.enabled="{dns:destinationContext=pod|ip;sourceContext=pod|ip,drop:destinationContext=pod|ip;sourceContext=pod|ip,tcp:destinationContext=pod|ip;sourceContext=pod|ip,flow:destinationContext=pod|ip;sourceContext=pod|ip,port-distribution:destinationContext=pod|ip;sourceContext=pod|ip}" \
-   --set hubble.relay.enabled=true \
-   --set hubble.ui.enabled=true \
-   --set kubeProxyReplacement=partial \
-   --set hostServices.enabled=false \
-   --set hostServices.protocols="tcp" \
-   --set externalIPs.enabled=true \
-   --set nodePort.enabled=true \
-   --set hostPort.enabled=true \
-   --set bpf.masquerade=false \
-   --set image.pullPolicy=IfNotPresent \
-   --set ipam.mode=kubernetes
+#kubectl config set-cluster kind-kind${number} --server=https://${myip}:70${twodigits} --insecure-skip-tls-verify=true
 
 kubectl --context=kind-kind${number} apply -f https://raw.githubusercontent.com/metallb/metallb/v0.13.9/config/manifests/metallb-native.yaml
 kubectl --context=kind-kind${number} -n metallb-system rollout status deploy controller
@@ -161,7 +125,7 @@ metadata:
   namespace: metallb-system
 spec:
   addresses:
-  - ${networkkind}.1${twodigits}.1-${networkkind}.1${twodigits}.254
+  - ${networkkind}${number}1-${networkkind}${number}9
 ---
 apiVersion: metallb.io/v1beta1
 kind: L2Advertisement
@@ -203,4 +167,3 @@ data:
     host: "localhost:${reg_port}"
     help: "https://kind.sigs.k8s.io/docs/user/local-registry/"
 EOF
-
