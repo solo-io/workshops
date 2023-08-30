@@ -1,0 +1,2807 @@
+{
+    "annotations": {
+    "list": [
+        {
+        "builtIn": 1,
+        "datasource": {
+            "type": "grafana",
+            "uid": "-- Grafana --"
+        },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "target": {
+            "limit": 100,
+            "matchAny": false,
+            "tags": [],
+            "type": "dashboard"
+        },
+        "type": "dashboard"
+        }
+    ]
+    },
+    "editable": true,
+    "fiscalYearStartMonth": 0,
+    "graphTooltip": 0,
+    "id": 2,
+    "links": [],
+    "liveNow": false,
+    "panels": [
+    {
+        "collapsed": false,
+        "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 0
+        },
+        "id": 35,
+        "panels": [],
+        "title": "General",
+        "type": "row"
+    },
+    {
+        "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "clickhouse-access-logs"
+        },
+        "description": "Total requests to all of your APIs",
+        "fieldConfig": {
+        "defaults": {
+            "color": {
+            "mode": "thresholds"
+            },
+            "mappings": [],
+            "thresholds": {
+            "mode": "absolute",
+            "steps": [
+                {
+                "color": "light-green",
+                "value": null
+                },
+                {
+                "color": "green",
+                "value": 50000
+                },
+                {
+                "color": "yellow",
+                "value": 100000
+                },
+                {
+                "color": "semi-dark-yellow",
+                "value": 250000
+                },
+                {
+                "color": "orange",
+                "value": 500000
+                },
+                {
+                "color": "light-red",
+                "value": 1000000
+                }
+            ]
+            },
+            "unit": "none"
+        },
+        "overrides": []
+        },
+        "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 0,
+        "y": 1
+        },
+        "id": 45,
+        "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+            "calcs": [
+            "lastNotNull"
+            ],
+            "fields": "",
+            "values": false
+        },
+        "textMode": "auto"
+        },
+        "pluginVersion": "10.0.2",
+        "targets": [
+        {
+            "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "clickhouse-access-logs"
+            },
+            "meta": {
+            "builderOptions": {
+                "fields": [],
+                "limit": 100,
+                "mode": "list"
+            }
+            },
+            "queryType": "sql",
+            "rawSql": "SELECT\n  count(*) AS count\nFROM\n  gloo_api_logs\nWHERE\n  $__timeFilter(Timestamp) AND\n  LogAttributes['api_id'] IN ($api_id) AND\n  LogAttributes['usage_plan'] IN ($usage_plan) AND\n  LogAttributes['status_code'] IN ($status_code) AND\n  LogAttributes['request_command'] IN ($http_method) AND\n  LogAttributes['request_uri'] IN ($request_uri) AND\n  ('$user_id' = 'All' OR LogAttributes['user_id'] = '$user_id')\nORDER BY\n  count Desc\nlimit\n  20\n",
+            "refId": "A"
+        }
+        ],
+        "title": "Total requests in this period",
+        "transparent": true,
+        "type": "stat"
+    },
+    {
+        "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "clickhouse-access-logs"
+        },
+        "description": "Total active users in this period",
+        "fieldConfig": {
+        "defaults": {
+            "color": {
+            "mode": "thresholds"
+            },
+            "mappings": [],
+            "thresholds": {
+            "mode": "absolute",
+            "steps": [
+                {
+                "color": "light-green",
+                "value": null
+                },
+                {
+                "color": "green",
+                "value": 50000
+                },
+                {
+                "color": "yellow",
+                "value": 100000
+                },
+                {
+                "color": "semi-dark-yellow",
+                "value": 250000
+                },
+                {
+                "color": "orange",
+                "value": 500000
+                },
+                {
+                "color": "light-red",
+                "value": 1000000
+                }
+            ]
+            },
+            "unit": "none"
+        },
+        "overrides": []
+        },
+        "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 4,
+        "y": 1
+        },
+        "id": 148,
+        "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+            "calcs": [
+            "lastNotNull"
+            ],
+            "fields": "",
+            "values": false
+        },
+        "textMode": "auto"
+        },
+        "pluginVersion": "10.0.2",
+        "targets": [
+        {
+            "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "clickhouse-access-logs"
+            },
+            "meta": {
+            "builderOptions": {
+                "fields": [],
+                "limit": 100,
+                "mode": "list"
+            }
+            },
+            "queryType": "sql",
+            "rawSql": "SELECT\n  count(DISTINCT(LogAttributes['user_id']) as userId) as userCount\nFROM\n  gloo_api_logs\nWHERE\n  $__timeFilter(Timestamp) AND\n  LogAttributes['api_id'] IN ($api_id) AND\n  LogAttributes['usage_plan'] IN ($usage_plan) AND\n  LogAttributes['status_code'] IN ($status_code) AND\n  LogAttributes['request_command'] IN ($http_method) AND\n  LogAttributes['request_uri'] IN ($request_uri)\nlimit\n  20\n",
+            "refId": "A"
+        }
+        ],
+        "title": "Total active users",
+        "transparent": true,
+        "type": "stat"
+    },
+    {
+        "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "clickhouse-access-logs"
+        },
+        "description": "User error count in this period (4xx status codes)",
+        "fieldConfig": {
+        "defaults": {
+            "color": {
+            "mode": "thresholds"
+            },
+            "mappings": [],
+            "thresholds": {
+            "mode": "absolute",
+            "steps": [
+                {
+                "color": "orange",
+                "value": null
+                },
+                {
+                "color": "red",
+                "value": 10000
+                }
+            ]
+            },
+            "unit": "none"
+        },
+        "overrides": []
+        },
+        "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 12,
+        "y": 1
+        },
+        "id": 84,
+        "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+            "calcs": [
+            "lastNotNull"
+            ],
+            "fields": "",
+            "values": false
+        },
+        "textMode": "auto"
+        },
+        "pluginVersion": "10.0.2",
+        "targets": [
+        {
+            "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "clickhouse-access-logs"
+            },
+            "meta": {
+            "builderOptions": {
+                "fields": [],
+                "limit": 100,
+                "mode": "list"
+            }
+            },
+            "queryType": "sql",
+            "rawSql": "SELECT\n  count(*) AS count\nFROM\n  gloo_api_logs\nWHERE\n  $__timeFilter(Timestamp) AND\n  LogAttributes['api_id'] IN ($api_id) AND\n  LogAttributes['usage_plan'] IN ($usage_plan) AND\n  CAST(LogAttributes['status_code'] AS INT) >= 400 AND CAST(LogAttributes['status_code'] AS INT) < 500 AND\n  LogAttributes['request_command'] IN ($http_method) AND\n  LogAttributes['request_uri'] IN ($request_uri) AND\n  ('$user_id' = 'All' OR LogAttributes['user_id'] = '$user_id')\nORDER BY\n  count Desc\nlimit\n  20\n",
+            "refId": "A"
+        }
+        ],
+        "title": "User error count",
+        "transparent": true,
+        "type": "stat"
+    },
+    {
+        "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "clickhouse-access-logs"
+        },
+        "description": "Server error count in this period (5xx status codes)",
+        "fieldConfig": {
+        "defaults": {
+            "color": {
+            "mode": "thresholds"
+            },
+            "mappings": [],
+            "thresholds": {
+            "mode": "absolute",
+            "steps": [
+                {
+                "color": "orange",
+                "value": null
+                },
+                {
+                "color": "red",
+                "value": 10000
+                }
+            ]
+            },
+            "unit": "none"
+        },
+        "overrides": []
+        },
+        "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 8,
+        "y": 1
+        },
+        "id": 100,
+        "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+            "calcs": [
+            "lastNotNull"
+            ],
+            "fields": "",
+            "values": false
+        },
+        "textMode": "auto"
+        },
+        "pluginVersion": "10.0.2",
+        "targets": [
+        {
+            "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "clickhouse-access-logs"
+            },
+            "meta": {
+            "builderOptions": {
+                "fields": [],
+                "limit": 100,
+                "mode": "list"
+            }
+            },
+            "queryType": "sql",
+            "rawSql": "SELECT\n  count(*) AS count\nFROM\n  gloo_api_logs\nWHERE\n  $__timeFilter(Timestamp) AND\n  LogAttributes['api_id'] IN ($api_id) AND\n  LogAttributes['usage_plan'] IN ($usage_plan) AND\n  CAST(LogAttributes['status_code'] AS INT) >= 500 AND\n  LogAttributes['request_command'] IN ($http_method) AND\n  LogAttributes['request_uri'] IN ($request_uri) AND\n  ('$user_id' = 'All' OR LogAttributes['user_id'] = '$user_id')\nORDER BY\n  count Desc\nlimit\n  20\n",
+            "refId": "A"
+        }
+        ],
+        "title": "Server error count",
+        "transparent": true,
+        "type": "stat"
+    },
+    {
+        "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "clickhouse-access-logs"
+        },
+        "description": "Usage for API '$api_id' with usage plan '$usage_plan'",
+        "fieldConfig": {
+        "defaults": {
+            "color": {
+            "mode": "thresholds"
+            },
+            "custom": {
+            "align": "auto",
+            "cellOptions": {
+                "type": "auto"
+            },
+            "filterable": false,
+            "inspect": false
+            },
+            "mappings": [],
+            "thresholds": {
+            "mode": "absolute",
+            "steps": [
+                {
+                "color": "green",
+                "value": null
+                },
+                {
+                "color": "#6ED0E0",
+                "value": 1000
+                },
+                {
+                "color": "light-blue",
+                "value": 2000
+                },
+                {
+                "color": "light-orange",
+                "value": 5000
+                },
+                {
+                "color": "orange",
+                "value": 10000
+                },
+                {
+                "color": "semi-dark-orange",
+                "value": 20000
+                },
+                {
+                "color": "light-red",
+                "value": 50000
+                },
+                {
+                "color": "red",
+                "value": 100000
+                },
+                {
+                "color": "dark-red",
+                "value": 1000000
+                }
+            ]
+            },
+            "unit": "none"
+        },
+        "overrides": [
+            {
+            "matcher": {
+                "id": "byName",
+                "options": "Count"
+            },
+            "properties": [
+                {
+                "id": "custom.cellOptions",
+                "value": {
+                    "mode": "gradient",
+                    "type": "gauge",
+                    "valueDisplayMode": "text"
+                }
+                }
+            ]
+            },
+            {
+            "matcher": {
+                "id": "byName",
+                "options": "User"
+            },
+            "properties": [
+                {
+                "id": "custom.width",
+                "value": 216
+                }
+            ]
+            }
+        ]
+        },
+        "gridPos": {
+        "h": 11,
+        "w": 7,
+        "x": 0,
+        "y": 5
+        },
+        "id": 18,
+        "options": {
+        "cellHeight": "sm",
+        "footer": {
+            "countRows": false,
+            "enablePagination": false,
+            "fields": [
+            "count"
+            ],
+            "reducer": [
+            "sum"
+            ],
+            "show": true
+        },
+        "showHeader": true,
+        "sortBy": [
+            {
+            "desc": true,
+            "displayName": "Count"
+            }
+        ]
+        },
+        "pluginVersion": "10.0.2",
+        "targets": [
+        {
+            "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "7XaPngu4k"
+            },
+            "meta": {
+            "builderOptions": {
+                "fields": [],
+                "limit": 100,
+                "mode": "list"
+            }
+            },
+            "queryType": "sql",
+            "rawSql": "SELECT\n  CAST(LogAttributes['user_id'] AS VARCHAR) as User,\n  count(*) AS Count\nFROM\n  gloo_api_logs\nWHERE\n  $__timeFilter(Timestamp) AND\n  LogAttributes['api_id'] IN ($api_id) AND\n  LogAttributes['usage_plan'] IN ($usage_plan) AND\n  LogAttributes['status_code'] IN ($status_code) AND\n  LogAttributes['request_command'] IN ($http_method) AND\n  LogAttributes['request_uri'] IN ($request_uri) AND\n  ('$user_id' = 'All' OR LogAttributes['user_id'] = '$user_id')\nGROUP BY\n  User\nORDER BY\n  Count Desc",
+            "refId": "A"
+        }
+        ],
+        "title": "Top API consumers",
+        "type": "table"
+    },
+    {
+        "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "clickhouse-access-logs"
+        },
+        "fieldConfig": {
+        "defaults": {
+            "color": {
+            "mode": "palette-classic"
+            },
+            "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "fillOpacity": 80,
+            "gradientMode": "none",
+            "hideFrom": {
+                "legend": false,
+                "tooltip": false,
+                "viz": false
+            },
+            "lineWidth": 1,
+            "scaleDistribution": {
+                "type": "linear"
+            },
+            "thresholdsStyle": {
+                "mode": "off"
+            }
+            },
+            "decimals": 0,
+            "mappings": [],
+            "thresholds": {
+            "mode": "absolute",
+            "steps": [
+                {
+                "color": "green",
+                "value": null
+                },
+                {
+                "color": "red",
+                "value": 80
+                }
+            ]
+            },
+            "unit": "none"
+        },
+        "overrides": []
+        },
+        "gridPos": {
+        "h": 11,
+        "w": 7,
+        "x": 7,
+        "y": 5
+        },
+        "id": 2,
+        "interval": "15m",
+        "options": {
+        "barRadius": 0,
+        "barWidth": 0.97,
+        "fullHighlight": false,
+        "groupWidth": 0.7,
+        "legend": {
+            "calcs": [],
+            "displayMode": "list",
+            "placement": "bottom",
+            "showLegend": true
+        },
+        "orientation": "auto",
+        "showValue": "auto",
+        "stacking": "none",
+        "tooltip": {
+            "mode": "single",
+            "sort": "none"
+        },
+        "xTickLabelRotation": 0,
+        "xTickLabelSpacing": 0
+        },
+        "targets": [
+        {
+            "builderOptions": {
+            "0": "T",
+            "1": "h",
+            "2": "e",
+            "3": " ",
+            "4": "q",
+            "5": "u",
+            "6": "e",
+            "7": "r",
+            "8": "y",
+            "9": " ",
+            "10": "i",
+            "11": "s",
+            "12": " ",
+            "13": "n",
+            "14": "o",
+            "15": "t",
+            "16": " ",
+            "17": "a",
+            "18": " ",
+            "19": "s",
+            "20": "e",
+            "21": "l",
+            "22": "e",
+            "23": "c",
+            "24": "t",
+            "25": " ",
+            "26": "s",
+            "27": "t",
+            "28": "a",
+            "29": "t",
+            "30": "e",
+            "31": "m",
+            "32": "e",
+            "33": "n",
+            "34": "t",
+            "35": ".",
+            "fields": [
+                "LogAttributes"
+            ],
+            "filters": [
+                {
+                "condition": "AND",
+                "filterType": "custom",
+                "key": "Timestamp",
+                "operator": "WITH IN DASHBOARD TIME RANGE",
+                "restrictToFields": [
+                    {
+                    "label": "Timestamp",
+                    "name": "Timestamp",
+                    "picklistValues": [],
+                    "type": "DateTime64(9)"
+                    }
+                ],
+                "type": "datetime"
+                }
+            ],
+            "groupBy": [
+                "TraceId"
+            ],
+            "limit": 100,
+            "metrics": [],
+            "mode": "trend",
+            "orderBy": [],
+            "table": "gloo_api_logs",
+            "timeField": "Timestamp",
+            "timeFieldType": "DateTime64(9)"
+            },
+            "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "clickhouse-access-logs"
+            },
+            "meta": {
+            "builderOptions": {
+                "0": "T",
+                "1": "h",
+                "2": "e",
+                "3": " ",
+                "4": "q",
+                "5": "u",
+                "6": "e",
+                "7": "r",
+                "8": "y",
+                "9": " ",
+                "10": "i",
+                "11": "s",
+                "12": " ",
+                "13": "n",
+                "14": "o",
+                "15": "t",
+                "16": " ",
+                "17": "a",
+                "18": " ",
+                "19": "s",
+                "20": "e",
+                "21": "l",
+                "22": "e",
+                "23": "c",
+                "24": "t",
+                "25": " ",
+                "26": "s",
+                "27": "t",
+                "28": "a",
+                "29": "t",
+                "30": "e",
+                "31": "m",
+                "32": "e",
+                "33": "n",
+                "34": "t",
+                "35": ".",
+                "fields": [
+                "LogAttributes"
+                ],
+                "filters": [
+                {
+                    "condition": "AND",
+                    "filterType": "custom",
+                    "key": "Timestamp",
+                    "operator": "WITH IN DASHBOARD TIME RANGE",
+                    "restrictToFields": [
+                    {
+                        "label": "Timestamp",
+                        "name": "Timestamp",
+                        "picklistValues": [],
+                        "type": "DateTime64(9)"
+                    }
+                    ],
+                    "type": "datetime"
+                }
+                ],
+                "groupBy": [
+                "TraceId"
+                ],
+                "limit": 100,
+                "metrics": [],
+                "mode": "trend",
+                "orderBy": [],
+                "table": "gloo_api_logs",
+                "timeField": "Timestamp",
+                "timeFieldType": "DateTime64(9)"
+            }
+            },
+            "queryType": "sql",
+            "rawSql": "SELECT \n  $__timeInterval(Timestamp) AS time,\n  LogAttributes['api_id'] AS apiId,\n  count(*) AS count\nFROM \n  gloo_api_logs\nWHERE \n  $__timeFilter(Timestamp) AND\n  LogAttributes['api_id'] IN ($api_id) AND\n  LogAttributes['usage_plan'] IN ($usage_plan) AND\n  LogAttributes['status_code'] IN ($status_code) AND\n  LogAttributes['request_command'] IN ($http_method) AND\n  LogAttributes['request_uri'] IN ($request_uri) AND\n  ('$user_id' = 'All' OR LogAttributes['user_id'] = '$user_id')\nGROUP BY \n  apiId, \n  time\nORDER BY \n  time ASC",
+            "refId": "A"
+        }
+        ],
+        "title": "API Product based requests",
+        "transformations": [
+        {
+            "id": "renameByRegex",
+            "options": {
+            "regex": "count (.*)",
+            "renamePattern": "$1"
+            }
+        }
+        ],
+        "type": "barchart"
+    },
+    {
+        "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "clickhouse-access-logs"
+        },
+        "fieldConfig": {
+        "defaults": {
+            "color": {
+            "mode": "palette-classic"
+            },
+            "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "fillOpacity": 80,
+            "gradientMode": "none",
+            "hideFrom": {
+                "legend": false,
+                "tooltip": false,
+                "viz": false
+            },
+            "lineWidth": 1,
+            "scaleDistribution": {
+                "type": "linear"
+            },
+            "thresholdsStyle": {
+                "mode": "off"
+            }
+            },
+            "decimals": 0,
+            "mappings": [],
+            "thresholds": {
+            "mode": "absolute",
+            "steps": [
+                {
+                "color": "green",
+                "value": null
+                },
+                {
+                "color": "red",
+                "value": 80
+                }
+            ]
+            },
+            "unit": "none"
+        },
+        "overrides": []
+        },
+        "gridPos": {
+        "h": 11,
+        "w": 7,
+        "x": 0,
+        "y": 16
+        },
+        "id": 116,
+        "interval": "30m",
+        "options": {
+        "barRadius": 0,
+        "barWidth": 0.97,
+        "fullHighlight": false,
+        "groupWidth": 0.7,
+        "legend": {
+            "calcs": [],
+            "displayMode": "list",
+            "placement": "bottom",
+            "showLegend": true
+        },
+        "orientation": "auto",
+        "showValue": "auto",
+        "stacking": "normal",
+        "tooltip": {
+            "mode": "single",
+            "sort": "none"
+        },
+        "xTickLabelRotation": 0,
+        "xTickLabelSpacing": 0
+        },
+        "targets": [
+        {
+            "builderOptions": {
+            "0": "T",
+            "1": "h",
+            "2": "e",
+            "3": " ",
+            "4": "q",
+            "5": "u",
+            "6": "e",
+            "7": "r",
+            "8": "y",
+            "9": " ",
+            "10": "i",
+            "11": "s",
+            "12": " ",
+            "13": "n",
+            "14": "o",
+            "15": "t",
+            "16": " ",
+            "17": "a",
+            "18": " ",
+            "19": "s",
+            "20": "e",
+            "21": "l",
+            "22": "e",
+            "23": "c",
+            "24": "t",
+            "25": " ",
+            "26": "s",
+            "27": "t",
+            "28": "a",
+            "29": "t",
+            "30": "e",
+            "31": "m",
+            "32": "e",
+            "33": "n",
+            "34": "t",
+            "35": ".",
+            "fields": [
+                "LogAttributes"
+            ],
+            "filters": [
+                {
+                "condition": "AND",
+                "filterType": "custom",
+                "key": "Timestamp",
+                "operator": "WITH IN DASHBOARD TIME RANGE",
+                "restrictToFields": [
+                    {
+                    "label": "Timestamp",
+                    "name": "Timestamp",
+                    "picklistValues": [],
+                    "type": "DateTime64(9)"
+                    }
+                ],
+                "type": "datetime"
+                }
+            ],
+            "groupBy": [
+                "TraceId"
+            ],
+            "limit": 100,
+            "metrics": [],
+            "mode": "trend",
+            "orderBy": [],
+            "table": "gloo_api_logs",
+            "timeField": "Timestamp",
+            "timeFieldType": "DateTime64(9)"
+            },
+            "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "clickhouse-access-logs"
+            },
+            "meta": {
+            "builderOptions": {
+                "0": "T",
+                "1": "h",
+                "2": "e",
+                "3": " ",
+                "4": "q",
+                "5": "u",
+                "6": "e",
+                "7": "r",
+                "8": "y",
+                "9": " ",
+                "10": "i",
+                "11": "s",
+                "12": " ",
+                "13": "n",
+                "14": "o",
+                "15": "t",
+                "16": " ",
+                "17": "a",
+                "18": " ",
+                "19": "s",
+                "20": "e",
+                "21": "l",
+                "22": "e",
+                "23": "c",
+                "24": "t",
+                "25": " ",
+                "26": "s",
+                "27": "t",
+                "28": "a",
+                "29": "t",
+                "30": "e",
+                "31": "m",
+                "32": "e",
+                "33": "n",
+                "34": "t",
+                "35": ".",
+                "fields": [
+                "LogAttributes"
+                ],
+                "filters": [
+                {
+                    "condition": "AND",
+                    "filterType": "custom",
+                    "key": "Timestamp",
+                    "operator": "WITH IN DASHBOARD TIME RANGE",
+                    "restrictToFields": [
+                    {
+                        "label": "Timestamp",
+                        "name": "Timestamp",
+                        "picklistValues": [],
+                        "type": "DateTime64(9)"
+                    }
+                    ],
+                    "type": "datetime"
+                }
+                ],
+                "groupBy": [
+                "TraceId"
+                ],
+                "limit": 100,
+                "metrics": [],
+                "mode": "trend",
+                "orderBy": [],
+                "table": "gloo_api_logs",
+                "timeField": "Timestamp",
+                "timeFieldType": "DateTime64(9)"
+            }
+            },
+            "queryType": "sql",
+            "rawSql": "SELECT \n  $__timeInterval(Timestamp) AS time,\n  LogAttributes['status_code'] AS statusCode,\n  count(*) as count\nFROM \n  gloo_api_logs\nWHERE \n  $__timeFilter(Timestamp) AND\n  LogAttributes['api_id'] IN ($api_id) AND\n  LogAttributes['usage_plan'] IN ($usage_plan) AND\n  LogAttributes['status_code'] IN ($status_code) AND\n  LogAttributes['request_command'] IN ($http_method) AND\n  LogAttributes['request_uri'] IN ($request_uri) AND\n  ('$user_id' = 'All' OR LogAttributes['user_id'] = '$user_id')\nGROUP BY \n  statusCode, \n  time\nORDER BY \n  time ASC",
+            "refId": "A"
+        }
+        ],
+        "title": "Status codes over time",
+        "transformations": [
+        {
+            "id": "renameByRegex",
+            "options": {
+            "regex": "count (.*)",
+            "renamePattern": "$1"
+            }
+        }
+        ],
+        "type": "barchart"
+    },
+    {
+        "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "clickhouse-access-logs"
+        },
+        "description": "",
+        "fieldConfig": {
+        "defaults": {
+            "color": {
+            "mode": "palette-classic"
+            },
+            "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 8,
+            "gradientMode": "none",
+            "hideFrom": {
+                "legend": false,
+                "tooltip": false,
+                "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+                "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": true,
+            "stacking": {
+                "group": "A",
+                "mode": "none"
+            },
+            "thresholdsStyle": {
+                "mode": "off"
+            }
+            },
+            "decimals": 0,
+            "mappings": [],
+            "thresholds": {
+            "mode": "absolute",
+            "steps": [
+                {
+                "color": "green",
+                "value": null
+                },
+                {
+                "color": "red",
+                "value": 80
+                }
+            ]
+            },
+            "unit": "none"
+        },
+        "overrides": []
+        },
+        "gridPos": {
+        "h": 11,
+        "w": 7,
+        "x": 7,
+        "y": 16
+        },
+        "id": 132,
+        "options": {
+        "legend": {
+            "calcs": [],
+            "displayMode": "list",
+            "placement": "bottom",
+            "showLegend": true
+        },
+        "tooltip": {
+            "mode": "single",
+            "sort": "none"
+        }
+        },
+        "pluginVersion": "10.0.0",
+        "targets": [
+        {
+            "builderOptions": {
+            "0": "T",
+            "1": "h",
+            "2": "e",
+            "3": " ",
+            "4": "q",
+            "5": "u",
+            "6": "e",
+            "7": "r",
+            "8": "y",
+            "9": " ",
+            "10": "i",
+            "11": "s",
+            "12": " ",
+            "13": "n",
+            "14": "o",
+            "15": "t",
+            "16": " ",
+            "17": "a",
+            "18": " ",
+            "19": "s",
+            "20": "e",
+            "21": "l",
+            "22": "e",
+            "23": "c",
+            "24": "t",
+            "25": " ",
+            "26": "s",
+            "27": "t",
+            "28": "a",
+            "29": "t",
+            "30": "e",
+            "31": "m",
+            "32": "e",
+            "33": "n",
+            "34": "t",
+            "35": ".",
+            "database": "default",
+            "fields": [],
+            "filters": [
+                {
+                "condition": "AND",
+                "filterType": "custom",
+                "key": "Timestamp",
+                "operator": "WITH IN DASHBOARD TIME RANGE",
+                "restrictToFields": [
+                    {
+                    "label": "Timestamp",
+                    "name": "Timestamp",
+                    "picklistValues": [],
+                    "type": "DateTime64(9)"
+                    }
+                ],
+                "type": "datetime"
+                }
+            ],
+            "limit": 100,
+            "mode": "list",
+            "orderBy": [],
+            "table": "gloo_api_logs"
+            },
+            "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "clickhouse-access-logs"
+            },
+            "format": 1,
+            "meta": {
+            "builderOptions": {
+                "0": "T",
+                "1": "h",
+                "2": "e",
+                "3": " ",
+                "4": "q",
+                "5": "u",
+                "6": "e",
+                "7": "r",
+                "8": "y",
+                "9": " ",
+                "10": "i",
+                "11": "s",
+                "12": " ",
+                "13": "n",
+                "14": "o",
+                "15": "t",
+                "16": " ",
+                "17": "a",
+                "18": " ",
+                "19": "s",
+                "20": "e",
+                "21": "l",
+                "22": "e",
+                "23": "c",
+                "24": "t",
+                "25": " ",
+                "26": "s",
+                "27": "t",
+                "28": "a",
+                "29": "t",
+                "30": "e",
+                "31": "m",
+                "32": "e",
+                "33": "n",
+                "34": "t",
+                "35": ".",
+                "database": "default",
+                "fields": [],
+                "filters": [
+                {
+                    "condition": "AND",
+                    "filterType": "custom",
+                    "key": "Timestamp",
+                    "operator": "WITH IN DASHBOARD TIME RANGE",
+                    "restrictToFields": [
+                    {
+                        "label": "Timestamp",
+                        "name": "Timestamp",
+                        "picklistValues": [],
+                        "type": "DateTime64(9)"
+                    }
+                    ],
+                    "type": "datetime"
+                }
+                ],
+                "limit": 100,
+                "mode": "list",
+                "orderBy": [],
+                "table": "gloo_api_logs"
+            }
+            },
+            "queryType": "sql",
+            "rawSql": "SELECT\n    $__timeInterval(Timestamp) AS time,\n    quantileExact(0.25)(CAST(LogAttributes['response_duration'] AS INT)) as p25\nFROM\n    gloo_api_logs\nWHERE\n    $__timeFilter(Timestamp)\nGROUP BY time\nORDER BY time\n\n",
+            "refId": "p25",
+            "selectedFormat": 1
+        },
+        {
+            "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "clickhouse-access-logs"
+            },
+            "hide": false,
+            "meta": {
+            "builderOptions": {
+                "fields": [],
+                "limit": 100,
+                "mode": "list"
+            }
+            },
+            "queryType": "sql",
+            "rawSql": "\nSELECT\n    $__timeInterval(Timestamp) AS time,\n    quantileExact(0.5)(CAST(LogAttributes['response_duration'] AS INT)) as p50\nFROM\n    gloo_api_logs\nWHERE\n    $__timeFilter(Timestamp)\nGROUP BY time\nORDER BY time",
+            "refId": "p50"
+        },
+        {
+            "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "clickhouse-access-logs"
+            },
+            "hide": false,
+            "meta": {
+            "builderOptions": {
+                "fields": [],
+                "limit": 100,
+                "mode": "list"
+            }
+            },
+            "queryType": "sql",
+            "rawSql": "SELECT\n    $__timeInterval(Timestamp) AS time,\n    quantileExact(0.75)(CAST(LogAttributes['response_duration'] AS INT)) as p75\nFROM\n    gloo_api_logs\nWHERE\n    $__timeFilter(Timestamp)\nGROUP BY time\nORDER BY time",
+            "refId": "p75"
+        },
+        {
+            "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "clickhouse-access-logs"
+            },
+            "hide": false,
+            "meta": {
+            "builderOptions": {
+                "fields": [],
+                "limit": 100,
+                "mode": "list"
+            }
+            },
+            "queryType": "sql",
+            "rawSql": "SELECT\n    $__timeInterval(Timestamp) AS time,\n    quantileExact(0.90)(CAST(LogAttributes['response_duration'] AS INT)) as p90\nFROM\n    gloo_api_logs\nWHERE\n    $__timeFilter(Timestamp)\nGROUP BY time\nORDER BY time",
+            "refId": "p90"
+        },
+        {
+            "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "clickhouse-access-logs"
+            },
+            "hide": false,
+            "meta": {
+            "builderOptions": {
+                "fields": [],
+                "limit": 100,
+                "mode": "list"
+            }
+            },
+            "queryType": "sql",
+            "rawSql": "SELECT\n    $__timeInterval(Timestamp) AS time,\n    quantileExact(0.95)(CAST(LogAttributes['response_duration'] AS INT)) as p95\nFROM\n    gloo_api_logs\nWHERE\n    $__timeFilter(Timestamp)\nGROUP BY time\nORDER BY time",
+            "refId": "p95"
+        },
+        {
+            "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "clickhouse-access-logs"
+            },
+            "hide": false,
+            "meta": {
+            "builderOptions": {
+                "fields": [],
+                "limit": 100,
+                "mode": "list"
+            }
+            },
+            "queryType": "sql",
+            "rawSql": "SELECT\n    $__timeInterval(Timestamp) AS time,\n    quantileExact(0.99)(CAST(LogAttributes['response_duration'] AS INT)) as p99\nFROM\n    gloo_api_logs\nWHERE\n    $__timeFilter(Timestamp)\nGROUP BY time\nORDER BY time",
+            "refId": "p99"
+        },
+        {
+            "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "clickhouse-access-logs"
+            },
+            "hide": false,
+            "meta": {
+            "builderOptions": {
+                "fields": [],
+                "limit": 100,
+                "mode": "list"
+            }
+            },
+            "queryType": "sql",
+            "rawSql": "SELECT\n    $__timeInterval(Timestamp) AS time,\n    quantileExact(0.999)(CAST(LogAttributes['response_duration'] AS INT)) as p999\nFROM\n    gloo_api_logs\nWHERE\n    $__timeFilter(Timestamp)\nGROUP BY time\nORDER BY time",
+            "refId": "p999"
+        }
+        ],
+        "title": "Request latency",
+        "transformations": [
+        {
+            "id": "renameByRegex",
+            "options": {
+            "regex": "(.*)",
+            "renamePattern": "$1"
+            }
+        }
+        ],
+        "type": "timeseries"
+    },
+    {
+        "collapsed": false,
+        "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 27
+        },
+        "id": 11,
+        "panels": [],
+        "repeat": "api_id",
+        "repeatDirection": "h",
+        "title": "API '$api_id' Stats",
+        "type": "row"
+    },
+    {
+        "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "clickhouse-access-logs"
+        },
+        "description": "Total requests in this period for the API '$api_id'",
+        "fieldConfig": {
+        "defaults": {
+            "color": {
+            "mode": "thresholds"
+            },
+            "mappings": [],
+            "thresholds": {
+            "mode": "absolute",
+            "steps": [
+                {
+                "color": "green",
+                "value": null
+                },
+                {
+                "color": "#EAB839",
+                "value": 100000
+                },
+                {
+                "color": "red",
+                "value": 1000000
+                }
+            ]
+            }
+        },
+        "overrides": []
+        },
+        "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 0,
+        "y": 28
+        },
+        "id": 4,
+        "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+            "calcs": [
+            "lastNotNull"
+            ],
+            "fields": "",
+            "values": false
+        },
+        "textMode": "auto"
+        },
+        "pluginVersion": "10.0.2",
+        "targets": [
+        {
+            "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "clickhouse-access-logs"
+            },
+            "meta": {
+            "builderOptions": {
+                "fields": [],
+                "limit": 100,
+                "mode": "list"
+            }
+            },
+            "queryType": "sql",
+            "rawSql": "SELECT\n  LogAttributes['api_id'] as apiId,\n  count(*) AS count\nFROM\n  gloo_api_logs\nWHERE\n  $__timeFilter(Timestamp) AND\n  LogAttributes['api_id'] = '$api_id' AND\n  LogAttributes['usage_plan'] IN ($usage_plan) AND\n  LogAttributes['status_code'] IN ($status_code) AND\n  LogAttributes['request_command'] IN ($http_method) AND\n  LogAttributes['request_uri'] IN ($request_uri) AND\n  ('$user_id' = 'All' OR LogAttributes['user_id'] = '$user_id')\nGROUP BY\n  apiId\nORDER BY\n  count Desc\nlimit\n  20\n",
+            "refId": "A"
+        }
+        ],
+        "title": "Total requests",
+        "transparent": true,
+        "type": "stat"
+    },
+    {
+        "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "clickhouse-access-logs"
+        },
+        "description": "Total active users in this period",
+        "fieldConfig": {
+        "defaults": {
+            "color": {
+            "mode": "thresholds"
+            },
+            "mappings": [],
+            "thresholds": {
+            "mode": "absolute",
+            "steps": [
+                {
+                "color": "light-green",
+                "value": null
+                },
+                {
+                "color": "green",
+                "value": 50000
+                },
+                {
+                "color": "yellow",
+                "value": 100000
+                },
+                {
+                "color": "semi-dark-yellow",
+                "value": 250000
+                },
+                {
+                "color": "orange",
+                "value": 500000
+                },
+                {
+                "color": "light-red",
+                "value": 1000000
+                }
+            ]
+            },
+            "unit": "none"
+        },
+        "overrides": []
+        },
+        "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 4,
+        "y": 28
+        },
+        "id": 195,
+        "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+            "calcs": [
+            "lastNotNull"
+            ],
+            "fields": "",
+            "values": false
+        },
+        "textMode": "auto"
+        },
+        "pluginVersion": "10.0.2",
+        "targets": [
+        {
+            "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "clickhouse-access-logs"
+            },
+            "meta": {
+            "builderOptions": {
+                "fields": [],
+                "limit": 100,
+                "mode": "list"
+            }
+            },
+            "queryType": "sql",
+            "rawSql": "SELECT\n  count(DISTINCT(LogAttributes['user_id']) as userId) as userCount\nFROM\n  gloo_api_logs\nWHERE\n  $__timeFilter(Timestamp) AND\n  LogAttributes['api_id'] = '$api_id' AND\n  LogAttributes['usage_plan'] IN ($usage_plan) AND\n  LogAttributes['status_code'] IN ($status_code) AND\n  LogAttributes['request_command'] IN ($http_method) AND\n  LogAttributes['request_uri'] IN ($request_uri)\nlimit\n  20\n",
+            "refId": "A"
+        }
+        ],
+        "title": "Total active users",
+        "transparent": true,
+        "type": "stat"
+    },
+    {
+        "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "clickhouse-access-logs"
+        },
+        "description": "User error count in this period (4xx status codes)",
+        "fieldConfig": {
+        "defaults": {
+            "color": {
+            "mode": "thresholds"
+            },
+            "mappings": [],
+            "thresholds": {
+            "mode": "absolute",
+            "steps": [
+                {
+                "color": "red",
+                "value": null
+                },
+                {
+                "color": "dark-red",
+                "value": 10000
+                }
+            ]
+            }
+        },
+        "overrides": []
+        },
+        "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 12,
+        "y": 28
+        },
+        "id": 55,
+        "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+            "calcs": [
+            "lastNotNull"
+            ],
+            "fields": "",
+            "values": false
+        },
+        "textMode": "auto"
+        },
+        "pluginVersion": "10.0.2",
+        "targets": [
+        {
+            "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "clickhouse-access-logs"
+            },
+            "meta": {
+            "builderOptions": {
+                "fields": [],
+                "limit": 100,
+                "mode": "list"
+            }
+            },
+            "queryType": "sql",
+            "rawSql": "SELECT\n  count(*) AS count\nFROM\n  gloo_api_logs\nWHERE\n  $__timeFilter(Timestamp) AND\n  LogAttributes['api_id'] = '$api_id' AND\n  LogAttributes['usage_plan'] IN ($usage_plan) AND\n  CAST(LogAttributes['status_code'] AS INT) >= 400 AND CAST(LogAttributes['status_code'] AS INT) < 500 AND\n  LogAttributes['request_command'] IN ($http_method) AND\n  LogAttributes['request_uri'] IN ($request_uri) AND\n  ('$user_id' = 'All' OR LogAttributes['user_id'] = '$user_id')\nORDER BY\n  count Desc\nlimit\n  20\n",
+            "refId": "A"
+        }
+        ],
+        "title": "User error count",
+        "transparent": true,
+        "type": "stat"
+    },
+    {
+        "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "clickhouse-access-logs"
+        },
+        "description": "Server error count in this period (5xx status codes)",
+        "fieldConfig": {
+        "defaults": {
+            "color": {
+            "mode": "thresholds"
+            },
+            "mappings": [],
+            "thresholds": {
+            "mode": "absolute",
+            "steps": [
+                {
+                "color": "red",
+                "value": null
+                },
+                {
+                "color": "dark-red",
+                "value": 10000
+                }
+            ]
+            }
+        },
+        "overrides": []
+        },
+        "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 8,
+        "y": 28
+        },
+        "id": 68,
+        "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+            "calcs": [
+            "lastNotNull"
+            ],
+            "fields": "",
+            "values": false
+        },
+        "textMode": "auto"
+        },
+        "pluginVersion": "10.0.2",
+        "targets": [
+        {
+            "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "clickhouse-access-logs"
+            },
+            "meta": {
+            "builderOptions": {
+                "fields": [],
+                "limit": 100,
+                "mode": "list"
+            }
+            },
+            "queryType": "sql",
+            "rawSql": "SELECT\n  count(*) AS count\nFROM\n  gloo_api_logs\nWHERE\n  $__timeFilter(Timestamp) AND\n  LogAttributes['api_id'] = '$api_id' AND\n  LogAttributes['usage_plan'] IN ($usage_plan) AND\n  CAST(LogAttributes['status_code'] AS INT) >= 500 AND\n  LogAttributes['request_command'] IN ($http_method) AND\n  LogAttributes['request_uri'] IN ($request_uri) AND\n  ('$user_id' = 'All' OR LogAttributes['user_id'] = '$user_id')\nORDER BY\n  count Desc\nlimit\n  20\n",
+            "refId": "A"
+        }
+        ],
+        "title": "Server error count",
+        "transparent": true,
+        "type": "stat"
+    },
+    {
+        "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "clickhouse-access-logs"
+        },
+        "description": "Usage for API '$api_id' with usage plan '$usage_plan'",
+        "fieldConfig": {
+        "defaults": {
+            "color": {
+            "mode": "thresholds"
+            },
+            "custom": {
+            "align": "auto",
+            "cellOptions": {
+                "type": "auto"
+            },
+            "filterable": false,
+            "inspect": false
+            },
+            "mappings": [],
+            "thresholds": {
+            "mode": "absolute",
+            "steps": [
+                {
+                "color": "green",
+                "value": null
+                },
+                {
+                "color": "#6ED0E0",
+                "value": 1000
+                },
+                {
+                "color": "light-blue",
+                "value": 2000
+                },
+                {
+                "color": "light-orange",
+                "value": 5000
+                },
+                {
+                "color": "orange",
+                "value": 10000
+                },
+                {
+                "color": "semi-dark-orange",
+                "value": 20000
+                },
+                {
+                "color": "light-red",
+                "value": 50000
+                },
+                {
+                "color": "red",
+                "value": 100000
+                },
+                {
+                "color": "dark-red",
+                "value": 1000000
+                }
+            ]
+            },
+            "unit": "none"
+        },
+        "overrides": [
+            {
+            "matcher": {
+                "id": "byName",
+                "options": "Count"
+            },
+            "properties": [
+                {
+                "id": "custom.cellOptions",
+                "value": {
+                    "mode": "gradient",
+                    "type": "gauge",
+                    "valueDisplayMode": "text"
+                }
+                }
+            ]
+            },
+            {
+            "matcher": {
+                "id": "byName",
+                "options": "User"
+            },
+            "properties": [
+                {
+                "id": "custom.width",
+                "value": 216
+                }
+            ]
+            }
+        ]
+        },
+        "gridPos": {
+        "h": 11,
+        "w": 7,
+        "x": 0,
+        "y": 32
+        },
+        "id": 170,
+        "options": {
+        "cellHeight": "sm",
+        "footer": {
+            "countRows": false,
+            "enablePagination": false,
+            "fields": [
+            "count"
+            ],
+            "reducer": [
+            "sum"
+            ],
+            "show": true
+        },
+        "showHeader": true,
+        "sortBy": [
+            {
+            "desc": true,
+            "displayName": "Count"
+            }
+        ]
+        },
+        "pluginVersion": "10.0.2",
+        "targets": [
+        {
+            "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "7XaPngu4k"
+            },
+            "meta": {
+            "builderOptions": {
+                "fields": [],
+                "limit": 100,
+                "mode": "list"
+            }
+            },
+            "queryType": "sql",
+            "rawSql": "SELECT\n  CAST(LogAttributes['user_id'] AS VARCHAR) as User,\n  count(*) AS Count\nFROM\n  gloo_api_logs\nWHERE\n  $__timeFilter(Timestamp) AND\n  LogAttributes['api_id'] = '$api_id' AND\n  LogAttributes['usage_plan'] IN ($usage_plan) AND\n  LogAttributes['status_code'] IN ($status_code) AND\n  LogAttributes['request_command'] IN ($http_method) AND\n  LogAttributes['request_uri'] IN ($request_uri) AND\n  ('$user_id' = 'All' OR LogAttributes['user_id'] = '$user_id')\nGROUP BY\n  User\nORDER BY\n  Count Desc",
+            "refId": "A"
+        }
+        ],
+        "title": "Top API consumers",
+        "type": "table"
+    },
+    {
+        "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "clickhouse-access-logs"
+        },
+        "fieldConfig": {
+        "defaults": {
+            "color": {
+            "mode": "palette-classic"
+            },
+            "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "fillOpacity": 80,
+            "gradientMode": "none",
+            "hideFrom": {
+                "legend": false,
+                "tooltip": false,
+                "viz": false
+            },
+            "lineWidth": 1,
+            "scaleDistribution": {
+                "type": "linear"
+            },
+            "thresholdsStyle": {
+                "mode": "off"
+            }
+            },
+            "decimals": 0,
+            "mappings": [],
+            "thresholds": {
+            "mode": "absolute",
+            "steps": [
+                {
+                "color": "green",
+                "value": null
+                },
+                {
+                "color": "red",
+                "value": 80
+                }
+            ]
+            },
+            "unit": "none"
+        },
+        "overrides": []
+        },
+        "gridPos": {
+        "h": 11,
+        "w": 7,
+        "x": 7,
+        "y": 32
+        },
+        "id": 168,
+        "interval": "15m",
+        "options": {
+        "barRadius": 0,
+        "barWidth": 0.97,
+        "fullHighlight": false,
+        "groupWidth": 0.7,
+        "legend": {
+            "calcs": [],
+            "displayMode": "list",
+            "placement": "bottom",
+            "showLegend": true
+        },
+        "orientation": "auto",
+        "showValue": "auto",
+        "stacking": "none",
+        "tooltip": {
+            "mode": "single",
+            "sort": "none"
+        },
+        "xTickLabelRotation": 0,
+        "xTickLabelSpacing": 0
+        },
+        "targets": [
+        {
+            "builderOptions": {
+            "0": "T",
+            "1": "h",
+            "2": "e",
+            "3": " ",
+            "4": "q",
+            "5": "u",
+            "6": "e",
+            "7": "r",
+            "8": "y",
+            "9": " ",
+            "10": "i",
+            "11": "s",
+            "12": " ",
+            "13": "n",
+            "14": "o",
+            "15": "t",
+            "16": " ",
+            "17": "a",
+            "18": " ",
+            "19": "s",
+            "20": "e",
+            "21": "l",
+            "22": "e",
+            "23": "c",
+            "24": "t",
+            "25": " ",
+            "26": "s",
+            "27": "t",
+            "28": "a",
+            "29": "t",
+            "30": "e",
+            "31": "m",
+            "32": "e",
+            "33": "n",
+            "34": "t",
+            "35": ".",
+            "fields": [
+                "LogAttributes"
+            ],
+            "filters": [
+                {
+                "condition": "AND",
+                "filterType": "custom",
+                "key": "Timestamp",
+                "operator": "WITH IN DASHBOARD TIME RANGE",
+                "restrictToFields": [
+                    {
+                    "label": "Timestamp",
+                    "name": "Timestamp",
+                    "picklistValues": [],
+                    "type": "DateTime64(9)"
+                    }
+                ],
+                "type": "datetime"
+                }
+            ],
+            "groupBy": [
+                "TraceId"
+            ],
+            "limit": 100,
+            "metrics": [],
+            "mode": "trend",
+            "orderBy": [],
+            "table": "gloo_api_logs",
+            "timeField": "Timestamp",
+            "timeFieldType": "DateTime64(9)"
+            },
+            "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "clickhouse-access-logs"
+            },
+            "meta": {
+            "builderOptions": {
+                "0": "T",
+                "1": "h",
+                "2": "e",
+                "3": " ",
+                "4": "q",
+                "5": "u",
+                "6": "e",
+                "7": "r",
+                "8": "y",
+                "9": " ",
+                "10": "i",
+                "11": "s",
+                "12": " ",
+                "13": "n",
+                "14": "o",
+                "15": "t",
+                "16": " ",
+                "17": "a",
+                "18": " ",
+                "19": "s",
+                "20": "e",
+                "21": "l",
+                "22": "e",
+                "23": "c",
+                "24": "t",
+                "25": " ",
+                "26": "s",
+                "27": "t",
+                "28": "a",
+                "29": "t",
+                "30": "e",
+                "31": "m",
+                "32": "e",
+                "33": "n",
+                "34": "t",
+                "35": ".",
+                "fields": [
+                "LogAttributes"
+                ],
+                "filters": [
+                {
+                    "condition": "AND",
+                    "filterType": "custom",
+                    "key": "Timestamp",
+                    "operator": "WITH IN DASHBOARD TIME RANGE",
+                    "restrictToFields": [
+                    {
+                        "label": "Timestamp",
+                        "name": "Timestamp",
+                        "picklistValues": [],
+                        "type": "DateTime64(9)"
+                    }
+                    ],
+                    "type": "datetime"
+                }
+                ],
+                "groupBy": [
+                "TraceId"
+                ],
+                "limit": 100,
+                "metrics": [],
+                "mode": "trend",
+                "orderBy": [],
+                "table": "gloo_api_logs",
+                "timeField": "Timestamp",
+                "timeFieldType": "DateTime64(9)"
+            }
+            },
+            "queryType": "sql",
+            "rawSql": "SELECT \n  $__timeInterval(Timestamp) AS time,\n  LogAttributes['api_id'] AS apiId,\n  count(*) AS count\nFROM \n  gloo_api_logs\nWHERE \n  $__timeFilter(Timestamp) AND\n  LogAttributes['api_id'] = '$api_id' AND\n  LogAttributes['usage_plan'] IN ($usage_plan) AND\n  LogAttributes['status_code'] IN ($status_code) AND\n  LogAttributes['request_command'] IN ($http_method) AND\n  LogAttributes['request_uri'] IN ($request_uri) AND\n  ('$user_id' = 'All' OR LogAttributes['user_id'] = '$user_id')\nGROUP BY \n  apiId, \n  time\nORDER BY \n  time ASC",
+            "refId": "A"
+        }
+        ],
+        "title": "Requests over time",
+        "transformations": [
+        {
+            "id": "renameByRegex",
+            "options": {
+            "regex": "count (.*)",
+            "renamePattern": "$1"
+            }
+        }
+        ],
+        "type": "barchart"
+    },
+    {
+        "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "clickhouse-access-logs"
+        },
+        "fieldConfig": {
+        "defaults": {
+            "color": {
+            "mode": "palette-classic"
+            },
+            "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "fillOpacity": 80,
+            "gradientMode": "none",
+            "hideFrom": {
+                "legend": false,
+                "tooltip": false,
+                "viz": false
+            },
+            "lineWidth": 1,
+            "scaleDistribution": {
+                "type": "linear"
+            },
+            "thresholdsStyle": {
+                "mode": "off"
+            }
+            },
+            "decimals": 0,
+            "mappings": [],
+            "thresholds": {
+            "mode": "absolute",
+            "steps": [
+                {
+                "color": "green",
+                "value": null
+                },
+                {
+                "color": "red",
+                "value": 80
+                }
+            ]
+            },
+            "unit": "none"
+        },
+        "overrides": []
+        },
+        "gridPos": {
+        "h": 11,
+        "w": 7,
+        "x": 0,
+        "y": 43
+        },
+        "id": 169,
+        "interval": "30m",
+        "options": {
+        "barRadius": 0,
+        "barWidth": 0.97,
+        "fullHighlight": false,
+        "groupWidth": 0.7,
+        "legend": {
+            "calcs": [],
+            "displayMode": "list",
+            "placement": "bottom",
+            "showLegend": true
+        },
+        "orientation": "auto",
+        "showValue": "auto",
+        "stacking": "normal",
+        "tooltip": {
+            "mode": "single",
+            "sort": "none"
+        },
+        "xTickLabelRotation": 0,
+        "xTickLabelSpacing": 0
+        },
+        "targets": [
+        {
+            "builderOptions": {
+            "0": "T",
+            "1": "h",
+            "2": "e",
+            "3": " ",
+            "4": "q",
+            "5": "u",
+            "6": "e",
+            "7": "r",
+            "8": "y",
+            "9": " ",
+            "10": "i",
+            "11": "s",
+            "12": " ",
+            "13": "n",
+            "14": "o",
+            "15": "t",
+            "16": " ",
+            "17": "a",
+            "18": " ",
+            "19": "s",
+            "20": "e",
+            "21": "l",
+            "22": "e",
+            "23": "c",
+            "24": "t",
+            "25": " ",
+            "26": "s",
+            "27": "t",
+            "28": "a",
+            "29": "t",
+            "30": "e",
+            "31": "m",
+            "32": "e",
+            "33": "n",
+            "34": "t",
+            "35": ".",
+            "fields": [
+                "LogAttributes"
+            ],
+            "filters": [
+                {
+                "condition": "AND",
+                "filterType": "custom",
+                "key": "Timestamp",
+                "operator": "WITH IN DASHBOARD TIME RANGE",
+                "restrictToFields": [
+                    {
+                    "label": "Timestamp",
+                    "name": "Timestamp",
+                    "picklistValues": [],
+                    "type": "DateTime64(9)"
+                    }
+                ],
+                "type": "datetime"
+                }
+            ],
+            "groupBy": [
+                "TraceId"
+            ],
+            "limit": 100,
+            "metrics": [],
+            "mode": "trend",
+            "orderBy": [],
+            "table": "gloo_api_logs",
+            "timeField": "Timestamp",
+            "timeFieldType": "DateTime64(9)"
+            },
+            "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "clickhouse-access-logs"
+            },
+            "meta": {
+            "builderOptions": {
+                "0": "T",
+                "1": "h",
+                "2": "e",
+                "3": " ",
+                "4": "q",
+                "5": "u",
+                "6": "e",
+                "7": "r",
+                "8": "y",
+                "9": " ",
+                "10": "i",
+                "11": "s",
+                "12": " ",
+                "13": "n",
+                "14": "o",
+                "15": "t",
+                "16": " ",
+                "17": "a",
+                "18": " ",
+                "19": "s",
+                "20": "e",
+                "21": "l",
+                "22": "e",
+                "23": "c",
+                "24": "t",
+                "25": " ",
+                "26": "s",
+                "27": "t",
+                "28": "a",
+                "29": "t",
+                "30": "e",
+                "31": "m",
+                "32": "e",
+                "33": "n",
+                "34": "t",
+                "35": ".",
+                "fields": [
+                "LogAttributes"
+                ],
+                "filters": [
+                {
+                    "condition": "AND",
+                    "filterType": "custom",
+                    "key": "Timestamp",
+                    "operator": "WITH IN DASHBOARD TIME RANGE",
+                    "restrictToFields": [
+                    {
+                        "label": "Timestamp",
+                        "name": "Timestamp",
+                        "picklistValues": [],
+                        "type": "DateTime64(9)"
+                    }
+                    ],
+                    "type": "datetime"
+                }
+                ],
+                "groupBy": [
+                "TraceId"
+                ],
+                "limit": 100,
+                "metrics": [],
+                "mode": "trend",
+                "orderBy": [],
+                "table": "gloo_api_logs",
+                "timeField": "Timestamp",
+                "timeFieldType": "DateTime64(9)"
+            }
+            },
+            "queryType": "sql",
+            "rawSql": "SELECT \n  $__timeInterval(Timestamp) AS time,\n  LogAttributes['status_code'] AS statusCode,\n  count(*) as count\nFROM \n  gloo_api_logs\nWHERE \n  $__timeFilter(Timestamp) AND\n  LogAttributes['api_id'] = '$api_id' AND\n  LogAttributes['usage_plan'] IN ($usage_plan) AND\n  LogAttributes['status_code'] IN ($status_code) AND\n  LogAttributes['request_command'] IN ($http_method) AND\n  LogAttributes['request_uri'] IN ($request_uri) AND\n  ('$user_id' = 'All' OR LogAttributes['user_id'] = '$user_id')\nGROUP BY \n  statusCode, \n  time\nORDER BY \n  time ASC",
+            "refId": "A"
+        }
+        ],
+        "title": "Status codes over time",
+        "transformations": [
+        {
+            "id": "renameByRegex",
+            "options": {
+            "regex": "count (.*)",
+            "renamePattern": "$1"
+            }
+        }
+        ],
+        "type": "barchart"
+    },
+    {
+        "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "clickhouse-access-logs"
+        },
+        "description": "",
+        "fieldConfig": {
+        "defaults": {
+            "color": {
+            "mode": "palette-classic"
+            },
+            "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 8,
+            "gradientMode": "none",
+            "hideFrom": {
+                "legend": false,
+                "tooltip": false,
+                "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+                "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": true,
+            "stacking": {
+                "group": "A",
+                "mode": "none"
+            },
+            "thresholdsStyle": {
+                "mode": "off"
+            }
+            },
+            "decimals": 0,
+            "mappings": [],
+            "thresholds": {
+            "mode": "absolute",
+            "steps": [
+                {
+                "color": "green",
+                "value": null
+                },
+                {
+                "color": "red",
+                "value": 80
+                }
+            ]
+            },
+            "unit": "none"
+        },
+        "overrides": []
+        },
+        "gridPos": {
+        "h": 11,
+        "w": 7,
+        "x": 7,
+        "y": 43
+        },
+        "id": 149,
+        "options": {
+        "legend": {
+            "calcs": [],
+            "displayMode": "list",
+            "placement": "bottom",
+            "showLegend": true
+        },
+        "tooltip": {
+            "mode": "single",
+            "sort": "none"
+        }
+        },
+        "pluginVersion": "10.0.0",
+        "targets": [
+        {
+            "builderOptions": {
+            "0": "T",
+            "1": "h",
+            "2": "e",
+            "3": " ",
+            "4": "q",
+            "5": "u",
+            "6": "e",
+            "7": "r",
+            "8": "y",
+            "9": " ",
+            "10": "i",
+            "11": "s",
+            "12": " ",
+            "13": "n",
+            "14": "o",
+            "15": "t",
+            "16": " ",
+            "17": "a",
+            "18": " ",
+            "19": "s",
+            "20": "e",
+            "21": "l",
+            "22": "e",
+            "23": "c",
+            "24": "t",
+            "25": " ",
+            "26": "s",
+            "27": "t",
+            "28": "a",
+            "29": "t",
+            "30": "e",
+            "31": "m",
+            "32": "e",
+            "33": "n",
+            "34": "t",
+            "35": ".",
+            "database": "default",
+            "fields": [],
+            "filters": [
+                {
+                "condition": "AND",
+                "filterType": "custom",
+                "key": "Timestamp",
+                "operator": "WITH IN DASHBOARD TIME RANGE",
+                "restrictToFields": [
+                    {
+                    "label": "Timestamp",
+                    "name": "Timestamp",
+                    "picklistValues": [],
+                    "type": "DateTime64(9)"
+                    }
+                ],
+                "type": "datetime"
+                }
+            ],
+            "limit": 100,
+            "mode": "list",
+            "orderBy": [],
+            "table": "gloo_api_logs"
+            },
+            "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "clickhouse-access-logs"
+            },
+            "format": 1,
+            "meta": {
+            "builderOptions": {
+                "0": "T",
+                "1": "h",
+                "2": "e",
+                "3": " ",
+                "4": "q",
+                "5": "u",
+                "6": "e",
+                "7": "r",
+                "8": "y",
+                "9": " ",
+                "10": "i",
+                "11": "s",
+                "12": " ",
+                "13": "n",
+                "14": "o",
+                "15": "t",
+                "16": " ",
+                "17": "a",
+                "18": " ",
+                "19": "s",
+                "20": "e",
+                "21": "l",
+                "22": "e",
+                "23": "c",
+                "24": "t",
+                "25": " ",
+                "26": "s",
+                "27": "t",
+                "28": "a",
+                "29": "t",
+                "30": "e",
+                "31": "m",
+                "32": "e",
+                "33": "n",
+                "34": "t",
+                "35": ".",
+                "database": "default",
+                "fields": [],
+                "filters": [
+                {
+                    "condition": "AND",
+                    "filterType": "custom",
+                    "key": "Timestamp",
+                    "operator": "WITH IN DASHBOARD TIME RANGE",
+                    "restrictToFields": [
+                    {
+                        "label": "Timestamp",
+                        "name": "Timestamp",
+                        "picklistValues": [],
+                        "type": "DateTime64(9)"
+                    }
+                    ],
+                    "type": "datetime"
+                }
+                ],
+                "limit": 100,
+                "mode": "list",
+                "orderBy": [],
+                "table": "gloo_api_logs"
+            }
+            },
+            "queryType": "sql",
+            "rawSql": "SELECT\n    $__timeInterval(Timestamp) AS time,\n    quantileExact(0.25)(CAST(LogAttributes['response_duration'] AS INT)) as p25\nFROM\n    gloo_api_logs\nWHERE\n    $__timeFilter(Timestamp) AND\n    LogAttributes['api_id'] = '$api_id'\nGROUP BY time\nORDER BY time\n\n",
+            "refId": "p25",
+            "selectedFormat": 1
+        },
+        {
+            "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "clickhouse-access-logs"
+            },
+            "hide": false,
+            "meta": {
+            "builderOptions": {
+                "fields": [],
+                "limit": 100,
+                "mode": "list"
+            }
+            },
+            "queryType": "sql",
+            "rawSql": "\nSELECT\n    $__timeInterval(Timestamp) AS time,\n    quantileExact(0.5)(CAST(LogAttributes['response_duration'] AS INT)) as p50\nFROM\n    gloo_api_logs\nWHERE\n    $__timeFilter(Timestamp) AND\n    LogAttributes['api_id'] = '$api_id'\nGROUP BY time\nORDER BY time",
+            "refId": "p50"
+        },
+        {
+            "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "clickhouse-access-logs"
+            },
+            "hide": false,
+            "meta": {
+            "builderOptions": {
+                "fields": [],
+                "limit": 100,
+                "mode": "list"
+            }
+            },
+            "queryType": "sql",
+            "rawSql": "SELECT\n    $__timeInterval(Timestamp) AS time,\n    quantileExact(0.75)(CAST(LogAttributes['response_duration'] AS INT)) as p75\nFROM\n    gloo_api_logs\nWHERE\n    $__timeFilter(Timestamp) AND\n    LogAttributes['api_id'] = '$api_id'\nGROUP BY time\nORDER BY time",
+            "refId": "p75"
+        },
+        {
+            "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "clickhouse-access-logs"
+            },
+            "hide": false,
+            "meta": {
+            "builderOptions": {
+                "fields": [],
+                "limit": 100,
+                "mode": "list"
+            }
+            },
+            "queryType": "sql",
+            "rawSql": "SELECT\n    $__timeInterval(Timestamp) AS time,\n    quantileExact(0.90)(CAST(LogAttributes['response_duration'] AS INT)) as p90\nFROM\n    gloo_api_logs\nWHERE\n    $__timeFilter(Timestamp) AND\n    LogAttributes['api_id'] = '$api_id'\nGROUP BY time\nORDER BY time",
+            "refId": "p90"
+        },
+        {
+            "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "clickhouse-access-logs"
+            },
+            "hide": false,
+            "meta": {
+            "builderOptions": {
+                "fields": [],
+                "limit": 100,
+                "mode": "list"
+            }
+            },
+            "queryType": "sql",
+            "rawSql": "SELECT\n    $__timeInterval(Timestamp) AS time,\n    quantileExact(0.95)(CAST(LogAttributes['response_duration'] AS INT)) as p95\nFROM\n    gloo_api_logs\nWHERE\n    $__timeFilter(Timestamp) AND\n    LogAttributes['api_id'] = '$api_id'\nGROUP BY time\nORDER BY time",
+            "refId": "p95"
+        },
+        {
+            "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "clickhouse-access-logs"
+            },
+            "hide": false,
+            "meta": {
+            "builderOptions": {
+                "fields": [],
+                "limit": 100,
+                "mode": "list"
+            }
+            },
+            "queryType": "sql",
+            "rawSql": "SELECT\n    $__timeInterval(Timestamp) AS time,\n    quantileExact(0.99)(CAST(LogAttributes['response_duration'] AS INT)) as p99\nFROM\n    gloo_api_logs\nWHERE\n    $__timeFilter(Timestamp) AND\n    LogAttributes['api_id'] = '$api_id'\nGROUP BY time\nORDER BY time",
+            "refId": "p99"
+        },
+        {
+            "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "clickhouse-access-logs"
+            },
+            "hide": false,
+            "meta": {
+            "builderOptions": {
+                "fields": [],
+                "limit": 100,
+                "mode": "list"
+            }
+            },
+            "queryType": "sql",
+            "rawSql": "SELECT\n    $__timeInterval(Timestamp) AS time,\n    quantileExact(0.999)(CAST(LogAttributes['response_duration'] AS INT)) as p999\nFROM\n    gloo_api_logs\nWHERE\n    $__timeFilter(Timestamp) AND\n    LogAttributes['api_id'] = '$api_id'\nGROUP BY time\nORDER BY time",
+            "refId": "p999"
+        }
+        ],
+        "title": "Request latency",
+        "transformations": [
+        {
+            "id": "renameByRegex",
+            "options": {
+            "regex": "(.*)",
+            "renamePattern": "$1"
+            }
+        }
+        ],
+        "type": "timeseries"
+    }
+    ],
+    "refresh": "",
+    "schemaVersion": 38,
+    "style": "dark",
+    "tags": [],
+    "templating": {
+    "list": [
+        {
+        "allValue": "",
+        "current": {
+            "selected": true,
+            "text": [
+            "All"
+            ],
+            "value": [
+            "$__all"
+            ]
+        },
+        "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "clickhouse-access-logs"
+        },
+        "definition": "Select DISTINCT (LogAttributes['api_id'])\nFROM\n  gloo_api_logs\nWHERE\n  LogAttributes['api_id'] IS NOT NULL AND\n  LogAttributes['api_id'] != '' AND\n  LogAttributes['api_id'] != '<nil>'",
+        "description": "Api ID",
+        "hide": 0,
+        "includeAll": true,
+        "label": "Api ID",
+        "multi": true,
+        "name": "api_id",
+        "options": [],
+        "query": "Select DISTINCT (LogAttributes['api_id'])\nFROM\n  gloo_api_logs\nWHERE\n  LogAttributes['api_id'] IS NOT NULL AND\n  LogAttributes['api_id'] != '' AND\n  LogAttributes['api_id'] != '<nil>'",
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 1,
+        "type": "query"
+        },
+        {
+        "allValue": "",
+        "current": {
+            "selected": true,
+            "text": [
+            "gold"
+            ],
+            "value": [
+            "gold"
+            ]
+        },
+        "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "clickhouse-access-logs"
+        },
+        "definition": "Select DISTINCT(LogAttributes['usage_plan'])\nFROM\n  gloo_api_logs\nWHERE\n  LogAttributes['usage_plan'] IS NOT NULL AND\n  LogAttributes['usage_plan'] != '' AND\n  LogAttributes['usage_plan'] != '<nil>'",
+        "description": "Usage Plan",
+        "hide": 0,
+        "includeAll": true,
+        "label": "Usage Plan",
+        "multi": true,
+        "name": "usage_plan",
+        "options": [],
+        "query": "Select DISTINCT(LogAttributes['usage_plan'])\nFROM\n  gloo_api_logs\nWHERE\n  LogAttributes['usage_plan'] IS NOT NULL AND\n  LogAttributes['usage_plan'] != '' AND\n  LogAttributes['usage_plan'] != '<nil>'",
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 1,
+        "type": "query"
+        },
+        {
+        "current": {
+            "selected": true,
+            "text": [
+            "All"
+            ],
+            "value": [
+            "$__all"
+            ]
+        },
+        "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "clickhouse-access-logs"
+        },
+        "definition": "select distinct(LogAttributes['request_uri']) requestUri from gloo_api_logs",
+        "description": "Request path",
+        "hide": 0,
+        "includeAll": true,
+        "label": "Request URI",
+        "multi": true,
+        "name": "request_uri",
+        "options": [],
+        "query": "select distinct(LogAttributes['request_uri']) requestUri from gloo_api_logs",
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 1,
+        "type": "query"
+        },
+        {
+        "current": {
+            "selected": true,
+            "text": [
+            "All"
+            ],
+            "value": [
+            "$__all"
+            ]
+        },
+        "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "clickhouse-access-logs"
+        },
+        "definition": "select distinct(LogAttributes['request_command']) as requestCommand from gloo_api_logs",
+        "hide": 0,
+        "includeAll": true,
+        "label": "HTTP Method",
+        "multi": true,
+        "name": "http_method",
+        "options": [],
+        "query": "select distinct(LogAttributes['request_command']) as requestCommand from gloo_api_logs",
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 0,
+        "type": "query"
+        },
+        {
+        "current": {
+            "selected": true,
+            "text": [
+            "All"
+            ],
+            "value": [
+            "$__all"
+            ]
+        },
+        "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "clickhouse-access-logs"
+        },
+        "definition": "select distinct(LogAttributes['status_code']) as statusCode from gloo_api_logs",
+        "hide": 0,
+        "includeAll": true,
+        "label": "Status Code",
+        "multi": true,
+        "name": "status_code",
+        "options": [],
+        "query": "select distinct(LogAttributes['status_code']) as statusCode from gloo_api_logs",
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 1,
+        "type": "query"
+        },
+        {
+        "allValue": "All",
+        "current": {
+            "selected": false,
+            "text": "All",
+            "value": "$__all"
+        },
+        "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "clickhouse-access-logs"
+        },
+        "definition": "select distinct(LogAttributes['user_id']) as userId from gloo_api_logs\nwhere userId like '$filter_users%' AND userId != '<nil>'\nLIMIT 100",
+        "hide": 0,
+        "includeAll": true,
+        "label": "User ID",
+        "multi": false,
+        "name": "user_id",
+        "options": [],
+        "query": "select distinct(LogAttributes['user_id']) as userId from gloo_api_logs\nwhere userId like '$filter_users%' AND userId != '<nil>'\nLIMIT 100",
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 1,
+        "type": "query"
+        },
+        {
+        "current": {
+            "selected": false,
+            "text": "",
+            "value": ""
+        },
+        "hide": 0,
+        "label": "Filter Users",
+        "name": "filter_users",
+        "options": [
+            {
+            "selected": true,
+            "text": "",
+            "value": ""
+            }
+        ],
+        "query": "",
+        "skipUrlSync": false,
+        "type": "textbox"
+        }
+    ]
+    },
+    "time": {
+    "from": "now-6h",
+    "to": "now"
+    },
+    "timepicker": {},
+    "timezone": "",
+    "title": "API Dashboard",
+    "uid": "db93be88-8cd4-4c32-8a37-83fbca40e3f0",
+    "version": 4,
+    "weekStart": ""
+    }
