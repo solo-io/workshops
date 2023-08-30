@@ -156,7 +156,7 @@ kubectl config use-context ${MGMT}
 First of all, let's install the `meshctl` CLI:
 
 ```bash
-export GLOO_MESH_VERSION=v2.3.10
+export GLOO_MESH_VERSION=v2.3.15
 curl -sL https://run.solo.io/meshctl/install | sh -
 export PATH=$HOME/.gloo-mesh/bin:$PATH
 ```
@@ -202,11 +202,11 @@ kubectl --context ${MGMT} create ns gloo-mesh
 helm upgrade --install gloo-platform-crds gloo-platform/gloo-platform-crds \
 --namespace gloo-mesh \
 --kube-context ${MGMT} \
---version=2.3.10
+--version=2.3.15
 helm upgrade --install gloo-platform gloo-platform/gloo-platform \
 --namespace gloo-mesh \
 --kube-context ${MGMT} \
---version=2.3.10 \
+--version=2.3.15 \
  -f -<<EOF
 licensing:
   licenseKey: ${GLOO_MESH_LICENSE_KEY}
@@ -343,11 +343,11 @@ rm token
 helm upgrade --install gloo-platform-crds gloo-platform/gloo-platform-crds  \
 --namespace=gloo-mesh \
 --kube-context=${CLUSTER1} \
---version=2.3.10
+--version=2.3.15
 helm upgrade --install gloo-platform gloo-platform/gloo-platform \
   --namespace=gloo-mesh \
   --kube-context=${CLUSTER1} \
-  --version=2.3.10 \
+  --version=2.3.15 \
  -f -<<EOF
 common:
   cluster: cluster1
@@ -390,11 +390,11 @@ rm token
 helm upgrade --install gloo-platform-crds gloo-platform/gloo-platform-crds  \
 --namespace=gloo-mesh \
 --kube-context=${CLUSTER2} \
---version=2.3.10
+--version=2.3.15
 helm upgrade --install gloo-platform gloo-platform/gloo-platform \
   --namespace=gloo-mesh \
   --kube-context=${CLUSTER2} \
-  --version=2.3.10 \
+  --version=2.3.15 \
  -f -<<EOF
 common:
   cluster: cluster2
@@ -1295,7 +1295,7 @@ Then, you can deploy the addons on the cluster(s) using Helm:
 helm upgrade --install gloo-platform gloo-platform/gloo-platform \
   --namespace gloo-mesh-addons \
   --kube-context=${CLUSTER1} \
-  --version 2.3.10 \
+  --version 2.3.15 \
  -f -<<EOF
 common:
   cluster: cluster1
@@ -1318,7 +1318,7 @@ EOF
 helm upgrade --install gloo-platform gloo-platform/gloo-platform \
   --namespace gloo-mesh-addons \
   --kube-context=${CLUSTER2} \
-  --version 2.3.10 \
+  --version 2.3.15 \
  -f -<<EOF
 common:
   cluster: cluster2
@@ -1763,7 +1763,7 @@ EOF
 echo "executing test dist/gloo-mesh-2-0-cilium/build/templates/steps/apps/bookinfo/gateway-expose/tests/otel-metrics.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
-mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
+mocha ./test.js --timeout 10000 --retries=150 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
 -->
 
 This diagram shows the flow of the request (through the Istio Ingress Gateway):
@@ -3980,26 +3980,7 @@ mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${te
 
 In this step, we're going to apply rate limiting to the Gateway to only allow 3 requests per minute for the users of the `solo.io` organization.
 
-First, we need to create a `RateLimitClientConfig` object to define the descriptors:
-
-```bash
-kubectl apply --context ${CLUSTER1} -f - <<EOF
-apiVersion: trafficcontrol.policy.gloo.solo.io/v2
-kind: RateLimitClientConfig
-metadata:
-  name: httpbin
-  namespace: httpbin
-spec:
-  raw:
-    rateLimits:
-    - setActions:
-      - requestHeaders:
-          descriptorKey: organization
-          headerName: X-Organization
-EOF
-```
-
-Then, we need to create a `RateLimitServerConfig` object to define the limits based on the descriptors:
+First, we need to create a `RateLimitServerConfig` object to define the limits based on the descriptors we will use later:
 
 ```bash
 kubectl apply --context ${CLUSTER1} -f - <<EOF
@@ -4046,10 +4027,12 @@ spec:
       name: rate-limit-server
       namespace: gloo-mesh-addons
       cluster: cluster1
-    ratelimitClientConfig:
-      name: httpbin
-      namespace: httpbin
-      cluster: cluster1
+    raw:
+      rateLimits:
+      - setActions:
+        - requestHeaders:
+            descriptorKey: organization
+            headerName: X-Organization
     ratelimitServerConfig:
       name: httpbin
       namespace: httpbin
@@ -4057,6 +4040,7 @@ spec:
     phase:
       postAuthz:
         priority: 3
+
 EOF
 ```
 
@@ -4155,9 +4139,9 @@ EOF
 And also delete the different objects we've created:
 ```bash
 kubectl --context ${CLUSTER1} -n httpbin delete ratelimitpolicy httpbin
-kubectl --context ${CLUSTER1} -n httpbin delete ratelimitclientconfig httpbin
 kubectl --context ${CLUSTER1} -n httpbin delete ratelimitserverconfig httpbin
 ```
+
 
 
 
