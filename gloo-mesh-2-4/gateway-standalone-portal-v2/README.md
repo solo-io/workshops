@@ -247,7 +247,7 @@ istioInstallations:
           gatewayRevision: auto
           istioOperatorSpec:
             hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-            tag: 1.18.1-solo
+            tag: 1.18.2-solo
             profile: empty
             components:
               ingressGateways:
@@ -2639,6 +2639,10 @@ spec:
         name: portal-frontend
         ports:
         - containerPort: 4000
+        readinessProbe:
+          httpGet:
+            path: /login
+            port: 4000
         env:
         - name: VITE_PORTAL_SERVER_URL
           value: "https://${ENDPOINT_HTTPS_GW_CLUSTER1}/portal-server/v1"
@@ -3789,7 +3793,7 @@ grafana/grafana \
 admin:
   existingSecret: grafana
 service:
-  port: 8000
+  port: 3000
   type: LoadBalancer
 plugins:
 - grafana-clickhouse-datasource
