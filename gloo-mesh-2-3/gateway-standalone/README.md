@@ -221,7 +221,7 @@ istioInstallations:
           gatewayRevision: auto
           istioOperatorSpec:
             hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-            tag: 1.18.1-solo
+            tag: 1.18.2-solo
             profile: empty
             components:
               ingressGateways:
