@@ -377,7 +377,7 @@ spec:
       istioOperatorSpec:
         profile: minimal
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.18.1-solo
+        tag: 1.18.2-solo
         namespace: istio-system
         values:
           global:
@@ -417,7 +417,7 @@ spec:
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.18.1-solo
+        tag: 1.18.2-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -444,7 +444,7 @@ spec:
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.18.1-solo
+        tag: 1.18.2-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -2908,555 +2908,19 @@ spec:
 EOF
 ```
 
-Then, you need to create an `APIDoc` object to provide the openapi spec for this API:
+Then, you need to create an `ApiSchemaDiscovery` object to tell Gloo Platform how to fetch the OpenAPI document:
 
 ```bash
 kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: apimanagement.gloo.solo.io/v2
-kind: ApiDoc
+kind: ApiSchemaDiscovery
 metadata:
   name: openlibrary
   namespace: bookinfo-frontends
 spec:
   openapi:
-    inlineString: |
-      {
-        "openapi": "3.0.2",
-        "info": {
-          "title": "OpenAPI",
-          "version": "0.1.0"
-        },
-        "paths": {
-          "/api/books": {
-            "get": {
-              "summary": "Read Api Books",
-              "operationId": "read_api_books_api_books_get",
-              "parameters": [
-                {
-                  "required": true,
-                  "schema": {
-                    "title": "Bibkeys",
-                    "type": "string"
-                  },
-                  "name": "bibkeys",
-                  "in": "query"
-                },
-                {
-                  "required": false,
-                  "schema": {
-                    "title": "Format",
-                    "type": "string",
-                    "default": "json"
-                  },
-                  "name": "format",
-                  "in": "query"
-                },
-                {
-                  "required": false,
-                  "schema": {
-                    "title": "Callback"
-                  },
-                  "name": "callback",
-                  "in": "query"
-                },
-                {
-                  "required": false,
-                  "schema": {
-                    "title": "Jscmd",
-                    "type": "string",
-                    "default": "viewapi"
-                  },
-                  "name": "jscmd",
-                  "in": "query"
-                }
-              ],
-              "responses": {
-                "200": {
-                  "description": "Successful Response",
-                  "content": {
-                    "application/json": {
-                      "schema": {}
-                    }
-                  }
-                },
-                "422": {
-                  "description": "Validation Error",
-                  "content": {
-                    "application/json": {
-                      "schema": {
-                        "$ref": "#/components/schemas/HTTPValidationError"
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "/api/volumes/brief/{key_type}/{value}.json": {
-            "get": {
-              "summary": "Read Api Volumes Brief",
-              "operationId": "read_api_volumes_brief_api_volumes_brief__key_type___value__json_get",
-              "parameters": [
-                {
-                  "required": true,
-                  "schema": {
-                    "title": "Key Type"
-                  },
-                  "name": "key_type",
-                  "in": "path"
-                },
-                {
-                  "required": true,
-                  "schema": {
-                    "title": "Value"
-                  },
-                  "name": "value",
-                  "in": "path"
-                },
-                {
-                  "required": false,
-                  "schema": {
-                    "title": "Callback"
-                  },
-                  "name": "callback",
-                  "in": "query"
-                }
-              ],
-              "responses": {
-                "200": {
-                  "description": "Successful Response",
-                  "content": {
-                    "application/json": {
-                      "schema": {}
-                    }
-                  }
-                },
-                "422": {
-                  "description": "Validation Error",
-                  "content": {
-                    "application/json": {
-                      "schema": {
-                        "$ref": "#/components/schemas/HTTPValidationError"
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "/authors/{olid}.json": {
-            "get": {
-              "summary": "Read Authors",
-              "operationId": "read_authors_authors__olid__json_get",
-              "parameters": [
-                {
-                  "required": true,
-                  "schema": {
-                    "title": "Olid"
-                  },
-                  "name": "olid",
-                  "in": "path"
-                }
-              ],
-              "responses": {
-                "200": {
-                  "description": "Successful Response",
-                  "content": {
-                    "application/json": {
-                      "schema": {}
-                    }
-                  }
-                },
-                "422": {
-                  "description": "Validation Error",
-                  "content": {
-                    "application/json": {
-                      "schema": {
-                        "$ref": "#/components/schemas/HTTPValidationError"
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "/authors/{olid}/works.json": {
-            "get": {
-              "summary": "Read Authors Works",
-              "operationId": "read_authors_works_authors__olid__works_json_get",
-              "parameters": [
-                {
-                  "required": true,
-                  "schema": {
-                    "title": "Olid"
-                  },
-                  "name": "olid",
-                  "in": "path"
-                },
-                {
-                  "required": false,
-                  "schema": {
-                    "title": "Limit",
-                    "type": "integer"
-                  },
-                  "name": "limit",
-                  "in": "query"
-                }
-              ],
-              "responses": {
-                "200": {
-                  "description": "Successful Response",
-                  "content": {
-                    "application/json": {
-                      "schema": {}
-                    }
-                  }
-                },
-                "422": {
-                  "description": "Validation Error",
-                  "content": {
-                    "application/json": {
-                      "schema": {
-                        "$ref": "#/components/schemas/HTTPValidationError"
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "/books/{olid}": {
-            "get": {
-              "summary": "Read Books",
-              "operationId": "read_books_books__olid__get",
-              "parameters": [
-                {
-                  "required": true,
-                  "schema": {
-                    "title": "Olid"
-                  },
-                  "name": "olid",
-                  "in": "path"
-                }
-              ],
-              "responses": {
-                "200": {
-                  "description": "Successful Response",
-                  "content": {
-                    "application/json": {
-                      "schema": {}
-                    }
-                  }
-                },
-                "422": {
-                  "description": "Validation Error",
-                  "content": {
-                    "application/json": {
-                      "schema": {
-                        "$ref": "#/components/schemas/HTTPValidationError"
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "/covers/{key_type}/{value}-{size}.jpg": {
-            "get": {
-              "summary": "Read Covers Key Type Value Size Jpeg",
-              "operationId": "read_covers_key_type_value_size_jpeg_covers__key_type___value___size__jpg_get",
-              "parameters": [
-                {
-                  "required": true,
-                  "schema": {
-                    "title": "Key Type"
-                  },
-                  "name": "key_type",
-                  "in": "path"
-                },
-                {
-                  "required": true,
-                  "schema": {
-                    "title": "Value"
-                  },
-                  "name": "value",
-                  "in": "path"
-                },
-                {
-                  "required": true,
-                  "schema": {
-                    "title": "Size"
-                  },
-                  "name": "size",
-                  "in": "path"
-                }
-              ],
-              "responses": {
-                "200": {
-                  "description": "Successful Response",
-                  "content": {
-                    "application/json": {
-                      "schema": {}
-                    }
-                  }
-                },
-                "422": {
-                  "description": "Validation Error",
-                  "content": {
-                    "application/json": {
-                      "schema": {
-                        "$ref": "#/components/schemas/HTTPValidationError"
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "/isbn/{isbn}": {
-            "get": {
-              "summary": "Read Isbn",
-              "operationId": "read_isbn_isbn__isbn__get",
-              "parameters": [
-                {
-                  "required": true,
-                  "schema": {
-                    "title": "Isbn"
-                  },
-                  "name": "isbn",
-                  "in": "path"
-                }
-              ],
-              "responses": {
-                "200": {
-                  "description": "Successful Response",
-                  "content": {
-                    "application/json": {
-                      "schema": {}
-                    }
-                  }
-                },
-                "422": {
-                  "description": "Validation Error",
-                  "content": {
-                    "application/json": {
-                      "schema": {
-                        "$ref": "#/components/schemas/HTTPValidationError"
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "/search.json": {
-            "get": {
-              "summary": "Read Search Json",
-              "operationId": "read_search_json_search_json_get",
-              "parameters": [
-                {
-                  "required": true,
-                  "schema": {
-                    "title": "Q"
-                  },
-                  "name": "q",
-                  "in": "query"
-                },
-                {
-                  "required": false,
-                  "schema": {
-                    "title": "Page",
-                    "type": "integer"
-                  },
-                  "name": "page",
-                  "in": "query"
-                }
-              ],
-              "responses": {
-                "200": {
-                  "description": "Successful Response",
-                  "content": {
-                    "application/json": {
-                      "schema": {}
-                    }
-                  }
-                },
-                "422": {
-                  "description": "Validation Error",
-                  "content": {
-                    "application/json": {
-                      "schema": {
-                        "$ref": "#/components/schemas/HTTPValidationError"
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "/search/authors.json": {
-            "get": {
-              "summary": "Read Search Authors Json",
-              "operationId": "read_search_authors_json_search_authors_json_get",
-              "parameters": [
-                {
-                  "required": true,
-                  "schema": {
-                    "title": "Q"
-                  },
-                  "name": "q",
-                  "in": "query"
-                }
-              ],
-              "responses": {
-                "200": {
-                  "description": "Successful Response",
-                  "content": {
-                    "application/json": {
-                      "schema": {}
-                    }
-                  }
-                },
-                "422": {
-                  "description": "Validation Error",
-                  "content": {
-                    "application/json": {
-                      "schema": {
-                        "$ref": "#/components/schemas/HTTPValidationError"
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "/subjects/{subject}.json": {
-            "get": {
-              "summary": "Read Subjects",
-              "operationId": "read_subjects_subjects__subject__json_get",
-              "parameters": [
-                {
-                  "required": true,
-                  "schema": {
-                    "title": "Subject"
-                  },
-                  "name": "subject",
-                  "in": "path"
-                },
-                {
-                  "required": false,
-                  "schema": {
-                    "title": "Details",
-                    "type": "boolean",
-                    "default": false
-                  },
-                  "name": "details",
-                  "in": "query"
-                }
-              ],
-              "responses": {
-                "200": {
-                  "description": "Successful Response",
-                  "content": {
-                    "application/json": {
-                      "schema": {}
-                    }
-                  }
-                },
-                "422": {
-                  "description": "Validation Error",
-                  "content": {
-                    "application/json": {
-                      "schema": {
-                        "$ref": "#/components/schemas/HTTPValidationError"
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "/works/{olid}": {
-            "get": {
-              "summary": "Read Works",
-              "operationId": "read_works_works__olid__get",
-              "parameters": [
-                {
-                  "required": true,
-                  "schema": {
-                    "title": "Olid"
-                  },
-                  "name": "olid",
-                  "in": "path"
-                }
-              ],
-              "responses": {
-                "200": {
-                  "description": "Successful Response",
-                  "content": {
-                    "application/json": {
-                      "schema": {}
-                    }
-                  }
-                },
-                "422": {
-                  "description": "Validation Error",
-                  "content": {
-                    "application/json": {
-                      "schema": {
-                        "$ref": "#/components/schemas/HTTPValidationError"
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }
-        },
-        "components": {
-          "schemas": {
-            "HTTPValidationError": {
-              "title": "HTTPValidationError",
-              "type": "object",
-              "properties": {
-                "detail": {
-                  "title": "Detail",
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/ValidationError"
-                  }
-                }
-              }
-            },
-            "ValidationError": {
-              "title": "ValidationError",
-              "required": [
-                "loc",
-                "msg",
-                "type"
-              ],
-              "type": "object",
-              "properties": {
-                "loc": {
-                  "title": "Location",
-                  "type": "array",
-                  "items": {
-                    "type": "string"
-                  }
-                },
-                "msg": {
-                  "title": "Message",
-                  "type": "string"
-                },
-                "type": {
-                  "title": "Error Type",
-                  "type": "string"
-                }
-              }
-            }
-          }
-        }
-      }
+    fetchEndpoint:
+      url: "https://openlibrary.org/static/openapi.json"
   servedBy:
   - destinationSelector:
       kind: EXTERNAL_SERVICE
@@ -3468,6 +2932,26 @@ spec:
         namespace: bookinfo-frontends
 EOF
 ```
+
+An `APIDoc` Kubernetes object should be automatically created:
+
+```shell
+kubectl --context ${CLUSTER1} -n bookinfo-frontends get apidoc openlibrary -o yaml
+```
+
+<!--bash
+cat <<'EOF' > ./test.js
+const helpers = require('./tests/chai-exec');
+
+describe("APIDoc has been created", () => {
+    it('APIDoc is present', () => helpers.k8sObjectIsPresent({ context: process.env.CLUSTER1, namespace: "bookinfo-frontends", k8sType: "apidoc", k8sObj: "openlibrary" }));
+});
+EOF
+echo "executing test dist/gloo-mesh-2-0-gateway-portal-beta/build/templates/steps/apps/bookinfo/dev-portal-stitching/tests/apidoc-created.test.js.liquid"
+tempfile=$(mktemp)
+echo "saving errors in ${tempfile}"
+mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
+-->
 
 Finally, you can create a new `RouteTable` to stitch together the `/search.json` path with the existing Bookinfo API:
 
@@ -3817,6 +3301,10 @@ spec:
         name: portal-frontend
         ports:
         - containerPort: 4000
+        readinessProbe:
+          httpGet:
+            path: /login
+            port: 4000
         env:
         - name: VITE_PORTAL_SERVER_URL
           value: "https://${ENDPOINT_HTTPS_GW_CLUSTER1}/portal-server/v1"
@@ -4326,7 +3814,7 @@ grafana/grafana \
 admin:
   existingSecret: grafana
 service:
-  port: 8000
+  port: 3000
   type: LoadBalancer
 plugins:
 - grafana-clickhouse-datasource
