@@ -666,7 +666,7 @@ spec:
             logLevel: info
         meshConfig:
           accessLogFile: /dev/stdout
-          defaultConfig:        
+          defaultConfig:
             proxyMetadata:
               ISTIO_META_DNS_CAPTURE: "true"
               ISTIO_META_DNS_AUTO_ALLOCATE: "true"
@@ -777,7 +777,7 @@ spec:
             logLevel: info
         meshConfig:
           accessLogFile: /dev/stdout
-          defaultConfig:        
+          defaultConfig:
             proxyMetadata:
               ISTIO_META_DNS_CAPTURE: "true"
               ISTIO_META_DNS_AUTO_ALLOCATE: "true"
@@ -1980,7 +1980,7 @@ kubectl --context ${CLUSTER1} -n bookinfo-frontends delete routetable reviews
 ## Lab 11 - Create the Root Trust Policy <a name="lab-11---create-the-root-trust-policy-"></a>
 [<img src="https://img.youtube.com/vi/-A2U2fYYgrU/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/-A2U2fYYgrU "Video Link")
 
-To allow secured (end-to-end mTLS) cross cluster communications, we need to make sure the certificates issued by the Istio control plance on each cluster are signed with intermediate certificates which have a common root CA.
+To allow secured (end-to-end mTLS) cross cluster communications, we need to make sure the certificates issued by the Istio control plane on each cluster are signed with intermediate certificates which have a common root CA.
 
 Gloo Mesh fully automates this process.
 
@@ -3305,7 +3305,25 @@ grafana:
     url: http://prometheus-server.gloo-mesh:80
 EOF
 ```
+<!--bash
+cat <<'EOF' > ./test.js
+const helpers = require('./tests/chai-exec');
 
+describe("kube-prometheus-stack deployments are ready", () => {
+  it('kube-prometheus-stack-kube-state-metrics pods are ready', () => helpers.checkDeployment({ context: process.env.MGMT, namespace: "monitoring", k8sObj: "kube-prometheus-stack-kube-state-metrics" }));
+  it('kube-prometheus-stack-grafana pods are ready', () => helpers.checkDeployment({ context: process.env.MGMT, namespace: "monitoring", k8sObj: "kube-prometheus-stack-grafana" }));
+  it('kube-prometheus-stack-operator pods are ready', () => helpers.checkDeployment({ context: process.env.MGMT, namespace: "monitoring", k8sObj: "kube-prometheus-stack-operator" }));
+});
+
+describe("kube-prometheus-stack daemonset is ready", () => {
+  it('kube-prometheus-stack-prometheus-node-exporter pods are ready', () => helpers.checkDaemonSet({ context: process.env.MGMT, namespace: "monitoring", k8sObj: "kube-prometheus-stack-prometheus-node-exporter" }));
+});
+EOF
+echo "executing test dist/gloo-mesh-2-0-ipv6-beta/build/templates/steps/gloo-platform-observability/tests/grafana-installed.test.js.liquid"
+tempfile=$(mktemp)
+echo "saving errors in ${tempfile}"
+mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
+-->
 Let's install a few dashboards!
 
 Now, you can go the the Grafana tab, log in with the default login credentials, admin/prom-operator, and import the dashboard of Istio control plane.
@@ -3392,7 +3410,9 @@ telemetryCollectorCustomization:
       exporters:
       - otlp
 EOF
-```This configuration update will
+```
+
+This configuration update will
   - create a new processor, called `filter/istiod`, that will enable all the IstioD/Pilot related metrics
   - create a new pipeline, called `metrics/istiod`, that will have the aforementioned processor to include the control plane metrics
 
