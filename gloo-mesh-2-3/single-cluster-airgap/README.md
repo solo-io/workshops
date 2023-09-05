@@ -125,18 +125,30 @@ metallb-system       speaker-d7jkp                                 1/1     Runni
 
 Set the registry variable:
 ```bash
-registry=localhost:5000
+export registry=localhost:5000
 ```
 
 Pull and push locally the Docker images needed:
 
 ```bash
 cat <<EOF > images.txt
+docker.io/curlimages/curl
+docker.io/kennethreitz/httpbin
+docker.io/redis:7.0.11-alpine
+gcr.io/gloo-mesh/ext-auth-service:0.35.7
+gcr.io/gloo-mesh/gloo-mesh-agent:2.3.15
+gcr.io/gloo-mesh/gloo-mesh-apiserver:2.3.15
+gcr.io/gloo-mesh/gloo-mesh-envoy:2.3.15
+gcr.io/gloo-mesh/gloo-mesh-mgmt-server:2.3.15
+gcr.io/gloo-mesh/gloo-mesh-ui:2.3.15
+gcr.io/gloo-mesh/gloo-otel-collector:2.3.15
+gcr.io/gloo-mesh/rate-limiter:0.8.6
+jimmidyson/configmap-reload:v0.5.0
+quay.io/keycloak/keycloak:20.0.1
+quay.io/prometheus/prometheus:v2.36.2
 us-docker.pkg.dev/gloo-mesh/istio-workshops/operator:1.18.2-solo
 us-docker.pkg.dev/gloo-mesh/istio-workshops/pilot:1.18.2-solo
 us-docker.pkg.dev/gloo-mesh/istio-workshops/proxyv2:1.18.2-solo
-quay.io/keycloak/keycloak:20.0.1
-docker.io/kennethreitz/httpbin
 EOF
 
 for url in https://raw.githubusercontent.com/istio/istio/release-1.16/samples/bookinfo/platform/kube/bookinfo.yaml https://raw.githubusercontent.com/istio/istio/release-1.16/samples/bookinfo/networking/bookinfo-gateway.yaml
@@ -146,18 +158,6 @@ do
     echo $image >> images.txt
   done
 done
-
-wget https://storage.googleapis.com/gloo-platform/helm-charts/gloo-platform-2.3.15.tgz
-tar zxvf gloo-platform-*.tgz
-find gloo-platform -name "values.yaml" | while read file; do
-  cat $file | yq eval -j | jq -r '.. | .image? | select(. != null) | (if .hub then .hub + "/" + .repository + ":" + .tag else (if .registry then (if .registry == "docker.io" then "docker.io/library" else .registry end) + "/" else "" end) + .repository + ":" + (.tag | tostring) end)'
-done | sort -u >> images.txt
-
-wget https://storage.googleapis.com/gloo-platform/helm-charts/gloo-platform-2.3.15.tgz
-tar zxvf gloo-platform-*.tgz
-find gloo-platform -name "values.yaml" | while read file; do
-  cat $file | yq eval -j | jq -r '.. | .image? | select(. != null) | (if .hub then .hub + "/" + .repository + ":" + .tag else (if .registry then (if .registry == "docker.io" then "docker.io/library" else .registry end) + "/" else "" end) + .repository + ":" + (.tag | tostring) end)'
-done | sort -u >> images.txt
 
 cat images.txt | while read image; do
   nohup sh -c "echo $image | xargs -P10 -n1 docker pull" </dev/null >nohup.out 2>nohup.err &
@@ -334,7 +334,7 @@ meshctl --kubecontext ${MGMT} check
 
 ```
 pod=$(kubectl --context ${MGMT} -n gloo-mesh get pods -l app=gloo-mesh-mgmt-server -o jsonpath='{.items[0].metadata.name}')
-kubectl --context ${MGMT} -n gloo-mesh debug -q -i ${pod} --image=curlimages/curl -- curl -s http://localhost:9091/metrics | grep relay_push_clients_connected
+kubectl --context ${MGMT} -n gloo-mesh debug -q -i ${pod} --image=${registry}/curlimages/curl -- curl -s http://localhost:9091/metrics | grep relay_push_clients_connected
 ```
 
 You should get an output similar to this:
@@ -353,7 +353,7 @@ const helpers = require('./tests/chai-exec');
 describe("Cluster registration", () => {
   it("cluster1 is registered", () => {
     podName = helpers.getOutputForCommand({ command: "kubectl -n gloo-mesh get pods -l app=gloo-mesh-mgmt-server -o jsonpath='{.items[0].metadata.name}' --context " + process.env.MGMT }).replaceAll("'", "");
-    command = helpers.getOutputForCommand({ command: "kubectl --context " + process.env.MGMT + " -n gloo-mesh debug -q -i " + podName + " --image=curlimages/curl -- curl -s http://localhost:9091/metrics" }).replaceAll("'", "");
+    command = helpers.getOutputForCommand({ command: "kubectl --context " + process.env.MGMT + " -n gloo-mesh debug -q -i " + podName + " --image=" + process.env.registry + "/curlimages/curl -- curl -s http://localhost:9091/metrics" }).replaceAll("'", "");
     expect(command).to.contain("cluster1");
   });
 });
@@ -435,7 +435,7 @@ spec:
             network: cluster1
         meshConfig:
           accessLogFile: /dev/stdout
-          defaultConfig:        
+          defaultConfig:
             proxyMetadata:
               ISTIO_META_DNS_CAPTURE: "true"
               ISTIO_META_DNS_AUTO_ALLOCATE: "true"
@@ -1293,7 +1293,7 @@ const helpers = require('./tests/chai-exec');
 describe("Otel metrics", () => {
   it("cluster1 is sending metrics to telemetryGateway", () => {
     podName = helpers.getOutputForCommand({ command: "kubectl -n gloo-mesh get pods -l app=prometheus -o jsonpath='{.items[0].metadata.name}' --context " + process.env.MGMT }).replaceAll("'", "");
-    command = helpers.getOutputForCommand({ command: "kubectl --context " + process.env.MGMT + " -n gloo-mesh debug -q -i " + podName + " --image=curlimages/curl -- curl -s http://localhost:9090/api/v1/query?query=istio_requests_total" }).replaceAll("'", "");
+    command = helpers.getOutputForCommand({ command: "kubectl --context " + process.env.MGMT + " -n gloo-mesh debug -q -i " + podName + " --image=" + process.env.registry + "/curlimages/curl -- curl -s http://localhost:9090/api/v1/query?query=istio_requests_total" }).replaceAll("'", "");
     expect(command).to.contain("cluster\":\"cluster1");
   });
 });
@@ -1511,7 +1511,7 @@ Run the following commands to initiate a communication from a service which isn'
 
 ```
 pod=$(kubectl --context ${CLUSTER1} -n httpbin get pods -l app=not-in-mesh -o jsonpath='{.items[0].metadata.name}')
-kubectl --context ${CLUSTER1} -n httpbin debug -i -q ${pod} --image=curlimages/curl -- curl -s -o /dev/null -w "%{http_code}" http://reviews.bookinfo-backends.svc.cluster.local:9080/reviews/0
+kubectl --context ${CLUSTER1} -n httpbin debug -i -q ${pod} --image=${registry}/curlimages/curl -- curl -s -o /dev/null -w "%{http_code}" http://reviews.bookinfo-backends.svc.cluster.local:9080/reviews/0
 ```
 
 You should get a `200` response code which confirm that the communication is currently allowed.
@@ -1524,7 +1524,7 @@ const helpers = require('./tests/chai-exec');
 describe("Communication allowed", () => {
   it("Response code should be 200", () => {
     const podName = helpers.getOutputForCommand({ command: "kubectl --context " + process.env.CLUSTER1 + " -n httpbin get pods -l app=not-in-mesh -o jsonpath='{.items[0].metadata.name}'" }).replaceAll("'", "");
-    const command = helpers.getOutputForCommand({ command: "kubectl --context " + process.env.CLUSTER1 + " -n httpbin debug -i -q " + podName + " --image=curlimages/curl -- curl -s -o /dev/null -w \"%{http_code}\" http://reviews.bookinfo-backends:9080/reviews/0" }).replaceAll("'", "");
+    const command = helpers.getOutputForCommand({ command: "kubectl --context " + process.env.CLUSTER1 + " -n httpbin debug -i -q " + podName + " --image=" + process.env.registry + "/curlimages/curl -- curl -s -o /dev/null -w \"%{http_code}\" http://reviews.bookinfo-backends:9080/reviews/0" }).replaceAll("'", "");
     expect(command).to.contain("200");
   });
 });
@@ -1539,7 +1539,7 @@ Run the following commands to initiate a communication from a service which is i
 
 ```
 pod=$(kubectl --context ${CLUSTER1} -n httpbin get pods -l app=in-mesh -o jsonpath='{.items[0].metadata.name}')
-kubectl --context ${CLUSTER1} -n httpbin debug -i -q ${pod} --image=curlimages/curl -- curl -s -o /dev/null -w "%{http_code}" http://reviews.bookinfo-backends.svc.cluster.local:9080/reviews/0
+kubectl --context ${CLUSTER1} -n httpbin debug -i -q ${pod} --image=${registry}/curlimages/curl -- curl -s -o /dev/null -w "%{http_code}" http://reviews.bookinfo-backends.svc.cluster.local:9080/reviews/0
 ```
 
 <!--bash
@@ -1550,7 +1550,7 @@ const helpers = require('./tests/chai-exec');
 describe("Communication allowed", () => {
   it("Response code should be 200", () => {
     const podName = helpers.getOutputForCommand({ command: "kubectl --context " + process.env.CLUSTER1 + " -n httpbin get pods -l app=in-mesh -o jsonpath='{.items[0].metadata.name}'" }).replaceAll("'", "");
-    const command = helpers.getOutputForCommand({ command: "kubectl --context " + process.env.CLUSTER1 + " -n httpbin debug -i -q " + podName + " --image=curlimages/curl -- curl -s -o /dev/null -w \"%{http_code}\" http://reviews.bookinfo-backends:9080/reviews/0" }).replaceAll("'", "");
+    const command = helpers.getOutputForCommand({ command: "kubectl --context " + process.env.CLUSTER1 + " -n httpbin debug -i -q " + podName + " --image=" + process.env.registry + "/curlimages/curl -- curl -s -o /dev/null -w \"%{http_code}\" http://reviews.bookinfo-backends:9080/reviews/0" }).replaceAll("'", "");
     expect(command).to.contain("200");
   });
 });
@@ -1615,7 +1615,7 @@ Run the following commands to initiate a communication from a service which isn'
 
 ```
 pod=$(kubectl --context ${CLUSTER1} -n httpbin get pods -l app=not-in-mesh -o jsonpath='{.items[0].metadata.name}')
-kubectl --context ${CLUSTER1} -n httpbin debug -i -q ${pod} --image=curlimages/curl -- curl -s -o /dev/null -w "%{http_code}" http://reviews.bookinfo-backends.svc.cluster.local:9080/reviews/0
+kubectl --context ${CLUSTER1} -n httpbin debug -i -q ${pod} --image=${registry}/curlimages/curl -- curl -s -o /dev/null -w "%{http_code}" http://reviews.bookinfo-backends.svc.cluster.local:9080/reviews/0
 ```
 
 You shouldn't get a `200` response code, which means that the communication isn't allowed.
@@ -1628,7 +1628,7 @@ const helpers = require('./tests/chai-exec');
 describe("Communication not allowed", () => {
   it("Response code shouldn't be 200", () => {
     const podName = helpers.getOutputForCommand({ command: "kubectl --context " + process.env.CLUSTER1 + " -n httpbin get pods -l app=not-in-mesh -o jsonpath='{.items[0].metadata.name}'" }).replaceAll("'", "");
-    const command = helpers.getOutputForCommand({ command: "kubectl --context " + process.env.CLUSTER1 + " -n httpbin debug -i -q " + podName + " --image=curlimages/curl -- curl -s -o /dev/null -w \"%{http_code}\" --max-time 3 http://reviews.bookinfo-backends:9080/reviews/0" }).replaceAll("'", "");
+    const command = helpers.getOutputForCommand({ command: "kubectl --context " + process.env.CLUSTER1 + " -n httpbin debug -i -q " + podName + " --image=" + process.env.registry + "/curlimages/curl -- curl -s -o /dev/null -w \"%{http_code}\" --max-time 3 http://reviews.bookinfo-backends:9080/reviews/0" }).replaceAll("'", "");
     expect(command).not.to.contain("200");
   });
 });
@@ -1643,7 +1643,7 @@ Run the following commands to initiate a communication from a service which is i
 
 ```
 pod=$(kubectl --context ${CLUSTER1} -n httpbin get pods -l app=in-mesh -o jsonpath='{.items[0].metadata.name}')
-kubectl --context ${CLUSTER1} -n httpbin debug -i -q ${pod} --image=curlimages/curl -- curl -s -o /dev/null -w "%{http_code}" http://reviews.bookinfo-backends.svc.cluster.local:9080/reviews/0
+kubectl --context ${CLUSTER1} -n httpbin debug -i -q ${pod} --image=${registry}/curlimages/curl -- curl -s -o /dev/null -w "%{http_code}" http://reviews.bookinfo-backends.svc.cluster.local:9080/reviews/0
 ```
 
 <!--bash
@@ -1654,7 +1654,7 @@ const helpers = require('./tests/chai-exec');
 describe("Communication not allowed", () => {
   it("Response code shouldn't be 200", () => {
     const podName = helpers.getOutputForCommand({ command: "kubectl --context " + process.env.CLUSTER1 + " -n httpbin get pods -l app=in-mesh -o jsonpath='{.items[0].metadata.name}'" }).replaceAll("'", "");
-    const command = helpers.getOutputForCommand({ command: "kubectl --context " + process.env.CLUSTER1 + " -n httpbin debug -i -q " + podName + " --image=curlimages/curl -- curl -s -o /dev/null -w \"%{http_code}\" --max-time 3 http://reviews.bookinfo-backends:9080/reviews/0" }).replaceAll("'", "");
+    const command = helpers.getOutputForCommand({ command: "kubectl --context " + process.env.CLUSTER1 + " -n httpbin debug -i -q " + podName + " --image=" + process.env.registry + "/curlimages/curl -- curl -s -o /dev/null -w \"%{http_code}\" --max-time 3 http://reviews.bookinfo-backends:9080/reviews/0" }).replaceAll("'", "");
     expect(command).not.to.contain("200");
   });
 });
@@ -1761,13 +1761,13 @@ Let's check that requests from `productpage` are denied/allowed properly:
 ```sh
 pod=$(kubectl --context ${CLUSTER1} -n bookinfo-frontends get pods -l app=productpage -o jsonpath='{.items[0].metadata.name}')
 echo "From productpage to details, should be allowed"
-kubectl --context ${CLUSTER1} -n bookinfo-frontends debug -i -q ${pod} --image=curlimages/curl -- curl -s http://details.bookinfo-backends:9080/details/0 | jq
+kubectl --context ${CLUSTER1} -n bookinfo-frontends debug -i -q ${pod} --image=${registry}/curlimages/curl -- curl -s http://details.bookinfo-backends:9080/details/0 | jq
 
 echo "From productpage to reviews, should be allowed"
-kubectl --context ${CLUSTER1} -n bookinfo-frontends debug -i -q ${pod} --image=curlimages/curl -- curl -s http://reviews.bookinfo-backends:9080/reviews/0 | jq
+kubectl --context ${CLUSTER1} -n bookinfo-frontends debug -i -q ${pod} --image=${registry}/curlimages/curl -- curl -s http://reviews.bookinfo-backends:9080/reviews/0 | jq
 
 echo "From productpage to ratings, should be denied"
-kubectl --context ${CLUSTER1} -n bookinfo-frontends debug -i -q ${pod} --image=curlimages/curl -- curl -s http://ratings.bookinfo-backends:9080/ratings/0
+kubectl --context ${CLUSTER1} -n bookinfo-frontends debug -i -q ${pod} --image=${registry}/curlimages/curl -- curl -s http://ratings.bookinfo-backends:9080/ratings/0
 ```
 
 You shouldn't get a `200` response code for the last one, which means that the communication isn't allowed.
