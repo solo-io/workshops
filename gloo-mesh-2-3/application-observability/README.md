@@ -1073,7 +1073,7 @@ spec:
                 service: "gloo-telemetry-collector.gloo-mesh.svc.cluster.local"
                 port: "4317"
           accessLogFile: /dev/stdout
-          defaultConfig:        
+          defaultConfig:
             proxyMetadata:
               ISTIO_META_DNS_CAPTURE: "true"
               ISTIO_META_DNS_AUTO_ALLOCATE: "true"
@@ -1233,7 +1233,7 @@ spec:
                 service: "gloo-telemetry-collector.gloo-mesh.svc.cluster.local"
                 port: "4317"
           accessLogFile: /dev/stdout
-          defaultConfig:        
+          defaultConfig:
             proxyMetadata:
               ISTIO_META_DNS_CAPTURE: "true"
               ISTIO_META_DNS_AUTO_ALLOCATE: "true"
@@ -2261,7 +2261,7 @@ kubectl --context ${CLUSTER1} -n bookinfo-frontends delete routetable reviews
 ## Lab 10 - Create the Root Trust Policy <a name="lab-10---create-the-root-trust-policy-"></a>
 [<img src="https://img.youtube.com/vi/-A2U2fYYgrU/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/-A2U2fYYgrU "Video Link")
 
-To allow secured (end-to-end mTLS) cross cluster communications, we need to make sure the certificates issued by the Istio control plance on each cluster are signed with intermediate certificates which have a common root CA.
+To allow secured (end-to-end mTLS) cross cluster communications, we need to make sure the certificates issued by the Istio control plane on each cluster are signed with intermediate certificates which have a common root CA.
 
 Gloo Mesh fully automates this process.
 
@@ -2733,7 +2733,7 @@ Tempo is an open-source distributed tracing system that allows users to monitor,
 
 Let's install it:
 
-```shell
+```bash
 helm repo add grafana https://grafana.github.io/helm-charts
 helm repo up
 
@@ -2797,7 +2797,7 @@ EOF
 
 ## Apply Istio Telemetry Object
 
-```shell
+```bash
 kubectl apply --context=$CLUSTER1 -f- <<EOF
 apiVersion: telemetry.istio.io/v1alpha1
 kind: Telemetry
@@ -2820,7 +2820,7 @@ spec:
 EOF
 ```
 
-```shell
+```bash
 kubectl apply --context=$CLUSTER1 -f- <<EOF
 apiVersion: v1
 kind: Service
@@ -2863,7 +2863,7 @@ EOF
 
 Same to cluster2:
 
-```shell
+```bash
 kubectl apply --context=$CLUSTER2 -f- <<EOF
 apiVersion: telemetry.istio.io/v1alpha1
 kind: Telemetry
@@ -2886,7 +2886,7 @@ spec:
 EOF
 ```
 
-```shell
+```bash
 kubectl apply --context=$CLUSTER2 -f- <<EOF
 apiVersion: v1
 kind: Service
@@ -2929,19 +2929,19 @@ EOF
 
 ## Restart applications
 
-```shell
-kubectl --context ${CLUSTER1} -n bookinfo-backends rollout restart deploy
-kubectl --context ${CLUSTER1} -n bookinfo-frontends rollout restart deploy
+```bash
+kubectl --context ${CLUSTER1} -n bookinfo-backends rollout status deploy
+kubectl --context ${CLUSTER1} -n bookinfo-frontends rollout status deploy
 
-kubectl --context ${CLUSTER2} -n bookinfo-backends rollout restart deploy
-kubectl --context ${CLUSTER2} -n bookinfo-frontends rollout restart deploy
+kubectl --context ${CLUSTER2} -n bookinfo-backends rollout status deploy
+kubectl --context ${CLUSTER2} -n bookinfo-frontends rollout status deploy
 ```
 
 ## Verify Traces
 
 Create some traffic:
 
-```shell
+```bash
 for i in {1..25}; do
    curl -k -s -o /dev/null -w "%{http_code}" https://${ENDPOINT_HTTPS_GW_CLUSTER1}/productpage
    printf "\n"
@@ -2976,6 +2976,29 @@ Grafana will query Tempo to show the traces.
 You can configure the collectors and gateway to define your own pipeline to drive traces to any other backend or any major provider which supports OpenTelemetry. Like AWS X-Ray, Azure Monitor, Datadog, Dynatrace, Honeycomb, Lightstep, New Relic, and Splunk.
 
 ![Opentelemetry for everything](images/steps/observability-traces/collector-infra.png)
+
+<!--bash
+cat <<'EOF' > ./test.js
+var chai = require('chai');
+const helpers = require('./tests/chai-exec');
+var expect = chai.expect;
+
+describe("Check tempo query", () => {
+  it("Check tempo is running and query returns some results", () => {
+    for (let i = 0; i < 15; i++) {
+        helpers.getOutputForCommand({ command: 'curl -k -s -o /dev/null -w "%{http_code}" https://${ENDPOINT_HTTPS_GW_CLUSTER1}/productpage'});
+    }
+    helpers.checkStatefulSet({ context: process.env.MGMT, namespace: "observability", k8sObj: "tempo" })
+    const command = helpers.getOutputForCommand({ command: "kubectl --context " + process.env.MGMT + " -n observability run -q -i --tty --rm debug --image=curlimages/curl --restart=Never -- tempo:3100/api/search/tags"});
+    expect(command).to.contain("istio");
+  });
+});
+EOF
+echo "executing test dist/gloo-mesh-2-0-application-observability/build/templates/steps/observability-traces/tests/traces-backend.test.js.liquid"
+tempfile=$(mktemp)
+echo "saving errors in ${tempfile}"
+mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
+-->
 
 
 
@@ -3038,7 +3061,7 @@ Loki is an open-source log aggregation system inspired by Prometheus. It is desi
 
 Let's install it:
 
-```shell
+```bash
 helm repo add grafana https://grafana.github.io/helm-charts
 helm repo up
 
@@ -3110,7 +3133,7 @@ EOF
 
 ## Apply Istio Telemetry Object
 
-```shell
+```bash
 kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: telemetry.istio.io/v1alpha1
 kind: Telemetry
@@ -3125,7 +3148,7 @@ spec:
 EOF
 ```
 
-```shell
+```bash
 kubectl apply --context=$CLUSTER1 -f- <<EOF
 apiVersion: v1
 kind: Service
@@ -3168,7 +3191,7 @@ EOF
 
 Same to cluster2:
 
-```shell
+```bash
 kubectl apply --context=$CLUSTER2 -f- <<EOF
 apiVersion: telemetry.istio.io/v1alpha1
 kind: Telemetry
@@ -3183,7 +3206,7 @@ spec:
 EOF
 ```
 
-```shell
+```bash
 kubectl apply --context=$CLUSTER2 -f- <<EOF
 apiVersion: v1
 kind: Service
@@ -3226,19 +3249,19 @@ EOF
 
 ## Restart applications
 
-```shell
-kubectl --context ${CLUSTER1} -n bookinfo-backends rollout restart deploy
-kubectl --context ${CLUSTER1} -n bookinfo-frontends rollout restart deploy
+```bash
+kubectl --context ${CLUSTER1} -n bookinfo-backends rollout status deploy
+kubectl --context ${CLUSTER1} -n bookinfo-frontends rollout status deploy
 
-kubectl --context ${CLUSTER2} -n bookinfo-backends rollout restart deploy
-kubectl --context ${CLUSTER2} -n bookinfo-frontends rollout restart deploy
+kubectl --context ${CLUSTER2} -n bookinfo-backends rollout status deploy
+kubectl --context ${CLUSTER2} -n bookinfo-frontends rollout status deploy
 ```
 
 ## Verify Logs
 
 Create some traffic:
 
-```shell
+```bash
 for i in {1..25}; do
    curl -k -s -o /dev/null -w "%{http_code}" https://${ENDPOINT_HTTPS_GW_CLUSTER1}/productpage
    printf "\n"
@@ -3273,6 +3296,30 @@ Grafana will query Loki to show the logs.
 You can configure the collectors and gateway to define your own pipeline to drive logs to any other backend or any major provider which supports OpenTelemetry. Like AWS X-Ray, Azure Monitor, Datadog, Dynatrace, Honeycomb, Lightstep, New Relic, and Splunk.
 
 ![Opentelemetry for everything](images/steps/observability-logs/collector-infra.png)
+
+<!--bash
+cat <<'EOF' > ./test.js
+var chai = require('chai');
+const helpers = require('./tests/chai-exec');
+var expect = chai.expect;
+
+describe("Check Loki query", () => {
+  it("Check loki is running and query returns some results", () => {
+    for (let i = 0; i < 15; i++) {
+        helpers.getOutputForCommand({ command: 'curl -k -s -o /dev/null -w "%{http_code}" https://${ENDPOINT_HTTPS_GW_CLUSTER1}/productpage'});
+    }
+    helpers.checkStatefulSet({ context: process.env.MGMT, namespace: "observability", k8sObj: "loki" })
+    const command = helpers.getOutputForCommand({ command: "kubectl --context " + process.env.MGMT + " -n observability run -q -i --tty --rm debug --image=curlimages/curl --restart=Never -- loki:3100/loki/api/v1/query   --data-urlencode   'query=sum(rate({exporter=\"OTLP\"}[100m]))'"});
+    response = JSON.parse(command);
+    expect(response.data.stats.summary.totalEntriesReturned).greaterThan(0);
+  });
+});
+EOF
+echo "executing test dist/gloo-mesh-2-0-application-observability/build/templates/steps/observability-logs/tests/logs-backend.test.js.liquid"
+tempfile=$(mktemp)
+echo "saving errors in ${tempfile}"
+mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
+-->
 
 
 
