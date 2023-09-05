@@ -645,7 +645,7 @@ spec:
             network: cluster1
         meshConfig:
           accessLogFile: /dev/stdout
-          defaultConfig:        
+          defaultConfig:
             proxyMetadata:
               ISTIO_META_DNS_CAPTURE: "true"
               ISTIO_META_DNS_AUTO_ALLOCATE: "true"
@@ -748,7 +748,7 @@ spec:
             network: cluster2
         meshConfig:
           accessLogFile: /dev/stdout
-          defaultConfig:        
+          defaultConfig:
             proxyMetadata:
               ISTIO_META_DNS_CAPTURE: "true"
               ISTIO_META_DNS_AUTO_ALLOCATE: "true"
@@ -1810,14 +1810,14 @@ The Httpbin team has decided to export the following to the `gateway` workspace 
 
 ## Lab 11 - Deploy the Amazon pod identity webhook <a name="lab-11---deploy-the-amazon-pod-identity-webhook-"></a>
 
-
 To use the AWS Lambda integration, we need to deploy the Amazon EKS pod identity webhook.
 
 A pre requisite is to install [Cert Manager](https://cert-manager.io/):
 
 ```bash
-kubectl --context ${CLUSTER1} apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.10.1/cert-manager.yaml
-kubectl --context ${MGMT} apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.10.1/cert-manager.yaml
+wget https://github.com/cert-manager/cert-manager/releases/download/v1.12.4/cert-manager.yaml
+kubectl --context ${CLUSTER1} apply -f cert-manager.yaml
+kubectl --context ${MGMT} apply -f cert-manager.yaml
 kubectl --context ${MGMT} -n cert-manager rollout status deploy cert-manager
 kubectl --context ${MGMT} -n cert-manager rollout status deploy cert-manager-cainjector
 kubectl --context ${MGMT} -n cert-manager rollout status deploy cert-manager-webhook
@@ -1865,6 +1865,7 @@ Then, you can create a `CloudProvider` object corresponding to the AWS role:
 
 ```bash
 kubectl apply --context ${MGMT} -f - <<EOF
+
 apiVersion: infrastructure.gloo.solo.io/v2
 kind: CloudProvider
 metadata:
@@ -1882,7 +1883,6 @@ spec:
         roleName: lambda-workshop
 EOF
 ```
-
 Now you need to annotate the service account used by the mgmt server, so it can discover existing lambdas:
 
 ```bash
@@ -1999,9 +1999,7 @@ export const handler = async(event) => {
     return response;
 };
 ```
-
 Let's update the `RouteTable`:
-
 ```bash
 kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: networking.gloo.solo.io/v2
