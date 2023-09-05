@@ -12,7 +12,7 @@ spec:
           readOnly: true
       initContainers:
       - name: geoipupdate
-        image: curlimages/curl
+        image: {% if vars.airgap or vars.cluster1.airgap %}${registry}/{% endif %}curlimages/curl
         command:
         - sh
         args:
