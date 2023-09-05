@@ -379,7 +379,7 @@ spec:
               k8s.v1.cni.cncf.io/networks: istio-cni
         meshConfig:
           accessLogFile: /dev/stdout
-          defaultConfig:        
+          defaultConfig:
             proxyMetadata:
               ISTIO_META_DNS_CAPTURE: "true"
               ISTIO_META_DNS_AUTO_ALLOCATE: "true"
