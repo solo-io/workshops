@@ -1799,7 +1799,7 @@ kubectl --context ${CLUSTER1} -n bookinfo-frontends delete routetable reviews
 ## Lab 11 - Create the Root Trust Policy <a name="lab-11---create-the-root-trust-policy-"></a>
 [<img src="https://img.youtube.com/vi/-A2U2fYYgrU/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/-A2U2fYYgrU "Video Link")
 
-To allow secured (end-to-end mTLS) cross cluster communications, we need to make sure the certificates issued by the Istio control plance on each cluster are signed with intermediate certificates which have a common root CA.
+To allow secured (end-to-end mTLS) cross cluster communications, we need to make sure the certificates issued by the Istio control plane on each cluster are signed with intermediate certificates which have a common root CA.
 
 Gloo Mesh fully automates this process.
 
@@ -3124,7 +3124,25 @@ grafana:
     url: http://prometheus-server.gloo-mesh:80
 EOF
 ```
+<!--bash
+cat <<'EOF' > ./test.js
+const helpers = require('./tests/chai-exec');
 
+describe("kube-prometheus-stack deployments are ready", () => {
+  it('kube-prometheus-stack-kube-state-metrics pods are ready', () => helpers.checkDeployment({ context: process.env.MGMT, namespace: "monitoring", k8sObj: "kube-prometheus-stack-kube-state-metrics" }));
+  it('kube-prometheus-stack-grafana pods are ready', () => helpers.checkDeployment({ context: process.env.MGMT, namespace: "monitoring", k8sObj: "kube-prometheus-stack-grafana" }));
+  it('kube-prometheus-stack-operator pods are ready', () => helpers.checkDeployment({ context: process.env.MGMT, namespace: "monitoring", k8sObj: "kube-prometheus-stack-operator" }));
+});
+
+describe("kube-prometheus-stack daemonset is ready", () => {
+  it('kube-prometheus-stack-prometheus-node-exporter pods are ready', () => helpers.checkDaemonSet({ context: process.env.MGMT, namespace: "monitoring", k8sObj: "kube-prometheus-stack-prometheus-node-exporter" }));
+});
+EOF
+echo "executing test dist/gloo-mesh-2-0-all-no-ilm/build/templates/steps/gloo-platform-observability/tests/grafana-installed.test.js.liquid"
+tempfile=$(mktemp)
+echo "saving errors in ${tempfile}"
+mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
+-->
 Let's install a few dashboards!
 
 Now, you can go the the Grafana tab, log in with the default login credentials, admin/prom-operator, and import the dashboard of Istio control plane.
@@ -3211,7 +3229,9 @@ telemetryCollectorCustomization:
       exporters:
       - otlp
 EOF
-```This configuration update will
+```
+
+This configuration update will
   - create a new processor, called `filter/istiod`, that will enable all the IstioD/Pilot related metrics
   - create a new pipeline, called `metrics/istiod`, that will have the aforementioned processor to include the control plane metrics
 
@@ -4708,14 +4728,14 @@ EOF
 
 ## Lab 25 - Deploy the Amazon pod identity webhook <a name="lab-25---deploy-the-amazon-pod-identity-webhook-"></a>
 
-
 To use the AWS Lambda integration, we need to deploy the Amazon EKS pod identity webhook.
 
 A pre requisite is to install [Cert Manager](https://cert-manager.io/):
 
 ```bash
-kubectl --context ${CLUSTER1} apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.10.1/cert-manager.yaml
-kubectl --context ${MGMT} apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.10.1/cert-manager.yaml
+wget https://github.com/cert-manager/cert-manager/releases/download/v1.12.4/cert-manager.yaml
+kubectl --context ${CLUSTER1} apply -f cert-manager.yaml
+kubectl --context ${MGMT} apply -f cert-manager.yaml
 kubectl --context ${MGMT} -n cert-manager rollout status deploy cert-manager
 kubectl --context ${MGMT} -n cert-manager rollout status deploy cert-manager-cainjector
 kubectl --context ${MGMT} -n cert-manager rollout status deploy cert-manager-webhook
@@ -4763,6 +4783,7 @@ Then, you can create a `CloudProvider` object corresponding to the AWS role:
 
 ```bash
 kubectl apply --context ${MGMT} -f - <<EOF
+
 apiVersion: infrastructure.gloo.solo.io/v2
 kind: CloudProvider
 metadata:
@@ -4780,7 +4801,6 @@ spec:
         roleName: lambda-workshop
 EOF
 ```
-
 Now you need to annotate the service account used by the mgmt server, so it can discover existing lambdas:
 
 ```bash
@@ -4897,9 +4917,7 @@ export const handler = async(event) => {
     return response;
 };
 ```
-
 Let's update the `RouteTable`:
-
 ```bash
 kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: networking.gloo.solo.io/v2
