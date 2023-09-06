@@ -131,7 +131,7 @@ metallb-system       speaker-d7jkp                                 1/1     Runni
 First of all, let's install the `meshctl` CLI:
 
 ```bash
-export GLOO_MESH_VERSION=v2.4.0
+export GLOO_MESH_VERSION=v2.4.0-rc1
 curl -sL https://run.solo.io/meshctl/install | sh -
 export PATH=$HOME/.gloo-mesh/bin:$PATH
 ```
@@ -177,11 +177,11 @@ kubectl --context ${MGMT} create ns gloo-mesh-addons
 helm upgrade --install gloo-platform-crds gloo-platform/gloo-platform-crds \
 --namespace gloo-mesh \
 --kube-context ${MGMT} \
---version=2.4.0
+--version=2.4.0-rc1
 helm upgrade --install gloo-platform gloo-platform/gloo-platform \
 --namespace gloo-mesh \
 --kube-context ${MGMT} \
---version=2.4.0 \
+--version=2.4.0-rc1 \
  -f -<<EOF
 licensing:
   licenseKey: ${GLOO_MESH_LICENSE_KEY}
@@ -197,21 +197,10 @@ prometheus:
 redis:
   deployment:
     enabled: true
-clickhouse:
-  enabled: true
-  persistence:
-    enabled: false
 telemetryGateway:
   enabled: true
   service:
     type: LoadBalancer
-telemetryGatewayCustomization:
-  pipelines:
-    logs/clickhouse:
-      enabled: true
-  extraExporters:
-    clickhouse:
-      password: password
 glooUi:
   enabled: true
   serviceType: LoadBalancer
@@ -246,7 +235,7 @@ istioInstallations:
           gatewayRevision: auto
           istioOperatorSpec:
             hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-            tag: 1.18.2-solo
+            tag: 1.18.1-solo
             profile: empty
             components:
               ingressGateways:
@@ -261,19 +250,11 @@ glooAgent:
     serverAddress: gloo-mesh-mgmt-server:9900
     authority: gloo-mesh-mgmt-server.gloo-mesh
 telemetryCollector:
-  presets:
-    logsCollection:
-      enabled: true
-      storeCheckpoints: true
   enabled: true
   config:
     exporters:
       otlp:
         endpoint: gloo-telemetry-gateway:4317
-telemetryCollectorCustomization:
-  pipelines:
-    logs/istio_access_logs:
-      enabled: true
 EOF
 kubectl --context ${MGMT} -n gloo-mesh rollout status deploy/gloo-mesh-mgmt-server
 kubectl --context ${MGMT} delete workspaces -A --all
@@ -291,21 +272,6 @@ until [[ $(kubectl --context ${MGMT} -n gloo-mesh get svc gloo-mesh-mgmt-server 
   sleep 1
 done
 -->
-Create a secret with the password to use to store access logs in Clickhouse:
-
-```bash
-cat << EOF | kubectl --context ${MGMT} apply -f -
-apiVersion: v1
-kind: Secret
-metadata:
-  name: clickhouse-auth
-  namespace: gloo-mesh
-type: Opaque
-data:
-  # password = password
-  password: cGFzc3dvcmQ=
-EOF
-```
 For teams to setup external authentication, the gateways team needs to create and `ExtAuthServer` object they can reference.
 
 Let's create the `ExtAuthServer` object: 
@@ -891,7 +857,7 @@ EOF
 echo "executing test dist/gloo-mesh-2-0-gateway-standalone-portal-beta/build/templates/steps/apps/bookinfo/gateway-expose/tests/otel-metrics.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
-mocha ./test.js --timeout 10000 --retries=150 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
+mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
 -->
 
 This diagram shows the flow of the request (through the Istio Ingress Gateway):
@@ -1779,7 +1745,26 @@ mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${te
 
 In this step, we're going to apply rate limiting to the Gateway to only allow 3 requests per minute for the users of the `solo.io` organization.
 
-First, we need to create a `RateLimitServerConfig` object to define the limits based on the descriptors we will use later:
+First, we need to create a `RateLimitClientConfig` object to define the descriptors:
+
+```bash
+kubectl apply --context ${CLUSTER1} -f - <<EOF
+apiVersion: trafficcontrol.policy.gloo.solo.io/v2
+kind: RateLimitClientConfig
+metadata:
+  name: httpbin
+  namespace: httpbin
+spec:
+  raw:
+    rateLimits:
+    - setActions:
+      - requestHeaders:
+          descriptorKey: organization
+          headerName: X-Organization
+EOF
+```
+
+Then, we need to create a `RateLimitServerConfig` object to define the limits based on the descriptors:
 
 ```bash
 kubectl apply --context ${CLUSTER1} -f - <<EOF
@@ -1826,12 +1811,10 @@ spec:
       name: rate-limit-server
       namespace: gloo-mesh-addons
       cluster: cluster1
-    raw:
-      rateLimits:
-      - setActions:
-        - requestHeaders:
-            descriptorKey: organization
-            headerName: X-Organization
+    ratelimitClientConfig:
+      name: httpbin
+      namespace: httpbin
+      cluster: cluster1
     ratelimitServerConfig:
       name: httpbin
       namespace: httpbin
@@ -1839,7 +1822,6 @@ spec:
     phase:
       postAuthz:
         priority: 3
-
 EOF
 ```
 
@@ -1938,9 +1920,9 @@ EOF
 And also delete the different objects we've created:
 ```bash
 kubectl --context ${CLUSTER1} -n httpbin delete ratelimitpolicy httpbin
+kubectl --context ${CLUSTER1} -n httpbin delete ratelimitclientconfig httpbin
 kubectl --context ${CLUSTER1} -n httpbin delete ratelimitserverconfig httpbin
 ```
-
 
 
 
@@ -2429,25 +2411,20 @@ kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: networking.gloo.solo.io/v2
 kind: RouteTable
 metadata:
-  name: productpage-api-v1
+  name: productpage-api
   namespace: bookinfo-frontends
   labels:
     expose: "true"
     portal-users: "true"
-    api: bookinfo
 spec:
   portalMetadata:
-    title: BookInfo REST API v1
+    title: BookInfo REST API
     description: REST API for the Bookinfo application
-    apiProductId: bookinfo
-    apiProductDisplayName: BookInfo REST API
-    apiVersion: v1
-    customMetadata:
-      lifecyclePhase: "General Availability"
   http:
-    - matchers:
+    - name: productpage-api
+      matchers:
       - uri:
-          prefix: /api/bookinfo/v1
+          prefix: /api/bookinfo
       labels:
         apikeys: "true"
         ratelimited: "true"
@@ -2467,12 +2444,10 @@ You can see some labels set at the `RouteTable` and at the `route` level. We're 
 
 The `portalMetadata` section will be used when we'll expose the API through the developer portal.
 
-You can think about this `RouteTable` as an API product. Also, note that we defined the version to be `v1`.
-
 You should now be able to access the API through the gateway without any authentication:
 
 ```shell
-curl -k "https://${ENDPOINT_HTTPS_GW_CLUSTER1}/api/bookinfo/v1"
+curl -k "https://${ENDPOINT_HTTPS_GW_CLUSTER1}/api/bookinfo"
 ```
 
 <!--bash
@@ -2480,7 +2455,7 @@ cat <<'EOF' > ./test.js
 const helpersHttp = require('./tests/chai-http');
 
 describe("Access the API without authentication", () => {
-  it('Checking text \'The Comedy of Errors\' in the response', () => helpersHttp.checkBody({ host: 'https://' + process.env.ENDPOINT_HTTPS_GW_CLUSTER1, path: '/api/bookinfo/v1', body: 'The Comedy of Errors', match: true }));
+  it('Checking text \'The Comedy of Errors\' in the response', () => helpersHttp.checkBody({ host: 'https://' + process.env.ENDPOINT_HTTPS_GW_CLUSTER1, path: '/api/bookinfo', body: 'The Comedy of Errors', match: true }));
 })
 EOF
 echo "executing test dist/gloo-mesh-2-0-gateway-standalone-portal-beta/build/templates/steps/apps/bookinfo/dev-portal-api/tests/access-api-no-auth.test.js.liquid"
@@ -2535,7 +2510,7 @@ This policy will be attached to our `RouteTable` due to the label `apikeys: "tru
 Try to access the API without authentication:
 
 ```shell
-curl -k "https://${ENDPOINT_HTTPS_GW_CLUSTER1}/api/bookinfo/v1" -I
+curl -k "https://${ENDPOINT_HTTPS_GW_CLUSTER1}/api/bookinfo" -I
 ```
 
 <!--bash
@@ -2543,7 +2518,7 @@ cat <<'EOF' > ./test.js
 const helpers = require('./tests/chai-http');
 
 describe("Access to API unauthorized", () => {
-  it('Response code is 401', () => helpers.checkURL({ host: 'https://' + process.env.ENDPOINT_HTTPS_GW_CLUSTER1, path: '/api/bookinfo/v1', retCode: 401 }));
+  it('Response code is 401', () => helpers.checkURL({ host: 'https://' + process.env.ENDPOINT_HTTPS_GW_CLUSTER1, path: '/api/bookinfo', retCode: 401 }));
 })
 EOF
 echo "executing test dist/gloo-mesh-2-0-gateway-standalone-portal-beta/build/templates/steps/apps/bookinfo/dev-portal-api/tests/access-api-unauthorized.test.js.liquid"
@@ -2585,7 +2560,7 @@ EOF
 Now, you should be able to access the API using this API key:
 
 ```shell
-curl -k -H "api-key: ${API_KEY_USER1}" "https://${ENDPOINT_HTTPS_GW_CLUSTER1}/api/bookinfo/v1"
+curl -k -H "api-key: ${API_KEY_USER1}" "https://${ENDPOINT_HTTPS_GW_CLUSTER1}/api/bookinfo"
 ```
 
 <!--bash
@@ -2593,7 +2568,7 @@ cat <<'EOF' > ./test.js
 const helpers = require('./tests/chai-http');
 
 describe("Access to API authorized", () => {
-  it('Response code is 200', () => helpers.checkURL({ host: 'https://' + process.env.ENDPOINT_HTTPS_GW_CLUSTER1, path: '/api/bookinfo/v1', headers: [{key: 'api-key', value: process.env.API_KEY_USER1}], retCode: 200 }));
+  it('Response code is 200', () => helpers.checkURL({ host: 'https://' + process.env.ENDPOINT_HTTPS_GW_CLUSTER1, path: '/api/bookinfo', headers: [{key: 'api-key', value: process.env.API_KEY_USER1}], retCode: 200 }));
 })
 EOF
 echo "executing test dist/gloo-mesh-2-0-gateway-standalone-portal-beta/build/templates/steps/apps/bookinfo/dev-portal-api/tests/access-api-authorized.test.js.liquid"
@@ -2610,9 +2585,34 @@ We're going to create 3 usage plans (bronze, silver and gold).
 
 The user `user1` is a gold user (`gold` base64 is `Z29sZA==`).
 
+First, we need to create a `RateLimitClientConfig` object to define the descriptors:
+
+```bash
+kubectl apply --context ${CLUSTER1} -f - <<EOF
+apiVersion: trafficcontrol.policy.gloo.solo.io/v2
+kind: RateLimitClientConfig
+metadata:
+  name: productpage
+  namespace: bookinfo-frontends
+spec:
+  raw:
+    rateLimits:
+    - setActions:
+      - requestHeaders:
+          descriptorKey: usagePlan
+          headerName: X-Solo-Plan
+      - metadata:
+          descriptorKey: userId
+          metadataKey:
+            key: envoy.filters.http.ext_authz
+            path:
+              - key: userId
+EOF
+```
+
 The `X-Solo-Plan` is created by the `ExtAuthPolicy` we have created earlier.
 
-Then, we need to create a `RateLimitServerConfig` object to define the limits based on the descriptors we will use later:
+Then, we need to create a `RateLimitServerConfig` object to define the limits based on the descriptors:
 
 ```bash
 kubectl apply --context ${CLUSTER1} -f - <<EOF
@@ -2676,18 +2676,10 @@ spec:
       name: rate-limit-server
       namespace: gloo-mesh-addons
       cluster: cluster1
-    raw:
-      rateLimits:
-      - setActions:
-        - requestHeaders:
-            descriptorKey: usagePlan
-            headerName: X-Solo-Plan
-        - metadata:
-            descriptorKey: userId
-            metadataKey:
-              key: envoy.filters.http.ext_authz
-              path:
-                - key: userId
+    ratelimitClientConfig:
+      name: productpage
+      namespace: bookinfo-frontends
+      cluster: cluster1
     ratelimitServerConfig:
       name: productpage
       namespace: bookinfo-frontends
@@ -2695,7 +2687,6 @@ spec:
     phase:
       postAuthz:
         priority: 1
-
 EOF
 ```
 
@@ -2704,7 +2695,7 @@ This policy will be attached to our `RouteTable` due to the label `ratelimited: 
 Try to access the API more than 5 times:
 
 ```shell
-for i in `seq 1 10`; do curl -k -H "api-key: ${API_KEY_USER1}" "https://${ENDPOINT_HTTPS_GW_CLUSTER1}/api/bookinfo/v1" -I; done
+for i in `seq 1 10`; do curl -k -H "api-key: ${API_KEY_USER1}" "https://${ENDPOINT_HTTPS_GW_CLUSTER1}/api/bookinfo" -I; done
 ```
 
 You should be rate limited:
@@ -2724,7 +2715,6 @@ x-envoy-ratelimited: true
 date: Wed, 05 Apr 2023 08:44:42 GMT
 server: istio-envoy
 ```
-
 
 
 
@@ -2759,19 +2749,555 @@ spec:
 EOF
 ```
 
-Then, you need to create an `ApiSchemaDiscovery` object to tell Gloo Platform how to fetch the OpenAPI document:
+Then, you need to create an `APIDoc` object to provide the openapi spec for this API:
 
 ```bash
 kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: apimanagement.gloo.solo.io/v2
-kind: ApiSchemaDiscovery
+kind: ApiDoc
 metadata:
   name: openlibrary
   namespace: bookinfo-frontends
 spec:
   openapi:
-    fetchEndpoint:
-      url: "https://openlibrary.org/static/openapi.json"
+    inlineString: |
+      {
+        "openapi": "3.0.2",
+        "info": {
+          "title": "OpenAPI",
+          "version": "0.1.0"
+        },
+        "paths": {
+          "/api/books": {
+            "get": {
+              "summary": "Read Api Books",
+              "operationId": "read_api_books_api_books_get",
+              "parameters": [
+                {
+                  "required": true,
+                  "schema": {
+                    "title": "Bibkeys",
+                    "type": "string"
+                  },
+                  "name": "bibkeys",
+                  "in": "query"
+                },
+                {
+                  "required": false,
+                  "schema": {
+                    "title": "Format",
+                    "type": "string",
+                    "default": "json"
+                  },
+                  "name": "format",
+                  "in": "query"
+                },
+                {
+                  "required": false,
+                  "schema": {
+                    "title": "Callback"
+                  },
+                  "name": "callback",
+                  "in": "query"
+                },
+                {
+                  "required": false,
+                  "schema": {
+                    "title": "Jscmd",
+                    "type": "string",
+                    "default": "viewapi"
+                  },
+                  "name": "jscmd",
+                  "in": "query"
+                }
+              ],
+              "responses": {
+                "200": {
+                  "description": "Successful Response",
+                  "content": {
+                    "application/json": {
+                      "schema": {}
+                    }
+                  }
+                },
+                "422": {
+                  "description": "Validation Error",
+                  "content": {
+                    "application/json": {
+                      "schema": {
+                        "$ref": "#/components/schemas/HTTPValidationError"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "/api/volumes/brief/{key_type}/{value}.json": {
+            "get": {
+              "summary": "Read Api Volumes Brief",
+              "operationId": "read_api_volumes_brief_api_volumes_brief__key_type___value__json_get",
+              "parameters": [
+                {
+                  "required": true,
+                  "schema": {
+                    "title": "Key Type"
+                  },
+                  "name": "key_type",
+                  "in": "path"
+                },
+                {
+                  "required": true,
+                  "schema": {
+                    "title": "Value"
+                  },
+                  "name": "value",
+                  "in": "path"
+                },
+                {
+                  "required": false,
+                  "schema": {
+                    "title": "Callback"
+                  },
+                  "name": "callback",
+                  "in": "query"
+                }
+              ],
+              "responses": {
+                "200": {
+                  "description": "Successful Response",
+                  "content": {
+                    "application/json": {
+                      "schema": {}
+                    }
+                  }
+                },
+                "422": {
+                  "description": "Validation Error",
+                  "content": {
+                    "application/json": {
+                      "schema": {
+                        "$ref": "#/components/schemas/HTTPValidationError"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "/authors/{olid}.json": {
+            "get": {
+              "summary": "Read Authors",
+              "operationId": "read_authors_authors__olid__json_get",
+              "parameters": [
+                {
+                  "required": true,
+                  "schema": {
+                    "title": "Olid"
+                  },
+                  "name": "olid",
+                  "in": "path"
+                }
+              ],
+              "responses": {
+                "200": {
+                  "description": "Successful Response",
+                  "content": {
+                    "application/json": {
+                      "schema": {}
+                    }
+                  }
+                },
+                "422": {
+                  "description": "Validation Error",
+                  "content": {
+                    "application/json": {
+                      "schema": {
+                        "$ref": "#/components/schemas/HTTPValidationError"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "/authors/{olid}/works.json": {
+            "get": {
+              "summary": "Read Authors Works",
+              "operationId": "read_authors_works_authors__olid__works_json_get",
+              "parameters": [
+                {
+                  "required": true,
+                  "schema": {
+                    "title": "Olid"
+                  },
+                  "name": "olid",
+                  "in": "path"
+                },
+                {
+                  "required": false,
+                  "schema": {
+                    "title": "Limit",
+                    "type": "integer"
+                  },
+                  "name": "limit",
+                  "in": "query"
+                }
+              ],
+              "responses": {
+                "200": {
+                  "description": "Successful Response",
+                  "content": {
+                    "application/json": {
+                      "schema": {}
+                    }
+                  }
+                },
+                "422": {
+                  "description": "Validation Error",
+                  "content": {
+                    "application/json": {
+                      "schema": {
+                        "$ref": "#/components/schemas/HTTPValidationError"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "/books/{olid}": {
+            "get": {
+              "summary": "Read Books",
+              "operationId": "read_books_books__olid__get",
+              "parameters": [
+                {
+                  "required": true,
+                  "schema": {
+                    "title": "Olid"
+                  },
+                  "name": "olid",
+                  "in": "path"
+                }
+              ],
+              "responses": {
+                "200": {
+                  "description": "Successful Response",
+                  "content": {
+                    "application/json": {
+                      "schema": {}
+                    }
+                  }
+                },
+                "422": {
+                  "description": "Validation Error",
+                  "content": {
+                    "application/json": {
+                      "schema": {
+                        "$ref": "#/components/schemas/HTTPValidationError"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "/covers/{key_type}/{value}-{size}.jpg": {
+            "get": {
+              "summary": "Read Covers Key Type Value Size Jpeg",
+              "operationId": "read_covers_key_type_value_size_jpeg_covers__key_type___value___size__jpg_get",
+              "parameters": [
+                {
+                  "required": true,
+                  "schema": {
+                    "title": "Key Type"
+                  },
+                  "name": "key_type",
+                  "in": "path"
+                },
+                {
+                  "required": true,
+                  "schema": {
+                    "title": "Value"
+                  },
+                  "name": "value",
+                  "in": "path"
+                },
+                {
+                  "required": true,
+                  "schema": {
+                    "title": "Size"
+                  },
+                  "name": "size",
+                  "in": "path"
+                }
+              ],
+              "responses": {
+                "200": {
+                  "description": "Successful Response",
+                  "content": {
+                    "application/json": {
+                      "schema": {}
+                    }
+                  }
+                },
+                "422": {
+                  "description": "Validation Error",
+                  "content": {
+                    "application/json": {
+                      "schema": {
+                        "$ref": "#/components/schemas/HTTPValidationError"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "/isbn/{isbn}": {
+            "get": {
+              "summary": "Read Isbn",
+              "operationId": "read_isbn_isbn__isbn__get",
+              "parameters": [
+                {
+                  "required": true,
+                  "schema": {
+                    "title": "Isbn"
+                  },
+                  "name": "isbn",
+                  "in": "path"
+                }
+              ],
+              "responses": {
+                "200": {
+                  "description": "Successful Response",
+                  "content": {
+                    "application/json": {
+                      "schema": {}
+                    }
+                  }
+                },
+                "422": {
+                  "description": "Validation Error",
+                  "content": {
+                    "application/json": {
+                      "schema": {
+                        "$ref": "#/components/schemas/HTTPValidationError"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "/search.json": {
+            "get": {
+              "summary": "Read Search Json",
+              "operationId": "read_search_json_search_json_get",
+              "parameters": [
+                {
+                  "required": true,
+                  "schema": {
+                    "title": "Q"
+                  },
+                  "name": "q",
+                  "in": "query"
+                },
+                {
+                  "required": false,
+                  "schema": {
+                    "title": "Page",
+                    "type": "integer"
+                  },
+                  "name": "page",
+                  "in": "query"
+                }
+              ],
+              "responses": {
+                "200": {
+                  "description": "Successful Response",
+                  "content": {
+                    "application/json": {
+                      "schema": {}
+                    }
+                  }
+                },
+                "422": {
+                  "description": "Validation Error",
+                  "content": {
+                    "application/json": {
+                      "schema": {
+                        "$ref": "#/components/schemas/HTTPValidationError"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "/search/authors.json": {
+            "get": {
+              "summary": "Read Search Authors Json",
+              "operationId": "read_search_authors_json_search_authors_json_get",
+              "parameters": [
+                {
+                  "required": true,
+                  "schema": {
+                    "title": "Q"
+                  },
+                  "name": "q",
+                  "in": "query"
+                }
+              ],
+              "responses": {
+                "200": {
+                  "description": "Successful Response",
+                  "content": {
+                    "application/json": {
+                      "schema": {}
+                    }
+                  }
+                },
+                "422": {
+                  "description": "Validation Error",
+                  "content": {
+                    "application/json": {
+                      "schema": {
+                        "$ref": "#/components/schemas/HTTPValidationError"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "/subjects/{subject}.json": {
+            "get": {
+              "summary": "Read Subjects",
+              "operationId": "read_subjects_subjects__subject__json_get",
+              "parameters": [
+                {
+                  "required": true,
+                  "schema": {
+                    "title": "Subject"
+                  },
+                  "name": "subject",
+                  "in": "path"
+                },
+                {
+                  "required": false,
+                  "schema": {
+                    "title": "Details",
+                    "type": "boolean",
+                    "default": false
+                  },
+                  "name": "details",
+                  "in": "query"
+                }
+              ],
+              "responses": {
+                "200": {
+                  "description": "Successful Response",
+                  "content": {
+                    "application/json": {
+                      "schema": {}
+                    }
+                  }
+                },
+                "422": {
+                  "description": "Validation Error",
+                  "content": {
+                    "application/json": {
+                      "schema": {
+                        "$ref": "#/components/schemas/HTTPValidationError"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "/works/{olid}": {
+            "get": {
+              "summary": "Read Works",
+              "operationId": "read_works_works__olid__get",
+              "parameters": [
+                {
+                  "required": true,
+                  "schema": {
+                    "title": "Olid"
+                  },
+                  "name": "olid",
+                  "in": "path"
+                }
+              ],
+              "responses": {
+                "200": {
+                  "description": "Successful Response",
+                  "content": {
+                    "application/json": {
+                      "schema": {}
+                    }
+                  }
+                },
+                "422": {
+                  "description": "Validation Error",
+                  "content": {
+                    "application/json": {
+                      "schema": {
+                        "$ref": "#/components/schemas/HTTPValidationError"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "components": {
+          "schemas": {
+            "HTTPValidationError": {
+              "title": "HTTPValidationError",
+              "type": "object",
+              "properties": {
+                "detail": {
+                  "title": "Detail",
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ValidationError"
+                  }
+                }
+              }
+            },
+            "ValidationError": {
+              "title": "ValidationError",
+              "required": [
+                "loc",
+                "msg",
+                "type"
+              ],
+              "type": "object",
+              "properties": {
+                "loc": {
+                  "title": "Location",
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "msg": {
+                  "title": "Message",
+                  "type": "string"
+                },
+                "type": {
+                  "title": "Error Type",
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
   servedBy:
   - destinationSelector:
       kind: EXTERNAL_SERVICE
@@ -2784,52 +3310,27 @@ spec:
 EOF
 ```
 
-An `APIDoc` Kubernetes object should be automatically created:
-
-```shell
-kubectl --context ${CLUSTER1} -n bookinfo-frontends get apidoc openlibrary -o yaml
-```
-
-<!--bash
-cat <<'EOF' > ./test.js
-const helpers = require('./tests/chai-exec');
-
-describe("APIDoc has been created", () => {
-    it('APIDoc is present', () => helpers.k8sObjectIsPresent({ context: process.env.CLUSTER1, namespace: "bookinfo-frontends", k8sType: "apidoc", k8sObj: "openlibrary" }));
-});
-EOF
-echo "executing test dist/gloo-mesh-2-0-gateway-standalone-portal-beta/build/templates/steps/apps/bookinfo/dev-portal-stitching/tests/apidoc-created.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
--->
-
-Finally, you can create a new `RouteTable` to stitch together the `/search.json` path with the existing Bookinfo API:
+Finally, you can update the `RouteTable` we've created previously to stitch together the `/search.json` path with the existing Bookinfo API:
 
 ```bash
 kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: networking.gloo.solo.io/v2
 kind: RouteTable
 metadata:
-  name: productpage-api-v2
+  name: productpage-api
   namespace: bookinfo-frontends
   labels:
     expose: "true"
     portal-users: "true"
-    api: bookinfo
 spec:
   portalMetadata:
-    title: BookInfo REST API v2
+    title: BookInfo REST API
     description: REST API for the Bookinfo application
-    apiProductId: bookinfo
-    apiProductDisplayName: BookInfo REST API
-    apiVersion: v2
-    customMetadata:
-      lifecyclePhase: "General Availability"
   http:
-    - matchers:
+    - name: productpage-api
+      matchers:
       - uri:
-          prefix: /api/bookinfo/v2/search.json
+          prefix: /api/bookinfo/search.json
       labels:
         apikeys: "true"
         ratelimited: "true"
@@ -2845,9 +3346,10 @@ spec:
               cluster: cluster1
             port:
               number: 443
-    - matchers:
+    - name: productpage-api
+      matchers:
       - uri:
-          prefix: /api/bookinfo/v2
+          prefix: /api/bookinfo
       labels:
         apikeys: "true"
         ratelimited: "true"
@@ -2863,12 +3365,10 @@ spec:
 EOF
 ```
 
-You can think about this `RouteTable` as the same API product as the one we've created previously, but this time we defined the version to be `v2`.
-
 You can check the new path is available:
 
 ```shell
-curl -k -H "api-key: ${API_KEY_USER1}" "https://${ENDPOINT_HTTPS_GW_CLUSTER1}/api/bookinfo/v2/search.json?title=The%20Comedy%20of%20Errors&fields=language&limit=1"
+curl -k -H "api-key: ${API_KEY_USER1}" "https://${ENDPOINT_HTTPS_GW_CLUSTER1}/api/bookinfo/search.json?title=The%20Comedy%20of%20Errors&fields=language&limit=1"
 ```
 
 <!--bash
@@ -2876,7 +3376,7 @@ cat <<'EOF' > ./test.js
 const helpersHttp = require('./tests/chai-http');
 
 describe("Access the openlibrary API", () => {
-  it('Checking text \'language\' in the response', () => helpersHttp.checkBody({ host: 'https://' + process.env.ENDPOINT_HTTPS_GW_CLUSTER1, path: '/api/bookinfo/v2/search.json?title=The%20Comedy%20of%20Errors&fields=language&limit=1', headers: [{key: 'api-key', value: process.env.API_KEY_USER1}], body: 'language', match: true }));
+  it('Checking text \'language\' in the response', () => helpersHttp.checkBody({ host: 'https://' + process.env.ENDPOINT_HTTPS_GW_CLUSTER1, path: '/api/bookinfo/search.json?title=The%20Comedy%20of%20Errors&fields=language&limit=1', headers: [{key: 'api-key', value: process.env.API_KEY_USER1}], body: 'language', match: true }));
 })
 EOF
 echo "executing test dist/gloo-mesh-2-0-gateway-standalone-portal-beta/build/templates/steps/apps/bookinfo/dev-portal-stitching/tests/access-openlibrary-api.test.js.liquid"
@@ -3034,8 +3534,9 @@ spec:
       displayName: "Gold Plan"
       description: "The best usage plan!"
   apis:
-    - labels:
-        api: bookinfo
+    - name: productpage-api
+      namespace: bookinfo-frontends
+      cluster: cluster1
 EOF
 ```
 
@@ -3050,7 +3551,7 @@ cat <<'EOF' > ./test.js
 const helpersHttp = require('./tests/chai-http');
 
 describe("Access the portal API without authentication", () => {
-  it('Checking text \'null\' in the response', () => helpersHttp.checkBody({ host: 'https://' + process.env.ENDPOINT_HTTPS_GW_CLUSTER1, path: '/portal-server/v1/apis', body: 'null', match: true }));
+  it('Checking text \'[]\' in the response', () => helpersHttp.checkBody({ host: 'https://' + process.env.ENDPOINT_HTTPS_GW_CLUSTER1, path: '/portal-server/v1/apis', body: '[]', match: true }));
 })
 EOF
 echo "executing test dist/gloo-mesh-2-0-gateway-standalone-portal-beta/build/templates/steps/apps/bookinfo/dev-portal-backend/tests/access-portal-api-no-auth-empty.test.js.liquid"
@@ -3146,21 +3647,15 @@ spec:
     spec:
       serviceAccountName: portal-frontend
       containers:
-      - image: gcr.io/solo-public/docs/portal-frontend:v0.0.15
+      - image: gcr.io/solo-public/docs/portal-frontend@sha256:1c1d337d2177d2c62a8a668852a2ea96fde0b90b3c3e05673cab6839623d8e85
         args: ["--host", "0.0.0.0"]
         imagePullPolicy: Always
         name: portal-frontend
         ports:
         - containerPort: 4000
-        readinessProbe:
-          httpGet:
-            path: /login
-            port: 4000
         env:
-        - name: VITE_PORTAL_SERVER_URL
+        - name: VITE_RESTPOINT
           value: "https://${ENDPOINT_HTTPS_GW_CLUSTER1}/portal-server/v1"
-        - name: VITE_APPLIED_OIDC_AUTH_CODE_CONFIG
-          value: "true"
 EOF
 ```
 
@@ -3218,7 +3713,7 @@ EOF
 echo "executing test dist/gloo-mesh-2-0-gateway-standalone-portal-beta/build/templates/steps/apps/bookinfo/dev-portal-frontend/tests/access-portal-frontend-no-auth.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
-mocha ./test.js --timeout 10000 --retries=300 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
+mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
 -->
 
 You should now be able to access the portal frontend through the gateway.
@@ -3557,7 +4052,7 @@ Let's test that the API key's prohibited country list is enforced. We'll do this
 
 In the Portal UI, make sure you're logged in as "user1" and click the "**APIs**" menu item. Select "**BookInfo REST API**", click to switch to the "**Swagger View**", then click "**Authorize**" and enter our API key, `apikey1`.
 
-Now, pick a resource to test. For example, use "**GET /api/bookinfo/v1**" and click "**Try it out**", then "**Execute**". This will send a request through our authorization flow using the API key that we've added metadata to. We should see a server response of `403 Error: Forbidden`, as the authorization server has rejected your request on the basis of the country your requests are coming from.
+Now, pick a resource to test. For example, use "**GET /api/bookinfo**" and click "**Try it out**", then "**Execute**". This will send a request through our authorization flow using the API key that we've added metadata to. We should see a server response of `403 Error: Forbidden`, as the authorization server has rejected your request on the basis of the country your requests are coming from.
 
 Let's update the API key so that it blocks requests from a different country. Set the prohibited country to the code of a country you're *not* in:
 
@@ -3677,7 +4172,7 @@ describe("API key creation working properly", function() {
   let keycloak_user1_token = JSON.parse(chaiExec('curl -d "client_id=' + keycloak_client_id + '" -d "client_secret=' + keycloak_client_secret + '" -d "scope=openid" -d "username=' + user + '" -d "password=' + password + '" -d "grant_type=password" "' + process.env.KEYCLOAK_URL +'/realms/master/protocol/openid-connect/token"').stdout.replaceAll("'", "")).id_token;
   let api_key = JSON.parse(chaiExec('curl -k -s -X POST -H "Content-Type: application/json" -d \'{"usagePlan": "gold", "apiKeyName": "test"}\' -H "id_token: ' + keycloak_user1_token + '" https://' + process.env.ENDPOINT_HTTPS_GW_CLUSTER1 +'/portal-server/v1/api-keys"').stdout.replaceAll("'", "")).apiKey;
   */
-  it("Authentication is working with the generated API key", () => helpersHttp.checkURL({ host: 'https://' + process.env.ENDPOINT_HTTPS_GW_CLUSTER1, path: '/api/bookinfo/v1', headers: [{key: 'api-key', value: process.env.API_KEY_USER1}], retCode: 200 }));
+  it("Authentication is working with the generated API key", () => helpersHttp.checkURL({ host: 'https://' + process.env.ENDPOINT_HTTPS_GW_CLUSTER1, path: '/api/bookinfo', headers: [{key: 'api-key', value: process.env.API_KEY_USER1}], retCode: 200 }));
 });
 EOF
 echo "executing test dist/gloo-mesh-2-0-gateway-standalone-portal-beta/build/templates/steps/apps/bookinfo/dev-portal-self-service/tests/api-key.test.js.liquid"
@@ -3698,9 +4193,34 @@ In that case, you don't need to measure how many calls are sent by each user.
 
 But if you requires fine grained monetization, we can deliver this as well.
 
-The `portalMetadata` section of the `RouteTable` we've created previously is used to add some metadata in the access logs.
+First, you need to create a `TransformationPolicy` to add some metadata to all the API calls to identify the API they represent:
 
-You can configure the access logs to take advantage of the metadata:
+```bash
+kubectl apply --context ${CLUSTER1} -f - <<EOF
+apiVersion: trafficcontrol.policy.gloo.solo.io/v2
+kind: TransformationPolicy
+metadata:
+  name: add-api-metadata
+  namespace: bookinfo-frontends
+spec:
+  applyToRoutes:
+  - route:
+      labels:
+        api: "productpage"
+  config:
+    phase:
+      postAuthz:
+        priority: 2
+    request:
+      injaTemplate:
+        dynamicMetadataValues:
+        - key: api
+          value:
+            text: productpage
+EOF
+```
+
+Then, you can configure the access logs to take advantage of the metadata:
 
 ```bash
 kubectl apply --context ${CLUSTER1} -f - <<EOF
@@ -3733,44 +4253,32 @@ spec:
               path: /dev/stdout
               log_format:
                 json_format:
-                  "timestamp": "%START_TIME%"
-                  "server_name": "%REQ(:AUTHORITY)%"
-                  "response_duration": "%DURATION%"
-                  "request_command": "%REQ(:METHOD)%"
-                  "request_uri": "%REQ(X-ENVOY-ORIGINAL-PATH?:PATH)%"
-                  "request_protocol": "%PROTOCOL%"
-                  "status_code": "%RESPONSE_CODE%"
-                  "client_address": "%DOWNSTREAM_REMOTE_ADDRESS_WITHOUT_PORT%"
-                  "x_forwarded_for": "%REQ(X-FORWARDED-FOR)%"
-                  "bytes_sent": "%BYTES_SENT%"
-                  "bytes_received": "%BYTES_RECEIVED%"
-                  "user_agent": "%REQ(USER-AGENT)%"
-                  "downstream_local_address": "%DOWNSTREAM_LOCAL_ADDRESS%"
-                  "requested_server_name": "%REQUESTED_SERVER_NAME%"
-                  "request_id": "%REQ(X-REQUEST-ID)%"
-                  "response_flags": "%RESPONSE_FLAGS%"
-                  "route_name": "%ROUTE_NAME%"
-                  "upstream_cluster": "%UPSTREAM_CLUSTER%"
-                  "upstream_host": "%UPSTREAM_HOST%"
-                  "upstream_local_address": "%UPSTREAM_LOCAL_ADDRESS%"
-                  "upstream_service_time": "%REQ(x-envoy-upstream-service-time)%"
-                  "upstream_transport_failure_reason": "%UPSTREAM_TRANSPORT_FAILURE_REASON%"
-                  "correlation_id": "%REQ(X-CORRELATION-ID)%"
-                  "user_id": "%DYNAMIC_METADATA(envoy.filters.http.ext_authz:userId)%"
-                  "api_id": "%DYNAMIC_METADATA(io.solo.gloo.apimanagement:api_id)%"
-                  "api_product_id": "%DYNAMIC_METADATA(io.solo.gloo.apimanagement:api_product_id)%"
-                  "api_product_name": "%DYNAMIC_METADATA(io.solo.gloo.apimanagement:api_product_name)%"
-                  "usage_plan": "%DYNAMIC_METADATA(envoy.filters.http.ext_authz:usagePlan)%"
-                  "custom_metadata": "%DYNAMIC_METADATA(io.solo.gloo.apimanagement:custom_metadata)%"
+                  status: "%RESPONSE_CODE%"
+                  responseFlags: "%RESPONSE_FLAGS%"
+                  message: "%LOCAL_REPLY_BODY%"
+                  httpMethod: "%REQ(:METHOD)%"
+                  userPlan: "%REQ(X-SOLO-PLAN)%"
+                  protocol: "%PROTOCOL%"
+                  clientDuration: "%DURATION%"
+                  targetDuration: "%RESPONSE_DURATION%"
+                  path: "%REQ(X-ENVOY-ORIGINAL-PATH?:PATH)%"
+                  upstreamName: "%UPSTREAM_CLUSTER%"
+                  systemTime: "%START_TIME%"
+                  requestId: "%REQ(X-REQUEST-ID)%"
+                  xff: "%REQ(X-FORWARDED-FOR)%"
+                  user-agent: "%REQ(USER-AGENT)%"
+                  downstream-remote-address: "%DOWNSTREAM_REMOTE_ADDRESS%"
+                  requested-server-name: "%REQUESTED_SERVER_NAME%"
+                  dynamic_metadata_ext_authz: "%DYNAMIC_METADATA(envoy.filters.http.ext_authz)%"
+                  dynamic_metadata_transformation: "%DYNAMIC_METADATA(io.solo.transformation)%"
+                  dynamic_metadata_jwt_authn: "%DYNAMIC_METADATA(envoy.filters.http.jwt_authn)%"
 EOF
 ```
-
-Note that you can also configure the access logs when deploying Istio with the `IstioLifecycleManager` object.
 
 After that, you can send an API call:
 
 ```bash
-curl -k -H "api-key: ${API_KEY_USER1}" "https://${ENDPOINT_HTTPS_GW_CLUSTER1}/api/bookinfo/v1"
+curl -k -H "api-key: ${API_KEY_USER1}" "https://${ENDPOINT_HTTPS_GW_CLUSTER1}/api/bookinfo"
 ```
 
 Now, let's check the logs of the Istio Ingress Gateway:
@@ -3783,125 +4291,38 @@ You should get an output similar to this:
 
 ```json,nocopy
 {
-  "timestamp": "2023-08-03T07:39:25.540Z",
-  "user_agent": "curl/7.81.0",
-  "downstream_local_address": "10.101.0.16:8443",
-  "requested_server_name": null,
-  "route_name": "unnamed-0-productpage-api-v1.bookinfo-frontends.cluster1--main.istio-gateways.cluster1",
-  "request_protocol": "HTTP/2",
-  "status_code": 200,
-  "upstream_local_address": "10.101.0.16:58536",
-  "request_command": "GET",
-  "client_address": "10.101.0.1",
-  "response_duration": 5,
-  "upstream_cluster": "outbound|9080||productpage.bookinfo-frontends.svc.cluster.local",
-  "correlation_id": null,
-  "usage_plan": "gold",
-  "request_uri": "/api/bookinfo/v1",
-  "server_name": "172.18.101.4",
-  "api_product_id": "bookinfo",
-  "api_product_name": "BookInfo REST API",
-  "custom_metadata": "{\"lifecyclePhase\":\"General Availability\"}",
-  "bytes_received": 0,
-  "response_flags": "-",
-  "api_id": "bookinfo-v1",
-  "x_forwarded_for": "10.101.0.1",
-  "user_id": "user1@example.com",
-  "upstream_service_time": null,
-  "upstream_host": "10.101.0.34:9080",
-  "bytes_sent": 395,
-  "request_id": "5f055530-52f2-46e4-bca2-2be27cb65e95",
-  "upstream_transport_failure_reason": null
+  "responseFlags": "-",
+  "dynamic_metadata_ext_authz": {
+    "ext_authz_duration": 2,
+    "userId": "user1"
+  },
+  "status": 200,
+  "dynamic_metadata_jwt_authn": null,
+  "xff": "10.102.0.1",
+  "targetDuration": 8,
+  "message": "",
+  "path": "/api/bookinfo",
+  "user-agent": "curl/7.81.0",
+  "clientDuration": 8,
+  "dynamic_metadata_transformation": {
+    "api": "productpage"
+  },
+  "downstream-remote-address": "10.102.0.1:38545",
+  "protocol": "HTTP/2",
+  "requestId": "19d1196b-97e2-45f2-b448-f6d071c6d183",
+  "systemTime": "2023-04-05T18:48:17.350Z",
+  "userPlan": "gold",
+  "httpMethod": "GET",
+  "requested-server-name": null,
+  "upstreamName": "outbound|9080||productpage.bookinfo-frontends.svc.cluster.local"
 }
 ```
 
 You can see several key information you can use for monetization purpose:
-- the API name
-- the usage plan
-- they user identity
-- the customer metadata
+- The API name
+- The usage plan
+- They user identity
 - and everything about the request (method, path, status)
-
-You can gather and process these access logs on your own, but Gloo Platform can also collect them through its open telemetry pipeline and store them in a [ClickHouse](https://clickhouse.com/) database.
-
-This has already been configured when we deployed the different Gloo Platform components.
-
-To visualize the information we've ingested, we need to deploy Grafana.
-
-```bash
-kubectl --context ${MGMT} -n gloo-mesh create cm portal-api-analytics \
---from-file=data/steps/dev-portal-monetization/portal-api-analytics.json
-
-kubectl apply --context ${MGMT} -f- <<EOF
-apiVersion: v1
-kind: Secret
-metadata:
-  name: grafana
-  namespace: gloo-mesh
-data:
-  admin-user: YWRtaW4=
-  admin-password: cGFzc3dvcmQ=
-type: Opaque
-EOF
-
-helm repo add grafana https://grafana.github.io/helm-charts
-helm repo update
-helm upgrade --install grafana \
-grafana/grafana \
---kube-context ${MGMT} \
---version 6.58.7 \
---namespace gloo-mesh \
---create-namespace \
---values - <<EOF
-admin:
-  existingSecret: grafana
-service:
-  port: 3000
-  type: LoadBalancer
-plugins:
-- grafana-clickhouse-datasource
-datasources:
-  datasources.yaml:
-    apiVersion: 1
-    datasources:
-    - name: ClickHouse
-      type: grafana-clickhouse-datasource
-      isDefault: false
-      uid: clickhouse-access-logs
-      jsonData:
-        defaultDatabase: default
-        port: 9000
-        server: clickhouse.gloo-mesh
-        username: default
-        tlsSkipVerify: true
-      secureJsonData:
-        password: password
-dashboardProviders:
-  dashboardproviders.yaml:
-    apiVersion: 1
-    providers:
-      - name: "clickhouse"
-        orgId: 1
-        folder: "clickhouse"
-        type: file
-        disableDeletion: false
-        options:
-          path: /var/lib/grafana/dashboards/clickhouse
-dashboardsConfigMaps:
-  clickhouse: portal-api-analytics
-EOF
-```
-
-Get the URL to access Grafana the following command:
-```
-echo "http://$(kubectl --context ${MGMT} -n gloo-mesh get svc grafana -o jsonpath='{.status.loadBalancer.ingress[*].ip}')"
-```
-
-Login with the user `admin` and the password `password`.
-
-Open the `API dashboard`.
-
-![Grafana](images/steps/dev-portal-monetization/grafana.png)
 
 <!--bash
 cat <<'EOF' > ./test.js
@@ -3911,11 +4332,11 @@ const helpers = require('./tests/chai-exec');
 
 describe("Monetization is working", () => {
   it('Response contains all the required monetization fields', () => {
-    const response = helpers.getOutputForCommand({ command: "curl -k -H 'api-key: " + process.env.API_KEY_USER1 + "' https://" + process.env.ENDPOINT_HTTPS_GW_CLUSTER1 + "/api/bookinfo/v1" });
+    const response = helpers.getOutputForCommand({ command: "curl -k -H 'api-key: " + process.env.API_KEY_USER1 + "' https://" + process.env.ENDPOINT_HTTPS_GW_CLUSTER1 + "/api/bookinfo" });
     const output = JSON.parse(helpers.getOutputForCommand({ command: "kubectl --context " + process.env.CLUSTER1 + " -n istio-gateways logs -l istio=ingressgateway --tail 1" }));
-    expect(output.usage_plan).to.equals("gold");
-    expect(output.api_product_id).to.equals("bookinfo");
-    expect(output.user_id).to.equals("user1@example.com");
+    expect(output.userPlan).to.equals("gold");
+    expect(output.dynamic_metadata_transformation.api).to.equals("productpage");
+    expect(output.dynamic_metadata_ext_authz.userId).to.equals("user1@example.com");
   });
 });
 EOF
