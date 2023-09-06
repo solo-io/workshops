@@ -157,7 +157,7 @@ kubectl config use-context ${MGMT}
 First of all, let's install the `meshctl` CLI:
 
 ```bash
-export GLOO_MESH_VERSION=v2.4.0
+export GLOO_MESH_VERSION=v2.4.0-rc1
 curl -sL https://run.solo.io/meshctl/install | sh -
 export PATH=$HOME/.gloo-mesh/bin:$PATH
 ```
@@ -203,11 +203,11 @@ kubectl --context ${MGMT} create ns gloo-mesh
 helm upgrade --install gloo-platform-crds gloo-platform/gloo-platform-crds \
 --namespace gloo-mesh \
 --kube-context ${MGMT} \
---version=2.4.0
+--version=2.4.0-rc1
 helm upgrade --install gloo-platform gloo-platform/gloo-platform \
 --namespace gloo-mesh \
 --kube-context ${MGMT} \
---version=2.4.0 \
+--version=2.4.0-rc1 \
  -f -<<EOF
 licensing:
   licenseKey: ${GLOO_MESH_LICENSE_KEY}
@@ -344,11 +344,11 @@ rm token
 helm upgrade --install gloo-platform-crds gloo-platform/gloo-platform-crds  \
 --namespace=gloo-mesh \
 --kube-context=${CLUSTER1} \
---version=2.4.0
+--version=2.4.0-rc1
 helm upgrade --install gloo-platform gloo-platform/gloo-platform \
   --namespace=gloo-mesh \
   --kube-context=${CLUSTER1} \
-  --version=2.4.0 \
+  --version=2.4.0-rc1 \
  -f -<<EOF
 common:
   cluster: cluster1
@@ -391,11 +391,11 @@ rm token
 helm upgrade --install gloo-platform-crds gloo-platform/gloo-platform-crds  \
 --namespace=gloo-mesh \
 --kube-context=${CLUSTER2} \
---version=2.4.0
+--version=2.4.0-rc1
 helm upgrade --install gloo-platform gloo-platform/gloo-platform \
   --namespace=gloo-mesh \
   --kube-context=${CLUSTER2} \
-  --version=2.4.0 \
+  --version=2.4.0-rc1 \
  -f -<<EOF
 common:
   cluster: cluster2
@@ -645,7 +645,7 @@ spec:
       istioOperatorSpec:
         profile: minimal
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.18.2-solo
+        tag: 1.18.1-solo
         namespace: istio-system
         values:
           global:
@@ -655,7 +655,7 @@ spec:
             network: cluster1
         meshConfig:
           accessLogFile: /dev/stdout
-          defaultConfig:
+          defaultConfig:        
             proxyMetadata:
               ISTIO_META_DNS_CAPTURE: "true"
               ISTIO_META_DNS_AUTO_ALLOCATE: "true"
@@ -685,7 +685,7 @@ spec:
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.18.2-solo
+        tag: 1.18.1-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -712,7 +712,7 @@ spec:
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.18.2-solo
+        tag: 1.18.1-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -748,7 +748,7 @@ spec:
       istioOperatorSpec:
         profile: minimal
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.18.2-solo
+        tag: 1.18.1-solo
         namespace: istio-system
         values:
           global:
@@ -758,7 +758,7 @@ spec:
             network: cluster2
         meshConfig:
           accessLogFile: /dev/stdout
-          defaultConfig:
+          defaultConfig:        
             proxyMetadata:
               ISTIO_META_DNS_CAPTURE: "true"
               ISTIO_META_DNS_AUTO_ALLOCATE: "true"
@@ -788,7 +788,7 @@ spec:
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.18.2-solo
+        tag: 1.18.1-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -815,7 +815,7 @@ spec:
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.18.2-solo
+        tag: 1.18.1-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -1280,7 +1280,7 @@ Then, you can deploy the addons on the cluster(s) using Helm:
 helm upgrade --install gloo-platform gloo-platform/gloo-platform \
   --namespace gloo-mesh-addons \
   --kube-context=${CLUSTER1} \
-  --version 2.4.0 \
+  --version 2.4.0-rc1 \
  -f -<<EOF
 common:
   cluster: cluster1
@@ -1303,7 +1303,7 @@ EOF
 helm upgrade --install gloo-platform gloo-platform/gloo-platform \
   --namespace gloo-mesh-addons \
   --kube-context=${CLUSTER2} \
-  --version 2.4.0 \
+  --version 2.4.0-rc1 \
  -f -<<EOF
 common:
   cluster: cluster2
@@ -1815,7 +1815,7 @@ EOF
 echo "executing test dist/gloo-mesh-2-0-all-context-override-beta/build/templates/steps/apps/bookinfo/gateway-expose/tests/otel-metrics.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
-mocha ./test.js --timeout 10000 --retries=150 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
+mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
 -->
 
 This diagram shows the flow of the request (through the Istio Ingress Gateway):
@@ -2007,7 +2007,7 @@ kubectl --context ${MGMT} -n bookinfo-frontends delete routetable reviews
 ## Lab 11 - Create the Root Trust Policy <a name="lab-11---create-the-root-trust-policy-"></a>
 [<img src="https://img.youtube.com/vi/-A2U2fYYgrU/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/-A2U2fYYgrU "Video Link")
 
-To allow secured (end-to-end mTLS) cross cluster communications, we need to make sure the certificates issued by the Istio control plane on each cluster are signed with intermediate certificates which have a common root CA.
+To allow secured (end-to-end mTLS) cross cluster communications, we need to make sure the certificates issued by the Istio control plance on each cluster are signed with intermediate certificates which have a common root CA.
 
 Gloo Mesh fully automates this process.
 
@@ -3271,7 +3271,8 @@ cat <<'EOF' > ./test.js
 const helpers = require('./tests/chai-exec');
 
 describe("The productpage service should be rate limited after calling the details service more than 3 times", () => {
-  const command = "kubectl -n bookinfo-frontends exec deploy/productpage-v1 --context " + process.env.CLUSTER1 + " -- python -c \"import requests; r = requests.get('http://details.bookinfo-backends:9080/details/0'); print(r.status_code)\"";
+  const podName = helpers.getOutputForCommand({ command: "kubectl -n bookinfo-frontends get pods -l app=productpage -o jsonpath='{.items[0].metadata.name}' --context " + process.env.CLUSTER1 }).replaceAll("'", "");
+  const command = "kubectl -n bookinfo-frontends exec " + podName + " --context " + process.env.CLUSTER1 + " -- python -c \"import requests; r = requests.get('http://details.bookinfo-backends:9080/details/0'); print(r.status_code)\"";
   it('Got the expected status code 429', () => helpers.genericCommand({ command: command, responseContains: "429" }));
 });
 EOF
@@ -3332,25 +3333,7 @@ grafana:
     url: http://prometheus-server.gloo-mesh:80
 EOF
 ```
-<!--bash
-cat <<'EOF' > ./test.js
-const helpers = require('./tests/chai-exec');
 
-describe("kube-prometheus-stack deployments are ready", () => {
-  it('kube-prometheus-stack-kube-state-metrics pods are ready', () => helpers.checkDeployment({ context: process.env.MGMT, namespace: "monitoring", k8sObj: "kube-prometheus-stack-kube-state-metrics" }));
-  it('kube-prometheus-stack-grafana pods are ready', () => helpers.checkDeployment({ context: process.env.MGMT, namespace: "monitoring", k8sObj: "kube-prometheus-stack-grafana" }));
-  it('kube-prometheus-stack-operator pods are ready', () => helpers.checkDeployment({ context: process.env.MGMT, namespace: "monitoring", k8sObj: "kube-prometheus-stack-operator" }));
-});
-
-describe("kube-prometheus-stack daemonset is ready", () => {
-  it('kube-prometheus-stack-prometheus-node-exporter pods are ready', () => helpers.checkDaemonSet({ context: process.env.MGMT, namespace: "monitoring", k8sObj: "kube-prometheus-stack-prometheus-node-exporter" }));
-});
-EOF
-echo "executing test dist/gloo-mesh-2-0-all-context-override-beta/build/templates/steps/gloo-platform-observability/tests/grafana-installed.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
--->
 Let's install a few dashboards!
 
 Now, you can go the the Grafana tab, log in with the default login credentials, admin/prom-operator, and import the dashboard of Istio control plane.
@@ -3406,7 +3389,7 @@ helm upgrade --install gloo-platform gloo-platform/gloo-platform \
   --namespace gloo-mesh \
   --kube-context=${CLUSTER1} \
   --reuse-values \
-  --version 2.4.0 \
+  --version 2.4.0-rc1 \
   --values - <<EOF
 telemetryCollectorCustomization:
   extraProcessors:
@@ -3437,9 +3420,7 @@ telemetryCollectorCustomization:
       exporters:
       - otlp
 EOF
-```
-
-This configuration update will
+```This configuration update will
   - create a new processor, called `filter/istiod`, that will enable all the IstioD/Pilot related metrics
   - create a new pipeline, called `metrics/istiod`, that will have the aforementioned processor to include the control plane metrics
 
