@@ -147,7 +147,7 @@ kubectl config use-context ${MGMT}
 First of all, let's install the `meshctl` CLI:
 
 ```bash
-export GLOO_MESH_VERSION=v2.4.0
+export GLOO_MESH_VERSION=v2.4.0-rc1
 curl -sL https://run.solo.io/meshctl/install | sh -
 export PATH=$HOME/.gloo-mesh/bin:$PATH
 ```
@@ -193,11 +193,11 @@ kubectl --context ${MGMT} create ns gloo-mesh
 helm upgrade --install gloo-platform-crds gloo-platform/gloo-platform-crds \
 --namespace gloo-mesh \
 --kube-context ${MGMT} \
---version=2.4.0
+--version=2.4.0-rc1
 helm upgrade --install gloo-platform gloo-platform/gloo-platform \
 --namespace gloo-mesh \
 --kube-context ${MGMT} \
---version=2.4.0 \
+--version=2.4.0-rc1 \
  -f -<<EOF
 licensing:
   licenseKey: ${GLOO_MESH_LICENSE_KEY}
@@ -334,11 +334,11 @@ rm token
 helm upgrade --install gloo-platform-crds gloo-platform/gloo-platform-crds  \
 --namespace=gloo-mesh \
 --kube-context=${CLUSTER1} \
---version=2.4.0
+--version=2.4.0-rc1
 helm upgrade --install gloo-platform gloo-platform/gloo-platform \
   --namespace=gloo-mesh \
   --kube-context=${CLUSTER1} \
-  --version=2.4.0 \
+  --version=2.4.0-rc1 \
  -f -<<EOF
 common:
   cluster: cluster1
@@ -381,11 +381,11 @@ rm token
 helm upgrade --install gloo-platform-crds gloo-platform/gloo-platform-crds  \
 --namespace=gloo-mesh \
 --kube-context=${CLUSTER2} \
---version=2.4.0
+--version=2.4.0-rc1
 helm upgrade --install gloo-platform gloo-platform/gloo-platform \
   --namespace=gloo-mesh \
   --kube-context=${CLUSTER2} \
-  --version=2.4.0 \
+  --version=2.4.0-rc1 \
  -f -<<EOF
 common:
   cluster: cluster2
@@ -635,7 +635,7 @@ spec:
       istioOperatorSpec:
         profile: minimal
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.18.2-solo
+        tag: 1.18.1-solo
         namespace: istio-system
         values:
           global:
@@ -645,7 +645,7 @@ spec:
             network: cluster1
         meshConfig:
           accessLogFile: /dev/stdout
-          defaultConfig:
+          defaultConfig:        
             proxyMetadata:
               ISTIO_META_DNS_CAPTURE: "true"
               ISTIO_META_DNS_AUTO_ALLOCATE: "true"
@@ -675,7 +675,7 @@ spec:
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.18.2-solo
+        tag: 1.18.1-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -702,7 +702,7 @@ spec:
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.18.2-solo
+        tag: 1.18.1-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -738,7 +738,7 @@ spec:
       istioOperatorSpec:
         profile: minimal
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.18.2-solo
+        tag: 1.18.1-solo
         namespace: istio-system
         values:
           global:
@@ -748,7 +748,7 @@ spec:
             network: cluster2
         meshConfig:
           accessLogFile: /dev/stdout
-          defaultConfig:
+          defaultConfig:        
             proxyMetadata:
               ISTIO_META_DNS_CAPTURE: "true"
               ISTIO_META_DNS_AUTO_ALLOCATE: "true"
@@ -778,7 +778,7 @@ spec:
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.18.2-solo
+        tag: 1.18.1-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -805,7 +805,7 @@ spec:
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.18.2-solo
+        tag: 1.18.1-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -1270,7 +1270,7 @@ Then, you can deploy the addons on the cluster(s) using Helm:
 helm upgrade --install gloo-platform gloo-platform/gloo-platform \
   --namespace gloo-mesh-addons \
   --kube-context=${CLUSTER1} \
-  --version 2.4.0 \
+  --version 2.4.0-rc1 \
  -f -<<EOF
 common:
   cluster: cluster1
@@ -1293,7 +1293,7 @@ EOF
 helm upgrade --install gloo-platform gloo-platform/gloo-platform \
   --namespace gloo-mesh-addons \
   --kube-context=${CLUSTER2} \
-  --version 2.4.0 \
+  --version 2.4.0-rc1 \
  -f -<<EOF
 common:
   cluster: cluster2
@@ -1738,7 +1738,7 @@ EOF
 echo "executing test dist/gloo-mesh-2-0-lambda-beta/build/templates/steps/apps/bookinfo/gateway-expose/tests/otel-metrics.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
-mocha ./test.js --timeout 10000 --retries=150 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
+mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
 -->
 
 This diagram shows the flow of the request (through the Istio Ingress Gateway):
@@ -1810,14 +1810,14 @@ The Httpbin team has decided to export the following to the `gateway` workspace 
 
 ## Lab 11 - Deploy the Amazon pod identity webhook <a name="lab-11---deploy-the-amazon-pod-identity-webhook-"></a>
 
+
 To use the AWS Lambda integration, we need to deploy the Amazon EKS pod identity webhook.
 
 A pre requisite is to install [Cert Manager](https://cert-manager.io/):
 
 ```bash
-wget https://github.com/cert-manager/cert-manager/releases/download/v1.12.4/cert-manager.yaml
-kubectl --context ${CLUSTER1} apply -f cert-manager.yaml
-kubectl --context ${MGMT} apply -f cert-manager.yaml
+kubectl --context ${CLUSTER1} apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.10.1/cert-manager.yaml
+kubectl --context ${MGMT} apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.10.1/cert-manager.yaml
 kubectl --context ${MGMT} -n cert-manager rollout status deploy cert-manager
 kubectl --context ${MGMT} -n cert-manager rollout status deploy cert-manager-cainjector
 kubectl --context ${MGMT} -n cert-manager rollout status deploy cert-manager-webhook
@@ -1865,7 +1865,6 @@ Then, you can create a `CloudProvider` object corresponding to the AWS role:
 
 ```bash
 kubectl apply --context ${MGMT} -f - <<EOF
-
 apiVersion: infrastructure.gloo.solo.io/v2
 kind: CloudProvider
 metadata:
@@ -1883,6 +1882,7 @@ spec:
         roleName: lambda-workshop
 EOF
 ```
+
 Now you need to annotate the service account used by the mgmt server, so it can discover existing lambdas:
 
 ```bash
@@ -1999,7 +1999,9 @@ export const handler = async(event) => {
     return response;
 };
 ```
+
 Let's update the `RouteTable`:
+
 ```bash
 kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: networking.gloo.solo.io/v2
