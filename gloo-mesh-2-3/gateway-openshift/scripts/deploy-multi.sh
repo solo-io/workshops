@@ -72,47 +72,6 @@ EOF
 fi
 done
 
-mkdir -p oidc
-cat <<EOF >./oidc/sa-signer-pkcs8.pub
------BEGIN PUBLIC KEY-----
-MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA53YiBcrn7+ZK0Vb4odeA
-1riYdvEb8To4H6/HtF+OKzuCIXFQ+bRy7yMrDGITYpfYPrTZOgfdeTLZqOiAj+cL
-395nvxdly83SUrdh7ItfOPRluuuiPHnFn111wpyjBw5nut4Kx+M5MksNfA1hU0Zw
-zIM9OviX8iEF8xHWUtz4BAMDG8N6+zpLo0pAzaei5hKuLZ9dZOzHBC8VOW82cQMm
-5X5uOKsCHMtNSjqYUNB1DxN6xxM+odGWT/6xthPGk6YCxmO28YHPFZfiS2eAIpD8
-2p/16KQKU6TkZSrldkYxiHIPhu+5f9faZJG7dB9pLN1SfdTBio4PK5Mz9muLUCv9
-ywIDAQAB
------END PUBLIC KEY-----
-EOF
-cat <<EOF >./oidc/sa-signer.key
------BEGIN RSA PRIVATE KEY-----
-MIIEpAIBAAKCAQEA53YiBcrn7+ZK0Vb4odeA1riYdvEb8To4H6/HtF+OKzuCIXFQ
-+bRy7yMrDGITYpfYPrTZOgfdeTLZqOiAj+cL395nvxdly83SUrdh7ItfOPRluuui
-PHnFn111wpyjBw5nut4Kx+M5MksNfA1hU0ZwzIM9OviX8iEF8xHWUtz4BAMDG8N6
-+zpLo0pAzaei5hKuLZ9dZOzHBC8VOW82cQMm5X5uOKsCHMtNSjqYUNB1DxN6xxM+
-odGWT/6xthPGk6YCxmO28YHPFZfiS2eAIpD82p/16KQKU6TkZSrldkYxiHIPhu+5
-f9faZJG7dB9pLN1SfdTBio4PK5Mz9muLUCv9ywIDAQABAoIBAB8tro+RMYUDRHjG
-el9ypAxIeWEsQVNRQFYkW4ZUiNYSAgl3Ni0svX6xAg989peFVL+9pLVIcfDthJxY
-FVlNCjBxyQ/YmwHFC9vQkARJEd6eLUXsj8INtS0ubbp1VxCQRDDL0C/0z7OSoJJh
-SwboqjEiTJExA2a+RArmEDTBRzdi3t+kT8G23JcqOivrITt17K6bQYyJXw7/vUdc
-r/R+hfd5TqVq92VddzDT7RNJAxsbPPXjGnESlq1GALBDs+uBGYsP0fiEJb2nicSv
-z9fBnBeERhut1gcE0C0iLRQZb+3r8TitBtxrZv+0BHgXrkKtXDwWTqGEKOwC4dBn
-7nxkH2ECgYEA6+/DOTABGYOWOQftFkJMjcugzDrjoGpuXuVOTb65T+3FHAzU93zy
-3bt3wQxrlugluyy9Sc/PL3ck2LgUsPHZ+s7zsdGvvGALBD6bOSSKATz9JgjwifO8
-PgqUz1kXRwez2CtKLOOCFFtcIzEdWIzsa1ubNqLzgN7rD+XBkUc2uEcCgYEA+yTy
-72EDMQVoIZOygytHsDNdy0iS2RsBbdurT27wkYuFpFUVWdbNSL+8haE+wJHseHcw
-BD4WIMpU+hnS4p4OO8+6V7PiXOS5E/se91EJigZAoixgDUiC8ihojWgK9PYEavUo
-hULWbayO59SxYWeUI4Ze0GP8Jw8vdB86ib4ulF0CgYEAgyzRuLjk05+iZODwQyDn
-WSquov3W0rh51s7cw0LX2wWSQm8r9NGGYhs5kJ5sLwGxAKj2MNSWF4jBdrCZ6Gr+
-y4BGY0X209/+IAUC3jlfdSLIiF4OBlT6AvB1HfclhvtUVUp0OhLfnpvQ1UwYScRI
-KcRLvovIoIzP2g3emfwjAz8CgYEAxUHhOhm1mwRHJNBQTuxok0HVMrze8n1eov39
-0RcvBvJSVp+pdHXdqX1HwqHCmxhCZuAeq8ZkNP8WvZYY6HwCbAIdt5MHgbT4lXQR
-f2l8F5gPnhFCpExG5ZLNg/urV3oAQE4stHap21zEpdyOMhZb6Yc5424U+EzaFdgN
-b3EcPtUCgYAkKvUlSnBbgiJz1iaN6fuTqH0efavuFGMhjNmG7GtpNXdgyl1OWIuc
-Yu+tZtHXtKYf3B99GwPrFzw/7yfDwae5YeWmi2/pFTH96wv3brJBqkAWY8G5Rsmd
-qF50p34vIFqUBniNRwSArx8t2dq/CuAMgLAtSjh70Q6ZAnCF85PD8Q==
------END RSA PRIVATE KEY-----
-EOF
 cat << EOF > kind${number}.yaml
 kind: Cluster
 apiVersion: kind.x-k8s.io/v1alpha4
@@ -124,28 +83,21 @@ nodes:
   extraPortMappings:
   - containerPort: 6443
     hostPort: 70${twodigits}
-  extraMounts:
-  - containerPath: /etc/kubernetes/oidc
-    hostPath: /${PWD}/oidc
+- role: worker
+  image: ${kindest_node}
 networking:
-  disableDefaultCNI: true
   serviceSubnet: "10.$(echo $twodigits | sed 's/^0*//').0.0/16"
   podSubnet: "10.1${twodigits}.0.0/16"
 kubeadmConfigPatches:
 - |
+  apiVersion: kubeadm.k8s.io/v1beta2
   kind: ClusterConfiguration
   apiServer:
     extraArgs:
-      "service-account-key-file": /etc/kubernetes/pki/sa.pub
-      "service-account-key-file": /etc/kubernetes/oidc/sa-signer-pkcs8.pub
-      "service-account-signing-key-file": /etc/kubernetes/oidc/sa-signer.key
-      "service-account-issuer": https://solo-workshop-oidc.s3.us-east-1.amazonaws.com
-      "api-audiences": sts.amazonaws.com
-    extraVolumes:
-    - name: oidc
-      hostPath: /etc/kubernetes/oidc
-      mountPath: /etc/kubernetes/oidc
-      readOnly: true
+      service-account-signing-key-file: /etc/kubernetes/pki/sa.key
+      service-account-key-file: /etc/kubernetes/pki/sa.pub
+      service-account-issuer: api
+      service-account-api-audiences: api,vault,factors
   metadata:
     name: config
 - |
@@ -175,26 +127,6 @@ ipkind=$(docker inspect kind${number}-control-plane | jq -r '.[0].NetworkSetting
 networkkind=$(echo ${ipkind} | awk -F. '{ print $1"."$2 }')
 
 kubectl config set-cluster kind-kind${number} --server=https://${myip}:70${twodigits} --insecure-skip-tls-verify=true
-
-helm repo add cilium https://helm.cilium.io/
-
-helm --kube-context kind-kind${number} install cilium cilium/cilium --version 1.12.0 \
-   --namespace kube-system \
-   --set prometheus.enabled=true \
-   --set operator.prometheus.enabled=true \
-   --set hubble.enabled=true \
-   --set hubble.metrics.enabled="{dns:destinationContext=pod|ip;sourceContext=pod|ip,drop:destinationContext=pod|ip;sourceContext=pod|ip,tcp:destinationContext=pod|ip;sourceContext=pod|ip,flow:destinationContext=pod|ip;sourceContext=pod|ip,port-distribution:destinationContext=pod|ip;sourceContext=pod|ip}" \
-   --set hubble.relay.enabled=true \
-   --set hubble.ui.enabled=true \
-   --set kubeProxyReplacement=partial \
-   --set hostServices.enabled=false \
-   --set hostServices.protocols="tcp" \
-   --set externalIPs.enabled=true \
-   --set nodePort.enabled=true \
-   --set hostPort.enabled=true \
-   --set bpf.masquerade=false \
-   --set image.pullPolicy=IfNotPresent \
-   --set ipam.mode=kubernetes
 
 kubectl --context=kind-kind${number} apply -f https://raw.githubusercontent.com/metallb/metallb/v0.13.9/config/manifests/metallb-native.yaml
 kubectl --context=kind-kind${number} -n metallb-system rollout status deploy controller
@@ -249,3 +181,4 @@ data:
     host: "localhost:${reg_port}"
     help: "https://kind.sigs.k8s.io/docs/user/local-registry/"
 EOF
+
