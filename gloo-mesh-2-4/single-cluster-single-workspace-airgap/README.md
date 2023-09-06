@@ -122,18 +122,30 @@ metallb-system       speaker-d7jkp                                 1/1     Runni
 
 Set the registry variable:
 ```bash
-registry=localhost:5000
+export registry=localhost:5000
 ```
 
 Pull and push locally the Docker images needed:
 
 ```bash
 cat <<EOF > images.txt
-us-docker.pkg.dev/gloo-mesh/istio-workshops/operator:1.18.1-solo
-us-docker.pkg.dev/gloo-mesh/istio-workshops/pilot:1.18.1-solo
-us-docker.pkg.dev/gloo-mesh/istio-workshops/proxyv2:1.18.1-solo
-quay.io/keycloak/keycloak:20.0.1
+docker.io/curlimages/curl
 docker.io/kennethreitz/httpbin
+docker.io/redis:7.0.11-alpine
+gcr.io/gloo-mesh/ext-auth-service:0.42.0
+gcr.io/gloo-mesh/gloo-mesh-agent:2.4.0
+gcr.io/gloo-mesh/gloo-mesh-apiserver:2.4.0
+gcr.io/gloo-mesh/gloo-mesh-envoy:2.4.0
+gcr.io/gloo-mesh/gloo-mesh-mgmt-server:2.4.0
+gcr.io/gloo-mesh/gloo-mesh-ui:2.4.0
+gcr.io/gloo-mesh/gloo-otel-collector:2.4.0
+gcr.io/gloo-mesh/rate-limiter:0.9.3
+jimmidyson/configmap-reload:v0.5.0
+quay.io/keycloak/keycloak:20.0.1
+quay.io/prometheus/prometheus:v2.36.2
+us-docker.pkg.dev/gloo-mesh/istio-workshops/operator:1.18.2-solo
+us-docker.pkg.dev/gloo-mesh/istio-workshops/pilot:1.18.2-solo
+us-docker.pkg.dev/gloo-mesh/istio-workshops/proxyv2:1.18.2-solo
 EOF
 
 for url in https://raw.githubusercontent.com/istio/istio/release-1.16/samples/bookinfo/platform/kube/bookinfo.yaml https://raw.githubusercontent.com/istio/istio/release-1.16/samples/bookinfo/networking/bookinfo-gateway.yaml
@@ -143,18 +155,6 @@ do
     echo $image >> images.txt
   done
 done
-
-wget https://storage.googleapis.com/gloo-platform/helm-charts/gloo-platform-2.4.0-rc1.tgz
-tar zxvf gloo-platform-*.tgz
-find gloo-platform -name "values.yaml" | while read file; do
-  cat $file | yq eval -j | jq -r '.. | .image? | select(. != null) | (if .hub then .hub + "/" + .repository + ":" + .tag else (if .registry then (if .registry == "docker.io" then "docker.io/library" else .registry end) + "/" else "" end) + .repository + ":" + (.tag | tostring) end)'
-done | sort -u >> images.txt
-
-wget https://storage.googleapis.com/gloo-platform/helm-charts/gloo-platform-2.4.0-rc1.tgz
-tar zxvf gloo-platform-*.tgz
-find gloo-platform -name "values.yaml" | while read file; do
-  cat $file | yq eval -j | jq -r '.. | .image? | select(. != null) | (if .hub then .hub + "/" + .repository + ":" + .tag else (if .registry then (if .registry == "docker.io" then "docker.io/library" else .registry end) + "/" else "" end) + .repository + ":" + (.tag | tostring) end)'
-done | sort -u >> images.txt
 
 cat images.txt | while read image; do
   nohup sh -c "echo $image | xargs -P10 -n1 docker pull" </dev/null >nohup.out 2>nohup.err &
@@ -184,7 +184,7 @@ done
 First of all, let's install the `meshctl` CLI:
 
 ```bash
-export GLOO_MESH_VERSION=v2.4.0-rc1
+export GLOO_MESH_VERSION=v2.4.0
 curl -sL https://run.solo.io/meshctl/install | sh -
 export PATH=$HOME/.gloo-mesh/bin:$PATH
 ```
@@ -229,11 +229,11 @@ kubectl --context ${MGMT} create ns gloo-mesh
 helm upgrade --install gloo-platform-crds gloo-platform/gloo-platform-crds \
 --namespace gloo-mesh \
 --kube-context ${MGMT} \
---version=2.4.0-rc1
+--version=2.4.0
 helm upgrade --install gloo-platform gloo-platform/gloo-platform \
 --namespace gloo-mesh \
 --kube-context ${MGMT} \
---version=2.4.0-rc1 \
+--version=2.4.0 \
  -f -<<EOF
 licensing:
   licenseKey: ${GLOO_MESH_LICENSE_KEY}
@@ -331,7 +331,7 @@ meshctl --kubecontext ${MGMT} check
 
 ```
 pod=$(kubectl --context ${MGMT} -n gloo-mesh get pods -l app=gloo-mesh-mgmt-server -o jsonpath='{.items[0].metadata.name}')
-kubectl --context ${MGMT} -n gloo-mesh debug -q -i ${pod} --image=curlimages/curl -- curl -s http://localhost:9091/metrics | grep relay_push_clients_connected
+kubectl --context ${MGMT} -n gloo-mesh debug -q -i ${pod} --image=${registry}/curlimages/curl -- curl -s http://localhost:9091/metrics | grep relay_push_clients_connected
 ```
 
 You should get an output similar to this:
@@ -350,7 +350,7 @@ const helpers = require('./tests/chai-exec');
 describe("Cluster registration", () => {
   it("cluster1 is registered", () => {
     podName = helpers.getOutputForCommand({ command: "kubectl -n gloo-mesh get pods -l app=gloo-mesh-mgmt-server -o jsonpath='{.items[0].metadata.name}' --context " + process.env.MGMT }).replaceAll("'", "");
-    command = helpers.getOutputForCommand({ command: "kubectl --context " + process.env.MGMT + " -n gloo-mesh debug -q -i " + podName + " --image=curlimages/curl -- curl -s http://localhost:9091/metrics" }).replaceAll("'", "");
+    command = helpers.getOutputForCommand({ command: "kubectl --context " + process.env.MGMT + " -n gloo-mesh debug -q -i " + podName + " --image=" + process.env.registry + "/curlimages/curl -- curl -s http://localhost:9091/metrics" }).replaceAll("'", "");
     expect(command).to.contain("cluster1");
   });
 });
@@ -422,7 +422,7 @@ spec:
       istioOperatorSpec:
         profile: minimal
         hub: ${registry}/istio-workshops
-        tag: 1.18.1-solo
+        tag: 1.18.2-solo
         namespace: istio-system
         values:
           global:
@@ -432,7 +432,7 @@ spec:
             network: cluster1
         meshConfig:
           accessLogFile: /dev/stdout
-          defaultConfig:        
+          defaultConfig:
             proxyMetadata:
               ISTIO_META_DNS_CAPTURE: "true"
               ISTIO_META_DNS_AUTO_ALLOCATE: "true"
@@ -462,7 +462,7 @@ spec:
       istioOperatorSpec:
         profile: empty
         hub: ${registry}/istio-workshops
-        tag: 1.18.1-solo
+        tag: 1.18.2-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -489,7 +489,7 @@ spec:
       istioOperatorSpec:
         profile: empty
         hub: ${registry}/istio-workshops
-        tag: 1.18.1-solo
+        tag: 1.18.2-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -857,7 +857,7 @@ Then, you can deploy the addons on the cluster(s) using Helm:
 helm upgrade --install gloo-platform gloo-platform/gloo-platform \
   --namespace gloo-mesh-addons \
   --kube-context=${CLUSTER1} \
-  --version 2.4.0-rc1 \
+  --version 2.4.0 \
  -f -<<EOF
 common:
   cluster: cluster1
@@ -1197,7 +1197,7 @@ const helpers = require('./tests/chai-exec');
 describe("Otel metrics", () => {
   it("cluster1 is sending metrics to telemetryGateway", () => {
     podName = helpers.getOutputForCommand({ command: "kubectl -n gloo-mesh get pods -l app=prometheus -o jsonpath='{.items[0].metadata.name}' --context " + process.env.MGMT }).replaceAll("'", "");
-    command = helpers.getOutputForCommand({ command: "kubectl --context " + process.env.MGMT + " -n gloo-mesh debug -q -i " + podName + " --image=curlimages/curl -- curl -s http://localhost:9090/api/v1/query?query=istio_requests_total" }).replaceAll("'", "");
+    command = helpers.getOutputForCommand({ command: "kubectl --context " + process.env.MGMT + " -n gloo-mesh debug -q -i " + podName + " --image=" + process.env.registry + "/curlimages/curl -- curl -s http://localhost:9090/api/v1/query?query=istio_requests_total" }).replaceAll("'", "");
     expect(command).to.contain("cluster\":\"cluster1");
   });
 });
@@ -1207,7 +1207,7 @@ EOF
 echo "executing test dist/gloo-mesh-2-0-single-cluster-single-workspace-airgap-beta/build/templates/steps/apps/bookinfo/gateway-expose/tests/otel-metrics.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
-mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
+mocha ./test.js --timeout 10000 --retries=150 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
 -->
 
 This diagram shows the flow of the request (through the Istio Ingress Gateway):
@@ -2214,26 +2214,7 @@ mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${te
 
 In this step, we're going to apply rate limiting to the Gateway to only allow 3 requests per minute for the users of the `solo.io` organization.
 
-First, we need to create a `RateLimitClientConfig` object to define the descriptors:
-
-```bash
-kubectl apply --context ${CLUSTER1} -f - <<EOF
-apiVersion: trafficcontrol.policy.gloo.solo.io/v2
-kind: RateLimitClientConfig
-metadata:
-  name: httpbin
-  namespace: httpbin
-spec:
-  raw:
-    rateLimits:
-    - setActions:
-      - requestHeaders:
-          descriptorKey: organization
-          headerName: X-Organization
-EOF
-```
-
-Then, we need to create a `RateLimitServerConfig` object to define the limits based on the descriptors:
+First, we need to create a `RateLimitServerConfig` object to define the limits based on the descriptors we will use later:
 
 ```bash
 kubectl apply --context ${CLUSTER1} -f - <<EOF
@@ -2280,10 +2261,12 @@ spec:
       name: rate-limit-server
       namespace: gloo-mesh-addons
       cluster: cluster1
-    ratelimitClientConfig:
-      name: httpbin
-      namespace: httpbin
-      cluster: cluster1
+    raw:
+      rateLimits:
+      - setActions:
+        - requestHeaders:
+            descriptorKey: organization
+            headerName: X-Organization
     ratelimitServerConfig:
       name: httpbin
       namespace: httpbin
@@ -2291,6 +2274,7 @@ spec:
     phase:
       postAuthz:
         priority: 3
+
 EOF
 ```
 
@@ -2389,9 +2373,9 @@ EOF
 And also delete the different objects we've created:
 ```bash
 kubectl --context ${CLUSTER1} -n httpbin delete ratelimitpolicy httpbin
-kubectl --context ${CLUSTER1} -n httpbin delete ratelimitclientconfig httpbin
 kubectl --context ${CLUSTER1} -n httpbin delete ratelimitserverconfig httpbin
 ```
+
 
 
 
