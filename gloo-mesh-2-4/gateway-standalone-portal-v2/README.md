@@ -1791,7 +1791,7 @@ kubectl --context ${CLUSTER1} -n istio-gateways patch deployment $(kubectl --con
 kubectl --context ${CLUSTER1} -n istio-gateways patch svc $(kubectl --context ${CLUSTER1} -n istio-gateways get svc -l istio=ingressgateway -o jsonpath='{.items[0].metadata.name}') -p '{"spec":{"externalTrafficPolicy":"Local"}}'
 ```
 
-<i>Note: The file at `data/steps/gateway-geoblock/glm-example.yaml` is a version of the `GatewayLifecycleManager` that uses a MaxMind agent to keep the geolocation database up to date. We don't use that here, but recommend it for production use.</i>
+<i>Note: The file at `gateway-geoblock/glm-example.yaml` is a version of the `GatewayLifecycleManager` that uses a MaxMind agent to keep the geolocation database up to date. We don't use that here, but recommend it for production use.</i>
 
 Now, let's test blocking traffic by country. Identify the two-character ISO 3166-1 code representing the country you're in and set it in a variable that we'll use in the WAF configuration. For example, use `US` for the USA, or `GB` for the United Kingdom. A comprehensive collection of country codes is in [this list](https://en.wikipedia.org/wiki/ISO_3166-1_alpha-2#Officially_assigned_code_elements).
 
