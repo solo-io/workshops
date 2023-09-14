@@ -3889,7 +3889,12 @@ dashboardProviders:
           path: /var/lib/grafana/dashboards/clickhouse
 dashboardsConfigMaps:
   clickhouse: portal-api-analytics
+defaultDashboardsEnabled: false
+grafana.ini:
+  auth.anonymous:
+    enabled: true
 EOF
+kubectl --context ${MGMT} -n gloo-mesh rollout status deployment grafana
 ```
 
 Get the URL to access Grafana the following command:
