@@ -2792,6 +2792,12 @@ adminPassword: password
 service:
  type: LoadBalancer
  port: 3000
+
+defaultDashboardsEnabled: false
+
+grafana.ini:
+  auth.anonymous:
+    enabled: true
 EOF
 ```
 

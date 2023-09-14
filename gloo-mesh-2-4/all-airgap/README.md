@@ -3433,6 +3433,10 @@ grafana:
   sidecar:
     image:
       repository: localhost:5000/kiwigrid/k8s-sidecar
+  defaultDashboardsEnabled: false
+  grafana.ini:
+    auth.anonymous:
+      enabled: true
 global:
   imageRegistry: localhost:5000
 kube-state-metrics:
