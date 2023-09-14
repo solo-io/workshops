@@ -17,7 +17,7 @@ spec:
         - sh
         args:
         - -c
-        - "curl -o /etc/geoip/database/GeoLite2-Country.mmdb https://storage.googleapis.com/declan-geoip/GeoLite2-Country.mmdb"
+        - "curl -o /etc/geoip/database/GeoLite2-Country.mmdb https://storage.googleapis.com/geoip-workshops/geoip.db"
         volumeMounts:
         - mountPath: /etc/geoip/database
           name: geoip
