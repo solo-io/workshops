@@ -3295,7 +3295,7 @@ spec:
     spec:
       serviceAccountName: portal-frontend
       containers:
-      - image: gcr.io/solo-public/docs/portal-frontend:v0.0.15
+      - image: djannot/portal-frontend:0.1
         args: ["--host", "0.0.0.0"]
         imagePullPolicy: Always
         name: portal-frontend
@@ -3310,6 +3310,10 @@ spec:
           value: "https://${ENDPOINT_HTTPS_GW_CLUSTER1}/portal-server/v1"
         - name: VITE_APPLIED_OIDC_AUTH_CODE_CONFIG
           value: "true"
+        - name: VITE_OIDC_AUTH_CODE_CONFIG_CALLBACK_PATH
+          value: "/v1/login"
+        - name: VITE_OIDC_AUTH_CODE_CONFIG_LOGOUT_PATH
+          value: "/v1/logout"
 EOF
 ```
 
@@ -3340,7 +3344,9 @@ spec:
         route: portal-api
       matchers:
         - uri:
-            prefix: /portal-server/v1/login
+            prefix: /v1/login
+        - uri:
+            prefix: /v1/logout
     - name: portal-frontend-no-auth
       matchers:
       - uri:
@@ -3422,13 +3428,13 @@ spec:
       - oauth2:
           oidcAuthorizationCode:
             appUrl: "https://${ENDPOINT_HTTPS_GW_CLUSTER1}"
-            callbackPath: /portal-server/v1/login
+            callbackPath: /v1/login
             clientId: ${KEYCLOAK_CLIENT}
             clientSecretRef:
               name: oauth
               namespace: gloo-mesh-addons
             issuerUrl: "${KEYCLOAK_URL}/realms/master/"
-            logoutPath: /portal-server/v1/logout
+            logoutPath: /v1/logout
             session:
               failOnFetchFailure: true
               redis:
