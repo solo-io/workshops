@@ -342,7 +342,6 @@ glooUi:
     envoy:
       image:
         registry: ${registry}/gloo-mesh
-
 EOF
 kubectl --context ${MGMT} -n gloo-mesh rollout status deploy/gloo-mesh-mgmt-server
 ```
@@ -7860,7 +7859,6 @@ glooUi:
     envoy:
       image:
         registry: ${registry}/gloo-mesh
-
 EOF
 kubectl --context ${MGMT2} -n gloo-mesh rollout status deploy/gloo-mesh-mgmt-server
 
