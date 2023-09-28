@@ -184,7 +184,6 @@ glooMgmtServer:
   floatingUserId: true
 prometheus:
   enabled: true
-  server:
 redis:
   deployment:
     enabled: true
@@ -197,7 +196,6 @@ glooUi:
   enabled: true
   serviceType: LoadBalancer
   floatingUserId: true
-
 EOF
 kubectl --context ${MGMT} -n gloo-mesh rollout status deploy/gloo-mesh-mgmt-server
 ```
