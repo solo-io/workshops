@@ -423,7 +423,6 @@ glooUi:
   serviceType: LoadBalancer
 glooNetwork:
   enabled: true
-
 EOF
 kubectl --context ${MGMT} -n gloo-mesh rollout status deploy/gloo-mesh-mgmt-server
 ```
