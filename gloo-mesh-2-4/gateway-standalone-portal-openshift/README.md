@@ -197,7 +197,6 @@ glooMgmtServer:
   floatingUserId: true
 prometheus:
   enabled: true
-  server:
 redis:
   deployment:
     enabled: true
@@ -298,7 +297,6 @@ telemetryCollectorCustomization:
       hostPort: 0
     zipkin:
       hostPort: 0
-
 EOF
 kubectl --context ${MGMT} -n gloo-mesh rollout status deploy/gloo-mesh-mgmt-server
 kubectl --context ${MGMT} delete workspaces -A --all
