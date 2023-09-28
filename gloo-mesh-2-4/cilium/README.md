@@ -228,7 +228,6 @@ telemetryGateway:
 glooUi:
   enabled: true
   serviceType: LoadBalancer
-
 EOF
 kubectl --context ${MGMT} -n gloo-mesh rollout status deploy/gloo-mesh-mgmt-server
 ```
