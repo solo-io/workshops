@@ -292,7 +292,6 @@ telemetryCollector:
         endpoint: gloo-telemetry-gateway:4317
   image:
     repository: ${registry}/gloo-mesh/gloo-otel-collector
-
 EOF
 kubectl --context ${MGMT} -n gloo-mesh rollout status deploy/gloo-mesh-mgmt-server
 ```
