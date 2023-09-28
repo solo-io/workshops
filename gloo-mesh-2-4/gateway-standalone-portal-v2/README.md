@@ -275,7 +275,6 @@ telemetryCollectorCustomization:
   pipelines:
     logs/istio_access_logs:
       enabled: true
-
 EOF
 kubectl --context ${MGMT} -n gloo-mesh rollout status deploy/gloo-mesh-mgmt-server
 kubectl --context ${MGMT} delete workspaces -A --all
