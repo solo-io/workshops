@@ -349,7 +349,7 @@ mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${te
 First of all, let's install the `meshctl` CLI:
 
 ```bash
-export GLOO_MESH_VERSION=v2.4.0
+export GLOO_MESH_VERSION=v2.4.2
 curl -sL https://run.solo.io/meshctl/install | sh -
 export PATH=$HOME/.gloo-mesh/bin:$PATH
 ```
@@ -395,11 +395,11 @@ kubectl --context ${MGMT} create ns gloo-mesh
 helm upgrade --install gloo-platform-crds gloo-platform/gloo-platform-crds \
 --namespace gloo-mesh \
 --kube-context ${MGMT} \
---version=2.4.0
+--version=2.4.2
 helm upgrade --install gloo-platform gloo-platform/gloo-platform \
 --namespace gloo-mesh \
 --kube-context ${MGMT} \
---version=2.4.0 \
+--version=2.4.2 \
  -f -<<EOF
 licensing:
   licenseKey: ${GLOO_MESH_LICENSE_KEY}
@@ -423,6 +423,7 @@ glooUi:
   serviceType: LoadBalancer
 glooNetwork:
   enabled: true
+
 EOF
 kubectl --context ${MGMT} -n gloo-mesh rollout status deploy/gloo-mesh-mgmt-server
 ```
@@ -538,11 +539,11 @@ rm token
 helm upgrade --install gloo-platform-crds gloo-platform/gloo-platform-crds  \
 --namespace=gloo-mesh \
 --kube-context=${CLUSTER1} \
---version=2.4.0
+--version=2.4.2
 helm upgrade --install gloo-platform gloo-platform/gloo-platform \
   --namespace=gloo-mesh \
   --kube-context=${CLUSTER1} \
-  --version=2.4.0 \
+  --version=2.4.2 \
  -f -<<EOF
 common:
   cluster: cluster1
@@ -585,11 +586,11 @@ rm token
 helm upgrade --install gloo-platform-crds gloo-platform/gloo-platform-crds  \
 --namespace=gloo-mesh \
 --kube-context=${CLUSTER2} \
---version=2.4.0
+--version=2.4.2
 helm upgrade --install gloo-platform gloo-platform/gloo-platform \
   --namespace=gloo-mesh \
   --kube-context=${CLUSTER2} \
-  --version=2.4.0 \
+  --version=2.4.2 \
  -f -<<EOF
 common:
   cluster: cluster2
