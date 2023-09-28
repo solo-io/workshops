@@ -178,7 +178,6 @@ glooMgmtServer:
   serviceType: NodePort
 prometheus:
   enabled: true
-  server:
 redis:
   deployment:
     enabled: true
@@ -216,7 +215,6 @@ telemetryCollector:
       hostPort: 0
     zipkin:
       hostPort: 0
-
 EOF
 kubectl --context ${MGMT} -n gloo-mesh rollout status deploy/gloo-mesh-mgmt-server
 ```
