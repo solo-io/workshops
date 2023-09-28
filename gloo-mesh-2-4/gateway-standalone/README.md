@@ -242,7 +242,6 @@ telemetryCollector:
     exporters:
       otlp:
         endpoint: gloo-telemetry-gateway:4317
-
 EOF
 kubectl --context ${MGMT} -n gloo-mesh rollout status deploy/gloo-mesh-mgmt-server
 kubectl --context ${MGMT} delete workspaces -A --all
