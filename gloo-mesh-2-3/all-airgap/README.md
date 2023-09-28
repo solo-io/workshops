@@ -176,13 +176,13 @@ amazon/amazon-eks-pod-identity-webhook:v0.5.0
 bats/bats:v1.4.1
 docker.io/kennethreitz/httpbin
 docker.io/redis:7.0.11-alpine
-gcr.io/gloo-mesh/ext-auth-service:0.35.7
-gcr.io/gloo-mesh/gloo-mesh-agent:2.3.15
-gcr.io/gloo-mesh/gloo-mesh-apiserver:2.3.15
-gcr.io/gloo-mesh/gloo-mesh-envoy:2.3.15
-gcr.io/gloo-mesh/gloo-mesh-mgmt-server:2.3.15
-gcr.io/gloo-mesh/gloo-mesh-ui:2.3.15
-gcr.io/gloo-mesh/gloo-otel-collector:2.3.15
+gcr.io/gloo-mesh/ext-auth-service:0.35.8-gp-patch0
+gcr.io/gloo-mesh/gloo-mesh-agent:2.3.18
+gcr.io/gloo-mesh/gloo-mesh-apiserver:2.3.18
+gcr.io/gloo-mesh/gloo-mesh-envoy:2.3.18
+gcr.io/gloo-mesh/gloo-mesh-mgmt-server:2.3.18
+gcr.io/gloo-mesh/gloo-mesh-ui:2.3.18
+gcr.io/gloo-mesh/gloo-otel-collector:2.3.18
 gcr.io/gloo-mesh/rate-limiter:0.8.6
 gcr.io/solo-test-236622/mtls-test:0.0.6
 grafana/grafana:9.3.1
@@ -201,11 +201,11 @@ quay.io/prometheus/prometheus:v2.41.0
 registry.k8s.io/ingress-nginx/kube-webhook-certgen:v1.3.0
 registry.k8s.io/kube-state-metrics/kube-state-metrics:v2.7.0
 us-docker.pkg.dev/gloo-mesh/istio-workshops/operator:1.17.3-solo
-us-docker.pkg.dev/gloo-mesh/istio-workshops/operator:1.18.2-solo
+us-docker.pkg.dev/gloo-mesh/istio-workshops/operator:1.18.3-solo
 us-docker.pkg.dev/gloo-mesh/istio-workshops/pilot:1.17.3-solo
-us-docker.pkg.dev/gloo-mesh/istio-workshops/pilot:1.18.2-solo
+us-docker.pkg.dev/gloo-mesh/istio-workshops/pilot:1.18.3-solo
 us-docker.pkg.dev/gloo-mesh/istio-workshops/proxyv2:1.17.3-solo
-us-docker.pkg.dev/gloo-mesh/istio-workshops/proxyv2:1.18.2-solo
+us-docker.pkg.dev/gloo-mesh/istio-workshops/proxyv2:1.18.3-solo
 EOF
 
 for url in https://raw.githubusercontent.com/istio/istio/release-1.16/samples/bookinfo/platform/kube/bookinfo.yaml https://raw.githubusercontent.com/istio/istio/release-1.16/samples/bookinfo/networking/bookinfo-gateway.yaml
@@ -244,7 +244,7 @@ done
 First of all, let's install the `meshctl` CLI:
 
 ```bash
-export GLOO_MESH_VERSION=v2.3.15
+export GLOO_MESH_VERSION=v2.3.18
 curl -sL https://run.solo.io/meshctl/install | sh -
 export PATH=$HOME/.gloo-mesh/bin:$PATH
 ```
@@ -290,11 +290,11 @@ kubectl --context ${MGMT} create ns gloo-mesh
 helm upgrade --install gloo-platform-crds gloo-platform/gloo-platform-crds \
 --namespace gloo-mesh \
 --kube-context ${MGMT} \
---version=2.3.15
+--version=2.3.18
 helm upgrade --install gloo-platform gloo-platform/gloo-platform \
 --namespace gloo-mesh \
 --kube-context ${MGMT} \
---version=2.3.15 \
+--version=2.3.18 \
  -f -<<EOF
 licensing:
   licenseKey: ${GLOO_MESH_LICENSE_KEY}
@@ -338,6 +338,7 @@ glooUi:
     envoy:
       image:
         registry: ${registry}/gloo-mesh
+
 EOF
 kubectl --context ${MGMT} -n gloo-mesh rollout status deploy/gloo-mesh-mgmt-server
 ```
@@ -453,11 +454,11 @@ rm token
 helm upgrade --install gloo-platform-crds gloo-platform/gloo-platform-crds  \
 --namespace=gloo-mesh \
 --kube-context=${CLUSTER1} \
---version=2.3.15
+--version=2.3.18
 helm upgrade --install gloo-platform gloo-platform/gloo-platform \
   --namespace=gloo-mesh \
   --kube-context=${CLUSTER1} \
-  --version=2.3.15 \
+  --version=2.3.18 \
  -f -<<EOF
 common:
   cluster: cluster1
@@ -504,11 +505,11 @@ rm token
 helm upgrade --install gloo-platform-crds gloo-platform/gloo-platform-crds  \
 --namespace=gloo-mesh \
 --kube-context=${CLUSTER2} \
---version=2.3.15
+--version=2.3.18
 helm upgrade --install gloo-platform gloo-platform/gloo-platform \
   --namespace=gloo-mesh \
   --kube-context=${CLUSTER2} \
-  --version=2.3.15 \
+  --version=2.3.18 \
  -f -<<EOF
 common:
   cluster: cluster2
@@ -1401,7 +1402,7 @@ Then, you can deploy the addons on the cluster(s) using Helm:
 helm upgrade --install gloo-platform gloo-platform/gloo-platform \
   --namespace gloo-mesh-addons \
   --kube-context=${CLUSTER1} \
-  --version 2.3.15 \
+  --version 2.3.18 \
  -f -<<EOF
 common:
   cluster: cluster1
@@ -1434,7 +1435,7 @@ EOF
 helm upgrade --install gloo-platform gloo-platform/gloo-platform \
   --namespace gloo-mesh-addons \
   --kube-context=${CLUSTER2} \
-  --version 2.3.15 \
+  --version 2.3.18 \
  -f -<<EOF
 common:
   cluster: cluster2
@@ -3499,7 +3500,7 @@ helm upgrade --install gloo-platform gloo-platform/gloo-platform \
   --namespace gloo-mesh \
   --kube-context=${CLUSTER1} \
   --reuse-values \
-  --version 2.3.15 \
+  --version 2.3.18 \
   --values - <<EOF
 telemetryCollectorCustomization:
   extraProcessors:
@@ -4005,7 +4006,7 @@ read -r id secret <<<$(curl -m 2 -X POST -d "{ \"clientId\": \"${KEYCLOAK_CLIENT
 export KEYCLOAK_SECRET=${secret}
 
 # Add allowed redirect URIs
-curl -m 2 -H "Authorization: Bearer ${KEYCLOAK_TOKEN}" -X PUT -H "Content-Type: application/json" -d '{"serviceAccountsEnabled": true, "directAccessGrantsEnabled": true, "authorizationServicesEnabled": true, "redirectUris": ["'https://${ENDPOINT_HTTPS_GW_CLUSTER1}'/callback","'https://${ENDPOINT_HTTPS_GW_CLUSTER1}'/portal-server/v1/login","'https://${ENDPOINT_HTTPS_GW_CLUSTER1}'/get"]}' $KEYCLOAK_URL/admin/realms/master/clients/${id}
+curl -m 2 -H "Authorization: Bearer ${KEYCLOAK_TOKEN}" -X PUT -H "Content-Type: application/json" -d '{"serviceAccountsEnabled": true, "directAccessGrantsEnabled": true, "authorizationServicesEnabled": true, "redirectUris": ["'https://${ENDPOINT_HTTPS_GW_CLUSTER1}'/callback","'https://${ENDPOINT_HTTPS_GW_CLUSTER1}'/*","'https://${ENDPOINT_HTTPS_GW_CLUSTER1}'/get"]}' $KEYCLOAK_URL/admin/realms/master/clients/${id}
 
 # Add the group attribute in the JWT token returned by Keycloak
 curl -m 2 -H "Authorization: Bearer ${KEYCLOAK_TOKEN}" -X POST -H "Content-Type: application/json" -d '{"name": "group", "protocol": "openid-connect", "protocolMapper": "oidc-usermodel-attribute-mapper", "config": {"claim.name": "group", "jsonType.label": "String", "user.attribute": "group", "id.token.claim": "true", "access.token.claim": "true"}}' $KEYCLOAK_URL/admin/realms/master/clients/${id}/protocol-mappers/models
@@ -6510,7 +6511,7 @@ spec:
       istioOperatorSpec:
         profile: minimal
         hub: ${registry}/istio-workshops
-        tag: 1.18.2-solo
+        tag: 1.18.3-solo
         namespace: istio-system
         values:
           global:
@@ -6570,7 +6571,7 @@ spec:
       istioOperatorSpec:
         profile: empty
         hub: ${registry}/istio-workshops
-        tag: 1.18.2-solo
+        tag: 1.18.3-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -6623,7 +6624,7 @@ spec:
       istioOperatorSpec:
         profile: empty
         hub: ${registry}/istio-workshops
-        tag: 1.18.2-solo
+        tag: 1.18.3-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -6690,7 +6691,7 @@ spec:
       istioOperatorSpec:
         profile: minimal
         hub: ${registry}/istio-workshops
-        tag: 1.18.2-solo
+        tag: 1.18.3-solo
         namespace: istio-system
         values:
           global:
@@ -6750,7 +6751,7 @@ spec:
       istioOperatorSpec:
         profile: empty
         hub: ${registry}/istio-workshops
-        tag: 1.18.2-solo
+        tag: 1.18.3-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -6803,7 +6804,7 @@ spec:
       istioOperatorSpec:
         profile: empty
         hub: ${registry}/istio-workshops
-        tag: 1.18.2-solo
+        tag: 1.18.3-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -7019,7 +7020,7 @@ spec:
       istioOperatorSpec:
         profile: empty
         hub: ${registry}/istio-workshops
-        tag: 1.18.2-solo
+        tag: 1.18.3-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -7046,7 +7047,7 @@ spec:
       istioOperatorSpec:
         profile: empty
         hub: ${registry}/istio-workshops
-        tag: 1.18.2-solo
+        tag: 1.18.3-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -7083,7 +7084,7 @@ spec:
       istioOperatorSpec:
         profile: empty
         hub: ${registry}/istio-workshops
-        tag: 1.18.2-solo
+        tag: 1.18.3-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -7110,7 +7111,7 @@ spec:
       istioOperatorSpec:
         profile: empty
         hub: ${registry}/istio-workshops
-        tag: 1.18.2-solo
+        tag: 1.18.3-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -7168,7 +7169,7 @@ spec:
       istioOperatorSpec:
         profile: minimal
         hub: ${registry}/istio-workshops
-        tag: 1.18.2-solo
+        tag: 1.18.3-solo
         namespace: istio-system
         values:
           global:
@@ -7209,7 +7210,7 @@ spec:
       istioOperatorSpec:
         profile: minimal
         hub: ${registry}/istio-workshops
-        tag: 1.18.2-solo
+        tag: 1.18.3-solo
         namespace: istio-system
         values:
           global:
@@ -7371,11 +7372,11 @@ kubectl --context ${MGMT2} create ns gloo-mesh
 helm upgrade --install gloo-platform-crds gloo-platform/gloo-platform-crds \
 --namespace gloo-mesh \
 --kube-context ${MGMT2} \
---version=2.3.15
+--version=2.3.18
 helm upgrade --install gloo-platform gloo-platform/gloo-platform \
 --namespace gloo-mesh \
 --kube-context ${MGMT2} \
---version=2.3.15 \
+--version=2.3.18 \
  -f -<<EOF
 licensing:
   licenseKey: ${GLOO_MESH_LICENSE_KEY}
@@ -7419,6 +7420,7 @@ glooUi:
     envoy:
       image:
         registry: ${registry}/gloo-mesh
+
 EOF
 kubectl --context ${MGMT2} -n gloo-mesh rollout status deploy/gloo-mesh-mgmt-server
 
@@ -7582,11 +7584,11 @@ rm token
 helm upgrade --install gloo-platform-crds gloo-platform/gloo-platform-crds  \
 --namespace=gloo-mesh \
 --kube-context=${CLUSTER1} \
---version=2.3.15
+--version=2.3.18
 helm upgrade --install gloo-platform gloo-platform/gloo-platform \
   --namespace=gloo-mesh \
   --kube-context=${CLUSTER1} \
-  --version=2.3.15 \
+  --version=2.3.18 \
  -f -<<EOF
 common:
   cluster: cluster1
@@ -7627,11 +7629,11 @@ rm token
 helm upgrade --install gloo-platform-crds gloo-platform/gloo-platform-crds  \
 --namespace=gloo-mesh \
 --kube-context=${CLUSTER2} \
---version=2.3.15
+--version=2.3.18
 helm upgrade --install gloo-platform gloo-platform/gloo-platform \
   --namespace=gloo-mesh \
   --kube-context=${CLUSTER2} \
-  --version=2.3.15 \
+  --version=2.3.18 \
  -f -<<EOF
 common:
   cluster: cluster2
