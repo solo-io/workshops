@@ -229,7 +229,6 @@ telemetryGateway:
 glooUi:
   enabled: true
   serviceType: 
-
 EOF
 kubectl --context ${MGMT} -n gloo-mesh rollout status deploy/gloo-mesh-mgmt-server
 ```
