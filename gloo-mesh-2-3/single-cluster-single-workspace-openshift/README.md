@@ -174,6 +174,7 @@ glooMgmtServer:
   enabled: true
   ports:
     healthcheck: 8091
+  registerCluster: true
   floatingUserId: true
 prometheus:
   enabled: true
@@ -216,54 +217,15 @@ telemetryCollector:
       hostPort: 0
 EOF
 kubectl --context ${MGMT} -n gloo-mesh rollout status deploy/gloo-mesh-mgmt-server
+kubectl --context ${MGMT} delete workspaces -A --all
+kubectl --context ${MGMT} delete workspacesettings -A --all
 ```
-<!--bash
-kubectl --context ${MGMT} scale --replicas=0 -n gloo-mesh deploy/gloo-mesh-ui
-kubectl --context ${MGMT} rollout status -n gloo-mesh deploy/gloo-mesh-ui
--->
 <!--bash
 kubectl wait --context ${MGMT} --for=condition=Ready -n gloo-mesh --all pod
 until [[ $(kubectl --context ${MGMT} -n gloo-mesh get svc gloo-mesh-mgmt-server -o json | jq '.status.loadBalancer | length') -gt 0 ]]; do
   sleep 1
 done
 -->
-Finally, you need to register the cluster(s).
-
-Here is how you register the first one:
-
-```bash
-kubectl apply --context ${MGMT} -f- <<EOF
-apiVersion: admin.gloo.solo.io/v2
-kind: KubernetesCluster
-metadata:
-  name: cluster1
-  namespace: gloo-mesh
-spec:
-  clusterDomain: cluster.local
-EOF
-```
-
-Note that the registration can also be performed using `meshctl cluster register`.
-
-You can check the cluster(s) have been registered correctly using the following commands:
-
-```
-meshctl --kubecontext ${MGMT} check
-```
-
-```
-pod=$(kubectl --context ${MGMT} -n gloo-mesh get pods -l app=gloo-mesh-mgmt-server -o jsonpath='{.items[0].metadata.name}')
-kubectl --context ${MGMT} -n gloo-mesh debug -q -i ${pod} --image=curlimages/curl -- curl -s http://localhost:9091/metrics | grep relay_push_clients_connected
-```
-
-You should get an output similar to this:
-
-```
-# HELP relay_push_clients_connected Current number of connected Relay push clients (Relay Agents).
-# TYPE relay_push_clients_connected gauge
-relay_push_clients_connected{cluster="cluster1"} 1
-```
-
 <!--bash
 cat <<'EOF' > ./test.js
 var chai = require('chai');
