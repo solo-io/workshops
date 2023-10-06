@@ -232,10 +232,6 @@ glooUi:
 EOF
 kubectl --context ${MGMT} -n gloo-mesh rollout status deploy/gloo-mesh-mgmt-server
 ```
-<!--bash
-kubectl --context ${MGMT} scale --replicas=0 -n gloo-mesh deploy/gloo-mesh-ui
-kubectl --context ${MGMT} rollout status -n gloo-mesh deploy/gloo-mesh-ui
--->
 Then, you need to set the environment variable to tell the Gloo Mesh agents how to communicate with the management plane:
 <!--bash
 cat <<'EOF' > ./test.js
@@ -288,6 +284,7 @@ Check that the variables have correct values:
 echo $HOST_GLOO_MESH
 echo $ENDPOINT_GLOO_MESH
 ```
+
 <!--bash
 cat <<'EOF' > ./test.js
 const dns = require('dns');
@@ -427,6 +424,23 @@ relay_push_clients_connected{cluster="cluster1"} 1
 relay_push_clients_connected{cluster="cluster2"} 1
 ```
 
+Finally, you need to specify which gateways you want to use for cross cluster traffic:
+
+```bash
+kubectl apply --context ${MGMT} -f - <<EOF
+apiVersion: admin.gloo.solo.io/v2
+kind: WorkspaceSettings
+metadata:
+  name: global
+  namespace: gloo-mesh
+spec:
+  options:
+    eastWestGateways:
+      - selector:
+          labels:
+            istio: eastwestgateway
+EOF
+```
 <!--bash
 cat <<'EOF' > ./test.js
 var chai = require('chai');
@@ -450,24 +464,6 @@ tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
 -->
-
-Finally, you need to specify which gateways you want to use for cross cluster traffic:
-
-```bash
-kubectl apply --context ${MGMT} -f - <<EOF
-apiVersion: admin.gloo.solo.io/v2
-kind: WorkspaceSettings
-metadata:
-  name: global
-  namespace: gloo-mesh
-spec:
-  options:
-    eastWestGateways:
-      - selector:
-          labels:
-            istio: eastwestgateway
-EOF
-```
 
 
 
