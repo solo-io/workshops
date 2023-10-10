@@ -42,11 +42,10 @@ source ./scripts/assert.sh
 * [Lab 26 - Deploy the Amazon pod identity webhook](#lab-26---deploy-the-amazon-pod-identity-webhook-)
 * [Lab 27 - Execute Lambda functions](#lab-27---execute-lambda-functions-)
 * [Lab 28 - VM integration](#lab-28---vm-integration-)
-* [Lab 29 - Extend Envoy with WebAssembly](#lab-29---extend-envoy-with-webassembly-)
-* [Lab 30 - Upgrade Istio using Gloo Mesh Lifecycle Manager](#lab-30---upgrade-istio-using-gloo-mesh-lifecycle-manager-)
-* [Lab 31 - Leverage GraphQL stitching](#lab-31---leverage-graphql-stitching-)
-* [Lab 32 - Gloo Mesh Management Plane failover](#lab-32---gloo-mesh-management-plane-failover-)
-* [Lab 33 - Securing the egress traffic](#lab-33---securing-the-egress-traffic-)
+* [Lab 29 - Upgrade Istio using Gloo Mesh Lifecycle Manager](#lab-29---upgrade-istio-using-gloo-mesh-lifecycle-manager-)
+* [Lab 30 - Leverage GraphQL stitching](#lab-30---leverage-graphql-stitching-)
+* [Lab 31 - Gloo Mesh Management Plane failover](#lab-31---gloo-mesh-management-plane-failover-)
+* [Lab 32 - Securing the egress traffic](#lab-32---securing-the-egress-traffic-)
 
 
 
@@ -201,7 +200,7 @@ describe("Required environment variables should contain value", () => {
   });
 });
 EOF
-echo "executing test dist/gloo-mesh-2-0-all-beta/build/templates/steps/deploy-and-register-gloo-mesh/tests/environment-variables.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-all/build/templates/steps/deploy-and-register-gloo-mesh/tests/environment-variables.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -263,7 +262,7 @@ describe("MGMT server is healthy", () => {
   });
 });
 EOF
-echo "executing test dist/gloo-mesh-2-0-all-beta/build/templates/steps/deploy-and-register-gloo-mesh/tests/check-deployment.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-all/build/templates/steps/deploy-and-register-gloo-mesh/tests/check-deployment.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -284,7 +283,7 @@ afterEach(function (done) {
   }
 });
 EOF
-echo "executing test dist/gloo-mesh-2-0-all-beta/build/templates/steps/deploy-and-register-gloo-mesh/tests/get-gloo-mesh-mgmt-server-ip.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-all/build/templates/steps/deploy-and-register-gloo-mesh/tests/get-gloo-mesh-mgmt-server-ip.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -476,7 +475,7 @@ describe("Cluster registration", () => {
   });
 });
 EOF
-echo "executing test dist/gloo-mesh-2-0-all-beta/build/templates/steps/deploy-and-register-gloo-mesh/tests/cluster-registration.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-all/build/templates/steps/deploy-and-register-gloo-mesh/tests/cluster-registration.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -494,7 +493,7 @@ First of all, let's create Kubernetes services for the gateways:
 ```bash
 registry=localhost:5000
 kubectl --context ${CLUSTER1} create ns istio-gateways
-kubectl --context ${CLUSTER1} label namespace istio-gateways istio.io/rev=1-17 --overwrite
+kubectl --context ${CLUSTER1} label namespace istio-gateways istio.io/rev=1-18 --overwrite
 
 kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: v1
@@ -518,7 +517,7 @@ spec:
   selector:
     app: istio-ingressgateway
     istio: ingressgateway
-    revision: 1-17
+    revision: 1-18
   type: LoadBalancer
 EOF
 
@@ -557,13 +556,13 @@ spec:
   selector:
     app: istio-ingressgateway
     istio: eastwestgateway
-    revision: 1-17
+    revision: 1-18
     topology.istio.io/network: cluster1
   type: LoadBalancer
 EOF
 
 kubectl --context ${CLUSTER2} create ns istio-gateways
-kubectl --context ${CLUSTER2} label namespace istio-gateways istio.io/rev=1-17 --overwrite
+kubectl --context ${CLUSTER2} label namespace istio-gateways istio.io/rev=1-18 --overwrite
 
 kubectl apply --context ${CLUSTER2} -f - <<EOF
 apiVersion: v1
@@ -587,7 +586,7 @@ spec:
   selector:
     app: istio-ingressgateway
     istio: ingressgateway
-    revision: 1-17
+    revision: 1-18
   type: LoadBalancer
 EOF
 
@@ -626,7 +625,7 @@ spec:
   selector:
     app: istio-ingressgateway
     istio: eastwestgateway
-    revision: 1-17
+    revision: 1-18
     topology.istio.io/network: cluster2
   type: LoadBalancer
 EOF
@@ -648,11 +647,11 @@ spec:
     - clusters:
       - name: cluster1
         defaultRevision: true
-      revision: 1-17
+      revision: 1-18
       istioOperatorSpec:
         profile: minimal
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.17.3-solo
+        tag: 1.18.3-solo
         namespace: istio-system
         values:
           global:
@@ -696,11 +695,11 @@ spec:
     - clusters:
       - name: cluster1
         activeGateway: false
-      gatewayRevision: 1-17
+      gatewayRevision: 1-18
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.17.3-solo
+        tag: 1.18.3-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -723,11 +722,11 @@ spec:
     - clusters:
       - name: cluster1
         activeGateway: false
-      gatewayRevision: 1-17
+      gatewayRevision: 1-18
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.17.3-solo
+        tag: 1.18.3-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -759,11 +758,11 @@ spec:
     - clusters:
       - name: cluster2
         defaultRevision: true
-      revision: 1-17
+      revision: 1-18
       istioOperatorSpec:
         profile: minimal
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.17.3-solo
+        tag: 1.18.3-solo
         namespace: istio-system
         values:
           global:
@@ -807,11 +806,11 @@ spec:
     - clusters:
       - name: cluster2
         activeGateway: false
-      gatewayRevision: 1-17
+      gatewayRevision: 1-18
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.17.3-solo
+        tag: 1.18.3-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -834,11 +833,11 @@ spec:
     - clusters:
       - name: cluster2
         activeGateway: false
-      gatewayRevision: 1-17
+      gatewayRevision: 1-18
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.17.3-solo
+        tag: 1.18.3-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -928,7 +927,7 @@ describe("Checking Istio installation", function() {
 });
 
 EOF
-echo "executing test dist/gloo-mesh-2-0-all-beta/build/templates/steps/istio-lifecycle-manager-install/tests/istio-ready.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-all/build/templates/steps/istio-lifecycle-manager-install/tests/istio-ready.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -1017,8 +1016,8 @@ curl https://raw.githubusercontent.com/istio/istio/release-1.16/samples/bookinfo
 
 kubectl --context ${CLUSTER1} create ns bookinfo-frontends
 kubectl --context ${CLUSTER1} create ns bookinfo-backends
-kubectl --context ${CLUSTER1} label namespace bookinfo-frontends istio.io/rev=1-17 --overwrite
-kubectl --context ${CLUSTER1} label namespace bookinfo-backends istio.io/rev=1-17 --overwrite
+kubectl --context ${CLUSTER1} label namespace bookinfo-frontends istio.io/rev=1-18 --overwrite
+kubectl --context ${CLUSTER1} label namespace bookinfo-backends istio.io/rev=1-18 --overwrite
 
 # deploy the frontend bookinfo service in the bookinfo-frontends namespace
 kubectl --context ${CLUSTER1} -n bookinfo-frontends apply -f bookinfo.yaml -l 'account in (productpage)'
@@ -1059,8 +1058,8 @@ Now, run the following commands to deploy the bookinfo application on `cluster2`
 ```bash
 kubectl --context ${CLUSTER2} create ns bookinfo-frontends
 kubectl --context ${CLUSTER2} create ns bookinfo-backends
-kubectl --context ${CLUSTER2} label namespace bookinfo-frontends istio.io/rev=1-17 --overwrite
-kubectl --context ${CLUSTER2} label namespace bookinfo-backends istio.io/rev=1-17 --overwrite
+kubectl --context ${CLUSTER2} label namespace bookinfo-frontends istio.io/rev=1-18 --overwrite
+kubectl --context ${CLUSTER2} label namespace bookinfo-backends istio.io/rev=1-18 --overwrite
 
 # deploy the frontend bookinfo service in the bookinfo-frontends namespace
 kubectl --context ${CLUSTER2} -n bookinfo-frontends apply -f bookinfo.yaml -l 'account in (productpage)'
@@ -1120,7 +1119,7 @@ describe("Bookinfo app", () => {
   });
 });
 EOF
-echo "executing test dist/gloo-mesh-2-0-all-beta/build/templates/steps/apps/bookinfo/deploy-bookinfo/tests/check-bookinfo.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-all/build/templates/steps/apps/bookinfo/deploy-bookinfo/tests/check-bookinfo.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -1237,7 +1236,7 @@ spec:
       labels:
         app: in-mesh
         version: v1
-        istio.io/rev: 1-17
+        istio.io/rev: 1-18
     spec:
       serviceAccountName: in-mesh
       containers:
@@ -1275,7 +1274,7 @@ describe("httpbin app", () => {
   });
 });
 EOF
-echo "executing test dist/gloo-mesh-2-0-all-beta/build/templates/steps/apps/httpbin/deploy-httpbin/tests/check-httpbin.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-all/build/templates/steps/apps/httpbin/deploy-httpbin/tests/check-httpbin.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -1292,9 +1291,9 @@ First, you need to create a namespace for the addons, with Istio injection enabl
 
 ```bash
 kubectl --context ${CLUSTER1} create namespace gloo-mesh-addons
-kubectl --context ${CLUSTER1} label namespace gloo-mesh-addons istio.io/rev=1-17 --overwrite
+kubectl --context ${CLUSTER1} label namespace gloo-mesh-addons istio.io/rev=1-18 --overwrite
 kubectl --context ${CLUSTER2} create namespace gloo-mesh-addons
-kubectl --context ${CLUSTER2} label namespace gloo-mesh-addons istio.io/rev=1-17 --overwrite
+kubectl --context ${CLUSTER2} label namespace gloo-mesh-addons istio.io/rev=1-18 --overwrite
 ```
 
 Then, you can deploy the addons on the cluster(s) using Helm:
@@ -1366,6 +1365,7 @@ spec:
       namespace: gloo-mesh-addons
     port:
       name: grpc
+  requestBody: {} # Needed if some an extauth plugin must access the body of the requests
 EOF
 ```
 
@@ -1644,7 +1644,7 @@ describe("Productpage is available (HTTP)", () => {
   it('/productpage is available in cluster1', () => helpers.checkURL({ host: 'http://' + process.env.ENDPOINT_HTTP_GW_CLUSTER1, path: '/productpage', retCode: 200 }));
 })
 EOF
-echo "executing test dist/gloo-mesh-2-0-all-beta/build/templates/steps/apps/bookinfo/gateway-expose/tests/productpage-available.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-all/build/templates/steps/apps/bookinfo/gateway-expose/tests/productpage-available.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -1747,7 +1747,7 @@ describe("Productpage is available (HTTPS)", () => {
   it('/productpage is available in cluster1', () => helpers.checkURL({ host: 'https://' + process.env.ENDPOINT_HTTPS_GW_CLUSTER1, path: '/productpage', retCode: 200 }));
 })
 EOF
-echo "executing test dist/gloo-mesh-2-0-all-beta/build/templates/steps/apps/bookinfo/gateway-expose/tests/productpage-available-secure.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-all/build/templates/steps/apps/bookinfo/gateway-expose/tests/productpage-available-secure.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -1768,7 +1768,7 @@ describe("Otel metrics", () => {
 
 
 EOF
-echo "executing test dist/gloo-mesh-2-0-all-beta/build/templates/steps/apps/bookinfo/gateway-expose/tests/otel-metrics.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-all/build/templates/steps/apps/bookinfo/gateway-expose/tests/otel-metrics.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=150 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -1935,7 +1935,7 @@ describe("Reviews shouldn't be available", () => {
 });
 
 EOF
-echo "executing test dist/gloo-mesh-2-0-all-beta/build/templates/steps/apps/bookinfo/traffic-policies/tests/traffic-policies-reviews-unavailable.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-all/build/templates/steps/apps/bookinfo/traffic-policies/tests/traffic-policies-reviews-unavailable.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -2259,7 +2259,7 @@ describe("cacerts secrets have been created", () => {
     });
 });
 EOF
-echo "executing test dist/gloo-mesh-2-0-all-beta/build/templates/steps/root-trust-policy/tests/cacert-secrets-created.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-all/build/templates/steps/root-trust-policy/tests/cacert-secrets-created.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -2313,7 +2313,7 @@ describe("Certificate issued by Gloo Mesh", () => {
 
 });
 EOF
-echo "executing test dist/gloo-mesh-2-0-all-beta/build/templates/steps/root-trust-policy/tests/certificate-issued-by-gloo-mesh.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-all/build/templates/steps/root-trust-policy/tests/certificate-issued-by-gloo-mesh.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -2501,7 +2501,7 @@ describe("Productpage is available (SSL)", () => {
   it('/productpage is available in cluster2', () => helpers.checkURL({ host: 'https://' + process.env.ENDPOINT_HTTPS_GW_CLUSTER2, path: '/productpage', retCode: 200 }));
 })
 EOF
-echo "executing test dist/gloo-mesh-2-0-all-beta/build/templates/steps/apps/bookinfo/virtual-destination/tests/productpage-available-secure.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-all/build/templates/steps/apps/bookinfo/virtual-destination/tests/productpage-available-secure.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -2602,7 +2602,7 @@ describe("Productpage is available (SSL)", () => {
   it('/productpage is available in cluster2', () => helpers.checkURL({ host: 'https://' + process.env.ENDPOINT_HTTPS_GW_CLUSTER2, path: '/productpage', retCode: 200 }));
 })
 EOF
-echo "executing test dist/gloo-mesh-2-0-all-beta/build/templates/steps/apps/bookinfo/virtual-destination/tests/productpage-available-secure.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-all/build/templates/steps/apps/bookinfo/virtual-destination/tests/productpage-available-secure.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -2632,7 +2632,7 @@ describe("Productpage is available (SSL)", () => {
   it('/productpage is available in cluster2', () => helpers.checkURL({ host: 'https://' + process.env.ENDPOINT_HTTPS_GW_CLUSTER2, path: '/productpage', retCode: 200 }));
 })
 EOF
-echo "executing test dist/gloo-mesh-2-0-all-beta/build/templates/steps/apps/bookinfo/virtual-destination/tests/productpage-available-secure.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-all/build/templates/steps/apps/bookinfo/virtual-destination/tests/productpage-available-secure.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -2671,7 +2671,7 @@ describe("Productpage is available (SSL)", () => {
   it('/productpage is available in cluster2', () => helpers.checkURL({ host: 'https://' + process.env.ENDPOINT_HTTPS_GW_CLUSTER2, path: '/productpage', retCode: 200 }));
 })
 EOF
-echo "executing test dist/gloo-mesh-2-0-all-beta/build/templates/steps/apps/bookinfo/virtual-destination/tests/productpage-available-secure.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-all/build/templates/steps/apps/bookinfo/virtual-destination/tests/productpage-available-secure.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -2798,7 +2798,7 @@ describe("Communication allowed", () => {
   });
 });
 EOF
-echo "executing test dist/gloo-mesh-2-0-all-beta/build/templates/steps/apps/httpbin/zero-trust/tests/not-in-mesh-to-in-mesh-allowed.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-all/build/templates/steps/apps/httpbin/zero-trust/tests/not-in-mesh-to-in-mesh-allowed.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -2824,7 +2824,7 @@ describe("Communication allowed", () => {
   });
 });
 EOF
-echo "executing test dist/gloo-mesh-2-0-all-beta/build/templates/steps/apps/httpbin/zero-trust/tests/in-mesh-to-in-mesh-allowed.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-all/build/templates/steps/apps/httpbin/zero-trust/tests/in-mesh-to-in-mesh-allowed.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -2902,7 +2902,7 @@ describe("Communication not allowed", () => {
   });
 });
 EOF
-echo "executing test dist/gloo-mesh-2-0-all-beta/build/templates/steps/apps/httpbin/zero-trust/tests/not-in-mesh-to-in-mesh-not-allowed.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-all/build/templates/steps/apps/httpbin/zero-trust/tests/not-in-mesh-to-in-mesh-not-allowed.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -2928,7 +2928,7 @@ describe("Communication not allowed", () => {
   });
 });
 EOF
-echo "executing test dist/gloo-mesh-2-0-all-beta/build/templates/steps/apps/httpbin/zero-trust/tests/in-mesh-to-in-mesh-not-allowed.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-all/build/templates/steps/apps/httpbin/zero-trust/tests/in-mesh-to-in-mesh-not-allowed.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -2964,10 +2964,10 @@ spec:
     authz:
       allowedClients:
       - serviceAccountSelector:
-          name: istio-ingressgateway-1-17-service-account
+          name: istio-ingressgateway-1-18-service-account
           namespace: istio-gateways
       - serviceAccountSelector:
-          name: istio-eastwestgateway-1-17-service-account
+          name: istio-eastwestgateway-1-18-service-account
           namespace: istio-gateways
       - serviceAccountSelector:
           name: ext-auth-service
@@ -3066,7 +3066,7 @@ describe("Communication status", () => {
 });
 
 EOF
-echo "executing test dist/gloo-mesh-2-0-all-beta/build/templates/steps/apps/httpbin/zero-trust/tests/bookinfo-access.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-all/build/templates/steps/apps/httpbin/zero-trust/tests/bookinfo-access.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -3231,7 +3231,7 @@ describe("The productpage service should be rate limited after calling the detai
   it('Got the expected status code 429', () => helpers.genericCommand({ command: command, responseContains: "429" }));
 });
 EOF
-echo "executing test dist/gloo-mesh-2-0-all-beta/build/templates/steps/apps/bookinfo/eastwest-ratelimiting/tests/rate-limited.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-all/build/templates/steps/apps/bookinfo/eastwest-ratelimiting/tests/rate-limited.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -3302,7 +3302,7 @@ describe("kube-prometheus-stack daemonset is ready", () => {
   it('kube-prometheus-stack-prometheus-node-exporter pods are ready', () => helpers.checkDaemonSet({ context: process.env.MGMT, namespace: "monitoring", k8sObj: "kube-prometheus-stack-prometheus-node-exporter" }));
 });
 EOF
-echo "executing test dist/gloo-mesh-2-0-all-beta/build/templates/steps/gloo-platform-observability/tests/grafana-installed.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-all/build/templates/steps/gloo-platform-observability/tests/grafana-installed.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -3541,7 +3541,7 @@ describe("httpbin from the external service", () => {
   it('Checking text \'X-Amzn-Trace-Id\' in ' + process.env.CLUSTER1, () => helpersHttp.checkBody({ host: 'https://' + process.env.ENDPOINT_HTTPS_GW_CLUSTER1, path: '/get', body: 'X-Amzn-Trace-Id', match: true }));
 })
 EOF
-echo "executing test dist/gloo-mesh-2-0-all-beta/build/templates/steps/apps/httpbin/gateway-external-service/tests/httpbin-from-external.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-all/build/templates/steps/apps/httpbin/gateway-external-service/tests/httpbin-from-external.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -3598,7 +3598,7 @@ describe("httpbin from the local service", () => {
   it('Checking text \'X-Amzn-Trace-Id\' not in ' + process.env.CLUSTER1, () => helpersHttp.checkBody({ host: 'https://' + process.env.ENDPOINT_HTTPS_GW_CLUSTER1, path: '/get', body: 'X-Amzn-Trace-Id', match: false }));
 })
 EOF
-echo "executing test dist/gloo-mesh-2-0-all-beta/build/templates/steps/apps/httpbin/gateway-external-service/tests/httpbin-from-local.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-all/build/templates/steps/apps/httpbin/gateway-external-service/tests/httpbin-from-local.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -3611,7 +3611,7 @@ describe("httpbin from the external service", () => {
   it('Checking text \'X-Amzn-Trace-Id\' in ' + process.env.CLUSTER1, () => helpersHttp.checkBody({ host: 'https://' + process.env.ENDPOINT_HTTPS_GW_CLUSTER1, path: '/get', body: 'X-Amzn-Trace-Id', match: true }));
 })
 EOF
-echo "executing test dist/gloo-mesh-2-0-all-beta/build/templates/steps/apps/httpbin/gateway-external-service/tests/httpbin-from-external.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-all/build/templates/steps/apps/httpbin/gateway-external-service/tests/httpbin-from-external.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -3659,7 +3659,7 @@ describe("httpbin from the local service", () => {
   it('Checking text \'X-Amzn-Trace-Id\' not in ' + process.env.CLUSTER1, () => helpersHttp.checkBody({ host: 'https://' + process.env.ENDPOINT_HTTPS_GW_CLUSTER1, path: '/get', body: 'X-Amzn-Trace-Id', match: false }));
 })
 EOF
-echo "executing test dist/gloo-mesh-2-0-all-beta/build/templates/steps/apps/httpbin/gateway-external-service/tests/httpbin-from-local.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-all/build/templates/steps/apps/httpbin/gateway-external-service/tests/httpbin-from-local.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -3761,7 +3761,7 @@ describe("Keycloak", () => {
   it('keycloak pods are ready in cluster1', () => helpers.checkDeployment({ context: process.env.MGMT, namespace: "keycloak", k8sObj: "keycloak" }));
 });
 EOF
-echo "executing test dist/gloo-mesh-2-0-all-beta/build/templates/steps/deploy-keycloak/tests/pods-available.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-all/build/templates/steps/deploy-keycloak/tests/pods-available.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -3791,7 +3791,7 @@ describe("Retrieve enterprise-networking ip", () => {
   });
 });
 EOF
-echo "executing test dist/gloo-mesh-2-0-all-beta/build/templates/steps/deploy-keycloak/tests/keycloak-ip-is-attached.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-all/build/templates/steps/deploy-keycloak/tests/keycloak-ip-is-attached.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -4007,7 +4007,7 @@ describe("Authentication is working properly", function() {
 });
 
 EOF
-echo "executing test dist/gloo-mesh-2-0-all-beta/build/templates/steps/apps/httpbin/gateway-extauth-oauth/tests/authentication.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-all/build/templates/steps/apps/httpbin/gateway-extauth-oauth/tests/authentication.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -4213,7 +4213,7 @@ describe("Claim to header is working properly", function() {
 });
 
 EOF
-echo "executing test dist/gloo-mesh-2-0-all-beta/build/templates/steps/apps/httpbin/gateway-jwt/tests/header-added.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-all/build/templates/steps/apps/httpbin/gateway-jwt/tests/header-added.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -4280,7 +4280,7 @@ describe("Tranformation is working properly", function() {
 });
 
 EOF
-echo "executing test dist/gloo-mesh-2-0-all-beta/build/templates/steps/apps/httpbin/gateway-transformation/tests/header-added.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-all/build/templates/steps/apps/httpbin/gateway-transformation/tests/header-added.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -4410,7 +4410,7 @@ describe("Rate limiting is working properly", function() {
 });
 
 EOF
-echo "executing test dist/gloo-mesh-2-0-all-beta/build/templates/steps/apps/httpbin/gateway-ratelimiting/tests/rate-limited.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-all/build/templates/steps/apps/httpbin/gateway-ratelimiting/tests/rate-limited.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -4546,7 +4546,7 @@ describe("WAF is working properly", function() {
 });
 
 EOF
-echo "executing test dist/gloo-mesh-2-0-all-beta/build/templates/steps/apps/httpbin/gateway-waf/tests/waf.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-all/build/templates/steps/apps/httpbin/gateway-waf/tests/waf.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -4802,7 +4802,7 @@ EOF
 Now, you can try to 
 
 ```bash
-curl -k "https://${ENDPOINT_HTTPS_GW_CLUSTER1}/graphql" --data '{"query":" {productsForHome { title ratings {reviewer numStars}}}"}' | jq .
+curl -k "https://${ENDPOINT_HTTPS_GW_CLUSTER1}/graphql" --data '{"query":"{productsForHome { title ratings {reviewer numStars}}}"}' | jq .
 ```
 
 Here is the expected output:
@@ -4855,7 +4855,7 @@ describe("GraphQL", function() {
   })
 });
 EOF
-echo "executing test dist/gloo-mesh-2-0-all-beta/build/templates/steps/apps/bookinfo/gateway-graphql/tests/graphql.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-all/build/templates/steps/apps/bookinfo/gateway-graphql/tests/graphql.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -5079,7 +5079,7 @@ describe("mTLS from the external service", () => {
   it('Checking text \'Hello from mTLS server\' in ' + process.env.CLUSTER1, () => helpersHttp.checkBody({ host: 'https://' + process.env.ENDPOINT_HTTPS_GW_CLUSTER1, path: '/mtls-server', body: 'Hello from mTLS server', match: true }));
 })
 EOF
-echo "executing test dist/gloo-mesh-2-0-all-beta/build/templates/steps/apps/mtls-server/gateway-external-service-mtls/tests/mtls-from-external.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-all/build/templates/steps/apps/mtls-server/gateway-external-service-mtls/tests/mtls-from-external.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -5160,7 +5160,7 @@ spec:
       labels:
         app: sleep
         version: v1
-        istio.io/rev: 1-17
+        istio.io/rev: 1-18
       annotations:
         sidecar.istio.io/userVolumeMount: '[{"name":"istio-sidecar-certs", "mountPath":"/etc/istio/ingressgateway-certs/", "readonly":true}]'
         sidecar.istio.io/userVolume: '[{"name":"istio-sidecar-certs", "secret":{"secretName":"istio-sidecar-certs"}}]'
@@ -5191,7 +5191,7 @@ describe("mTLS from the external service", () => {
 });
 
 EOF
-echo "executing test dist/gloo-mesh-2-0-all-beta/build/templates/steps/apps/mtls-server/gateway-external-service-mtls/tests/mtls-from-eastwest.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-all/build/templates/steps/apps/mtls-server/gateway-external-service-mtls/tests/mtls-from-eastwest.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -5276,7 +5276,7 @@ describe("Amazon EKS pod identity webhook", () => {
   it('Amazon EKS pod identity webhook is ready in cluster1', () => helpers.checkDeployment({ context: process.env.CLUSTER1, namespace: "default", k8sObj: "pod-identity-webhook" }));
 });
 EOF
-echo "executing test dist/gloo-mesh-2-0-all-beta/build/templates/steps/deploy-amazon-pod-identity-webhook/tests/pods-available.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-all/build/templates/steps/deploy-amazon-pod-identity-webhook/tests/pods-available.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -5405,7 +5405,7 @@ describe("Lambda integration is working properly", () => {
   it('Checking text \'"path":"/lambda"\' in ' + process.env.CLUSTER1, () => helpersHttp.checkBody({ host: 'https://' + process.env.ENDPOINT_HTTPS_GW_CLUSTER1, path: '/lambda', body: '"path":"/lambda"', match: true }));
 })
 EOF
-echo "executing test dist/gloo-mesh-2-0-all-beta/build/templates/steps/apps/httpbin/gateway-lambda/tests/check-lambda-echo.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-all/build/templates/steps/apps/httpbin/gateway-lambda/tests/check-lambda-echo.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -5508,7 +5508,7 @@ describe("Lambda integration is working properly", () => {
   it('Checking headers in ' + process.env.CLUSTER1, () => helpersHttp.checkHeaders({ host: 'https://' + process.env.ENDPOINT_HTTPS_GW_CLUSTER1, path: '/lambda', expectedHeaders: [{key: "key", value: "value"}, {key: "x-custom-header", value: "My value,My other value"}], match: true }));
 })
 EOF
-echo "executing test dist/gloo-mesh-2-0-all-beta/build/templates/steps/apps/httpbin/gateway-lambda/tests/check-lambda-api-gateway.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-all/build/templates/steps/apps/httpbin/gateway-lambda/tests/check-lambda-api-gateway.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -5592,7 +5592,7 @@ metadata:
   namespace: istio-gateways
 spec:
   hosts:
-  - istiod-1-17.istio-system.svc.cluster.local
+  - istiod-1-18.istio-system.svc.cluster.local
   gateways:
   - istiod-gateway
   tcp:
@@ -5600,14 +5600,14 @@ spec:
     - port: 15012
     route:
     - destination:
-        host: istiod-1-17.istio-system.svc.cluster.local
+        host: istiod-1-18.istio-system.svc.cluster.local
         port:
           number: 15012
   - match:
     - port: 15017
     route:
     - destination:
-        host: istiod-1-17.istio-system.svc.cluster.local
+        host: istiod-1-18.istio-system.svc.cluster.local
         port:
           number: 443
 ---
@@ -5617,7 +5617,7 @@ metadata:
   name: istiod-dr
   namespace: istio-gateways
 spec:
-  host: istiod-1-17.istio-system.svc.cluster.local
+  host: istiod-1-18.istio-system.svc.cluster.local
   trafficPolicy:
     portLevelSettings:
     - port:
@@ -5687,10 +5687,10 @@ spec:
 EOF
 ```
 
-Download istio 1.17.3:
+Download istio 1.18.3:
 
 ```bash
-export ISTIO_VERSION=1.17.3
+export ISTIO_VERSION=1.18.3
 curl -L https://istio.io/downloadIstio | sh -
 ```
 
@@ -5703,7 +5703,7 @@ Use the istioctl x workload entry command to generate:
 - hosts: An addendum to /etc/hosts that the proxy will use to reach istiod for xDS.*
 
 ```bash
-./istio-1.17.3/bin/istioctl --context ${CLUSTER1} x workload entry configure -f workloadgroup.yaml -o "${WORK_DIR}" --clusterID "${CLUSTER}" -r 1-17
+./istio-1.18.3/bin/istioctl --context ${CLUSTER1} x workload entry configure -f workloadgroup.yaml -o "${WORK_DIR}" --clusterID "${CLUSTER}" -r 1-18
 ```
 
 Run a Docker container that we'll use to simulate a VM:
@@ -5732,7 +5732,7 @@ docker exec vm1 $(kubectl --context ${CLUSTER2} get nodes -o=jsonpath='{range .i
 Add an entry in the hosts file to resolve the address of istiod by the IP address of the Istio Ingress Gateway:
 
 ```bash
-echo "$(kubectl --context ${CLUSTER1} -n istio-gateways get svc istio-eastwestgateway -o jsonpath='{.status.loadBalancer.ingress[0].*}') istiod.istio-system.svc istiod-1-17.istio-system.svc" > "${WORK_DIR}"/hosts
+echo "$(kubectl --context ${CLUSTER1} -n istio-gateways get svc istio-eastwestgateway -o jsonpath='{.status.loadBalancer.ingress[0].*}') istiod.istio-system.svc istiod-1-18.istio-system.svc" > "${WORK_DIR}"/hosts
 ```
 
 Install the root certificate at /var/run/secrets/istio:
@@ -5752,7 +5752,7 @@ docker exec vm1 cp /vm/istio-token /var/run/secrets/tokens/istio-token
 Install the deb package containing the Istio virtual machine integration runtime:
 
 ```bash
-docker exec vm1 curl -LO https://storage.googleapis.com/istio-release/releases/1.17.3/deb/istio-sidecar.deb
+docker exec vm1 curl -LO https://storage.googleapis.com/istio-release/releases/1.18.3/deb/istio-sidecar.deb
 docker exec vm1 dpkg -i istio-sidecar.deb
 ```
 
@@ -5849,7 +5849,7 @@ describe("The VM should be able to access the productpage service", () => {
 })
 
 EOF
-echo "executing test dist/gloo-mesh-2-0-all-beta/build/templates/steps/apps/bookinfo/vm-integration/tests/vm-access-productpage.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-all/build/templates/steps/apps/bookinfo/vm-integration/tests/vm-access-productpage.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -5920,7 +5920,7 @@ describe("The productpage service should be able to access the VM", () => {
   it('Got the expected status code 200', () => helpers.genericCommand({ command: command, responseContains: "200" }));
 });
 EOF
-echo "executing test dist/gloo-mesh-2-0-all-beta/build/templates/steps/apps/bookinfo/vm-integration/tests/productpage-access-vm.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-all/build/templates/steps/apps/bookinfo/vm-integration/tests/productpage-access-vm.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -5988,7 +5988,7 @@ EOF
 Deploy a new version of the ratings service that is using the database and scale down the current version:
 
 ```bash
-kubectl --context ${CLUSTER1} -n bookinfo-backends apply -f ./istio-1.17.3/samples/bookinfo/platform/kube/bookinfo-ratings-v2-mysql-vm.yaml
+kubectl --context ${CLUSTER1} -n bookinfo-backends apply -f ./istio-1.18.3/samples/bookinfo/platform/kube/bookinfo-ratings-v2-mysql-vm.yaml
 kubectl --context ${CLUSTER1} -n bookinfo-backends set env deploy/ratings-v2-mysql-vm MYSQL_DB_HOST=${VM_APP}.virtualmachines.svc.cluster.local
 kubectl --context ${CLUSTER1} -n bookinfo-backends set serviceaccount deploy/ratings-v2-mysql-vm bookinfo-ratings
 pod=$(kubectl --context ${CLUSTER1} -n bookinfo-backends get pods -l "app=ratings,version=v1" -o jsonpath='{.items[0].metadata.name}')
@@ -6005,7 +6005,7 @@ describe("The ratings service should use the database running on the VM", () => 
 })
 
 EOF
-echo "executing test dist/gloo-mesh-2-0-all-beta/build/templates/steps/apps/bookinfo/vm-integration/tests/ratings-using-vm.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-all/build/templates/steps/apps/bookinfo/vm-integration/tests/ratings-using-vm.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -6022,7 +6022,7 @@ kubectl --context ${CLUSTER1} -n "${VM_NAMESPACE}" delete serviceaccount "${SERV
 kubectl --context ${CLUSTER1} -n "${VM_NAMESPACE}" delete serviceentry ${VM_APP}
 kubectl --context ${CLUSTER1} -n "${VM_NAMESPACE}" delete workloadentry ${VM_APP}
 kubectl --context ${CLUSTER1} delete namespace "${VM_NAMESPACE}"
-kubectl --context ${CLUSTER1} -n bookinfo-backends delete -f ./istio-1.17.3/samples/bookinfo/platform/kube/bookinfo-ratings-v2-mysql-vm.yaml
+kubectl --context ${CLUSTER1} -n bookinfo-backends delete -f ./istio-1.18.3/samples/bookinfo/platform/kube/bookinfo-ratings-v2-mysql-vm.yaml
 kubectl --context ${CLUSTER1} -n bookinfo-backends scale deploy/ratings-v1 --replicas=1
 ```
 
@@ -6058,268 +6058,14 @@ docker rm -f vm1
 
 
 
-## Lab 29 - Extend Envoy with WebAssembly <a name="lab-29---extend-envoy-with-webassembly-"></a>
-
-WebAssembly (WASM) is the future of cloud-native infrastructure extensibility.
-
-WASM is a safe, secure, and dynamic way of extending infrastructure with the language of your choice. WASM tool chains compile your code from any of the supported languages into a type-safe, binary format that can be loaded dynamically in a WASM sandbox/VM.
-
-The Envoy Wasm filter is already available, but it's not ready for production use yet. More info available in [this Blog Post](https://www.solo.io/blog/the-state-of-webassembly-in-envoy-proxy/).
-
-Both Gloo Edge and Istio are based on Envoy, so they can take advantage of WebAssembly.
-
-One of the projects for working with WASM and Envoy proxy is [WebAssembly Hub](https://webassemblyhub.io/).
-
-WebAssembly Hub is a meeting place for the community to share and consume WebAssembly Envoy extensions. You can easily search and find extensions that meet the functionality you want to add and give them a try.
-
-The main advantage of building a Wasm Envoy filter is that you can manipulate requests (and responses) exactly the way it makes sense for your specific use cases.
-
-Perhaps you want to gather some metrics only when the request contain specific headers, or you want to enrich the request by getting information from another API, it doesn't matter, you're now free to do exactly what you want.
-
-The first decision you need to take is to decide which SDK (so which language) you want to use. SDKs are currently available for C++, AssemblyScript, RUST and TinyGo.
-
-Not all the languages can be compiled to WebAssembly and don't expect that you'll be able to import any external packages (like the Amazon SDK).
-
-So, you need to determine what you want your filter to do, look at what kind of packages you'll need (Regexp, ...) and check which one of the language you already know is matching your requirements.
-
-### Prepare
-
-Our Envoy instances will fetch their wasm filters from an envoy cluster that must be defined in the static bootstrap config. We must therefore perform a one-time operation to add the wasm-agent as a cluster in the Envoy bootstrap:
-
-```bash
-cat <<EOF | kubectl apply --context ${CLUSTER1} -f -
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: gloo-mesh-custom-envoy-bootstrap
-  namespace: bookinfo-backends
-data:
-  custom_bootstrap.json: |
-    {
-      "static_resources": {
-        "clusters": [{
-          "name": "gloo_mesh_agent_cluster",
-          "type" : "STRICT_DNS",
-          "connect_timeout": "1s",
-          "lb_policy": "ROUND_ROBIN",
-          "load_assignment": {
-            "cluster_name": "gloo_mesh_agent_cluster",
-            "endpoints": [{
-              "lb_endpoints": [{
-                "endpoint": {
-                  "address":{
-                    "socket_address": {
-                      "address": "gloo-mesh-agent.gloo-mesh.svc.cluster.local",
-                      "port_value": 9977
-                    }
-                  }
-                }
-              }]
-            }]
-          },
-          "circuit_breakers": {
-            "thresholds": [
-              {
-                "priority": "DEFAULT",
-                "max_connections": 100000,
-                "max_pending_requests": 100000,
-                "max_requests": 100000
-              },
-              {
-                "priority": "HIGH",
-                "max_connections": 100000,
-                "max_pending_requests": 100000,
-                "max_requests": 100000
-              }
-            ]
-          },
-          "upstream_connection_options": {
-            "tcp_keepalive": {
-              "keepalive_time": 300
-            }
-          },
-          "max_requests_per_connection": 1,
-          "http2_protocol_options": { }
-        }]
-      }
-    }
-
-EOF
-
-cat <<EOF | kubectl apply --context ${CLUSTER2} -f -
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: gloo-mesh-custom-envoy-bootstrap
-  namespace: bookinfo-backends
-data:
-  custom_bootstrap.json: |
-    {
-      "static_resources": {
-        "clusters": [{
-          "name": "gloo_mesh_agent_cluster",
-          "type" : "STRICT_DNS",
-          "connect_timeout": "1s",
-          "lb_policy": "ROUND_ROBIN",
-          "load_assignment": {
-            "cluster_name": "gloo_mesh_agent_cluster",
-            "endpoints": [{
-              "lb_endpoints": [{
-                "endpoint": {
-                  "address":{
-                    "socket_address": {
-                      "address": "gloo-mesh-agent.gloo-mesh.svc.cluster.local",
-                      "port_value": 9977
-                    }
-                  }
-                }
-              }]
-            }]
-          },
-          "circuit_breakers": {
-            "thresholds": [
-              {
-                "priority": "DEFAULT",
-                "max_connections": 100000,
-                "max_pending_requests": 100000,
-                "max_requests": 100000
-              },
-              {
-                "priority": "HIGH",
-                "max_connections": 100000,
-                "max_pending_requests": 100000,
-                "max_requests": 100000
-              }
-            ]
-          },
-          "upstream_connection_options": {
-            "tcp_keepalive": {
-              "keepalive_time": 300
-            }
-          },
-          "max_requests_per_connection": 1,
-          "http2_protocol_options": { }
-        }]
-      }
-    }
-
-EOF
-```
-
-<!--bash
-cat <<'EOF' > ./test.js
-const helpers = require('./tests/chai-exec');
-
-describe("ConfigMaps are created", () => {
-    const clusters = [process.env.CLUSTER1, process.env.CLUSTER2];
-    clusters.forEach(cluster => {
-        it('Configmap is present in ' + cluster, () => helpers.k8sObjectIsPresent({ context: cluster, namespace: "bookinfo-backends", k8sType: "configmap", k8sObj: "gloo-mesh-custom-envoy-bootstrap" }));
-    });
-});
-
-EOF
-echo "executing test dist/gloo-mesh-2-0-all-beta/build/templates/steps/apps/bookinfo/web-assembly/tests/configmaps-created.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
--->
-
-### Deploy
-
-It's now time to deploy a Wasm filter on Istio !
-
-Gloo Platform has a `WasmDeploymentPolicy` CRD (Custom Resource Definition) for that purpose.
-
-To deploy your Wasm filter on all the Pods corresponding to the version v1 of the reviews service and running in the bookinfo-backends namespace of the cluster1 cluster, use the following commands:
-
-```bash
-kubectl --context ${CLUSTER1} -n bookinfo-backends patch deployment reviews-v1 --patch='{"spec":{"template": {"metadata": {"annotations": {"sidecar.istio.io/bootstrapOverride": "gloo-mesh-custom-envoy-bootstrap"}}}}}' --type=merge
-
-kubectl apply --context ${CLUSTER1} -f - <<EOF
-apiVersion: extensions.policy.gloo.solo.io/v2
-kind: WasmDeploymentPolicy
-metadata:
-  name: reviews-wasm
-  namespace: bookinfo-backends
-spec:
-  applyToWorkloads:
-  - selector:
-      cluster: cluster1
-      labels:
-        app: reviews
-        version: v1
-      namespace: bookinfo-backends
-  config:
-    filters:
-    - filterContext: SIDECAR_INBOUND
-      wasmImageSource:
-        wasmImageTag: webassemblyhub.io/djannot/myfilter:0.2
-      staticFilterConfig:
-        '@type': type.googleapis.com/google.protobuf.StringValue
-        value: "Gloo Mesh Enterprise"
-
-EOF
-```
-
-Let's send a request from the `productpage` service to the `reviews` service:
-
-```
-kubectl --context $CLUSTER1 -n bookinfo-frontends exec -it $(kubectl --context $CLUSTER1 -n bookinfo-frontends get pods -l app=productpage -o jsonpath='{.items[0].metadata.name}') -- python -c "import requests; r = requests.get('http://reviews.bookinfo-backends:9080/reviews/0'); print(r.headers)"
-```
-
-<!--bash
-cat <<'EOF' > ./test.js
-const helpers = require('./tests/chai-exec');
-
-describe("Get WasmDeployment log traces", () => {
-  const podName = helpers.getOutputForCommand({ command: "kubectl -n bookinfo-frontends get pods -l app=productpage -o jsonpath='{.items[0].metadata.name}' --context " + process.env.CLUSTER1 }).replaceAll("'", "");
-  const command = "kubectl -n bookinfo-frontends exec " + podName + " --context " + process.env.CLUSTER1 + " -- python -c \"import requests; r = requests.get('http://reviews.bookinfo-backends:9080/reviews/0'); print(r.headers)\"";
-  const searches = ["hello", "Gloo Mesh Enterprise"];
-  searches.forEach(search => {
-    it('Got the new header "' + search + '"', () => helpers.genericCommand({ command: command, responseContains: search }));
-  });
-});
-
-EOF
-echo "executing test dist/gloo-mesh-2-0-all-beta/build/templates/steps/apps/bookinfo/web-assembly/tests/check-logs.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
--->
-
-You should get either:
-
-```,nocopy
-{'x-powered-by': 'Servlet/3.1', 'content-type': 'application/json', 'date': 'Tue, 15 Dec 2020 08:23:24 GMT', 'content-language': 'en-US', 'content-length': '295', 'x-envoy-upstream-service-time': '10', 'server': 'envoy'}
-```
-
-or:
-
-```,nocopy
-{'x-powered-by': 'Servlet/3.1', 'content-type': 'application/json', 'date': 'Tue, 15 Dec 2020 08:23:25 GMT', 'content-language': 'en-US', 'content-length': '295', 'x-envoy-upstream-service-time': '17', 'hello': 'Gloo Mesh Enterprise Beta', 'server': 'envoy'}
-```
-
-We have deployed the Istio Bookinfo application with the versions `v1` and `v2` of the `reviews` service, so the new header is added half of the time.
-
-
-Delete the WasmDeploymentPolicy:
-
-```bash
-kubectl --context ${CLUSTER1} -n bookinfo-backends delete wasmdeploymentpolicy reviews-wasm
-```
-
-
-
-
-
-## Lab 30 - Upgrade Istio using Gloo Mesh Lifecycle Manager <a name="lab-30---upgrade-istio-using-gloo-mesh-lifecycle-manager-"></a>
+## Lab 29 - Upgrade Istio using Gloo Mesh Lifecycle Manager <a name="lab-29---upgrade-istio-using-gloo-mesh-lifecycle-manager-"></a>
 [<img src="https://img.youtube.com/vi/6DtGVkecArs/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/6DtGVkecArs "Video Link")
 
 Set the variables corresponding to the old and new revision tags:
 
 ```bash
-export OLD_REVISION=1-17
-export NEW_REVISION=1-18
+export OLD_REVISION=1-18
+export NEW_REVISION=1-19
 ```
 
 We are going to upgrade Istio using Gloo Mesh Lifecycle Manager.
@@ -6341,7 +6087,7 @@ spec:
       istioOperatorSpec:
         profile: minimal
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.17.3-solo
+        tag: 1.18.3-solo
         namespace: istio-system
         values:
           global:
@@ -6379,7 +6125,7 @@ spec:
       istioOperatorSpec:
         profile: minimal
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.18.3-solo
+        tag: 1.19.1-solo
         namespace: istio-system
         values:
           global:
@@ -6428,7 +6174,7 @@ spec:
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.17.3-solo
+        tag: 1.18.3-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -6447,7 +6193,7 @@ spec:
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.18.3-solo
+        tag: 1.19.1-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -6474,7 +6220,7 @@ spec:
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.17.3-solo
+        tag: 1.18.3-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -6500,7 +6246,7 @@ spec:
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.18.3-solo
+        tag: 1.19.1-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -6537,7 +6283,7 @@ spec:
       istioOperatorSpec:
         profile: minimal
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.17.3-solo
+        tag: 1.18.3-solo
         namespace: istio-system
         values:
           global:
@@ -6575,7 +6321,7 @@ spec:
       istioOperatorSpec:
         profile: minimal
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.18.3-solo
+        tag: 1.19.1-solo
         namespace: istio-system
         values:
           global:
@@ -6624,7 +6370,7 @@ spec:
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.17.3-solo
+        tag: 1.18.3-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -6643,7 +6389,7 @@ spec:
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.18.3-solo
+        tag: 1.19.1-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -6670,7 +6416,7 @@ spec:
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.17.3-solo
+        tag: 1.18.3-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -6696,7 +6442,7 @@ spec:
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.18.3-solo
+        tag: 1.19.1-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -6730,7 +6476,7 @@ describe("Checking Istio installation", function() {
 });
 
 EOF
-echo "executing test dist/gloo-mesh-2-0-all-beta/build/templates/steps/istio-lifecycle-manager-upgrade/tests/istio-ready.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-all/build/templates/steps/istio-lifecycle-manager-upgrade/tests/istio-ready.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=150 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -6799,7 +6545,7 @@ describe("httpbin is accessible", () => {
 })
 
 EOF
-echo "executing test dist/gloo-mesh-2-0-all-beta/build/templates/steps/istio-lifecycle-manager-upgrade/tests/httpbin-available.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-all/build/templates/steps/istio-lifecycle-manager-upgrade/tests/httpbin-available.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -6843,7 +6589,7 @@ describe("httpbin is accessible", () => {
 })
 
 EOF
-echo "executing test dist/gloo-mesh-2-0-all-beta/build/templates/steps/istio-lifecycle-manager-upgrade/tests/httpbin-available.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-all/build/templates/steps/istio-lifecycle-manager-upgrade/tests/httpbin-available.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -6885,7 +6631,7 @@ describe("httpbin is accessible", () => {
 })
 
 EOF
-echo "executing test dist/gloo-mesh-2-0-all-beta/build/templates/steps/istio-lifecycle-manager-upgrade/tests/httpbin-available.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-all/build/templates/steps/istio-lifecycle-manager-upgrade/tests/httpbin-available.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -6912,7 +6658,7 @@ spec:
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.18.3-solo
+        tag: 1.19.1-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -6939,7 +6685,7 @@ spec:
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.18.3-solo
+        tag: 1.19.1-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -6976,7 +6722,7 @@ spec:
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.18.3-solo
+        tag: 1.19.1-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -7003,7 +6749,7 @@ spec:
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.18.3-solo
+        tag: 1.19.1-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -7061,7 +6807,7 @@ spec:
       istioOperatorSpec:
         profile: minimal
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.18.3-solo
+        tag: 1.19.1-solo
         namespace: istio-system
         values:
           global:
@@ -7110,7 +6856,7 @@ spec:
       istioOperatorSpec:
         profile: minimal
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.18.3-solo
+        tag: 1.19.1-solo
         namespace: istio-system
         values:
           global:
@@ -7169,10 +6915,10 @@ You should get the following output:
 
 ```
 NAME                           READY   STATUS    RESTARTS   AGE
-istiod-1-17-796fffbdf5-n6xc9   1/1     Running   0          25m
+istiod-1-18-796fffbdf5-n6xc9   1/1     Running   0          25m
 NAME                                          READY   STATUS    RESTARTS   AGE
-istio-eastwestgateway-1-17-546446c77b-zg5hd   1/1     Running   0          25m
-istio-ingressgateway-1-17-784f69b4bb-lcfk9    1/1     Running   0          25m
+istio-eastwestgateway-1-18-546446c77b-zg5hd   1/1     Running   0          25m
+istio-ingressgateway-1-18-784f69b4bb-lcfk9    1/1     Running   0          25m
 ```
 
 It confirms that only the new version is running.
@@ -7215,7 +6961,7 @@ describe("Old Istio version should be uninstalled", () => {
   });
 });
 EOF
-echo "executing test dist/gloo-mesh-2-0-all-beta/build/templates/steps/istio-lifecycle-manager-upgrade/tests/previous-version-uninstalled.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-all/build/templates/steps/istio-lifecycle-manager-upgrade/tests/previous-version-uninstalled.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -7223,7 +6969,7 @@ mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${te
 
 
 
-## Lab 31 - Leverage GraphQL stitching <a name="lab-31---leverage-graphql-stitching-"></a>
+## Lab 30 - Leverage GraphQL stitching <a name="lab-30---leverage-graphql-stitching-"></a>
 [<img src="https://img.youtube.com/vi/CuTOrhJNIVs/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/CuTOrhJNIVs "Video Link")
 
 In this lab, we're going to expose and External REST API as a GraphQL API and then to stitch is with the GraphQL API we've created previously.
@@ -7439,7 +7185,7 @@ describe("GraphQL", function() {
   })
 });
 EOF
-echo "executing test dist/gloo-mesh-2-0-all-beta/build/templates/steps/apps/bookinfo/gateway-graphql-stitching/tests/graphql.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-all/build/templates/steps/apps/bookinfo/gateway-graphql-stitching/tests/graphql.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -7506,7 +7252,7 @@ EOF
 Now, you can try to access the GraphQL API:
 
 ```
-curl -ks "https://${ENDPOINT_HTTPS_GW_CLUSTER1}/graphql-stitched" --data '{"query":" {productsForHome { title languages ratings {reviewer numStars}}}"}' -X POST | jq .
+curl -ks "https://${ENDPOINT_HTTPS_GW_CLUSTER1}/graphql-stitched" --data '{"query":"{productsForHome { title languages ratings {reviewer numStars}}}"}' -X POST | jq .
 ```
 
 Here is the expected output:
@@ -7579,7 +7325,7 @@ describe("GraphQL stitched", function() {
   })
 });
 EOF
-echo "executing test dist/gloo-mesh-2-0-all-beta/build/templates/steps/apps/bookinfo/gateway-graphql-stitching/tests/graphql-stitched.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-all/build/templates/steps/apps/bookinfo/gateway-graphql-stitching/tests/graphql-stitched.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -7587,7 +7333,7 @@ mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${te
 
 
 
-## Lab 32 - Gloo Mesh Management Plane failover <a name="lab-32---gloo-mesh-management-plane-failover-"></a>
+## Lab 31 - Gloo Mesh Management Plane failover <a name="lab-31---gloo-mesh-management-plane-failover-"></a>
 
 
 Before we start the failover procedure, let's capture the current output snapshot:
@@ -7934,7 +7680,7 @@ describe("failover has no impact", () => {
   });
 });
 EOF
-echo "executing test dist/gloo-mesh-2-0-all-beta/build/templates/steps/gloo-mesh-mgmt-failover/tests/failover-has-no-impact.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-all/build/templates/steps/gloo-mesh-mgmt-failover/tests/failover-has-no-impact.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -7942,7 +7688,7 @@ mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${te
 
 
 
-## Lab 33 - Securing the egress traffic <a name="lab-33---securing-the-egress-traffic-"></a>
+## Lab 32 - Securing the egress traffic <a name="lab-32---securing-the-egress-traffic-"></a>
 [<img src="https://img.youtube.com/vi/tQermml1Ryo/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/tQermml1Ryo "Video Link")
 
 
@@ -7964,7 +7710,7 @@ describe("Communication status", () => {
 });
 
 EOF
-echo "executing test dist/gloo-mesh-2-0-all-beta/build/templates/steps/apps/bookinfo/secure-egress/tests/productpage-to-httpbin-allowed.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-all/build/templates/steps/apps/bookinfo/secure-egress/tests/productpage-to-httpbin-allowed.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -7985,11 +7731,11 @@ spec:
     - clusters:
         - name: cluster1
           activeGateway: false
-      gatewayRevision: 1-18
+      gatewayRevision: 1-19
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.18.3-solo
+        tag: 1.19.1-solo
         components:
           egressGateways:
             - enabled: true
@@ -8100,7 +7846,7 @@ describe("Communication not allowed", () => {
 });
 
 EOF
-echo "executing test dist/gloo-mesh-2-0-all-beta/build/templates/steps/apps/bookinfo/secure-egress/tests/productpage-to-httpbin-not-allowed.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-all/build/templates/steps/apps/bookinfo/secure-egress/tests/productpage-to-httpbin-not-allowed.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -8156,7 +7902,7 @@ describe("Communication status", () => {
 });
 
 EOF
-echo "executing test dist/gloo-mesh-2-0-all-beta/build/templates/steps/apps/bookinfo/secure-egress/tests/productpage-to-httpbin-allowed.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-all/build/templates/steps/apps/bookinfo/secure-egress/tests/productpage-to-httpbin-allowed.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -8224,7 +7970,7 @@ describe("Communication status", () => {
 });
 
 EOF
-echo "executing test dist/gloo-mesh-2-0-all-beta/build/templates/steps/apps/bookinfo/secure-egress/tests/productpage-to-httpbin-only-get-allowed.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-all/build/templates/steps/apps/bookinfo/secure-egress/tests/productpage-to-httpbin-only-get-allowed.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
