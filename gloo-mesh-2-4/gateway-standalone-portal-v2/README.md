@@ -19,20 +19,20 @@ source ./scripts/assert.sh
 * [Lab 3 - Deploy the Bookinfo demo app](#lab-3---deploy-the-bookinfo-demo-app-)
 * [Lab 4 - Deploy the httpbin demo app](#lab-4---deploy-the-httpbin-demo-app-)
 * [Lab 5 - Deploy Keycloak](#lab-5---deploy-keycloak-)
-* [Lab 6 - Create the gateways workspace](#lab-6---create-the-gateways-workspace-)
-* [Lab 7 - Create the bookinfo workspace](#lab-7---create-the-bookinfo-workspace-)
-* [Lab 8 - Expose the productpage through a gateway](#lab-8---expose-the-productpage-through-a-gateway-)
-* [Lab 9 - Create the httpbin workspace](#lab-9---create-the-httpbin-workspace-)
-* [Lab 10 - Expose the httpbin service](#lab-10---expose-the-httpbin-service-)
-* [Lab 11 - Securing the access with OAuth](#lab-11---securing-the-access-with-oauth-)
-* [Lab 12 - Use the JWT filter to create headers from claims](#lab-12---use-the-jwt-filter-to-create-headers-from-claims-)
-* [Lab 13 - Use the transformation filter to manipulate headers](#lab-13---use-the-transformation-filter-to-manipulate-headers-)
-* [Lab 14 - Use the Web Application Firewall filter](#lab-14---use-the-web-application-firewall-filter-)
-* [Lab 15 - Use the WAF to block based on source country](#lab-15---use-the-waf-to-block-based-on-source-country-)
-* [Lab 16 - Expose the productpage API securely](#lab-16---expose-the-productpage-api-securely-)
-* [Lab 17 - Expose the dev portal backend](#lab-17---expose-the-dev-portal-backend-)
-* [Lab 18 - Deploy and expose the dev portal frontend](#lab-18---deploy-and-expose-the-dev-portal-frontend-)
-* [Lab 19 - Envoy attributes to headers with WebAssembly](#lab-19---envoy-attributes-to-headers-with-webassembly-)
+* [Lab 6 - Deploy Gloo Mesh Addons](#lab-6---deploy-gloo-mesh-addons-)
+* [Lab 7 - Create the gateways workspace](#lab-7---create-the-gateways-workspace-)
+* [Lab 8 - Create the bookinfo workspace](#lab-8---create-the-bookinfo-workspace-)
+* [Lab 9 - Expose the productpage through a gateway](#lab-9---expose-the-productpage-through-a-gateway-)
+* [Lab 10 - Create the httpbin workspace](#lab-10---create-the-httpbin-workspace-)
+* [Lab 11 - Expose the httpbin service](#lab-11---expose-the-httpbin-service-)
+* [Lab 12 - Securing the access with OAuth](#lab-12---securing-the-access-with-oauth-)
+* [Lab 13 - Use the JWT filter to create headers from claims](#lab-13---use-the-jwt-filter-to-create-headers-from-claims-)
+* [Lab 14 - Use the transformation filter to manipulate headers](#lab-14---use-the-transformation-filter-to-manipulate-headers-)
+* [Lab 15 - Use the Web Application Firewall filter](#lab-15---use-the-web-application-firewall-filter-)
+* [Lab 16 - Use the WAF to block based on source country](#lab-16---use-the-waf-to-block-based-on-source-country-)
+* [Lab 17 - Expose the productpage API securely](#lab-17---expose-the-productpage-api-securely-)
+* [Lab 18 - Expose the dev portal backend](#lab-18---expose-the-dev-portal-backend-)
+* [Lab 19 - Deploy and expose the dev portal frontend](#lab-19---deploy-and-expose-the-dev-portal-frontend-)
 * [Lab 20 - Validate user information based on API key metadata](#lab-20---validate-user-information-based-on-api-key-metadata-)
 * [Lab 21 - Validate user information with API key metadata and an external service](#lab-21---validate-user-information-with-api-key-metadata-and-an-external-service-)
 * [Lab 22 - Allow users to create their own API keys](#lab-22---allow-users-to-create-their-own-api-keys-)
@@ -164,7 +164,7 @@ describe("Required environment variables should contain value", () => {
   });
 });
 EOF
-echo "executing test dist/gloo-mesh-2-0-gateway-standalone-portal-beta-v2/build/templates/steps/deploy-and-register-gloo-mesh/tests/environment-variables.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-gateway-standalone-portal-v2/build/templates/steps/deploy-and-register-gloo-mesh/tests/environment-variables.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -174,7 +174,6 @@ mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${te
 helm repo add gloo-platform https://storage.googleapis.com/gloo-platform/helm-charts
 helm repo update
 kubectl --context ${MGMT} create ns gloo-mesh
-kubectl --context ${MGMT} create ns gloo-mesh-addons
 helm upgrade --install gloo-platform-crds gloo-platform/gloo-platform-crds \
 --namespace gloo-mesh \
 --kube-context ${MGMT} \
@@ -216,27 +215,15 @@ telemetryGatewayCustomization:
 glooUi:
   enabled: true
   serviceType: LoadBalancer
-glooPortalServer:
-  enabled: true
-  apiKeyStorage:
-    redis:
-      enabled: true
-      address: redis.gloo-mesh-addons:6379
-    secretKey: ThisIsSecret
-extAuthService:
-  enabled: true
-  extAuth: 
-    apiKeyStorage: 
-      name: redis
-      enabled: true
-      config: 
-        connection: 
-          host: redis.gloo-mesh-addons:6379
-      secretKey: ThisIsSecret
-rateLimiter:
-  enabled: true
 istioInstallations:
   enabled: true
+  controlPlane:
+    enabled: true
+    installations:
+      - istioOperatorSpec:
+          hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
+          tag: 1.19.1-solo
+        revision: 1-19
   northSouthGateways:
     - enabled: true
       name: istio-ingressgateway
@@ -244,10 +231,10 @@ istioInstallations:
         - clusters:
           - name: cluster1
             activeGateway: false
-          gatewayRevision: auto
+          gatewayRevision: 1-19
           istioOperatorSpec:
             hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-            tag: 1.18.3-solo
+            tag: 1.19.1-solo
             profile: empty
             components:
               ingressGateways:
@@ -304,50 +291,6 @@ data:
   password: cGFzc3dvcmQ=
 EOF
 ```
-For teams to setup external authentication, the gateways team needs to create and `ExtAuthServer` object they can reference.
-
-Let's create the `ExtAuthServer` object: 
-
-```bash
-kubectl apply --context ${CLUSTER1} -f - <<EOF
-apiVersion: admin.gloo.solo.io/v2
-kind: ExtAuthServer
-metadata:
-  name: ext-auth-server
-  namespace: gloo-mesh-addons
-spec:
-  destinationServer:
-    ref:
-      cluster: cluster1
-      name: ext-auth-service
-      namespace: gloo-mesh-addons
-    port:
-      name: grpc
-EOF
-```
-
-For teams to setup rate limiting, the gateways team needs to create and `RateLimitServerSettings` object they can reference.
-
-Let's create the `RateLimitServerSettings` object:
-
-```bash
-kubectl apply --context ${CLUSTER1} -f - <<EOF
-apiVersion: admin.gloo.solo.io/v2
-kind: RateLimitServerSettings
-metadata:
-  name: rate-limit-server
-  namespace: gloo-mesh-addons
-spec:
-  destinationServer:
-    ref:
-      cluster: cluster1
-      name: rate-limiter
-      namespace: gloo-mesh-addons
-    port:
-      name: grpc
-EOF
-```
-
 Set the environment variable for the service corresponding to the Istio Ingress Gateway of the cluster(s):
 
 ```bash
@@ -368,7 +311,7 @@ describe("Cluster registration", () => {
   });
 });
 EOF
-echo "executing test dist/gloo-mesh-2-0-gateway-standalone-portal-beta-v2/build/templates/steps/deploy-and-register-gloo-mesh/tests/cluster-registration.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-gateway-standalone-portal-v2/build/templates/steps/deploy-and-register-gloo-mesh/tests/cluster-registration.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -440,7 +383,7 @@ describe("Bookinfo app", () => {
   });
 });
 EOF
-echo "executing test dist/gloo-mesh-2-0-gateway-standalone-portal-beta-v2/build/templates/steps/apps/bookinfo/deploy-bookinfo/tests/check-bookinfo.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-gateway-standalone-portal-v2/build/templates/steps/apps/bookinfo/deploy-bookinfo/tests/check-bookinfo.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -538,7 +481,7 @@ describe("httpbin app", () => {
   });
 });
 EOF
-echo "executing test dist/gloo-mesh-2-0-gateway-standalone-portal-beta-v2/build/templates/steps/apps/httpbin/deploy-httpbin/tests/check-httpbin.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-gateway-standalone-portal-v2/build/templates/steps/apps/httpbin/deploy-httpbin/tests/check-httpbin.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -628,7 +571,7 @@ describe("Keycloak", () => {
   it('keycloak pods are ready in cluster1', () => helpers.checkDeployment({ context: process.env.MGMT, namespace: "keycloak", k8sObj: "keycloak" }));
 });
 EOF
-echo "executing test dist/gloo-mesh-2-0-gateway-standalone-portal-beta-v2/build/templates/steps/deploy-keycloak/tests/pods-available.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-gateway-standalone-portal-v2/build/templates/steps/deploy-keycloak/tests/pods-available.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -658,7 +601,7 @@ describe("Retrieve enterprise-networking ip", () => {
   });
 });
 EOF
-echo "executing test dist/gloo-mesh-2-0-gateway-standalone-portal-beta-v2/build/templates/steps/deploy-keycloak/tests/keycloak-ip-is-attached.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-gateway-standalone-portal-v2/build/templates/steps/deploy-keycloak/tests/keycloak-ip-is-attached.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -756,7 +699,143 @@ KEYCLOAK_TOKEN=$(curl -m 2 -d "client_id=admin-cli" -d "username=admin" -d "pass
 
 
 
-## Lab 6 - Create the gateways workspace <a name="lab-6---create-the-gateways-workspace-"></a>
+## Lab 6 - Deploy Gloo Mesh Addons <a name="lab-6---deploy-gloo-mesh-addons-"></a>
+[<img src="https://img.youtube.com/vi/_rorug_2bk8/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/_rorug_2bk8 "Video Link")
+
+To use the Gloo Mesh Gateway advanced features (external authentication, rate limiting, ...), you need to install the Gloo Mesh addons.
+
+First, you need to create a namespace for the addons, with Istio injection enabled:
+
+```bash
+kubectl --context ${CLUSTER1} create namespace gloo-mesh-addons
+kubectl --context ${CLUSTER1} label namespace gloo-mesh-addons istio.io/rev=1-19 --overwrite
+```
+
+Then, you can deploy the addons on the cluster(s) using Helm:
+
+```bash
+until [[ $(kubectl --context ${MGMT} -n istio-system get deploy istiod-1-19 -o json | jq '.status.availableReplicas') -gt 0 ]]; do
+  sleep 1
+done
+helm repo add gloo-mesh-agent https://storage.googleapis.com/gloo-mesh-enterprise/gloo-mesh-agent
+helm repo update
+helm upgrade --install gloo-platform gloo-platform/gloo-platform \
+  --namespace gloo-mesh-addons \
+  --kube-context=${CLUSTER1} \
+  --version 2.4.2 \
+ -f -<<EOF
+common:
+  cluster: cluster1
+glooPortalServer:
+  enabled: true
+  apiKeyStorage:
+    redis:
+      enabled: true
+      address: redis.gloo-mesh-addons:6379
+    secretKey: ThisIsSecret
+glooAgent:
+  enabled: false
+extAuthService:
+  enabled: true
+  extAuth: 
+    apiKeyStorage: 
+      name: redis
+      enabled: true
+      config: 
+        connection: 
+          host: redis.gloo-mesh-addons:6379
+      secretKey: ThisIsSecret
+rateLimiter:
+  enabled: true
+EOF
+```
+
+For teams to setup external authentication, the gateways team needs to create and `ExtAuthServer` object they can reference.
+
+Let's create the `ExtAuthServer` object: 
+
+```bash
+kubectl apply --context ${CLUSTER1} -f - <<EOF
+apiVersion: admin.gloo.solo.io/v2
+kind: ExtAuthServer
+metadata:
+  name: ext-auth-server
+  namespace: gloo-mesh-addons
+spec:
+  destinationServer:
+    ref:
+      cluster: cluster1
+      name: ext-auth-service
+      namespace: gloo-mesh-addons
+    port:
+      name: grpc
+  requestBody: {} # Needed if some an extauth plugin must access the body of the requests
+EOF
+```
+
+For teams to setup rate limiting, the gateways team needs to create and `RateLimitServerSettings` object they can reference.
+
+Let's create the `RateLimitServerSettings` object:
+
+```bash
+kubectl apply --context ${CLUSTER1} -f - <<EOF
+apiVersion: admin.gloo.solo.io/v2
+kind: RateLimitServerSettings
+metadata:
+  name: rate-limit-server
+  namespace: gloo-mesh-addons
+spec:
+  destinationServer:
+    ref:
+      cluster: cluster1
+      name: rate-limiter
+      namespace: gloo-mesh-addons
+    port:
+      name: grpc
+EOF
+```
+Set the environment variable for the service corresponding to the Istio Ingress Gateway of the cluster(s):
+
+```bash
+export ENDPOINT_HTTP_GW_CLUSTER1=$(kubectl --context ${CLUSTER1} -n istio-gateways get svc -l istio=ingressgateway -o jsonpath='{.items[0].status.loadBalancer.ingress[0].*}'):80
+export ENDPOINT_HTTPS_GW_CLUSTER1=$(kubectl --context ${CLUSTER1} -n istio-gateways get svc -l istio=ingressgateway -o jsonpath='{.items[0].status.loadBalancer.ingress[0].*}'):443
+export HOST_GW_CLUSTER1=$(echo ${ENDPOINT_HTTP_GW_CLUSTER1} | cut -d: -f1)
+```
+
+<!--bash
+cat <<'EOF' > ./test.js
+const dns = require('dns');
+const chaiHttp = require("chai-http");
+const chai = require("chai");
+const expect = chai.expect;
+chai.use(chaiHttp);
+const { waitOnFailedTest } = require('./tests/utils');
+
+afterEach(function(done) { waitOnFailedTest(done, this.currentTest.currentRetry())});
+
+describe("Address '" + process.env.HOST_GW_CLUSTER1 + "' can be resolved in DNS", () => {
+    it(process.env.HOST_GW_CLUSTER1 + ' can be resolved', (done) => {
+        return dns.lookup(process.env.HOST_GW_CLUSTER1, (err, address, family) => {
+            expect(address).to.be.an.ip;
+            done();
+        });
+    });
+});
+EOF
+echo "executing test ./gloo-mesh-2-0/tests/can-resolve.test.js.liquid"
+tempfile=$(mktemp)
+echo "saving errors in ${tempfile}"
+mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
+-->
+
+This is what the environment looks like now:
+
+![Gloo Platform Workshop Environment](images/steps/deploy-gloo-mesh-addons/gloo-mesh-workshop-environment.svg)
+
+
+
+
+## Lab 7 - Create the gateways workspace <a name="lab-7---create-the-gateways-workspace-"></a>
 [<img src="https://img.youtube.com/vi/QeVBH0eswWw/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/QeVBH0eswWw "Video Link")
 
 We're going to create a workspace for the team in charge of the Gateways.
@@ -815,7 +894,7 @@ The Gateway team has decided to import the following from the workspaces that ha
 
 
 
-## Lab 7 - Create the bookinfo workspace <a name="lab-7---create-the-bookinfo-workspace-"></a>
+## Lab 8 - Create the bookinfo workspace <a name="lab-8---create-the-bookinfo-workspace-"></a>
 
 We're going to create a workspace for the team in charge of the Bookinfo application.
 
@@ -883,7 +962,7 @@ This is how the environment looks like with the workspaces:
 
 
 
-## Lab 8 - Expose the productpage through a gateway <a name="lab-8---expose-the-productpage-through-a-gateway-"></a>
+## Lab 9 - Expose the productpage through a gateway <a name="lab-9---expose-the-productpage-through-a-gateway-"></a>
 [<img src="https://img.youtube.com/vi/emyIu99AOOA/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/emyIu99AOOA "Video Link")
 
 In this step, we're going to expose the `productpage` service through the Ingress Gateway using Gloo Mesh.
@@ -994,7 +1073,7 @@ describe("Productpage is available (HTTP)", () => {
   it('/productpage is available in cluster1', () => helpers.checkURL({ host: 'http://' + process.env.ENDPOINT_HTTP_GW_CLUSTER1, path: '/productpage', retCode: 200 }));
 })
 EOF
-echo "executing test dist/gloo-mesh-2-0-gateway-standalone-portal-beta-v2/build/templates/steps/apps/bookinfo/gateway-expose/tests/productpage-available.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-gateway-standalone-portal-v2/build/templates/steps/apps/bookinfo/gateway-expose/tests/productpage-available.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -1093,7 +1172,7 @@ describe("Productpage is available (HTTPS)", () => {
   it('/productpage is available in cluster1', () => helpers.checkURL({ host: 'https://' + process.env.ENDPOINT_HTTPS_GW_CLUSTER1, path: '/productpage', retCode: 200 }));
 })
 EOF
-echo "executing test dist/gloo-mesh-2-0-gateway-standalone-portal-beta-v2/build/templates/steps/apps/bookinfo/gateway-expose/tests/productpage-available-secure.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-gateway-standalone-portal-v2/build/templates/steps/apps/bookinfo/gateway-expose/tests/productpage-available-secure.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -1114,7 +1193,7 @@ describe("Otel metrics", () => {
 
 
 EOF
-echo "executing test dist/gloo-mesh-2-0-gateway-standalone-portal-beta-v2/build/templates/steps/apps/bookinfo/gateway-expose/tests/otel-metrics.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-gateway-standalone-portal-v2/build/templates/steps/apps/bookinfo/gateway-expose/tests/otel-metrics.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=150 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -1127,7 +1206,7 @@ This diagram shows the flow of the request (through the Istio Ingress Gateway):
 
 
 
-## Lab 9 - Create the httpbin workspace <a name="lab-9---create-the-httpbin-workspace-"></a>
+## Lab 10 - Create the httpbin workspace <a name="lab-10---create-the-httpbin-workspace-"></a>
 
 We're going to create a workspace for the team in charge of the httpbin application.
 
@@ -1187,7 +1266,7 @@ The Httpbin team has decided to export the following to the `gateway` workspace 
 
 
 
-## Lab 10 - Expose the httpbin service <a name="lab-10---expose-the-httpbin-service-"></a>
+## Lab 11 - Expose the httpbin service <a name="lab-11---expose-the-httpbin-service-"></a>
 
 In this step, we're going to expose the httpbin service through the Gateway.
 
@@ -1227,7 +1306,7 @@ describe("httpbin from the local service", () => {
   it('Checking text \'X-Amzn-Trace-Id\' not in ' + process.env.CLUSTER1, () => helpersHttp.checkBody({ host: 'https://' + process.env.ENDPOINT_HTTPS_GW_CLUSTER1, path: '/get', body: 'X-Amzn-Trace-Id', match: false }));
 })
 EOF
-echo "executing test dist/gloo-mesh-2-0-gateway-standalone-portal-beta-v2/build/templates/steps/apps/httpbin/expose-httpbin/tests/httpbin-from-local.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-gateway-standalone-portal-v2/build/templates/steps/apps/httpbin/expose-httpbin/tests/httpbin-from-local.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -1242,7 +1321,7 @@ echo "https://${ENDPOINT_HTTPS_GW_CLUSTER1}/get"
 
 
 
-## Lab 11 - Securing the access with OAuth <a name="lab-11---securing-the-access-with-oauth-"></a>
+## Lab 12 - Securing the access with OAuth <a name="lab-12---securing-the-access-with-oauth-"></a>
 [<img src="https://img.youtube.com/vi/fKZjr0AYxYs/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/fKZjr0AYxYs "Video Link")
 
 
@@ -1360,7 +1439,7 @@ describe("Authentication is working properly", function() {
 });
 
 EOF
-echo "executing test dist/gloo-mesh-2-0-gateway-standalone-portal-beta-v2/build/templates/steps/apps/httpbin/gateway-extauth-oauth/tests/authentication.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-gateway-standalone-portal-v2/build/templates/steps/apps/httpbin/gateway-extauth-oauth/tests/authentication.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -1453,7 +1532,7 @@ This diagram shows the flow of the request (with the Istio ingress gateway lever
 
 
 
-## Lab 12 - Use the JWT filter to create headers from claims <a name="lab-12---use-the-jwt-filter-to-create-headers-from-claims-"></a>
+## Lab 13 - Use the JWT filter to create headers from claims <a name="lab-13---use-the-jwt-filter-to-create-headers-from-claims-"></a>
 [<img src="https://img.youtube.com/vi/bpFKbhUIwgM/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/bpFKbhUIwgM "Video Link")
 
 
@@ -1566,7 +1645,7 @@ describe("Claim to header is working properly", function() {
 });
 
 EOF
-echo "executing test dist/gloo-mesh-2-0-gateway-standalone-portal-beta-v2/build/templates/steps/apps/httpbin/gateway-jwt/tests/header-added.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-gateway-standalone-portal-v2/build/templates/steps/apps/httpbin/gateway-jwt/tests/header-added.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -1574,7 +1653,7 @@ mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${te
 
 
 
-## Lab 13 - Use the transformation filter to manipulate headers <a name="lab-13---use-the-transformation-filter-to-manipulate-headers-"></a>
+## Lab 14 - Use the transformation filter to manipulate headers <a name="lab-14---use-the-transformation-filter-to-manipulate-headers-"></a>
 
 
 In this step, we're going to use a regular expression to extract a part of an existing header and to create a new one:
@@ -1633,7 +1712,7 @@ describe("Tranformation is working properly", function() {
 });
 
 EOF
-echo "executing test dist/gloo-mesh-2-0-gateway-standalone-portal-beta-v2/build/templates/steps/apps/httpbin/gateway-transformation/tests/header-added.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-gateway-standalone-portal-v2/build/templates/steps/apps/httpbin/gateway-transformation/tests/header-added.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -1641,7 +1720,7 @@ mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${te
 
 
 
-## Lab 14 - Use the Web Application Firewall filter <a name="lab-14---use-the-web-application-firewall-filter-"></a>
+## Lab 15 - Use the Web Application Firewall filter <a name="lab-15---use-the-web-application-firewall-filter-"></a>
 [<img src="https://img.youtube.com/vi/9q2TxtBDqrA/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/9q2TxtBDqrA "Video Link")
 
 
@@ -1728,7 +1807,7 @@ describe("WAF is working properly", function() {
 });
 
 EOF
-echo "executing test dist/gloo-mesh-2-0-gateway-standalone-portal-beta-v2/build/templates/steps/apps/httpbin/gateway-waf/tests/waf.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-gateway-standalone-portal-v2/build/templates/steps/apps/httpbin/gateway-waf/tests/waf.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -1791,7 +1870,7 @@ kubectl --context ${CLUSTER1} -n httpbin delete wafpolicies.security.policy.gloo
 
 
 
-## Lab 15 - Use the WAF to block based on source country <a name="lab-15---use-the-waf-to-block-based-on-source-country-"></a>
+## Lab 16 - Use the WAF to block based on source country <a name="lab-16---use-the-waf-to-block-based-on-source-country-"></a>
 
 A web application firewall (WAF) protects web applications by monitoring, filtering, and blocking potentially harmful traffic and attacks that can overtake or exploit them.
 
@@ -1999,7 +2078,7 @@ kubectl --context ${CLUSTER1} -n istio-gateways patch svc $(kubectl --context ${
 
 
 
-## Lab 16 - Expose the productpage API securely <a name="lab-16---expose-the-productpage-api-securely-"></a>
+## Lab 17 - Expose the productpage API securely <a name="lab-17---expose-the-productpage-api-securely-"></a>
 [<img src="https://img.youtube.com/vi/pkzeYaTj9k0/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/pkzeYaTj9k0 "Video Link")
 
 
@@ -2037,7 +2116,7 @@ describe("APIDoc has been created", () => {
     it('APIDoc is present', () => helpers.k8sObjectIsPresent({ context: process.env.CLUSTER1, namespace: "bookinfo-frontends", k8sType: "apidoc", k8sObj: "productpage-service" }));
 });
 EOF
-echo "executing test dist/gloo-mesh-2-0-gateway-standalone-portal-beta-v2/build/templates/steps/apps/bookinfo/dev-portal-api/tests/apidoc-created.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-gateway-standalone-portal-v2/build/templates/steps/apps/bookinfo/dev-portal-api/tests/apidoc-created.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -2179,7 +2258,7 @@ describe("Access the API without authentication", () => {
   it('Checking text \'The Comedy of Errors\' in the response', () => helpersHttp.checkBody({ host: 'https://' + process.env.ENDPOINT_HTTPS_GW_CLUSTER1, path: '/api/bookinfo/v1', body: 'The Comedy of Errors', match: true }));
 })
 EOF
-echo "executing test dist/gloo-mesh-2-0-gateway-standalone-portal-beta-v2/build/templates/steps/apps/bookinfo/dev-portal-api/tests/access-api-no-auth.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-gateway-standalone-portal-v2/build/templates/steps/apps/bookinfo/dev-portal-api/tests/access-api-no-auth.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -2218,7 +2297,7 @@ spec:
             headerName: api-key
             headersFromMetadataEntry:
               X-Solo-Plan:
-                name: plan
+                name: usagePlan
                 required: true
             k8sSecretApikeyStorage:
               labelSelector:
@@ -2242,7 +2321,7 @@ describe("Access to API unauthorized", () => {
   it('Response code is 401', () => helpers.checkURL({ host: 'https://' + process.env.ENDPOINT_HTTPS_GW_CLUSTER1, path: '/api/bookinfo/v1', retCode: 401 }));
 })
 EOF
-echo "executing test dist/gloo-mesh-2-0-gateway-standalone-portal-beta-v2/build/templates/steps/apps/bookinfo/dev-portal-api/tests/access-api-unauthorized.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-gateway-standalone-portal-v2/build/templates/steps/apps/bookinfo/dev-portal-api/tests/access-api-unauthorized.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -2274,7 +2353,7 @@ data:
   api-key: YXBpa2V5MQ==
   user-id: dXNlcjE=
   user-email: dXNlcjFAc29sby5pbw==
-  plan: Z29sZA==
+  usagePlan: Z29sZA==
 EOF
 ```
 
@@ -2292,7 +2371,7 @@ describe("Access to API authorized", () => {
   it('Response code is 200', () => helpers.checkURL({ host: 'https://' + process.env.ENDPOINT_HTTPS_GW_CLUSTER1, path: '/api/bookinfo/v1', headers: [{key: 'api-key', value: process.env.API_KEY_USER1}], retCode: 200 }));
 })
 EOF
-echo "executing test dist/gloo-mesh-2-0-gateway-standalone-portal-beta-v2/build/templates/steps/apps/bookinfo/dev-portal-api/tests/access-api-authorized.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-gateway-standalone-portal-v2/build/templates/steps/apps/bookinfo/dev-portal-api/tests/access-api-authorized.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -2424,7 +2503,7 @@ server: istio-envoy
 
 
 
-## Lab 17 - Expose the dev portal backend <a name="lab-17---expose-the-dev-portal-backend-"></a>
+## Lab 18 - Expose the dev portal backend <a name="lab-18---expose-the-dev-portal-backend-"></a>
 [<img src="https://img.youtube.com/vi/mfXww6udYFs/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/mfXww6udYFs "Video Link")
 
 
@@ -2495,7 +2574,7 @@ describe("Access the portal API without authentication", () => {
   it('Checking text \'portal config not found\' in the response', () => helpersHttp.checkBody({ host: 'https://' + process.env.ENDPOINT_HTTPS_GW_CLUSTER1, path: '/portal-server/v1/apis', body: 'portal config not found', match: true }));
 })
 EOF
-echo "executing test dist/gloo-mesh-2-0-gateway-standalone-portal-beta-v2/build/templates/steps/apps/bookinfo/dev-portal-backend/tests/access-portal-api-no-auth-no-config.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-gateway-standalone-portal-v2/build/templates/steps/apps/bookinfo/dev-portal-backend/tests/access-portal-api-no-auth-no-config.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -2555,7 +2634,7 @@ describe("Access the portal API without authentication", () => {
   it('Checking text \'null\' in the response', () => helpersHttp.checkBody({ host: 'https://' + process.env.ENDPOINT_HTTPS_GW_CLUSTER1, path: '/portal-server/v1/apis', body: '[]', match: true }));
 })
 EOF
-echo "executing test dist/gloo-mesh-2-0-gateway-standalone-portal-beta-v2/build/templates/steps/apps/bookinfo/dev-portal-backend/tests/access-portal-api-no-auth-empty.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-gateway-standalone-portal-v2/build/templates/steps/apps/bookinfo/dev-portal-backend/tests/access-portal-api-no-auth-empty.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -2598,7 +2677,7 @@ The `RouteTable` we have created for the `bookinfo` API has this label.
 
 
 
-## Lab 18 - Deploy and expose the dev portal frontend <a name="lab-18---deploy-and-expose-the-dev-portal-frontend-"></a>
+## Lab 19 - Deploy and expose the dev portal frontend <a name="lab-19---deploy-and-expose-the-dev-portal-frontend-"></a>
 
 
 The developer frontend is provided as a fully functional template to allow you to customize it based on your own requirements.
@@ -2723,7 +2802,7 @@ describe("Access the portal frontend without authentication", () => {
   it('Checking text \'Developer Portal\' in the response', () => helpersHttp.checkBody({ host: 'https://' + process.env.ENDPOINT_HTTPS_GW_CLUSTER1, path: '/index.html', body: 'Developer Portal', match: true }));
 })
 EOF
-echo "executing test dist/gloo-mesh-2-0-gateway-standalone-portal-beta-v2/build/templates/steps/apps/bookinfo/dev-portal-frontend/tests/access-portal-frontend-no-auth.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-gateway-standalone-portal-v2/build/templates/steps/apps/bookinfo/dev-portal-frontend/tests/access-portal-frontend-no-auth.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=300 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -2891,7 +2970,7 @@ describe("Authentication is working properly", function() {
   it("The portal frontend is accessible after authenticating", () => helpersHttp.checkURL({ host: 'https://' + process.env.ENDPOINT_HTTPS_GW_CLUSTER1, path: '/index.html', headers: [{key: 'Authorization', value: 'Bearer ' + keycloak_token}], retCode: 200 }));
 });
 EOF
-echo "executing test dist/gloo-mesh-2-0-gateway-standalone-portal-beta-v2/build/templates/steps/apps/bookinfo/dev-portal-frontend/tests/access-portal-frontend-authenticated.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-gateway-standalone-portal-v2/build/templates/steps/apps/bookinfo/dev-portal-frontend/tests/access-portal-frontend-authenticated.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -2904,117 +2983,6 @@ If you click on the `LOGIN` button on the top right corner, you'll be redirected
 Now, if you click on the `VIEW APIS` button, you should see the `Bookinfo REST API`.
 
 ![Dev Portal APIs](images/steps/dev-portal-frontend/apis.png)
-
-
-
-## Lab 19 - Envoy attributes to headers with WebAssembly <a name="lab-19---envoy-attributes-to-headers-with-webassembly-"></a>
-
-WebAssembly (Wasm) is the future of cloud-native infrastructure extensibility.
-
-Wasm is a safe, secure, and dynamic way of extending infrastructure with the language of your choice. WASM tool chains compile your code from any of the supported languages into a type-safe, binary format that can be loaded dynamically in a WASM sandbox/VM.
-
-In this lab, we're going to build a new Wasm plugin to capture any [Envoy attribute](https://www.envoyproxy.io/docs/envoy/latest/intro/arch_overview/advanced/attributes) into a header.
-
-[TinyGo](https://tinygo.org/) must be installed.
-
-Let's build an OCI image for that purpose:
-
-```bash
-pushd data/steps/web-assembly-attributes
-go mod init web-assembly-attributes
-go get github.com/tetratelabs/proxy-wasm-go-sdk/proxywasm
-go get github.com/tetratelabs/proxy-wasm-go-sdk/proxywasm/types
-go get github.com/tidwall/gjson
-tinygo build -o plugin.wasm -scheduler=none -target=wasi ./main.go
-docker build -t localhost:5000/metadata-headers:0.1 .
-docker push localhost:5000/metadata-headers:0.1
-popd
-```
-
-We can now deploy the Wasm plugin on the gateway:
-
-```bash
-kubectl apply --context ${CLUSTER1} -f - <<EOF
-apiVersion: extensions.istio.io/v1alpha1
-kind: WasmPlugin
-metadata:
-  name: attributes-to-headers
-  namespace: istio-gateways
-spec:
-  selector:
-    matchLabels:
-      istio: ingressgateway
-  url: oci://kind-registry:5000/metadata-headers:0.1
-  phase: AUTHN
-  pluginConfig:
-    attributes:
-    - source.address
-    - source.port
-    - connection.mtls
-    - connection.tls_version
-EOF
-```
-
-This Wasm plugin is going to create new headers for the following attributes and convert them to string:
-
-- source.address
-- source.port
-- connection.mtls
-- connection.tls_version
-
-Let's test it:
-
-```bash
-curl -k "https://${ENDPOINT_HTTPS_GW_CLUSTER1}/get"
-```
-
-Here is the expected result:
-
-```
-{
-  "args": {}, 
-  "headers": {
-    "Accept": "*/*", 
-    "Host": "172.18.102.1", 
-    "User-Agent": "curl/7.81.0", 
-    "X-Attribute-Connection-Mtls": "false", 
-    "X-Attribute-Connection-Tls-Version": "TLSv1.3", 
-    "X-Attribute-Source-Address": "10.102.0.1:33995", 
-    "X-Attribute-Source-Port": "33995", 
-    "X-B3-Parentspanid": "470e3748edae7184", 
-    "X-B3-Sampled": "0", 
-    "X-B3-Spanid": "f74647f6886ff109", 
-    "X-B3-Traceid": "6e53524939ef1c68470e3748edae7184", 
-    "X-Envoy-Attempt-Count": "1", 
-    "X-Envoy-Internal": "true", 
-    "X-Forwarded-Client-Cert": "By=spiffe://cluster1/ns/httpbin/sa/in-mesh;Hash=ab8866dec1e59f345480ce67dae56f9da5b0fbec4d530bbfc98507e892fb2087;Subject=\"\";URI=spiffe://cluster1/ns/istio-gateways/sa/istio-ingressgateway-1-17-service-account"
-  }, 
-  "origin": "10.102.0.1", 
-  "url": "https://172.18.102.1/get"
-}
-```
-
-<!--bash
-cat <<'EOF' > ./test.js
-const chaiExec = require("@jsdevtools/chai-exec");
-const helpersHttp = require('./tests/chai-http');
-var chai = require('chai');
-var expect = chai.expect;
-
-describe("Headers have been added", function() {
-  it('The X-Attribute-Connection-Tls-Version header has been added', () => helpersHttp.checkBody({ host: 'https://' + process.env.ENDPOINT_HTTPS_GW_CLUSTER1, path: '/get', body: '"X-Attribute-Connection-Tls-Version": "TLSv1.3"' }));
-});
-
-EOF
-echo "executing test dist/gloo-mesh-2-0-gateway-standalone-portal-beta-v2/build/templates/steps/apps/httpbin/web-assembly-attributes/tests/headers-added.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
--->
-
-Note that you can then use these new headers in other policies (TransformationPolicies, ...)
-
-
 
 
 
@@ -3039,7 +3007,7 @@ data:
   api-key: YXBpa2V5MQ==
   user-id: dXNlcjE=
   user-email: dXNlcjFAc29sby5pbw==
-  plan: Z29sZA==
+  usagePlan: Z29sZA==
   tlsversion: VExTdjEuMw==
 EOF
 ```
@@ -3086,7 +3054,7 @@ spec:
             headerName: api-key
             headersFromMetadataEntry:
               X-Solo-Plan:
-                name: plan
+                name: usagePlan
                 required: true
               X-AppConfig-Tls:
                 name: tlsversion
@@ -3230,7 +3198,7 @@ data:
   api-key: $(echo -n "${API_KEY_USER1}" | base64)
   user-id: dXNlcjE=
   user-email: dXNlcjFAc29sby5pbw==
-  plan: Z29sZA==
+  usagePlan: Z29sZA==
   prohibitedCountries: $(echo -n "${PROHIBITED_COUNTRY}" | base64)
 EOF
 ```
@@ -3380,7 +3348,7 @@ data:
   api-key: $(echo -n "${API_KEY_USER1}" | base64)
   user-id: dXNlcjE=
   user-email: dXNlcjFAc29sby5pbw==
-  plan: Z29sZA==
+  usagePlan: Z29sZA==
   prohibitedCountries: $(echo -n "${PROHIBITED_COUNTRY}" | base64)
 EOF
 ```
@@ -3479,7 +3447,7 @@ describe("API key creation working properly", function() {
   it("Authentication is working with the generated API key", () => helpersHttp.checkURL({ host: 'https://' + process.env.ENDPOINT_HTTPS_GW_CLUSTER1, path: '/api/bookinfo/v1', headers: [{key: 'api-key', value: process.env.API_KEY_USER1}], retCode: 200 }));
 });
 EOF
-echo "executing test dist/gloo-mesh-2-0-gateway-standalone-portal-beta-v2/build/templates/steps/apps/bookinfo/dev-portal-self-service/tests/api-key.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-gateway-standalone-portal-v2/build/templates/steps/apps/bookinfo/dev-portal-self-service/tests/api-key.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=150 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -3638,7 +3606,7 @@ describe("API key creation working properly", function() {
   it("Authentication is NOT working with a fake API key", () => helpersHttp.checkURL({ host: 'https://' + process.env.ENDPOINT_HTTPS_GW_CLUSTER1, path: '/api/bookinfo/v1', headers: [{key: 'api-key', value: 'apikey99'}], retCode: 401 }));
 });
 EOF
-echo "executing test dist/gloo-mesh-2-0-gateway-standalone-portal-beta-v2/build/templates/steps/apps/bookinfo/dev-portal-import-keys/tests/api-key.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-gateway-standalone-portal-v2/build/templates/steps/apps/bookinfo/dev-portal-import-keys/tests/api-key.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -3882,7 +3850,7 @@ describe("Monetization is working", () => {
   });
 });
 EOF
-echo "executing test dist/gloo-mesh-2-0-gateway-standalone-portal-beta-v2/build/templates/steps/apps/bookinfo/dev-portal-monetization/tests/monetization.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-gateway-standalone-portal-v2/build/templates/steps/apps/bookinfo/dev-portal-monetization/tests/monetization.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=150 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
