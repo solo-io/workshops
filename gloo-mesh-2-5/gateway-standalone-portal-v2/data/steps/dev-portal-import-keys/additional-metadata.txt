@@ -1,0 +1,1 @@
+"externalkey":"true","tlsversion":"TLSv1.3","prohibitedCountries":"BE"
