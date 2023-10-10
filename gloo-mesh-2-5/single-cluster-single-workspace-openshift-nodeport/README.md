@@ -14,25 +14,22 @@ source ./scripts/assert.sh
 
 ## Table of Contents
 * [Introduction](#introduction)
-* [Lab 1 - Deploy a KinD cluster](#lab-1---deploy-a-kind-cluster-)
+* [Lab 1 - Deploy Openshift cluster](#lab-1---deploy-openshift-cluster-)
 * [Lab 2 - Deploy and register Gloo Mesh](#lab-2---deploy-and-register-gloo-mesh-)
 * [Lab 3 - Deploy Istio using Gloo Mesh Lifecycle Manager](#lab-3---deploy-istio-using-gloo-mesh-lifecycle-manager-)
 * [Lab 4 - Deploy the Bookinfo demo app](#lab-4---deploy-the-bookinfo-demo-app-)
 * [Lab 5 - Deploy the httpbin demo app](#lab-5---deploy-the-httpbin-demo-app-)
 * [Lab 6 - Deploy Gloo Mesh Addons](#lab-6---deploy-gloo-mesh-addons-)
-* [Lab 7 - Create the gateways workspace](#lab-7---create-the-gateways-workspace-)
-* [Lab 8 - Create the bookinfo workspace](#lab-8---create-the-bookinfo-workspace-)
-* [Lab 9 - Expose the productpage through a gateway](#lab-9---expose-the-productpage-through-a-gateway-)
-* [Lab 10 - Create the httpbin workspace](#lab-10---create-the-httpbin-workspace-)
-* [Lab 11 - Expose an external service](#lab-11---expose-an-external-service-)
-* [Lab 12 - Deploy Keycloak](#lab-12---deploy-keycloak-)
-* [Lab 13 - Securing the access with OAuth](#lab-13---securing-the-access-with-oauth-)
-* [Lab 14 - Use the JWT filter to create headers from claims](#lab-14---use-the-jwt-filter-to-create-headers-from-claims-)
-* [Lab 15 - Use the transformation filter to manipulate headers](#lab-15---use-the-transformation-filter-to-manipulate-headers-)
-* [Lab 16 - Apply rate limiting to the Gateway](#lab-16---apply-rate-limiting-to-the-gateway-)
-* [Lab 17 - Use the Web Application Firewall filter](#lab-17---use-the-web-application-firewall-filter-)
-* [Lab 18 - Expose the bookinfo application through GraphQL](#lab-18---expose-the-bookinfo-application-through-graphql-)
-* [Lab 19 - Upgrade Istio using Gloo Mesh Lifecycle Manager](#lab-19---upgrade-istio-using-gloo-mesh-lifecycle-manager-)
+* [Lab 7 - Create a single workspace](#lab-7---create-a-single-workspace-)
+* [Lab 8 - Expose the productpage through a gateway](#lab-8---expose-the-productpage-through-a-gateway-)
+* [Lab 9 - Traffic policies](#lab-9---traffic-policies-)
+* [Lab 10 - Expose an external service](#lab-10---expose-an-external-service-)
+* [Lab 11 - Deploy Keycloak](#lab-11---deploy-keycloak-)
+* [Lab 12 - Securing the access with OAuth](#lab-12---securing-the-access-with-oauth-)
+* [Lab 13 - Use the JWT filter to create headers from claims](#lab-13---use-the-jwt-filter-to-create-headers-from-claims-)
+* [Lab 14 - Use the transformation filter to manipulate headers](#lab-14---use-the-transformation-filter-to-manipulate-headers-)
+* [Lab 15 - Apply rate limiting to the Gateway](#lab-15---apply-rate-limiting-to-the-gateway-)
+* [Lab 16 - Use the Web Application Firewall filter](#lab-16---use-the-web-application-firewall-filter-)
 
 
 
@@ -74,7 +71,7 @@ You can find more information about Gloo Mesh in the official documentation:
 
 
 
-## Lab 1 - Deploy a KinD cluster <a name="lab-1---deploy-a-kind-cluster-"></a>
+## Lab 1 - Deploy Openshift cluster <a name="lab-1---deploy-openshift-cluster-"></a>
 
 
 Clone this repository and go to the directory where this `README.md` file is.
@@ -86,37 +83,26 @@ export MGMT=cluster1
 export CLUSTER1=cluster1
 ```
 
-Run the following commands to deploy a Kubernetes cluster using [Kind](https://kind.sigs.k8s.io/):
+For this workshop, you need to deploy 1 Openshift cluster.
+
+All the instructions have been tested with an Openshift cluster 4.10.3 composed of 3 worker nodes with 4 CPUs and 16 GB of RAM each.
+
+Gloo Mesh can be run in its own cluster or co-located with an existing mesh.  In this workshop, everything will be deployed on a single cluster.
+
+You also need to rename the Kubernete context to `cluster1`.
+
+Here is an example showing how to rename a Kubernetes context:
+
+```
+kubectl config rename-context <context to rename> <new context name>
+```
+
+Run the following command to make `mgmt` the current cluster.
 
 ```bash
-./scripts/deploy.sh 1 cluster1 us-west us-west-1
+kubectl config use-context ${MGMT}
 ```
 
-Then run the following commands to wait for all the Pods to be ready:
-
-```bash
-./scripts/check.sh cluster1
-```
-
-**Note:** If you run the `check.sh` script immediately after the `deploy.sh` script, you may see a jsonpath error. If that happens, simply wait a few seconds and try again.
-
-Once the `check.sh` script completes, when you execute the `kubectl get pods -A` command, you should see the following:
-
-```
-NAMESPACE            NAME                                          READY   STATUS    RESTARTS   AGE
-kube-system          calico-kube-controllers-59d85c5c84-sbk4k      1/1     Running   0          4h26m
-kube-system          calico-node-przxs                             1/1     Running   0          4h26m
-kube-system          coredns-6955765f44-ln8f5                      1/1     Running   0          4h26m
-kube-system          coredns-6955765f44-s7xxx                      1/1     Running   0          4h26m
-kube-system          etcd-cluster1-control-plane                   1/1     Running   0          4h27m
-kube-system          kube-apiserver-cluster1-control-plane         1/1     Running   0          4h27m
-kube-system          kube-controller-manager-cluster1-control-plane1/1     Running   0          4h27m
-kube-system          kube-proxy-ksvzw                              1/1     Running   0          4h26m
-kube-system          kube-scheduler-cluster1-control-plane         1/1     Running   0          4h27m
-local-path-storage   local-path-provisioner-58f6947c7-lfmdx        1/1     Running   0          4h26m
-metallb-system       controller-5c9894b5cd-cn9x2                   1/1     Running   0          4h26m
-metallb-system       speaker-d7jkp                                 1/1     Running   0          4h26m
-```
 
 
 
@@ -127,7 +113,7 @@ metallb-system       speaker-d7jkp                                 1/1     Runni
 First of all, let's install the `meshctl` CLI:
 
 ```bash
-export GLOO_MESH_VERSION=v2.4.2
+export GLOO_MESH_VERSION=v2.5.0-beta1
 curl -sL https://run.solo.io/meshctl/install | sh -
 export PATH=$HOME/.gloo-mesh/bin:$PATH
 ```
@@ -159,7 +145,7 @@ describe("Required environment variables should contain value", () => {
   });
 });
 EOF
-echo "executing test dist/gloo-mesh-2-0-gateway/build/templates/steps/deploy-and-register-gloo-mesh/tests/environment-variables.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-single-cluster-single-workspace-openshift-nodeport-beta/build/templates/steps/deploy-and-register-gloo-mesh/tests/environment-variables.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -169,14 +155,16 @@ mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${te
 helm repo add gloo-platform https://storage.googleapis.com/gloo-platform/helm-charts
 helm repo update
 kubectl --context ${MGMT} create ns gloo-mesh
+# To allow running the OTel collector as privileged on Openshift
+oc --context ${CLUSTER1} adm policy add-scc-to-user privileged -z gloo-telemetry-collector -n gloo-mesh
 helm upgrade --install gloo-platform-crds gloo-platform/gloo-platform-crds \
 --namespace gloo-mesh \
 --kube-context ${MGMT} \
---version=2.4.2
+--version=2.5.0-beta1
 helm upgrade --install gloo-platform gloo-platform/gloo-platform \
 --namespace gloo-mesh \
 --kube-context ${MGMT} \
---version=2.4.2 \
+--version=2.5.0-beta1 \
  -f -<<EOF
 licensing:
   licenseKey: ${GLOO_MESH_LICENSE_KEY}
@@ -187,40 +175,52 @@ glooMgmtServer:
   ports:
     healthcheck: 8091
   registerCluster: true
+  floatingUserId: true
+  serviceType: NodePort
 prometheus:
   enabled: true
 redis:
   deployment:
     enabled: true
+    floatingUserId: true
 telemetryGateway:
   enabled: true
   service:
     type: LoadBalancer
 glooUi:
   enabled: true
-  serviceType: LoadBalancer
+  serviceType: 
+  floatingUserId: true
 glooAgent:
   enabled: true
   relay:
     serverAddress: gloo-mesh-mgmt-server:9900
     authority: gloo-mesh-mgmt-server.gloo-mesh
+  floatingUserId: true
 telemetryCollector:
   enabled: true
   config:
     exporters:
       otlp:
         endpoint: gloo-telemetry-gateway:4317
+  ports:
+    otlp:
+      hostPort: 0
+    otlp-http:
+      hostPort: 0
+    jaeger-compact:
+      hostPort: 0
+    jaeger-thrift:
+      hostPort: 0
+    jaeger-grpc:
+      hostPort: 0
+    zipkin:
+      hostPort: 0
 EOF
 kubectl --context ${MGMT} -n gloo-mesh rollout status deploy/gloo-mesh-mgmt-server
 kubectl --context ${MGMT} delete workspaces -A --all
 kubectl --context ${MGMT} delete workspacesettings -A --all
 ```
-<!--bash
-kubectl wait --context ${MGMT} --for=condition=Ready -n gloo-mesh --all pod
-until [[ $(kubectl --context ${MGMT} -n gloo-mesh get svc gloo-mesh-mgmt-server -o json | jq '.status.loadBalancer | length') -gt 0 ]]; do
-  sleep 1
-done
--->
 <!--bash
 cat <<'EOF' > ./test.js
 var chai = require('chai');
@@ -234,7 +234,7 @@ describe("Cluster registration", () => {
   });
 });
 EOF
-echo "executing test dist/gloo-mesh-2-0-gateway/build/templates/steps/deploy-and-register-gloo-mesh/tests/cluster-registration.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-single-cluster-single-workspace-openshift-nodeport-beta/build/templates/steps/deploy-and-register-gloo-mesh/tests/cluster-registration.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -246,13 +246,15 @@ mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${te
 [<img src="https://img.youtube.com/vi/f76-KOEjqHs/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/f76-KOEjqHs "Video Link")
 
 We are going to deploy Istio using Gloo Mesh Lifecycle Manager.
+Note that the few Openshift specific commands used in this lab are documented on the Istio website [here](https://istio.io/latest/docs/setup/platform-setup/openshift/).
+
 
 First of all, let's create Kubernetes services for the gateways:
 
 ```bash
 registry=localhost:5000
 kubectl --context ${CLUSTER1} create ns istio-gateways
-kubectl --context ${CLUSTER1} label namespace istio-gateways istio.io/rev=1-18 --overwrite
+kubectl --context ${CLUSTER1} label namespace istio-gateways istio.io/rev=1-19 --overwrite
 
 kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: v1
@@ -276,12 +278,26 @@ spec:
   selector:
     app: istio-ingressgateway
     istio: ingressgateway
-    revision: 1-18
-  type: LoadBalancer
+    revision: 1-19
+  type: NodePort
 EOF
 ```
 
 It allows us to have full control on which Istio revision we want to use.
+For Openshift clusters, you also need to run the following commands:
+
+```bash
+oc --context ${CLUSTER1} adm policy add-scc-to-group anyuid system:serviceaccounts:istio-system
+oc --context ${CLUSTER1} adm policy add-scc-to-group anyuid system:serviceaccounts:istio-gateways
+oc --context ${CLUSTER1} adm policy add-scc-to-group anyuid system:serviceaccounts:gm-iop-1-19
+
+cat <<EOF | oc --context ${CLUSTER1} -n istio-gateways create -f -
+apiVersion: "k8s.cni.cncf.io/v1"
+kind: NetworkAttachmentDefinition
+metadata:
+  name: istio-cni
+EOF
+```
 
 Then, we can tell Gloo Mesh to deploy the Istio control planes and the gateways in the cluster(s)
 
@@ -297,11 +313,11 @@ spec:
     - clusters:
       - name: cluster1
         defaultRevision: true
-      revision: 1-18
+      revision: 1-19
       istioOperatorSpec:
         profile: minimal
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.18.3-solo
+        tag: 1.19.1-solo
         namespace: istio-system
         values:
           global:
@@ -309,6 +325,18 @@ spec:
             multiCluster:
               clusterName: cluster1
             network: cluster1
+          cni:
+            excludeNamespaces:
+            - istio-system
+            - kube-system
+            logLevel: info
+            cniBinDir: /var/lib/cni/bin
+            cniConfDir: /etc/cni/multus/net.d
+            chained: false
+            cniConfFileName: "istio-cni.conf"
+          sidecarInjectorWebhook:
+            injectedAnnotations:
+              k8s.v1.cni.cncf.io/networks: istio-cni
         meshConfig:
           accessLogFile: /dev/stdout
           defaultConfig:
@@ -321,6 +349,16 @@ spec:
               env:
                 - name: PILOT_ENABLE_K8S_SELECT_WORKLOAD_ENTRIES
                   value: "false"
+          cni:
+            enabled: true
+            namespace: kube-system
+            k8s:
+              overlays:
+                - kind: DaemonSet
+                  name: istio-cni-node
+                  patches:
+                    - path: spec.template.spec.containers[0].securityContext.privileged
+                      value: true
           ingressGateways:
           - name: istio-ingressgateway
             enabled: false
@@ -337,11 +375,11 @@ spec:
     - clusters:
       - name: cluster1
         activeGateway: false
-      gatewayRevision: 1-18
+      gatewayRevision: 1-19
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.18.3-solo
+        tag: 1.19.1-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -364,11 +402,11 @@ spec:
     - clusters:
       - name: cluster1
         activeGateway: false
-      gatewayRevision: 1-18
+      gatewayRevision: 1-19
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.18.3-solo
+        tag: 1.19.1-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -425,34 +463,20 @@ afterEach(function (done) {
 describe("Checking Istio installation", function() {
   it('istiod pods are ready in cluster ' + process.env.CLUSTER1, () => helpers.checkDeploymentsWithLabels({ context: process.env.CLUSTER1, namespace: "istio-system", labels: "app=istiod", instances: 1 }));
   it('gateway pods are ready in cluster ' + process.env.CLUSTER1, () => helpers.checkDeploymentsWithLabels({ context: process.env.CLUSTER1, namespace: "istio-gateways", labels: "app=istio-ingressgateway", instances: 2 }));
-  it("Gateways have an ip attached in cluster " + process.env.CLUSTER1, () => {
-    let cli = chaiExec("kubectl --context " + process.env.CLUSTER1 + " -n istio-gateways get svc -l app=istio-ingressgateway -o jsonpath='{.items}'");
-    cli.stderr.should.be.empty;
-    let deployments = JSON.parse(cli.stdout.slice(1,-1));
-    expect(deployments).to.have.lengthOf(1);
-    deployments.forEach((deployment) => {
-      expect(deployment.status.loadBalancer).to.have.property("ingress");
-    });
-  });
 });
 
 EOF
-echo "executing test dist/gloo-mesh-2-0-gateway/build/templates/steps/istio-lifecycle-manager-install/tests/istio-ready.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-single-cluster-single-workspace-openshift-nodeport-beta/build/templates/steps/istio-lifecycle-manager-install/tests/istio-ready.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
--->
-<!--bash
-until [[ $(kubectl --context ${CLUSTER1} -n istio-gateways get svc -l istio=ingressgateway -o json | jq '.items[0].status.loadBalancer | length') -gt 0 ]]; do
-  sleep 1
-done
 -->
 
 Set the environment variable for the service corresponding to the Istio Ingress Gateway of the cluster(s):
 
 ```bash
-export ENDPOINT_HTTP_GW_CLUSTER1=$(kubectl --context ${CLUSTER1} -n istio-gateways get svc -l istio=ingressgateway -o jsonpath='{.items[0].status.loadBalancer.ingress[0].*}'):80
-export ENDPOINT_HTTPS_GW_CLUSTER1=$(kubectl --context ${CLUSTER1} -n istio-gateways get svc -l istio=ingressgateway -o jsonpath='{.items[0].status.loadBalancer.ingress[0].*}'):443
+export ENDPOINT_HTTP_GW_CLUSTER1=$(kubectl --context ${CLUSTER1} get nodes -o jsonpath='{.items[0].status.addresses[?(.type=="InternalIP")].address}'):$(kubectl --context ${CLUSTER1} -n istio-gateways get svc -l istio=ingressgateway -o jsonpath='{.items[0].spec.ports[?(@.port==80)].nodePort}')
+export ENDPOINT_HTTPS_GW_CLUSTER1=$(kubectl --context ${CLUSTER1} get nodes -o jsonpath='{.items[0].status.addresses[?(.type=="InternalIP")].address}'):$(kubectl --context ${CLUSTER1} -n istio-gateways get svc -l istio=ingressgateway -o jsonpath='{.items[0].spec.ports[?(@.port==443)].nodePort}')
 export HOST_GW_CLUSTER1=$(echo ${ENDPOINT_HTTP_GW_CLUSTER1%:*})
 ```
 
@@ -490,6 +514,7 @@ mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${te
 We're going to deploy the bookinfo application to demonstrate several features of Gloo Mesh.
 
 You can find more information about this application [here](https://istio.io/latest/docs/examples/bookinfo/).
+Note that the few Openshift specific commands used in this lab are documented on the Istio website [here](https://istio.io/latest/docs/setup/platform-setup/openshift/).
 
 Run the following commands to deploy the bookinfo application on `cluster1`:
 
@@ -498,8 +523,25 @@ curl https://raw.githubusercontent.com/istio/istio/release-1.16/samples/bookinfo
 
 kubectl --context ${CLUSTER1} create ns bookinfo-frontends
 kubectl --context ${CLUSTER1} create ns bookinfo-backends
-kubectl --context ${CLUSTER1} label namespace bookinfo-frontends istio.io/rev=1-18 --overwrite
-kubectl --context ${CLUSTER1} label namespace bookinfo-backends istio.io/rev=1-18 --overwrite
+oc --context ${CLUSTER1} adm policy add-scc-to-group anyuid system:serviceaccounts:bookinfo-frontends
+oc --context ${CLUSTER1} adm policy add-scc-to-group anyuid system:serviceaccounts:bookinfo-backends
+
+cat <<EOF | oc --context ${CLUSTER1} -n bookinfo-frontends create -f -
+apiVersion: "k8s.cni.cncf.io/v1"
+kind: NetworkAttachmentDefinition
+metadata:
+  name: istio-cni
+EOF
+
+cat <<EOF | oc --context ${CLUSTER1} -n bookinfo-backends create -f -
+apiVersion: "k8s.cni.cncf.io/v1"
+kind: NetworkAttachmentDefinition
+metadata:
+  name: istio-cni
+EOF
+
+kubectl --context ${CLUSTER1} label namespace bookinfo-frontends istio.io/rev=1-19 --overwrite
+kubectl --context ${CLUSTER1} label namespace bookinfo-backends istio.io/rev=1-19 --overwrite
 
 # deploy the frontend bookinfo service in the bookinfo-frontends namespace
 kubectl --context ${CLUSTER1} -n bookinfo-frontends apply -f bookinfo.yaml -l 'account in (productpage)'
@@ -551,7 +593,7 @@ describe("Bookinfo app", () => {
   });
 });
 EOF
-echo "executing test dist/gloo-mesh-2-0-gateway/build/templates/steps/apps/bookinfo/deploy-bookinfo/tests/check-bookinfo.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-single-cluster-single-workspace-openshift-nodeport-beta/build/templates/steps/apps/bookinfo/deploy-bookinfo/tests/check-bookinfo.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -569,12 +611,22 @@ You can find more information about this application [here](http://httpbin.org/)
 
 
 
+Note that the few Openshift specific commands used in this lab are documented on the Istio website [here](https://istio.io/latest/docs/setup/platform-setup/openshift/).
+
 
 
 Run the following commands to deploy the httpbin app on `cluster1`. The deployment will be called `not-in-mesh` and won't have the sidecar injected (because we don't label the namespace).
 
 ```bash
 kubectl --context ${CLUSTER1} create ns httpbin
+oc --context ${CLUSTER1} adm policy add-scc-to-group anyuid system:serviceaccounts:httpbin
+
+cat <<EOF | oc --context ${CLUSTER1} -n httpbin create -f -
+apiVersion: "k8s.cni.cncf.io/v1"
+kind: NetworkAttachmentDefinition
+metadata:
+  name: istio-cni
+EOF
 kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: v1
 kind: ServiceAccount
@@ -668,7 +720,7 @@ spec:
       labels:
         app: in-mesh
         version: v1
-        istio.io/rev: 1-18
+        istio.io/rev: 1-19
     spec:
       serviceAccountName: in-mesh
       containers:
@@ -706,7 +758,7 @@ describe("httpbin app", () => {
   });
 });
 EOF
-echo "executing test dist/gloo-mesh-2-0-gateway/build/templates/steps/apps/httpbin/deploy-httpbin/tests/check-httpbin.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-single-cluster-single-workspace-openshift-nodeport-beta/build/templates/steps/apps/httpbin/deploy-httpbin/tests/check-httpbin.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -723,7 +775,15 @@ First, you need to create a namespace for the addons, with Istio injection enabl
 
 ```bash
 kubectl --context ${CLUSTER1} create namespace gloo-mesh-addons
-kubectl --context ${CLUSTER1} label namespace gloo-mesh-addons istio.io/rev=1-18 --overwrite
+kubectl --context ${CLUSTER1} label namespace gloo-mesh-addons istio.io/rev=1-19 --overwrite
+oc --context ${CLUSTER1} adm policy add-scc-to-group anyuid system:serviceaccounts:gloo-mesh-addons
+
+cat <<EOF | oc --context ${CLUSTER1} -n gloo-mesh-addons create -f -
+apiVersion: "k8s.cni.cncf.io/v1"
+kind: NetworkAttachmentDefinition
+metadata:
+  name: istio-cni
+EOF
 ```
 
 Then, you can deploy the addons on the cluster(s) using Helm:
@@ -732,12 +792,13 @@ Then, you can deploy the addons on the cluster(s) using Helm:
 helm upgrade --install gloo-platform gloo-platform/gloo-platform \
   --namespace gloo-mesh-addons \
   --kube-context=${CLUSTER1} \
-  --version 2.4.2 \
+  --version 2.5.0-beta1 \
  -f -<<EOF
 common:
   cluster: cluster1
 glooAgent:
   enabled: false
+  floatingUserId: true
 extAuthService:
   enabled: true
   extAuth: 
@@ -805,134 +866,41 @@ This is what the environment looks like now:
 
 
 
-## Lab 7 - Create the gateways workspace <a name="lab-7---create-the-gateways-workspace-"></a>
-[<img src="https://img.youtube.com/vi/QeVBH0eswWw/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/QeVBH0eswWw "Video Link")
+## Lab 7 - Create a single workspace <a name="lab-7---create-a-single-workspace-"></a>
 
-We're going to create a workspace for the team in charge of the Gateways.
-
-The platform team needs to create the corresponding `Workspace` Kubernetes objects in the Gloo Mesh management cluster.
-
-Let's create the `gateways` workspace which corresponds to the `istio-gateways` and the `gloo-mesh-addons` namespaces on the cluster(s):
+We're going to create a single workspace. We assume that multi tenancy isn't something we want to implement right now. on both clusters:
 
 ```bash
-kubectl apply --context ${MGMT} -f - <<EOF
+kubectl apply --context ${MGMT} -f- <<EOF
 apiVersion: admin.gloo.solo.io/v2
 kind: Workspace
 metadata:
-  name: gateways
+  name: all
   namespace: gloo-mesh
 spec:
   workloadClusters:
-  - name: cluster1
+  - name: '*'
     namespaces:
-    - name: istio-gateways
-    - name: gloo-mesh-addons
+    - name: '*'
 EOF
 ```
 
-Then, the Gateway team creates a `WorkspaceSettings` Kubernetes object in one of the namespaces of the `gateways` workspace (so the `istio-gateways` or the `gloo-mesh-addons` namespace):
+After that, we create a `WorkspaceSettings` Kubernetes object in one of the namespaces of the `all` workspace:
 
 ```bash
-kubectl apply --context ${CLUSTER1} -f - <<EOF
+kubectl apply --context ${CLUSTER1} -f- <<EOF
 apiVersion: admin.gloo.solo.io/v2
 kind: WorkspaceSettings
 metadata:
-  name: gateways
-  namespace: gloo-mesh-addons
-spec:
-  importFrom:
-  - workspaces:
-    - selector:
-        allow_ingress: "true"
-    resources:
-    - kind: SERVICE
-    - kind: ALL
-      labels:
-        expose: "true"
-  exportTo:
-  - workspaces:
-    - selector:
-        allow_ingress: "true"
-    resources:
-    - kind: SERVICE
+  name: all
+  namespace: default
+spec: {}
 EOF
 ```
 
-The Gateway team has decided to import the following from the workspaces that have the label `allow_ingress` set to `true` (using a selector):
-- all the Kubernetes services exported by these workspaces
-- all the resources (RouteTables, VirtualDestination, ...) exported by these workspaces that have the label `expose` set to `true`
 
 
-
-## Lab 8 - Create the bookinfo workspace <a name="lab-8---create-the-bookinfo-workspace-"></a>
-
-We're going to create a workspace for the team in charge of the Bookinfo application.
-
-The platform team needs to create the corresponding `Workspace` Kubernetes objects in the Gloo Mesh management cluster.
-
-Let's create the `bookinfo` workspace which corresponds to the `bookinfo-frontends` and `bookinfo-backends` namespaces on the cluster(s):
-
-```bash
-kubectl apply --context ${MGMT} -f - <<EOF
-apiVersion: admin.gloo.solo.io/v2
-kind: Workspace
-metadata:
-  name: bookinfo
-  namespace: gloo-mesh
-  labels:
-    allow_ingress: "true"
-spec:
-  workloadClusters:
-  - name: cluster1
-    namespaces:
-    - name: bookinfo-frontends
-    - name: bookinfo-backends
-EOF
-```
-
-Then, the Bookinfo team creates a `WorkspaceSettings` Kubernetes object in one of the namespaces of the `bookinfo` workspace (so the `bookinfo-frontends` or the `bookinfo-backends` namespace):
-
-```bash
-kubectl apply --context ${CLUSTER1} -f - <<EOF
-apiVersion: admin.gloo.solo.io/v2
-kind: WorkspaceSettings
-metadata:
-  name: bookinfo
-  namespace: bookinfo-frontends
-spec:
-  importFrom:
-  - workspaces:
-    - name: gateways
-    resources:
-    - kind: SERVICE
-  exportTo:
-  - workspaces:
-    - name: gateways
-    resources:
-    - kind: SERVICE
-      labels:
-        app: productpage
-    - kind: SERVICE
-      labels:
-        app: reviews
-    - kind: ALL
-      labels:
-        expose: "true"
-EOF
-```
-
-The Bookinfo team has decided to export the following to the `gateway` workspace (using a reference):
-- the `productpage` and the `reviews` Kubernetes services
-- all the resources (RouteTables, VirtualDestination, ...) that have the label `expose` set to `true`
-
-This is how the environment looks like with the workspaces:
-
-![Gloo Mesh Workspaces](images/steps/create-bookinfo-workspace/gloo-mesh-workspaces.svg)
-
-
-
-
-## Lab 9 - Expose the productpage through a gateway <a name="lab-9---expose-the-productpage-through-a-gateway-"></a>
+## Lab 8 - Expose the productpage through a gateway <a name="lab-8---expose-the-productpage-through-a-gateway-"></a>
 [<img src="https://img.youtube.com/vi/emyIu99AOOA/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/emyIu99AOOA "Video Link")
 
 In this step, we're going to expose the `productpage` service through the Ingress Gateway using Gloo Mesh.
@@ -1043,7 +1011,7 @@ describe("Productpage is available (HTTP)", () => {
   it('/productpage is available in cluster1', () => helpers.checkURL({ host: 'http://' + process.env.ENDPOINT_HTTP_GW_CLUSTER1, path: '/productpage', retCode: 200 }));
 })
 EOF
-echo "executing test dist/gloo-mesh-2-0-gateway/build/templates/steps/apps/bookinfo/gateway-expose/tests/productpage-available.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-single-cluster-single-workspace-openshift-nodeport-beta/build/templates/steps/apps/bookinfo/gateway-expose/tests/productpage-available.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -1142,7 +1110,7 @@ describe("Productpage is available (HTTPS)", () => {
   it('/productpage is available in cluster1', () => helpers.checkURL({ host: 'https://' + process.env.ENDPOINT_HTTPS_GW_CLUSTER1, path: '/productpage', retCode: 200 }));
 })
 EOF
-echo "executing test dist/gloo-mesh-2-0-gateway/build/templates/steps/apps/bookinfo/gateway-expose/tests/productpage-available-secure.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-single-cluster-single-workspace-openshift-nodeport-beta/build/templates/steps/apps/bookinfo/gateway-expose/tests/productpage-available-secure.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -1163,7 +1131,7 @@ describe("Otel metrics", () => {
 
 
 EOF
-echo "executing test dist/gloo-mesh-2-0-gateway/build/templates/steps/apps/bookinfo/gateway-expose/tests/otel-metrics.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-single-cluster-single-workspace-openshift-nodeport-beta/build/templates/steps/apps/bookinfo/gateway-expose/tests/otel-metrics.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=150 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -1176,67 +1144,186 @@ This diagram shows the flow of the request (through the Istio Ingress Gateway):
 
 
 
-## Lab 10 - Create the httpbin workspace <a name="lab-10---create-the-httpbin-workspace-"></a>
+## Lab 9 - Traffic policies <a name="lab-9---traffic-policies-"></a>
+[<img src="https://img.youtube.com/vi/ZBdt8WA0U64/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/ZBdt8WA0U64 "Video Link")
 
-We're going to create a workspace for the team in charge of the httpbin application.
+We're going to use Gloo Mesh policies to inject faults and configure timeouts.
 
-The platform team needs to create the corresponding `Workspace` Kubernetes objects in the Gloo Mesh management cluster.
-
-Let's create the `httpbin` workspace which corresponds to the `httpbin` namespace on `cluster1`:
-
-```bash
-kubectl apply --context ${MGMT} -f - <<EOF
-apiVersion: admin.gloo.solo.io/v2
-kind: Workspace
-metadata:
-  name: httpbin
-  namespace: gloo-mesh
-  labels:
-    allow_ingress: "true"
-spec:
-  workloadClusters:
-  - name: cluster1
-    namespaces:
-    - name: httpbin
-EOF
-```
-
-Then, the Httpbin team creates a `WorkspaceSettings` Kubernetes object in one of the namespaces of the `httpbin` workspace:
+Let's create the following `FaultInjectionPolicy` to inject a delay when the `v2` version of the `reviews` service talk to the `ratings` service:
 
 ```bash
 kubectl apply --context ${CLUSTER1} -f - <<EOF
-apiVersion: admin.gloo.solo.io/v2
-kind: WorkspaceSettings
+apiVersion: resilience.policy.gloo.solo.io/v2
+kind: FaultInjectionPolicy
 metadata:
-  name: httpbin
-  namespace: httpbin
+  name: ratings-fault-injection
+  namespace: bookinfo-frontends
 spec:
-  importFrom:
-  - workspaces:
-    - name: gateways
-    resources:
-    - kind: SERVICE
-  exportTo:
-  - workspaces:
-    - name: gateways
-    resources:
-    - kind: SERVICE
+  applyToRoutes:
+  - route:
       labels:
-        app: in-mesh
-    - kind: ALL
-      labels:
-        expose: "true"
+        fault_injection: "true"
+  config:
+    delay:
+      fixedDelay: 2s
+      percentage: 100
 EOF
 ```
 
-The Httpbin team has decided to export the following to the `gateway` workspace (using a reference):
-- the `in-mesh` Kubernetes service
-- all the resources (RouteTables, VirtualDestination, ...) that have the label `expose` set to `true`
+As you can see, it will be applied to all the routes that have the label `fault_injection` set to `"true"`.
+
+So, you need to create a `RouteTable` with this label set in the corresponding route.
+
+```bash
+kubectl apply --context ${CLUSTER1} -f - <<EOF
+apiVersion: networking.gloo.solo.io/v2
+kind: RouteTable
+metadata:
+  name: ratings
+  namespace: bookinfo-frontends
+spec:
+  hosts:
+    - 'ratings.bookinfo-backends.svc.cluster.local'
+  workloadSelectors:
+  - selector:
+      labels:
+        app: reviews
+  http:
+    - name: ratings
+      labels:
+        fault_injection: "true"
+      matchers:
+      - uri:
+          prefix: /
+      forwardTo:
+        destinations:
+          - ref:
+              name: ratings
+              namespace: bookinfo-backends
+            port:
+              number: 9080
+EOF
+```
+
+If you refresh the webpage, you should see that it takes longer to get the `productpage` loaded when version `v2` of the `reviews` services is called.
+
+Now, let's configure a 0.5s request timeout when the `productpage` service calls the `reviews` service on cluster1.
+
+You need to create the following `RetryTimeoutPolicy`:
+
+```bash
+kubectl apply --context ${CLUSTER1} -f - <<EOF
+apiVersion: resilience.policy.gloo.solo.io/v2
+kind: RetryTimeoutPolicy
+metadata:
+  name: reviews-request-timeout
+  namespace: bookinfo-frontends
+spec:
+  applyToRoutes:
+  - route:
+      labels:
+        request_timeout: "0.5s"
+  config:
+    requestTimeout: 0.5s
+EOF
+```
+
+As you can see, it will be applied to all the routes that have the label `request_timeout` set to `"0.5s"`.
+
+Then, you need to create a `RouteTable` with this label set in the corresponding route.
+
+```bash
+kubectl apply --context ${CLUSTER1} -f - <<EOF
+apiVersion: networking.gloo.solo.io/v2
+kind: RouteTable
+metadata:
+  name: reviews
+  namespace: bookinfo-frontends
+spec:
+  hosts:
+    - 'reviews.bookinfo-backends.svc.cluster.local'
+  workloadSelectors:
+  - selector:
+      labels:
+        app: productpage
+  http:
+    - name: reviews
+      labels:
+        request_timeout: "0.5s"
+      matchers:
+      - uri:
+          prefix: /
+      forwardTo:
+        destinations:
+          - ref:
+              name: reviews
+              namespace: bookinfo-backends
+            port:
+              number: 9080
+            subset:
+              version: v2
+EOF
+```
+
+<!--bash
+cat <<'EOF' > ./test.js
+var chai = require('chai');
+var expect = chai.expect;
+const chaiHttp = require("chai-http");
+chai.use(chaiHttp);
+
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+
+afterEach(function (done) {
+  if (this.currentTest.currentRetry() > 0) {
+    process.stdout.write(".");
+    setTimeout(done, 1000);
+  } else {
+    done();
+  }
+});
+
+let searchTest="Sorry, product reviews are currently unavailable for this book.";
+
+describe("Reviews shouldn't be available", () => {
+  it("Checking text '" + searchTest + "' in cluster1", async () => {
+    await chai.request('https://' + process.env.ENDPOINT_HTTPS_GW_CLUSTER1)
+      .get('/productpage')
+      .send()
+      .then((res) => {
+        expect(res.text).to.contain(searchTest);
+      });
+  });
+
+});
+
+EOF
+echo "executing test dist/gloo-mesh-2-0-single-cluster-single-workspace-openshift-nodeport-beta/build/templates/steps/apps/bookinfo/traffic-policies/tests/traffic-policies-reviews-unavailable.test.js.liquid"
+tempfile=$(mktemp)
+echo "saving errors in ${tempfile}"
+mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
+-->
+
+If you refresh the page several times, you'll see an error message telling that reviews are unavailable when the productpage is trying to communicate with the version `v2` of the `reviews` service.
+
+![Bookinfo reviews unavailable](images/steps/traffic-policies/reviews-unavailable.png)
+
+This diagram shows where the timeout and delay have been applied:
+
+![Gloo Mesh Traffic Policies](images/steps/traffic-policies/gloo-mesh-traffic-policies.svg)
+
+Let's delete the Gloo Mesh objects we've created:
+
+```bash
+kubectl --context ${CLUSTER1} -n bookinfo-frontends delete faultinjectionpolicy ratings-fault-injection
+kubectl --context ${CLUSTER1} -n bookinfo-frontends delete routetable ratings
+kubectl --context ${CLUSTER1} -n bookinfo-frontends delete retrytimeoutpolicy reviews-request-timeout
+kubectl --context ${CLUSTER1} -n bookinfo-frontends delete routetable reviews
+```
 
 
 
-
-## Lab 11 - Expose an external service <a name="lab-11---expose-an-external-service-"></a>
+## Lab 10 - Expose an external service <a name="lab-10---expose-an-external-service-"></a>
 [<img src="https://img.youtube.com/vi/jEqDoITpRss/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/jEqDoITpRss "Video Link")
 
 In this step, we're going to expose an external service through a Gateway using Gloo Mesh and show how we can then migrate this service to the Mesh.
@@ -1302,7 +1389,7 @@ describe("httpbin from the external service", () => {
   it('Checking text \'X-Amzn-Trace-Id\' in ' + process.env.CLUSTER1, () => helpersHttp.checkBody({ host: 'https://' + process.env.ENDPOINT_HTTPS_GW_CLUSTER1, path: '/get', body: 'X-Amzn-Trace-Id', match: true }));
 })
 EOF
-echo "executing test dist/gloo-mesh-2-0-gateway/build/templates/steps/apps/httpbin/gateway-external-service/tests/httpbin-from-external.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-single-cluster-single-workspace-openshift-nodeport-beta/build/templates/steps/apps/httpbin/gateway-external-service/tests/httpbin-from-external.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -1359,7 +1446,7 @@ describe("httpbin from the local service", () => {
   it('Checking text \'X-Amzn-Trace-Id\' not in ' + process.env.CLUSTER1, () => helpersHttp.checkBody({ host: 'https://' + process.env.ENDPOINT_HTTPS_GW_CLUSTER1, path: '/get', body: 'X-Amzn-Trace-Id', match: false }));
 })
 EOF
-echo "executing test dist/gloo-mesh-2-0-gateway/build/templates/steps/apps/httpbin/gateway-external-service/tests/httpbin-from-local.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-single-cluster-single-workspace-openshift-nodeport-beta/build/templates/steps/apps/httpbin/gateway-external-service/tests/httpbin-from-local.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -1372,7 +1459,7 @@ describe("httpbin from the external service", () => {
   it('Checking text \'X-Amzn-Trace-Id\' in ' + process.env.CLUSTER1, () => helpersHttp.checkBody({ host: 'https://' + process.env.ENDPOINT_HTTPS_GW_CLUSTER1, path: '/get', body: 'X-Amzn-Trace-Id', match: true }));
 })
 EOF
-echo "executing test dist/gloo-mesh-2-0-gateway/build/templates/steps/apps/httpbin/gateway-external-service/tests/httpbin-from-external.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-single-cluster-single-workspace-openshift-nodeport-beta/build/templates/steps/apps/httpbin/gateway-external-service/tests/httpbin-from-external.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -1420,7 +1507,7 @@ describe("httpbin from the local service", () => {
   it('Checking text \'X-Amzn-Trace-Id\' not in ' + process.env.CLUSTER1, () => helpersHttp.checkBody({ host: 'https://' + process.env.ENDPOINT_HTTPS_GW_CLUSTER1, path: '/get', body: 'X-Amzn-Trace-Id', match: false }));
 })
 EOF
-echo "executing test dist/gloo-mesh-2-0-gateway/build/templates/steps/apps/httpbin/gateway-external-service/tests/httpbin-from-local.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-single-cluster-single-workspace-openshift-nodeport-beta/build/templates/steps/apps/httpbin/gateway-external-service/tests/httpbin-from-local.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -1440,7 +1527,7 @@ kubectl --context ${CLUSTER1} -n httpbin delete externalservices.networking.gloo
 
 
 
-## Lab 12 - Deploy Keycloak <a name="lab-12---deploy-keycloak-"></a>
+## Lab 11 - Deploy Keycloak <a name="lab-11---deploy-keycloak-"></a>
 
 In many use cases, you need to restrict the access to your applications to authenticated users. 
 
@@ -1522,7 +1609,7 @@ describe("Keycloak", () => {
   it('keycloak pods are ready in cluster1', () => helpers.checkDeployment({ context: process.env.MGMT, namespace: "keycloak", k8sObj: "keycloak" }));
 });
 EOF
-echo "executing test dist/gloo-mesh-2-0-gateway/build/templates/steps/deploy-keycloak/tests/pods-available.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-single-cluster-single-workspace-openshift-nodeport-beta/build/templates/steps/deploy-keycloak/tests/pods-available.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -1552,7 +1639,7 @@ describe("Retrieve enterprise-networking ip", () => {
   });
 });
 EOF
-echo "executing test dist/gloo-mesh-2-0-gateway/build/templates/steps/deploy-keycloak/tests/keycloak-ip-is-attached.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-single-cluster-single-workspace-openshift-nodeport-beta/build/templates/steps/deploy-keycloak/tests/keycloak-ip-is-attached.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -1575,7 +1662,7 @@ done
 Let's set the environment variables we need:
 
 ```bash
-export ENDPOINT_KEYCLOAK=$(kubectl --context ${MGMT} -n keycloak get service keycloak -o jsonpath='{.status.loadBalancer.ingress[0].*}'):8080
+export ENDPOINT_KEYCLOAK=$(kubectl --context ${MGMT} get nodes -o jsonpath='{.items[0].status.addresses[?(.type=="InternalIP")].address}'):$(kubectl --context ${MGMT} -n keycloak get svc keycloak -o jsonpath='{.spec.ports[?(@.port==8080)].nodePort}')
 export HOST_KEYCLOAK=$(echo ${ENDPOINT_KEYCLOAK%:*})
 export PORT_KEYCLOAK=$(echo ${ENDPOINT_KEYCLOAK##*:})
 export KEYCLOAK_URL=http://${ENDPOINT_KEYCLOAK}
@@ -1650,7 +1737,7 @@ KEYCLOAK_TOKEN=$(curl -m 2 -d "client_id=admin-cli" -d "username=admin" -d "pass
 
 
 
-## Lab 13 - Securing the access with OAuth <a name="lab-13---securing-the-access-with-oauth-"></a>
+## Lab 12 - Securing the access with OAuth <a name="lab-12---securing-the-access-with-oauth-"></a>
 [<img src="https://img.youtube.com/vi/fKZjr0AYxYs/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/fKZjr0AYxYs "Video Link")
 
 
@@ -1768,7 +1855,7 @@ describe("Authentication is working properly", function() {
 });
 
 EOF
-echo "executing test dist/gloo-mesh-2-0-gateway/build/templates/steps/apps/httpbin/gateway-extauth-oauth/tests/authentication.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-single-cluster-single-workspace-openshift-nodeport-beta/build/templates/steps/apps/httpbin/gateway-extauth-oauth/tests/authentication.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -1861,7 +1948,7 @@ This diagram shows the flow of the request (with the Istio ingress gateway lever
 
 
 
-## Lab 14 - Use the JWT filter to create headers from claims <a name="lab-14---use-the-jwt-filter-to-create-headers-from-claims-"></a>
+## Lab 13 - Use the JWT filter to create headers from claims <a name="lab-13---use-the-jwt-filter-to-create-headers-from-claims-"></a>
 [<img src="https://img.youtube.com/vi/bpFKbhUIwgM/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/bpFKbhUIwgM "Video Link")
 
 
@@ -1974,7 +2061,7 @@ describe("Claim to header is working properly", function() {
 });
 
 EOF
-echo "executing test dist/gloo-mesh-2-0-gateway/build/templates/steps/apps/httpbin/gateway-jwt/tests/header-added.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-single-cluster-single-workspace-openshift-nodeport-beta/build/templates/steps/apps/httpbin/gateway-jwt/tests/header-added.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -1982,7 +2069,7 @@ mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${te
 
 
 
-## Lab 15 - Use the transformation filter to manipulate headers <a name="lab-15---use-the-transformation-filter-to-manipulate-headers-"></a>
+## Lab 14 - Use the transformation filter to manipulate headers <a name="lab-14---use-the-transformation-filter-to-manipulate-headers-"></a>
 
 
 In this step, we're going to use a regular expression to extract a part of an existing header and to create a new one:
@@ -2041,7 +2128,7 @@ describe("Tranformation is working properly", function() {
 });
 
 EOF
-echo "executing test dist/gloo-mesh-2-0-gateway/build/templates/steps/apps/httpbin/gateway-transformation/tests/header-added.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-single-cluster-single-workspace-openshift-nodeport-beta/build/templates/steps/apps/httpbin/gateway-transformation/tests/header-added.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -2049,7 +2136,7 @@ mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${te
 
 
 
-## Lab 16 - Apply rate limiting to the Gateway <a name="lab-16---apply-rate-limiting-to-the-gateway-"></a>
+## Lab 15 - Apply rate limiting to the Gateway <a name="lab-15---apply-rate-limiting-to-the-gateway-"></a>
 
 
 In this step, we're going to apply rate limiting to the Gateway to only allow 3 requests per minute for the users of the `solo.io` organization.
@@ -2171,7 +2258,7 @@ describe("Rate limiting is working properly", function() {
 });
 
 EOF
-echo "executing test dist/gloo-mesh-2-0-gateway/build/templates/steps/apps/httpbin/gateway-ratelimiting/tests/rate-limited.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-single-cluster-single-workspace-openshift-nodeport-beta/build/templates/steps/apps/httpbin/gateway-ratelimiting/tests/rate-limited.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -2220,7 +2307,7 @@ kubectl --context ${CLUSTER1} -n httpbin delete ratelimitserverconfig httpbin
 
 
 
-## Lab 17 - Use the Web Application Firewall filter <a name="lab-17---use-the-web-application-firewall-filter-"></a>
+## Lab 16 - Use the Web Application Firewall filter <a name="lab-16---use-the-web-application-firewall-filter-"></a>
 [<img src="https://img.youtube.com/vi/9q2TxtBDqrA/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/9q2TxtBDqrA "Video Link")
 
 
@@ -2307,7 +2394,7 @@ describe("WAF is working properly", function() {
 });
 
 EOF
-echo "executing test dist/gloo-mesh-2-0-gateway/build/templates/steps/apps/httpbin/gateway-waf/tests/waf.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-single-cluster-single-workspace-openshift-nodeport-beta/build/templates/steps/apps/httpbin/gateway-waf/tests/waf.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -2367,827 +2454,6 @@ And also delete the waf policy we've created:
 ```bash
 kubectl --context ${CLUSTER1} -n httpbin delete wafpolicies.security.policy.gloo.solo.io log4shell
 ```
-
-
-
-## Lab 18 - Expose the bookinfo application through GraphQL <a name="lab-18---expose-the-bookinfo-application-through-graphql-"></a>
-[<img src="https://img.youtube.com/vi/ucVMxX8oFz0/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/ucVMxX8oFz0 "Video Link")
-
-Gloo Mesh is enhancing the Istio Ingress Gateway to allow exposing some REST services as a GraphQL API.
-
-First, you need to create an `ApiDoc` to define your GraphQL API:
-
-```bash
-kubectl apply --context ${CLUSTER1} -f - <<EOF
-apiVersion: apimanagement.gloo.solo.io/v2
-kind: ApiDoc
-metadata:
-  name: bookinfo-api-doc
-  namespace: bookinfo-frontends
-  labels:
-    expose: "true"
-spec:
-  graphql:
-    schemaDefinition: |-
-      type Query {
-        """Description of a book in HTML"""
-        productsForHome: [Product] 
-      }
-      """Each book has a product entry"""
-      type Product {
-        """Unique identifier for books"""
-        id: String
-        """The book title"""
-        title: String
-        """Number of pages in the book"""
-        pages: Int
-        """Year the book was published"""
-        year: Int
-        """Description of a book in HTML"""
-        descriptionHtml: String
-        """List of reader reviews for this book. Queries the reviews REST service"""
-        reviews: [Review]
-        """List of reader ratings for this book. Queries the ratings REST service"""
-        ratings: [Rating]
-      }
-      """A book review"""
-      type Review {
-        """Name of the reviewer"""
-        reviewer: String
-        """Review details"""
-        text: String
-        "Reviewer Rating, this field is provided by the reviews REST service, which queries the ratings REST service"
-        rating: ReviewerRating
-      }
-      type ReviewerRating {
-        stars: Int
-        color: String
-      }
-      """A book rating"""
-      type Rating {
-        """Name of the user peforming the rating"""
-        reviewer: String
-        """Number of stars for this rating"""
-        numStars: Int
-      }
-EOF
-```
-
-Then, you need to create a `GraphQLResolverMap` to define the resolvers:
-
-```bash
-kubectl apply --context ${CLUSTER1} -f - <<EOF
-apiVersion: apimanagement.gloo.solo.io/v2
-kind: GraphQLResolverMap
-metadata:
-  name: bookinfo-graphql-resolvers
-  namespace: bookinfo-frontends
-  labels:
-    expose: "true"
-spec:
-  types:
-    Query:
-      fields:
-        productsForHome:
-          resolvers:
-          - restResolver:
-              destinations:
-              - port:
-                  number: 9080
-                ref:
-                  name: productpage
-                  namespace: bookinfo-frontends
-                  cluster: cluster1
-              request:
-                headers:
-                  :path:
-                    jq: '"/api/v1/products"'
-    Product:
-      fields:
-        reviews:
-          variables:
-            parentVar:
-              graphqlParent: {}
-            resolverResultVar:
-              resolverResult: {}
-          resolvers:
-          - restResolver:
-              destinations:
-              - port:
-                  number: 9080
-                ref:
-                  name: reviews
-                  namespace: bookinfo-backends
-                  cluster: cluster1
-              request:
-                headers:
-                  :path:
-                    jq: '"/reviews/" + (.parentVar.id | tostring)'
-            resolverResultTransform:
-              jq: '.resolverResultVar.reviews'
-        ratings:
-          variables:
-            parentVar:
-              graphqlParent: {}
-            resolverResultVar:
-              resolverResult: {}
-          resolvers:
-          - restResolver:
-              destinations:
-              - port:
-                  number: 9080
-                ref:
-                  name: ratings
-                  namespace: bookinfo-backends
-                  cluster: cluster1
-              request:
-                headers:
-                  :path:
-                    jq: '"/ratings/" + (.parentVar.id | tostring)'
-            resolverResultTransform:
-              jq: '.resolverResultVar.ratings | to_entries | map(.reviewer=.key | .numStars=.value | del(.key,.value))'
-EOF
-```
-
-After that, you need to create an `ApiSchema` which references the `ApiDoc` and the `GraphQLResolverMap`:
-
-```bash
-kubectl apply --context ${CLUSTER1} -f - <<EOF
-apiVersion: apimanagement.gloo.solo.io/v2
-kind: GraphQLSchema
-metadata:
-  name: bookinfo-graphql-schema
-  namespace: bookinfo-frontends
-  labels:
-    expose: "true"
-spec:
-  schemaRef:
-    name: bookinfo-api-doc
-    namespace: bookinfo-frontends
-    clusterName: cluster1
-  resolved:
-    options: {}
-    resolverMapRefs:
-    - name: bookinfo-graphql-resolvers
-      namespace: bookinfo-frontends
-      clusterName: cluster1
-EOF
-```
-
-Finally, you can create a `RouteTable` to expose the GraphQL API:
-
-```bash
-kubectl apply --context ${CLUSTER1} -f - <<EOF
-apiVersion: networking.gloo.solo.io/v2
-kind: RouteTable
-metadata:
-  name: graphql
-  namespace: bookinfo-frontends
-  labels:
-    expose: "true"
-spec:
-  http:
-  - graphql:
-      schema:
-        name: bookinfo-graphql-schema
-        namespace: bookinfo-frontends
-        clusterName: cluster1
-    matchers:
-    - uri:
-        prefix: /graphql
-    labels:
-      graphql: "true"
-EOF
-```
-
-Now, you can try to 
-
-```bash
-curl -k "https://${ENDPOINT_HTTPS_GW_CLUSTER1}/graphql" --data '{"query":"{productsForHome { title ratings {reviewer numStars}}}"}' | jq .
-```
-
-Here is the expected output:
-
-```
-{
-  "data": {
-    "productsForHome": [
-      {
-        "title": "The Comedy of Errors",
-        "ratings": [
-          {
-            "reviewer": "Reviewer1",
-            "numStars": 5
-          },
-          {
-            "reviewer": "Reviewer2",
-            "numStars": 4
-          }
-        ]
-      }
-    ]
-  }
-}
-```
-
-<!--bash
-cat <<'EOF' > ./test.js
-const chaiExec = require("@jsdevtools/chai-exec");
-var chai = require('chai');
-var expect = chai.expect;
-chai.use(chaiExec);
-
-afterEach(function (done) {
-  if (this.currentTest.currentRetry() > 0) {
-    process.stdout.write(".");
-    setTimeout(done, 1000);
-  } else {
-    done();
-  }
-});
-
-describe("GraphQL", function() {
-  it('GraphQL query returning the expected output', function () {
-    expect(process.env.ENDPOINT_HTTPS_GW_CLUSTER1).to.not.be.empty
-    let command = `curl -ks "https://${process.env.ENDPOINT_HTTPS_GW_CLUSTER1}/graphql" --data '{"query":" {productsForHome { title ratings {reviewer numStars}}}"}'`
-    let cli = chaiExec(command);
-    expect(cli).to.exit.with.code(0);
-    expect(cli).output.to.contain('{"data":{"productsForHome":[{"title":"The Comedy of Errors","ratings":[{"reviewer":"Reviewer1","numStars":5},{"reviewer":"Reviewer2","numStars":4}]}]}}');
-  })
-});
-EOF
-echo "executing test dist/gloo-mesh-2-0-gateway/build/templates/steps/apps/bookinfo/gateway-graphql/tests/graphql.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
--->
-
-Create the following `CORSPolicy` to allow using the GraphQL explorer from the Gloo Mesh UI:
-
-```bash
-kubectl apply --context ${CLUSTER1} -f - <<EOF
-apiVersion: security.policy.gloo.solo.io/v2
-kind: CORSPolicy
-metadata:
-  name: graphql-explorer
-  namespace: bookinfo-frontends
-spec:
-  applyToRoutes:
-  - route:
-      labels:
-        graphql: "true"
-  config:
-    allowCredentials: true
-    allowHeaders:
-    - apollo-query-plan-experimental
-    - content-type
-    - x-apollo-tracing
-    allowMethods:
-    - POST
-    allowOrigins:
-    - regex: ".*"
-EOF
-```
-
-
-
-## Lab 19 - Upgrade Istio using Gloo Mesh Lifecycle Manager <a name="lab-19---upgrade-istio-using-gloo-mesh-lifecycle-manager-"></a>
-[<img src="https://img.youtube.com/vi/6DtGVkecArs/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/6DtGVkecArs "Video Link")
-
-Set the variables corresponding to the old and new revision tags:
-
-```bash
-export OLD_REVISION=1-18
-export NEW_REVISION=1-19
-```
-
-We are going to upgrade Istio using Gloo Mesh Lifecycle Manager.
-
-```bash
-cat << EOF | kubectl --context ${MGMT} apply -f -
-
-apiVersion: admin.gloo.solo.io/v2
-kind: IstioLifecycleManager
-metadata:
-  name: cluster1-installation
-  namespace: gloo-mesh
-spec:
-  installations:
-    - clusters:
-      - name: cluster1
-        defaultRevision: true
-      revision: ${OLD_REVISION}
-      istioOperatorSpec:
-        profile: minimal
-        hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.18.3-solo
-        namespace: istio-system
-        values:
-          global:
-            meshID: mesh1
-            multiCluster:
-              clusterName: cluster1
-            network: cluster1
-        meshConfig:
-          accessLogFile: /dev/stdout
-          defaultConfig:
-            proxyMetadata:
-              ISTIO_META_DNS_CAPTURE: "true"
-              ISTIO_META_DNS_AUTO_ALLOCATE: "true"
-        components:
-          pilot:
-            k8s:
-              env:
-                - name: PILOT_ENABLE_K8S_SELECT_WORKLOAD_ENTRIES
-                  value: "false"
-          ingressGateways:
-          - name: istio-ingressgateway
-            enabled: false
-    - clusters:
-      - name: cluster1
-        defaultRevision: false
-      revision: ${NEW_REVISION}
-      istioOperatorSpec:
-        profile: minimal
-        hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.19.1-solo
-        namespace: istio-system
-        values:
-          global:
-            meshID: mesh1
-            multiCluster:
-              clusterName: cluster1
-            network: cluster1
-        meshConfig:
-          accessLogFile: /dev/stdout
-          defaultConfig:
-            proxyMetadata:
-              ISTIO_META_DNS_CAPTURE: "true"
-              ISTIO_META_DNS_AUTO_ALLOCATE: "true"
-        components:
-          pilot:
-            k8s:
-              env:
-                - name: PILOT_ENABLE_K8S_SELECT_WORKLOAD_ENTRIES
-                  value: "false"
-          ingressGateways:
-          - name: istio-ingressgateway
-            enabled: false
-EOF
-
-cat << EOF | kubectl --context ${MGMT} apply -f -
-
-apiVersion: admin.gloo.solo.io/v2
-kind: GatewayLifecycleManager
-metadata:
-  name: cluster1-ingress
-  namespace: gloo-mesh
-spec:
-  installations:
-    - clusters:
-      - name: cluster1
-        activeGateway: false
-      gatewayRevision: ${OLD_REVISION}
-      istioOperatorSpec:
-        profile: empty
-        hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.18.3-solo
-        values:
-          gateways:
-            istio-ingressgateway:
-              customService: true
-        components:
-          ingressGateways:
-            - name: istio-ingressgateway
-              namespace: istio-gateways
-              enabled: true
-              label:
-                istio: ingressgateway
-    - clusters:
-      - name: cluster1
-        activeGateway: false
-      gatewayRevision: ${NEW_REVISION}
-      istioOperatorSpec:
-        profile: empty
-        hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.19.1-solo
-        values:
-          gateways:
-            istio-ingressgateway:
-              customService: true
-        components:
-          ingressGateways:
-            - name: istio-ingressgateway
-              namespace: istio-gateways
-              enabled: true
-              label:
-                istio: ingressgateway
----
-apiVersion: admin.gloo.solo.io/v2
-kind: GatewayLifecycleManager
-metadata:
-  name: cluster1-eastwest
-  namespace: gloo-mesh
-spec:
-  installations:
-    - clusters:
-      - name: cluster1
-        activeGateway: false
-      gatewayRevision: ${OLD_REVISION}
-      istioOperatorSpec:
-        profile: empty
-        hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.18.3-solo
-        values:
-          gateways:
-            istio-ingressgateway:
-              customService: true
-        components:
-          ingressGateways:
-            - name: istio-eastwestgateway
-              namespace: istio-gateways
-              enabled: true
-              label:
-                istio: eastwestgateway
-                topology.istio.io/network: cluster1
-              k8s:
-                env:
-                  - name: ISTIO_META_ROUTER_MODE
-                    value: "sni-dnat"
-                  - name: ISTIO_META_REQUESTED_NETWORK_VIEW
-                    value: cluster1
-    - clusters:
-      - name: cluster1
-        activeGateway: false
-      gatewayRevision: ${NEW_REVISION}
-      istioOperatorSpec:
-        profile: empty
-        hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.19.1-solo
-        values:
-          gateways:
-            istio-ingressgateway:
-              customService: true
-        components:
-          ingressGateways:
-            - name: istio-eastwestgateway
-              namespace: istio-gateways
-              enabled: true
-              label:
-                istio: eastwestgateway
-                topology.istio.io/network: cluster1
-              k8s:
-                env:
-                  - name: ISTIO_META_ROUTER_MODE
-                    value: "sni-dnat"
-                  - name: ISTIO_META_REQUESTED_NETWORK_VIEW
-                    value: cluster1
-EOF
-```
-
-<!--bash
-cat <<'EOF' > ./test.js
-const helpers = require('./tests/chai-exec');
-
-describe("Checking Istio installation", function() {
-  it('istiod pods are ready in cluster ' + process.env.CLUSTER1, () => helpers.checkDeploymentsWithLabels({ context: process.env.CLUSTER1, namespace: "istio-system", labels: "app=istiod", instances: 2 }));
-  it('gateway pods are ready in cluster ' + process.env.CLUSTER1, () => helpers.checkDeploymentsWithLabels({ context: process.env.CLUSTER1, namespace: "istio-gateways", labels: "app=istio-ingressgateway", instances: 4 }));
-});
-
-EOF
-echo "executing test dist/gloo-mesh-2-0-gateway/build/templates/steps/istio-lifecycle-manager-upgrade/tests/istio-ready.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-mocha ./test.js --timeout 10000 --retries=150 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
--->
-
-Run the following command to check the status of the upgrade(s):
-
-```sh
-kubectl --context ${MGMT} -n gloo-mesh get istiolifecyclemanager.admin.gloo.solo.io -ojsonpath='{.items[*].status.clusters.*.installations.*}'|jq -r '[.observedOperator.components.ingressGateways[].label, .observedRevision, .state]'
-kubectl --context ${MGMT} -n gloo-mesh get gatewaylifecyclemanagers.admin.gloo.solo.io -ojsonpath='{.items[*].status.clusters.*.installations.*}'|jq -r '[.observedOperator.components.ingressGateways[].label, .observedRevision, .state]'
-```
-<!--bash
-printf "Waiting for all istiolifecyclemanager to be HEALTHY"
-until [ $(kubectl --context ${MGMT} -n gloo-mesh get istiolifecyclemanager.admin.gloo.solo.io -ojsonpath='{.items[*].status.clusters.*.installations.*}'|jq -r '.state'|grep -v HEALTHY -c) -eq 0 ]; do
-  printf "%s" "."
-  sleep 1
-done
-printf "\n"
-kubectl --context ${CLUSTER1} -n istio-system rollout status deploy
--->
-
-When the upgrade is completed, the state at the end of the objects will be `HEALTHY`.
-
-Now, let's restart all the Istio Pods to use the new revision:
-
-```bash
-kubectl --context ${CLUSTER1} get ns -l istio.io/rev=${OLD_REVISION} -o json | jq -r '.items[].metadata.name' | while read ns; do
-  kubectl --context ${CLUSTER1} label ns ${ns} istio.io/rev=${NEW_REVISION} --overwrite
-  kubectl --context ${CLUSTER1} -n ${ns} rollout restart deploy
-done
-kubectl --context ${CLUSTER1} -n httpbin patch deploy in-mesh --patch "{\"spec\": {\"template\": {\"metadata\": {\"labels\": {\"istio.io/rev\": \"${NEW_REVISION}\" }}}}}"
-```
-<!--bash
-kubectl --context ${CLUSTER1} -n httpbin rollout status deploy in-mesh
--->
-
-Test that you can still access the `in-mesh` service through the Istio Ingress Gateway corresponding to the old revision using the command below:
-
-```bash
-curl -k "https://${ENDPOINT_HTTPS_GW_CLUSTER1}/get" -I
-```
-
-You should get a response similar to the following one:
-
-```
-HTTP/2 200 
-server: istio-envoy
-date: Wed, 24 Aug 2022 14:58:22 GMT
-content-type: application/json
-content-length: 670
-access-control-allow-origin: *
-access-control-allow-credentials: true
-x-envoy-upstream-service-time: 7
-```
-
-<!--bash
-cat <<'EOF' > ./test.js
-const helpers = require('./tests/chai-http');
-
-describe("httpbin is accessible", () => {
-  it('/get is available in cluster1', () => helpers.checkURL({ host: 'https://' + process.env.ENDPOINT_HTTPS_GW_CLUSTER1, path: '/get', retCode: 200 }));
-})
-
-EOF
-echo "executing test dist/gloo-mesh-2-0-gateway/build/templates/steps/istio-lifecycle-manager-upgrade/tests/httpbin-available.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
--->
-
-All good, so we can now configure the Istio gateway service(s) to use both revisions:
-
-```bash
-kubectl --context ${CLUSTER1} -n istio-gateways patch svc istio-ingressgateway --type=json --patch '[{"op": "remove", "path": "/spec/selector/revision"}]'
-```
-
-We don't switch the selector directly from one the old revision to the new one to avoid any request to be dropped.
-
-Test that you can still access the `in-mesh` service:
-
-```bash
-curl -k "https://${ENDPOINT_HTTPS_GW_CLUSTER1}/get" -I
-```
-
-You should get a response similar to the following one:
-
-```
-HTTP/2 200 
-server: istio-envoy
-date: Wed, 24 Aug 2022 14:58:22 GMT
-content-type: application/json
-content-length: 670
-access-control-allow-origin: *
-access-control-allow-credentials: true
-```
-
-<!--bash
-cat <<'EOF' > ./test.js
-const helpers = require('./tests/chai-http');
-
-describe("httpbin is accessible", () => {
-  it('/get is available in cluster1', () => helpers.checkURL({ host: 'https://' + process.env.ENDPOINT_HTTPS_GW_CLUSTER1, path: '/get', retCode: 200 }));
-})
-
-EOF
-echo "executing test dist/gloo-mesh-2-0-gateway/build/templates/steps/istio-lifecycle-manager-upgrade/tests/httpbin-available.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
--->
-
-Everything is working, so we can now configure the Istio gateway service(s) to use only the new revision:
-
-```bash
-kubectl --context ${CLUSTER1} -n istio-gateways patch svc istio-ingressgateway --patch "{\"spec\": {\"selector\": {\"revision\": \"${NEW_REVISION}\" }}}"
-```
-
-Test that you can still access the `in-mesh` service:
-
-```bash
-curl -k "https://${ENDPOINT_HTTPS_GW_CLUSTER1}/get" -I
-```
-
-You should get a response similar to the following one:
-
-```
-HTTP/2 200 
-server: istio-envoy
-date: Wed, 24 Aug 2022 14:58:22 GMT
-content-type: application/json
-content-length: 670
-access-control-allow-origin: *
-access-control-allow-credentials: true
-```
-
-<!--bash
-cat <<'EOF' > ./test.js
-const helpers = require('./tests/chai-http');
-
-describe("httpbin is accessible", () => {
-  it('/get is available in cluster1', () => helpers.checkURL({ host: 'https://' + process.env.ENDPOINT_HTTPS_GW_CLUSTER1, path: '/get', retCode: 200 }));
-})
-
-EOF
-echo "executing test dist/gloo-mesh-2-0-gateway/build/templates/steps/istio-lifecycle-manager-upgrade/tests/httpbin-available.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
--->
-
-Now that everything is working well with the new version, we can uninstall the previous version.
-
-Let's start with the gateways
-
-```bash
-cat << EOF | kubectl --context ${MGMT} apply -f -
-
-apiVersion: admin.gloo.solo.io/v2
-kind: GatewayLifecycleManager
-metadata:
-  name: cluster1-ingress
-  namespace: gloo-mesh
-spec:
-  installations:
-    - clusters:
-      - name: cluster1
-        activeGateway: true
-      gatewayRevision: ${NEW_REVISION}
-      istioOperatorSpec:
-        profile: empty
-        hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.19.1-solo
-        values:
-          gateways:
-            istio-ingressgateway:
-              customService: true
-        components:
-          ingressGateways:
-            - name: istio-ingressgateway
-              namespace: istio-gateways
-              enabled: true
-              label:
-                istio: ingressgateway
----
-apiVersion: admin.gloo.solo.io/v2
-kind: GatewayLifecycleManager
-metadata:
-  name: cluster1-eastwest
-  namespace: gloo-mesh
-spec:
-  installations:
-    - clusters:
-      - name: cluster1
-        activeGateway: false
-      gatewayRevision: ${NEW_REVISION}
-      istioOperatorSpec:
-        profile: empty
-        hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.19.1-solo
-        values:
-          gateways:
-            istio-ingressgateway:
-              customService: true
-        components:
-          ingressGateways:
-            - name: istio-eastwestgateway
-              namespace: istio-gateways
-              enabled: true
-              label:
-                istio: eastwestgateway
-                topology.istio.io/network: cluster1
-              k8s:
-                env:
-                  - name: ISTIO_META_ROUTER_MODE
-                    value: "sni-dnat"
-                  - name: ISTIO_META_REQUESTED_NETWORK_VIEW
-                    value: cluster1
-EOF
-```
-<!--bash
-ATTEMPTS=1
-until [[ $(kubectl --context ${CLUSTER1} -n istio-gateways get pods -l "istio.io/rev=${OLD_REVISION}" -o json | jq '.items | length') -eq 0 ]] || [ $ATTEMPTS -gt 120 ]; do
-  printf "."
-  ATTEMPTS=$((ATTEMPTS + 1))
-  sleep 1
-done
-[ $ATTEMPTS -le 120 ] || kubectl --context ${CLUSTER1} -n istio-gateways get pods -l "istio.io/rev=${OLD_REVISION}"
--->
-
-And then the control plane:
-
-```bash
-cat << EOF | kubectl --context ${MGMT} apply -f -
-
-apiVersion: admin.gloo.solo.io/v2
-kind: IstioLifecycleManager
-metadata:
-  name: cluster1-installation
-  namespace: gloo-mesh
-spec:
-  installations:
-    - clusters:
-      - name: cluster1
-        defaultRevision: true
-      revision: ${NEW_REVISION}
-      istioOperatorSpec:
-        profile: minimal
-        hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.19.1-solo
-        namespace: istio-system
-        values:
-          global:
-            meshID: mesh1
-            multiCluster:
-              clusterName: cluster1
-            network: cluster1
-        meshConfig:
-          accessLogFile: /dev/stdout
-          defaultConfig:
-            proxyMetadata:
-              ISTIO_META_DNS_CAPTURE: "true"
-              ISTIO_META_DNS_AUTO_ALLOCATE: "true"
-        components:
-          pilot:
-            k8s:
-              env:
-                - name: PILOT_ENABLE_K8S_SELECT_WORKLOAD_ENTRIES
-                  value: "false"
-          ingressGateways:
-          - name: istio-ingressgateway
-            enabled: false
-EOF
-```
-<!--bash
-ATTEMPTS=1
-until [[ $(kubectl --context ${CLUSTER1} -n istio-system get pods -l "istio.io/rev=${OLD_REVISION}" -o json | jq '.items | length') -eq 0 ]] || [ $ATTEMPTS -gt 120 ]; do
-  printf "."
-  ATTEMPTS=$((ATTEMPTS + 1))
-  sleep 1
-done
-[ $ATTEMPTS -le 120 ] || kubectl --context ${CLUSTER1} -n istio-system get pods -l "istio.io/rev=${OLD_REVISION}"
--->
-Run the following command:
-
-```bash
-kubectl --context ${CLUSTER1} -n istio-system get pods && kubectl --context ${CLUSTER1} -n istio-gateways get pods
-```
-
-You should get the following output:
-
-```
-NAME                           READY   STATUS    RESTARTS   AGE
-istiod-1-18-796fffbdf5-n6xc9   1/1     Running   0          25m
-NAME                                          READY   STATUS    RESTARTS   AGE
-istio-ingressgateway-1-18-784f69b4bb-lcfk9    1/1     Running   0          25m
-```
-
-It confirms that only the new version is running.
-
-<!--bash
-cat <<'EOF' > ./test.js
-const chaiExec = require("@jsdevtools/chai-exec");
-var chai = require('chai');
-var expect = chai.expect;
-chai.use(chaiExec);
-
-afterEach(function (done) {
-  if (this.currentTest.currentRetry() > 0) {
-    process.stdout.write(".");
-    setTimeout(done, 1000);
-  } else {
-    done();
-  }
-});
-describe("Old Istio version should be uninstalled", () => {
-  it("Pods aren't running anymore in CLUSTER1, namespace istio-system", () => {
-    let cli = chaiExec('kubectl --context ' + process.env.CLUSTER1 + ' -n istio-system get pods -l "istio.io/rev=' + process.env.OLD_REVISION +'" -o json');
-    expect(cli).to.exit.with.code(0);
-    expect(JSON.parse(cli.stdout).items).to.have.lengthOf(0);
-  });
-  it("Pods aren't running anymore in CLUSTER1, namespace istio-gateways", () => {
-    let cli = chaiExec('kubectl --context ' + process.env.CLUSTER1 + ' -n istio-gateways get pods -l "istio.io/rev=' + process.env.OLD_REVISION +'" -o json');
-    expect(cli).to.exit.with.code(0);
-    expect(JSON.parse(cli.stdout).items).to.have.lengthOf(0);
-  });
-});
-EOF
-echo "executing test dist/gloo-mesh-2-0-gateway/build/templates/steps/istio-lifecycle-manager-upgrade/tests/previous-version-uninstalled.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
--->
 
 
 
