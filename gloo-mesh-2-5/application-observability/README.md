@@ -533,7 +533,7 @@ telemetryCollectorCustomization:
           action: upsert
   extraPipelines:
     logs/accesslogs:
-      receivers: []
+      receivers: [otlp]
       processors: [k8sattributes, resource, transform, batch, memory_limiter]
       exporters: 
         - otlp
@@ -546,7 +546,7 @@ telemetryCollectorCustomization:
         - otlp
         # - logging/mesh # uncomment for debugging
     traces/mesh: 
-      receivers: []
+      receivers: [otlp]
       processors: [ resource, resource/tempo, batch, memory_limiter]
       exporters:
         - otlp
@@ -736,7 +736,7 @@ telemetryCollectorCustomization:
           action: upsert
   extraPipelines:
     logs/accesslogs:
-      receivers: []
+      receivers: [otlp]
       processors: [k8sattributes, resource, transform, batch, memory_limiter]
       exporters: 
         - otlp
@@ -749,7 +749,7 @@ telemetryCollectorCustomization:
         - otlp
         # - logging/mesh # uncomment for debugging
     traces/mesh: 
-      receivers: []
+      receivers: [otlp]
       processors: [ resource, resource/tempo, batch, memory_limiter]
       exporters:
         - otlp
@@ -897,7 +897,6 @@ spec:
     topology.istio.io/network: cluster1
   type: LoadBalancer
 EOF
-
 kubectl --context ${CLUSTER2} create ns istio-gateways
 kubectl --context ${CLUSTER2} label namespace istio-gateways istio.io/rev=1-19 --overwrite
 
