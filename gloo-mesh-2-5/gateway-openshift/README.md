@@ -190,6 +190,8 @@ glooMgmtServer:
   floatingUserId: true
 prometheus:
   enabled: true
+  server:
+    securityContext: {}
 redis:
   deployment:
     enabled: true
