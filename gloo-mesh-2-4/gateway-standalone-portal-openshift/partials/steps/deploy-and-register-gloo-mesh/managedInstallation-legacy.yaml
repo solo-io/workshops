@@ -1,0 +1,49 @@
+# Install the Gloo agent alongside the management server,
+# such as to run the management cluster also as a workload cluster in a single-cluster setup
+registerMgmtPlane:
+  enabled: true
+  metricscollector:
+    enabled: true
+    config:
+      exporters:
+        otlp:
+          endpoint: gloo-metrics-gateway.gloo-mesh:4317
+  # Configuration for managed Istio control plane and gateway installations by using the Istio Lifecycle Manager
+  managedInstallations:
+    enabled: true
+    revision: 1-19
+    defaultRevision: true
+    images:
+      hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
+      tag: 1.19.1-solo
+    controlPlane:
+      enabled: true
+      overrides: {}
+    northSouthGateways:
+    - enabled: true
+      name: north-south-gateway
+      overrides:
+        components:
+          ingressGateways:
+          - name: north-south-gateway
+            enabled: true
+            namespace: istio-gateways
+            label:
+              app: north-south-gateway
+              istio: ingressgateway
+            k8s:
+              service:
+                type: LoadBalancer
+                ports:
+                  # health check port (required to be first for aws elbs)
+                  - name: status-port
+                    port: 15021
+                    targetPort: 15021
+                  # main http ingress port
+                  - port: 80
+                    targetPort: 8080
+                    name: http2
+                  # main https ingress port
+                  - port: 443
+                    targetPort: 8443
+                    name: https

@@ -1,0 +1,63 @@
+apiVersion: networking.gloo.solo.io/v2
+kind: RouteTable
+metadata:
+  name: portal-server
+  namespace: gloo-mesh-addons
+  labels:
+    expose: "true"
+spec:
+  defaultDestination:
+    ref:
+      name: gloo-mesh-portal-server
+      namespace: gloo-mesh-addons
+      cluster: cluster1
+    port:
+      number: 8080
+  http:
+    - name: portal-frontend-auth
+      forwardTo:
+        destinations:
+          - port:
+              number: 4000
+            ref:
+              name: portal-frontend
+              namespace: gloo-mesh-addons
+              cluster: cluster1
+      labels:
+        oauth: "true" # apply ext auth policy
+        route: portal-api
+      matchers:
+        - uri:
+            prefix: /portal-server/v1/login
+    - forwardTo:
+        pathRewrite: /v1
+      name: authn-api-and-usage-plans
+      labels:
+        oauth: "true" # apply ext auth policy
+        route: portal-api
+      matchers:
+        - uri:
+            prefix: /portal-server/v1
+          headers:
+            - name: Cookie
+              #value: ".*?id_token=.*" # match characters before id_token= and after id_token= zero to unlimited times
+              value: ".*?keycloak-session=.*" # match characters before keycloak-session= and after keycloak-session= zero to unlimited times
+              regex: true
+    - forwardTo:
+        pathRewrite: /v1/me
+      name: authn-me
+      labels:
+        oauth: "true" # apply ext auth policy
+        route: portal-api
+      matchers:
+        - uri:
+            prefix: /portal-server/v1/me
+    - forwardTo:
+        pathRewrite: /v1/api-keys
+      name: authn-api-keys
+      labels:
+        oauth: "true" # apply ext auth policy
+        route: portal-api
+      matchers:
+        - uri:
+            prefix: /portal-server/v1/api-keys

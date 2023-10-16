@@ -1,0 +1,24 @@
+apiVersion: security.policy.gloo.solo.io/v2
+kind: WAFPolicy
+metadata:
+  name: geoblock
+  namespace: httpbin
+spec:
+  applyToRoutes:
+  - route:
+      labels:
+        waf: "true"
+  config:
+    disableCoreRuleSet: true
+    customInterventionMessage: 'Not available in your country'
+    customRuleSets:
+    - ruleStr: |
+        SecRuleEngine On
+        SecDebugLog /dev/stdout
+        SecDebugLogLevel 9
+        SecGeoLookupDb /etc/geoip/database/GeoLite2-Country.mmdb
+        SecRule REQUEST_HEADERS:X-Envoy-External-Address "@geoLookup" "chain,id:22,deny,status:403,msg:'Blocked in prohibited country'"
+        SecRule GEO:COUNTRY_CODE "@streq ${COUNTRY_CODE}"
+    auditLogging:
+      action: ALWAYS
+      location: DYNAMIC_METADATA

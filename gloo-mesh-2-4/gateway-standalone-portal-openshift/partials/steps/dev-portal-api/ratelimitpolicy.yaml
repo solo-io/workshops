@@ -1,0 +1,34 @@
+apiVersion: trafficcontrol.policy.gloo.solo.io/v2
+kind: RateLimitPolicy
+metadata:
+  name: productpage
+  namespace: bookinfo-frontends
+spec:
+  applyToRoutes:
+  - route:
+      labels:
+        ratelimited: "true"
+  config:
+    serverSettings:
+      name: rate-limit-server
+      namespace: gloo-mesh-addons
+      cluster: cluster1
+    raw:
+      rateLimits:
+      - setActions:
+        - requestHeaders:
+            descriptorKey: usagePlan
+            headerName: X-Solo-Plan
+        - metadata:
+            descriptorKey: userId
+            metadataKey:
+              key: envoy.filters.http.ext_authz
+              path:
+                - key: userId
+    ratelimitServerConfig:
+      name: productpage
+      namespace: bookinfo-frontends
+      cluster: cluster1
+    phase:
+      postAuthz:
+        priority: 1

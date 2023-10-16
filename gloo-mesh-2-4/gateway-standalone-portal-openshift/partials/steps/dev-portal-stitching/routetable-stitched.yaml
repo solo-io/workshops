@@ -1,0 +1,52 @@
+apiVersion: networking.gloo.solo.io/v2
+kind: RouteTable
+metadata:
+  name: productpage-api-v2
+  namespace: bookinfo-frontends
+  labels:
+    expose: "true"
+    portal-users: "true"
+    api: bookinfo
+spec:
+  portalMetadata:
+    title: BookInfo REST API v2
+    description: REST API for the Bookinfo application
+    apiProductId: bookinfo
+    apiProductDisplayName: BookInfo REST API
+    apiVersion: v2
+    customMetadata:
+      lifecyclePhase: "General Availability"
+  http:
+    - matchers:
+      - uri:
+          prefix: /api/bookinfo/v2/search.json
+      labels:
+        apikeys: "true"
+        ratelimited: "true"
+        api: "productpage"
+      forwardTo:
+        pathRewrite: /search.json
+        hostRewrite: openlibrary.org
+        destinations:
+          - kind: EXTERNAL_SERVICE 
+            ref:
+              name: openlibrary
+              namespace: bookinfo-frontends
+              cluster: cluster1
+            port:
+              number: 443
+    - matchers:
+      - uri:
+          prefix: /api/bookinfo/v2
+      labels:
+        apikeys: "true"
+        ratelimited: "true"
+        api: "productpage"
+      forwardTo:
+        pathRewrite: /api/v1/products
+        destinations:
+          - ref:
+              name: productpage
+              namespace: bookinfo-frontends
+            port:
+              number: 9080

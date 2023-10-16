@@ -1,0 +1,25 @@
+apiVersion: networking.gloo.solo.io/v2
+kind: RouteTable
+metadata:
+  name: productpage
+  namespace: bookinfo-frontends
+  labels:
+    expose: "true"
+spec:
+  http:
+    - name: productpage
+      matchers:
+      - uri:
+          exact: /productpage
+      - uri:
+          prefix: /static
+      - uri:
+          prefix: /api/v1/products
+      forwardTo:
+        destinations:
+          - ref:
+              name: productpage
+              namespace: bookinfo-frontends
+              cluster: cluster1
+            port:
+              number: 9080

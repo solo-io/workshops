@@ -1,0 +1,38 @@
+apiVersion: networking.gloo.solo.io/v2
+kind: RouteTable
+metadata:
+  name: portal-server
+  namespace: gloo-mesh-addons
+  labels:
+    expose: "true"
+spec:
+  defaultDestination:
+    ref:
+      name: gloo-mesh-portal-server
+      namespace: gloo-mesh-addons
+      cluster: cluster1
+    port:
+      number: 8080
+  http:
+    - forwardTo:
+        pathRewrite: /v1
+      name: authn-api-and-usage-plans
+      labels:
+        oauth: "true"
+        route: portal-api
+      matchers:
+        - uri:
+            prefix: /portal-server/v1
+          headers:
+            - name: Cookie
+              #value: ".*?id_token=.*" # if not storing the id_token in Redis
+              value: ".*?keycloak-session=.*" # if storing the id_token in Redis
+              regex: true
+    - name: no-auth-apis
+      forwardTo:
+        pathRewrite: /v1
+      labels:
+        route: portal-api
+      matchers:
+        - uri:
+            prefix: /portal-server/v1

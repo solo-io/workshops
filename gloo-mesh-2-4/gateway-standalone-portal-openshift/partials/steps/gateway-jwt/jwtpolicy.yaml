@@ -1,0 +1,31 @@
+apiVersion: security.policy.gloo.solo.io/v2
+kind: JWTPolicy
+metadata:
+  name: httpbin
+  namespace: httpbin
+spec:
+  applyToRoutes:
+  - route:
+      labels:
+        oauth: "true"
+  config:
+    phase:
+      postAuthz:
+        priority: 1
+    providers:
+      keycloak:
+        issuer: ${KEYCLOAK_URL}/realms/master
+        tokenSource:
+          headers:
+          - name: jwt
+        remote:
+          url: ${KEYCLOAK_URL}/realms/master/protocol/openid-connect/certs
+          destinationRef:
+            kind: EXTERNAL_SERVICE
+            ref:
+              name: keycloak
+            port:
+              number: ${PORT_KEYCLOAK}
+        claimsToHeaders:
+        - claim: email
+          header: X-Email

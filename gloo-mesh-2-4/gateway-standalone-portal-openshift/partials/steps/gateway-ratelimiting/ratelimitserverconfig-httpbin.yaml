@@ -1,0 +1,21 @@
+apiVersion: admin.gloo.solo.io/v2
+kind: RateLimitServerConfig
+metadata:
+  name: httpbin
+  namespace: httpbin
+spec:
+  destinationServers:
+  - ref:
+      cluster: cluster1
+      name: rate-limiter
+      namespace: gloo-mesh-addons
+    port:
+      name: grpc
+  raw:
+    setDescriptors:
+      - simpleDescriptors:
+          - key: organization
+            value: solo.io
+        rateLimit:
+          requestsPerUnit: 3
+          unit: MINUTE

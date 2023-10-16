@@ -1,0 +1,30 @@
+apiVersion: networking.gloo.solo.io/v2
+kind: VirtualGateway
+metadata:
+  name: north-south-gw
+  namespace: istio-gateways
+spec:
+  workloads:
+    - selector:
+        labels:
+          istio: ingressgateway
+        cluster: cluster1
+  listeners: 
+    - http: {}
+      port:
+        number: 80
+# ---------------- Redirect to https --------------------
+      httpsRedirect: true
+# -------------------------------------------------------
+    - http: {}
+# ---------------- SSL config ---------------------------
+      port:
+        number: 443
+      tls:
+        parameters:
+          minimumProtocolVersion: TLSv1_3
+        mode: SIMPLE
+        secretName: tls-secret
+# -------------------------------------------------------
+      allowedRouteTables:
+        - host: '*'

@@ -1,0 +1,38 @@
+apiVersion: networking.gloo.solo.io/v2
+kind: RouteTable
+metadata:
+  name: portal-frontend
+  namespace: gloo-mesh-addons
+  labels:
+    expose: "true"
+spec:
+  http:
+    - name: portal-frontend-auth
+      forwardTo:
+        destinations:
+          - port:
+              number: 4000
+            ref:
+              name: portal-frontend
+              namespace: gloo-mesh-addons
+              cluster: cluster1
+      labels:
+        oauth: "true"
+        route: portal-api
+      matchers:
+        - uri:
+            prefix: /v1/login
+        - uri:
+            prefix: /v1/logout
+    - name: portal-frontend-no-auth
+      matchers:
+      - uri:
+          prefix: /
+      forwardTo:
+        destinations:
+          - ref:
+              name: portal-frontend
+              namespace: gloo-mesh-addons
+              cluster: cluster1
+            port:
+              number: 4000
