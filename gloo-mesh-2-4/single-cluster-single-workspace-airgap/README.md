@@ -248,13 +248,13 @@ glooMgmtServer:
     registry: ${registry}/gloo-mesh
 prometheus:
   enabled: true
+  server:
+    image:
+      repository: ${registry}/prometheus/prometheus
   configmapReload:
     prometheus:
       image:
         repository: ${registry}/jimmidyson/configmap-reload
-  server:
-    image:
-      repository: ${registry}/prometheus/prometheus
 redis:
   deployment:
     enabled: true
