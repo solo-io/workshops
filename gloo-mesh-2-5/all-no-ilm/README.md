@@ -2832,8 +2832,12 @@ spec:
       allowedClients:
       - serviceAccountSelector:
           name: bookinfo-productpage
+      allowedMethods:
+      - GET
 EOF
 ```
+
+Note that this is a layer 7 policy because we only allow the `GET` method to be used by the productpage service.
 
 Finally, we will create an AccessPolicy to allow the reviews service to forward requests to the ratings service.
 
@@ -2864,8 +2868,11 @@ pod=$(kubectl --context ${CLUSTER1} -n bookinfo-frontends get pods -l app=produc
 echo "From productpage to details, should be allowed"
 kubectl --context ${CLUSTER1} -n bookinfo-frontends debug -i -q ${pod} --image=curlimages/curl -- curl -s http://details.bookinfo-backends:9080/details/0 | jq
 
-echo "From productpage to reviews, should be allowed"
+echo "From productpage to reviews with GET, should be allowed"
 kubectl --context ${CLUSTER1} -n bookinfo-frontends debug -i -q ${pod} --image=curlimages/curl -- curl -s http://reviews.bookinfo-backends:9080/reviews/0 | jq
+
+echo "From productpage to reviews with HEAD, should be denied"
+kubectl --context ${CLUSTER1} -n bookinfo-frontends debug -i -q ${pod} --image=curlimages/curl -- curl -s http://reviews.bookinfo-backends:9080/reviews/0 -X HEAD
 
 echo "From productpage to ratings, should be denied"
 kubectl --context ${CLUSTER1} -n bookinfo-frontends debug -i -q ${pod} --image=curlimages/curl -- curl -s http://ratings.bookinfo-backends:9080/ratings/0
@@ -2886,9 +2893,14 @@ describe("Communication status", () => {
     expect(command).not.to.contain("200");
   });
 
-  it("Response code should be 200 accessing reviews", () => {
+  it("Response code should be 200 accessing reviews with GET", () => {
     const command = helpers.getOutputForCommand({ command: "kubectl --context " + process.env.CLUSTER1 + " -n bookinfo-frontends exec deploy/productpage-v1 -- python -c \"import requests; r = requests.get('http://reviews.bookinfo-backends:9080/reviews/0'); print(r.status_code)\"" }).replaceAll("'", "");
     expect(command).to.contain("200");
+  });
+
+  it("Response code should be 403 accessing reviews with HEAD", () => {
+    const command = helpers.getOutputForCommand({ command: "kubectl --context " + process.env.CLUSTER1 + " -n bookinfo-frontends exec deploy/productpage-v1 -- python -c \"import requests; r = requests.head('http://reviews.bookinfo-backends:9080/reviews/0'); print(r.status_code)\"" }).replaceAll("'", "");
+    expect(command).to.contain("403");
   });
 
   it("Response code should be 200 accessing details", () => {
@@ -2939,6 +2951,7 @@ and delete the `AccessPolicies`:
 ```bash
 kubectl --context ${CLUSTER1} delete accesspolicies -n bookinfo-frontends --all
 ```
+
 
 
 
