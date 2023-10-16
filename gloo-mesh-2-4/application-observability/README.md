@@ -413,12 +413,6 @@ telemetryCollector:
       readOnly: true
 telemetryCollectorCustomization:
   extraReceivers:
-    otlp/mesh:
-      protocols:
-        grpc:
-          endpoint: 0.0.0.0:4317
-        http:
-          endpoint: 0.0.0.0:4318
     filelog:
       exclude:
       - /var/log/pods/*telemetry-collector*_*/*/*.log
@@ -539,7 +533,7 @@ telemetryCollectorCustomization:
           action: upsert
   extraPipelines:
     logs/accesslogs:
-      receivers: [otlp/mesh]
+      receivers: [otlp]
       processors: [k8sattributes, resource, transform, batch, memory_limiter]
       exporters: 
         - otlp
@@ -552,7 +546,7 @@ telemetryCollectorCustomization:
         - otlp
         # - logging/mesh # uncomment for debugging
     traces/mesh: 
-      receivers: [otlp/mesh]
+      receivers: [otlp]
       processors: [ resource, resource/tempo, batch, memory_limiter]
       exporters:
         - otlp
@@ -622,12 +616,6 @@ telemetryCollector:
       readOnly: true
 telemetryCollectorCustomization:
   extraReceivers:
-    otlp/mesh:
-      protocols:
-        grpc:
-          endpoint: 0.0.0.0:4317
-        http:
-          endpoint: 0.0.0.0:4318
     filelog:
       exclude:
       - /var/log/pods/*telemetry-collector*_*/*/*.log
@@ -748,7 +736,7 @@ telemetryCollectorCustomization:
           action: upsert
   extraPipelines:
     logs/accesslogs:
-      receivers: [otlp/mesh]
+      receivers: [otlp]
       processors: [k8sattributes, resource, transform, batch, memory_limiter]
       exporters: 
         - otlp
@@ -761,7 +749,7 @@ telemetryCollectorCustomization:
         - otlp
         # - logging/mesh # uncomment for debugging
     traces/mesh: 
-      receivers: [otlp/mesh]
+      receivers: [otlp]
       processors: [ resource, resource/tempo, batch, memory_limiter]
       exporters:
         - otlp
@@ -909,7 +897,6 @@ spec:
     topology.istio.io/network: cluster1
   type: LoadBalancer
 EOF
-
 kubectl --context ${CLUSTER2} create ns istio-gateways
 kubectl --context ${CLUSTER2} label namespace istio-gateways istio.io/rev=1-19 --overwrite
 
