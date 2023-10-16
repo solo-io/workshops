@@ -179,6 +179,8 @@ glooMgmtServer:
   serviceType: NodePort
 prometheus:
   enabled: true
+  server:
+    securityContext: {}
 redis:
   deployment:
     enabled: true
