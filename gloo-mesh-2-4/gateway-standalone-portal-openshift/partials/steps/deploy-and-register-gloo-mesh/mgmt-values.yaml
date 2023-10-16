@@ -1,0 +1,102 @@
+licensing:
+  licenseKey: ${GLOO_MESH_LICENSE_KEY}
+common:
+  cluster: cluster1
+glooMgmtServer:
+  enabled: true
+  ports:
+    healthcheck: 8091
+  registerCluster: true
+  floatingUserId: true
+prometheus:
+  enabled: true
+  server:
+    securityContext: {}
+redis:
+  deployment:
+    enabled: true
+    floatingUserId: true
+clickhouse:
+  enabled: true
+  persistence:
+    enabled: false
+  podSecurityContext:
+    enabled: false
+  containerSecurityContext:
+    enabled: false
+telemetryGateway:
+  enabled: true
+  service:
+    type: LoadBalancer
+telemetryGatewayCustomization:
+  pipelines:
+    logs/clickhouse:
+      enabled: true
+  extraExporters:
+    clickhouse:
+      password: password
+glooUi:
+  enabled: true
+  serviceType: LoadBalancer
+  floatingUserId: true
+istioInstallations:
+  enabled: true
+  controlPlane:
+    enabled: true
+    installations:
+      - istioOperatorSpec:
+          hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
+          tag: 1.19.1-solo
+        revision: 1-19
+  northSouthGateways:
+    - enabled: true
+      name: istio-ingressgateway
+      installations:
+        - clusters:
+          - name: cluster1
+            activeGateway: false
+          gatewayRevision: 1-19
+          istioOperatorSpec:
+            hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
+            tag: 1.19.1-solo
+            profile: empty
+            components:
+              ingressGateways:
+                - name: istio-ingressgateway
+                  namespace: istio-gateways
+                  enabled: true
+                  label:
+                    istio: ingressgateway
+glooAgent:
+  enabled: true
+  relay:
+    serverAddress: gloo-mesh-mgmt-server:9900
+    authority: gloo-mesh-mgmt-server.gloo-mesh
+  floatingUserId: true
+telemetryCollector:
+  presets:
+    logsCollection:
+      enabled: true
+      storeCheckpoints: true
+  enabled: true
+  config:
+    exporters:
+      otlp:
+        endpoint: gloo-telemetry-gateway:4317
+telemetryCollectorCustomization:
+  pipelines:
+    logs/istio_access_logs:
+      enabled: true
+  ports:
+    otlp:
+      hostPort: 0
+    otlp-http:
+      hostPort: 0
+    jaeger-compact:
+      hostPort: 0
+    jaeger-thrift:
+      hostPort: 0
+    jaeger-grpc:
+      hostPort: 0
+    zipkin:
+      hostPort: 0

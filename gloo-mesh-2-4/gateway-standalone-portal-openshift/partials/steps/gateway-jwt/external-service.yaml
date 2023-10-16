@@ -1,0 +1,16 @@
+apiVersion: networking.gloo.solo.io/v2
+kind: ExternalService
+metadata:
+  name: keycloak
+  namespace: httpbin
+  labels:
+    expose: "true"
+spec:
+  hosts:
+  - keycloak
+  ports:
+  - name: http
+    number: ${PORT_KEYCLOAK}
+    protocol: HTTP
+  selector:
+    host: keycloak

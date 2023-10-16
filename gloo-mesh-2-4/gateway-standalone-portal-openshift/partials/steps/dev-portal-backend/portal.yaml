@@ -1,0 +1,25 @@
+apiVersion: apimanagement.gloo.solo.io/v2
+kind: Portal
+metadata:
+  name: portal
+  namespace: gloo-mesh-addons
+spec:
+  portalBackendSelectors:
+    - selector:
+        cluster: cluster1
+        namespace: gloo-mesh-addons
+  domains:
+  - "*"
+  usagePlans:
+    - name: bronze
+      displayName: "Bronze Plan"
+      description: "A basic usage plan"
+    - name: silver
+      displayName: "Silver Plan"
+      description: "A better usage plan"
+    - name: gold
+      displayName: "Gold Plan"
+      description: "The best usage plan!"
+  apis:
+    - labels:
+        api: bookinfo

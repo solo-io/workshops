@@ -1,0 +1,34 @@
+apiVersion: networking.gloo.solo.io/v2
+kind: RouteTable
+metadata:
+  name: productpage-api-v1
+  namespace: bookinfo-frontends
+  labels:
+    expose: "true"
+    portal-users: "true"
+    api: bookinfo
+spec:
+  portalMetadata:
+    title: BookInfo REST API v1
+    description: REST API for the Bookinfo application
+    apiProductId: bookinfo
+    apiProductDisplayName: BookInfo REST API
+    apiVersion: v1
+    customMetadata:
+      lifecyclePhase: "General Availability"
+  http:
+    - matchers:
+      - uri:
+          prefix: /api/bookinfo/v1
+      labels:
+        apikeys: "true"
+        ratelimited: "true"
+        api: "productpage"
+      forwardTo:
+        pathRewrite: /api/v1/products
+        destinations:
+          - ref:
+              name: productpage
+              namespace: bookinfo-frontends
+            port:
+              number: 9080

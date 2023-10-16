@@ -1,0 +1,58 @@
+apiVersion: networking.istio.io/v1alpha3
+kind: EnvoyFilter
+metadata:
+  name: ingressgateway-access-logging
+  namespace: istio-system
+spec:
+  workloadSelector:
+    labels:
+      istio: ingressgateway
+  configPatches:
+  - applyTo: NETWORK_FILTER
+    match:
+      context: GATEWAY
+      listener:
+        filterChain:
+          filter:
+            name: "envoy.filters.network.http_connection_manager"
+    patch:
+      operation: MERGE
+      value:
+        typed_config:
+          "@type": "type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager"
+          access_log:
+          - name: envoy.access_loggers.file
+            typed_config:
+              "@type": "type.googleapis.com/envoy.extensions.access_loggers.file.v3.FileAccessLog"
+              path: /dev/stdout
+              log_format:
+                json_format:
+                  "timestamp": "%START_TIME%"
+                  "server_name": "%REQ(:AUTHORITY)%"
+                  "response_duration": "%DURATION%"
+                  "request_command": "%REQ(:METHOD)%"
+                  "request_uri": "%REQ(X-ENVOY-ORIGINAL-PATH?:PATH)%"
+                  "request_protocol": "%PROTOCOL%"
+                  "status_code": "%RESPONSE_CODE%"
+                  "client_address": "%DOWNSTREAM_REMOTE_ADDRESS_WITHOUT_PORT%"
+                  "x_forwarded_for": "%REQ(X-FORWARDED-FOR)%"
+                  "bytes_sent": "%BYTES_SENT%"
+                  "bytes_received": "%BYTES_RECEIVED%"
+                  "user_agent": "%REQ(USER-AGENT)%"
+                  "downstream_local_address": "%DOWNSTREAM_LOCAL_ADDRESS%"
+                  "requested_server_name": "%REQUESTED_SERVER_NAME%"
+                  "request_id": "%REQ(X-REQUEST-ID)%"
+                  "response_flags": "%RESPONSE_FLAGS%"
+                  "route_name": "%ROUTE_NAME%"
+                  "upstream_cluster": "%UPSTREAM_CLUSTER%"
+                  "upstream_host": "%UPSTREAM_HOST%"
+                  "upstream_local_address": "%UPSTREAM_LOCAL_ADDRESS%"
+                  "upstream_service_time": "%REQ(x-envoy-upstream-service-time)%"
+                  "upstream_transport_failure_reason": "%UPSTREAM_TRANSPORT_FAILURE_REASON%"
+                  "correlation_id": "%REQ(X-CORRELATION-ID)%"
+                  "user_id": "%DYNAMIC_METADATA(envoy.filters.http.ext_authz:userId)%"
+                  "api_id": "%DYNAMIC_METADATA(io.solo.gloo.apimanagement:api_id)%"
+                  "api_product_id": "%DYNAMIC_METADATA(io.solo.gloo.apimanagement:api_product_id)%"
+                  "api_product_name": "%DYNAMIC_METADATA(io.solo.gloo.apimanagement:api_product_name)%"
+                  "usage_plan": "%DYNAMIC_METADATA(envoy.filters.http.ext_authz:usagePlan)%"
+                  "custom_metadata": "%DYNAMIC_METADATA(io.solo.gloo.apimanagement:custom_metadata)%"

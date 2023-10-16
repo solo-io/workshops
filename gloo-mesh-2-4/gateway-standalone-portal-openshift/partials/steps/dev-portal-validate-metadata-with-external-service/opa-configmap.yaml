@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: deny-prohibited-countries
+  namespace: bookinfo-frontends
+data:
+  policy.rego: |-
+    package test
+    import future.keywords.if
+    import future.keywords.in
+    default allow = false
+    allow if not input.state["X-AppConfig-Prohibited-Countries"]
+    allow if not input.state["geo-CountryCode"]
+    allow if input.state["geo-CountryCode"] == ""
+    allow if {
+        not input.state["geo-CountryCode"] in split(input.state["X-AppConfig-Prohibited-Countries"], ",")
+    }

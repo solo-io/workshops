@@ -1,0 +1,18 @@
+apiVersion: apimanagement.gloo.solo.io/v2
+kind: ApiSchemaDiscovery
+metadata:
+  name: openlibrary
+  namespace: bookinfo-frontends
+spec:
+  openapi:
+    fetchEndpoint:
+      url: "https://openlibrary.org/static/openapi.json"
+  servedBy:
+  - destinationSelector:
+      kind: EXTERNAL_SERVICE
+      port:
+        number: 443
+      selector:
+        cluster: cluster1
+        name: openlibrary
+        namespace: bookinfo-frontends
