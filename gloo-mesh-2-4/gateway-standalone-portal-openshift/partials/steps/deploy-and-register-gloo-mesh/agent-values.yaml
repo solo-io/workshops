@@ -1,0 +1,35 @@
+common:
+  cluster: 
+glooAgent:
+  enabled: true
+  relay:
+    serverAddress: "${ENDPOINT_GLOO_MESH}"
+    authority: gloo-mesh-mgmt-server.gloo-mesh
+  floatingUserId: true
+telemetryCollector:
+  presets:
+    logsCollection:
+      enabled: true
+      storeCheckpoints: true
+  enabled: true
+  config:
+    exporters:
+      otlp:
+        endpoint: "${ENDPOINT_TELEMETRY_GATEWAY}"
+telemetryCollectorCustomization:
+  pipelines:
+    logs/istio_access_logs:
+      enabled: true
+  ports:
+    otlp:
+      hostPort: 0
+    otlp-http:
+      hostPort: 0
+    jaeger-compact:
+      hostPort: 0
+    jaeger-thrift:
+      hostPort: 0
+    jaeger-grpc:
+      hostPort: 0
+    zipkin:
+      hostPort: 0

@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: allow-solo-email-users
+  namespace: httpbin
+data:
+  policy.rego: |-
+    package test
+    default allow = false
+    allow {
+        [header, payload, signature] = io.jwt.decode(input.state.jwt)
+        endswith(payload["email"], "@solo.io")
+    }

@@ -1,0 +1,28 @@
+apiVersion: trafficcontrol.policy.gloo.solo.io/v2
+kind: RateLimitPolicy
+metadata:
+  name: httpbin
+  namespace: httpbin
+spec:
+  applyToRoutes:
+  - route:
+      labels:
+        ratelimited: "true"
+  config:
+    serverSettings:
+      name: rate-limit-server
+      namespace: gloo-mesh-addons
+      cluster: cluster1
+    raw:
+      rateLimits:
+      - setActions:
+        - requestHeaders:
+            descriptorKey: organization
+            headerName: X-Organization
+    ratelimitServerConfig:
+      name: httpbin
+      namespace: httpbin
+      cluster: cluster1
+    phase:
+      postAuthz:
+        priority: 3

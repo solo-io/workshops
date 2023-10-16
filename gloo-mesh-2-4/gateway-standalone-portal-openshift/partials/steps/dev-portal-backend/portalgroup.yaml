@@ -1,0 +1,18 @@
+apiVersion: apimanagement.gloo.solo.io/v2
+kind: PortalGroup
+metadata:
+  name: portal-users
+  namespace: gloo-mesh-addons
+spec:
+  name: portal-users
+  description: a group for users accessing the customers APIs
+  membership:
+    - claims:
+        - key: group
+          value: users
+  accessLevel:
+    apis:
+    - labels:
+        portal-users: "true"
+    usagePlans:
+    - gold
