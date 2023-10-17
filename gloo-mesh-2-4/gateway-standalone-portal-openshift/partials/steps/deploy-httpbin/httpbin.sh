@@ -1,46 +1,46 @@
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: 
+  name: undefined
   namespace: httpbin
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: 
+  name: undefined
   namespace: httpbin
   labels:
-    app: 
-    service: 
+    app: undefined
+    service: undefined
 spec:
   ports:
   - name: http
     port: 8000
     targetPort: 80
   selector:
-    app: 
+    app: undefined
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: 
+  name: undefined
   namespace: httpbin
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: 
+      app: undefined
       version: v1
   template:
     metadata:
       labels:
-        app: 
+        app: undefined
         version: v1
     spec:
-      serviceAccountName: 
+      serviceAccountName: undefined
       containers:
       - image: docker.io/kennethreitz/httpbin
         imagePullPolicy: IfNotPresent
-        name: 
+        name: undefined
         ports:
         - containerPort: 80
