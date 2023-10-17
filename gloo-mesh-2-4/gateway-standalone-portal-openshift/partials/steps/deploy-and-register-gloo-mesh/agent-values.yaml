@@ -1,5 +1,5 @@
 common:
-  cluster: 
+  cluster: undefined
 glooAgent:
   enabled: true
   relay:
