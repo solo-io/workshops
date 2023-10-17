@@ -1,10 +1,10 @@
 helm upgrade --install gloo-platform gloo-platform/gloo-platform \
   --namespace gloo-mesh-addons \
-  --kube-context= \
+  --kube-context=undefined \
   --version 2.4.2 \
  -f -<<EOF
 common:
-  cluster: 
+  cluster: undefined
 glooPortalServer:
   enabled: true
   apiKeyStorage:
