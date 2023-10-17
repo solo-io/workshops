@@ -148,7 +148,7 @@ us-docker.pkg.dev/gloo-mesh/istio-workshops/pilot:1.19.1-solo
 us-docker.pkg.dev/gloo-mesh/istio-workshops/proxyv2:1.19.1-solo
 EOF
 
-for url in https://raw.githubusercontent.com/istio/istio/release-1.16/samples/bookinfo/platform/kube/bookinfo.yaml https://raw.githubusercontent.com/istio/istio/release-1.16/samples/bookinfo/networking/bookinfo-gateway.yaml
+for url in https://raw.githubusercontent.com/istio/istio/master/samples/bookinfo/platform/kube/bookinfo.yaml https://raw.githubusercontent.com/istio/istio/master/samples/bookinfo/networking/bookinfo-gateway.yaml
 do
   for image in $(curl -sfL ${url}|grep image:|awk '{print $2}')
   do
@@ -575,7 +575,7 @@ We're going to deploy the bookinfo application to demonstrate several features o
 You can find more information about this application [here](https://istio.io/latest/docs/examples/bookinfo/).
 Download the bookinfo yaml and update the registry:
 ```bash
-curl https://raw.githubusercontent.com/istio/istio/release-1.16/samples/bookinfo/platform/kube/bookinfo.yaml | sed "s/image: docker.io/image: ${registry}/g" > bookinfo.yaml
+curl https://raw.githubusercontent.com/istio/istio/master/samples/bookinfo/platform/kube/bookinfo.yaml | sed "s/image: docker.io/image: ${registry}/g" > bookinfo.yaml
 ```
 
 Run the following commands to deploy the bookinfo application on `cluster1`:
