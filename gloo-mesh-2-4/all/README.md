@@ -1011,7 +1011,7 @@ You can find more information about this application [here](https://istio.io/lat
 Run the following commands to deploy the bookinfo application on `cluster1`:
 
 ```bash
-curl https://raw.githubusercontent.com/istio/istio/release-1.16/samples/bookinfo/platform/kube/bookinfo.yaml > bookinfo.yaml
+curl https://raw.githubusercontent.com/istio/istio/master/samples/bookinfo/platform/kube/bookinfo.yaml > bookinfo.yaml
 
 kubectl --context ${CLUSTER1} create ns bookinfo-frontends
 kubectl --context ${CLUSTER1} create ns bookinfo-backends
@@ -5962,7 +5962,7 @@ SELECT host, user FROM mysql.user;
 EOF
 
 docker exec vm1 /etc/init.d/mysql restart
-docker exec vm1 curl -LO https://raw.githubusercontent.com/istio/istio/release-1.16/samples/bookinfo/src/mysql/mysqldb-init.sql
+docker exec vm1 curl -LO https://raw.githubusercontent.com/istio/istio/master/samples/bookinfo/src/mysql/mysqldb-init.sql
 docker exec vm1 sh -c 'mysql -u root -ppassword < mysqldb-init.sql'
 ```
 
