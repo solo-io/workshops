@@ -5351,7 +5351,7 @@ spec:
           cloudProvider:
             name: aws
             namespace: gloo-mesh
-            cluster: mgmt
+            cluster: cluster1
           function: workshop-echo
           options:
             responseTransformation: RESPONSE_DISABLE
@@ -5457,7 +5457,7 @@ spec:
           cloudProvider:
             name: aws
             namespace: gloo-mesh
-            cluster: mgmt
+            cluster: cluster1
           function: workshop-api-gateway
           options:
             responseTransformation: RESPONSE_DEFAULT
