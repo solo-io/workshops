@@ -173,7 +173,7 @@ helm upgrade --install gloo-platform-crds gloo-platform/gloo-platform-crds \
 --namespace gloo-mesh \
 --kube-context ${MGMT} \
 --version=2.5.0-beta1
-helm upgrade --install gloo-platform gloo-platform/gloo-platform \
+helm upgrade --install gloo-platform-mgmt gloo-platform/gloo-platform \
 --namespace gloo-mesh \
 --kube-context ${MGMT} \
 --version=2.5.0-beta1 \
