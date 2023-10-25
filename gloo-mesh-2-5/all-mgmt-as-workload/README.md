@@ -94,32 +94,23 @@ Clone this repository and go to the directory where this `README.md` file is.
 Set the context environment variables:
 
 ```bash
-export MGMT=mgmt
+export MGMT=cluster1
 export CLUSTER1=cluster1
 export CLUSTER2=cluster2
 ```
 
-> Note that in case you dont't have a Kubernetes cluster dedicated for the management plane, you would set the variables like that:
-> ```
-> export MGMT=cluster1
-> export CLUSTER1=cluster1
-> export CLUSTER2=cluster2
-> ```
-
-Run the following commands to deploy three Kubernetes clusters using [Kind](https://kind.sigs.k8s.io/):
+Run the following commands to deploy two Kubernetes clusters using [Kind](https://kind.sigs.k8s.io/):
 
 ```bash
-./scripts/deploy-aws-with-calico.sh 1 mgmt
-./scripts/deploy-aws-with-calico.sh 2 cluster1 us-west us-west-1
-./scripts/deploy-aws-with-calico.sh 3 cluster2 us-west us-west-2
+./scripts/deploy-aws-with-calico.sh 1 cluster1 us-west us-west-1
+./scripts/deploy-aws-with-calico.sh 2 cluster2 us-west us-west-2
 ```
 
 Then run the following commands to wait for all the Pods to be ready:
 
 ```bash
-./scripts/check.sh mgmt
-./scripts/check.sh cluster1 
-./scripts/check.sh cluster2 
+./scripts/check.sh cluster1
+./scripts/check.sh cluster2
 ```
 
 **Note:** If you run the `check.sh` script immediately after the `deploy.sh` script, you may see a jsonpath error. If that happens, simply wait a few seconds and try again.
@@ -148,10 +139,9 @@ You can see that your currently connected to this cluster by executing the `kube
 CURRENT   NAME         CLUSTER         AUTHINFO   NAMESPACE  
           cluster1     kind-cluster1   cluster1
 *         cluster2     kind-cluster2   cluster2
-          mgmt         kind-mgmt       kind-mgmt 
 ```
 
-Run the following command to make `mgmt` the current cluster.
+Run the following command to make `cluster1` the current cluster.
 
 ```bash
 kubectl config use-context ${MGMT}
@@ -213,7 +203,7 @@ helm upgrade --install gloo-platform-crds gloo-platform/gloo-platform-crds \
 --namespace gloo-mesh \
 --kube-context ${MGMT} \
 --version=2.5.0-beta1
-helm upgrade --install gloo-platform gloo-platform/gloo-platform \
+helm upgrade --install gloo-platform-mgmt gloo-platform/gloo-platform \
 --namespace gloo-mesh \
 --kube-context ${MGMT} \
 --version=2.5.0-beta1 \
@@ -221,7 +211,7 @@ helm upgrade --install gloo-platform gloo-platform/gloo-platform \
 licensing:
   licenseKey: ${GLOO_MESH_LICENSE_KEY}
 common:
-  cluster: mgmt
+  cluster: cluster1
 glooMgmtServer:
   enabled: true
   ports:
@@ -351,7 +341,7 @@ helm upgrade --install gloo-platform-crds gloo-platform/gloo-platform-crds  \
 --namespace=gloo-mesh \
 --kube-context=${CLUSTER1} \
 --version=2.5.0-beta1
-helm upgrade --install gloo-platform gloo-platform/gloo-platform \
+helm upgrade --install gloo-platform-agent gloo-platform/gloo-platform \
   --namespace=gloo-mesh \
   --kube-context=${CLUSTER1} \
   --version=2.5.0-beta1 \
@@ -398,7 +388,7 @@ helm upgrade --install gloo-platform-crds gloo-platform/gloo-platform-crds  \
 --namespace=gloo-mesh \
 --kube-context=${CLUSTER2} \
 --version=2.5.0-beta1
-helm upgrade --install gloo-platform gloo-platform/gloo-platform \
+helm upgrade --install gloo-platform-agent gloo-platform/gloo-platform \
   --namespace=gloo-mesh \
   --kube-context=${CLUSTER2} \
   --version=2.5.0-beta1 \
@@ -7046,7 +7036,7 @@ helm upgrade --install gloo-platform gloo-platform/gloo-platform \
 licensing:
   licenseKey: ${GLOO_MESH_LICENSE_KEY}
 common:
-  cluster: mgmt
+  cluster: cluster1
 glooMgmtServer:
   enabled: true
   ports:
@@ -7227,7 +7217,7 @@ helm upgrade --install gloo-platform-crds gloo-platform/gloo-platform-crds  \
 --namespace=gloo-mesh \
 --kube-context=${CLUSTER1} \
 --version=2.5.0-beta1
-helm upgrade --install gloo-platform gloo-platform/gloo-platform \
+helm upgrade --install gloo-platform-agent gloo-platform/gloo-platform \
   --namespace=gloo-mesh \
   --kube-context=${CLUSTER1} \
   --version=2.5.0-beta1 \
@@ -7268,7 +7258,7 @@ helm upgrade --install gloo-platform-crds gloo-platform/gloo-platform-crds  \
 --namespace=gloo-mesh \
 --kube-context=${CLUSTER2} \
 --version=2.5.0-beta1
-helm upgrade --install gloo-platform gloo-platform/gloo-platform \
+helm upgrade --install gloo-platform-agent gloo-platform/gloo-platform \
   --namespace=gloo-mesh \
   --kube-context=${CLUSTER2} \
   --version=2.5.0-beta1 \
