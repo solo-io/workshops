@@ -3226,7 +3226,7 @@ telemetryCollectorCustomization:
             - "envoy.*"
             - "galley.*"
             - "sidecar.*"
-            - "istio_build.*"
+          # - "istio_build.*" re-enable this after this is fixed upstream
   extraPipelines:
     metrics/istiod:
       receivers:
