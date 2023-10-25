@@ -43,8 +43,7 @@ source ./scripts/assert.sh
 * [Lab 27 - Execute Lambda functions](#lab-27---execute-lambda-functions-)
 * [Lab 28 - VM integration](#lab-28---vm-integration-)
 * [Lab 29 - Upgrade Istio using Gloo Mesh Lifecycle Manager](#lab-29---upgrade-istio-using-gloo-mesh-lifecycle-manager-)
-* [Lab 30 - Gloo Mesh Management Plane failover](#lab-30---gloo-mesh-management-plane-failover-)
-* [Lab 31 - Securing the egress traffic](#lab-31---securing-the-egress-traffic-)
+* [Lab 30 - Securing the egress traffic](#lab-30---securing-the-egress-traffic-)
 
 
 
@@ -94,32 +93,23 @@ Clone this repository and go to the directory where this `README.md` file is.
 Set the context environment variables:
 
 ```bash
-export MGMT=mgmt
+export MGMT=cluster1
 export CLUSTER1=cluster1
 export CLUSTER2=cluster2
 ```
 
-> Note that in case you dont't have a Kubernetes cluster dedicated for the management plane, you would set the variables like that:
-> ```
-> export MGMT=cluster1
-> export CLUSTER1=cluster1
-> export CLUSTER2=cluster2
-> ```
-
-Run the following commands to deploy three Kubernetes clusters using [Kind](https://kind.sigs.k8s.io/):
+Run the following commands to deploy two Kubernetes clusters using [Kind](https://kind.sigs.k8s.io/):
 
 ```bash
-./scripts/deploy-aws-with-calico.sh 1 mgmt
-./scripts/deploy-aws-with-calico.sh 2 cluster1 us-west us-west-1
-./scripts/deploy-aws-with-calico.sh 3 cluster2 us-west us-west-2
+./scripts/deploy-aws-with-calico.sh 1 cluster1 us-west us-west-1
+./scripts/deploy-aws-with-calico.sh 2 cluster2 us-west us-west-2
 ```
 
 Then run the following commands to wait for all the Pods to be ready:
 
 ```bash
-./scripts/check.sh mgmt
-./scripts/check.sh cluster1 
-./scripts/check.sh cluster2 
+./scripts/check.sh cluster1
+./scripts/check.sh cluster2
 ```
 
 **Note:** If you run the `check.sh` script immediately after the `deploy.sh` script, you may see a jsonpath error. If that happens, simply wait a few seconds and try again.
@@ -148,10 +138,9 @@ You can see that your currently connected to this cluster by executing the `kube
 CURRENT   NAME         CLUSTER         AUTHINFO   NAMESPACE  
           cluster1     kind-cluster1   cluster1
 *         cluster2     kind-cluster2   cluster2
-          mgmt         kind-mgmt       kind-mgmt 
 ```
 
-Run the following command to make `mgmt` the current cluster.
+Run the following command to make `cluster1` the current cluster.
 
 ```bash
 kubectl config use-context ${MGMT}
@@ -213,7 +202,7 @@ helm upgrade --install gloo-platform-crds gloo-platform/gloo-platform-crds \
 --namespace gloo-mesh \
 --kube-context ${MGMT} \
 --version=2.5.0-beta1
-helm upgrade --install gloo-platform gloo-platform/gloo-platform \
+helm upgrade --install gloo-platform-mgmt gloo-platform/gloo-platform \
 --namespace gloo-mesh \
 --kube-context ${MGMT} \
 --version=2.5.0-beta1 \
@@ -221,7 +210,7 @@ helm upgrade --install gloo-platform gloo-platform/gloo-platform \
 licensing:
   licenseKey: ${GLOO_MESH_LICENSE_KEY}
 common:
-  cluster: mgmt
+  cluster: cluster1
 glooMgmtServer:
   enabled: true
   ports:
@@ -351,7 +340,7 @@ helm upgrade --install gloo-platform-crds gloo-platform/gloo-platform-crds  \
 --namespace=gloo-mesh \
 --kube-context=${CLUSTER1} \
 --version=2.5.0-beta1
-helm upgrade --install gloo-platform gloo-platform/gloo-platform \
+helm upgrade --install gloo-platform-agent gloo-platform/gloo-platform \
   --namespace=gloo-mesh \
   --kube-context=${CLUSTER1} \
   --version=2.5.0-beta1 \
@@ -398,7 +387,7 @@ helm upgrade --install gloo-platform-crds gloo-platform/gloo-platform-crds  \
 --namespace=gloo-mesh \
 --kube-context=${CLUSTER2} \
 --version=2.5.0-beta1
-helm upgrade --install gloo-platform gloo-platform/gloo-platform \
+helm upgrade --install gloo-platform-agent gloo-platform/gloo-platform \
   --namespace=gloo-mesh \
   --kube-context=${CLUSTER2} \
   --version=2.5.0-beta1 \
@@ -5361,7 +5350,7 @@ spec:
           cloudProvider:
             name: aws
             namespace: gloo-mesh
-            cluster: mgmt
+            cluster: cluster1
           function: workshop-echo
           options:
             responseTransformation: RESPONSE_DISABLE
@@ -5467,7 +5456,7 @@ spec:
           cloudProvider:
             name: aws
             namespace: gloo-mesh
-            cluster: mgmt
+            cluster: cluster1
           function: workshop-api-gateway
           options:
             responseTransformation: RESPONSE_DEFAULT
@@ -6980,362 +6969,7 @@ mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${te
 
 
 
-## Lab 30 - Gloo Mesh Management Plane failover <a name="lab-30---gloo-mesh-management-plane-failover-"></a>
-
-
-Before we start the failover procedure, let's capture the current output snapshot:
-
-```bash
-pod=$(kubectl --context ${MGMT} -n gloo-mesh get pods -l app=gloo-mesh-mgmt-server -o jsonpath='{.items[0].metadata.name}')
-kubectl --context ${MGMT} -n gloo-mesh debug -q -i ${pod} --image=curlimages/curl -- curl -s http://localhost:9091/snapshots/output > output
-```
-
-We can use it later to check the translation produces the same output on the new management plane.
-
-Also, let's find what's the last `resourceVersion` of all the Istio objects on `cluster1`:
-
-```bash
-kubectl --context ${CLUSTER1} get gw,vs,dr,se,we,envoyfilters -A -o json | jq -r '.items[].metadata.resourceVersion' | sort -u | tail -1 > last
-```
-
-We can use it later to check the failover hasn't impacted the Istio configuration (no objects have been modified).
-We're going to deploy a new Kubernetes cluster to host the standby Gloo Platform management plane:
-
-```bash
-./scripts/deploy-aws-with-calico.sh 4 mgmt2
-```
-
-Then, run the following commands to wait for all the Pods to be ready:
-
-```bash
-./scripts/check.sh mgmt2
-```
-
-We also need to create a new environment variable:
-```bash
-export MGMT2=mgmt2
-```
-
-Copy the relay secrets used by the previous management plane to the new one:
-
-```bash
-kubectl --context ${MGMT2} create ns gloo-mesh
-kubectl --context ${MGMT} -n gloo-mesh get secret relay-identity-token-secret -o yaml | kubectl --context ${MGMT2} -n gloo-mesh apply -f -
-kubectl --context ${MGMT} -n gloo-mesh get secret relay-root-tls-secret -o yaml | kubectl --context ${MGMT2} -n gloo-mesh apply -f -
-kubectl --context ${MGMT} -n gloo-mesh get secret relay-server-tls-secret -o yaml | kubectl --context ${MGMT2} -n gloo-mesh apply -f -
-kubectl --context ${MGMT} -n gloo-mesh get secret relay-tls-signing-secret -o yaml | kubectl --context ${MGMT2} -n gloo-mesh apply -f -
-```
-
-After that, we can deploy Gloo Platform on this cluster.
-
-Run the following commands to deploy the Gloo Platform management plane (and scale it down):
-
-```bash
-helm repo add gloo-platform https://storage.googleapis.com/gloo-platform/helm-charts
-helm repo update
-kubectl --context ${MGMT2} create ns gloo-mesh
-helm upgrade --install gloo-platform-crds gloo-platform/gloo-platform-crds \
---namespace gloo-mesh \
---kube-context ${MGMT2} \
---version=2.5.0-beta1
-helm upgrade --install gloo-platform gloo-platform/gloo-platform \
---namespace gloo-mesh \
---kube-context ${MGMT2} \
---version=2.5.0-beta1 \
- -f -<<EOF
-licensing:
-  licenseKey: ${GLOO_MESH_LICENSE_KEY}
-common:
-  cluster: mgmt
-glooMgmtServer:
-  enabled: true
-  ports:
-    healthcheck: 8091
-prometheus:
-  enabled: true
-redis:
-  deployment:
-    enabled: true
-telemetryGateway:
-  enabled: true
-  service:
-    type: LoadBalancer
-glooUi:
-  enabled: true
-  serviceType: LoadBalancer
-EOF
-kubectl --context ${MGMT2} -n gloo-mesh rollout status deploy/gloo-mesh-mgmt-server
-
-kubectl --context ${MGMT2} -n gloo-mesh scale deploy/gloo-mesh-mgmt-server --replicas=0
-```
-
-Finally, you need to specify which gateways you want to use for cross cluster traffic:
-
-```bash
-cat <<EOF | kubectl --context ${MGMT2} apply -f -
-apiVersion: admin.gloo.solo.io/v2
-kind: WorkspaceSettings
-metadata:
-  name: global
-  namespace: gloo-mesh
-spec:
-  options:
-    eastWestGateways:
-      - selector:
-          labels:
-            istio: eastwestgateway
-EOF
-```
-
-Copy the `KubernetesCluster` objects from the previous management plane to the new one:
-
-```bash
-kubectl --context ${MGMT} -n gloo-mesh get KubernetesCluster cluster1 -o yaml | kubectl --context ${MGMT2} -n gloo-mesh apply -f -
-kubectl --context ${MGMT} -n gloo-mesh get KubernetesCluster cluster2 -o yaml | kubectl --context ${MGMT2} -n gloo-mesh apply -f -
-```
-
-Copy the secret containing the root CA certificate used by the previous management plane to the new one:
-
-```bash
-kubectl --context ${MGMT} -n gloo-mesh get secret root-trust-policy.gloo-mesh -o yaml | kubectl --context ${MGMT2} -n gloo-mesh apply -f -
-```
-
-Copy the `IstioLifecycleManager` and `GatewayLifecycleManager` objects from the previous management plane to the new one:
-
-```bash
-kubectl --context ${MGMT} -n gloo-mesh get IstioLifecycleManager cluster1-installation -o yaml | kubectl --context ${MGMT2} -n gloo-mesh apply -f -
-kubectl --context ${MGMT} -n gloo-mesh get IstioLifecycleManager cluster2-installation -o yaml | kubectl --context ${MGMT2} -n gloo-mesh apply -f -
-kubectl --context ${MGMT} -n gloo-mesh get GatewayLifecycleManager cluster1-ingress -o yaml | kubectl --context ${MGMT2} -n gloo-mesh apply -f -
-kubectl --context ${MGMT} -n gloo-mesh get GatewayLifecycleManager cluster1-eastwest -o yaml | kubectl --context ${MGMT2} -n gloo-mesh apply -f -
-kubectl --context ${MGMT} -n gloo-mesh get GatewayLifecycleManager cluster2-ingress -o yaml | kubectl --context ${MGMT2} -n gloo-mesh apply -f -
-kubectl --context ${MGMT} -n gloo-mesh get GatewayLifecycleManager cluster2-eastwest -o yaml | kubectl --context ${MGMT2} -n gloo-mesh apply -f -
-```
-
-Create the following `RootTrustPolicy` object which will create the new `cacerts` secret using the previous root CA certificate.
-
-```bash
-cat << EOF | kubectl --context ${MGMT2} apply -f -
-apiVersion: admin.gloo.solo.io/v2
-kind: RootTrustPolicy
-metadata:
-  name: root-trust-policy
-  namespace: gloo-mesh
-spec:
-  config:
-    mgmtServerCa:
-      secretRef:
-        name: root-trust-policy.gloo-mesh
-        namespace: gloo-mesh
-    autoRestartPods: false
-EOF
-```
-
-Let's create the `gateways` workspace which corresponds to the `istio-gateways` and the `gloo-mesh-addons` namespaces on the cluster(s):
-
-```bash
-kubectl apply --context ${MGMT2} -f- <<EOF
-apiVersion: admin.gloo.solo.io/v2
-kind: Workspace
-metadata:
-  name: gateways
-  namespace: gloo-mesh
-spec:
-  workloadClusters:
-  - name: cluster1
-    namespaces:
-    - name: istio-gateways
-    - name: gloo-mesh-addons
-  - name: cluster2
-    namespaces:
-    - name: istio-gateways
-    - name: gloo-mesh-addons
-EOF
-```
-
-Let's create the `bookinfo` workspace which corresponds to the `bookinfo-frontends` and `bookinfo-backends` namespaces on the cluster(s):
-
-```bash
-kubectl apply --context ${MGMT2} -f- <<EOF
-apiVersion: admin.gloo.solo.io/v2
-kind: Workspace
-metadata:
-  name: bookinfo
-  namespace: gloo-mesh
-  labels:
-    allow_ingress: "true"
-spec:
-  workloadClusters:
-  - name: cluster1
-    namespaces:
-    - name: bookinfo-frontends
-    - name: bookinfo-backends
-  - name: cluster2
-    namespaces:
-    - name: bookinfo-frontends
-    - name: bookinfo-backends
-EOF
-```
-
-Let's create the `httpbin` workspace which corresponds to the `httpbin` namespace on `cluster1`:
-
-```bash
-kubectl apply --context ${MGMT2} -f- <<EOF
-apiVersion: admin.gloo.solo.io/v2
-kind: Workspace
-metadata:
-  name: httpbin
-  namespace: gloo-mesh
-  labels:
-    allow_ingress: "true"
-spec:
-  workloadClusters:
-  - name: cluster1
-    namespaces:
-    - name: httpbin
-EOF
-```
-
-Then, you need to set the environment variable to tell the Gloo Platform agents how to communicate with the management plane:
-
-```bash
-export ENDPOINT_GLOO_MESH=$(kubectl --context ${MGMT2} -n gloo-mesh get svc gloo-mesh-mgmt-server -o jsonpath='{.status.loadBalancer.ingress[0].*}'):9900
-export HOST_GLOO_MESH=$(echo ${ENDPOINT_GLOO_MESH%:*})
-export ENDPOINT_TELEMETRY_GATEWAY=$(kubectl --context ${MGMT2} -n gloo-mesh get svc gloo-telemetry-gateway -o jsonpath='{.status.loadBalancer.ingress[0].*}'):4317
-```
-
-Now, let's update the agents to use the new management plane.
-
-```bash
-kubectl apply --context ${MGMT} -f- <<EOF
-apiVersion: admin.gloo.solo.io/v2
-kind: KubernetesCluster
-metadata:
-  name: cluster1
-  namespace: gloo-mesh
-spec:
-  clusterDomain: cluster.local
-EOF
-kubectl --context ${CLUSTER1} create ns gloo-mesh
-kubectl get secret relay-root-tls-secret -n gloo-mesh --context ${MGMT} -o jsonpath='{.data.ca\.crt}' | base64 -d > ca.crt
-kubectl create secret generic relay-root-tls-secret -n gloo-mesh --context ${CLUSTER1} --from-file ca.crt=ca.crt
-rm ca.crt
-
-kubectl get secret relay-identity-token-secret -n gloo-mesh --context ${MGMT} -o jsonpath='{.data.token}' | base64 -d > token
-kubectl create secret generic relay-identity-token-secret -n gloo-mesh --context ${CLUSTER1} --from-file token=token
-rm token
-helm upgrade --install gloo-platform-crds gloo-platform/gloo-platform-crds  \
---namespace=gloo-mesh \
---kube-context=${CLUSTER1} \
---version=2.5.0-beta1
-helm upgrade --install gloo-platform gloo-platform/gloo-platform \
-  --namespace=gloo-mesh \
-  --kube-context=${CLUSTER1} \
-  --version=2.5.0-beta1 \
- -f -<<EOF
-common:
-  cluster: cluster1
-glooAgent:
-  enabled: true
-  relay:
-    serverAddress: "${ENDPOINT_GLOO_MESH}"
-    authority: gloo-mesh-mgmt-server.gloo-mesh
-telemetryCollector:
-  enabled: true
-  config:
-    exporters:
-      otlp:
-        endpoint: "${ENDPOINT_TELEMETRY_GATEWAY}"
-EOF
-
-kubectl apply --context ${MGMT} -f- <<EOF
-apiVersion: admin.gloo.solo.io/v2
-kind: KubernetesCluster
-metadata:
-  name: cluster2
-  namespace: gloo-mesh
-spec:
-  clusterDomain: cluster.local
-EOF
-kubectl --context ${CLUSTER2} create ns gloo-mesh
-kubectl get secret relay-root-tls-secret -n gloo-mesh --context ${MGMT} -o jsonpath='{.data.ca\.crt}' | base64 -d > ca.crt
-kubectl create secret generic relay-root-tls-secret -n gloo-mesh --context ${CLUSTER2} --from-file ca.crt=ca.crt
-rm ca.crt
-
-kubectl get secret relay-identity-token-secret -n gloo-mesh --context ${MGMT} -o jsonpath='{.data.token}' | base64 -d > token
-kubectl create secret generic relay-identity-token-secret -n gloo-mesh --context ${CLUSTER2} --from-file token=token
-rm token
-helm upgrade --install gloo-platform-crds gloo-platform/gloo-platform-crds  \
---namespace=gloo-mesh \
---kube-context=${CLUSTER2} \
---version=2.5.0-beta1
-helm upgrade --install gloo-platform gloo-platform/gloo-platform \
-  --namespace=gloo-mesh \
-  --kube-context=${CLUSTER2} \
-  --version=2.5.0-beta1 \
- -f -<<EOF
-common:
-  cluster: cluster2
-glooAgent:
-  enabled: true
-  relay:
-    serverAddress: "${ENDPOINT_GLOO_MESH}"
-    authority: gloo-mesh-mgmt-server.gloo-mesh
-telemetryCollector:
-  enabled: true
-  config:
-    exporters:
-      otlp:
-        endpoint: "${ENDPOINT_TELEMETRY_GATEWAY}"
-EOF
-```
-
-Let's scale up the management plane:
-
-```bash
-kubectl --context ${MGMT2} -n gloo-mesh scale deploy/gloo-mesh-mgmt-server --replicas=1
-```
-
-And update the variables to use the new management plane from now on:
-
-```bash
-export MGMT=${MGMT2}
-```
-
-<!--bash
-cat <<'EOF' > ./test.js
-const chaiExec = require("@jsdevtools/chai-exec");
-var chai = require('chai');
-var expect = chai.expect;
-chai.use(chaiExec);
-
-afterEach(function (done) {
-  if (this.currentTest.currentRetry() > 0) {
-    process.stdout.write(".");
-    setTimeout(done, 1000);
-  } else {
-    done();
-  }
-});
-
-describe("failover has no impact", () => {
-  it("Istio objects haven't been modified", () => {
-    let cli = chaiExec(`bash -c "kubectl --context ${process.env.CLUSTER1} get gw,vs,dr,se,we,envoyfilters -A -o json | jq -r '.items[].metadata.resourceVersion' | sort -u | tail -1"`);
-    let last = chaiExec("cat last");
-
-    expect(cli).to.exit.with.code(0);
-    expect(cli).stdout.to.contain(last.stdout);
-  });
-});
-EOF
-echo "executing test dist/gloo-mesh-2-0-all-mgmt-as-workload-beta/build/templates/steps/gloo-mesh-mgmt-failover/tests/failover-has-no-impact.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
--->
-
-
-
-## Lab 31 - Securing the egress traffic <a name="lab-31---securing-the-egress-traffic-"></a>
+## Lab 30 - Securing the egress traffic <a name="lab-30---securing-the-egress-traffic-"></a>
 [<img src="https://img.youtube.com/vi/tQermml1Ryo/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/tQermml1Ryo "Video Link")
 
 
