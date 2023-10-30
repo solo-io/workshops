@@ -133,6 +133,22 @@ Run the following command to make `mgmt` the current cluster.
 ```bash
 kubectl config use-context ${MGMT}
 ```
+<!--bash
+cat <<'EOF' > ./test.js
+const helpers = require('./tests/chai-exec');
+
+describe("Clusters are healthy", () => {
+    const clusters = [process.env.MGMT, process.env.CLUSTER1, process.env.CLUSTER2];
+    clusters.forEach(cluster => {
+        it(`Cluster ${cluster} is healthy`, () => helpers.k8sObjectIsPresent({ context: cluster, namespace: "default", k8sType: "service", k8sObj: "kubernetes" }));
+    });
+});
+EOF
+echo "executing test dist/gloo-mesh-2-0-default-portal/build/templates/steps/deploy-kind-clusters/tests/cluster-healthy.test.js.liquid"
+tempfile=$(mktemp)
+echo "saving errors in ${tempfile}"
+mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
+-->
 
 
 
@@ -668,7 +684,7 @@ spec:
       istioOperatorSpec:
         profile: minimal
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.19.1-solo
+        tag: 1.19.3-solo
         namespace: istio-system
         values:
           global:
@@ -708,7 +724,7 @@ spec:
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.19.1-solo
+        tag: 1.19.3-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -735,7 +751,7 @@ spec:
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.19.1-solo
+        tag: 1.19.3-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -771,7 +787,7 @@ spec:
       istioOperatorSpec:
         profile: minimal
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.19.1-solo
+        tag: 1.19.3-solo
         namespace: istio-system
         values:
           global:
@@ -811,7 +827,7 @@ spec:
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.19.1-solo
+        tag: 1.19.3-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -838,7 +854,7 @@ spec:
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.19.1-solo
+        tag: 1.19.3-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -1836,11 +1852,14 @@ curl -m 2 -H "Authorization: Bearer ${KEYCLOAK_TOKEN}" -X PUT -H "Content-Type: 
 # Add the group attribute in the JWT token returned by Keycloak
 curl -m 2 -H "Authorization: Bearer ${KEYCLOAK_TOKEN}" -X POST -H "Content-Type: application/json" -d '{"name": "group", "protocol": "openid-connect", "protocolMapper": "oidc-usermodel-attribute-mapper", "config": {"claim.name": "group", "jsonType.label": "String", "user.attribute": "group", "id.token.claim": "true", "access.token.claim": "true"}}' $KEYCLOAK_URL/admin/realms/master/clients/${id}/protocol-mappers/models
 
+# Add the show_personal_data attribute in the JWT token returned by Keycloak
+curl -m 2 -H "Authorization: Bearer ${KEYCLOAK_TOKEN}" -X POST -H "Content-Type: application/json" -d '{"name": "show_personal_data", "protocol": "openid-connect", "protocolMapper": "oidc-usermodel-attribute-mapper", "config": {"claim.name": "show_personal_data", "jsonType.label": "String", "user.attribute": "show_personal_data", "id.token.claim": "true", "access.token.claim": "true"}}' $KEYCLOAK_URL/admin/realms/master/clients/${id}/protocol-mappers/models
+
 # Create first user
 curl -m 2 -H "Authorization: Bearer ${KEYCLOAK_TOKEN}" -X POST -H "Content-Type: application/json" -d '{"username": "user1", "email": "user1@example.com", "enabled": true, "attributes": {"group": "users"}, "credentials": [{"type": "password", "value": "password", "temporary": false}]}' $KEYCLOAK_URL/admin/realms/master/users
 
 # Create second user
-curl -m 2 -H "Authorization: Bearer ${KEYCLOAK_TOKEN}" -X POST -H "Content-Type: application/json" -d '{"username": "user2", "email": "user2@solo.io", "enabled": true, "attributes": {"group": "users"}, "credentials": [{"type": "password", "value": "password", "temporary": false}]}' $KEYCLOAK_URL/admin/realms/master/users
+curl -m 2 -H "Authorization: Bearer ${KEYCLOAK_TOKEN}" -X POST -H "Content-Type: application/json" -d '{"username": "user2", "email": "user2@solo.io", "enabled": true, "attributes": {"group": "users", "show_personal_data": false}, "credentials": [{"type": "password", "value": "password", "temporary": false}]}' $KEYCLOAK_URL/admin/realms/master/users
 ```
 
 > **Note:** If you get a *Not Authorized* error, please, re-run this command and continue from the command started to fail:
@@ -2396,6 +2415,27 @@ spec:
               number: 443
     - matchers:
       - uri:
+          regex: /api/bookinfo/v2/authors/([^.]+).json
+      labels:
+        apikeys: "true"
+        ratelimited: "true"
+        api: "productpage"
+      forwardTo:
+        hostRewrite: openlibrary.org
+        regexRewrite:
+          pattern:
+            regex: /api/bookinfo/v2/authors/([^.]+).json
+          substitution: /authors/\1.json
+        destinations:
+          - kind: EXTERNAL_SERVICE 
+            ref:
+              name: openlibrary
+              namespace: bookinfo-frontends
+              cluster: cluster1
+            port:
+              number: 443
+    - matchers:
+      - uri:
           prefix: /api/bookinfo/v2
       labels:
         apikeys: "true"
@@ -2467,6 +2507,14 @@ You should get something like that:
     "q": "",
     "offset": null
 }
+```
+
+Note we've also exposed the `/authors/{olid}.json` path to demonstrate how we can use regular expressions to capture path parameters.
+
+You can try it out with the following command:
+
+```shell
+curl -k -H "api-key: ${API_KEY_USER1}" "https://${ENDPOINT_HTTPS_GW_CLUSTER1}/api/bookinfo/v2/authors/OL23919A.json"
 ```
 
 
