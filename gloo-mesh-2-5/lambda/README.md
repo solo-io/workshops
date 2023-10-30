@@ -130,6 +130,22 @@ Run the following command to make `mgmt` the current cluster.
 ```bash
 kubectl config use-context ${MGMT}
 ```
+<!--bash
+cat <<'EOF' > ./test.js
+const helpers = require('./tests/chai-exec');
+
+describe("Clusters are healthy", () => {
+    const clusters = [process.env.MGMT, process.env.CLUSTER1, process.env.CLUSTER2];
+    clusters.forEach(cluster => {
+        it(`Cluster ${cluster} is healthy`, () => helpers.k8sObjectIsPresent({ context: cluster, namespace: "default", k8sType: "service", k8sObj: "kubernetes" }));
+    });
+});
+EOF
+echo "executing test dist/gloo-mesh-2-0-lambda-beta/build/templates/steps/deploy-kind-clusters/tests/cluster-healthy.test.js.liquid"
+tempfile=$(mktemp)
+echo "saving errors in ${tempfile}"
+mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
+-->
 
 
 
@@ -625,7 +641,7 @@ spec:
       istioOperatorSpec:
         profile: minimal
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.19.1-solo
+        tag: 1.19.3-solo
         namespace: istio-system
         values:
           global:
@@ -665,7 +681,7 @@ spec:
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.19.1-solo
+        tag: 1.19.3-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -692,7 +708,7 @@ spec:
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.19.1-solo
+        tag: 1.19.3-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -728,7 +744,7 @@ spec:
       istioOperatorSpec:
         profile: minimal
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.19.1-solo
+        tag: 1.19.3-solo
         namespace: istio-system
         values:
           global:
@@ -768,7 +784,7 @@ spec:
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.19.1-solo
+        tag: 1.19.3-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -795,7 +811,7 @@ spec:
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.19.1-solo
+        tag: 1.19.3-solo
         values:
           gateways:
             istio-ingressgateway:
