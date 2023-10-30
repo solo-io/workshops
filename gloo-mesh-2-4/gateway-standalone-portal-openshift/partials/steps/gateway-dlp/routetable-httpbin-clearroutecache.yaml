@@ -1,0 +1,48 @@
+
+apiVersion: networking.gloo.solo.io/v2
+kind: RouteTable
+metadata:
+  name: httpbin
+  namespace: httpbin
+  labels:
+    expose: "true"
+spec:
+  http:
+    - name: httpbin-dlp
+      labels:
+        oauth: "true"
+        dlp: "true"
+      matchers:
+      - uri:
+          exact: /get
+        headers:
+        - name: x-show-personal-data
+          value: 'false'
+      - uri:
+          exact: /response-headers
+      forwardTo:
+        destinations:
+        - ref:
+            name: not-in-mesh
+            namespace: httpbin
+            cluster: cluster1
+          port:
+            number: 8000
+    - name: httpbin
+      labels:
+        oauth: "true"
+      matchers:
+      - uri:
+          exact: /get
+      - uri:
+          exact: /logout
+      - uri:
+          prefix: /callback
+      forwardTo:
+        destinations:
+        - ref:
+            name: not-in-mesh
+            namespace: httpbin
+            cluster: cluster1
+          port:
+            number: 8000
