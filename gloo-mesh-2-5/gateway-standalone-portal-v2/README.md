@@ -27,17 +27,18 @@ source ./scripts/assert.sh
 * [Lab 11 - Expose the httpbin service](#lab-11---expose-the-httpbin-service-)
 * [Lab 12 - Securing the access with OAuth](#lab-12---securing-the-access-with-oauth-)
 * [Lab 13 - Use the JWT filter to create headers from claims](#lab-13---use-the-jwt-filter-to-create-headers-from-claims-)
-* [Lab 14 - Use the transformation filter to manipulate headers](#lab-14---use-the-transformation-filter-to-manipulate-headers-)
-* [Lab 15 - Use the Web Application Firewall filter](#lab-15---use-the-web-application-firewall-filter-)
-* [Lab 16 - Use the WAF to block based on source country](#lab-16---use-the-waf-to-block-based-on-source-country-)
-* [Lab 17 - Expose the productpage API securely](#lab-17---expose-the-productpage-api-securely-)
-* [Lab 18 - Expose the dev portal backend](#lab-18---expose-the-dev-portal-backend-)
-* [Lab 19 - Deploy and expose the dev portal frontend](#lab-19---deploy-and-expose-the-dev-portal-frontend-)
-* [Lab 20 - Validate user information based on API key metadata](#lab-20---validate-user-information-based-on-api-key-metadata-)
-* [Lab 21 - Validate user information with API key metadata and an external service](#lab-21---validate-user-information-with-api-key-metadata-and-an-external-service-)
-* [Lab 22 - Allow users to create their own API keys](#lab-22---allow-users-to-create-their-own-api-keys-)
-* [Lab 23 - Allow users to import API keys from an external system](#lab-23---allow-users-to-import-api-keys-from-an-external-system-)
-* [Lab 24 - Dev portal monetization](#lab-24---dev-portal-monetization-)
+* [Lab 14 - Use the DLP policy to mask sensitive data](#lab-14---use-the-dlp-policy-to-mask-sensitive-data-)
+* [Lab 15 - Use the transformation filter to manipulate headers](#lab-15---use-the-transformation-filter-to-manipulate-headers-)
+* [Lab 16 - Use the Web Application Firewall filter](#lab-16---use-the-web-application-firewall-filter-)
+* [Lab 17 - Use the WAF to block based on source country](#lab-17---use-the-waf-to-block-based-on-source-country-)
+* [Lab 18 - Expose the productpage API securely](#lab-18---expose-the-productpage-api-securely-)
+* [Lab 19 - Expose the dev portal backend](#lab-19---expose-the-dev-portal-backend-)
+* [Lab 20 - Deploy and expose the dev portal frontend](#lab-20---deploy-and-expose-the-dev-portal-frontend-)
+* [Lab 21 - Validate user information based on API key metadata](#lab-21---validate-user-information-based-on-api-key-metadata-)
+* [Lab 22 - Validate user information with API key metadata and an external service](#lab-22---validate-user-information-with-api-key-metadata-and-an-external-service-)
+* [Lab 23 - Allow users to create their own API keys](#lab-23---allow-users-to-create-their-own-api-keys-)
+* [Lab 24 - Allow users to import API keys from an external system](#lab-24---allow-users-to-import-api-keys-from-an-external-system-)
+* [Lab 25 - Dev portal monetization](#lab-25---dev-portal-monetization-)
 
 
 
@@ -122,6 +123,22 @@ local-path-storage   local-path-provisioner-58f6947c7-lfmdx        1/1     Runni
 metallb-system       controller-5c9894b5cd-cn9x2                   1/1     Running   0          4h26m
 metallb-system       speaker-d7jkp                                 1/1     Running   0          4h26m
 ```
+<!--bash
+cat <<'EOF' > ./test.js
+const helpers = require('./tests/chai-exec');
+
+describe("Clusters are healthy", () => {
+    const clusters = [process.env.MGMT, process.env.CLUSTER1];
+    clusters.forEach(cluster => {
+        it(`Cluster ${cluster} is healthy`, () => helpers.k8sObjectIsPresent({ context: cluster, namespace: "default", k8sType: "service", k8sObj: "kubernetes" }));
+    });
+});
+EOF
+echo "executing test dist/gloo-mesh-2-0-gateway-standalone-portal-v2-beta/build/templates/steps/deploy-kind-cluster/tests/cluster-healthy.test.js.liquid"
+tempfile=$(mktemp)
+echo "saving errors in ${tempfile}"
+mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
+-->
 
 
 
@@ -222,7 +239,7 @@ istioInstallations:
     installations:
       - istioOperatorSpec:
           hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-          tag: 1.19.1-solo
+          tag: 1.19.3-solo
         revision: 1-19
   northSouthGateways:
     - enabled: true
@@ -234,7 +251,7 @@ istioInstallations:
           gatewayRevision: 1-19
           istioOperatorSpec:
             hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-            tag: 1.19.1-solo
+            tag: 1.19.3-solo
             profile: empty
             components:
               ingressGateways:
@@ -683,11 +700,14 @@ curl -m 2 -H "Authorization: Bearer ${KEYCLOAK_TOKEN}" -X PUT -H "Content-Type: 
 # Add the group attribute in the JWT token returned by Keycloak
 curl -m 2 -H "Authorization: Bearer ${KEYCLOAK_TOKEN}" -X POST -H "Content-Type: application/json" -d '{"name": "group", "protocol": "openid-connect", "protocolMapper": "oidc-usermodel-attribute-mapper", "config": {"claim.name": "group", "jsonType.label": "String", "user.attribute": "group", "id.token.claim": "true", "access.token.claim": "true"}}' $KEYCLOAK_URL/admin/realms/master/clients/${id}/protocol-mappers/models
 
+# Add the show_personal_data attribute in the JWT token returned by Keycloak
+curl -m 2 -H "Authorization: Bearer ${KEYCLOAK_TOKEN}" -X POST -H "Content-Type: application/json" -d '{"name": "show_personal_data", "protocol": "openid-connect", "protocolMapper": "oidc-usermodel-attribute-mapper", "config": {"claim.name": "show_personal_data", "jsonType.label": "String", "user.attribute": "show_personal_data", "id.token.claim": "true", "access.token.claim": "true"}}' $KEYCLOAK_URL/admin/realms/master/clients/${id}/protocol-mappers/models
+
 # Create first user
 curl -m 2 -H "Authorization: Bearer ${KEYCLOAK_TOKEN}" -X POST -H "Content-Type: application/json" -d '{"username": "user1", "email": "user1@example.com", "enabled": true, "attributes": {"group": "users"}, "credentials": [{"type": "password", "value": "password", "temporary": false}]}' $KEYCLOAK_URL/admin/realms/master/users
 
 # Create second user
-curl -m 2 -H "Authorization: Bearer ${KEYCLOAK_TOKEN}" -X POST -H "Content-Type: application/json" -d '{"username": "user2", "email": "user2@solo.io", "enabled": true, "attributes": {"group": "users"}, "credentials": [{"type": "password", "value": "password", "temporary": false}]}' $KEYCLOAK_URL/admin/realms/master/users
+curl -m 2 -H "Authorization: Bearer ${KEYCLOAK_TOKEN}" -X POST -H "Content-Type: application/json" -d '{"username": "user2", "email": "user2@solo.io", "enabled": true, "attributes": {"group": "users", "show_personal_data": false}, "credentials": [{"type": "password", "value": "password", "temporary": false}]}' $KEYCLOAK_URL/admin/realms/master/users
 ```
 
 > **Note:** If you get a *Not Authorized* error, please, re-run this command and continue from the command started to fail:
@@ -1653,7 +1673,71 @@ mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${te
 
 
 
-## Lab 14 - Use the transformation filter to manipulate headers <a name="lab-14---use-the-transformation-filter-to-manipulate-headers-"></a>
+## Lab 14 - Use the DLP policy to mask sensitive data <a name="lab-14---use-the-dlp-policy-to-mask-sensitive-data-"></a>
+
+
+Now that we learnt how to put user information from the JWT to HTTP headers visible to the applications, those same applications could return sensitive or protected user information in the responses. 
+
+In this step, we're going to use a Data Loss Prevention (DLP) Policy to mask data in response bodies and headers.
+
+Let's create a `DLPPolicy` to mask protected user information.
+
+```bash
+kubectl apply --context ${CLUSTER1} -f - <<EOF
+apiVersion: security.policy.gloo.solo.io/v2
+kind: DLPPolicy
+metadata:
+  name: basic-dlp-policy
+  namespace: httpbin
+spec:
+  applyToRoutes:
+  - route:
+      labels:
+        oauth: "true"
+  config:
+    sanitize: ALL # Enable DLP masking for both responses bodies and access logs
+    actions:
+    - predefinedAction: ALL_CREDIT_CARDS # AMEX, VISA, MASTERCARD, JCB, DISCOVER, ETC.
+    - predefinedAction: SSN # Social Security Number
+    - customAction:
+        regexActions:
+        - regex: '[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,4}' # Email
+        - regex: 'eyJ[0-9a-zA-Z_-]+?\.[0-9a-zA-Z_-]+?\.[0-9a-zA-Z_-]+?' # JWT token
+EOF
+```
+
+By default, the DLP policy will mask the email address with the character `X`, leaving 25% of the characters visible. 
+Both character and percentage can be easily changed in the policy.
+
+If you refresh the web page, you should see `X-Email` header masked as `XXXXXXXXXX.io`
+
+<!--bash
+cat <<'EOF' > ./test.js
+const chaiExec = require("@jsdevtools/chai-exec");
+const helpersHttp = require('./tests/chai-http');
+
+describe("DLP Policy", function() {
+  let user = 'user2';
+  let password = 'password';
+  let keycloak_client_id = chaiExec("kubectl --context " + process.env.CLUSTER1 + " -n httpbin get extauthpolicy httpbin -o jsonpath='{.spec.config.glooAuth.configs[0].oauth2.oidcAuthorizationCode.clientId}'").stdout.replaceAll("'", "");
+  let keycloak_client_secret_base64 = chaiExec("kubectl --context " + process.env.CLUSTER1 + " -n httpbin get secret oauth -o jsonpath='{.data.client-secret}'").stdout.replaceAll("'", "");
+  let buff = new Buffer(keycloak_client_secret_base64, 'base64');
+  let keycloak_client_secret = buff.toString('ascii');
+  let keycloak_token = JSON.parse(chaiExec('curl -d "client_id=' + keycloak_client_id + '" -d "client_secret=' + keycloak_client_secret + '" -d "scope=openid" -d "username=' + user + '" -d "password=' + password + '" -d "grant_type=password" "' + process.env.KEYCLOAK_URL +'/realms/master/protocol/openid-connect/token"').stdout.replaceAll("'", "")).id_token;
+  
+  it('Email is masked', () => helpersHttp.checkBody({ host: 'https://' + process.env.ENDPOINT_HTTPS_GW_CLUSTER1, path: '/get', headers: [{key: 'Authorization', value: 'Bearer ' + keycloak_token}], body: '"X-Email": "XXXXXXXXXX.io"' }));
+});
+
+EOF
+echo "executing test dist/gloo-mesh-2-0-gateway-standalone-portal-v2-beta/build/templates/steps/apps/httpbin/gateway-dlp/tests/email-masked.test.js.liquid"
+tempfile=$(mktemp)
+echo "saving errors in ${tempfile}"
+mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
+-->
+
+
+
+## Lab 15 - Use the transformation filter to manipulate headers <a name="lab-15---use-the-transformation-filter-to-manipulate-headers-"></a>
 
 
 In this step, we're going to use a regular expression to extract a part of an existing header and to create a new one:
@@ -1720,7 +1804,7 @@ mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${te
 
 
 
-## Lab 15 - Use the Web Application Firewall filter <a name="lab-15---use-the-web-application-firewall-filter-"></a>
+## Lab 16 - Use the Web Application Firewall filter <a name="lab-16---use-the-web-application-firewall-filter-"></a>
 [<img src="https://img.youtube.com/vi/9q2TxtBDqrA/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/9q2TxtBDqrA "Video Link")
 
 
@@ -1870,7 +1954,7 @@ kubectl --context ${CLUSTER1} -n httpbin delete wafpolicies.security.policy.gloo
 
 
 
-## Lab 16 - Use the WAF to block based on source country <a name="lab-16---use-the-waf-to-block-based-on-source-country-"></a>
+## Lab 17 - Use the WAF to block based on source country <a name="lab-17---use-the-waf-to-block-based-on-source-country-"></a>
 
 A web application firewall (WAF) protects web applications by monitoring, filtering, and blocking potentially harmful traffic and attacks that can overtake or exploit them.
 
@@ -2078,7 +2162,7 @@ kubectl --context ${CLUSTER1} -n istio-gateways patch svc $(kubectl --context ${
 
 
 
-## Lab 17 - Expose the productpage API securely <a name="lab-17---expose-the-productpage-api-securely-"></a>
+## Lab 18 - Expose the productpage API securely <a name="lab-18---expose-the-productpage-api-securely-"></a>
 [<img src="https://img.youtube.com/vi/pkzeYaTj9k0/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/pkzeYaTj9k0 "Video Link")
 
 
@@ -2503,7 +2587,7 @@ server: istio-envoy
 
 
 
-## Lab 18 - Expose the dev portal backend <a name="lab-18---expose-the-dev-portal-backend-"></a>
+## Lab 19 - Expose the dev portal backend <a name="lab-19---expose-the-dev-portal-backend-"></a>
 [<img src="https://img.youtube.com/vi/mfXww6udYFs/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/mfXww6udYFs "Video Link")
 
 
@@ -2677,7 +2761,7 @@ The `RouteTable` we have created for the `bookinfo` API has this label.
 
 
 
-## Lab 19 - Deploy and expose the dev portal frontend <a name="lab-19---deploy-and-expose-the-dev-portal-frontend-"></a>
+## Lab 20 - Deploy and expose the dev portal frontend <a name="lab-20---deploy-and-expose-the-dev-portal-frontend-"></a>
 
 
 The developer frontend is provided as a fully functional template to allow you to customize it based on your own requirements.
@@ -2986,7 +3070,7 @@ Now, if you click on the `VIEW APIS` button, you should see the `Bookinfo REST A
 
 
 
-## Lab 20 - Validate user information based on API key metadata <a name="lab-20---validate-user-information-based-on-api-key-metadata-"></a>
+## Lab 21 - Validate user information based on API key metadata <a name="lab-21---validate-user-information-based-on-api-key-metadata-"></a>
 
 
 In this lab, we will explore how to expose information from the API key and use it to authorize requests.
@@ -3166,7 +3250,7 @@ EOF
 
 
 
-## Lab 21 - Validate user information with API key metadata and an external service <a name="lab-21---validate-user-information-with-api-key-metadata-and-an-external-service-"></a>
+## Lab 22 - Validate user information with API key metadata and an external service <a name="lab-22---validate-user-information-with-api-key-metadata-and-an-external-service-"></a>
 
 
 In this lab, we will explore how to expose information from the API key and use it to authorize requests.
@@ -3357,7 +3441,7 @@ Finally, repeat the test API call in the Swagger UI. This time you should see co
 
 
 
-## Lab 22 - Allow users to create their own API keys <a name="lab-22---allow-users-to-create-their-own-api-keys-"></a>
+## Lab 23 - Allow users to create their own API keys <a name="lab-23---allow-users-to-create-their-own-api-keys-"></a>
 [<img src="https://img.youtube.com/vi/fipCEZqijcQ/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/fipCEZqijcQ "Video Link")
 
 
@@ -3455,7 +3539,7 @@ mocha ./test.js --timeout 10000 --retries=150 --bail 2> ${tempfile} || { cat ${t
 
 
 
-## Lab 23 - Allow users to import API keys from an external system <a name="lab-23---allow-users-to-import-api-keys-from-an-external-system-"></a>
+## Lab 24 - Allow users to import API keys from an external system <a name="lab-24---allow-users-to-import-api-keys-from-an-external-system-"></a>
 
 
 In this lab, we will guide you through the process of creating a Go program to import the keys from another system. We will also show you how to use the additional metadata to add information to the key.
@@ -3614,7 +3698,7 @@ mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${te
 
 
 
-## Lab 24 - Dev portal monetization <a name="lab-24---dev-portal-monetization-"></a>
+## Lab 25 - Dev portal monetization <a name="lab-25---dev-portal-monetization-"></a>
 [<img src="https://img.youtube.com/vi/VTvQ7YQi2eA/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/VTvQ7YQi2eA "Video Link")
 
 
