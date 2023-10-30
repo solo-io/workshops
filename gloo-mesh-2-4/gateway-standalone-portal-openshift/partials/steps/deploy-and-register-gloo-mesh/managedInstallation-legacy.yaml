@@ -15,7 +15,7 @@ registerMgmtPlane:
     defaultRevision: true
     images:
       hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-      tag: 1.19.1-solo
+      tag: 1.19.3-solo
     controlPlane:
       enabled: true
       overrides: {}
