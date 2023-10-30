@@ -37,6 +37,27 @@ spec:
               number: 443
     - matchers:
       - uri:
+          regex: /api/bookinfo/v2/authors/([^.]+).json
+      labels:
+        apikeys: "true"
+        ratelimited: "true"
+        api: "productpage"
+      forwardTo:
+        hostRewrite: openlibrary.org
+        regexRewrite:
+          pattern:
+            regex: /api/bookinfo/v2/authors/([^.]+).json
+          substitution: /authors/\1.json
+        destinations:
+          - kind: EXTERNAL_SERVICE 
+            ref:
+              name: openlibrary
+              namespace: bookinfo-frontends
+              cluster: cluster1
+            port:
+              number: 443
+    - matchers:
+      - uri:
           prefix: /api/bookinfo/v2
       labels:
         apikeys: "true"
