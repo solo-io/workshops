@@ -17,8 +17,8 @@ glooAgent:
   floatingUserId: true
 extAuthService:
   enabled: true
-  extAuth: 
-    apiKeyStorage: 
+  extAuth:
+    apiKeyStorage:
       name: redis
       enabled: true
       config: 
