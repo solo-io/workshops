@@ -1414,8 +1414,8 @@ glooAgent:
   floatingUserId: true
 extAuthService:
   enabled: true
-  extAuth: 
-    apiKeyStorage: 
+  extAuth:
+    apiKeyStorage:
       name: redis
       enabled: true
       config: 
@@ -1438,8 +1438,8 @@ glooAgent:
   floatingUserId: true
 extAuthService:
   enabled: true
-  extAuth: 
-    apiKeyStorage: 
+  extAuth:
+    apiKeyStorage:
       name: redis
       enabled: true
       config: 
@@ -3913,6 +3913,274 @@ If you open the browser in incognito and login using the username `user2` and th
 This diagram shows the flow of the request (with the Istio ingress gateway leveraging the `extauth` Pod to authorize the request):
 
 ![Gloo Mesh Gateway Extauth](images/steps/gateway-extauth-oauth/gloo-mesh-gateway-extauth.svg)
+
+Before moving forward, let´s delete the created Rego rule in the configMap and the ExtAuthPolicy:
+
+```bash
+kubectl --context ${CLUSTER1} -n httpbin delete configmap allow-solo-email-users
+
+kubectl --context ${CLUSTER1} -n httpbin delete extauthpolicy httpbin
+```
+
+You can check again that you can access the application.
+
+So far, you did the first integration with OPA. It is called "as configmap". But there are two other ways to integrate OPA with Gloo.
+
+The second option is to deploy an OPA server as a sidecar. To do so, we will configure the addons to install the sidecar.
+
+```bash
+helm upgrade --install gloo-platform gloo-platform/gloo-platform \
+  --namespace gloo-mesh-addons \
+  --reuse-values \
+  --kube-context=${CLUSTER1} \
+  --version 2.5.0-beta1 \
+ -f -<<EOF
+extAuthService:
+  extAuth:
+    opaServer:
+      enabled: true
+      config: |
+        decision_logs:
+          console: true
+        services:
+          pap:
+            url: http://pap.gloo-mesh-addons.svc
+        bundles:
+          authz:
+            service: pap
+            resource: bundle.tar.gz
+            polling:
+              min_delay_seconds: 10
+              max_delay_seconds: 20
+EOF
+```
+
+Once the first option is better suited for a single cluster environment or a small environment where maintaining rego rules in configMaps is not a problem, the second option is better suited for a multi-cluster environment where you want to have distributed Authorization policies.
+
+Picture this as decoupling the PAP (Policy Administration Point) component from the PEP (Policy Enforcement Point) and PDP (Policy Decision Point) that OPA implements.
+
+The architecture looks like this:
+![OPA as sidecar](images/steps/gateway-extauth-oauth/opa-as-sidecar.png)
+
+The mechanism that OPA offer is that it can be configured to download the policies in a zip format (called bundle) from a remote location (like an S3 bucket) and then it can be configured to poll the remote location to check if there are new rules to download.
+
+![OPA as sidecar](images/steps/gateway-extauth-oauth/pap.png)
+
+An S3 bucket allows us to synchronize the policies across multiple clusters and regions given its low-latency architecture.
+
+For this Laboratory, instead of configuring an S3 bucket, we are going to deploy an HTTP server. Following application will take an static file with the rego rule we used before and will serve it as a bundle (compressed file).
+
+```bash
+kubectl apply --context ${CLUSTER1} -f - <<EOF
+apiVersion: v1
+data:
+  my-rego.rego: |
+    package test
+
+    default allow = false
+
+    allow {
+        [header, payload, signature] = io.jwt.decode(input.state.jwt)
+        endswith(payload["email"], "@solo.io")
+    }
+  .manifest: |
+    {"roots": ["/"]}
+kind: ConfigMap
+metadata:
+  name: bundle
+  namespace: gloo-mesh-addons
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: pap
+  name: pap
+  namespace: gloo-mesh-addons
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: pap
+  template:
+    metadata:
+      labels:
+        app: pap
+    spec:
+      initContainers:
+      - name: build
+        image: openpolicyagent/opa:0.57.1-debug
+        workingDir: /bundle
+        command: ["/bin/sh"]
+        args:
+          - -c
+          - opa build /tmp/bundle/my-rego.rego /tmp/bundle/.manifest -o /tmp/static/bundle.tar.gz
+        volumeMounts:
+        - name: bundle
+          mountPath: "/tmp/bundle"
+        - name: static
+          mountPath: "/tmp/static"
+      containers:
+      - image: nginx:1.25.3
+        imagePullPolicy: Always
+        name: nginx
+        ports:
+        - containerPort: 80
+        volumeMounts:
+        - mountPath: /usr/share/nginx/html
+          name: static
+      restartPolicy: Always
+      volumes:
+      - name: bundle
+        configMap:
+          name: bundle
+      - name: static
+        emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: pap
+  name: pap
+  namespace: gloo-mesh-addons
+spec:
+  ports:
+  - port: 80
+    protocol: TCP
+    targetPort: 80
+  selector:
+    app: pap
+EOF
+
+kubectl --context ${CLUSTER1}  patch deployment -n gloo-mesh-addons ext-auth-service -p '{"spec": {"template": {"spec": {"containers": [{"name": "opa-auth","livenessProbe": {"httpGet": {"path": "/health"}},"readinessProbe": {"httpGet": {"path": "/health"}}}]}}}}'
+
+kubectl --context ${CLUSTER1}  rollout restart deploy ext-auth-service -n gloo-mesh-addons
+```
+
+As part of this HTTP server, you can see that a policy (the same we used in the as-configMap mode) is persisted into the containers and a bundle is built.
+
+The very first thing we need to do is to enable the OPA server. To do so, when we install Gloo Addons we need to specify that we want to deploy the OPA server as a sidecar as follows:
+
+```yaml,nocopy
+[...]
+extAuthService:
+  enabled: true
+  extAuth: 
+    opaServer:
+      enabled: true
+      config: |
+        decision_logs:
+          console: true
+        services:
+          pap:
+            url: http://pap.gloo-mesh-addons.svc # Where to find the PAP
+        bundles:
+          authz:
+            service: pap
+            resource: bundle.tar.gz # Bundle file
+            polling:
+              min_delay_seconds: 10 # polling interval
+              max_delay_seconds: 20
+[...]
+```
+
+You can add as many services as you want with different policies.
+
+Now you can see three containers as part of the ExtAuth Service, OPA one of those:
+
+```bash
+kubectl --context ${CLUSTER1}  get po -A -l app=ext-auth-service
+```
+
+And you will see:
+
+```shell,nocopy
+NAMESPACE          NAME                                        READY   STATUS    RESTARTS        AGE
+gloo-mesh-addons   ext-auth-service-5c8d8c57c4-jk529           3/3     Running   0               6m7s
+```
+
+Now you can see that the OPA container has loaded the bundle:
+
+```bash
+kubectl --context ${CLUSTER1} -n gloo-mesh-addons logs -l app=ext-auth-service -c opa-auth --tail=1000 | grep "Bundle loaded"
+```
+
+And you will see something like below, indicating that the bundle has been loaded:
+
+```shell,nocopy
+{"level":"info","msg":"Bundle loaded and activated successfully. Etag updated to \"65396b99-19f\".","name":"authz","plugin":"bundle","time":"2023-10-25T19:25:27Z"}
+```
+
+Then, you need to update the `ExtAuthPolicy` object to add the new authorization step:
+
+```bash
+kubectl apply --context ${CLUSTER1} -f - <<EOF
+apiVersion: security.policy.gloo.solo.io/v2
+kind: ExtAuthPolicy
+metadata:
+  name: httpbin
+  namespace: httpbin
+spec:
+  applyToRoutes:
+  - route:
+      labels:
+        oauth: "true"
+  config:
+    server:
+      name: ext-auth-server
+      namespace: gloo-mesh-addons
+      cluster: cluster1
+    glooAuth:
+      configs:
+      - oauth2:
+          oidcAuthorizationCode:
+            appUrl: "https://${ENDPOINT_HTTPS_GW_CLUSTER1}"
+            callbackPath: /callback
+            clientId: ${KEYCLOAK_CLIENT}
+            clientSecretRef:
+              name: oauth
+              namespace: httpbin
+            issuerUrl: "${KEYCLOAK_URL}/realms/master/"
+            logoutPath: /logout
+            afterLogoutUrl: "https://${ENDPOINT_HTTPS_GW_CLUSTER1}/get"
+            session:
+              failOnFetchFailure: true
+              redis:
+                cookieName: keycloak-session
+                options:
+                  host: redis:6379
+            scopes:
+            - email
+            headers:
+              idTokenHeader: jwt
+      - opaServerAuth:
+          package: test
+          ruleName: allow
+          serverAddr: http://0.0.0.0:8181
+          options:
+  #          fastInputConversion: true
+            returnDecisionReason: true
+EOF
+```
+
+Refresh the web page. `user1` shouldn't be allowed to access it again since the user's email ends with `@example.com`.
+
+as you can see, even having the rego rule in ConfigMap deleted, when you try the same test we did before, we get the same results.
+
+Now our policies can be distributed across multiple clusters and regions.
+
+The third option is to deploy OPA as a server. This is the recommended model when you already have an OPA server and you just want to integrate it with Gloo Mesh.
+
+The only difference with the previous configuration is that in our ExtAuthzPolicy, instead of pointing to the sidecar, you need to point to the OPA server:
+
+```shell,nocopy
+      - opaServerAuth:
+          package: test
+          ruleName: allow
+          serverAddr: http://my-opa-server.ns.svc:xxxx
+```
+
 
 
 
