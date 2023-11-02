@@ -1,0 +1,17 @@
+extAuthService:
+  extAuth:
+    opaServer:
+      enabled: true
+      config: |
+        decision_logs:
+          console: true
+        services:
+          pap:
+            url: http://pap.gloo-mesh-addons.svc
+        bundles:
+          authz:
+            service: pap
+            resource: bundle.tar.gz
+            polling:
+              min_delay_seconds: 10
+              max_delay_seconds: 20
