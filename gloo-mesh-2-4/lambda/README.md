@@ -130,6 +130,22 @@ Run the following command to make `mgmt` the current cluster.
 ```bash
 kubectl config use-context ${MGMT}
 ```
+<!--bash
+cat <<'EOF' > ./test.js
+const helpers = require('./tests/chai-exec');
+
+describe("Clusters are healthy", () => {
+    const clusters = [process.env.MGMT, process.env.CLUSTER1, process.env.CLUSTER2];
+    clusters.forEach(cluster => {
+        it(`Cluster ${cluster} is healthy`, () => helpers.k8sObjectIsPresent({ context: cluster, namespace: "default", k8sType: "service", k8sObj: "kubernetes" }));
+    });
+});
+EOF
+echo "executing test dist/gloo-mesh-2-0-lambda/build/templates/steps/deploy-kind-clusters/tests/cluster-healthy.test.js.liquid"
+tempfile=$(mktemp)
+echo "saving errors in ${tempfile}"
+mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
+-->
 
 
 
@@ -1266,8 +1282,8 @@ glooAgent:
   enabled: false
 extAuthService:
   enabled: true
-  extAuth: 
-    apiKeyStorage: 
+  extAuth:
+    apiKeyStorage:
       name: redis
       enabled: true
       config: 
@@ -1289,8 +1305,8 @@ glooAgent:
   enabled: false
 extAuthService:
   enabled: true
-  extAuth: 
-    apiKeyStorage: 
+  extAuth:
+    apiKeyStorage:
       name: redis
       enabled: true
       config: 
