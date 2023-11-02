@@ -1180,8 +1180,8 @@ glooAgent:
   enabled: false
 extAuthService:
   enabled: true
-  extAuth: 
-    apiKeyStorage: 
+  extAuth:
+    apiKeyStorage:
       name: redis
       enabled: true
       config: 
@@ -1210,8 +1210,8 @@ glooAgent:
   enabled: false
 extAuthService:
   enabled: true
-  extAuth: 
-    apiKeyStorage: 
+  extAuth:
+    apiKeyStorage:
       name: redis
       enabled: true
       config: 
