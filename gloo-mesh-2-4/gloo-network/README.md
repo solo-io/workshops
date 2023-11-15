@@ -410,6 +410,7 @@ helm upgrade --install gloo-platform gloo-platform/gloo-platform \
 --kube-context ${MGMT} \
 --version=2.4.4 \
  -f -<<EOF
+
 licensing:
   licenseKey: ${GLOO_MESH_LICENSE_KEY}
 common:
