@@ -35,8 +35,8 @@ source ./scripts/assert.sh
 * [Lab 19 - Deploy Keycloak](#lab-19---deploy-keycloak-)
 * [Lab 20 - Securing the access with OAuth](#lab-20---securing-the-access-with-oauth-)
 * [Lab 21 - Use the JWT filter to create headers from claims](#lab-21---use-the-jwt-filter-to-create-headers-from-claims-)
-* [Lab 22 - Use the DLP policy to mask sensitive data](#lab-22---use-the-dlp-policy-to-mask-sensitive-data-)
-* [Lab 23 - Use the transformation filter to manipulate headers](#lab-23---use-the-transformation-filter-to-manipulate-headers-)
+* [Lab 22 - Use the transformation filter to manipulate headers](#lab-22---use-the-transformation-filter-to-manipulate-headers-)
+* [Lab 23 - Use the DLP policy to mask sensitive data](#lab-23---use-the-dlp-policy-to-mask-sensitive-data-)
 * [Lab 24 - Apply rate limiting to the Gateway](#lab-24---apply-rate-limiting-to-the-gateway-)
 * [Lab 25 - Use the Web Application Firewall filter](#lab-25---use-the-web-application-firewall-filter-)
 * [Lab 26 - Expose the bookinfo application through GraphQL](#lab-26---expose-the-bookinfo-application-through-graphql-)
@@ -187,16 +187,15 @@ amazon/amazon-eks-pod-identity-webhook:v0.5.0
 bats/bats:v1.4.1
 docker.io/kennethreitz/httpbin
 docker.io/nginx:1.25.3
-docker.io/openpolicyagent/opa:0.56.0
 docker.io/openpolicyagent/opa:0.57.1-debug
 docker.io/redis:7.0.11-alpine
-gcr.io/gloo-mesh/ext-auth-service:0.48.0
-gcr.io/gloo-mesh/gloo-mesh-agent:2.5.0-beta1
-gcr.io/gloo-mesh/gloo-mesh-apiserver:2.5.0-beta1
-gcr.io/gloo-mesh/gloo-mesh-envoy:2.5.0-beta1
-gcr.io/gloo-mesh/gloo-mesh-mgmt-server:2.5.0-beta1
-gcr.io/gloo-mesh/gloo-mesh-ui:2.5.0-beta1
-gcr.io/gloo-mesh/gloo-otel-collector:2.5.0-beta1
+gcr.io/gloo-mesh/ext-auth-service:0.51.0
+gcr.io/gloo-mesh/gloo-mesh-agent:2.5.0-beta2
+gcr.io/gloo-mesh/gloo-mesh-apiserver:2.5.0-beta2
+gcr.io/gloo-mesh/gloo-mesh-envoy:2.5.0-beta2
+gcr.io/gloo-mesh/gloo-mesh-mgmt-server:2.5.0-beta2
+gcr.io/gloo-mesh/gloo-mesh-ui:2.5.0-beta2
+gcr.io/gloo-mesh/gloo-otel-collector:2.5.0-beta2
 gcr.io/gloo-mesh/rate-limiter:0.9.3
 gcr.io/solo-test-236622/mtls-test:0.0.6
 grafana/grafana:9.3.1
@@ -259,7 +258,7 @@ done
 First of all, let's install the `meshctl` CLI:
 
 ```bash
-export GLOO_MESH_VERSION=v2.5.0-beta1
+export GLOO_MESH_VERSION=v2.5.0-beta2
 curl -sL https://run.solo.io/meshctl/install | sh -
 export PATH=$HOME/.gloo-mesh/bin:$PATH
 ```
@@ -305,12 +304,13 @@ kubectl --context ${MGMT} create ns gloo-mesh
 helm upgrade --install gloo-platform-crds gloo-platform/gloo-platform-crds \
 --namespace gloo-mesh \
 --kube-context ${MGMT} \
---version=2.5.0-beta1
+--version=2.5.0-beta2
 helm upgrade --install gloo-platform gloo-platform/gloo-platform \
 --namespace gloo-mesh \
 --kube-context ${MGMT} \
---version=2.5.0-beta1 \
+--version=2.5.0-beta2 \
  -f -<<EOF
+
 licensing:
   licenseKey: ${GLOO_MESH_LICENSE_KEY}
 common:
@@ -319,6 +319,10 @@ glooMgmtServer:
   enabled: true
   ports:
     healthcheck: 8091
+  insights:
+    enabled: true
+  istioController:
+    enabled: true
   image:
     registry: ${registry}/gloo-mesh
 prometheus:
@@ -353,6 +357,8 @@ glooUi:
     envoy:
       image:
         registry: ${registry}/gloo-mesh
+telemetryCollector:
+  enabled: true
 EOF
 kubectl --context ${MGMT} -n gloo-mesh rollout status deploy/gloo-mesh-mgmt-server
 ```
@@ -465,11 +471,11 @@ rm token
 helm upgrade --install gloo-platform-crds gloo-platform/gloo-platform-crds  \
 --namespace=gloo-mesh \
 --kube-context=${CLUSTER1} \
---version=2.5.0-beta1
+--version=2.5.0-beta2
 helm upgrade --install gloo-platform gloo-platform/gloo-platform \
   --namespace=gloo-mesh \
   --kube-context=${CLUSTER1} \
-  --version=2.5.0-beta1 \
+  --version=2.5.0-beta2 \
  -f -<<EOF
 common:
   cluster: cluster1
@@ -516,11 +522,11 @@ rm token
 helm upgrade --install gloo-platform-crds gloo-platform/gloo-platform-crds  \
 --namespace=gloo-mesh \
 --kube-context=${CLUSTER2} \
---version=2.5.0-beta1
+--version=2.5.0-beta2
 helm upgrade --install gloo-platform gloo-platform/gloo-platform \
   --namespace=gloo-mesh \
   --kube-context=${CLUSTER2} \
-  --version=2.5.0-beta1 \
+  --version=2.5.0-beta2 \
  -f -<<EOF
 common:
   cluster: cluster2
@@ -667,6 +673,22 @@ spec:
     port: 16443
     protocol: TCP
     targetPort: 16443
+  - name: tls-spire
+    port: 8081
+    protocol: TCP
+    targetPort: 8081
+  - name: tls-otel
+    port: 4317
+    protocol: TCP
+    targetPort: 4317
+  - name: grpc-cacert
+    port: 31338
+    protocol: TCP
+    targetPort: 31338
+  - name: grpc-ew-bootstrap
+    port: 31339
+    protocol: TCP
+    targetPort: 31339
   - name: tcp-istiod
     port: 15012
     protocol: TCP
@@ -735,6 +757,22 @@ spec:
     port: 16443
     protocol: TCP
     targetPort: 16443
+  - name: tls-spire
+    port: 8081
+    protocol: TCP
+    targetPort: 8081
+  - name: tls-otel
+    port: 4317
+    protocol: TCP
+    targetPort: 4317
+  - name: grpc-cacert
+    port: 31338
+    protocol: TCP
+    targetPort: 31338
+  - name: grpc-ew-bootstrap
+    port: 31339
+    protocol: TCP
+    targetPort: 31339
   - name: tcp-istiod
     port: 15012
     protocol: TCP
@@ -1429,7 +1467,7 @@ Then, you can deploy the addons on the cluster(s) using Helm:
 helm upgrade --install gloo-platform gloo-platform/gloo-platform \
   --namespace gloo-mesh-addons \
   --kube-context=${CLUSTER1} \
-  --version 2.5.0-beta1 \
+  --version 2.5.0-beta2 \
  -f -<<EOF
 common:
   cluster: cluster1
@@ -1462,7 +1500,7 @@ EOF
 helm upgrade --install gloo-platform gloo-platform/gloo-platform \
   --namespace gloo-mesh-addons \
   --kube-context=${CLUSTER2} \
-  --version 2.5.0-beta1 \
+  --version 2.5.0-beta2 \
  -f -<<EOF
 common:
   cluster: cluster2
@@ -1663,6 +1701,9 @@ spec:
     - kind: SERVICE
       labels:
         app: reviews
+    - kind: SERVICE
+      labels:
+        app: ratings
     - kind: ALL
       labels:
         expose: "true"
@@ -2591,7 +2632,7 @@ spec:
 EOF
 ```
 
-Note that we have added the label `expose` with the value `true` to make sure it will be exported to the Gateway ̀̀`Workspace`.
+Note that we have added the label `expose` with the value `true` to make sure it will be exported to the Gateway `Workspace`.
 
 After that, we need to update the `RouteTable` to use it.
 
@@ -2837,7 +2878,6 @@ kubectl --context ${CLUSTER1} -n bookinfo-frontends patch deployment productpage
 kubectl --context ${CLUSTER1} -n bookinfo-frontends rollout status deploy/productpage-v1
 ```
 
-
 Let's apply the original `RouteTable` and `VirtualGateway` yaml:
 
 ```bash
@@ -2904,6 +2944,7 @@ kubectl --context ${CLUSTER1} -n bookinfo-frontends delete virtualdestination pr
 kubectl --context ${CLUSTER1} -n bookinfo-frontends delete failoverpolicy failover
 kubectl --context ${CLUSTER1} -n bookinfo-frontends delete outlierdetectionpolicy outlier-detection
 ```
+
 
 
 
@@ -3233,7 +3274,7 @@ mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${te
 Let's rollback the change we've made in the `WorkspaceSettings` object:
 
 ```bash
-kubectl --context ${CLUSTER1} apply -f - <<EOF
+kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: admin.gloo.solo.io/v2
 kind: WorkspaceSettings
 metadata:
@@ -3255,6 +3296,9 @@ spec:
     - kind: SERVICE
       labels:
         app: reviews
+    - kind: SERVICE
+      labels:
+        app: ratings
     - kind: ALL
       labels:
         expose: "true"
@@ -3266,6 +3310,7 @@ and delete the `AccessPolicies`:
 ```bash
 kubectl --context ${CLUSTER1} delete accesspolicies -n bookinfo-frontends --all
 ```
+
 
 
 
@@ -3541,7 +3586,7 @@ helm upgrade --install gloo-platform gloo-platform/gloo-platform \
   --namespace gloo-mesh \
   --kube-context=${CLUSTER1} \
   --reuse-values \
-  --version 2.5.0-beta1 \
+  --version 2.5.0-beta2 \
   --values - <<EOF
 telemetryCollectorCustomization:
   extraProcessors:
@@ -3774,6 +3819,7 @@ cat <<'EOF' > ./test.js
 const helpersHttp = require('./tests/chai-http');
 
 describe("httpbin from the local service", () => {
+  it('Got the expected status code 200', () => helpersHttp.checkURL({ host: "https://" + process.env.ENDPOINT_HTTPS_GW_CLUSTER1 + "/get", retCode: 200 }));
   it('Checking text \'X-Amzn-Trace-Id\' not in ' + process.env.CLUSTER1, () => helpersHttp.checkBody({ host: 'https://' + process.env.ENDPOINT_HTTPS_GW_CLUSTER1, path: '/get', body: 'X-Amzn-Trace-Id', match: false }));
 })
 EOF
@@ -3835,6 +3881,7 @@ cat <<'EOF' > ./test.js
 const helpersHttp = require('./tests/chai-http');
 
 describe("httpbin from the local service", () => {
+  it('Got the expected status code 200', () => helpersHttp.checkURL({ host: "https://" + process.env.ENDPOINT_HTTPS_GW_CLUSTER1 + "/get", retCode: 200 }));
   it('Checking text \'X-Amzn-Trace-Id\' not in ' + process.env.CLUSTER1, () => helpersHttp.checkBody({ host: 'https://' + process.env.ENDPOINT_HTTPS_GW_CLUSTER1, path: '/get', body: 'X-Amzn-Trace-Id', match: false }));
 })
 EOF
@@ -4280,277 +4327,6 @@ This diagram shows the flow of the request (with the Istio ingress gateway lever
 
 ![Gloo Mesh Gateway Extauth](images/steps/gateway-extauth-oauth/gloo-mesh-gateway-extauth.svg)
 
-Before moving forward, let´s delete the created Rego rule in the configMap and the ExtAuthPolicy:
-
-```bash
-kubectl --context ${CLUSTER1} -n httpbin delete configmap allow-solo-email-users
-
-kubectl --context ${CLUSTER1} -n httpbin delete extauthpolicy httpbin
-```
-
-You can check again that you can access the application.
-
-So far, you did the first integration with OPA. It is called "as configmap". But there are two other ways to integrate OPA with Gloo.
-
-The second option is to deploy an OPA server as a sidecar. To do so, we will configure the addons to install the sidecar.
-
-```bash
-helm upgrade --install gloo-platform gloo-platform/gloo-platform \
-  --namespace gloo-mesh-addons \
-  --reuse-values \
-  --kube-context=${CLUSTER1} \
-  --version 2.5.0-beta1 \
- -f -<<EOF
-extAuthService:
-  extAuth:
-    opaServer:
-      enabled: true
-      image:
-        registry: localhost:5000
-        repository: openpolicyagent/opa
-        tag: 0.56.0
-      config: |
-        decision_logs:
-          console: true
-        services:
-          pap:
-            url: http://pap.gloo-mesh-addons.svc
-        bundles:
-          authz:
-            service: pap
-            resource: bundle.tar.gz
-            polling:
-              min_delay_seconds: 10
-              max_delay_seconds: 20
-EOF
-```
-
-Once the first option is better suited for a single cluster environment or a small environment where maintaining rego rules in configMaps is not a problem, the second option is better suited for a multi-cluster environment where you want to have distributed Authorization policies.
-
-Picture this as decoupling the PAP (Policy Administration Point) component from the PEP (Policy Enforcement Point) and PDP (Policy Decision Point) that OPA implements.
-
-The architecture looks like this:
-![OPA as sidecar](images/steps/gateway-extauth-oauth/opa-as-sidecar.png)
-
-The mechanism that OPA offer is that it can be configured to download the policies in a zip format (called bundle) from a remote location (like an S3 bucket) and then it can be configured to poll the remote location to check if there are new rules to download.
-
-![OPA as sidecar](images/steps/gateway-extauth-oauth/pap.png)
-
-An S3 bucket allows us to synchronize the policies across multiple clusters and regions given its low-latency architecture.
-
-For this Laboratory, instead of configuring an S3 bucket, we are going to deploy an HTTP server. Following application will take an static file with the rego rule we used before and will serve it as a bundle (compressed file).
-
-```bash
-kubectl apply --context ${CLUSTER1} -f - <<EOF
-apiVersion: v1
-data:
-  my-rego.rego: |
-    package test
-
-    default allow = false
-
-    allow {
-        [header, payload, signature] = io.jwt.decode(input.state.jwt)
-        endswith(payload["email"], "@solo.io")
-    }
-  .manifest: |
-    {"roots": ["/"]}
-kind: ConfigMap
-metadata:
-  name: bundle
-  namespace: gloo-mesh-addons
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  labels:
-    app: pap
-  name: pap
-  namespace: gloo-mesh-addons
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: pap
-  template:
-    metadata:
-      labels:
-        app: pap
-    spec:
-      initContainers:
-      - name: build
-        image: localhost:5000/openpolicyagent/opa:0.57.1-debug
-        workingDir: /bundle
-        command: ["/bin/sh"]
-        args:
-          - -c
-          - opa build /tmp/bundle/my-rego.rego /tmp/bundle/.manifest -o /tmp/static/bundle.tar.gz
-        volumeMounts:
-        - name: bundle
-          mountPath: "/tmp/bundle"
-        - name: static
-          mountPath: "/tmp/static"
-      containers:
-      - image: localhost:5000/nginx:1.25.3
-        imagePullPolicy: Always
-        name: nginx
-        ports:
-        - containerPort: 80
-        volumeMounts:
-        - mountPath: /usr/share/nginx/html
-          name: static
-      restartPolicy: Always
-      volumes:
-      - name: bundle
-        configMap:
-          name: bundle
-      - name: static
-        emptyDir: {}
----
-apiVersion: v1
-kind: Service
-metadata:
-  labels:
-    app: pap
-  name: pap
-  namespace: gloo-mesh-addons
-spec:
-  ports:
-  - port: 80
-    protocol: TCP
-    targetPort: 80
-  selector:
-    app: pap
-EOF
-
-kubectl --context ${CLUSTER1}  patch deployment -n gloo-mesh-addons ext-auth-service -p '{"spec": {"template": {"spec": {"containers": [{"name": "opa-auth","livenessProbe": {"httpGet": {"path": "/health"}},"readinessProbe": {"httpGet": {"path": "/health"}}}]}}}}'
-
-kubectl --context ${CLUSTER1}  rollout restart deploy ext-auth-service -n gloo-mesh-addons
-```
-
-As part of this HTTP server, you can see that a policy (the same we used in the as-configMap mode) is persisted into the containers and a bundle is built.
-
-The very first thing we need to do is to enable the OPA server. To do so, when we install Gloo Addons we need to specify that we want to deploy the OPA server as a sidecar as follows:
-
-```yaml,nocopy
-[...]
-extAuthService:
-  enabled: true
-  extAuth: 
-    opaServer:
-      enabled: true
-      config: |
-        decision_logs:
-          console: true
-        services:
-          pap:
-            url: http://pap.gloo-mesh-addons.svc # Where to find the PAP
-        bundles:
-          authz:
-            service: pap
-            resource: bundle.tar.gz # Bundle file
-            polling:
-              min_delay_seconds: 10 # polling interval
-              max_delay_seconds: 20
-[...]
-```
-
-You can add as many services as you want with different policies.
-
-Now you can see three containers as part of the ExtAuth Service, OPA one of those:
-
-```bash
-kubectl --context ${CLUSTER1}  get po -A -l app=ext-auth-service
-```
-
-And you will see:
-
-```shell,nocopy
-NAMESPACE          NAME                                        READY   STATUS    RESTARTS        AGE
-gloo-mesh-addons   ext-auth-service-5c8d8c57c4-jk529           3/3     Running   0               6m7s
-```
-
-Now you can see that the OPA container has loaded the bundle:
-
-```bash
-kubectl --context ${CLUSTER1} -n gloo-mesh-addons logs -l app=ext-auth-service -c opa-auth --tail=1000 | grep "Bundle loaded"
-```
-
-And you will see something like below, indicating that the bundle has been loaded:
-
-```shell,nocopy
-{"level":"info","msg":"Bundle loaded and activated successfully. Etag updated to \"65396b99-19f\".","name":"authz","plugin":"bundle","time":"2023-10-25T19:25:27Z"}
-```
-
-Then, you need to update the `ExtAuthPolicy` object to add the new authorization step:
-
-```bash
-kubectl apply --context ${CLUSTER1} -f - <<EOF
-apiVersion: security.policy.gloo.solo.io/v2
-kind: ExtAuthPolicy
-metadata:
-  name: httpbin
-  namespace: httpbin
-spec:
-  applyToRoutes:
-  - route:
-      labels:
-        oauth: "true"
-  config:
-    server:
-      name: ext-auth-server
-      namespace: gloo-mesh-addons
-      cluster: cluster1
-    glooAuth:
-      configs:
-      - oauth2:
-          oidcAuthorizationCode:
-            appUrl: "https://${ENDPOINT_HTTPS_GW_CLUSTER1}"
-            callbackPath: /callback
-            clientId: ${KEYCLOAK_CLIENT}
-            clientSecretRef:
-              name: oauth
-              namespace: httpbin
-            issuerUrl: "${KEYCLOAK_URL}/realms/master/"
-            logoutPath: /logout
-            afterLogoutUrl: "https://${ENDPOINT_HTTPS_GW_CLUSTER1}/get"
-            session:
-              failOnFetchFailure: true
-              redis:
-                cookieName: keycloak-session
-                options:
-                  host: redis:6379
-            scopes:
-            - email
-            headers:
-              idTokenHeader: jwt
-      - opaServerAuth:
-          package: test
-          ruleName: allow
-          serverAddr: http://0.0.0.0:8181
-          options:
-  #          fastInputConversion: true
-            returnDecisionReason: true
-EOF
-```
-
-Refresh the web page. `user1` shouldn't be allowed to access it again since the user's email ends with `@example.com`.
-
-as you can see, even having the rego rule in ConfigMap deleted, when you try the same test we did before, we get the same results.
-
-Now our policies can be distributed across multiple clusters and regions.
-
-The third option is to deploy OPA as a server. This is the recommended model when you already have an OPA server and you just want to integrate it with Gloo Mesh.
-
-The only difference with the previous configuration is that in our ExtAuthzPolicy, instead of pointing to the sidecar, you need to point to the OPA server:
-
-```shell,nocopy
-      - opaServerAuth:
-          package: test
-          ruleName: allow
-          serverAddr: http://my-opa-server.ns.svc:xxxx
-```
-
 
 
 
@@ -4675,71 +4451,7 @@ mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${te
 
 
 
-## Lab 22 - Use the DLP policy to mask sensitive data <a name="lab-22---use-the-dlp-policy-to-mask-sensitive-data-"></a>
-
-
-Now that we learnt how to put user information from the JWT to HTTP headers visible to the applications, those same applications could return sensitive or protected user information in the responses. 
-
-In this step, we're going to use a Data Loss Prevention (DLP) Policy to mask data in response bodies and headers.
-
-Let's create a `DLPPolicy` to mask protected user information.
-
-```bash
-kubectl apply --context ${CLUSTER1} -f - <<EOF
-apiVersion: security.policy.gloo.solo.io/v2
-kind: DLPPolicy
-metadata:
-  name: basic-dlp-policy
-  namespace: httpbin
-spec:
-  applyToRoutes:
-  - route:
-      labels:
-        oauth: "true"
-  config:
-    sanitize: ALL # Enable DLP masking for both responses bodies and access logs
-    actions:
-    - predefinedAction: ALL_CREDIT_CARDS # AMEX, VISA, MASTERCARD, JCB, DISCOVER, ETC.
-    - predefinedAction: SSN # Social Security Number
-    - customAction:
-        regexActions:
-        - regex: '[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,4}' # Email
-        - regex: 'eyJ[0-9a-zA-Z_-]+?\.[0-9a-zA-Z_-]+?\.[0-9a-zA-Z_-]+?' # JWT token
-EOF
-```
-
-By default, the DLP policy will mask the email address with the character `X`, leaving 25% of the characters visible. 
-Both character and percentage can be easily changed in the policy.
-
-If you refresh the web page, you should see `X-Email` header masked as `XXXXXXXXXX.io`
-
-<!--bash
-cat <<'EOF' > ./test.js
-const chaiExec = require("@jsdevtools/chai-exec");
-const helpersHttp = require('./tests/chai-http');
-
-describe("DLP Policy", function() {
-  let user = 'user2';
-  let password = 'password';
-  let keycloak_client_id = chaiExec("kubectl --context " + process.env.CLUSTER1 + " -n httpbin get extauthpolicy httpbin -o jsonpath='{.spec.config.glooAuth.configs[0].oauth2.oidcAuthorizationCode.clientId}'").stdout.replaceAll("'", "");
-  let keycloak_client_secret_base64 = chaiExec("kubectl --context " + process.env.CLUSTER1 + " -n httpbin get secret oauth -o jsonpath='{.data.client-secret}'").stdout.replaceAll("'", "");
-  let buff = new Buffer(keycloak_client_secret_base64, 'base64');
-  let keycloak_client_secret = buff.toString('ascii');
-  let keycloak_token = JSON.parse(chaiExec('curl -d "client_id=' + keycloak_client_id + '" -d "client_secret=' + keycloak_client_secret + '" -d "scope=openid" -d "username=' + user + '" -d "password=' + password + '" -d "grant_type=password" "' + process.env.KEYCLOAK_URL +'/realms/master/protocol/openid-connect/token"').stdout.replaceAll("'", "")).id_token;
-  
-  it('Email is masked', () => helpersHttp.checkBody({ host: 'https://' + process.env.ENDPOINT_HTTPS_GW_CLUSTER1, path: '/get', headers: [{key: 'Authorization', value: 'Bearer ' + keycloak_token}], body: '"X-Email": "XXXXXXXXXX.io"' }));
-});
-
-EOF
-echo "executing test dist/gloo-mesh-2-0-all-airgap-beta/build/templates/steps/apps/httpbin/gateway-dlp/tests/email-masked.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
--->
-
-
-
-## Lab 23 - Use the transformation filter to manipulate headers <a name="lab-23---use-the-transformation-filter-to-manipulate-headers-"></a>
+## Lab 22 - Use the transformation filter to manipulate headers <a name="lab-22---use-the-transformation-filter-to-manipulate-headers-"></a>
 
 
 In this step, we're going to use a regular expression to extract a part of an existing header and to create a new one:
@@ -4799,6 +4511,73 @@ describe("Tranformation is working properly", function() {
 
 EOF
 echo "executing test dist/gloo-mesh-2-0-all-airgap-beta/build/templates/steps/apps/httpbin/gateway-transformation/tests/header-added.test.js.liquid"
+tempfile=$(mktemp)
+echo "saving errors in ${tempfile}"
+mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
+-->
+
+
+
+## Lab 23 - Use the DLP policy to mask sensitive data <a name="lab-23---use-the-dlp-policy-to-mask-sensitive-data-"></a>
+[<img src="https://img.youtube.com/vi/Uark0F4g47s/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/Uark0F4g47s "Video Link")
+
+
+Now that we learnt how to put user information from the JWT to HTTP headers visible to the applications, those same applications could return sensitive or protected user information in the responses. 
+
+In this step, we're going to use a Data Loss Prevention (DLP) Policy to mask data in response bodies and headers.
+
+Let's create a `DLPPolicy` to mask protected user information.
+
+```bash
+kubectl apply --context ${CLUSTER1} -f - <<EOF
+apiVersion: security.policy.gloo.solo.io/v2
+kind: DLPPolicy
+metadata:
+  name: basic-dlp-policy
+  namespace: httpbin
+spec:
+  applyToRoutes:
+  - route:
+      labels:
+        oauth: "true"
+  config:
+    sanitize: ALL # Enable DLP masking for both responses bodies and access logs
+    actions:
+    - predefinedAction: ALL_CREDIT_CARDS # AMEX, VISA, MASTERCARD, JCB, DISCOVER, ETC.
+    - predefinedAction: SSN # Social Security Number
+    - customAction:
+        regexActions:
+        - regex: '[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,4}' # Email
+        - regex: 'eyJ[0-9a-zA-Z_-]+?\.[0-9a-zA-Z_-]+?\.[0-9a-zA-Z_-]+?' # JWT token
+EOF
+```
+
+By default, the DLP policy will mask the email address with the character `X`, leaving 25% of the characters visible. 
+Both character and percentage can be easily changed in the policy.
+
+If you refresh the web page, you should see `X-Email` header masked as `XXXXXXXXXX.io`
+
+<!--bash
+cat <<'EOF' > ./test.js
+const chaiExec = require("@jsdevtools/chai-exec");
+const helpersHttp = require('./tests/chai-http');
+var chai = require('chai');
+var expect = chai.expect;
+
+describe("DLP Policy", function () {
+  let user = 'user2';
+  let password = 'password';
+  let keycloak_client_id = chaiExec("kubectl --context " + process.env.CLUSTER1 + " -n httpbin get extauthpolicy httpbin -o jsonpath='{.spec.config.glooAuth.configs[0].oauth2.oidcAuthorizationCode.clientId}'").stdout.replaceAll("'", "");
+  let keycloak_client_secret_base64 = chaiExec("kubectl --context " + process.env.CLUSTER1 + " -n httpbin get secret oauth -o jsonpath='{.data.client-secret}'").stdout.replaceAll("'", "");
+  let buff = new Buffer(keycloak_client_secret_base64, 'base64');
+  let keycloak_client_secret = buff.toString('ascii');
+  let keycloak_token = JSON.parse(chaiExec('curl -d "client_id=' + keycloak_client_id + '" -d "client_secret=' + keycloak_client_secret + '" -d "scope=openid" -d "username=' + user + '" -d "password=' + password + '" -d "grant_type=password" "' + process.env.KEYCLOAK_URL +'/realms/master/protocol/openid-connect/token"').stdout.replaceAll("'", "")).id_token;
+
+  it('Email is masked', () => helpersHttp.checkBody({ host: 'https://' + process.env.ENDPOINT_HTTPS_GW_CLUSTER1, path: '/get', headers: [{ key: 'Authorization', value: 'Bearer ' + keycloak_token }], body: 'XXXXXXXXXX.io' }));
+});
+
+EOF
+echo "executing test dist/gloo-mesh-2-0-all-airgap-beta/build/templates/steps/apps/httpbin/gateway-dlp/tests/email-masked.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -4940,7 +4719,6 @@ This diagram shows the flow of the request (with the Istio ingress gateway lever
 
 ![Gloo Mesh Gateway Rate Limiting](images/steps/gateway-ratelimiting/gloo-mesh-gateway-rate-limiting.svg)
 
-
 Let's apply the original `RouteTable` yaml:
 ```bash
 kubectl apply --context ${CLUSTER1} -f - <<EOF
@@ -4962,6 +4740,7 @@ spec:
         - ref:
             name: in-mesh
             namespace: httpbin
+            cluster: cluster1
           port:
             number: 8000
 EOF
@@ -5088,7 +4867,6 @@ server: istio-envoy
 Log4Shell malicious payload
 ```
 
-
 Let's apply the original `RouteTable` yaml:
 
 ```bash
@@ -5124,6 +4902,7 @@ And also delete the waf policy we've created:
 ```bash
 kubectl --context ${CLUSTER1} -n httpbin delete wafpolicies.security.policy.gloo.solo.io log4shell
 ```
+
 
 
 
@@ -5918,6 +5697,15 @@ You should get a response like below:
 
 It's very similar to what the `httpbin` application provides. It displays information about the request is has received.
 <!--bash
+# It takes a few seconds for the Lambda function to be updated
+ATTEMPTS=1
+until [[ $(kubectl --context $CLUSTER1 -n istio-gateways get envoyfilters.networking.istio.io -n istio-gateways -oyaml|grep workshop-echo) ]] || [ $ATTEMPTS -gt 120 ]; do
+  printf "."
+  ATTEMPTS=$((ATTEMPTS + 1))
+  sleep 1
+done
+-->
+<!--bash
 cat <<'EOF' > ./test.js
 const helpersHttp = require('./tests/chai-http');
 
@@ -6019,6 +5807,15 @@ server: istio-envoy
 ```
 
 You can see the `key` and `x-custom-header` added by the Lambda function.
+<!--bash
+# It takes a few seconds for the Lambda function to be updated
+ATTEMPTS=1
+until [[ $(kubectl --context $CLUSTER1 -n istio-gateways get envoyfilters.networking.istio.io -n istio-gateways -oyaml|grep workshop-api-gateway) ]] || [ $ATTEMPTS -gt 120 ]; do
+  printf "."
+  ATTEMPTS=$((ATTEMPTS + 1))
+  sleep 1
+done
+-->
 <!--bash
 cat <<'EOF' > ./test.js
 const helpersHttp = require('./tests/chai-http');
@@ -7932,12 +7729,13 @@ kubectl --context ${MGMT2} create ns gloo-mesh
 helm upgrade --install gloo-platform-crds gloo-platform/gloo-platform-crds \
 --namespace gloo-mesh \
 --kube-context ${MGMT2} \
---version=2.5.0-beta1
+--version=2.5.0-beta2
 helm upgrade --install gloo-platform gloo-platform/gloo-platform \
 --namespace gloo-mesh \
 --kube-context ${MGMT2} \
---version=2.5.0-beta1 \
+--version=2.5.0-beta2 \
  -f -<<EOF
+
 licensing:
   licenseKey: ${GLOO_MESH_LICENSE_KEY}
 common:
@@ -7946,6 +7744,10 @@ glooMgmtServer:
   enabled: true
   ports:
     healthcheck: 8091
+  insights:
+    enabled: true
+  istioController:
+    enabled: true
   image:
     registry: ${registry}/gloo-mesh
 prometheus:
@@ -7980,6 +7782,8 @@ glooUi:
     envoy:
       image:
         registry: ${registry}/gloo-mesh
+telemetryCollector:
+  enabled: true
 EOF
 kubectl --context ${MGMT2} -n gloo-mesh rollout status deploy/gloo-mesh-mgmt-server
 
@@ -8143,11 +7947,11 @@ rm token
 helm upgrade --install gloo-platform-crds gloo-platform/gloo-platform-crds  \
 --namespace=gloo-mesh \
 --kube-context=${CLUSTER1} \
---version=2.5.0-beta1
+--version=2.5.0-beta2
 helm upgrade --install gloo-platform gloo-platform/gloo-platform \
   --namespace=gloo-mesh \
   --kube-context=${CLUSTER1} \
-  --version=2.5.0-beta1 \
+  --version=2.5.0-beta2 \
  -f -<<EOF
 common:
   cluster: cluster1
@@ -8188,11 +7992,11 @@ rm token
 helm upgrade --install gloo-platform-crds gloo-platform/gloo-platform-crds  \
 --namespace=gloo-mesh \
 --kube-context=${CLUSTER2} \
---version=2.5.0-beta1
+--version=2.5.0-beta2
 helm upgrade --install gloo-platform gloo-platform/gloo-platform \
   --namespace=gloo-mesh \
   --kube-context=${CLUSTER2} \
-  --version=2.5.0-beta1 \
+  --version=2.5.0-beta2 \
  -f -<<EOF
 common:
   cluster: cluster2
