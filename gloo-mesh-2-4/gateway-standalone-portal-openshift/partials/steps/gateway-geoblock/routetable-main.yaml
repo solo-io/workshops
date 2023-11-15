@@ -5,21 +5,21 @@ metadata:
   namespace: istio-gateways
 spec:
   hosts:
-  - '*'
+    - '*'
   virtualGateways:
-  - name: north-south-gw
-    namespace: istio-gateways
-    cluster: cluster1
+    - name: north-south-gw
+      namespace: istio-gateways
+      cluster: cluster1
   workloadSelectors: []
   http:
-  - name: root
-    labels:
-      waf: "true"
-    matchers:
-    - uri:
-        prefix: /
-    delegate:
-      routeTables:
-        - labels:
-            expose: "true"
-      sortMethod: ROUTE_SPECIFICITY
+    - name: root
+      labels:
+        waf: "true"
+      matchers:
+      - uri:
+          prefix: /
+      delegate:
+        routeTables:
+          - labels:
+              expose: "true"
+        sortMethod: ROUTE_SPECIFICITY
