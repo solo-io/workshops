@@ -118,13 +118,6 @@ networkkind=$(echo ${ipkind} | awk -F. '{ print $1"."$2 }')
 
 kubectl config set-cluster kind-kind${number} --server=https://${myip}:70${twodigits} --insecure-skip-tls-verify=true
 
-docker network connect "kind" "${reg_name}" || true
-docker network connect "kind" docker || true
-docker network connect "kind" us-docker || true
-docker network connect "kind" us-central1-docker || true
-docker network connect "kind" quay || true
-docker network connect "kind" gcr || true
-
 helm repo add cilium https://helm.cilium.io/
 
 helm --kube-context kind-kind${number} install cilium cilium/cilium --version 1.12.0 \
@@ -144,6 +137,14 @@ helm --kube-context kind-kind${number} install cilium cilium/cilium --version 1.
    --set bpf.masquerade=false \
    --set image.pullPolicy=IfNotPresent \
    --set ipam.mode=kubernetes
+kubectl --context=kind-kind${number} -n kube-system rollout status ds cilium || true
+
+docker network connect "kind" "${reg_name}" || true
+docker network connect "kind" docker || true
+docker network connect "kind" us-docker || true
+docker network connect "kind" us-central1-docker || true
+docker network connect "kind" quay || true
+docker network connect "kind" gcr || true
 
 # Preload MetalLB images
 docker pull quay.io/metallb/controller:v0.13.12
