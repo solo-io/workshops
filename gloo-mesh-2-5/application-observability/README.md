@@ -156,7 +156,7 @@ mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${te
 First of all, let's install the `meshctl` CLI:
 
 ```bash
-export GLOO_MESH_VERSION=v2.5.0-beta1
+export GLOO_MESH_VERSION=v2.5.0-beta2
 curl -sL https://run.solo.io/meshctl/install | sh -
 export PATH=$HOME/.gloo-mesh/bin:$PATH
 ```
@@ -202,12 +202,13 @@ kubectl --context ${MGMT} create ns gloo-mesh
 helm upgrade --install gloo-platform-crds gloo-platform/gloo-platform-crds \
 --namespace gloo-mesh \
 --kube-context ${MGMT} \
---version=2.5.0-beta1
+--version=2.5.0-beta2
 helm upgrade --install gloo-platform gloo-platform/gloo-platform \
 --namespace gloo-mesh \
 --kube-context ${MGMT} \
---version=2.5.0-beta1 \
+--version=2.5.0-beta2 \
  -f -<<EOF
+
 licensing:
   licenseKey: ${GLOO_MESH_LICENSE_KEY}
 common:
@@ -216,6 +217,10 @@ glooMgmtServer:
   enabled: true
   ports:
     healthcheck: 8091
+  insights:
+    enabled: true
+  istioController:
+    enabled: true
 prometheus:
   enabled: true
 redis:
@@ -273,6 +278,8 @@ telemetryGatewayCustomization:
 glooUi:
   enabled: true
   serviceType: LoadBalancer
+telemetryCollector:
+  enabled: true
 EOF
 kubectl --context ${MGMT} -n gloo-mesh rollout status deploy/gloo-mesh-mgmt-server
 ```
@@ -385,11 +392,11 @@ rm token
 helm upgrade --install gloo-platform-crds gloo-platform/gloo-platform-crds  \
 --namespace=gloo-mesh \
 --kube-context=${CLUSTER1} \
---version=2.5.0-beta1
+--version=2.5.0-beta2
 helm upgrade --install gloo-platform gloo-platform/gloo-platform \
   --namespace=gloo-mesh \
   --kube-context=${CLUSTER1} \
-  --version=2.5.0-beta1 \
+  --version=2.5.0-beta2 \
  -f -<<EOF
 common:
   cluster: cluster1
@@ -421,6 +428,11 @@ telemetryCollector:
       name: etcmachineid
       readOnly: true
 telemetryCollectorCustomization:
+  extraExporters:
+    logging/mesh:
+      verbosity: normal
+      sampling_initial: 5
+      sampling_thereafter: 200
   extraReceivers:
     filelog:
       exclude:
@@ -486,11 +498,6 @@ telemetryCollectorCustomization:
         to: body
         type: move
       start_at: beginning
-  extraExporters:
-    logging/mesh:
-      verbosity: normal
-      sampling_initial: 5
-      sampling_thereafter: 200
   extraProcessors:
     k8sattributes:
       filter:
@@ -588,11 +595,11 @@ rm token
 helm upgrade --install gloo-platform-crds gloo-platform/gloo-platform-crds  \
 --namespace=gloo-mesh \
 --kube-context=${CLUSTER2} \
---version=2.5.0-beta1
+--version=2.5.0-beta2
 helm upgrade --install gloo-platform gloo-platform/gloo-platform \
   --namespace=gloo-mesh \
   --kube-context=${CLUSTER2} \
-  --version=2.5.0-beta1 \
+  --version=2.5.0-beta2 \
  -f -<<EOF
 common:
   cluster: cluster2
@@ -624,6 +631,11 @@ telemetryCollector:
       name: etcmachineid
       readOnly: true
 telemetryCollectorCustomization:
+  extraExporters:
+    logging/mesh:
+      verbosity: normal
+      sampling_initial: 5
+      sampling_thereafter: 200
   extraReceivers:
     filelog:
       exclude:
@@ -689,11 +701,6 @@ telemetryCollectorCustomization:
         to: body
         type: move
       start_at: beginning
-  extraExporters:
-    logging/mesh:
-      verbosity: normal
-      sampling_initial: 5
-      sampling_thereafter: 200
   extraProcessors:
     k8sattributes:
       filter:
@@ -891,6 +898,22 @@ spec:
     port: 16443
     protocol: TCP
     targetPort: 16443
+  - name: tls-spire
+    port: 8081
+    protocol: TCP
+    targetPort: 8081
+  - name: tls-otel
+    port: 4317
+    protocol: TCP
+    targetPort: 4317
+  - name: grpc-cacert
+    port: 31338
+    protocol: TCP
+    targetPort: 31338
+  - name: grpc-ew-bootstrap
+    port: 31339
+    protocol: TCP
+    targetPort: 31339
   - name: tcp-istiod
     port: 15012
     protocol: TCP
@@ -959,6 +982,22 @@ spec:
     port: 16443
     protocol: TCP
     targetPort: 16443
+  - name: tls-spire
+    port: 8081
+    protocol: TCP
+    targetPort: 8081
+  - name: tls-otel
+    port: 4317
+    protocol: TCP
+    targetPort: 4317
+  - name: grpc-cacert
+    port: 31338
+    protocol: TCP
+    targetPort: 31338
+  - name: grpc-ew-bootstrap
+    port: 31339
+    protocol: TCP
+    targetPort: 31339
   - name: tcp-istiod
     port: 15012
     protocol: TCP
@@ -1465,7 +1504,7 @@ Then, you can deploy the addons on the cluster(s) using Helm:
 helm upgrade --install gloo-platform gloo-platform/gloo-platform \
   --namespace gloo-mesh-addons \
   --kube-context=${CLUSTER1} \
-  --version 2.5.0-beta1 \
+  --version 2.5.0-beta2 \
  -f -<<EOF
 common:
   cluster: cluster1
@@ -1488,7 +1527,7 @@ EOF
 helm upgrade --install gloo-platform gloo-platform/gloo-platform \
   --namespace gloo-mesh-addons \
   --kube-context=${CLUSTER2} \
-  --version 2.5.0-beta1 \
+  --version 2.5.0-beta2 \
  -f -<<EOF
 common:
   cluster: cluster2
@@ -1805,6 +1844,9 @@ spec:
     - kind: SERVICE
       labels:
         app: reviews
+    - kind: SERVICE
+      labels:
+        app: ratings
     - kind: ALL
       labels:
         expose: "true"
