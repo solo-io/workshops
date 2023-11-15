@@ -197,6 +197,27 @@ tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
 -->
+First, create a secret with the password to use to store access logs in Clickhouse
+
+```bash
+cat << EOF | kubectl --context ${MGMT} apply -f -
+kind: Namespace
+apiVersion: v1
+metadata:
+  name: gloo-mesh
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: clickhouse-auth
+  namespace: gloo-mesh
+type: Opaque
+stringData:
+  password: password
+EOF
+```
+
+And then, install the Helm charts:
 
 ```bash
 helm repo add gloo-platform https://storage.googleapis.com/gloo-platform/helm-charts
@@ -211,6 +232,7 @@ helm upgrade --install gloo-platform gloo-platform/gloo-platform \
 --kube-context ${MGMT} \
 --version=2.4.4 \
  -f -<<EOF
+
 licensing:
   licenseKey: ${GLOO_MESH_LICENSE_KEY}
 common:
@@ -251,21 +273,6 @@ until [[ $(kubectl --context ${MGMT} -n gloo-mesh get svc gloo-mesh-mgmt-server 
   sleep 1
 done
 -->
-Create a secret with the password to use to store access logs in Clickhouse:
-
-```bash
-cat << EOF | kubectl --context ${MGMT} apply -f -
-apiVersion: v1
-kind: Secret
-metadata:
-  name: clickhouse-auth
-  namespace: gloo-mesh
-type: Opaque
-data:
-  # password = password
-  password: cGFzc3dvcmQ=
-EOF
-```
 Then, you need to set the environment variable to tell the Gloo Mesh agents how to communicate with the management plane:
 <!--bash
 cat <<'EOF' > ./test.js
@@ -396,6 +403,9 @@ telemetryCollectorCustomization:
   pipelines:
     logs/istio_access_logs:
       enabled: true
+  extraExporters:
+    clickhouse:
+      password: password
 EOF
 ```
 
@@ -451,6 +461,9 @@ telemetryCollectorCustomization:
   pipelines:
     logs/istio_access_logs:
       enabled: true
+  extraExporters:
+    clickhouse:
+      password: password
 EOF
 ```
 
@@ -579,6 +592,22 @@ spec:
     port: 16443
     protocol: TCP
     targetPort: 16443
+  - name: tls-spire
+    port: 8081
+    protocol: TCP
+    targetPort: 8081
+  - name: tls-otel
+    port: 4317
+    protocol: TCP
+    targetPort: 4317
+  - name: grpc-cacert
+    port: 31338
+    protocol: TCP
+    targetPort: 31338
+  - name: grpc-ew-bootstrap
+    port: 31339
+    protocol: TCP
+    targetPort: 31339
   - name: tcp-istiod
     port: 15012
     protocol: TCP
@@ -647,6 +676,22 @@ spec:
     port: 16443
     protocol: TCP
     targetPort: 16443
+  - name: tls-spire
+    port: 8081
+    protocol: TCP
+    targetPort: 8081
+  - name: tls-otel
+    port: 4317
+    protocol: TCP
+    targetPort: 4317
+  - name: grpc-cacert
+    port: 31338
+    protocol: TCP
+    targetPort: 31338
+  - name: grpc-ew-bootstrap
+    port: 31339
+    protocol: TCP
+    targetPort: 31339
   - name: tcp-istiod
     port: 15012
     protocol: TCP
@@ -1393,6 +1438,9 @@ spec:
     - kind: SERVICE
       labels:
         app: reviews
+    - kind: SERVICE
+      labels:
+        app: ratings
     - kind: ALL
       labels:
         expose: "true"
@@ -2142,11 +2190,11 @@ metadata:
   labels:
     auth: api-key
 type: extauth.solo.io/apikey
-data:
-  api-key: YXBpa2V5MQ==
-  user-id: dXNlcjE=
-  user-email: dXNlcjFAc29sby5pbw==
-  usagePlan: Z29sZA==
+stringData:
+  api-key: apikey1
+  user-id: user1
+  user-email: user1@solo.io
+  usagePlan: gold
 EOF
 ```
 
@@ -3073,22 +3121,9 @@ echo API key: $API_KEY_USER1
 
 <!--bash
 cat <<'EOF' > ./test.js
-const chaiExec = require("@jsdevtools/chai-exec");
 const helpersHttp = require('./tests/chai-http');
-var chai = require('chai');
-var expect = chai.expect;
 
 describe("API key creation working properly", function() {
-  /*
-  let user = 'user1';
-  let password = 'password';
-  let keycloak_client_id = chaiExec("kubectl --context " + process.env.CLUSTER1 + " -n gloo-mesh-addons get extauthpolicy portal -o jsonpath='{.spec.config.glooAuth.configs[0].oauth2.oidcAuthorizationCode.clientId}'").stdout.replaceAll("'", "");
-  let keycloak_client_secret_base64 = chaiExec("kubectl --context " + process.env.CLUSTER1 + " -n gloo-mesh-addons get secret oauth -o jsonpath='{.data.client-secret}'").stdout.replaceAll("'", "");
-  let buff = new Buffer(keycloak_client_secret_base64, 'base64');
-  let keycloak_client_secret = buff.toString('ascii');
-  let keycloak_user1_token = JSON.parse(chaiExec('curl -d "client_id=' + keycloak_client_id + '" -d "client_secret=' + keycloak_client_secret + '" -d "scope=openid" -d "username=' + user + '" -d "password=' + password + '" -d "grant_type=password" "' + process.env.KEYCLOAK_URL +'/realms/master/protocol/openid-connect/token"').stdout.replaceAll("'", "")).id_token;
-  let api_key = JSON.parse(chaiExec('curl -k -s -X POST -H "Content-Type: application/json" -d \'{"usagePlan": "gold", "apiKeyName": "test"}\' -H "id_token: ' + keycloak_user1_token + '" https://' + process.env.ENDPOINT_HTTPS_GW_CLUSTER1 +'/portal-server/v1/api-keys"').stdout.replaceAll("'", "")).apiKey;
-  */
   it("Authentication is working with the generated API key", () => helpersHttp.checkURL({ host: 'https://' + process.env.ENDPOINT_HTTPS_GW_CLUSTER1, path: '/api/bookinfo/v1', headers: [{key: 'api-key', value: process.env.API_KEY_USER1}], retCode: 200 }));
 });
 EOF
@@ -3250,9 +3285,9 @@ kind: Secret
 metadata:
   name: grafana
   namespace: gloo-mesh
-data:
-  admin-user: YWRtaW4=
-  admin-password: cGFzc3dvcmQ=
+stringData:
+  admin-user: admin
+  admin-password: password
 type: Opaque
 EOF
 
