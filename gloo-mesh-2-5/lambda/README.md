@@ -156,10 +156,8 @@ mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${te
 First of all, let's install the `meshctl` CLI:
 
 ```bash
-export GLOO_MESH_VERSION=v2.5.0-beta1
-mkdir -p $HOME/.gloo-mesh/bin
-curl https://storage.googleapis.com/gloo-platform-dev/meshctl/$GLOO_MESH_VERSION/meshctl-$(uname | tr '[:upper:]' '[:lower:]')-amd64 > $HOME/.gloo-mesh/bin/meshctl
-chmod +x $HOME/.gloo-mesh/bin/meshctl
+export GLOO_MESH_VERSION=v2.5.0-beta2
+curl -sL https://run.solo.io/meshctl/install | sh -
 export PATH=$HOME/.gloo-mesh/bin:$PATH
 ```
 
@@ -201,15 +199,16 @@ mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${te
 helm repo add gloo-platform https://storage.googleapis.com/gloo-platform/helm-charts
 helm repo update
 kubectl --context ${MGMT} create ns gloo-mesh
-helm upgrade --install gloo-platform-crds https://storage.googleapis.com/gloo-platform-dev/platform-charts/helm-charts/gloo-platform-crds-2.5.0-beta1-2023-10-15-main-5706c238d.tgz \
+helm upgrade --install gloo-platform-crds gloo-platform/gloo-platform-crds \
 --namespace gloo-mesh \
 --kube-context ${MGMT} \
---version=2.5.0-beta1
-helm upgrade --install gloo-platform https://storage.googleapis.com/gloo-platform-dev/platform-charts/helm-charts/gloo-platform-2.5.0-beta1-2023-10-15-main-5706c238d.tgz \
+--version=2.5.0-beta2
+helm upgrade --install gloo-platform gloo-platform/gloo-platform \
 --namespace gloo-mesh \
 --kube-context ${MGMT} \
---version=2.5.0-beta1 \
+--version=2.5.0-beta2 \
  -f -<<EOF
+
 licensing:
   licenseKey: ${GLOO_MESH_LICENSE_KEY}
 common:
@@ -218,6 +217,10 @@ glooMgmtServer:
   enabled: true
   ports:
     healthcheck: 8091
+  insights:
+    enabled: true
+  istioController:
+    enabled: true
 prometheus:
   enabled: true
 redis:
@@ -230,6 +233,8 @@ telemetryGateway:
 glooUi:
   enabled: true
   serviceType: LoadBalancer
+telemetryCollector:
+  enabled: true
 EOF
 kubectl --context ${MGMT} -n gloo-mesh rollout status deploy/gloo-mesh-mgmt-server
 ```
@@ -339,14 +344,14 @@ rm ca.crt
 kubectl get secret relay-identity-token-secret -n gloo-mesh --context ${MGMT} -o jsonpath='{.data.token}' | base64 -d > token
 kubectl create secret generic relay-identity-token-secret -n gloo-mesh --context ${CLUSTER1} --from-file token=token
 rm token
-helm upgrade --install gloo-platform-crds https://storage.googleapis.com/gloo-platform-dev/platform-charts/helm-charts/gloo-platform-crds-2.5.0-beta1-2023-10-15-main-5706c238d.tgz  \
+helm upgrade --install gloo-platform-crds gloo-platform/gloo-platform-crds  \
 --namespace=gloo-mesh \
 --kube-context=${CLUSTER1} \
---version=2.5.0-beta1
-helm upgrade --install gloo-platform https://storage.googleapis.com/gloo-platform-dev/platform-charts/helm-charts/gloo-platform-2.5.0-beta1-2023-10-15-main-5706c238d.tgz \
+--version=2.5.0-beta2
+helm upgrade --install gloo-platform gloo-platform/gloo-platform \
   --namespace=gloo-mesh \
   --kube-context=${CLUSTER1} \
-  --version=2.5.0-beta1 \
+  --version=2.5.0-beta2 \
  -f -<<EOF
 common:
   cluster: cluster1
@@ -386,14 +391,14 @@ rm ca.crt
 kubectl get secret relay-identity-token-secret -n gloo-mesh --context ${MGMT} -o jsonpath='{.data.token}' | base64 -d > token
 kubectl create secret generic relay-identity-token-secret -n gloo-mesh --context ${CLUSTER2} --from-file token=token
 rm token
-helm upgrade --install gloo-platform-crds https://storage.googleapis.com/gloo-platform-dev/platform-charts/helm-charts/gloo-platform-crds-2.5.0-beta1-2023-10-15-main-5706c238d.tgz  \
+helm upgrade --install gloo-platform-crds gloo-platform/gloo-platform-crds  \
 --namespace=gloo-mesh \
 --kube-context=${CLUSTER2} \
---version=2.5.0-beta1
-helm upgrade --install gloo-platform https://storage.googleapis.com/gloo-platform-dev/platform-charts/helm-charts/gloo-platform-2.5.0-beta1-2023-10-15-main-5706c238d.tgz \
+--version=2.5.0-beta2
+helm upgrade --install gloo-platform gloo-platform/gloo-platform \
   --namespace=gloo-mesh \
   --kube-context=${CLUSTER2} \
-  --version=2.5.0-beta1 \
+  --version=2.5.0-beta2 \
  -f -<<EOF
 common:
   cluster: cluster2
@@ -536,6 +541,22 @@ spec:
     port: 16443
     protocol: TCP
     targetPort: 16443
+  - name: tls-spire
+    port: 8081
+    protocol: TCP
+    targetPort: 8081
+  - name: tls-otel
+    port: 4317
+    protocol: TCP
+    targetPort: 4317
+  - name: grpc-cacert
+    port: 31338
+    protocol: TCP
+    targetPort: 31338
+  - name: grpc-ew-bootstrap
+    port: 31339
+    protocol: TCP
+    targetPort: 31339
   - name: tcp-istiod
     port: 15012
     protocol: TCP
@@ -604,6 +625,22 @@ spec:
     port: 16443
     protocol: TCP
     targetPort: 16443
+  - name: tls-spire
+    port: 8081
+    protocol: TCP
+    targetPort: 8081
+  - name: tls-otel
+    port: 4317
+    protocol: TCP
+    targetPort: 4317
+  - name: grpc-cacert
+    port: 31338
+    protocol: TCP
+    targetPort: 31338
+  - name: grpc-ew-bootstrap
+    port: 31339
+    protocol: TCP
+    targetPort: 31339
   - name: tcp-istiod
     port: 15012
     protocol: TCP
@@ -1273,10 +1310,10 @@ kubectl --context ${CLUSTER2} label namespace gloo-mesh-addons istio.io/rev=1-19
 Then, you can deploy the addons on the cluster(s) using Helm:
 
 ```bash
-helm upgrade --install gloo-platform https://storage.googleapis.com/gloo-platform-dev/platform-charts/helm-charts/gloo-platform-2.5.0-beta1-2023-10-15-main-5706c238d.tgz \
+helm upgrade --install gloo-platform gloo-platform/gloo-platform \
   --namespace gloo-mesh-addons \
   --kube-context=${CLUSTER1} \
-  --version 2.5.0-beta1 \
+  --version 2.5.0-beta2 \
  -f -<<EOF
 common:
   cluster: cluster1
@@ -1292,19 +1329,14 @@ extAuthService:
         connection: 
           host: redis.gloo-mesh-addons:6379
       secretKey: ThisIsSecret
-    image:
-      registry: gcr.io/gloo-mesh
 rateLimiter:
   enabled: true
-  rateLimiter:
-    image:
-      registry: gcr.io/gloo-mesh
 EOF
 
-helm upgrade --install gloo-platform https://storage.googleapis.com/gloo-platform-dev/platform-charts/helm-charts/gloo-platform-2.5.0-beta1-2023-10-15-main-5706c238d.tgz \
+helm upgrade --install gloo-platform gloo-platform/gloo-platform \
   --namespace gloo-mesh-addons \
   --kube-context=${CLUSTER2} \
-  --version 2.5.0-beta1 \
+  --version 2.5.0-beta2 \
  -f -<<EOF
 common:
   cluster: cluster2
@@ -1320,13 +1352,8 @@ extAuthService:
         connection: 
           host: redis.gloo-mesh-addons:6379
       secretKey: ThisIsSecret
-    image:
-      registry: gcr.io/gloo-mesh
 rateLimiter:
   enabled: true
-  rateLimiter:
-    image:
-      registry: gcr.io/gloo-mesh
 EOF
 ```
 
@@ -1500,6 +1527,9 @@ spec:
     - kind: SERVICE
       labels:
         app: reviews
+    - kind: SERVICE
+      labels:
+        app: ratings
     - kind: ALL
       labels:
         expose: "true"
@@ -1982,6 +2012,15 @@ You should get a response like below:
 
 It's very similar to what the `httpbin` application provides. It displays information about the request is has received.
 <!--bash
+# It takes a few seconds for the Lambda function to be updated
+ATTEMPTS=1
+until [[ $(kubectl --context $CLUSTER1 -n istio-gateways get envoyfilters.networking.istio.io -n istio-gateways -oyaml|grep workshop-echo) ]] || [ $ATTEMPTS -gt 120 ]; do
+  printf "."
+  ATTEMPTS=$((ATTEMPTS + 1))
+  sleep 1
+done
+-->
+<!--bash
 cat <<'EOF' > ./test.js
 const helpersHttp = require('./tests/chai-http');
 
@@ -2083,6 +2122,15 @@ server: istio-envoy
 ```
 
 You can see the `key` and `x-custom-header` added by the Lambda function.
+<!--bash
+# It takes a few seconds for the Lambda function to be updated
+ATTEMPTS=1
+until [[ $(kubectl --context $CLUSTER1 -n istio-gateways get envoyfilters.networking.istio.io -n istio-gateways -oyaml|grep workshop-api-gateway) ]] || [ $ATTEMPTS -gt 120 ]; do
+  printf "."
+  ATTEMPTS=$((ATTEMPTS + 1))
+  sleep 1
+done
+-->
 <!--bash
 cat <<'EOF' > ./test.js
 const helpersHttp = require('./tests/chai-http');
