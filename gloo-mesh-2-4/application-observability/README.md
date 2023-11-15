@@ -208,6 +208,7 @@ helm upgrade --install gloo-platform gloo-platform/gloo-platform \
 --kube-context ${MGMT} \
 --version=2.4.4 \
  -f -<<EOF
+
 licensing:
   licenseKey: ${GLOO_MESH_LICENSE_KEY}
 common:
@@ -421,6 +422,11 @@ telemetryCollector:
       name: etcmachineid
       readOnly: true
 telemetryCollectorCustomization:
+  extraExporters:
+    logging/mesh:
+      verbosity: normal
+      sampling_initial: 5
+      sampling_thereafter: 200
   extraReceivers:
     filelog:
       exclude:
@@ -486,11 +492,6 @@ telemetryCollectorCustomization:
         to: body
         type: move
       start_at: beginning
-  extraExporters:
-    logging/mesh:
-      verbosity: normal
-      sampling_initial: 5
-      sampling_thereafter: 200
   extraProcessors:
     k8sattributes:
       filter:
@@ -624,6 +625,11 @@ telemetryCollector:
       name: etcmachineid
       readOnly: true
 telemetryCollectorCustomization:
+  extraExporters:
+    logging/mesh:
+      verbosity: normal
+      sampling_initial: 5
+      sampling_thereafter: 200
   extraReceivers:
     filelog:
       exclude:
@@ -689,11 +695,6 @@ telemetryCollectorCustomization:
         to: body
         type: move
       start_at: beginning
-  extraExporters:
-    logging/mesh:
-      verbosity: normal
-      sampling_initial: 5
-      sampling_thereafter: 200
   extraProcessors:
     k8sattributes:
       filter:
@@ -891,6 +892,22 @@ spec:
     port: 16443
     protocol: TCP
     targetPort: 16443
+  - name: tls-spire
+    port: 8081
+    protocol: TCP
+    targetPort: 8081
+  - name: tls-otel
+    port: 4317
+    protocol: TCP
+    targetPort: 4317
+  - name: grpc-cacert
+    port: 31338
+    protocol: TCP
+    targetPort: 31338
+  - name: grpc-ew-bootstrap
+    port: 31339
+    protocol: TCP
+    targetPort: 31339
   - name: tcp-istiod
     port: 15012
     protocol: TCP
@@ -959,6 +976,22 @@ spec:
     port: 16443
     protocol: TCP
     targetPort: 16443
+  - name: tls-spire
+    port: 8081
+    protocol: TCP
+    targetPort: 8081
+  - name: tls-otel
+    port: 4317
+    protocol: TCP
+    targetPort: 4317
+  - name: grpc-cacert
+    port: 31338
+    protocol: TCP
+    targetPort: 31338
+  - name: grpc-ew-bootstrap
+    port: 31339
+    protocol: TCP
+    targetPort: 31339
   - name: tcp-istiod
     port: 15012
     protocol: TCP
@@ -1805,6 +1838,9 @@ spec:
     - kind: SERVICE
       labels:
         app: reviews
+    - kind: SERVICE
+      labels:
+        app: ratings
     - kind: ALL
       labels:
         expose: "true"
