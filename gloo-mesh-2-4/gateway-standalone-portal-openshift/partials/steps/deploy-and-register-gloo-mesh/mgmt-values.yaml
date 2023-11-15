@@ -1,3 +1,4 @@
+
 licensing:
   licenseKey: ${GLOO_MESH_LICENSE_KEY}
 common:
@@ -87,6 +88,9 @@ telemetryCollectorCustomization:
   pipelines:
     logs/istio_access_logs:
       enabled: true
+  extraExporters:
+    clickhouse:
+      password: password
   ports:
     otlp:
       hostPort: 0
