@@ -208,6 +208,7 @@ helm upgrade --install gloo-platform gloo-platform/gloo-platform \
 --kube-context ${MGMT} \
 --version=2.4.4 \
  -f -<<EOF
+
 licensing:
   licenseKey: ${GLOO_MESH_LICENSE_KEY}
 common:
@@ -534,6 +535,22 @@ spec:
     port: 16443
     protocol: TCP
     targetPort: 16443
+  - name: tls-spire
+    port: 8081
+    protocol: TCP
+    targetPort: 8081
+  - name: tls-otel
+    port: 4317
+    protocol: TCP
+    targetPort: 4317
+  - name: grpc-cacert
+    port: 31338
+    protocol: TCP
+    targetPort: 31338
+  - name: grpc-ew-bootstrap
+    port: 31339
+    protocol: TCP
+    targetPort: 31339
   - name: tcp-istiod
     port: 15012
     protocol: TCP
@@ -602,6 +619,22 @@ spec:
     port: 16443
     protocol: TCP
     targetPort: 16443
+  - name: tls-spire
+    port: 8081
+    protocol: TCP
+    targetPort: 8081
+  - name: tls-otel
+    port: 4317
+    protocol: TCP
+    targetPort: 4317
+  - name: grpc-cacert
+    port: 31338
+    protocol: TCP
+    targetPort: 31338
+  - name: grpc-ew-bootstrap
+    port: 31339
+    protocol: TCP
+    targetPort: 31339
   - name: tcp-istiod
     port: 15012
     protocol: TCP
@@ -1488,6 +1521,9 @@ spec:
     - kind: SERVICE
       labels:
         app: reviews
+    - kind: SERVICE
+      labels:
+        app: ratings
     - kind: ALL
       labels:
         expose: "true"
@@ -1970,6 +2006,15 @@ You should get a response like below:
 
 It's very similar to what the `httpbin` application provides. It displays information about the request is has received.
 <!--bash
+# It takes a few seconds for the Lambda function to be updated
+ATTEMPTS=1
+until [[ $(kubectl --context $CLUSTER1 -n istio-gateways get envoyfilters.networking.istio.io -n istio-gateways -oyaml|grep workshop-echo) ]] || [ $ATTEMPTS -gt 120 ]; do
+  printf "."
+  ATTEMPTS=$((ATTEMPTS + 1))
+  sleep 1
+done
+-->
+<!--bash
 cat <<'EOF' > ./test.js
 const helpersHttp = require('./tests/chai-http');
 
@@ -2071,6 +2116,15 @@ server: istio-envoy
 ```
 
 You can see the `key` and `x-custom-header` added by the Lambda function.
+<!--bash
+# It takes a few seconds for the Lambda function to be updated
+ATTEMPTS=1
+until [[ $(kubectl --context $CLUSTER1 -n istio-gateways get envoyfilters.networking.istio.io -n istio-gateways -oyaml|grep workshop-api-gateway) ]] || [ $ATTEMPTS -gt 120 ]; do
+  printf "."
+  ATTEMPTS=$((ATTEMPTS + 1))
+  sleep 1
+done
+-->
 <!--bash
 cat <<'EOF' > ./test.js
 const helpersHttp = require('./tests/chai-http');
