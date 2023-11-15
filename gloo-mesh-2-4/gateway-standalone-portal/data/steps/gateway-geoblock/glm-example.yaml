@@ -8,11 +8,11 @@ spec:
   - clusters:
     - name: cluster1
       activeGateway: false
-    gatewayRevision: 1-17
+    gatewayRevision: 1-19
     istioOperatorSpec:
-      profile: empty
       hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-      tag: 1.17.2-solo
+      profile: empty
+      tag: 1.19.3-solo
       values:
         gateways:
           istio-ingressgateway:
@@ -27,7 +27,7 @@ spec:
           k8s:
             overlays:
             - kind: Deployment
-              name: istio-ingressgateway-1-17
+              name: istio-ingressgateway-1-19
               patches:
               - path: spec.template.spec.volumes.[-1]
                 value:
@@ -43,7 +43,7 @@ spec:
               - path: spec.template.spec.containers[-1]
                 value:
                   name: geoip-update
-                  image: ghcr.io/maxmind/geoipupdate@sha256:87f4a93067ebd6b22b71bc0a7c8b99bc24d061275d9e31b35308600ee82964a1 # v5.0.4
+                  image: ghcr.io/maxmind/geoipupdate@sha256:e0d5c1dee7379d360e0f355557542d9672c616215dfdd5aaf917382de84cb84c # v6.0.0
                   env:
 # You'll need to create the following secret with your MaxMind account details
                   - name: GEOIPUPDATE_ACCOUNT_ID
@@ -64,6 +64,15 @@ spec:
                     value: /etc/geoip/database/
                   - name: GEOIPUPDATE_CONF_FILE
                     value: /etc/geoip/GeoIP.conf
+                  securityContext:
+                    allowPrivilegeEscalation: false
+                    capabilities:
+                      drop:
+                      - ALL
+                    privileged: false
+                    runAsGroup: 1337
+                    runAsNonRoot: true
+                    runAsUser: 1337
                   volumeMounts:
                   - mountPath: /etc/geoip
                     name: geoip
