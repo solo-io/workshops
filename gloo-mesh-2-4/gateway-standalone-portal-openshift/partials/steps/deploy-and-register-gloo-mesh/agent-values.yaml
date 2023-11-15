@@ -20,6 +20,9 @@ telemetryCollectorCustomization:
   pipelines:
     logs/istio_access_logs:
       enabled: true
+  extraExporters:
+    clickhouse:
+      password: password
   ports:
     otlp:
       hostPort: 0
