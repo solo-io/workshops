@@ -2000,11 +2000,13 @@ EOF
 
 Build a new bundle and push it to s3:
 ```bash
-pushd data
+pushd data/steps/gateway-opa
 ./opa build myrego.rego .manifest data.json -o ./bundle.tar.gz --optimize=2 --entrypoint "envoy/authz"
 aws s3 cp ./bundle.tar.gz s3://jesus-public/bundle_demo.tar.gz
 popd
 ```
+
+You can check an example bundle in: `data/steps/gateway-opa/bundle.tar.gz`
 
 Finally, you need to update the `RouteTable` to use this `ExtAuthPolicy`:
 
