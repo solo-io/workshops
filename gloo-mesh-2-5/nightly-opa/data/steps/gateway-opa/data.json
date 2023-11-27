@@ -1,0 +1,50 @@
+{
+  "Relations": {
+    "05df9055-04b4-44f0-ae2b-d4543df64d88": {
+      "apiProducts": [
+        "Track APIs",
+        "Product Page APIs"
+      ],
+      "email": "john@doe.com",
+      "username": "John Doe",
+      "metadata": {
+        "rateLimit": {
+          "requests_per_unit": 10,
+          "unit": "MINUTE"
+        },
+        "usagePlan": "gold",
+        "team": "Team X"
+      }
+    },
+    "2238d05e-102a-44e5-9c21-001c2e9485e8": {
+      "apiProducts": [
+        "Renx APIs"
+      ],
+      "email": "jane@doe.com",
+      "username": "Jane Doe",
+      "metadata": {
+        "rateLimit": {
+          "requests_per_unit": 2,
+          "unit": "MINUTE"
+        },
+        "usagePlan": "silver",
+        "team": "Team Y"
+      }
+    },
+    "d316ce06e369ed4e06b99cf2e7ed89ad": {
+      "apiProducts": [
+        "Renx APIs"
+      ],
+      "email": "jane@doe.com",
+      "username": "Jane Doe",
+      "metadata": {
+        "rateLimit": {
+          "requests_per_unit": 2,
+          "unit": "MINUTE"
+        },
+        "usagePlan": "silver",
+        "team": "Team Y"
+      }
+    }
+  }
+}
