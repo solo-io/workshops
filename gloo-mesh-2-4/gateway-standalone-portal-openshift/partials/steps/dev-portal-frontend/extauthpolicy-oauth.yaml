@@ -7,7 +7,7 @@ spec:
   applyToRoutes:
   - route:
       labels:
-        oauth: "true"
+        oauth: "authorization-code"
   config:
     server:
       name: ext-auth-server
@@ -17,7 +17,7 @@ spec:
       configs:
       - oauth2:
           oidcAuthorizationCode:
-            appUrl: "https://${ENDPOINT_HTTPS_GW_CLUSTER1}"
+            appUrl: "https://cluster1-portal.example.com"
             callbackPath: /v1/login
             clientId: ${KEYCLOAK_CLIENT}
             clientSecretRef:
