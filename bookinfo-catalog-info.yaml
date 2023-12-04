@@ -5,7 +5,7 @@ metadata:
   namespace: bookinfo
   description: Bookinfo API 1.0
   annotations:
-    backstage.io/kubernetes-label-selector: 'app=productpage'
+    backstage.io/kubernetes-label-selector: 'app in (productpage,reviews,ratings,details)'
 spec:
   type: service
   lifecycle: production
