@@ -1,0 +1,15 @@
+uapiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: bookinfo
+  namespace: bookinfo
+  description: Bookinfo API 1.0
+  annotations:
+    backstage.io/kubernetes-label-selector: 'api=bookinfo'
+spec:
+  type: service
+  lifecycle: production
+  owner: group:bookinfo-managers
+  providesApis:
+    - default/bookinfo-v1
+    - default/bookinfo-v2
