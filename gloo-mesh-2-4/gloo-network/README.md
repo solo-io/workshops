@@ -523,7 +523,6 @@ mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${te
 Finally, you need to register the cluster(s).
 
 Here is how you register the first one:
-
 ```bash
 kubectl apply --context ${MGMT} -f- <<EOF
 apiVersion: admin.gloo.solo.io/v2
@@ -570,7 +569,6 @@ EOF
 Note that the registration can also be performed using `meshctl cluster register`.
 
 And here is how you register the second one:
-
 ```bash
 kubectl apply --context ${MGMT} -f- <<EOF
 apiVersion: admin.gloo.solo.io/v2
@@ -615,7 +613,6 @@ EOF
 ```
 
 You can check the cluster(s) have been registered correctly using the following commands:
-
 ```
 meshctl --kubecontext ${MGMT} check
 ```
@@ -626,7 +623,6 @@ kubectl --context ${MGMT} -n gloo-mesh debug -q -i ${pod} --image=curlimages/cur
 ```
 
 You should get an output similar to this:
-
 ```
 # HELP relay_push_clients_connected Current number of connected Relay push clients (Relay Agents).
 # TYPE relay_push_clients_connected gauge
