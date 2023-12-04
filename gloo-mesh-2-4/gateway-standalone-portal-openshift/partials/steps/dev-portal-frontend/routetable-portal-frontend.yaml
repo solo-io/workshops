@@ -5,6 +5,7 @@ metadata:
   namespace: gloo-mesh-addons
   labels:
     expose: "true"
+    portal: "true"
 spec:
   http:
     - name: portal-frontend-auth
@@ -17,7 +18,7 @@ spec:
               namespace: gloo-mesh-addons
               cluster: cluster1
       labels:
-        oauth: "true"
+        oauth: "authorization-code"
         route: portal-api
       matchers:
         - uri:
