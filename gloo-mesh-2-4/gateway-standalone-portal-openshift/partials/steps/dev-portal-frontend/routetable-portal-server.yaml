@@ -5,6 +5,7 @@ metadata:
   namespace: gloo-mesh-addons
   labels:
     expose: "true"
+    portal: "true"
 spec:
   defaultDestination:
     ref:
