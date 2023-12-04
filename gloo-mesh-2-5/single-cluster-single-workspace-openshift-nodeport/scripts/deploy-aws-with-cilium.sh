@@ -73,7 +73,7 @@ fi
 done
 
 mkdir -p oidc
-cat <<EOF >./oidc/sa-signer-pkcs8.pub
+cat <<'EOF' >./oidc/sa-signer-pkcs8.pub
 -----BEGIN PUBLIC KEY-----
 MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA53YiBcrn7+ZK0Vb4odeA
 1riYdvEb8To4H6/HtF+OKzuCIXFQ+bRy7yMrDGITYpfYPrTZOgfdeTLZqOiAj+cL
@@ -84,7 +84,7 @@ zIM9OviX8iEF8xHWUtz4BAMDG8N6+zpLo0pAzaei5hKuLZ9dZOzHBC8VOW82cQMm
 ywIDAQAB
 -----END PUBLIC KEY-----
 EOF
-cat <<EOF >./oidc/sa-signer.key
+cat <<'EOF' >./oidc/sa-signer.key
 -----BEGIN RSA PRIVATE KEY-----
 MIIEpAIBAAKCAQEA53YiBcrn7+ZK0Vb4odeA1riYdvEb8To4H6/HtF+OKzuCIXFQ
 +bRy7yMrDGITYpfYPrTZOgfdeTLZqOiAj+cL395nvxdly83SUrdh7ItfOPRluuui
