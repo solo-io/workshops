@@ -5,6 +5,7 @@ metadata:
   namespace: gloo-mesh-addons
   labels:
     expose: "true"
+    portal: "true"
 spec:
   defaultDestination:
     ref:
@@ -16,9 +17,20 @@ spec:
   http:
     - forwardTo:
         pathRewrite: /v1
+      name: authn-api-and-usage-plans-access-token
+      labels:
+        oauth: "access-token"
+        route: portal-api
+      matchers:
+        - uri:
+            prefix: /portal-server/v1
+          headers:
+            - name: Authorization
+    - forwardTo:
+        pathRewrite: /v1
       name: authn-api-and-usage-plans
       labels:
-        oauth: "true"
+        oauth: "authorization-code"
         route: portal-api
       matchers:
         - uri:
