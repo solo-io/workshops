@@ -49,7 +49,7 @@ spec:
             port: 4000
         env:
         - name: VITE_PORTAL_SERVER_URL
-          value: "https://${ENDPOINT_HTTPS_GW_CLUSTER1}/portal-server/v1"
+          value: "https://cluster1-portal.example.com/portal-server/v1"
         - name: VITE_APPLIED_OIDC_AUTH_CODE_CONFIG
           value: "true"
         - name: VITE_OIDC_AUTH_CODE_CONFIG_CALLBACK_PATH
