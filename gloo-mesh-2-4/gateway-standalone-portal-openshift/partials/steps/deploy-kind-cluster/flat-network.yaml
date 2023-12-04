@@ -1,9 +1,9 @@
 Add routes between the Kubernetes clusters
-\`\`\`bash
-cluster1_cidr=\$(kubectl --context \${CLUSTER1} -n kube-system get pod -l component=kube-controller-manager -o jsonpath='{.items[0].spec.containers[0].command}' | jq -r '.[] | select(. | startswith("--cluster-cidr="))' | cut -d= -f2)
-cluster2_cidr=\$(kubectl --context \${CLUSTER2} -n kube-system get pod -l component=kube-controller-manager -o jsonpath='{.items[0].spec.containers[0].command}' | jq -r '.[] | select(. | startswith("--cluster-cidr="))' | cut -d= -f2)
-cluster1_kind=\$(kubectl config get-contexts \${CLUSTER1} --no-headers | awk '{ split(\$3,a,"-"); print a[2] }')
-cluster2_kind=\$(kubectl config get-contexts \${CLUSTER2} --no-headers | awk '{ split(\$3,a,"-"); print a[2] }')
-docker exec \${cluster1_kind}-control-plane \$(kubectl --context \${CLUSTER2} get nodes -o=jsonpath='{range .items[*]}{"ip route add "}{"'\${cluster2_cidr}' via "}{.status.addresses[?(@.type=="InternalIP")].address}{"\n"}{end}')
-docker exec \${cluster2_kind}-control-plane \$(kubectl --context \${CLUSTER1} get nodes -o=jsonpath='{range .items[*]}{"ip route add "}{"'\${cluster1_cidr}' via "}{.status.addresses[?(@.type=="InternalIP")].address}{"\n"}{end}')
-\`\`\`
+```bash
+cluster1_cidr=$(kubectl --context ${CLUSTER1} -n kube-system get pod -l component=kube-controller-manager -o jsonpath='{.items[0].spec.containers[0].command}' | jq -r '.[] | select(. | startswith("--cluster-cidr="))' | cut -d= -f2)
+cluster2_cidr=$(kubectl --context ${CLUSTER2} -n kube-system get pod -l component=kube-controller-manager -o jsonpath='{.items[0].spec.containers[0].command}' | jq -r '.[] | select(. | startswith("--cluster-cidr="))' | cut -d= -f2)
+cluster1_kind=$(kubectl config get-contexts ${CLUSTER1} --no-headers | awk '{ split($3,a,"-"); print a[2] }')
+cluster2_kind=$(kubectl config get-contexts ${CLUSTER2} --no-headers | awk '{ split($3,a,"-"); print a[2] }')
+docker exec ${cluster1_kind}-control-plane $(kubectl --context ${CLUSTER2} get nodes -o=jsonpath='{range .items[*]}{"ip route add "}{"'${cluster2_cidr}' via "}{.status.addresses[?(@.type=="InternalIP")].address}{"\n"}{end}')
+docker exec ${cluster2_kind}-control-plane $(kubectl --context ${CLUSTER1} get nodes -o=jsonpath='{range .items[*]}{"ip route add "}{"'${cluster1_cidr}' via "}{.status.addresses[?(@.type=="InternalIP")].address}{"\n"}{end}')
+```
