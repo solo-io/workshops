@@ -1,11 +1,11 @@
 apiVersion: networking.gloo.solo.io/v2
 kind: RouteTable
 metadata:
-  name: main
+  name: main-portal
   namespace: istio-gateways
 spec:
   hosts:
-    - '*'
+    - cluster1-portal.example.com
   virtualGateways:
     - name: north-south-gw
       namespace: istio-gateways
@@ -20,4 +20,6 @@ spec:
         routeTables:
           - labels:
               expose: "true"
+              portal: "true"
+            workspace: gateways
         sortMethod: ROUTE_SPECIFICITY
