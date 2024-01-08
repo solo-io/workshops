@@ -1,7 +1,7 @@
 helm upgrade --install gloo-platform gloo-platform/gloo-platform \
   --namespace gloo-mesh-addons \
   --kube-context=undefined \
-  --version 2.4.4 \
+  --version 2.4.6 \
  -f -<<EOF
 common:
   cluster: undefined
