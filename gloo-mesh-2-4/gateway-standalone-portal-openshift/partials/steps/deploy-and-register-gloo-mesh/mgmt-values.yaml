@@ -1,4 +1,3 @@
-
 licensing:
   licenseKey: ${GLOO_MESH_LICENSE_KEY}
 common:
