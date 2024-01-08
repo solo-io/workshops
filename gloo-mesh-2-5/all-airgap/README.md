@@ -224,13 +224,13 @@ quay.io/prometheus/prometheus:v2.41.0
 registry.k8s.io/ingress-nginx/kube-webhook-certgen:v1.3.0
 registry.k8s.io/kube-state-metrics/kube-state-metrics:v2.7.0
 us-docker.pkg.dev/gloo-mesh/istio-workshops/install-cni:1.19.3-solo
-us-docker.pkg.dev/gloo-mesh/istio-workshops/install-cni:1.20.1-patch0
+us-docker.pkg.dev/gloo-mesh/istio-workshops/install-cni:1.20.1-patch0-solo
 us-docker.pkg.dev/gloo-mesh/istio-workshops/operator:1.19.3-solo
-us-docker.pkg.dev/gloo-mesh/istio-workshops/operator:1.20.1-patch0
+us-docker.pkg.dev/gloo-mesh/istio-workshops/operator:1.20.1-patch0-solo
 us-docker.pkg.dev/gloo-mesh/istio-workshops/pilot:1.19.3-solo
-us-docker.pkg.dev/gloo-mesh/istio-workshops/pilot:1.20.1-patch0
+us-docker.pkg.dev/gloo-mesh/istio-workshops/pilot:1.20.1-patch0-solo
 us-docker.pkg.dev/gloo-mesh/istio-workshops/proxyv2:1.19.3-solo
-us-docker.pkg.dev/gloo-mesh/istio-workshops/proxyv2:1.20.1-patch0
+us-docker.pkg.dev/gloo-mesh/istio-workshops/proxyv2:1.20.1-patch0-solo
 EOF
 
 for url in https://raw.githubusercontent.com/istio/istio/master/samples/bookinfo/platform/kube/bookinfo.yaml https://raw.githubusercontent.com/istio/istio/master/samples/bookinfo/networking/bookinfo-gateway.yaml
