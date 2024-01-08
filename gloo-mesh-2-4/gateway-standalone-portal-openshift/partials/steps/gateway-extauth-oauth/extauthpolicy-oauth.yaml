@@ -17,13 +17,15 @@ spec:
       configs:
       - oauth2:
           oidcAuthorizationCode:
-            appUrl: "https://"
+            appUrl: "https://cluster1-httpbin.example.com"
             callbackPath: /callback
             clientId: ${KEYCLOAK_CLIENT}
             clientSecretRef:
               name: oauth
               namespace: httpbin
             issuerUrl: "${KEYCLOAK_URL}/realms/master/"
+            logoutPath: /logout
+            afterLogoutUrl: "https://cluster1-httpbin.example.com/get"
             session:
               failOnFetchFailure: true
               redis:
@@ -34,3 +36,7 @@ spec:
             - email
             headers:
               idTokenHeader: jwt
+            identityToken:
+              claimsToHeaders:
+                - claim: email
+                  header: X-Email
