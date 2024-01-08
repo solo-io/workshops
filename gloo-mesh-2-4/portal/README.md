@@ -147,7 +147,7 @@ EOF
 echo "executing test dist/gloo-mesh-2-0-default-portal/build/templates/steps/deploy-kind-clusters/tests/cluster-healthy.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
-mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
+timeout 2m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
 -->
 
 
@@ -159,7 +159,7 @@ mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${te
 First of all, let's install the `meshctl` CLI:
 
 ```bash
-export GLOO_MESH_VERSION=v2.4.4
+export GLOO_MESH_VERSION=v2.4.6
 curl -sL https://run.solo.io/meshctl/install | sh -
 export PATH=$HOME/.gloo-mesh/bin:$PATH
 ```
@@ -195,7 +195,7 @@ EOF
 echo "executing test dist/gloo-mesh-2-0-default-portal/build/templates/steps/deploy-and-register-gloo-mesh/tests/environment-variables.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
-mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
+timeout 2m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
 -->
 First, create a secret with the password to use to store access logs in Clickhouse
 
@@ -226,13 +226,12 @@ kubectl --context ${MGMT} create ns gloo-mesh
 helm upgrade --install gloo-platform-crds gloo-platform/gloo-platform-crds \
 --namespace gloo-mesh \
 --kube-context ${MGMT} \
---version=2.4.4
+--version=2.4.6
 helm upgrade --install gloo-platform gloo-platform/gloo-platform \
 --namespace gloo-mesh \
 --kube-context ${MGMT} \
---version=2.4.4 \
+--version=2.4.6 \
  -f -<<EOF
-
 licensing:
   licenseKey: ${GLOO_MESH_LICENSE_KEY}
 common:
@@ -264,14 +263,16 @@ telemetryGatewayCustomization:
 glooUi:
   enabled: true
   serviceType: LoadBalancer
+telemetryCollector:
+  enabled: true
 EOF
 kubectl --context ${MGMT} -n gloo-mesh rollout status deploy/gloo-mesh-mgmt-server
 ```
 <!--bash
 kubectl wait --context ${MGMT} --for=condition=Ready -n gloo-mesh --all pod
-until [[ $(kubectl --context ${MGMT} -n gloo-mesh get svc gloo-mesh-mgmt-server -o json | jq '.status.loadBalancer | length') -gt 0 ]]; do
+timeout 2m bash -c "until [[ \$(kubectl --context ${MGMT} -n gloo-mesh get svc gloo-mesh-mgmt-server -o json | jq '.status.loadBalancer | length') -gt 0 ]]; do
   sleep 1
-done
+done"
 -->
 Then, you need to set the environment variable to tell the Gloo Mesh agents how to communicate with the management plane:
 <!--bash
@@ -290,7 +291,7 @@ EOF
 echo "executing test dist/gloo-mesh-2-0-default-portal/build/templates/steps/deploy-and-register-gloo-mesh/tests/check-deployment.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
-mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
+timeout 2m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
 -->
 <!--bash
 cat <<'EOF' > ./test.js
@@ -311,13 +312,14 @@ EOF
 echo "executing test dist/gloo-mesh-2-0-default-portal/build/templates/steps/deploy-and-register-gloo-mesh/tests/get-gloo-mesh-mgmt-server-ip.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
-mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
+timeout 2m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
 -->
 
 ```bash
 export ENDPOINT_GLOO_MESH=$(kubectl --context ${MGMT} -n gloo-mesh get svc gloo-mesh-mgmt-server -o jsonpath='{.status.loadBalancer.ingress[0].*}'):9900
 export HOST_GLOO_MESH=$(echo ${ENDPOINT_GLOO_MESH%:*})
 export ENDPOINT_TELEMETRY_GATEWAY=$(kubectl --context ${MGMT} -n gloo-mesh get svc gloo-telemetry-gateway -o jsonpath='{.status.loadBalancer.ingress[0].*}'):4317
+export ENDPOINT_GLOO_MESH_UI=$(kubectl --context ${MGMT} -n gloo-mesh get svc gloo-mesh-ui -o jsonpath='{.status.loadBalancer.ingress[0].*}'):8090
 ```
 
 Check that the variables have correct values:
@@ -349,7 +351,7 @@ EOF
 echo "executing test ./gloo-mesh-2-0/tests/can-resolve.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
-mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
+timeout 2m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
 -->
 Finally, you need to register the cluster(s).
 
@@ -375,12 +377,13 @@ rm token
 helm upgrade --install gloo-platform-crds gloo-platform/gloo-platform-crds  \
 --namespace=gloo-mesh \
 --kube-context=${CLUSTER1} \
---version=2.4.4
+--version=2.4.6
 helm upgrade --install gloo-platform gloo-platform/gloo-platform \
   --namespace=gloo-mesh \
   --kube-context=${CLUSTER1} \
-  --version=2.4.4 \
+  --version=2.4.6 \
  -f -<<EOF
+
 common:
   cluster: cluster1
 glooAgent:
@@ -432,12 +435,13 @@ rm token
 helm upgrade --install gloo-platform-crds gloo-platform/gloo-platform-crds  \
 --namespace=gloo-mesh \
 --kube-context=${CLUSTER2} \
---version=2.4.4
+--version=2.4.6
 helm upgrade --install gloo-platform gloo-platform/gloo-platform \
   --namespace=gloo-mesh \
   --kube-context=${CLUSTER2} \
-  --version=2.4.4 \
+  --version=2.4.6 \
  -f -<<EOF
+
 common:
   cluster: cluster2
 glooAgent:
@@ -520,7 +524,7 @@ EOF
 echo "executing test dist/gloo-mesh-2-0-default-portal/build/templates/steps/deploy-and-register-gloo-mesh/tests/cluster-registration.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
-mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
+timeout 2m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
 -->
 
 
@@ -921,22 +925,22 @@ until kubectl --context ${MGMT} -n gloo-mesh wait --timeout=180s --for=jsonpath=
   echo "Waiting for the Istio installation to complete"
   sleep 1
 done
-until [[ $(kubectl --context ${CLUSTER1} -n istio-system get deploy -o json | jq '[.items[].status.readyReplicas] | add') -ge 1 ]]; do
+timeout 2m bash -c "until [[ \$(kubectl --context ${CLUSTER1} -n istio-system get deploy -o json | jq '[.items[].status.readyReplicas] | add') -ge 1 ]]; do
   sleep 1
-done
-until [[ $(kubectl --context ${CLUSTER1} -n istio-gateways get deploy -o json | jq '[.items[].status.readyReplicas] | add') -eq 2 ]]; do
+done"
+timeout 2m bash -c "until [[ \$(kubectl --context ${CLUSTER1} -n istio-gateways get deploy -o json | jq '[.items[].status.readyReplicas] | add') -eq 2 ]]; do
   sleep 1
-done
+done"
 until kubectl --context ${MGMT} -n gloo-mesh wait --timeout=180s --for=jsonpath='{.status.clusters.cluster2.installations.*.state}'=HEALTHY istiolifecyclemanagers/cluster2-installation; do
   echo "Waiting for the Istio installation to complete"
   sleep 1
 done
-until [[ $(kubectl --context ${CLUSTER2} -n istio-system get deploy -o json | jq '[.items[].status.readyReplicas] | add') -ge 1 ]]; do
+timeout 2m bash -c "until [[ \$(kubectl --context ${CLUSTER2} -n istio-system get deploy -o json | jq '[.items[].status.readyReplicas] | add') -ge 1 ]]; do
   sleep 1
-done
-until [[ $(kubectl --context ${CLUSTER2} -n istio-gateways get deploy -o json | jq '[.items[].status.readyReplicas] | add') -eq 2 ]]; do
+done"
+timeout 2m bash -c "until [[ \$(kubectl --context ${CLUSTER2} -n istio-gateways get deploy -o json | jq '[.items[].status.readyReplicas] | add') -eq 2 ]]; do
   sleep 1
-done
+done"
 -->
 
 <!--bash
@@ -987,12 +991,12 @@ EOF
 echo "executing test dist/gloo-mesh-2-0-default-portal/build/templates/steps/istio-lifecycle-manager-install/tests/istio-ready.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
-mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
+timeout 2m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
 -->
 <!--bash
-until [[ $(kubectl --context ${CLUSTER1} -n istio-gateways get svc -l istio=ingressgateway -o json | jq '.items[0].status.loadBalancer | length') -gt 0 ]]; do
+timeout 2m bash -c "until [[ \$(kubectl --context ${CLUSTER1} -n istio-gateways get svc -l istio=ingressgateway -o json | jq '.items[0].status.loadBalancer | length') -gt 0 ]]; do
   sleep 1
-done
+done"
 -->
 
 ```bash
@@ -1023,7 +1027,7 @@ EOF
 echo "executing test ./gloo-mesh-2-0/tests/can-resolve.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
-mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
+timeout 2m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
 -->
 <!--bash
 cat <<'EOF' > ./test.js
@@ -1048,7 +1052,7 @@ EOF
 echo "executing test ./gloo-mesh-2-0/tests/can-resolve.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
-mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
+timeout 2m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
 -->
 
 
@@ -1173,7 +1177,7 @@ EOF
 echo "executing test dist/gloo-mesh-2-0-default-portal/build/templates/steps/apps/bookinfo/deploy-bookinfo/tests/check-bookinfo.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
-mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
+timeout 2m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
 -->
 
 
@@ -1199,7 +1203,7 @@ Then, you can deploy the addons on the cluster(s) using Helm:
 helm upgrade --install gloo-platform gloo-platform/gloo-platform \
   --namespace gloo-mesh-addons \
   --kube-context=${CLUSTER1} \
-  --version 2.4.4 \
+  --version 2.4.6 \
  -f -<<EOF
 common:
   cluster: cluster1
@@ -1229,7 +1233,7 @@ EOF
 helm upgrade --install gloo-platform gloo-platform/gloo-platform \
   --namespace gloo-mesh-addons \
   --kube-context=${CLUSTER2} \
-  --version 2.4.4 \
+  --version 2.4.6 \
  -f -<<EOF
 common:
   cluster: cluster2
@@ -1580,10 +1584,7 @@ Let's add the domain to our `/etc/hosts` file:
 ./scripts/register-domain.sh cluster2-bookinfo.example.com ${HOST_GW_CLUSTER2}
 ```
 
-Get the URL to access the `productpage` service using the following command:
-```
-echo "http://cluster1-bookinfo.example.com/productpage"
-```
+You can access the `productpage` service using this URL: [http://cluster1-bookinfo.example.com/productpage](http://cluster1-bookinfo.example.com/productpage).
 
 You should now be able to access the `productpage` application through the browser.
 <!--bash
@@ -1597,7 +1598,7 @@ EOF
 echo "executing test dist/gloo-mesh-2-0-default-portal/build/templates/steps/apps/bookinfo/gateway-expose/tests/productpage-available.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
-mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
+timeout 2m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
 -->
 
 Gloo Mesh translates the `VirtualGateway` and `RouteTable` into the corresponding Istio objects (`Gateway` and `VirtualService`).
@@ -1610,7 +1611,7 @@ openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
    -keyout tls.key -out tls.crt -subj "/CN=*"
 ```
 
-Then, you have to store them in a Kubernetes secrets running the following commands:
+Then, you have to store them in a Kubernetes secret running the following commands:
 
 ```bash
 kubectl --context ${CLUSTER1} -n istio-gateways create secret generic tls-secret \
@@ -1683,10 +1684,7 @@ curl --tlsv1.3 --tls-max 1.3 --key tls.key --cert tls.crt https://cluster1-booki
 ```
 
 And after this you should get the actual Productpage.
-Get the URL to access the `productpage` service using the following command:
-```
-echo "https://cluster1-bookinfo.example.com/productpage"
-```
+You can now access the `productpage` service using this URL: [https://cluster1-bookinfo.example.com/productpage](https://cluster1-bookinfo.example.com/productpage).
 
 <!--bash
 cat <<'EOF' > ./test.js
@@ -1699,7 +1697,7 @@ EOF
 echo "executing test dist/gloo-mesh-2-0-default-portal/build/templates/steps/apps/bookinfo/gateway-expose/tests/productpage-available-secure.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
-mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
+timeout 2m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
 -->
 <!--bash
 cat <<'EOF' > ./test.js
@@ -1720,7 +1718,7 @@ EOF
 echo "executing test dist/gloo-mesh-2-0-default-portal/build/templates/steps/apps/bookinfo/gateway-expose/tests/otel-metrics.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
-mocha ./test.js --timeout 10000 --retries=150 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
+timeout 2m mocha ./test.js --timeout 10000 --retries=150 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
 -->
 
 This diagram shows the flow of the request (through the Istio Ingress Gateway):
@@ -1815,7 +1813,7 @@ EOF
 echo "executing test dist/gloo-mesh-2-0-default-portal/build/templates/steps/deploy-keycloak/tests/pods-available.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
-mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
+timeout 2m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
 -->
 
 <!--bash
@@ -1845,7 +1843,7 @@ EOF
 echo "executing test dist/gloo-mesh-2-0-default-portal/build/templates/steps/deploy-keycloak/tests/keycloak-ip-is-attached.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
-mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
+timeout 2m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
 -->
 
 Then, we will configure it and create two users:
@@ -1894,7 +1892,7 @@ EOF
 echo "executing test ./gloo-mesh-2-0/tests/can-resolve.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
-mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
+timeout 2m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
 -->
 <!--bash
 echo "Waiting for Keycloak to be ready at $KEYCLOAK_URL/realms/master/protocol/openid-connect/token"
@@ -1991,7 +1989,8 @@ kubectl --context ${CLUSTER1} -n bookinfo-frontends annotate service productpage
 <!--bash
 until kubectl --context ${CLUSTER1} -n bookinfo-frontends get apidoc productpage-service; do
   kubectl --context ${CLUSTER1} -n bookinfo-frontends rollout restart deploy productpage-v1
-  sleep 10
+  kubectl --context ${CLUSTER1} -n bookinfo-frontends rollout status deploy productpage-v1
+  sleep 1
 done
 -->
 
@@ -2012,7 +2011,7 @@ EOF
 echo "executing test dist/gloo-mesh-2-0-default-portal/build/templates/steps/apps/bookinfo/dev-portal-api/tests/apidoc-created.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
-mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
+timeout 2m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
 -->
 
 You should get something like this:
@@ -2154,7 +2153,7 @@ EOF
 echo "executing test dist/gloo-mesh-2-0-default-portal/build/templates/steps/apps/bookinfo/dev-portal-api/tests/access-api-no-auth.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
-mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
+timeout 2m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
 -->
 
 Here is the expected output:
@@ -2217,7 +2216,7 @@ EOF
 echo "executing test dist/gloo-mesh-2-0-default-portal/build/templates/steps/apps/bookinfo/dev-portal-api/tests/access-api-unauthorized.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
-mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
+timeout 2m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
 -->
 
 The access is refused (401 response):
@@ -2267,7 +2266,7 @@ EOF
 echo "executing test dist/gloo-mesh-2-0-default-portal/build/templates/steps/apps/bookinfo/dev-portal-api/tests/access-api-authorized.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
-mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
+timeout 2m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
 -->
 
 We'll see later that the API keys can be created on demand by the end user through the developer portal (and stored on Redis for better scalability).
@@ -2288,7 +2287,7 @@ apiVersion: admin.gloo.solo.io/v2
 kind: RateLimitServerConfig
 metadata:
   name: productpage
-  namespace: bookinfo-frontends
+  namespace: gloo-mesh-addons
 spec:
   destinationServers:
   - ref:
@@ -2358,7 +2357,7 @@ spec:
                 - key: userId
     ratelimitServerConfig:
       name: productpage
-      namespace: bookinfo-frontends
+      namespace: gloo-mesh-addons
       cluster: cluster1
     phase:
       postAuthz:
@@ -2469,7 +2468,7 @@ EOF
 echo "executing test dist/gloo-mesh-2-0-default-portal/build/templates/steps/apps/bookinfo/dev-portal-stitching/tests/apidoc-created.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
-mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
+timeout 2m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
 -->
 
 Finally, you can create a new `RouteTable` to stitch together the `/search.json` path with the existing Bookinfo API:
@@ -2571,7 +2570,7 @@ EOF
 echo "executing test dist/gloo-mesh-2-0-default-portal/build/templates/steps/apps/bookinfo/dev-portal-stitching/tests/access-openlibrary-api.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
-mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
+timeout 2m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
 -->
 
 You should get something like that:
@@ -2742,13 +2741,13 @@ EOF
 echo "executing test dist/gloo-mesh-2-0-default-portal/build/templates/steps/apps/bookinfo/dev-portal-backend/tests/access-portal-api-no-auth-no-config.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
-mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
+timeout 2m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
 -->
 
 Here is the expected output:
 
 ```json,nocopy
-{"message":"portal config not found for host: 172.18.102.1"}
+{"message":"portal config not found for host: ***"}
 ```
 
 You can see that no portal configuration has been found.
@@ -2802,7 +2801,7 @@ EOF
 echo "executing test dist/gloo-mesh-2-0-default-portal/build/templates/steps/apps/bookinfo/dev-portal-backend/tests/access-portal-api-no-auth-empty.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
-mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
+timeout 2m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
 -->
 
 The response should be an empty array: `[]`.
@@ -2971,7 +2970,7 @@ EOF
 echo "executing test dist/gloo-mesh-2-0-default-portal/build/templates/steps/apps/bookinfo/dev-portal-frontend/tests/access-portal-frontend-no-auth.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
-mocha ./test.js --timeout 10000 --retries=300 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
+timeout 2m mocha ./test.js --timeout 10000 --retries=300 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
 -->
 
 You should now be able to access the portal frontend through the gateway.
@@ -3120,27 +3119,46 @@ EOF
 -->
 
 <!--bash
+ATTEMPTS=1
+timeout 60 bash -c 'while [[ "$(curl -m 2 --max-time 2 --insecure -s -o /dev/null -w ''%{http_code}'' https://cluster1-portal.example.com/v1/login)" != "302" ]]; do sleep 5; done'
+timeout 60 bash -c 'while [[ "$(curl -m 2 --max-time 2 --insecure -s -o /dev/null -w ''%{http_code}'' https://cluster1-portal.example.com)" != "200" ]]; do sleep 5; done'
+export USER1_TOKEN=$(node tests/keycloak-token.js "https://cluster1-portal.example.com/v1/login" user1)
+export USER2_TOKEN=$(node tests/keycloak-token.js "https://cluster1-portal.example.com/v1/login" user2)
+until ([ ! -z "$USER1_TOKEN" ] && [[ $USER1_TOKEN != *"dummy"* ]]) || [ $ATTEMPTS -gt 20 ]; do
+  printf "."
+  ATTEMPTS=$((ATTEMPTS + 1))
+  sleep 1
+  export USER1_TOKEN=$(node tests/keycloak-token.js "https://cluster1-portal.example.com/v1/login" user1)
+done
+until ([ ! -z "$USER2_TOKEN" ] && [[ $USER2_TOKEN != *"dummy"* ]]) || [ $ATTEMPTS -gt 20 ]; do
+  printf "."
+  ATTEMPTS=$((ATTEMPTS + 1))
+  sleep 1
+  export USER2_TOKEN=$(node tests/keycloak-token.js "https://cluster1-portal.example.com/v1/login" user2)
+done
+echo "User1 token: $USER1_TOKEN"
+echo "User2 token: $USER2_TOKEN"
+-->
+<!--bash
 cat <<'EOF' > ./test.js
-const chaiExec = require("@jsdevtools/chai-exec");
 const helpersHttp = require('./tests/chai-http');
-var chai = require('chai');
-var expect = chai.expect;
 
 describe("Authentication is working properly", function() {
-  let user = 'user1';
-  let password = 'password';
-  let keycloak_client_id = chaiExec("kubectl --context " + process.env.CLUSTER1 + " -n gloo-mesh-addons get extauthpolicy portal -o jsonpath='{.spec.config.glooAuth.configs[0].oauth2.oidcAuthorizationCode.clientId}'").stdout.replaceAll("'", "");
-  let keycloak_client_secret_base64 = chaiExec("kubectl --context " + process.env.CLUSTER1 + " -n gloo-mesh-addons get secret oauth -o jsonpath='{.data.client-secret}'").stdout.replaceAll("'", "");
-  let buff = new Buffer(keycloak_client_secret_base64, 'base64');
-  let keycloak_client_secret = buff.toString('ascii');
-  let keycloak_token = JSON.parse(chaiExec('curl -d "client_id=' + keycloak_client_id + '" -d "client_secret=' + keycloak_client_secret + '" -d "scope=openid" -d "username=' + user + '" -d "password=' + password + '" -d "grant_type=password" "' + process.env.KEYCLOAK_URL +'/realms/master/protocol/openid-connect/token"').stdout.replaceAll("'", "")).id_token;
-  it("The portal frontend is accessible after authenticating", () => helpersHttp.checkURL({ host: `https://cluster1-portal.example.com`, path: '/index.html', headers: [{key: 'Authorization', value: 'Bearer ' + keycloak_token}], retCode: 200 }));
+  const cookieString = process.env.USER1_TOKEN;
+
+  it("The portal frontend isn't accessible without authenticating", () => {
+    return helpersHttp.checkURL({ host: `https://cluster1-portal.example.com`, path: '/v1/login', retCode: 302 });
+  });
+
+  it("The portal frontend is accessible after authenticating", () => {
+    return helpersHttp.checkURL({ host: `https://cluster1-portal.example.com`, path: '/v1/login', headers: [{ key: 'Cookie', value: cookieString }], retCode: 404 });
+  });
 });
 EOF
 echo "executing test dist/gloo-mesh-2-0-default-portal/build/templates/steps/apps/bookinfo/dev-portal-frontend/tests/access-portal-frontend-authenticated.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
-mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
+timeout 2m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
 -->
 
 Note that The `ExtAuthPolicy` is enforced on both the `portal-frontend` and `portal-server` `RouteTables`.
@@ -3150,6 +3168,31 @@ If you click on the `LOGIN` button on the top right corner, you'll be redirected
 Now, if you click on the `VIEW APIS` button, you should see the `Bookinfo REST API`.
 
 ![Dev Portal APIs](images/steps/dev-portal-frontend/apis.png)
+
+Finally, you need to create a CORS Policy to allow the portal frontend to send API calls the `bookinfo` API.
+
+```bash
+kubectl apply --context ${CLUSTER1} -f - <<EOF
+apiVersion: security.policy.gloo.solo.io/v2
+kind: CORSPolicy
+metadata:
+  name: productpage
+  namespace: bookinfo-frontends
+spec:
+  applyToRoutes:
+  - route:
+      labels:
+        api: "productpage"
+  config:
+    allowCredentials: true
+    allowHeaders:
+    - "*"
+    allowMethods:
+    - GET
+    allowOrigins:
+    - regex: ".*"
+EOF
+```
 
 
 
@@ -3209,16 +3252,17 @@ You'll need to use the `Swagger View` and then to click on the `Authorize` butto
 
 Before we continue, let's update the API_KEY_USER1 variable with its current value:
 <!--bash
-sleep 60
+ATTEMPTS=1
+while [[ $API_KEY_USER1 != *"apiKey"* ]] && [ $ATTEMPTS -lt 25 ]; do
+  echo "Waiting for API key to be created ($ATTEMPTS/25)..."
+  ATTEMPTS=$((ATTEMPTS + 1))
+  sleep 5
+  export API_KEY_USER1=$(curl -k -s -X POST -H 'Content-Type: application/json' -d '{"usagePlan": "gold", "apiKeyName": "key1"}' -H "Cookie: ${USER1_TOKEN}" "https://cluster1-portal.example.com/portal-server/v1/api-keys")
+  echo API key: $API_KEY_USER1
+done
 -->
 ```bash
-export HOST_KEYCLOAK=$(echo ${ENDPOINT_KEYCLOAK} | cut -d: -f1)
-export PORT_KEYCLOAK=$(echo ${ENDPOINT_KEYCLOAK} | cut -d: -f2)
-export KEYCLOAK_URL=http://${ENDPOINT_KEYCLOAK}
-KEYCLOAK_CLIENT_ID=$(kubectl --context ${CLUSTER1} -n gloo-mesh-addons get extauthpolicy portal -o jsonpath='{.spec.config.glooAuth.configs[0].oauth2.oidcAuthorizationCode.clientId}')
-KEYCLOAK_CLIENT_SECRET=$(kubectl --context ${CLUSTER1} -n gloo-mesh-addons get secret oauth -o jsonpath='{.data.client-secret}' | base64 --decode)
-KEYCLOAK_USER1_TOKEN=$(curl -d "client_id=${KEYCLOAK_CLIENT_ID}" -d "client_secret=${KEYCLOAK_CLIENT_SECRET}" -d "scope=openid" -d "username=user1" -d "password=password" -d "grant_type=password" "${KEYCLOAK_URL}/realms/master/protocol/openid-connect/token" | jq -r '.id_token')
-export API_KEY_USER1=$(curl -k -s -X POST -H 'Content-Type: application/json' -d '{"usagePlan": "gold", "apiKeyName": "key1"}' -H "id_token: ${KEYCLOAK_USER1_TOKEN}" "https://cluster1-bookinfo.example.com/portal-server/v1/api-keys"  | jq -r '.apiKey')
+export API_KEY_USER1=$(curl -k -s -X POST -H 'Content-Type: application/json' -d '{"usagePlan": "gold", "apiKeyName": "key1"}' -H "Cookie: ${USER1_TOKEN}" "https://cluster1-portal.example.com/portal-server/v1/api-keys"  | jq -r '.apiKey')
 echo API key: $API_KEY_USER1
 ```
 
@@ -3233,7 +3277,7 @@ EOF
 echo "executing test dist/gloo-mesh-2-0-default-portal/build/templates/steps/apps/bookinfo/dev-portal-self-service/tests/api-key.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
-mocha ./test.js --timeout 10000 --retries=150 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
+timeout 2m mocha ./test.js --timeout 10000 --retries=150 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
 -->
 
 
@@ -3466,8 +3510,8 @@ const helpers = require('./tests/chai-exec');
 
 describe("Monetization is working", () => {
   it('Response contains all the required monetization fields', () => {
-    const response = helpers.getOutputForCommand({ command: `curl -k -H 'api-key: ${process.env.API_KEY_USER1}' https://cluster1-bookinfo.example.com/api/bookinfo/v1` });
-    const output = JSON.parse(helpers.getOutputForCommand({ command: "kubectl --context " + process.env.CLUSTER1 + " -n istio-gateways logs -l istio=ingressgateway --tail 1" }));
+    const response = helpers.getOutputForCommand({ command: `curl -k -H \"api-key: ${process.env.API_KEY_USER1}\" https://cluster1-bookinfo.example.com/api/bookinfo/v1` });
+    const output = JSON.parse(helpers.getOutputForCommand({ command: `kubectl --context ${process.env.CLUSTER1} -n istio-gateways logs -l istio=ingressgateway --tail 1` }));
     expect(output.usage_plan).to.equals("gold");
     expect(output.api_product_id).to.equals("bookinfo");
     expect(output.user_id).to.equals("user1@example.com");
@@ -3477,7 +3521,7 @@ EOF
 echo "executing test dist/gloo-mesh-2-0-default-portal/build/templates/steps/apps/bookinfo/dev-portal-monetization/tests/monetization.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
-mocha ./test.js --timeout 10000 --retries=150 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
+timeout 2m mocha ./test.js --timeout 10000 --retries=150 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
 -->
 
 
