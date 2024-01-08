@@ -14,7 +14,9 @@ hosts_file="/etc/hosts"
 # Check if the entry already exists
 if grep -q "$hostname" "$hosts_file"; then
     # Update the existing entry with the new IP
-    sudo sed -i '' "s/^.*$hostname/$new_ip $hostname/" "$hosts_file"
+    tempfile=$(mktemp)
+    sed "s/^.*$hostname/$new_ip $hostname/" "$hosts_file" > $tempfile
+    sudo mv "$tempfile" "$hosts_file"
     echo "Updated $hostname in $hosts_file with new IP: $new_ip"
 else
     # Add a new entry if it doesn't exist
