@@ -1,0 +1,18 @@
+apiVersion: security.policy.gloo.solo.io/v2
+kind: CORSPolicy
+metadata:
+  name: productpage
+  namespace: bookinfo-frontends
+spec:
+  applyToRoutes:
+  - route:
+      labels:
+        api: "productpage"
+  config:
+    allowCredentials: true
+    allowHeaders:
+    - "*"
+    allowMethods:
+    - GET
+    allowOrigins:
+    - regex: ".*"

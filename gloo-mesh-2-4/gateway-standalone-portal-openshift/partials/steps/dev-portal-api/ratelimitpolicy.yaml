@@ -27,7 +27,7 @@ spec:
                 - key: userId
     ratelimitServerConfig:
       name: productpage
-      namespace: bookinfo-frontends
+      namespace: gloo-mesh-addons
       cluster: cluster1
     phase:
       postAuthz:
