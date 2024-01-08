@@ -149,7 +149,11 @@ metadata:
   namespace: metallb-system
 EOF
 
-kubectl --context=kind-kind${number} apply -f metallb${number}.yaml
+printf "Create IPAddressPool in kind-kind${number}\n"
+for i in {1..10}; do
+kubectl --context=kind-kind${number} apply -f metallb${number}.yaml && break
+sleep 2
+done
 
 cat <<EOF | kubectl apply -f -
 apiVersion: v1
