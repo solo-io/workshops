@@ -2,7 +2,7 @@ apiVersion: admin.gloo.solo.io/v2
 kind: RateLimitServerConfig
 metadata:
   name: productpage
-  namespace: bookinfo-frontends
+  namespace: gloo-mesh-addons
 spec:
   destinationServers:
   - ref:
