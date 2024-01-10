@@ -1,0 +1,31 @@
+namespace: bookinfo-backends
+patches:
+- target:
+    kind: Deployment
+    name: reviews-v1
+  patch: |-
+    - op: add
+      path: /spec/template/spec/containers/0/env/-
+      value:
+        name: CLUSTER_NAME
+        value: undefined
+- target:
+    kind: Deployment
+    name: reviews-v2
+  patch: |-
+    - op: add
+      path: /spec/template/spec/containers/0/env/-
+      value:
+        name: CLUSTER_NAME
+        value: undefined
+- target:
+    kind: Deployment
+    name: reviews-v3
+  patch: |-
+    - op: add
+      path: /spec/template/spec/containers/0/env/-
+      value:
+        name: CLUSTER_NAME
+        value: undefined
+resources:
+- ../../base/backends
