@@ -1,0 +1,43 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: gloo-platform-addons
+spec:
+  generators:
+  - list:
+      elements:
+      - cluster: ${CLUSTER1}
+  template:
+    metadata:
+      name: gloo-platform-addons-{{cluster}}
+      annotations:
+        argocd.argoproj.io/sync-wave: "2"
+      finalizers:
+      - resources-finalizer.argocd.argoproj.io/background
+    spec:
+      project: platform
+      destination:
+        name: '{{cluster}}'
+        namespace: gloo-mesh-addons
+      syncPolicy:
+        automated:
+          prune: true
+      ignoreDifferences:
+      - kind: Secret
+        name: ext-auth-service-signing-key
+        jsonPointers:
+        - /data/signing-key
+      sources:
+      - chart: gloo-platform
+        repoURL: https://storage.googleapis.com/gloo-platform/helm-charts
+        targetRevision: 2.4.6
+        helm:
+          releaseName: gloo-platform
+          valueFiles:
+          - \$values/platform/argo-cd/gloo-platform-addons-installation-values.yaml
+          parameters:
+          - name: common.cluster
+            value: '{{cluster}}'
+      - repoURL: http://$(kubectl --context ${MGMT} -n gitea get svc gitea-http -o jsonpath='{.status.loadBalancer.ingress[0].*}'):3180/gloo-gitops/gitops-repo.git
+        targetRevision: HEAD
+        ref: values
