@@ -159,7 +159,7 @@ timeout 2m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} |
 Before we get started, let's install the `meshctl` CLI:
 
 ```bash
-export GLOO_MESH_VERSION=v2.5.0-rc3
+export GLOO_MESH_VERSION=v2.5.0
 curl -sL https://run.solo.io/meshctl/install | sh -
 export PATH=$HOME/.gloo-mesh/bin:$PATH
 ```
@@ -223,11 +223,11 @@ kubectl --context ${MGMT} create ns gloo-mesh
 helm upgrade --install gloo-platform-crds gloo-platform/gloo-platform-crds \
 --namespace gloo-mesh \
 --kube-context ${MGMT} \
---version=2.5.0-rc3
+--version=2.5.0
 helm upgrade --install gloo-platform gloo-platform/gloo-platform \
 --namespace gloo-mesh \
 --kube-context ${MGMT} \
---version=2.5.0-rc3 \
+--version=2.5.0 \
  -f -<<EOF
 licensing:
   licenseKey: ${GLOO_MESH_LICENSE_KEY}
@@ -274,7 +274,9 @@ timeout 2m bash -c "until [[ \$(kubectl --context ${MGMT} -n gloo-mesh get svc g
   sleep 1
 done"
 -->
-Then, you need to set the environment variable to tell the Gloo Mesh agents how to communicate with the management plane:<!--bash
+
+Then, you need to set the environment variable to tell the Gloo Mesh agents how to communicate with the management plane:
+<!--bash
 cat <<'EOF' > ./test.js
 
 const helpers = require('./tests/chai-exec');
@@ -291,7 +293,8 @@ echo "executing test dist/gloo-mesh-2-0-default-portal-beta/build/templates/step
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 timeout 2m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
---><!--bash
+-->
+<!--bash
 cat <<'EOF' > ./test.js
 const chaiExec = require("@jsdevtools/chai-exec");
 var chai = require('chai');
@@ -376,11 +379,11 @@ rm token
 helm upgrade --install gloo-platform-crds gloo-platform/gloo-platform-crds  \
 --namespace=gloo-mesh \
 --kube-context=${CLUSTER1} \
---version=2.5.0-rc3
+--version=2.5.0
 helm upgrade --install gloo-platform gloo-platform/gloo-platform \
   --namespace=gloo-mesh \
   --kube-context=${CLUSTER1} \
-  --version=2.5.0-rc3 \
+  --version=2.5.0 \
  -f -<<EOF
 common:
   cluster: cluster1
@@ -434,11 +437,11 @@ rm token
 helm upgrade --install gloo-platform-crds gloo-platform/gloo-platform-crds  \
 --namespace=gloo-mesh \
 --kube-context=${CLUSTER2} \
---version=2.5.0-rc3
+--version=2.5.0
 helm upgrade --install gloo-platform gloo-platform/gloo-platform \
   --namespace=gloo-mesh \
   --kube-context=${CLUSTER2} \
-  --version=2.5.0-rc3 \
+  --version=2.5.0 \
  -f -<<EOF
 common:
   cluster: cluster2
@@ -1073,11 +1076,13 @@ kubectl --context ${CLUSTER1} label namespace bookinfo-backends istio.io/rev=1-1
 
 # Deploy the frontend bookinfo service in the bookinfo-frontends namespace
 kubectl --context ${CLUSTER1} -n bookinfo-frontends apply -f data/steps/deploy-bookinfo/productpage-v1.yaml
+
 # Deploy the backend bookinfo services in the bookinfo-backends namespace for all versions less than v3
 kubectl --context ${CLUSTER1} -n bookinfo-backends apply \
   -f data/steps/deploy-bookinfo/details-v1.yaml \
   -f data/steps/deploy-bookinfo/ratings-v1.yaml \
   -f data/steps/deploy-bookinfo/reviews-v1-v2.yaml
+
 # Update the reviews service to display where it is coming from
 kubectl --context ${CLUSTER1} -n bookinfo-backends set env deploy/reviews-v1 CLUSTER_NAME=${CLUSTER1}
 kubectl --context ${CLUSTER1} -n bookinfo-backends set env deploy/reviews-v2 CLUSTER_NAME=${CLUSTER1}
@@ -1146,7 +1151,9 @@ Confirm that `v1`, `v2` and `v3` of the `reviews` service are now running in the
 kubectl --context ${CLUSTER2} -n bookinfo-frontends get pods && kubectl --context ${CLUSTER2} -n bookinfo-backends get pods
 ```
 
-As you can see, we deployed all three versions of the `reviews` microservice on this cluster.<!--bash
+As you can see, we deployed all three versions of the `reviews` microservice on this cluster.
+
+<!--bash
 cat <<'EOF' > ./test.js
 const helpers = require('./tests/chai-exec');
 
@@ -1199,7 +1206,7 @@ Then, you can deploy the addons on the cluster(s) using Helm:
 helm upgrade --install gloo-platform gloo-platform/gloo-platform \
   --namespace gloo-mesh-addons \
   --kube-context=${CLUSTER1} \
-  --version 2.5.0-rc3 \
+  --version 2.5.0 \
  -f -<<EOF
 common:
   cluster: cluster1
@@ -1229,7 +1236,7 @@ EOF
 helm upgrade --install gloo-platform gloo-platform/gloo-platform \
   --namespace gloo-mesh-addons \
   --kube-context=${CLUSTER2} \
-  --version 2.5.0-rc3 \
+  --version 2.5.0 \
  -f -<<EOF
 common:
   cluster: cluster2
@@ -1704,6 +1711,7 @@ EOF
 ```
 
 You can now access the `productpage` application securely through the browser.
+You can access the `productpage` service using this URL: <https://cluster1-bookinfo.example.com/productpage>.
 
 Notice that we specificed a minimumProtocolVersion, so if the client is trying to use an deprecated TLS version the request will be denied.
 
@@ -1726,7 +1734,7 @@ curl --tlsv1.3 --tls-max 1.3 --key tls.key --cert tls.crt https://cluster1-booki
 ```
 
 And after this you should get the actual Productpage.
-You can now access the `productpage` service using this URL: [https://cluster1-bookinfo.example.com/productpage](https://cluster1-bookinfo.example.com/productpage).<!--bash
+<!--bash
 cat <<'EOF' > ./test.js
 const helpers = require('./tests/chai-http');
 
@@ -1760,6 +1768,7 @@ tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 timeout 2m mocha ./test.js --timeout 10000 --retries=150 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
 -->
+
 This diagram shows the flow of the request (through the Istio Ingress Gateway):
 
 ![Gloo Mesh Gateway](images/steps/gateway-expose/gloo-mesh-gateway.svg)
@@ -2332,7 +2341,7 @@ spec:
   - ref:
       cluster: cluster1
       name: rate-limiter
-      namespace: bookinfo-frontends
+      namespace: gloo-mesh-addons
     port:
       name: grpc
   raw:
@@ -3301,6 +3310,7 @@ while [[ $API_KEY_USER1 != *"apiKey"* ]] && [ $ATTEMPTS -lt 25 ]; do
 done
 -->
 ```bash
+source .env
 export API_KEY_USER1=$(curl -k -s -X POST -H 'Content-Type: application/json' -d '{"usagePlan": "gold", "apiKeyName": "key1"}' -H "Cookie: ${USER1_TOKEN}" "https://cluster1-portal.example.com/portal-server/v1/api-keys"  | jq -r '.apiKey')
 echo API key: $API_KEY_USER1
 ```
