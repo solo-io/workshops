@@ -313,6 +313,7 @@ timeout 2m bash -c "until [[ \$(kubectl --context ${MGMT} -n gloo-mesh get svc g
   sleep 1
 done"
 -->
+
 ```bash
 export HOST_GW_CLUSTER1="$(kubectl --context ${CLUSTER1} -n istio-gateways get svc -l istio=ingressgateway -o jsonpath='{.items[0].status.loadBalancer.ingress[0].*}')"
 ```
@@ -351,11 +352,13 @@ kubectl --context ${CLUSTER1} create ns bookinfo-frontends
 kubectl --context ${CLUSTER1} create ns bookinfo-backends
 # Deploy the frontend bookinfo service in the bookinfo-frontends namespace
 kubectl --context ${CLUSTER1} -n bookinfo-frontends apply -f data/steps/deploy-bookinfo/productpage-v1.yaml
+
 # Deploy the backend bookinfo services in the bookinfo-backends namespace for all versions less than v3
 kubectl --context ${CLUSTER1} -n bookinfo-backends apply \
   -f data/steps/deploy-bookinfo/details-v1.yaml \
   -f data/steps/deploy-bookinfo/ratings-v1.yaml \
   -f data/steps/deploy-bookinfo/reviews-v1-v2.yaml
+
 # Update the reviews service to display where it is coming from
 kubectl --context ${CLUSTER1} -n bookinfo-backends set env deploy/reviews-v1 CLUSTER_NAME=${CLUSTER1}
 kubectl --context ${CLUSTER1} -n bookinfo-backends set env deploy/reviews-v2 CLUSTER_NAME=${CLUSTER1}
@@ -381,7 +384,9 @@ kubectl --context ${CLUSTER1} -n bookinfo-frontends get pods && kubectl --contex
 
 Note that we deployed the `productpage` service in the `bookinfo-frontends` namespace and the other services in the `bookinfo-backends` namespace.
 
-And we deployed the `v1` and `v2` versions of the `reviews` microservice, not the `v3` version.<!--bash
+And we deployed the `v1` and `v2` versions of the `reviews` microservice, not the `v3` version.
+
+<!--bash
 cat <<'EOF' > ./test.js
 const helpers = require('./tests/chai-exec');
 
@@ -981,6 +986,7 @@ EOF
 ```
 
 You can now access the `productpage` application securely through the browser.
+You can access the `productpage` service using this URL: <https://cluster1-bookinfo.example.com/productpage>.
 
 Notice that we specificed a minimumProtocolVersion, so if the client is trying to use an deprecated TLS version the request will be denied.
 
@@ -1003,7 +1009,7 @@ curl --tlsv1.3 --tls-max 1.3 --key tls.key --cert tls.crt https://cluster1-booki
 ```
 
 And after this you should get the actual Productpage.
-You can now access the `productpage` service using this URL: [https://cluster1-bookinfo.example.com/productpage](https://cluster1-bookinfo.example.com/productpage).<!--bash
+<!--bash
 cat <<'EOF' > ./test.js
 const helpers = require('./tests/chai-http');
 
@@ -1037,6 +1043,7 @@ tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 timeout 2m mocha ./test.js --timeout 10000 --retries=150 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
 -->
+
 This diagram shows the flow of the request (through the Istio Ingress Gateway):
 
 ![Gloo Mesh Gateway](images/steps/gateway-expose/gloo-mesh-gateway.svg)
@@ -3789,6 +3796,7 @@ while [[ $API_KEY_USER1 != *"apiKey"* ]] && [ $ATTEMPTS -lt 25 ]; do
 done
 -->
 ```bash
+source .env
 export API_KEY_USER1=$(curl -k -s -X POST -H 'Content-Type: application/json' -d '{"usagePlan": "gold", "apiKeyName": "key1"}' -H "Cookie: ${USER1_TOKEN}" "https://cluster1-portal.example.com/portal-server/v1/api-keys"  | jq -r '.apiKey')
 echo API key: $API_KEY_USER1
 ```
