@@ -1,0 +1,42 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: gloo-platform-mgmt-installation
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+  finalizers:
+  - resources-finalizer.argocd.argoproj.io/background
+spec:
+  project: platform
+  destination:
+    name: ${MGMT}
+    namespace: gloo-mesh
+  syncPolicy:
+    automated:
+      allowEmpty: true
+      prune: true
+    syncOptions:
+    - CreateNamespace=true
+  ignoreDifferences:
+  - jsonPointers:
+    - /data/ca.crt
+    - /data/tls.crt
+    - /data/tls.key
+    - /data/token
+    kind: Secret
+  sources:
+  - chart: gloo-platform-crds
+    repoURL: https://storage.googleapis.com/gloo-platform/helm-charts
+    targetRevision: 2.4.6
+    helm:
+      releaseName: gloo-platform-crds
+  - chart: gloo-platform
+    repoURL: https://storage.googleapis.com/gloo-platform/helm-charts
+    targetRevision: 2.4.6
+    helm:
+      releaseName: gloo-platform-mgmt
+      valueFiles:
+      - \$values/platform/argo-cd/gloo-platform-mgmt-installation-values.yaml
+  - repoURL: http://$(kubectl --context ${MGMT} -n gitea get svc gitea-http -o jsonpath='{.status.loadBalancer.ingress[0].*}'):3180/gloo-gitops/gitops-repo.git
+    targetRevision: HEAD
+    ref: values
