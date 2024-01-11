@@ -751,7 +751,9 @@ timeout 2m bash -c "until [[ \$(kubectl --context ${MGMT} -n gloo-mesh get svc g
   sleep 1
 done"
 -->
-Then, you need to set the environment variable to tell the Gloo Mesh agents how to communicate with the management plane:<!--bash
+
+Then, you need to set the environment variable to tell the Gloo Mesh agents how to communicate with the management plane:
+<!--bash
 cat <<'EOF' > ./test.js
 
 const helpers = require('./tests/chai-exec');
@@ -768,7 +770,8 @@ echo "executing test dist/gloo-mesh-2-0-gloo-gitops/build/templates/steps/deploy
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 timeout 2m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
---><!--bash
+-->
+<!--bash
 cat <<'EOF' > ./test.js
 const chaiExec = require("@jsdevtools/chai-exec");
 var chai = require('chai');
@@ -2119,7 +2122,9 @@ Confirm that `v1`, `v2` and `v3` of the `reviews` service are now running in the
 kubectl --context ${CLUSTER2} -n bookinfo-frontends get pods && kubectl --context ${CLUSTER2} -n bookinfo-backends get pods
 ```
 
-As you can see, we deployed all three versions of the `reviews` microservice on this cluster.<!--bash
+As you can see, we deployed all three versions of the `reviews` microservice on this cluster.
+
+<!--bash
 cat <<'EOF' > ./test.js
 const helpers = require('./tests/chai-exec');
 
@@ -2583,6 +2588,7 @@ git -C ${GITOPS_REPO_LOCAL} add .
 git -C ${GITOPS_REPO_LOCAL} commit -m "Gloo Platform add-ons"
 git -C ${GITOPS_REPO_LOCAL} push
 ```
+
 <!--bash
 echo -n Waiting for Argo CD to sync...
 timeout -v 5m bash -c "until [[ \$(kubectl --context ${CLUSTER1} -n gloo-mesh-addons get eas ext-auth-server 2>/dev/null) ]]; do
@@ -3138,6 +3144,7 @@ echo
 -->
 
 Once Argo CD has synced these resources, you can now access the `productpage` application securely through the browser.
+You can access the `productpage` service using this URL: <https://cluster1-bookinfo.example.com/productpage>.
 
 Notice that we specificed a minimumProtocolVersion, so if the client is trying to use an deprecated TLS version the request will be denied.
 
@@ -3160,7 +3167,7 @@ curl --tlsv1.3 --tls-max 1.3 --key tls.key --cert tls.crt https://cluster1-booki
 ```
 
 And after this you should get the actual Productpage.
-You can now access the `productpage` service using this URL: [https://cluster1-bookinfo.example.com/productpage](https://cluster1-bookinfo.example.com/productpage).<!--bash
+<!--bash
 cat <<'EOF' > ./test.js
 const helpers = require('./tests/chai-http');
 
@@ -3194,6 +3201,7 @@ tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 timeout 2m mocha ./test.js --timeout 10000 --retries=150 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
 -->
+
 This diagram shows the flow of the request (through the Istio Ingress Gateway):
 
 ![Gloo Mesh Gateway](images/steps/gateway-expose/gloo-mesh-gateway.svg)
@@ -3362,8 +3370,7 @@ timeout -v 5m bash -c "until [[ \$(kubectl --context ${CLUSTER1} -n bookinfo-fro
   echo -n .
 done"
 echo
--->
-<!--bash
+--><!--bash
 cat <<'EOF' > ./test.js
 var chai = require('chai');
 var expect = chai.expect;
@@ -3401,6 +3408,7 @@ tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 timeout 2m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
 -->
+
 If you refresh the page several times, you'll see an error message telling that reviews are unavailable when the productpage is trying to communicate with the version `v2` of the `reviews` service.
 
 ![Bookinfo reviews unavailable](images/steps/traffic-policies/reviews-unavailable.png)
@@ -3988,8 +3996,7 @@ done"
 echo
 -->
 
-Once Argo CD has synced these resources, you can now access the `productpage` service
-using the gateway of the second cluster.
+
 You can access the `productpage` service from the second cluster using this URL: [https://cluster2-bookinfo.example.com/productpage](https://cluster2-bookinfo.example.com/productpage).
 
 <!--bash
