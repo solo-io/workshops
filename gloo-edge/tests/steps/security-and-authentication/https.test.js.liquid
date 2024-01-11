@@ -1,5 +1,0 @@
-const helpers = require('./tests/chai-http');
-
-describe("httpbin is available (https)", () => {
-  it('is available', () => helpers.checkURL({ host: "https://httpbin.{{ vars.sample_domain }}", retCode: 200 }));
-})

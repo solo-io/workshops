@@ -4,6 +4,7 @@ number=$1
 name=$2
 region=$3
 zone=$4
+kindest_node=${KINDEST_NODE:-kindest\/node:v1.28.0@sha256:b7a4cad12c197af3ba43202d3efe03246b3f0793f162afb40a33c923952d5b31}
 twodigits=$(printf "%02d\n" $number)
 
 if [ -z "$3" ]; then
@@ -72,11 +73,9 @@ done
 cat << EOF > kind${number}.yaml
 kind: Cluster
 apiVersion: kind.x-k8s.io/v1alpha4
-featureGates:
-  EphemeralContainers: true
 nodes:
 - role: control-plane
-  image: kindest/node:v1.24.7@sha256:577c630ce8e509131eab1aea12c022190978dd2f745aac5eb1fe65c0807eb315
+  image: ${kindest_node}
   extraPortMappings:
   - containerPort: 6443
     hostPort: 70${twodigits}
@@ -85,17 +84,6 @@ networking:
   serviceSubnet: "10.$(echo $twodigits | sed 's/^0*//').0.0/16"
   podSubnet: "10.1${twodigits}.0.0/16"
 kubeadmConfigPatches:
-- |
-  apiVersion: kubeadm.k8s.io/v1beta2
-  kind: ClusterConfiguration
-  apiServer:
-    extraArgs:
-      service-account-signing-key-file: /etc/kubernetes/pki/sa.key
-      service-account-key-file: /etc/kubernetes/pki/sa.pub
-      service-account-issuer: api
-      service-account-api-audiences: api,vault,factors
-  metadata:
-    name: config
 - |
   kind: InitConfiguration
   nodeRegistration:
@@ -122,32 +110,37 @@ networkkind=$(echo ${ipkind} | awk -F. '{ print $1"."$2 }')
 
 kubectl config set-cluster kind-kind${number} --server=https://${myip}:70${twodigits} --insecure-skip-tls-verify=true
 
-kubectl --context=kind-kind${number} apply -f https://raw.githubusercontent.com/metallb/metallb/v0.9.3/manifests/namespace.yaml
-kubectl --context=kind-kind${number} apply -f https://raw.githubusercontent.com/metallb/metallb/v0.9.3/manifests/metallb.yaml
-kubectl --context=kind-kind${number} create secret generic -n metallb-system memberlist --from-literal=secretkey="$(openssl rand -base64 128)"
-
-cat << EOF > metallb${number}.yaml
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  namespace: metallb-system
-  name: config
-data:
-  config: |
-    address-pools:
-    - name: default
-      protocol: layer2
-      addresses:
-      - ${networkkind}.0${twodigits}.1-${networkkind}.0${twodigits}.254
-EOF
-
-kubectl --context=kind-kind${number} apply -f metallb${number}.yaml
-
 docker network connect "kind" "${reg_name}" || true
 docker network connect "kind" docker || true
 docker network connect "kind" us-docker || true
+docker network connect "kind" us-central1-docker || true
 docker network connect "kind" quay || true
 docker network connect "kind" gcr || true
+
+curl -s https://raw.githubusercontent.com/metallb/metallb/v0.13.12/config/manifests/metallb-native.yaml | sed 's/Fail/Ignore/' | kubectl --context=kind-kind${number} apply -f -
+
+cat << EOF > metallb${number}.yaml
+apiVersion: metallb.io/v1beta1
+kind: IPAddressPool
+metadata:
+  name: first-pool
+  namespace: metallb-system
+spec:
+  addresses:
+  - ${networkkind}.1${twodigits}.1-${networkkind}.1${twodigits}.254
+---
+apiVersion: metallb.io/v1beta1
+kind: L2Advertisement
+metadata:
+  name: empty
+  namespace: metallb-system
+EOF
+
+printf "Create IPAddressPool in kind-kind${number}\n"
+for i in {1..10}; do
+kubectl --context=kind-kind${number} apply -f metallb${number}.yaml && break
+sleep 2
+done
 
 cat <<EOF | kubectl apply -f -
 apiVersion: v1
