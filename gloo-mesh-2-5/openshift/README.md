@@ -116,16 +116,13 @@ kubectl config use-context ${MGMT}
 [<img src="https://img.youtube.com/vi/djfFiepK4GY/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/djfFiepK4GY "Video Link")
 
 
-First of all, let's install the `meshctl` CLI:
+Before we get started, let's install the `meshctl` CLI:
 
 ```bash
 export GLOO_MESH_VERSION=v2.5.0-rc3
 curl -sL https://run.solo.io/meshctl/install | sh -
 export PATH=$HOME/.gloo-mesh/bin:$PATH
 ```
-
-Run the following commands to deploy the Gloo Mesh management plane:
-
 <!--bash
 cat <<'EOF' > ./test.js
 var chai = require('chai');
@@ -157,6 +154,7 @@ tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 timeout 2m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
 -->
+Run the following commands to deploy the Gloo Mesh management plane:
 
 ```bash
 helm repo add gloo-platform https://storage.googleapis.com/gloo-platform/helm-charts
@@ -205,14 +203,14 @@ telemetryCollector:
 EOF
 kubectl --context ${MGMT} -n gloo-mesh rollout status deploy/gloo-mesh-mgmt-server
 ```
+
 <!--bash
 kubectl wait --context ${MGMT} --for=condition=Ready -n gloo-mesh --all pod
 timeout 2m bash -c "until [[ \$(kubectl --context ${MGMT} -n gloo-mesh get svc gloo-mesh-mgmt-server -o json | jq '.status.loadBalancer | length') -gt 0 ]]; do
   sleep 1
 done"
 -->
-Then, you need to set the environment variable to tell the Gloo Mesh agents how to communicate with the management plane:
-<!--bash
+Then, you need to set the environment variable to tell the Gloo Mesh agents how to communicate with the management plane:<!--bash
 cat <<'EOF' > ./test.js
 
 const helpers = require('./tests/chai-exec');
@@ -229,8 +227,7 @@ echo "executing test dist/gloo-mesh-2-0-openshift-beta/build/templates/steps/dep
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 timeout 2m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
--->
-<!--bash
+--><!--bash
 cat <<'EOF' > ./test.js
 const chaiExec = require("@jsdevtools/chai-exec");
 var chai = require('chai');
@@ -293,8 +290,9 @@ timeout 2m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} |
 Finally, you need to register the cluster(s).
 
 Here is how you register the first one:
+
 ```bash
-kubectl apply --context ${MGMT} -f- <<EOF
+kubectl apply --context ${MGMT} -f - <<EOF
 apiVersion: admin.gloo.solo.io/v2
 kind: KubernetesCluster
 metadata:
@@ -320,7 +318,6 @@ helm upgrade --install gloo-platform gloo-platform/gloo-platform \
   --kube-context=${CLUSTER1} \
   --version=2.5.0-rc3 \
  -f -<<EOF
-
 common:
   cluster: cluster1
 glooAgent:
@@ -354,8 +351,9 @@ EOF
 Note that the registration can also be performed using `meshctl cluster register`.
 
 And here is how you register the second one:
+
 ```bash
-kubectl apply --context ${MGMT} -f- <<EOF
+kubectl apply --context ${MGMT} -f - <<EOF
 apiVersion: admin.gloo.solo.io/v2
 kind: KubernetesCluster
 metadata:
@@ -381,7 +379,6 @@ helm upgrade --install gloo-platform gloo-platform/gloo-platform \
   --kube-context=${CLUSTER2} \
   --version=2.5.0-rc3 \
  -f -<<EOF
-
 common:
   cluster: cluster2
 glooAgent:
@@ -423,7 +420,7 @@ kubectl --context ${MGMT} -n gloo-mesh debug -q -i ${pod} --image=curlimages/cur
 ```
 
 You should get an output similar to this:
-```
+```,nocopy
 # HELP relay_push_clients_connected Current number of connected Relay push clients (Relay Agents).
 # TYPE relay_push_clients_connected gauge
 relay_push_clients_connected{cluster="cluster1"} 1
@@ -478,8 +475,7 @@ timeout 2m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} |
 We are going to deploy Istio using Gloo Mesh Lifecycle Manager.
 Note that the few Openshift specific commands used in this lab are documented on the Istio website [here](https://istio.io/latest/docs/setup/platform-setup/openshift/).
 
-
-First of all, let's create Kubernetes services for the gateways:
+Let's create Kubernetes services for the gateways:
 
 ```bash
 registry=localhost:5000
@@ -567,6 +563,7 @@ spec:
     topology.istio.io/network: cluster1
   type: LoadBalancer
 EOF
+
 kubectl --context ${CLUSTER2} create ns istio-gateways
 kubectl --context ${CLUSTER2} label namespace istio-gateways istio.io/rev=1-19 --overwrite
 
@@ -654,6 +651,7 @@ EOF
 ```
 
 It allows us to have full control on which Istio revision we want to use.
+
 For Openshift clusters, you also need to run the following commands:
 
 ```bash
@@ -679,8 +677,7 @@ metadata:
   name: istio-cni
 EOF
 ```
-
-Then, we can tell Gloo Mesh to deploy the Istio control planes and the gateways in the cluster(s)
+Then, we can tell Gloo Mesh to deploy the Istio control planes and the gateways in the cluster(s).
 
 ```bash
 kubectl apply --context ${MGMT} -f - <<EOF
@@ -744,8 +741,8 @@ spec:
           - name: istio-ingressgateway
             enabled: false
 EOF
-kubectl apply --context ${MGMT} -f - <<EOF
 
+kubectl apply --context ${MGMT} -f - <<EOF
 apiVersion: admin.gloo.solo.io/v2
 kind: GatewayLifecycleManager
 metadata:
@@ -869,8 +866,8 @@ spec:
           - name: istio-ingressgateway
             enabled: false
 EOF
-kubectl apply --context ${MGMT} -f - <<EOF
 
+kubectl apply --context ${MGMT} -f - <<EOF
 apiVersion: admin.gloo.solo.io/v2
 kind: GatewayLifecycleManager
 metadata:
@@ -1082,8 +1079,6 @@ Note that the few Openshift specific commands used in this lab are documented on
 Run the following commands to deploy the bookinfo application on `cluster1`:
 
 ```bash
-curl https://raw.githubusercontent.com/istio/istio/master/samples/bookinfo/platform/kube/bookinfo.yaml > bookinfo.yaml
-
 kubectl --context ${CLUSTER1} create ns bookinfo-frontends
 kubectl --context ${CLUSTER1} create ns bookinfo-backends
 oc --context ${CLUSTER1} adm policy add-scc-to-group anyuid system:serviceaccounts:bookinfo-frontends
@@ -1106,28 +1101,28 @@ EOF
 kubectl --context ${CLUSTER1} label namespace bookinfo-frontends istio.io/rev=1-19 --overwrite
 kubectl --context ${CLUSTER1} label namespace bookinfo-backends istio.io/rev=1-19 --overwrite
 
-# deploy the frontend bookinfo service in the bookinfo-frontends namespace
-kubectl --context ${CLUSTER1} -n bookinfo-frontends apply -f bookinfo.yaml -l 'account in (productpage)'
-kubectl --context ${CLUSTER1} -n bookinfo-frontends apply -f bookinfo.yaml -l 'app in (productpage)'
-kubectl --context ${CLUSTER1} -n bookinfo-backends apply -f bookinfo.yaml -l 'account in (reviews,ratings,details)'
-# deploy the backend bookinfo services in the bookinfo-backends namespace for all versions less than v3
-kubectl --context ${CLUSTER1} -n bookinfo-backends apply -f bookinfo.yaml -l 'app in (reviews,ratings,details),version notin (v3)'
-# Update the productpage deployment to set the environment variables to define where the backend services are running
-kubectl --context ${CLUSTER1} -n bookinfo-frontends set env deploy/productpage-v1 DETAILS_HOSTNAME=details.bookinfo-backends.svc.cluster.local
-kubectl --context ${CLUSTER1} -n bookinfo-frontends set env deploy/productpage-v1 REVIEWS_HOSTNAME=reviews.bookinfo-backends.svc.cluster.local
+# Deploy the frontend bookinfo service in the bookinfo-frontends namespace
+kubectl --context ${CLUSTER1} -n bookinfo-frontends apply -f data/steps/deploy-bookinfo/productpage-v1.yaml
+# Deploy the backend bookinfo services in the bookinfo-backends namespace for all versions less than v3
+kubectl --context ${CLUSTER1} -n bookinfo-backends apply \
+  -f data/steps/deploy-bookinfo/details-v1.yaml \
+  -f data/steps/deploy-bookinfo/ratings-v1.yaml \
+  -f data/steps/deploy-bookinfo/reviews-v1-v2.yaml
 # Update the reviews service to display where it is coming from
 kubectl --context ${CLUSTER1} -n bookinfo-backends set env deploy/reviews-v1 CLUSTER_NAME=${CLUSTER1}
 kubectl --context ${CLUSTER1} -n bookinfo-backends set env deploy/reviews-v2 CLUSTER_NAME=${CLUSTER1}
 ```
 
-
 <!--bash
-until [[ $(kubectl --context ${CLUSTER1} -n bookinfo-frontends get deploy -o json | jq '[.items[].status.readyReplicas] | add') -eq 1 ]]; do
+echo -n Waiting for bookinfo pods to be ready...
+timeout -v 5m bash -c "
+until [[ \$(kubectl --context ${CLUSTER1} -n bookinfo-frontends get deploy -o json | jq '[.items[].status.readyReplicas] | add') -eq 1 && \\
+  \$(kubectl --context ${CLUSTER1} -n bookinfo-backends get deploy -o json | jq '[.items[].status.readyReplicas] | add') -eq 4 ]] 2>/dev/null
+do
   sleep 1
-done
-until [[ $(kubectl --context ${CLUSTER1} -n bookinfo-backends get deploy -o json | jq '[.items[].status.readyReplicas] | add') -eq 4 ]]; do
-  sleep 1
-done
+  echo -n .
+done"
+echo
 -->
 
 You can check that the app is running using the following command:
@@ -1165,15 +1160,14 @@ EOF
 kubectl --context ${CLUSTER2} label namespace bookinfo-frontends istio.io/rev=1-19 --overwrite
 kubectl --context ${CLUSTER2} label namespace bookinfo-backends istio.io/rev=1-19 --overwrite
 
-# deploy the frontend bookinfo service in the bookinfo-frontends namespace
-kubectl --context ${CLUSTER2} -n bookinfo-frontends apply -f bookinfo.yaml -l 'account in (productpage)'
-kubectl --context ${CLUSTER2} -n bookinfo-frontends apply -f bookinfo.yaml -l 'app in (productpage)'
-kubectl --context ${CLUSTER2} -n bookinfo-backends apply -f bookinfo.yaml -l 'account in (reviews,ratings,details)'
-# deploy the backend bookinfo services in the bookinfo-backends namespace for all versions
-  kubectl --context ${CLUSTER2} -n bookinfo-backends apply -f bookinfo.yaml -l 'app in (reviews,ratings,details)'
-# Update the productpage deployment to set the environment variables to define where the backend services are running
-kubectl --context ${CLUSTER2} -n bookinfo-frontends set env deploy/productpage-v1 DETAILS_HOSTNAME=details.bookinfo-backends.svc.cluster.local
-kubectl --context ${CLUSTER2} -n bookinfo-frontends set env deploy/productpage-v1 REVIEWS_HOSTNAME=reviews.bookinfo-backends.svc.cluster.local
+# Deploy the frontend bookinfo service in the bookinfo-frontends namespace
+kubectl --context ${CLUSTER2} -n bookinfo-frontends apply -f data/steps/deploy-bookinfo/productpage-v1.yaml
+# Deploy the backend bookinfo services in the bookinfo-backends namespace for all versions
+kubectl --context ${CLUSTER2} -n bookinfo-backends apply \
+  -f data/steps/deploy-bookinfo/details-v1.yaml \
+  -f data/steps/deploy-bookinfo/ratings-v1.yaml \
+  -f data/steps/deploy-bookinfo/reviews-v1-v2.yaml \
+  -f data/steps/deploy-bookinfo/reviews-v3.yaml
 # Update the reviews service to display where it is coming from
 kubectl --context ${CLUSTER2} -n bookinfo-backends set env deploy/reviews-v1 CLUSTER_NAME=${CLUSTER2}
 kubectl --context ${CLUSTER2} -n bookinfo-backends set env deploy/reviews-v2 CLUSTER_NAME=${CLUSTER2}
@@ -1182,23 +1176,24 @@ kubectl --context ${CLUSTER2} -n bookinfo-backends set env deploy/reviews-v3 CLU
 ```
 
 <!--bash
-until [[ $(kubectl --context ${CLUSTER2} -n bookinfo-frontends get deploy -o json | jq '[.items[].status.readyReplicas] | add') -eq 1 ]]; do
+echo -n Waiting for bookinfo pods to be ready...
+timeout -v 5m bash -c "
+until [[ \$(kubectl --context ${CLUSTER2} -n bookinfo-frontends get deploy -o json | jq '[.items[].status.readyReplicas] | add') -eq 1 && \\
+  \$(kubectl --context ${CLUSTER2} -n bookinfo-backends get deploy -o json | jq '[.items[].status.readyReplicas] | add') -eq 5 ]] 2>/dev/null
+do
   sleep 1
-done
-until [[ $(kubectl --context ${CLUSTER2} -n bookinfo-backends get deploy -o json | jq '[.items[].status.readyReplicas] | add') -eq 5 ]]; do
-  sleep 1
-done
+  echo -n .
+done"
+echo
 -->
 
-You can check that the app is running using:
+Confirm that `v1`, `v2` and `v3` of the `reviews` service are now running in the second cluster:
 
 ```bash
 kubectl --context ${CLUSTER2} -n bookinfo-frontends get pods && kubectl --context ${CLUSTER2} -n bookinfo-backends get pods
 ```
 
-As you can see, we deployed all three versions of the `reviews` microservice on this cluster.
-
-<!--bash
+As you can see, we deployed all three versions of the `reviews` microservice on this cluster.<!--bash
 cat <<'EOF' > ./test.js
 const helpers = require('./tests/chai-exec');
 
@@ -1231,19 +1226,13 @@ timeout 2m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} |
 
 
 
-
 ## Lab 5 - Deploy the httpbin demo app <a name="lab-5---deploy-the-httpbin-demo-app-"></a>
 [<img src="https://img.youtube.com/vi/w1xB-o_gHs0/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/w1xB-o_gHs0 "Video Link")
 
 We're going to deploy the httpbin application to demonstrate several features of Gloo Mesh.
 
 You can find more information about this application [here](http://httpbin.org/).
-
-
-
 Note that the few Openshift specific commands used in this lab are documented on the Istio website [here](https://istio.io/latest/docs/setup/platform-setup/openshift/).
-
-
 
 Run the following commands to deploy the httpbin app on `cluster1`. The deployment will be called `not-in-mesh` and won't have the sidecar injected (because we don't label the namespace).
 
@@ -1307,7 +1296,6 @@ spec:
 EOF
 ```
 
-
 Then, we deploy a second version, which will be called `in-mesh` and will have the sidecar injected (because of the label `istio.io/rev` in the Pod template).
 
 ```bash
@@ -1363,13 +1351,24 @@ EOF
 ```
 
 
+<!--bash
+echo -n Waiting for httpbin pods to be ready...
+timeout -v 5m bash -c "
+until [[ \$(kubectl --context ${CLUSTER1} -n httpbin get deploy -o json | jq '[.items[].status.readyReplicas] | add') -eq 2 ]] 2>/dev/null
+do
+  sleep 1
+  echo -n .
+done"
+echo
+-->
+
 You can follow the progress using the following command:
 
-```
+```bash
 kubectl --context ${CLUSTER1} -n httpbin get pods
 ```
 
-```
+```,nocopy
 NAME                           READY   STATUS    RESTARTS   AGE
 in-mesh-5d9d9549b5-qrdgd       2/2     Running   0          11s
 not-in-mesh-5c64bb49cd-m9kwm   1/1     Running   0          11s
@@ -1480,7 +1479,7 @@ EOF
 
 For teams to setup external authentication, the gateways team needs to create and `ExtAuthServer` object they can reference.
 
-Let's create the `ExtAuthServer` object: 
+Let's create the `ExtAuthServer` object:
 
 ```bash
 kubectl apply --context ${CLUSTER1} -f - <<EOF
@@ -1522,11 +1521,59 @@ spec:
       name: grpc
 EOF
 ```
+<!--bash
+cat <<'EOF' > ./test.js
+const helpers = require('./tests/chai-exec');
 
+describe("Gloo Platform add-ons cluster1 deployment", () => {
+  let cluster = process.env.CLUSTER1
+  let deployments = ["ext-auth-service", "rate-limiter"];
+  deployments.forEach(deploy => {
+    it(deploy + ' pods are ready in ' + cluster, () => helpers.checkDeployment({ context: cluster, namespace: "gloo-mesh-addons", k8sObj: deploy }));
+  });
+});
+describe("Gloo Platform add-ons cluster2 deployment", () => {
+  let cluster = process.env.CLUSTER2
+  let deployments = ["ext-auth-service", "rate-limiter"];
+  deployments.forEach(deploy => {
+    it(deploy + ' pods are ready in ' + cluster, () => helpers.checkDeployment({ context: cluster, namespace: "gloo-mesh-addons", k8sObj: deploy }));
+  });
+});
+
+EOF
+echo "executing test dist/gloo-mesh-2-0-openshift-beta/build/templates/steps/deploy-gloo-mesh-addons/tests/check-addons-deployments.test.js.liquid"
+tempfile=$(mktemp)
+echo "saving errors in ${tempfile}"
+timeout 2m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
+-->
+<!--bash
+cat <<'EOF' > ./test.js
+const helpers = require('./tests/chai-exec');
+
+describe("Gloo Platform add-ons cluster1 service", () => {
+  let cluster = process.env.CLUSTER1
+  let services = ["ext-auth-service", "rate-limiter"];
+  services.forEach(service => {
+    it(service + ' exists in ' + cluster, () => helpers.k8sObjectIsPresent({ context: cluster, namespace: "gloo-mesh-addons", k8sType: "service", k8sObj: service }));
+  });
+});
+describe("Gloo Platform add-ons cluster2 service", () => {
+  let cluster = process.env.CLUSTER2
+  let services = ["ext-auth-service", "rate-limiter"];
+  services.forEach(service => {
+    it(service + ' exists in ' + cluster, () => helpers.k8sObjectIsPresent({ context: cluster, namespace: "gloo-mesh-addons", k8sType: "service", k8sObj: service }));
+  });
+});
+
+EOF
+echo "executing test dist/gloo-mesh-2-0-openshift-beta/build/templates/steps/deploy-gloo-mesh-addons/tests/check-addons-services.test.js.liquid"
+tempfile=$(mktemp)
+echo "saving errors in ${tempfile}"
+timeout 2m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
+-->
 This is what the environment looks like now:
 
 ![Gloo Platform Workshop Environment](images/steps/deploy-gloo-mesh-addons/gloo-mesh-workshop-environment.svg)
-
 
 
 
@@ -1695,7 +1742,6 @@ spec:
       allowedRouteTables:
         - host: '*'
 EOF
-
 ```
 
 Then, the Gateway team should create a parent `RouteTable` to configure the main routing.
@@ -1801,10 +1847,10 @@ Let's add the domain to our `/etc/hosts` file:
 ./scripts/register-domain.sh cluster2-bookinfo.example.com ${HOST_GW_CLUSTER2}
 ```
 
-You can access the `productpage` service using this URL: [http://cluster1-bookinfo.example.com/productpage](http://cluster1-bookinfo.example.com/productpage).
+You can access the `productpage` service
+using this URL: [http://cluster1-bookinfo.example.com/productpage](http://cluster1-bookinfo.example.com/productpage).
 
-You should now be able to access the `productpage` application through the browser.
-<!--bash
+You should now be able to access the `productpage` application through the browser.<!--bash
 cat <<'EOF' > ./test.js
 const helpers = require('./tests/chai-http');
 
@@ -1832,12 +1878,12 @@ Then, you have to store them in a Kubernetes secret running the following comman
 
 ```bash
 kubectl --context ${CLUSTER1} -n istio-gateways create secret generic tls-secret \
---from-file=tls.key=tls.key \
---from-file=tls.crt=tls.crt
+  --from-file=tls.key=tls.key \
+  --from-file=tls.crt=tls.crt
 
 kubectl --context ${CLUSTER2} -n istio-gateways create secret generic tls-secret \
---from-file=tls.key=tls.key \
---from-file=tls.crt=tls.crt
+  --from-file=tls.key=tls.key \
+  --from-file=tls.crt=tls.crt
 ```
 
 Finally, the Gateway team needs to update the `VirtualGateway` to use this secret:
@@ -1874,7 +1920,6 @@ spec:
 # -------------------------------------------------------
       allowedRouteTables:
         - host: '*'
-
 EOF
 ```
 
@@ -1901,9 +1946,7 @@ curl --tlsv1.3 --tls-max 1.3 --key tls.key --cert tls.crt https://cluster1-booki
 ```
 
 And after this you should get the actual Productpage.
-You can now access the `productpage` service using this URL: [https://cluster1-bookinfo.example.com/productpage](https://cluster1-bookinfo.example.com/productpage).
-
-<!--bash
+You can now access the `productpage` service using this URL: [https://cluster1-bookinfo.example.com/productpage](https://cluster1-bookinfo.example.com/productpage).<!--bash
 cat <<'EOF' > ./test.js
 const helpers = require('./tests/chai-http');
 
@@ -1937,7 +1980,6 @@ tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 timeout 2m mocha ./test.js --timeout 10000 --retries=150 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
 -->
-
 This diagram shows the flow of the request (through the Istio Ingress Gateway):
 
 ![Gloo Mesh Gateway](images/steps/gateway-expose/gloo-mesh-gateway.svg)
@@ -2065,7 +2107,6 @@ spec:
               version: v2
 EOF
 ```
-
 <!--bash
 cat <<'EOF' > ./test.js
 var chai = require('chai');
@@ -2104,7 +2145,6 @@ tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 timeout 2m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
 -->
-
 If you refresh the page several times, you'll see an error message telling that reviews are unavailable when the productpage is trying to communicate with the version `v2` of the `reviews` service.
 
 ![Bookinfo reviews unavailable](images/steps/traffic-policies/reviews-unavailable.png)
@@ -2648,7 +2688,8 @@ spec:
 EOF
 ```
 
-You can now access the `productpage` service using the gateway of the second cluster.
+You can now access the `productpage` service
+using the gateway of the second cluster.
 You can access the `productpage` service from the second cluster using this URL: [https://cluster2-bookinfo.example.com/productpage](https://cluster2-bookinfo.example.com/productpage).
 
 <!--bash
@@ -2860,7 +2901,7 @@ kubectl --context ${CLUSTER1} -n bookinfo-frontends patch deployment productpage
 kubectl --context ${CLUSTER1} -n bookinfo-frontends rollout status deploy/productpage-v1
 ```
 
-Let's apply the original `RouteTable` and `VirtualGateway` yaml:
+Let's apply the original `RouteTable` and `VirtualGateway` yaml
 
 ```bash
 kubectl apply --context ${CLUSTER1} -f - <<EOF
@@ -2922,7 +2963,6 @@ spec:
 # -------------------------------------------------------
       allowedRouteTables:
         - host: '*'
-
 EOF
 ```
 
@@ -2933,7 +2973,6 @@ kubectl --context ${CLUSTER1} -n bookinfo-frontends delete virtualdestination pr
 kubectl --context ${CLUSTER1} -n bookinfo-frontends delete failoverpolicy failover
 kubectl --context ${CLUSTER1} -n bookinfo-frontends delete outlierdetectionpolicy outlier-detection
 ```
-
 
 
 
@@ -3360,7 +3399,6 @@ EOF
 The Httpbin team has decided to export the following to the `gateway` workspace (using a reference):
 - the `in-mesh` Kubernetes service
 - all the resources (RouteTables, VirtualDestination, ...) that have the label `expose` set to `true`
-
 
 
 
