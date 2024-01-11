@@ -1,8 +1,0 @@
-var chai = require('chai');
-var expect = chai.expect;
-
-describe("Required environment variables should contain value", () => {
-  it("Gloo Edge licence environment variables should not be empty", () => {
-    expect(process.env.LICENSE_KEY).to.not.be.empty
-  });
-});

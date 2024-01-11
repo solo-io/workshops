@@ -132,10 +132,10 @@ describe("Required environment variables should contain value", () => {
   });
 });
 EOF
-echo "executing test dist/edge-default/build/templates/steps/deploy-gloo-edge/tests/environment-variables.test.js.liquid"
+echo "executing test procs/gloo-edge/build/templates/steps/deploy-gloo-edge/tests/environment-variables.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
-mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
+timeout 2m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
 -->
 
 Run the commands below to deploy the Gloo Edge Enterprise components:
@@ -143,14 +143,14 @@ Run the commands below to deploy the Gloo Edge Enterprise components:
 
 
 ```bash
-export GLOO_VERSION=v1.12.8
+export GLOO_VERSION=v1.15.18
 curl -sL https://run.solo.io/gloo/install | sh
 export PATH=$HOME/.gloo/bin:$PATH
 
 helm repo add glooe https://storage.googleapis.com/gloo-ee-helm
 helm repo update
 helm upgrade --install gloo glooe/gloo-ee --namespace gloo-system \
-  --create-namespace --version 1.12.8 --set-string license_key=$LICENSE_KEY --devel
+  --create-namespace --version 1.15.10 --set-string license_key=$LICENSE_KEY --devel
 ```
 
 <!--bash
@@ -175,10 +175,10 @@ describe("Check glooctl version", () => {
   });
 });
 EOF
-echo "executing test dist/edge-default/build/templates/steps/deploy-gloo-edge/tests/glooctl-version.test.js.liquid"
+echo "executing test procs/gloo-edge/build/templates/steps/deploy-gloo-edge/tests/glooctl-version.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
-mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
+timeout 2m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
 -->
 
 Use the following commands to wait for the Gloo Edge components to be deployed:
@@ -745,10 +745,10 @@ describe("httpbin receives requests that don't specify the host header", () => {
 })
 
 EOF
-echo "executing test dist/edge-default/build/templates/steps/traffic-management/tests/verify-routing.test.js.liquid"
+echo "executing test procs/gloo-edge/build/templates/steps/traffic-management/tests/verify-routing.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
-mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
+timeout 2m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
 -->
 
 
@@ -868,10 +868,10 @@ describe("httpbin is available (https)", () => {
 })
 
 EOF
-echo "executing test dist/edge-default/build/templates/steps/security-and-authentication/tests/https.test.js.liquid"
+echo "executing test procs/gloo-edge/build/templates/steps/security-and-authentication/tests/https.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
-mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
+timeout 2m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
 -->
 
 ## Authentication with OIDC (OpenID Connect)
@@ -1074,10 +1074,10 @@ describe("Authentication is working properly", function() {
   it('httpbin is accessible after authenticating', () => helpersHttp.checkURL({ host: "https://httpbin.solo.io/", headers: [{key: 'Authorization', value: 'Bearer ' + keycloak_token}], retCode: 200 }));
 });
 EOF
-echo "executing test dist/edge-default/build/templates/steps/security-and-authentication/tests/authentication.test.js.liquid"
+echo "executing test procs/gloo-edge/build/templates/steps/security-and-authentication/tests/authentication.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
-mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
+timeout 2m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
 -->
 
 ## Refactor time
@@ -1275,10 +1275,10 @@ describe("admin1 who is an administrator", function() {
   it("is authorized to make POST requests", () => helpersHttp.checkWithMethod({ host: "https://httpbin.solo.io", path: "/post", headers: [{key: 'Authorization', value: 'Bearer ' + keycloak_token}], method: "post", retCode: 200 }));
 });
 EOF
-echo "executing test dist/edge-default/build/templates/steps/opa-authorization/tests/authorization.test.js.liquid"
+echo "executing test procs/gloo-edge/build/templates/steps/opa-authorization/tests/authorization.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
-mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
+timeout 2m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
 -->
 
 
@@ -1504,10 +1504,10 @@ describe("The request is transformed", function() {
 });
 
 EOF
-echo "executing test dist/edge-default/build/templates/steps/request-transformation/tests/transformations.test.js.liquid"
+echo "executing test procs/gloo-edge/build/templates/steps/request-transformation/tests/transformations.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
-mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
+timeout 2m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
 -->
 
 
@@ -1786,10 +1786,10 @@ describe("The rate limit for enterprise sub users", function() {
   });
 });
 EOF
-echo "executing test dist/edge-default/build/templates/steps/rate-limiting/tests/subscription-based-rate-limit.test.js.liquid"
+echo "executing test procs/gloo-edge/build/templates/steps/rate-limiting/tests/subscription-based-rate-limit.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
-mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
+timeout 2m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
 -->
 
 
@@ -1975,10 +1975,10 @@ describe("Request should be blocked for jndi header", () => {
 });
 
 EOF
-echo "executing test dist/edge-default/build/templates/steps/web-application-firewall/tests/firewall-block-agent.test.js.liquid"
+echo "executing test procs/gloo-edge/build/templates/steps/web-application-firewall/tests/firewall-block-agent.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
-mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
+timeout 2m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
 -->
 
 
@@ -2000,11 +2000,11 @@ You can now access the Grafana UI at http://localhost:8081 and log in with `admi
 
 You can take a look at the `Gloo -> Envoy Statistics` Dashboard that provides global statistics:
 
-![Grafana Envoy Statistics](images/steps/observability/images/grafana-envoy-stats.png)
+![Grafana Envoy Statistics](images/steps/observability/grafana-envoy-stats.png)
 
 You can also see that Gloo is dynamically generating a Dashboard for each Upstream:
 
-![Grafana Upstream](images/steps/observability/images/grafana-upstream.png)
+![Grafana Upstream](images/steps/observability/grafana-upstream.png)
 
 You can run the following command to see the default template used to generate these templates:
 

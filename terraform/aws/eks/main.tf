@@ -121,6 +121,7 @@ resource "aws_iam_openid_connect_provider" "oidc" {
   url             = data.aws_eks_cluster.cp[count.index].identity.0.oidc.0.issuer
 }
 
+/*
 module "lb-controller" {
   count        = var.aws_lb_controller > 0 ? var.num_instances : 0
   source       = "Young-ook/eks/aws//modules/lb-controller"
@@ -130,6 +131,7 @@ module "lb-controller" {
   }
   tags = { env = "test" }
 }
+*/
 
 module "vm-replica" {
   source = "../../gce/vm-replica"

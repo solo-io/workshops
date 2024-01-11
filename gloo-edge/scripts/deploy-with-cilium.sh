@@ -1,10 +1,12 @@
 #!/usr/bin/env bash
+set -o errexit
 
 number=$1
 name=$2
 region=$3
 zone=$4
 twodigits=$(printf "%02d\n" $number)
+kindest_node=${KINDEST_NODE:-kindest\/node:v1.28.0@sha256:b7a4cad12c197af3ba43202d3efe03246b3f0793f162afb40a33c923952d5b31}
 
 if [ -z "$3" ]; then
   region=us-east-1
@@ -25,7 +27,7 @@ reg_port='5000'
 running="$(docker inspect -f '{{.State.Running}}' "${reg_name}" 2>/dev/null || true)"
 if [ "${running}" != 'true' ]; then
   docker run \
-    -d --restart=always -p "127.0.0.1:${reg_port}:5000" --name "${reg_name}" \
+    -d --restart=always -p "0.0.0.0:${reg_port}:5000" --name "${reg_name}" \
     registry:2
 fi
 
@@ -33,6 +35,7 @@ cache_port='5000'
 cat > registries <<EOF
 docker https://registry-1.docker.io
 us-docker https://us-docker.pkg.dev
+us-central1-docker https://us-central1-docker.pkg.dev
 quay https://quay.io
 gcr https://gcr.io
 EOF
@@ -72,11 +75,9 @@ done
 cat << EOF > kind${number}.yaml
 kind: Cluster
 apiVersion: kind.x-k8s.io/v1alpha4
-featureGates:
-  EphemeralContainers: true
 nodes:
 - role: control-plane
-  image: kindest/node:v1.24.7@sha256:577c630ce8e509131eab1aea12c022190978dd2f745aac5eb1fe65c0807eb315
+  image: ${kindest_node}
   extraPortMappings:
   - containerPort: 6443
     hostPort: 70${twodigits}
@@ -85,17 +86,6 @@ networking:
   serviceSubnet: "10.$(echo $twodigits | sed 's/^0*//').0.0/16"
   podSubnet: "10.1${twodigits}.0.0/16"
 kubeadmConfigPatches:
-- |
-  apiVersion: kubeadm.k8s.io/v1beta2
-  kind: ClusterConfiguration
-  apiServer:
-    extraArgs:
-      service-account-signing-key-file: /etc/kubernetes/pki/sa.key
-      service-account-key-file: /etc/kubernetes/pki/sa.pub
-      service-account-issuer: api
-      service-account-api-audiences: api,vault,factors
-  metadata:
-    name: config
 - |
   kind: InitConfiguration
   nodeRegistration:
@@ -109,6 +99,8 @@ containerdConfigPatches:
     endpoint = ["http://docker:${cache_port}"]
   [plugins."io.containerd.grpc.v1.cri".registry.mirrors."us-docker.pkg.dev"]
     endpoint = ["http://us-docker:${cache_port}"]
+  [plugins."io.containerd.grpc.v1.cri".registry.mirrors."us-central1-docker.pkg.dev"]
+    endpoint = ["http://us-central1-docker:${cache_port}"]
   [plugins."io.containerd.grpc.v1.cri".registry.mirrors."quay.io"]
     endpoint = ["http://quay:${cache_port}"]
   [plugins."io.containerd.grpc.v1.cri".registry.mirrors."gcr.io"]
@@ -124,53 +116,77 @@ kubectl config set-cluster kind-kind${number} --server=https://${myip}:70${twodi
 
 helm repo add cilium https://helm.cilium.io/
 
-helm --kube-context kind-kind${number} install cilium cilium/cilium --version 1.11.4 \
+helm --kube-context kind-kind${number} install cilium cilium/cilium --version 1.12.0 \
    --namespace kube-system \
    --set prometheus.enabled=true \
    --set operator.prometheus.enabled=true \
    --set hubble.enabled=true \
-   --set hubble.metrics.enabled="{dns,drop,tcp,flow,icmp,http}" \
+   --set hubble.metrics.enabled="{dns:destinationContext=pod|ip;sourceContext=pod|ip,drop:destinationContext=pod|ip;sourceContext=pod|ip,tcp:destinationContext=pod|ip;sourceContext=pod|ip,flow:destinationContext=pod|ip;sourceContext=pod|ip,port-distribution:destinationContext=pod|ip;sourceContext=pod|ip}" \
    --set hubble.relay.enabled=true \
    --set hubble.ui.enabled=true \
    --set kubeProxyReplacement=partial \
    --set hostServices.enabled=false \
+   --set hostServices.protocols="tcp" \
    --set externalIPs.enabled=true \
    --set nodePort.enabled=true \
    --set hostPort.enabled=true \
    --set bpf.masquerade=false \
    --set image.pullPolicy=IfNotPresent \
    --set ipam.mode=kubernetes
-
-kubectl --context kind-kind${number} -n kube-system scale deploy/cilium-operator --replicas=1
-
-kubectl --context=kind-kind${number} apply -f https://raw.githubusercontent.com/metallb/metallb/v0.9.3/manifests/namespace.yaml
-kubectl --context=kind-kind${number} apply -f https://raw.githubusercontent.com/metallb/metallb/v0.9.3/manifests/metallb.yaml
-kubectl --context=kind-kind${number} create secret generic -n metallb-system memberlist --from-literal=secretkey="$(openssl rand -base64 128)"
-
-cat << EOF > metallb${number}.yaml
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  namespace: metallb-system
-  name: config
-data:
-  config: |
-    address-pools:
-    - name: default
-      protocol: layer2
-      addresses:
-      - ${networkkind}.0${twodigits}.1-${networkkind}.0${twodigits}.254
-EOF
-
-kubectl --context=kind-kind${number} apply -f metallb${number}.yaml
+kubectl --context=kind-kind${number} -n kube-system rollout status ds cilium || true
 
 docker network connect "kind" "${reg_name}" || true
 docker network connect "kind" docker || true
 docker network connect "kind" us-docker || true
+docker network connect "kind" us-central1-docker || true
 docker network connect "kind" quay || true
 docker network connect "kind" gcr || true
 
-cat <<EOF | kubectl apply -f -
+# Preload MetalLB images
+docker pull quay.io/metallb/controller:v0.13.12
+docker pull quay.io/metallb/speaker:v0.13.12
+kind load docker-image quay.io/metallb/controller:v0.13.12 --name kind${number}
+kind load docker-image quay.io/metallb/speaker:v0.13.12 --name kind${number}
+kubectl --context=kind-kind${number} apply -f https://raw.githubusercontent.com/metallb/metallb/v0.13.12/config/manifests/metallb-native.yaml
+kubectl --context=kind-kind${number} create secret generic -n metallb-system memberlist --from-literal=secretkey="$(openssl rand -base64 128)"
+kubectl --context=kind-kind${number} -n metallb-system rollout status deploy controller || true
+
+cat << EOF > metallb${number}.yaml
+apiVersion: metallb.io/v1beta1
+kind: IPAddressPool
+metadata:
+  name: first-pool
+  namespace: metallb-system
+spec:
+  addresses:
+  - ${networkkind}.1${twodigits}.1-${networkkind}.1${twodigits}.254
+---
+apiVersion: metallb.io/v1beta1
+kind: L2Advertisement
+metadata:
+  name: empty
+  namespace: metallb-system
+EOF
+
+printf "Create IPAddressPool in kind-kind${number}\n"
+for i in {1..10}; do
+kubectl --context=kind-kind${number} apply -f metallb${number}.yaml && break
+sleep 2
+done
+
+# connect the registry to the cluster network if not already connected
+printf "Renaming context kind-kind${number} to ${name}\n"
+for i in {1..100}; do
+  (kubectl config get-contexts -oname | grep ${name}) && break
+  kubectl config rename-context kind-kind${number} ${name} && break
+  printf " $i"/100
+  sleep 2
+  [ $i -lt 100 ] || exit 1
+done
+
+# Document the local registry
+# https://github.com/kubernetes/enhancements/tree/master/keps/sig-cluster-lifecycle/generic/1755-communicating-a-local-registry
+cat <<EOF | kubectl --context=${name} apply -f -
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -181,5 +197,3 @@ data:
     host: "localhost:${reg_port}"
     help: "https://kind.sigs.k8s.io/docs/user/local-registry/"
 EOF
-
-kubectl config rename-context kind-kind${number} ${name}
