@@ -201,7 +201,9 @@ Confirm that `v1`, `v2` and `v3` of the `reviews` service are now running in the
 kubectl --context ${CLUSTER2} -n bookinfo-frontends get pods && kubectl --context ${CLUSTER2} -n bookinfo-backends get pods
 ```
 
-As you can see, we deployed all three versions of the `reviews` microservice on this cluster.<!--bash
+As you can see, we deployed all three versions of the `reviews` microservice on this cluster.
+
+<!--bash
 cat <<'EOF' > ./test.js
 const helpers = require('./tests/chai-exec');
 
@@ -430,7 +432,9 @@ timeout 2m bash -c "until [[ \$(kubectl --context ${MGMT} -n gloo-mesh get svc g
   sleep 1
 done"
 -->
-Then, you need to set the environment variable to tell the Gloo Mesh agents how to communicate with the management plane:<!--bash
+
+Then, you need to set the environment variable to tell the Gloo Mesh agents how to communicate with the management plane:
+<!--bash
 cat <<'EOF' > ./test.js
 
 const helpers = require('./tests/chai-exec');
@@ -447,7 +451,8 @@ echo "executing test dist/gloo-mesh-2-0-gloo-network/build/templates/steps/deplo
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 timeout 2m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
---><!--bash
+-->
+<!--bash
 cat <<'EOF' > ./test.js
 const chaiExec = require("@jsdevtools/chai-exec");
 var chai = require('chai');
