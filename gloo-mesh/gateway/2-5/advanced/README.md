@@ -8,7 +8,7 @@ source ./scripts/assert.sh
 
 
 ![Gloo Mesh Enterprise](images/gloo-mesh-enterprise.png)
-# <center>Gloo Mesh Gateway Workshop</center>
+# <center>Gloo Mesh Gateway Advanced (2.5.0)</center>
 
 
 
@@ -1175,7 +1175,7 @@ spec:
               number: 9080
 EOF
 ```
-Let's add the domain to our `/etc/hosts` file:
+Let's add the domains to our `/etc/hosts` file:
 
 ```bash
 ./scripts/register-domain.sh cluster1-bookinfo.example.com ${HOST_GW_CLUSTER1}
@@ -2571,11 +2571,17 @@ You can build more complex authorization rules. Here is a typical authorization 
 
 To use the AWS Lambda integration, we need to deploy the Amazon EKS pod identity webhook.
 
-A pre requisite is to install [Cert Manager](https://cert-manager.io/):
+A prerequisite is to install [Cert Manager](https://cert-manager.io/):
 
 ```bash
 wget https://github.com/cert-manager/cert-manager/releases/download/v1.12.4/cert-manager.yaml
+
 kubectl --context ${CLUSTER1} apply -f cert-manager.yaml
+```
+
+Wait for cert-manager to be running:
+
+```bash
 kubectl --context ${CLUSTER1} -n cert-manager rollout status deploy cert-manager
 kubectl --context ${CLUSTER1} -n cert-manager rollout status deploy cert-manager-cainjector
 kubectl --context ${CLUSTER1} -n cert-manager rollout status deploy cert-manager-webhook
@@ -2585,9 +2591,13 @@ Now, you can install the Amazon EKS pod identity webhook:
 
 ```bash
 kubectl --context ${CLUSTER1} apply -f data/steps/deploy-amazon-pod-identity-webhook
-kubectl --context ${CLUSTER1} rollout status deploy/pod-identity-webhook
 ```
 
+Wait for the pod identity webhook to be running:
+
+```bash
+kubectl --context ${CLUSTER1} rollout status deploy/pod-identity-webhook
+```
 <!--bash
 cat <<'EOF' > ./test.js
 const helpers = require('./tests/chai-exec');
