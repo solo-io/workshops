@@ -8,7 +8,7 @@ source ./scripts/assert.sh
 
 
 ![Gloo Mesh Enterprise](images/gloo-mesh-enterprise.png)
-# <center>Gloo Mesh Gateway Workshop</center>
+# <center>Gloo Mesh Gateway (2.5.0)</center>
 
 
 
@@ -855,7 +855,7 @@ spec:
               number: 9080
 EOF
 ```
-Let's add the domain to our `/etc/hosts` file:
+Let's add the domains to our `/etc/hosts` file:
 
 ```bash
 ./scripts/register-domain.sh cluster1-bookinfo.example.com ${HOST_GW_CLUSTER1}
