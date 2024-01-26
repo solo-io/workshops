@@ -8,7 +8,7 @@ source ./scripts/assert.sh
 
 
 ![Gloo Mesh Enterprise](images/gloo-mesh-enterprise.png)
-# <center>Gloo Mesh Core Workshop</center>
+# <center>Gloo Mesh Core (2.5.0)</center>
 
 
 
@@ -1398,12 +1398,12 @@ kubectl --context ${CLUSTER1} -n istio-gateways create secret generic tls-secret
 --from-file=tls.key=tls.key \
 --from-file=tls.crt=tls.crt
 
-kubectl --context ${CLUSTER2} -n istio-gateways secret generic tls-secret \
+kubectl --context ${CLUSTER2} -n istio-gateways create secret generic tls-secret \
 --from-file=tls.key=tls.key \
 --from-file=tls.crt=tls.crt
 ```
 
-Finally, you needs to update the `Gateway` to use this secret:
+Finally, you need to update the `Gateway` to use this secret:
 
 ```bash
 kubectl apply --context ${CLUSTER1} -f - <<EOF
@@ -1627,14 +1627,14 @@ It allows you to have an historical view of the insights.
 
 Run the following command to see the insights metrics:
 
-```bash
+```shell
 pod=$(kubectl --context ${MGMT} -n gloo-mesh get pods -l app=prometheus -o jsonpath='{.items[0].metadata.name}')
 kubectl --context ${MGMT} -n gloo-mesh debug -q -i ${pod} --image=curlimages/curl -- curl -s "http://localhost:9090/api/v1/query?query=solo_io_insights" | jq -r '.data.result[].metric.code'
 ```
 
 It will list the current insights in Prometheus:
 
-```
+```,nocopy
 BP0001
 SYS0004
 SYS0004
@@ -1648,12 +1648,12 @@ As this is a gauge, you can use it to display historical data.
 
 You can get the details about a specific entry in the metrics.
 
-```bash
+```shell
 pod=$(kubectl --context ${MGMT} -n gloo-mesh get pods -l app=prometheus -o jsonpath='{.items[0].metadata.name}')
 kubectl --context ${MGMT} -n gloo-mesh debug -q -i ${pod} --image=curlimages/curl -- curl -s "http://localhost:9090/api/v1/query?query=solo_io_insights" | jq -r '.data.result[]|select(.metric.code=="BP0001")'
 ```
 
-```
+```json,nocopy
 {
   "metric": {
     "__name__": "solo_io_insights",
@@ -1687,7 +1687,7 @@ Let's have a look at another insight.
 
 The resolution step is telling us the following:
 
-```
+```,nocopy
 In the spec.exportTo field of your VirtualService Istio resource, list namespaces to export the VirtualService to. When you export a VirtualService, only sidecars and gateways that exist in the namespaces that you specify can use it. Note that the value "." makes the VirtualService available only in the same namespace that the VirtualService is defined in, and "*" exports the VirtualService to all namespaces.
 ```
 

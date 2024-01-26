@@ -2021,7 +2021,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "P2EBDF67F128D2C92"
+            "uid": "prometheus-GM"
           },
           "description": "",
           "fieldConfig": {
