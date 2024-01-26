@@ -8,7 +8,7 @@ source ./scripts/assert.sh
 
 
 ![Gloo Mesh Enterprise](images/gloo-mesh-enterprise.png)
-# <center>Gloo Mesh Enterprise Workshop</center>
+# <center>Gloo Mesh Enterprise (2.5.0)</center>
 
 
 
@@ -1753,7 +1753,7 @@ spec:
               number: 9080
 EOF
 ```
-Let's add the domain to our `/etc/hosts` file:
+Let's add the domains to our `/etc/hosts` file:
 
 ```bash
 ./scripts/register-domain.sh cluster1-bookinfo.example.com ${HOST_GW_CLUSTER1}
@@ -2088,71 +2088,7 @@ To allow secured (end-to-end mTLS) cross cluster communications, we need to make
 
 Gloo Mesh fully automates this process.
 
-Run this command to see how the communication between microservices occurs currently:
 
-```
-kubectl --context ${CLUSTER1} exec -t -n bookinfo-backends deploy/reviews-v1 \
--- openssl s_client -showcerts -connect ratings:9080 -alpn istio
-```
-
-Now, the output should be like that:
-
-```,nocopy
-...
-Certificate chain
- 0 s:
-   i:O = cluster1
------BEGIN CERTIFICATE-----
-MIIDFzCCAf+gAwIBAgIRALsoWlroVcCc1n+VROhATrcwDQYJKoZIhvcNAQELBQAw
-...
-BPiAYRMH5j0gyBqiZZEwCfzfQe1e6aAgie9T
------END CERTIFICATE-----
- 1 s:O = cluster1
-   i:O = cluster1
------BEGIN CERTIFICATE-----
-MIICzjCCAbagAwIBAgIRAKIx2hzMbAYzM74OC4Lj1FUwDQYJKoZIhvcNAQELBQAw
-...
-uMTPjt7p/sv74fsLgrx8WMI0pVQ7+2plpjaiIZ8KvEK9ye/0Mx8uyzTG7bpmVVWo
-ugY=
------END CERTIFICATE-----
-...
-```
-
-Now, run the same command on the second cluster:
-
-```
-kubectl --context ${CLUSTER2} exec -t -n bookinfo-backends deploy/reviews-v1 \
--- openssl s_client -showcerts -connect ratings:9080 -alpn istio
-```
-
-The output should be like that:
-
-```,nocopy
-...
-Certificate chain
- 0 s:
-   i:O = cluster2
------BEGIN CERTIFICATE-----
-MIIDFzCCAf+gAwIBAgIRALo1dmnbbP0hs1G82iBa2oAwDQYJKoZIhvcNAQELBQAw
-...
-YvDrZfKNOKwFWKMKKhCSi2rmCvLKuXXQJGhy
------END CERTIFICATE-----
- 1 s:O = cluster2
-   i:O = cluster2
------BEGIN CERTIFICATE-----
-MIICzjCCAbagAwIBAgIRAIjegnzq/hN/NbMm3dmllnYwDQYJKoZIhvcNAQELBQAw
-...
-GZRM4zV9BopZg745Tdk2LVoHiBR536QxQv/0h1P0CdN9hNLklAhGN/Yf9SbDgLTw
-6Sk=
------END CERTIFICATE-----
-...
-```
-
-The first certificate in the chain is the certificate of the workload and the second one is the Istio CA’s signing (CA) certificate.
-
-As you can see, the Istio CA’s signing (CA) certificates are different in the 2 clusters, so one cluster can't validate certificates issued by the other cluster.
-
-Creating a Root Trust Policy will unify these two CAs with a common root identity.
 
 Run the following command to create the *Root Trust Policy*:
 
@@ -2185,85 +2121,7 @@ At that point, we want Istio to pick up the new intermediate CA and start using 
 
 You can have a look at the Istio documentation [here](https://istio.io/latest/docs/tasks/security/cert-management/plugin-ca-cert) if you want to get more information about this process.
 
-Check that the secret containing the new Istio CA has been created in the istio namespace, on the first cluster:
 
-```
-kubectl --context ${CLUSTER1} get secret -n istio-system cacerts -o yaml
-```
-
-Here is the expected output:
-
-```
-apiVersion: v1
-data:
-  ca-cert.pem: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSUZFRENDQXZpZ0F3SUJBZ0lRUG5kRDkwejN4dytYeTBzYzNmcjRmekFOQmdrcWhraUc5dzBCQVFzRkFEQWIKTVJrd0Z3WURWU...
-  jFWVlZtSWl3Si8va0NnNGVzWTkvZXdxSGlTMFByWDJmSDVDCmhrWnQ4dz09Ci0tLS0tRU5EIENFUlRJRklDQVRFLS0tLS0K
-  ca-key.pem: LS0tLS1CRUdJTiBSU0EgUFJJVkFURSBLRVktLS0tLQpNSUlKS0FJQkFBS0NBZ0VBczh6U0ZWcEFxeVNodXpMaHVXUlNFMEJJMXVwbnNBc3VnNjE2TzlKdzBlTmhhc3RtClUvZERZS...
-  DT2t1bzBhdTFhb1VsS1NucldpL3kyYUtKbz0KLS0tLS1FTkQgUlNBIFBSSVZBVEUgS0VZLS0tLS0K
-  cert-chain.pem: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSUZFRENDQXZpZ0F3SUJBZ0lRUG5kRDkwejN4dytYeTBzYzNmcjRmekFOQmdrcWhraUc5dzBCQVFzRkFEQWIKTVJrd0Z3WURWU...
-  RBTHpzQUp2ZzFLRUR4T2QwT1JHZFhFbU9CZDBVUDk0KzJCN0tjM2tkNwpzNHYycEV2YVlnPT0KLS0tLS1FTkQgQ0VSVElGSUNBVEUtLS0tLQo=
-  key.pem: ""
-  root-cert.pem: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSUU0ekNDQXN1Z0F3SUJBZ0lRT2lZbXFGdTF6Q3NzR0RFQ3JOdnBMakFOQmdrcWhraUc5dzBCQVFzRkFEQWIKTVJrd0Z3WURWU...
-  UNBVEUtLS0tLQo=
-kind: Secret
-metadata:
-  labels:
-    context.mesh.gloo.solo.io/cluster: cluster1
-    context.mesh.gloo.solo.io/namespace: istio-system
-    gloo.solo.io/parent_cluster: cluster1
-    gloo.solo.io/parent_group: internal.gloo.solo.io
-    gloo.solo.io/parent_kind: IssuedCertificate
-    gloo.solo.io/parent_name: istiod-1-12-istio-system-cluster1
-    gloo.solo.io/parent_namespace: istio-system
-    gloo.solo.io/parent_version: v2
-    reconciler.mesh.gloo.solo.io/name: cert-agent
-  name: cacerts
-  namespace: istio-system
-type: certificates.mesh.gloo.solo.io/issued_certificate
-```
-
-Same operation on the second cluster:
-
-```
-kubectl --context ${CLUSTER2} get secret -n istio-system cacerts -o yaml
-```
-
-Here is the expected output:
-
-```
-apiVersion: v1
-data:
-  ca-cert.pem: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSUZFRENDQXZpZ0F3SUJBZ0lRWXE1V29iWFhGM1gwTjlNL3BYYkNKekFOQmdrcWhraUc5dzBCQVFzRkFEQWIKTVJrd0Z3WURWU...
-  XpqQ1RtK2QwNm9YaDI2d1JPSjdQTlNJOTkrR29KUHEraXltCkZIekhVdz09Ci0tLS0tRU5EIENFUlRJRklDQVRFLS0tLS0K
-  ca-key.pem: LS0tLS1CRUdJTiBSU0EgUFJJVkFURSBLRVktLS0tLQpNSUlKS1FJQkFBS0NBZ0VBMGJPMTdSRklNTnh4K1lMUkEwcFJqRmRvbG1SdW9Oc3gxNUUvb3BMQ1l1RjFwUEptCndhR1U1V...
-  MNU9JWk5ObDA4dUE1aE1Ca2gxNCtPKy9HMkoKLS0tLS1FTkQgUlNBIFBSSVZBVEUgS0VZLS0tLS0K
-  cert-chain.pem: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSUZFRENDQXZpZ0F3SUJBZ0lRWXE1V29iWFhGM1gwTjlNL3BYYkNKekFOQmdrcWhraUc5dzBCQVFzRkFEQWIKTVJrd0Z3WURWU...
-  RBTHpzQUp2ZzFLRUR4T2QwT1JHZFhFbU9CZDBVUDk0KzJCN0tjM2tkNwpzNHYycEV2YVlnPT0KLS0tLS1FTkQgQ0VSVElGSUNBVEUtLS0tLQo=
-  key.pem: ""
-  root-cert.pem: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSUU0ekNDQXN1Z0F3SUJBZ0lRT2lZbXFGdTF6Q3NzR0RFQ3JOdnBMakFOQmdrcWhraUc5dzBCQVFzRkFEQWIKTVJrd0Z3WURWU...
-  UNBVEUtLS0tLQo=
-kind: Secret
-metadata:
-  labels:
-    context.mesh.gloo.solo.io/cluster: cluster2
-    context.mesh.gloo.solo.io/namespace: istio-system
-    gloo.solo.io/parent_cluster: cluster2
-    gloo.solo.io/parent_group: internal.gloo.solo.io
-    gloo.solo.io/parent_kind: IssuedCertificate
-    gloo.solo.io/parent_name: istiod-1-12-istio-system-cluster2
-    gloo.solo.io/parent_namespace: istio-system
-    gloo.solo.io/parent_version: v2
-    reconciler.mesh.gloo.solo.io/name: cert-agent
-  name: cacerts
-  namespace: istio-system
-type: certificates.mesh.gloo.solo.io/issued_certificate
-```
-
-As you can see, the secrets contain the same Root CA (base64 encoded), but different intermediate certs.
-
-Have a look at the `RootTrustPolicy` object we've just created and notice the `autoRestartPods: true` in the `config`. This instructs Gloo Mesh to restart all the Pods in the mesh.
-
-In recent versions of Istio, the control plane is able to pick up this new cert without any restart, but we would need to wait for the different Pods to renew their certificates (which happens every hour by default).
 
 <!--bash
 printf "\nWaiting until the secret is created in $CLUSTER1"
@@ -2283,91 +2141,7 @@ done
 printf "\n"
 -->
 
-Now, let's check what certificates we get when we run the same commands we ran before we created the Root Trust Policy:
 
-```
-kubectl --context ${CLUSTER1} exec -t -n bookinfo-backends deploy/reviews-v1 \
--- openssl s_client -showcerts -connect ratings:9080 -alpn istio
-```
-
-The output should be like that:
-
-```,nocopy
-...
-Certificate chain
- 0 s:
-   i:
------BEGIN CERTIFICATE-----
-MIIEBzCCAe+gAwIBAgIRAK1yjsFkisSjNqm5tzmKQS8wDQYJKoZIhvcNAQELBQAw
-...
-T77lFKXx0eGtDNtWm/1IPiOutIMlFz/olVuN
------END CERTIFICATE-----
- 1 s:
-   i:O = gloo-mesh
------BEGIN CERTIFICATE-----
-MIIFEDCCAvigAwIBAgIQPndD90z3xw+Xy0sc3fr4fzANBgkqhkiG9w0BAQsFADAb
-...
-hkZt8w==
------END CERTIFICATE-----
- 2 s:O = gloo-mesh
-   i:O = gloo-mesh
------BEGIN CERTIFICATE-----
-MIIE4zCCAsugAwIBAgIQOiYmqFu1zCssGDECrNvpLjANBgkqhkiG9w0BAQsFADAb
-...
-s4v2pEvaYg==
------END CERTIFICATE-----
- 3 s:O = gloo-mesh
-   i:O = gloo-mesh
------BEGIN CERTIFICATE-----
-MIIE4zCCAsugAwIBAgIQOiYmqFu1zCssGDECrNvpLjANBgkqhkiG9w0BAQsFADAb
-...
-s4v2pEvaYg==
------END CERTIFICATE-----
-...
-```
-
-And let's compare with what we get on the second cluster:
-
-```
-kubectl --context ${CLUSTER2} exec -t -n bookinfo-backends deploy/reviews-v1 \
--- openssl s_client -showcerts -connect ratings:9080 -alpn istio
-```
-
-The output should be like that:
-
-```,nocopy
-...
-Certificate chain
- 0 s:
-   i:
------BEGIN CERTIFICATE-----
-MIIEBjCCAe6gAwIBAgIQfSeujXiz3KsbG01+zEcXGjANBgkqhkiG9w0BAQsFADAA
-...
-EtTlhPLbyf2GwkUgzXhdcu2G8uf6o16b0qU=
------END CERTIFICATE-----
- 1 s:
-   i:O = gloo-mesh
------BEGIN CERTIFICATE-----
-MIIFEDCCAvigAwIBAgIQYq5WobXXF3X0N9M/pXbCJzANBgkqhkiG9w0BAQsFADAb
-...
-FHzHUw==
------END CERTIFICATE-----
- 2 s:O = gloo-mesh
-   i:O = gloo-mesh
------BEGIN CERTIFICATE-----
-MIIE4zCCAsugAwIBAgIQOiYmqFu1zCssGDECrNvpLjANBgkqhkiG9w0BAQsFADAb
-...
-s4v2pEvaYg==
------END CERTIFICATE-----
- 3 s:O = gloo-mesh
-   i:O = gloo-mesh
------BEGIN CERTIFICATE-----
-MIIE4zCCAsugAwIBAgIQOiYmqFu1zCssGDECrNvpLjANBgkqhkiG9w0BAQsFADAb
-...
-s4v2pEvaYg==
------END CERTIFICATE-----
-...
-```
 
 <!--bash
 cat <<'EOF' > ./test.js
@@ -2448,55 +2222,7 @@ timeout 2m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} |
 
 
 
-You can see that the last certificate in the chain is now identical on both clusters. It's the new root certificate.
 
-The first certificate is the certificate of the service. Let's decrypt it.
-
-Copy and paste the content of the certificate (including the BEGIN and END CERTIFICATE lines) in a new file called `/tmp/cert` and run the following command:
-
-```
-openssl x509 -in /tmp/cert -text
-```
-
-The output should be as follow:
-
-```
-Certificate:
-    Data:
-        Version: 3 (0x2)
-        Serial Number:
-            7d:27:ae:8d:78:b3:dc:ab:1b:1b:4d:7e:cc:47:17:1a
-    Signature Algorithm: sha256WithRSAEncryption
-        Issuer: 
-        Validity
-            Not Before: Sep 17 08:21:08 2020 GMT
-            Not After : Sep 18 08:21:08 2020 GMT
-        Subject: 
-        Subject Public Key Info:
-            Public Key Algorithm: rsaEncryption
-                Public-Key: (2048 bit)
-                Modulus:
-...
-                Exponent: 65537 (0x10001)
-        X509v3 extensions:
-            X509v3 Key Usage: critical
-                Digital Signature, Key Encipherment
-            X509v3 Extended Key Usage: 
-                TLS Web Server Authentication, TLS Web Client Authentication
-            X509v3 Basic Constraints: critical
-                CA:FALSE
-            X509v3 Subject Alternative Name: critical
-                URI:spiffe://cluster2/ns/bookinfo-backends/sa/bookinfo-ratings
-    Signature Algorithm: sha256WithRSAEncryption
-...
------BEGIN CERTIFICATE-----
-MIIEBjCCAe6gAwIBAgIQfSeujXiz3KsbG01+zEcXGjANBgkqhkiG9w0BAQsFADAA
-...
-EtTlhPLbyf2GwkUgzXhdcu2G8uf6o16b0qU=
------END CERTIFICATE-----
-```
-
-The Subject Alternative Name (SAN) is the most interesting part. It allows the sidecar proxy of the `reviews` service to validate that it talks to the sidecar proxy of the `ratings` service.
 
 
 We also need to make sure we restart our `in-mesh` deployment because it's not yet part of a `Workspace`:
@@ -2722,7 +2448,7 @@ kubectl --context ${CLUSTER1} -n bookinfo-backends wait --for=jsonpath='{.status
 
 But what happens if the `reviews` services is running, but is unavailable ?
 
-Let's try !
+Let's try!
 
 The following commands will patch the deployments to run a new version which won't respond to the incoming requests.
 
@@ -2764,7 +2490,7 @@ kubectl --context ${CLUSTER1} -n bookinfo-backends rollout status deploy/reviews
 kubectl --context ${CLUSTER1} -n bookinfo-backends rollout status deploy/reviews-v2
 ```
 
-Let's  delete the different objects we've created:
+Let's delete the different objects we've created:
 
 ```bash
 kubectl --context ${CLUSTER1} -n bookinfo-backends delete virtualdestination reviews
@@ -2877,6 +2603,9 @@ spec:
     - kind: SERVICE
       labels:
         app: reviews
+    - kind: SERVICE
+      labels:
+        app: ratings
     - kind: ALL
       labels:
         expose: "true"
@@ -2982,12 +2711,6 @@ spec:
       - serviceAccountSelector:
           name: istio-eastwestgateway-1-19-service-account
           namespace: istio-gateways
-      - serviceAccountSelector:
-          name: ext-auth-service
-          namespace: gloo-mesh-addons
-      - serviceAccountSelector:
-          name: rate-limiter
-          namespace: gloo-mesh-addons
 EOF
 ```
 
@@ -3053,14 +2776,13 @@ echo "From productpage to reviews with GET, should be allowed"
 kubectl --context ${CLUSTER1} -n bookinfo-frontends debug -i -q ${pod} --image=curlimages/curl -- curl -s http://reviews.bookinfo-backends:9080/reviews/0 | jq
 
 echo "From productpage to reviews with HEAD, should be denied"
-kubectl --context ${CLUSTER1} -n bookinfo-frontends debug -i -q ${pod} --image=curlimages/curl -- curl -s http://reviews.bookinfo-backends:9080/reviews/0 -X HEAD
+kubectl --context ${CLUSTER1} -n bookinfo-frontends debug -i -q ${pod} --image=curlimages/curl -- curl -s -m5 http://reviews.bookinfo-backends:9080/reviews/0 -X HEAD
 
 echo "From productpage to ratings, should be denied"
 kubectl --context ${CLUSTER1} -n bookinfo-frontends debug -i -q ${pod} --image=curlimages/curl -- curl -s http://ratings.bookinfo-backends:9080/ratings/0
 ```
 
 You shouldn't get a `200` response code for the last one, which means that the communication isn't allowed.
-
 <!--bash
 cat <<'EOF' > ./test.js
 var chai = require('chai');
@@ -3096,6 +2818,7 @@ tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 timeout 2m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
 -->
+
 Let's rollback the change we've made in the `WorkspaceSettings` object:
 
 ```bash
@@ -3138,8 +2861,6 @@ kubectl --context ${CLUSTER1} delete accesspolicies -n bookinfo-frontends --all
 
 
 
-
-
 ## Lab 14 - See how Gloo Platform can help with observability <a name="lab-14---see-how-gloo-platform-can-help-with-observability-"></a>
 [<img src="https://img.youtube.com/vi/UhWsk4YnOy0/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/UhWsk4YnOy0 "Video Link")
 
@@ -3164,7 +2885,7 @@ helm repo update
 helm upgrade --install kube-prometheus-stack \
 prometheus-community/kube-prometheus-stack \
 --kube-context ${MGMT} \
---version 44.3.1 \
+--version 55.9.0 \
 --namespace monitoring \
 --create-namespace \
 --values - <<EOF
@@ -3177,6 +2898,10 @@ grafana:
     uid: prometheus-GM
     type: prometheus
     url: http://prometheus-server.gloo-mesh:80
+  grafana.ini:
+    auth.anonymous:
+      enabled: true
+  defaultDashboardsEnabled: false
 EOF
 ```
 <!--bash
@@ -3205,7 +2930,6 @@ Now, you can go the the Grafana tab, log in with the default login credentials, 
 Add the Operational Dashboard
 =============================
 
-
 Our Gloo components are all instrumented with Prometheus compatible metrics, providing an easy way to pinpoint a potential degradation.
 
 You can import the following dashboard to see our Operational Dashboard, covering all of our components in the stack.
@@ -3220,7 +2944,7 @@ kubectl --context ${MGMT} label -n monitoring cm operational-dashboard grafana_d
 
 Out-of-box alerting
 ===================
-			    
+
 Our Prometheus comes with useful alerts by default, making it easier to get notified if something breaks.
 
 All of the default alerts have corresponding panels on the Operational Dashboard.
@@ -3298,12 +3022,12 @@ kubectl --context $CLUSTER1 rollout restart daemonset/gloo-telemetry-collector-a
 ```
 
 Now, let's import the Istio Control Plane Dashboard, and see the metrics!
+
 ```bash
 kubectl --context ${MGMT} -n monitoring create cm istio-control-plane-dashboard \
 --from-file=data/steps/gloo-platform-observability/istio-control-plane-dashboard.json
 kubectl --context ${MGMT} label -n monitoring cm istio-control-plane-dashboard grafana_dashboard=1
 ```
-
 
 
 
@@ -3335,11 +3059,10 @@ echo "saving errors in ${tempfile}"
 timeout 2m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
 -->
 
-The platform team is going to deploy an the egress gateway:
+The gateways team is going to deploy an egress gateway:
 
 ```bash
 kubectl apply --context ${MGMT} -f - <<EOF
-
 apiVersion: admin.gloo.solo.io/v2
 kind: GatewayLifecycleManager
 metadata:
@@ -3367,7 +3090,7 @@ EOF
 
 Check that the egress gateway has been deployed using the following command:
 
-```
+```shell
 kubectl --context ${CLUSTER1} -n istio-gateways get pods -l istio=egressgateway
 ```
 <!--bash
@@ -3381,7 +3104,7 @@ done
 
 You should get an output similar to:
 
-```
+```,nocopy
 NAME                                        READY   STATUS    RESTARTS   AGE
 istio-egressgateway-1-17-55fcbddd96-bwntr   1/1     Running   0          25m
 ```
@@ -3414,40 +3137,40 @@ EOF
 
 As you can see, only the `httpbin.org` host has been allowed.
 
-After that, the platform team needs to create a Kubernetes `NetworkPolicy` to only allow the following egress traffic in the `bookinfo-frontends` namespace:
+After that, the bookinfo or platform team needs to create a Kubernetes `NetworkPolicy` to only allow the following egress traffic in the `bookinfo-frontends` namespace:
 - from the Pods to the egress gateway
 - from the Pods to the Kubernetes DNS server
 
 ```bash
 kubectl apply --context ${CLUSTER1} -f - <<EOF
-  apiVersion: networking.k8s.io/v1
-  kind: NetworkPolicy
-  metadata:
-    name: restrict-egress
-    namespace: bookinfo-frontends
-  spec:
-    podSelector: {}
-    policyTypes:
-    - Egress
-    egress:
-    - to:
-      - namespaceSelector:
-          matchLabels: {}
-        podSelector:
-          matchLabels: {}
-    - to:
-      - ipBlock:
-          cidr: $(kubectl --context ${CLUSTER2} -n istio-gateways get svc -l istio=eastwestgateway -o jsonpath='{.items[].status.loadBalancer.ingress[0].*}')/32
-      ports:
-        - protocol: TCP
-          port: 15443
-          endPort: 15443
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: restrict-egress
+  namespace: bookinfo-frontends
+spec:
+  podSelector: {}
+  policyTypes:
+  - Egress
+  egress:
+  - to:
+    - namespaceSelector:
+        matchLabels: {}
+      podSelector:
+        matchLabels: {}
+  - to:
+    - ipBlock:
+        cidr: $(kubectl --context ${CLUSTER2} -n istio-gateways get svc -l istio=eastwestgateway -o jsonpath='{.items[].status.loadBalancer.ingress[0].*}')/32
+    ports:
+      - protocol: TCP
+        port: 15443
+        endPort: 15443
 EOF
 ```
 
 Try to to access the `httpbin.org` site from the `productpage` Pod:
 
-```
+```shell
 kubectl --context ${CLUSTER1} -n bookinfo-frontends exec $(kubectl --context ${CLUSTER1} -n bookinfo-frontends get pods -l app=productpage -o jsonpath='{.items[0].metadata.name}') -- python -c "import requests; r = requests.get('http://httpbin.org/get'); print(r.text)"
 ```
 
@@ -3527,17 +3250,17 @@ echo "saving errors in ${tempfile}"
 timeout 2m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
 -->
 
-Now, it works !
+Now, it works!
 
 And you can run the following command to check that the request went through the egress gateway:
 
-```
+```shell
 kubectl --context ${CLUSTER1} -n istio-gateways logs -l istio=egressgateway --tail 1
 ```
 
 Here is the expected output:
 
-```
+```,nocopy
 [2023-05-11T20:10:30.274Z] "GET /get HTTP/1.1" 200 - via_upstream - "-" 0 3428 793 773 "10.102.1.127" "python-requests/2.28.1" "e6fb42b7-2519-4a59-beb8-0841380d445e" "httpbin.org" "34.193.132.77:443" outbound|443||httpbin.org 10.102.2.119:39178 10.102.2.119:8443 10.102.1.127:48388 httpbin.org -
 ```
 
@@ -3597,19 +3320,19 @@ timeout 2m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} |
 
 You can still send GET requests to the `httpbin.org` site from the `productpage` Pod:
 
-```
+```shell
 kubectl --context ${CLUSTER1} -n bookinfo-frontends exec $(kubectl --context ${CLUSTER1} -n bookinfo-frontends get pods -l app=productpage -o jsonpath='{.items[0].metadata.name}') -- python -c "import requests; r = requests.get('http://httpbin.org/get'); print(r.text)"
 ```
 
 But you can't send POST requests to the `httpbin.org` site from the `productpage` Pod:
 
-```
+```shell
 kubectl --context ${CLUSTER1} -n bookinfo-frontends exec $(kubectl --context ${CLUSTER1} -n bookinfo-frontends get pods -l app=productpage -o jsonpath='{.items[0].metadata.name}') -- python -c "import requests; r = requests.post('http://httpbin.org/post'); print(r.text)"
 ```
 
 You'll get the following response:
 
-```
+```,nocopy
 RBAC: access denied
 ```
 
@@ -3836,7 +3559,7 @@ docker exec vm1 curl -v localhost:15000/clusters | grep productpage.bookinfo-fro
 
 It should return several lines similar to the one below:
 
-```
+```,nocopy
 outbound|9080||productpage.bookinfo-frontends.svc.cluster.local::172.18.2.1:15443::cx_active::0
 ```
 
@@ -3931,14 +3654,20 @@ docker exec vm1 mysql -u root -ppassword test -e "select * from ratings;"
 Deploy a new version of the ratings service that is using the database and scale down the current version:
 
 ```bash
-kubectl --context ${CLUSTER1} -n bookinfo-backends apply -f https://raw.githubusercontent.com/istio/istio/master/samples/bookinfo/platform/kube/bookinfo-ratings-v2-mysql-vm.yaml
-kubectl --context ${CLUSTER1} -n bookinfo-backends set env deploy/ratings-v2-mysql-vm MYSQL_DB_HOST=${VM_APP}.virtualmachines.ext.cluster.local
-kubectl --context ${CLUSTER1} -n bookinfo-backends set serviceaccount deploy/ratings-v2-mysql-vm bookinfo-ratings
-pod=$(kubectl --context ${CLUSTER1} -n bookinfo-backends get pods -l "app=ratings,version=v1" -o jsonpath='{.items[0].metadata.name}')
-kubectl --context ${CLUSTER1} -n bookinfo-backends scale deploy/ratings-v1 --replicas=0
-kubectl --context ${CLUSTER1} -n bookinfo-backends wait --for=delete pod/$pod
+kubectl --context ${CLUSTER1} -n bookinfo-backends apply -f data/steps/vm-integration-spire/bookinfo-ratings-v2-mysql-vm.yaml
 ```
 
+Scale down the original `ratings` deployment:
+
+```bash
+kubectl --context ${CLUSTER1} -n bookinfo-backends scale deploy/ratings-v1 --replicas=0
+```
+
+Wait for the original deployment to terminate:
+
+```bash
+kubectl --context ${CLUSTER1} -n bookinfo-backends wait --for=delete pod -l app=ratings,version=v1
+```
 <!--bash
 cat <<'EOF' > ./test.js
 const helpers = require('./tests/chai-http');
@@ -3953,6 +3682,7 @@ tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 timeout 2m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
 -->
+
 
 Let's delete the objects we've created:
 
