@@ -8,7 +8,7 @@ source ./scripts/assert.sh
 
 
 ![Gloo Mesh Enterprise](images/gloo-mesh-enterprise.png)
-# <center>Gloo Mesh Gateway Workshop</center>
+# <center>Gloo Portal (2.5.0)</center>
 
 
 
@@ -905,7 +905,7 @@ spec:
               number: 9080
 EOF
 ```
-Let's add the domain to our `/etc/hosts` file:
+Let's add the domains to our `/etc/hosts` file:
 
 ```bash
 ./scripts/register-domain.sh cluster1-bookinfo.example.com ${HOST_GW_CLUSTER1}
@@ -2133,92 +2133,7 @@ Here is the expected output:
 
 You can see that no portal configuration has been found.
 
-Let's create it !
-
-```bash
-kubectl apply --context ${CLUSTER1} -f - <<EOF
-apiVersion: apimanagement.gloo.solo.io/v2
-kind: Portal
-metadata:
-  name: portal
-  namespace: gloo-mesh-addons
-spec:
-  portalBackendSelectors:
-    - selector:
-        cluster: cluster1
-        namespace: gloo-mesh-addons
-  domains:
-  - "*"
-  usagePlans:
-    - name: bronze
-      displayName: "Bronze Plan"
-      description: "A basic usage plan"
-    - name: silver
-      displayName: "Silver Plan"
-      description: "A better usage plan"
-    - name: gold
-      displayName: "Gold Plan"
-      description: "The best usage plan!"
-  apis:
-    - labels:
-        api: bookinfo
-EOF
-```
-
-Try again to access the API:
-
-```shell
-curl -k "https://cluster1-portal.example.com/portal-server/v1/apis"
-```
-
-<!--bash
-cat <<'EOF' > ./test.js
-const helpersHttp = require('./tests/chai-http');
-
-describe("Access the portal API without authentication", () => {
-  it('Checking text \'null\' in the response', () => helpersHttp.checkBody({ host: `https://cluster1-portal.example.com`, path: '/portal-server/v1/apis', body: '[]', match: true }));
-})
-EOF
-echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/apps/bookinfo/dev-portal-backend/tests/access-portal-api-no-auth-empty.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout 2m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
--->
-
-The response should be an empty array: `[]`.
-
-This is expected because you're not authenticated.
-
-Users will authenticate on the frontends using OIDC and get access to specific APIs and plans based on the claims they'll have in the returned JWT token.
-
-You need to create a `PortalGroup` object to define these rules:
-
-```bash
-kubectl apply --context ${CLUSTER1} -f - <<EOF
-apiVersion: apimanagement.gloo.solo.io/v2
-kind: PortalGroup
-metadata:
-  name: portal-users
-  namespace: gloo-mesh-addons
-spec:
-  name: portal-users
-  description: a group for users accessing the customers APIs
-  membership:
-    - claims:
-        - key: group
-          value: users
-  accessLevel:
-    apis:
-    - labels:
-        portal-users: "true"
-    usagePlans:
-    - gold
-EOF
-```
-
-All the users who will have a JWT token containing the claim `group` with the value `users` will have access to the APIs containing the label `portal-users: "true"`.
-
-The `RouteTable` we have created for the `bookinfo` API has this label.
+We'll create it later.
 
 
 
@@ -2354,18 +2269,7 @@ echo "saving errors in ${tempfile}"
 timeout 2m mocha ./test.js --timeout 10000 --retries=300 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
 -->
 
-You should now be able to access the portal frontend through the gateway.
-
-![Dev Portal Home](images/steps/dev-portal-frontend/home.png)
-
-If you click on the `VIEW APIS` button, you won't see any API because we haven't defined any public API.
-
-Get the URL to access the portal frontend using the following command:
-```
-echo "https://cluster1-portal.example.com"
-```
-
-But we need to secure the access to the portal frontend.
+We need to secure the access to the portal frontend.
 
 First, you need to create a Kubernetes Secret that contains the OIDC secret:
 
@@ -2499,56 +2403,7 @@ EOF
 ```
 -->
 
-<!--bash
-ATTEMPTS=1
-timeout 60 bash -c 'while [[ "$(curl -m 2 --max-time 2 --insecure -s -o /dev/null -w ''%{http_code}'' https://cluster1-portal.example.com/v1/login)" != "302" ]]; do sleep 5; done'
-timeout 60 bash -c 'while [[ "$(curl -m 2 --max-time 2 --insecure -s -o /dev/null -w ''%{http_code}'' https://cluster1-portal.example.com)" != "200" ]]; do sleep 5; done'
-export USER1_TOKEN=$(node tests/keycloak-token.js "https://cluster1-portal.example.com/v1/login" user1)
-export USER2_TOKEN=$(node tests/keycloak-token.js "https://cluster1-portal.example.com/v1/login" user2)
-until ([ ! -z "$USER1_TOKEN" ] && [[ $USER1_TOKEN != *"dummy"* ]]) || [ $ATTEMPTS -gt 20 ]; do
-  printf "."
-  ATTEMPTS=$((ATTEMPTS + 1))
-  sleep 1
-  export USER1_TOKEN=$(node tests/keycloak-token.js "https://cluster1-portal.example.com/v1/login" user1)
-done
-until ([ ! -z "$USER2_TOKEN" ] && [[ $USER2_TOKEN != *"dummy"* ]]) || [ $ATTEMPTS -gt 20 ]; do
-  printf "."
-  ATTEMPTS=$((ATTEMPTS + 1))
-  sleep 1
-  export USER2_TOKEN=$(node tests/keycloak-token.js "https://cluster1-portal.example.com/v1/login" user2)
-done
-echo "User1 token: $USER1_TOKEN"
-echo "User2 token: $USER2_TOKEN"
--->
-<!--bash
-cat <<'EOF' > ./test.js
-const helpersHttp = require('./tests/chai-http');
-
-describe("Authentication is working properly", function() {
-  const cookieString = process.env.USER1_TOKEN;
-
-  it("The portal frontend isn't accessible without authenticating", () => {
-    return helpersHttp.checkURL({ host: `https://cluster1-portal.example.com`, path: '/v1/login', retCode: 302 });
-  });
-
-  it("The portal frontend is accessible after authenticating", () => {
-    return helpersHttp.checkURL({ host: `https://cluster1-portal.example.com`, path: '/v1/login', headers: [{ key: 'Cookie', value: cookieString }], retCode: 404 });
-  });
-});
-EOF
-echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/apps/bookinfo/dev-portal-frontend/tests/access-portal-frontend-authenticated.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout 2m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
--->
-
 Note that The `ExtAuthPolicy` is enforced on both the `portal-frontend` and `portal-server` `RouteTables`.
-
-If you click on the `LOGIN` button on the top right corner, you'll be redirected to keycloak and should be able to auth with the user `user1` and the password `password`.
-
-Now, if you click on the `VIEW APIS` button, you should see the `Bookinfo REST API`.
-
-![Dev Portal APIs](images/steps/dev-portal-frontend/apis.png)
 
 Finally, you need to create a CORS Policy to allow the portal frontend to send API calls the `bookinfo` API.
 
@@ -2614,6 +2469,141 @@ spec:
                 required: true
 EOF
 ```
+
+After that, we need to create a `Portal` object to define which usage plans and API products are going to be exposed.
+
+```bash
+kubectl apply --context ${CLUSTER1} -f - <<EOF
+apiVersion: apimanagement.gloo.solo.io/v2
+kind: Portal
+metadata:
+  name: portal
+  namespace: gloo-mesh-addons
+spec:
+  portalBackendSelectors:
+    - selector:
+        cluster: cluster1
+        namespace: gloo-mesh-addons
+  domains:
+  - "*"
+  usagePlans:
+    - name: bronze
+      displayName: "Bronze Plan"
+      description: "A basic usage plan"
+    - name: silver
+      displayName: "Silver Plan"
+      description: "A better usage plan"
+    - name: gold
+      displayName: "Gold Plan"
+      description: "The best usage plan!"
+  apis:
+    - labels:
+        api: bookinfo
+EOF
+```
+
+<!--bash
+cat <<'EOF' > ./test.js
+const helpersHttp = require('./tests/chai-http');
+
+describe("Access the portal API without authentication", () => {
+  it('Checking text \'null\' in the response', () => helpersHttp.checkBody({ host: `https://cluster1-portal.example.com`, path: '/portal-server/v1/apis', body: '[]', match: true }));
+})
+EOF
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/apps/bookinfo/dev-portal-self-service/tests/access-portal-api-no-auth-empty.test.js.liquid"
+tempfile=$(mktemp)
+echo "saving errors in ${tempfile}"
+timeout 2m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
+-->
+
+Users will authenticate on the frontends using OIDC and get access to specific APIs and plans based on the claims they'll have in the returned JWT token.
+
+You need to create a `PortalGroup` object to define these rules:
+
+```bash
+kubectl apply --context ${CLUSTER1} -f - <<EOF
+apiVersion: apimanagement.gloo.solo.io/v2
+kind: PortalGroup
+metadata:
+  name: portal-users
+  namespace: gloo-mesh-addons
+spec:
+  name: portal-users
+  description: a group for users accessing the customers APIs
+  membership:
+    - claims:
+        - key: group
+          value: users
+  accessLevel:
+    apis:
+    - labels:
+        portal-users: "true"
+    usagePlans:
+    - gold
+EOF
+```
+
+All the users who will have a JWT token containing the claim `group` with the value `users` will have access to the APIs containing the label `portal-users: "true"`.
+
+The `RouteTable` we have created for the `bookinfo` API has this label.
+
+You should now be able to access the portal frontend through the gateway.
+
+![Dev Portal Home](images/steps/dev-portal-self-service/home.png)
+
+Get the URL to access the portal frontend using the following command:
+```
+echo "https://cluster1-portal.example.com"
+```
+
+<!--bash
+ATTEMPTS=1
+timeout 60 bash -c 'while [[ "$(curl -m 2 --max-time 2 --insecure -s -o /dev/null -w ''%{http_code}'' https://cluster1-portal.example.com/v1/login)" != "302" ]]; do sleep 5; done'
+timeout 60 bash -c 'while [[ "$(curl -m 2 --max-time 2 --insecure -s -o /dev/null -w ''%{http_code}'' https://cluster1-portal.example.com)" != "200" ]]; do sleep 5; done'
+export USER1_TOKEN=$(node tests/keycloak-token.js "https://cluster1-portal.example.com/v1/login" user1)
+export USER2_TOKEN=$(node tests/keycloak-token.js "https://cluster1-portal.example.com/v1/login" user2)
+until ([ ! -z "$USER1_TOKEN" ] && [[ $USER1_TOKEN != *"dummy"* ]]) || [ $ATTEMPTS -gt 20 ]; do
+  printf "."
+  ATTEMPTS=$((ATTEMPTS + 1))
+  sleep 1
+  export USER1_TOKEN=$(node tests/keycloak-token.js "https://cluster1-portal.example.com/v1/login" user1)
+done
+until ([ ! -z "$USER2_TOKEN" ] && [[ $USER2_TOKEN != *"dummy"* ]]) || [ $ATTEMPTS -gt 20 ]; do
+  printf "."
+  ATTEMPTS=$((ATTEMPTS + 1))
+  sleep 1
+  export USER2_TOKEN=$(node tests/keycloak-token.js "https://cluster1-portal.example.com/v1/login" user2)
+done
+echo "User1 token: $USER1_TOKEN"
+echo "User2 token: $USER2_TOKEN"
+-->
+<!--bash
+cat <<'EOF' > ./test.js
+const helpersHttp = require('./tests/chai-http');
+
+describe("Authentication is working properly", function() {
+  const cookieString = process.env.USER1_TOKEN;
+
+  it("The portal frontend isn't accessible without authenticating", () => {
+    return helpersHttp.checkURL({ host: `https://cluster1-portal.example.com`, path: '/v1/login', retCode: 302 });
+  });
+
+  it("The portal frontend is accessible after authenticating", () => {
+    return helpersHttp.checkURL({ host: `https://cluster1-portal.example.com`, path: '/v1/login', headers: [{ key: 'Cookie', value: cookieString }], retCode: 404 });
+  });
+});
+EOF
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/apps/bookinfo/dev-portal-self-service/tests/access-portal-frontend-authenticated.test.js.liquid"
+tempfile=$(mktemp)
+echo "saving errors in ${tempfile}"
+timeout 2m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
+-->
+
+If you click on the `LOGIN` button on the top right corner, you'll be redirected to keycloak and should be able to auth with the user `user1` and the password `password`.
+
+Now, if you click on the `VIEW APIS` button, you should see the `Bookinfo REST API`.
+
+![Dev Portal APIs](images/steps/dev-portal-self-service/apis.png)
 
 Then, you can open the drop down menu by clicking on `user1` on the top right corner and select `API Keys`.
 
@@ -2831,7 +2821,7 @@ grafana/grafana \
 admin:
   existingSecret: grafana
 service:
-  port: 3000
+  port: 3001
   type: LoadBalancer
 plugins:
 - grafana-clickhouse-datasource
@@ -3249,8 +3239,8 @@ You can now access the `backstage` UI using this URL: [https://cluster1-backstag
 You can also add a Backstage Component through the Backstage API to discover the Kubernetes resources associated with the Bookinfo API:
 
 ```bash
-pod=$(kubectl --context ${MGMT} -n gloo-mesh-addons get pods -l app=backstage -o jsonpath='{.items[0].metadata.name}')
-kubectl --context ${MGMT} -n gloo-mesh-addons debug -q ${pod} --image=curlimages/curl -- curl -v -X POST -H "Content-Type: application/json" -H "Accept: application/json" \
+pod=$(kubectl --context ${CLUSTER1} -n gloo-mesh-addons get pods -l app=backstage -o jsonpath='{.items[0].metadata.name}')
+kubectl --context ${CLUSTER1} -n gloo-mesh-addons debug -q ${pod} --image=curlimages/curl -- curl -v -X POST -H "Content-Type: application/json" -H "Accept: application/json" \
     -d "{\"target\":\"https://github.com/solo-io/workshops/blob/master/bookinfo-catalog-info.yaml\", \"type\":\"url\"}" \
     http://localhost:7007/api/catalog/locations
 ```
