@@ -1905,7 +1905,8 @@ Let's add the domains to our `/etc/hosts` file:
 You can access the `productpage` service
 using this URL: [http://cluster1-bookinfo.example.com/productpage](http://cluster1-bookinfo.example.com/productpage).
 
-You should now be able to access the `productpage` application through the browser.<!--bash
+You should now be able to access the `productpage` application through the browser.
+<!--bash
 cat <<'EOF' > ./test.js
 const helpers = require('./tests/chai-http');
 
