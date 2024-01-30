@@ -1878,7 +1878,6 @@ cp data/steps/deploy-bookinfo/details-v1.yaml data/steps/deploy-bookinfo/ratings
 ```
 
 We'll define two namespaces with the necessary labels for Istio injection:
-
 ```bash
 cat <<EOF >${GITOPS_BOOKINFO}/base/frontends/ns.yaml
 apiVersion: v1
@@ -3096,7 +3095,8 @@ Let's add the domains to our `/etc/hosts` file:
 Once Argo CD has synced these resources, you can access the `productpage` service
 using this URL: [http://cluster1-bookinfo.example.com/productpage](http://cluster1-bookinfo.example.com/productpage).
 
-You should now be able to access the `productpage` application through the browser.<!--bash
+You should now be able to access the `productpage` application through the browser.
+<!--bash
 cat <<'EOF' > ./test.js
 const helpers = require('./tests/chai-http');
 
