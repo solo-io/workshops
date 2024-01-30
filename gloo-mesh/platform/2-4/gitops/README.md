@@ -8,28 +8,27 @@ source ./scripts/assert.sh
 
 
 ![Gloo Mesh Enterprise](images/gloo-mesh-enterprise.png)
-# <center>Gloo Mesh Enterprise (2.5.0)</center>
+# <center>Gloo Mesh Platform (2.4.7)</center>
 
 
 
 ## Table of Contents
 * [Introduction](#introduction)
 * [Lab 1 - Deploy KinD clusters](#lab-1---deploy-kind-clusters-)
-* [Lab 2 - Deploy and register Gloo Mesh](#lab-2---deploy-and-register-gloo-mesh-)
-* [Lab 3 - Deploy Istio using Gloo Mesh Lifecycle Manager](#lab-3---deploy-istio-using-gloo-mesh-lifecycle-manager-)
-* [Lab 4 - Deploy the Bookinfo demo app](#lab-4---deploy-the-bookinfo-demo-app-)
-* [Lab 5 - Deploy the httpbin demo app](#lab-5---deploy-the-httpbin-demo-app-)
-* [Lab 6 - Deploy Gloo Mesh Addons](#lab-6---deploy-gloo-mesh-addons-)
-* [Lab 7 - Create the gateways workspace](#lab-7---create-the-gateways-workspace-)
-* [Lab 8 - Create the bookinfo workspace](#lab-8---create-the-bookinfo-workspace-)
-* [Lab 9 - Expose the productpage through a gateway](#lab-9---expose-the-productpage-through-a-gateway-)
-* [Lab 10 - Traffic policies](#lab-10---traffic-policies-)
-* [Lab 11 - Create the Root Trust Policy](#lab-11---create-the-root-trust-policy-)
-* [Lab 12 - Leverage Virtual Destinations for east west communications](#lab-12---leverage-virtual-destinations-for-east-west-communications-)
-* [Lab 13 - Zero trust](#lab-13---zero-trust-)
-* [Lab 14 - See how Gloo Platform can help with observability](#lab-14---see-how-gloo-platform-can-help-with-observability-)
-* [Lab 15 - Securing the egress traffic](#lab-15---securing-the-egress-traffic-)
-* [Lab 16 - VM integration with Spire](#lab-16---vm-integration-with-spire-)
+* [Lab 2 - Deploy Gitea](#lab-2---deploy-gitea-)
+* [Lab 3 - Deploy Argo CD](#lab-3---deploy-argo-cd-)
+* [Lab 4 - Deploy and register Gloo Mesh](#lab-4---deploy-and-register-gloo-mesh-)
+* [Lab 5 - Deploy Istio using Gloo Mesh Lifecycle Manager](#lab-5---deploy-istio-using-gloo-mesh-lifecycle-manager-)
+* [Lab 6 - Deploy the Bookinfo demo app](#lab-6---deploy-the-bookinfo-demo-app-)
+* [Lab 7 - Deploy Gloo Mesh Addons](#lab-7---deploy-gloo-mesh-addons-)
+* [Lab 8 - Create the gateways workspace](#lab-8---create-the-gateways-workspace-)
+* [Lab 9 - Create the bookinfo workspace](#lab-9---create-the-bookinfo-workspace-)
+* [Lab 10 - Expose the productpage through a gateway](#lab-10---expose-the-productpage-through-a-gateway-)
+* [Lab 11 - Adding services to the mesh](#lab-11---adding-services-to-the-mesh-)
+* [Lab 12 - Deploy the httpbin demo app](#lab-12---deploy-the-httpbin-demo-app-)
+* [Lab 13 - Create the Root Trust Policy](#lab-13---create-the-root-trust-policy-)
+* [Lab 14 - Leverage Virtual Destinations for east west communications](#lab-14---leverage-virtual-destinations-for-east-west-communications-)
+* [Lab 15 - Zero trust](#lab-15---zero-trust-)
 
 
 
@@ -153,14 +152,381 @@ timeout 2m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} |
 
 
 
-## Lab 2 - Deploy and register Gloo Mesh <a name="lab-2---deploy-and-register-gloo-mesh-"></a>
+## Lab 2 - Deploy Gitea <a name="lab-2---deploy-gitea-"></a>
+
+GitOps is a DevOps automation technique based on Git. To implement it, your processes depend
+on a centralised Git hosting tool such as GitHub or GitLab. In this exercise we’ll provide
+our own hosted Git instance that can be used to push code changes to, and create and approve
+pull requests in.
+
+Run the following commands to create a Gitea Git hosting service in your environment:
+
+```bash
+helm repo add gitea-charts https://dl.gitea.com/charts/
+helm repo update
+
+helm upgrade --install gitea gitea-charts/gitea \
+  --version 10.1.0 \
+  --kube-context ${MGMT} \
+  --namespace gitea \
+  --create-namespace \
+  --wait \
+  -f -<<EOF
+service:
+  http:
+    type: LoadBalancer
+    port: 3180
+redis-cluster:
+  enabled: false
+postgresql-ha:
+  enabled: false
+persistence:
+  enabled: false
+gitea:
+  config:
+    repository:
+      ENABLE_PUSH_CREATE_USER: true
+      DEFAULT_PUSH_CREATE_PRIVATE: false
+    database:
+      DB_TYPE: sqlite3
+    session:
+      PROVIDER: memory
+    cache:
+      ADAPTER: memory
+    queue:
+      TYPE: level
+    server:
+      OFFLINE_MODE: true
+EOF
+
+kubectl --context ${MGMT} -n gitea wait svc gitea-http --for=jsonpath='{.status.loadBalancer.ingress[0].*}' --timeout=300s
+```
+
+Let’s create a user that can create a new repo, push changes, and work with pull requests:
+
+```bash
+export GITEA_HTTP=http://$(kubectl --context ${MGMT} -n gitea get svc gitea-http -o jsonpath='{.status.loadBalancer.ingress[0].*}'):3180
+
+GITEA_ADMIN_TOKEN=$(curl -Ss ${GITEA_HTTP}/api/v1/users/gitea_admin/tokens \
+  -H "Content-Type: application/json" \
+  -d '{"name": "workshop", "scopes": ["write:admin", "write:repository"]}' \
+  -u 'gitea_admin:r8sA8CPHD9!bt6d' \
+  | jq -r .sha1)
+echo export GITEA_ADMIN_TOKEN=${GITEA_ADMIN_TOKEN} >> ~/.env
+
+curl -i ${GITEA_HTTP}/api/v1/admin/users \
+  -H "accept: application/json" -H "Content-Type: application/json" \
+  -H "Authorization: token ${GITEA_ADMIN_TOKEN}" \
+  -d '{
+    "username": "gloo-gitops",
+    "password": "password",
+    "email": "gloo-gitops@solo.io",
+    "full_name": "Solo.io GitOps User",
+    "must_change_password": false
+  }'
+```
+
+You can now see the list of Gitea repos by clicking the "Git" tab above. If you need to, you
+can log in with username `gloo-gitops` and password `password` that were used to create the user.
+
+Now, if you need to push a repo to Gitea, you can simply add a remote to it and push.
+We don’t have a repo to work with yet but this is how you would do it:
+
+```,nocopy
+git config credential.helper '!f() { sleep 1; echo "username=gloo-gitops"; echo "password=password"; }; f'
+git remote add origin ${GITEA_HTTP}/gloo-gitops/new-repo.git
+git push -u origin main
+```
+
+Note that the credentials are stored **insecurely** here as a convenience for these exercises.
+
+
+
+## Lab 3 - Deploy Argo CD <a name="lab-3---deploy-argo-cd-"></a>
+
+Argo CD is a declarative, GitOps continuous delivery tool for Kubernetes that we can use to
+deploy and synchronise applications and configuration from a state stored in a Git repo.
+
+Run the following commands to install Argo CD in your environment:
+
+```bash
+helm repo add argo https://argoproj.github.io/argo-helm
+helm repo update
+
+helm upgrade --install argo-cd argo/argo-cd \
+  --version 5.53.6 \
+  --kube-context ${MGMT} \
+  --namespace argocd \
+  --create-namespace \
+  --wait \
+  -f -<<EOF
+server:
+  service:
+    type: LoadBalancer
+    servicePortHttp: 3280
+    servicePortHttps: 3243
+configs:
+  params:
+    server.insecure: true
+    server.disable.auth: true
+  cm:
+    timeout.reconciliation: 10s
+EOF
+
+kubectl --context ${MGMT} -n argocd wait svc argo-cd-argocd-server --for=jsonpath='{.status.loadBalancer.ingress[0].*}' --timeout=300s
+```
+
+Download and install the `argocd` CLI tool that we’ll use to manage the Argo CD server:
+
+```bash
+mkdir -p ${HOME}/bin
+curl -Lo ${HOME}/bin/argocd https://github.com/argoproj/argo-cd/releases/download/v2.9.5/argocd-$(uname | tr '[:upper:]' '[:lower:]')-$(uname -m | sed 's/aarch/arm/' | sed 's/x86_/amd/')
+chmod +x ${HOME}/bin/argocd
+export PATH=$HOME/bin:$PATH
+```
+
+Next, log in to the Argo CD server and rename the default cluster (which is where Argo CD
+is running) to match our environment:
+
+```bash
+ARGOCD_HTTP_IP=$(kubectl --context ${MGMT} -n argocd get svc argo-cd-argocd-server -o jsonpath='{.status.loadBalancer.ingress[0].*}')
+ARGOCD_ADMIN_SECRET=$(kubectl --context ${MGMT} -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d)
+
+argocd --kube-context ${MGMT} login ${ARGOCD_HTTP_IP}:3280 --username admin --password ${ARGOCD_ADMIN_SECRET} --plaintext
+
+argocd cluster set in-cluster --name ${MGMT}
+```
+Finally, let’s tell Argo CD about our other clusters so that we can deploy apps to those too:
+
+```bash
+argocd cluster add ${CLUSTER1} --name ${CLUSTER1} -y --cluster-endpoint kube-public
+argocd cluster add ${CLUSTER2} --name ${CLUSTER2} -y --cluster-endpoint kube-public
+```
+We can check that our cluster list looks correct:
+
+```bash
+argocd cluster list
+```
+
+You should get an output like the following:
+
+```,nocopy
+SERVER                            NAME      VERSION  STATUS   MESSAGE                                                  PROJECT
+https://kind2-control-plane:6443  cluster1           Unknown  Cluster has no applications and is not being monitored.  
+https://kind3-control-plane:6443  cluster2           Unknown  Cluster has no applications and is not being monitored.  
+https://kubernetes.default.svc    mgmt               Unknown  Cluster has no applications and is not being monitored.
+```
+
+Now we’re ready to use Argo CD to manage applications as part of continuous delivery and GitOps.
+We’ll start by creating a GitOps repo that our teams will share. Note that teams can have their own repos
+to work separately if that suits their workflow better.
+
+```bash
+mkdir -p data/steps/gitops-repo
+export GITOPS_REPO_LOCAL=$(realpath data/steps/gitops-repo)
+```
+
+At the root of our shared GitOps directory, we’ll create a new subdirectory called `argo-cd` that we’ll use to sync
+configuration to Argo CD:
+
+```bash
+export GITOPS_ARGOCD=${GITOPS_REPO_LOCAL}/argo-cd
+mkdir -p ${GITOPS_ARGOCD} && touch ${GITOPS_ARGOCD}/.gitignore
+```
+
+Instantiate the shared GitOps directory as a Git repo:
+
+```bash
+git -C ${GITOPS_REPO_LOCAL} init -b main
+git -C ${GITOPS_REPO_LOCAL} config user.email "gloo-gitops@solo.io"
+git -C ${GITOPS_REPO_LOCAL} config user.name "Solo.io GitOps User"
+```
+
+We’ll need the URL of our Git server. Save that in an environment variable:
+
+```bash
+GITEA_HTTP=http://$(kubectl --context ${MGMT} -n gitea get svc gitea-http -o jsonpath='{.status.loadBalancer.ingress[0].*}'):3180
+```
+
+Commit and push our repo to the Git server:
+
+```bash
+git -C ${GITOPS_REPO_LOCAL} add .
+git -C ${GITOPS_REPO_LOCAL} commit -m "Initial commit of Gloo GitOps"
+
+git -C ${GITOPS_REPO_LOCAL} config credential.helper '!f() { sleep 1; echo "username=gloo-gitops"; echo "password=password"; }; f'
+git -C ${GITOPS_REPO_LOCAL} remote add origin ${GITEA_HTTP}/gloo-gitops/gitops-repo.git
+
+git -C ${GITOPS_REPO_LOCAL} push -u origin main
+```
+
+While we now have a Git repo that we’ll use to sync Argo CD configuration, we need to tell Argo CD where to
+get that configuration from and how to apply it. We’ll use two Kubernetes custom resources for this, one to
+define a new "project" and another to create an "application" that declares how the config will be synced:
+
+```bash
+cat <<EOF > ${GITOPS_ARGOCD}/argo-cd.yaml
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: argo-cd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+  finalizers:
+  - resources-finalizer.argocd.argoproj.io
+spec:
+  sourceRepos:
+  - '*'
+  destinations:
+  - namespace: '*'
+    server: '*'
+  clusterResourceWhitelist:
+  - group: '*'
+    kind: '*'
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: argocd-${MGMT}
+  finalizers:
+  - resources-finalizer.argocd.argoproj.io/background
+spec:
+  project: argo-cd
+  sources:
+  - repoURL: ${GITEA_HTTP}/gloo-gitops/gitops-repo.git
+    targetRevision: HEAD
+    path: argo-cd
+  destination:
+    name: ${MGMT}
+    namespace: argocd
+  syncPolicy:
+    automated:
+      allowEmpty: true
+      prune: true
+    syncOptions:
+    - ApplyOutOfSyncOnly=true
+EOF
+
+kubectl --context ${MGMT} -n argocd create -f ${GITOPS_ARGOCD}/argo-cd.yaml
+```
+
+These are applied directly to Argo CD, but we'll keep them in our GitOps repo in case we need to make any
+changes in the future:
+
+```bash
+git -C ${GITOPS_REPO_LOCAL} add .
+git -C ${GITOPS_REPO_LOCAL} commit -m "Manage argo-cd config"
+git -C ${GITOPS_REPO_LOCAL} push
+```
+
+Now, check the Argo CD UI tab above. After a few seconds, you should see an application created
+for our Argo CD configuration, which is synchronised with the Git repo that we just created.
+<!--bash
+cat <<'EOF' > ./test.js
+const chaiExec = require("@jsdevtools/chai-exec");
+var chai = require('chai');
+var expect = chai.expect;
+chai.use(chaiExec);
+
+afterEach(function (done) {
+  if (this.currentTest.currentRetry() > 0) {
+    process.stdout.write(".");
+    setTimeout(done, 1000);
+  } else {
+    done();
+  }
+});
+
+describe("Argo CD config", () => {
+  it("syncs to mgmt cluster", () => {
+    let cli = chaiExec(process.env.HOME + "/bin/argocd --kube-context " + process.env.MGMT + " app get argocd-" + process.env.MGMT);
+    expect(cli).to.exit.with.code(0);
+    expect(cli).to.have.output.that.matches(new RegExp("\\bServer:\\s+" + process.env.MGMT + "\\b"));
+    expect(cli).to.have.output.that.matches(new RegExp("\\bRepo:\\s+http://(?:[0-9]{1,3}\.){3}[0-9]{1,3}:3180/gloo-gitops/gitops-repo.git\\b"));
+    expect(cli).to.have.output.that.matches(new RegExp("\\bPath:\\s+argo-cd\\b"));
+    expect(cli).to.have.output.that.matches(new RegExp("\\bHealth Status:\\s+Healthy\\b"));
+  });
+});
+
+EOF
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/deploy-argo-cd/tests/argo-cd-sync-repo.test.js.liquid"
+tempfile=$(mktemp)
+echo "saving errors in ${tempfile}"
+timeout 2m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
+-->
+Finally, let’s test that everything is working correctly. We’ll define a pod manifest, commit
+it to our repo, push it to the remote, and check that Argo CD creates that pod in our cluster.
+
+First, switch back to the terminal and create our pod manifest:
+
+```bash
+cat <<EOF > ${GITOPS_ARGOCD}/nginx.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: nginx
+  namespace: default
+spec:
+  containers:
+  - image: nginx
+    name: nginx
+EOF
+```
+
+Commit and push it to our remote:
+
+```bash
+git -C ${GITOPS_REPO_LOCAL} add .
+git -C ${GITOPS_REPO_LOCAL} commit -m "Add nginx"
+git -C ${GITOPS_REPO_LOCAL} push
+```
+<!--bash
+echo -n Waiting for Argo CD to sync...
+timeout -v 5m bash -c "until [[ \$(kubectl --context ${MGMT} -n default get pod nginx 2>/dev/null) ]]; do
+  sleep 1
+  echo -n .
+done"
+echo
+timeout 2m bash -c "until [[ \$(kubectl --context ${MGMT} -n default wait --for=condition=ready pod/nginx --timeout=30s 2>/dev/null) ]]; do
+  sleep 1
+done"
+if [[ ! $(kubectl --context ${MGMT} -n default wait --for=condition=ready pod/nginx --timeout=30s) ]]; then
+  echo "nginx did not become ready"
+  exit 1
+fi
+-->
+
+Now, check the Argo CD UI tab again and click into the "argocd-[[ Instruqt-Var key="MGMT" hostname="" ]]"
+application. After a short period, you’ll see an `nginx` pod appear linked to the application.
+The status of this pod will be shown as a tag on the pod box in the UI.
+
+Let’s make sure the pod got deployed by switching back to the terminal and running this command:
+
+```bash
+until kubectl --context ${MGMT} -n default wait --for=condition=ready pod/nginx --timeout=30s 2>/dev/null; do sleep 1; done
+```
+
+Now let’s delete the pod manifest from the repo and check that it gets removed from the
+cluster:
+
+```bash
+git -C ${GITOPS_REPO_LOCAL} revert --no-commit HEAD
+git -C ${GITOPS_REPO_LOCAL} commit -m "Delete nginx"
+git -C ${GITOPS_REPO_LOCAL} push
+
+kubectl --context ${MGMT} -n default wait --for=delete pod/nginx --timeout=30s
+```
+
+
+
+## Lab 4 - Deploy and register Gloo Mesh <a name="lab-4---deploy-and-register-gloo-mesh-"></a>
 [<img src="https://img.youtube.com/vi/djfFiepK4GY/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/djfFiepK4GY "Video Link")
 
 
 Before we get started, let's install the `meshctl` CLI:
 
 ```bash
-export GLOO_MESH_VERSION=v2.5.0
+export GLOO_MESH_VERSION=v2.4.7
 curl -sL https://run.solo.io/meshctl/install | sh -
 export PATH=$HOME/.gloo-mesh/bin:$PATH
 ```
@@ -195,29 +561,150 @@ tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 timeout 2m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
 -->
-Run the following commands to deploy the Gloo Mesh management plane:
+GitOps allows flexible interactions between the different teams involved in building and running modern
+applications. For these exercises we focus on a small number of *personas* that manage their own resources
+and may work in distinct ways. These personas are:
+
+* A **platform team**, who install and manage Gloo Platform and any cross-cutting concerns, like Istio
+* A **gateways team**, who manage the ingress and east-west gateways and cross-cutting traffic concerns like
+external DNS names or certificates
+* **Application teams**, who decide how their apps are deployed and what routing requirements they have
+
+Find out more about the personas that Gloo Platform was designed for [here](https://docs.solo.io/gloo-mesh-enterprise/latest/concepts/about/persona/).
+
+The platform team will use a Git repo to store the desired state of the Gloo Platform installation. This repo
+has already been created at the location in environment variable `${GITOPS_REPO_LOCAL}`, so we'll create
+a new subdirectory for the platform team:
 
 ```bash
-kubectl --context ${MGMT} create ns gloo-mesh
+export GITOPS_PLATFORM=${GITOPS_REPO_LOCAL}/platform
+mkdir -p ${GITOPS_PLATFORM}/${MGMT}
+```
 
-helm upgrade --install gloo-platform-crds gloo-platform-crds \
-  --repo https://storage.googleapis.com/gloo-platform/helm-charts \
-  --namespace gloo-mesh \
-  --kube-context ${MGMT} \
-  --version 2.5.0
+First, we'll create an Argo CD `Project` and `ApplicationSet` to apply the platform team's resources. This will
+create an Argo CD `Application` for each configured cluster, and apply cluster-specific configuration from the
+respective cluster subdirectory:
 
-helm upgrade --install gloo-platform gloo-platform \
-  --repo https://storage.googleapis.com/gloo-platform/helm-charts \
-  --namespace gloo-mesh \
-  --kube-context ${MGMT} \
-  --version 2.5.0 \
-  -f -<<EOF
+```bash
+cat <<EOF > ${GITOPS_ARGOCD}/platform.yaml
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: platform
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+  finalizers:
+  - resources-finalizer.argocd.argoproj.io
+spec:
+  sourceRepos:
+  - '*'
+  destinations:
+  - namespace: '*'
+    server: '*'
+  clusterResourceWhitelist:
+  - group: '*'
+    kind: '*'
+---
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: platform
+spec:
+  generators:
+  - list:
+      elements:
+      - cluster: ${MGMT}
+      - cluster: ${CLUSTER1}
+      - cluster: ${CLUSTER2}
+  template:
+    metadata:
+      name: platform-{{cluster}}
+      finalizers:
+      - resources-finalizer.argocd.argoproj.io/background
+    spec:
+      project: platform
+      source:
+        repoURL: ${GITEA_HTTP}/gloo-gitops/gitops-repo.git
+        targetRevision: HEAD
+        path: platform/{{cluster}}
+      destination:
+        name: '{{cluster}}'
+        namespace: default
+      syncPolicy:
+        automated:
+          allowEmpty: true
+          prune: true
+        syncOptions:
+        - ApplyOutOfSyncOnly=true
+EOF
+```
+
+Next, we'll create another Argo CD `Application` for the installation of the Gloo Platform management plane.
+This will deploy the Gloo Platform CRDs and the management server as a pair of Helm releases, using a set of
+Helm values that we'll store alongside this application spec in the GitOps repo:
+
+```bash
+mkdir -p ${GITOPS_PLATFORM}/argo-cd
+
+cat <<EOF > ${GITOPS_PLATFORM}/argo-cd/gloo-platform-mgmt-installation.yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: gloo-platform-mgmt-installation
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+  finalizers:
+  - resources-finalizer.argocd.argoproj.io/background
+spec:
+  project: platform
+  destination:
+    name: ${MGMT}
+    namespace: gloo-mesh
+  syncPolicy:
+    automated:
+      allowEmpty: true
+      prune: true
+    syncOptions:
+    - CreateNamespace=true
+  ignoreDifferences:
+  - kind: Secret
+    jsonPointers:
+    - /data/ca.crt
+    - /data/tls.crt
+    - /data/tls.key
+    - /data/token
+  - group: certificate.cert-manager.io
+    kind: Certificate
+    jsonPointers:
+    - /spec/duration
+    - /spec/renewBefore
+  sources:
+  - chart: gloo-platform-crds
+    repoURL: https://storage.googleapis.com/gloo-platform/helm-charts
+    targetRevision: 2.4.7
+    helm:
+      releaseName: gloo-platform-crds
+  - chart: gloo-platform
+    repoURL: https://storage.googleapis.com/gloo-platform/helm-charts
+    targetRevision: 2.4.7
+    helm:
+      releaseName: gloo-platform
+      valueFiles:
+      - \$values/platform/argo-cd/gloo-platform-mgmt-installation-values.yaml
+  - repoURL: http://$(kubectl --context ${MGMT} -n gitea get svc gitea-http -o jsonpath='{.status.loadBalancer.ingress[0].*}'):3180/gloo-gitops/gitops-repo.git
+    targetRevision: HEAD
+    ref: values
+EOF
+```
+
+We'll use the following Helm values file to configure the Gloo Platform management server:
+
+```bash
+cat <<EOF > ${GITOPS_PLATFORM}/argo-cd/gloo-platform-mgmt-installation-values.yaml
 licensing:
   licenseKey: ${GLOO_MESH_LICENSE_KEY}
 common:
   cluster: mgmt
-glooInsightsEngine:
-  enabled: false
 glooMgmtServer:
   enabled: true
   ports:
@@ -237,8 +724,52 @@ glooUi:
 telemetryCollector:
   enabled: true
 EOF
+```
 
-kubectl --context ${MGMT} -n gloo-mesh rollout status deploy/gloo-mesh-mgmt-server
+We're going to use [Kustomize](https://kustomize.io/) later on to help minimise duplication of configuration,
+so we'll create the `Kustomization` files needed to make sure our resources are included:
+
+```bash
+cat <<EOF >${GITOPS_PLATFORM}/argo-cd/kustomization.yaml
+namespace: argocd
+resources:
+- gloo-platform-mgmt-installation.yaml
+EOF
+
+cat <<EOF >${GITOPS_PLATFORM}/${MGMT}/kustomization.yaml
+resources:
+- ../argo-cd
+EOF
+```
+
+Finally, commit and push the management server config to Git for it to take effect:
+
+```bash
+git -C ${GITOPS_REPO_LOCAL} add .
+git -C ${GITOPS_REPO_LOCAL} commit -m "Gloo Platform management server"
+git -C ${GITOPS_REPO_LOCAL} push
+```
+<!--bash
+echo -n Waiting for Argo CD to sync...
+timeout -v 5m bash -c "until [[ \$(kubectl --context ${MGMT} -n argocd get application gloo-platform-mgmt-installation 2>/dev/null) ]]; do
+  sleep 1
+  echo -n .
+done"
+echo
+timeout 2m bash -c "until [[ \$(kubectl --context ${MGMT} -n gloo-mesh rollout status deploy/gloo-mesh-mgmt-server 2>/dev/null) ]]; do
+  sleep 1
+done"
+if [[ ! $(kubectl --context ${MGMT} -n gloo-mesh rollout status deploy/gloo-mesh-mgmt-server --timeout 10s) ]]; then
+  echo "Gloo Mesh Management Server did not deploy"
+  exit 1
+fi
+-->
+
+Take a look at the Argo CD dashboard to see the new `Application`s sync. While the config is synced,
+wait for the deployment to complete by running the following in the terminal:
+
+```bash
+until kubectl --context ${MGMT} -n gloo-mesh rollout status deploy/gloo-mesh-mgmt-server 2>/dev/null; do sleep 1; done
 ```
 
 <!--bash
@@ -329,10 +860,10 @@ timeout 2m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} |
 -->
 Finally, you need to register the cluster(s).
 
-Here is how you register the first one:
+We need to create a Gloo `KubernetesCluster` to represent the cluster in the management server:
 
 ```bash
-kubectl apply --context ${MGMT} -f - <<EOF
+cat <<EOF > ${GITOPS_PLATFORM}/${MGMT}/cluster1.yaml
 apiVersion: admin.gloo.solo.io/v2
 kind: KubernetesCluster
 metadata:
@@ -342,50 +873,7 @@ spec:
   clusterDomain: cluster.local
 EOF
 
-kubectl --context ${CLUSTER1} create ns gloo-mesh
-
-kubectl get secret relay-root-tls-secret -n gloo-mesh --context ${MGMT} -o jsonpath='{.data.ca\.crt}' | base64 -d > ca.crt
-kubectl create secret generic relay-root-tls-secret -n gloo-mesh --context ${CLUSTER1} --from-file ca.crt=ca.crt
-rm ca.crt
-
-kubectl get secret relay-identity-token-secret -n gloo-mesh --context ${MGMT} -o jsonpath='{.data.token}' | base64 -d > token
-kubectl create secret generic relay-identity-token-secret -n gloo-mesh --context ${CLUSTER1} --from-file token=token
-rm token
-
-helm upgrade --install gloo-platform-crds gloo-platform-crds \
-  --repo https://storage.googleapis.com/gloo-platform/helm-charts \
-  --namespace gloo-mesh \
-  --kube-context ${CLUSTER1} \
-  --version 2.5.0
-
-helm upgrade --install gloo-platform gloo-platform \
-  --repo https://storage.googleapis.com/gloo-platform/helm-charts \
-  --namespace gloo-mesh \
-  --kube-context ${CLUSTER1} \
-  --version 2.5.0 \
-  -f -<<EOF
-common:
-  cluster: cluster1
-glooAgent:
-  enabled: true
-  relay:
-    serverAddress: "${ENDPOINT_GLOO_MESH}"
-    authority: gloo-mesh-mgmt-server.gloo-mesh
-telemetryCollector:
-  enabled: true
-  config:
-    exporters:
-      otlp:
-        endpoint: "${ENDPOINT_TELEMETRY_GATEWAY}"
-EOF
-```
-
-Note that the registration can also be performed using `meshctl cluster register`.
-
-And here is how you register the second one:
-
-```bash
-kubectl apply --context ${MGMT} -f - <<EOF
+cat <<EOF > ${GITOPS_PLATFORM}/${MGMT}/cluster2.yaml
 apiVersion: admin.gloo.solo.io/v2
 kind: KubernetesCluster
 metadata:
@@ -395,30 +883,130 @@ spec:
   clusterDomain: cluster.local
 EOF
 
-kubectl --context ${CLUSTER2} create ns gloo-mesh
+cat <<EOF >>${GITOPS_PLATFORM}/${MGMT}/kustomization.yaml
+- cluster1.yaml
+- cluster2.yaml
+EOF
+```
 
-kubectl get secret relay-root-tls-secret -n gloo-mesh --context ${MGMT} -o jsonpath='{.data.ca\.crt}' | base64 -d > ca.crt
-kubectl create secret generic relay-root-tls-secret -n gloo-mesh --context ${CLUSTER2} --from-file ca.crt=ca.crt
-rm ca.crt
+Next we'll set up the cluster-specific configuration for Argo CD to sync to the first cluster:
 
-kubectl get secret relay-identity-token-secret -n gloo-mesh --context ${MGMT} -o jsonpath='{.data.token}' | base64 -d > token
-kubectl create secret generic relay-identity-token-secret -n gloo-mesh --context ${CLUSTER2} --from-file token=token
-rm token
+```bash
+mkdir -p ${GITOPS_PLATFORM}/${CLUSTER1}
 
-helm upgrade --install gloo-platform-crds gloo-platform-crds \
-  --repo https://storage.googleapis.com/gloo-platform/helm-charts \
-  --namespace gloo-mesh \
-  --kube-context ${CLUSTER2} \
-  --version 2.5.0
+cat <<EOF >${GITOPS_PLATFORM}/${CLUSTER1}/ns-gloo-mesh.yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: gloo-mesh
+EOF
 
-helm upgrade --install gloo-platform gloo-platform \
-  --repo https://storage.googleapis.com/gloo-platform/helm-charts \
-  --namespace gloo-mesh \
-  --kube-context ${CLUSTER2} \
-  --version 2.5.0 \
-  -f -<<EOF
-common:
-  cluster: cluster2
+cat <<EOF >${GITOPS_PLATFORM}/${CLUSTER1}/relay-secrets.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: relay-root-tls-secret
+  namespace: gloo-mesh
+data:
+  ca.crt: $(kubectl --context ${MGMT} -n gloo-mesh get secret relay-root-tls-secret -o jsonpath='{.data.ca\.crt}')
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: relay-identity-token-secret
+  namespace: gloo-mesh
+data:
+  token: $(kubectl --context ${MGMT} -n gloo-mesh get secret relay-identity-token-secret -o jsonpath='{.data.token}')
+EOF
+
+cat <<EOF >${GITOPS_PLATFORM}/${CLUSTER1}/kustomization.yaml
+commonAnnotations:
+  argocd.argoproj.io/sync-wave: "1"
+resources:
+- ns-gloo-mesh.yaml
+- relay-secrets.yaml
+EOF
+```
+
+> <i>Note: Secrets should not be stored in the GitOps repo in an unencrypted form (see [Sealed Secrets](https://sealed-secrets.netlify.app/)
+for a mechanism to store secrets properly). We store them unencrypted in this workshop for simplicity.</i>
+
+Copy this configuration for the second cluster:
+
+```bash
+cp -r ${GITOPS_PLATFORM}/${CLUSTER1} ${GITOPS_PLATFORM}/${CLUSTER2}
+```
+
+Create an Argo CD `ApplicationSet` to configure and install the Gloo Platform agent on both clusters:
+
+```bash
+cat <<EOF >${GITOPS_PLATFORM}/argo-cd/gloo-platform-agents-installation.yaml
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: gloo-platform-agents-installation
+spec:
+  generators:
+  - list:
+      elements:
+      - cluster: ${CLUSTER1}
+      - cluster: ${CLUSTER2}
+  template:
+    metadata:
+      name: gloo-platform-{{cluster}}-installation
+      annotations:
+        argocd.argoproj.io/sync-wave: "2"
+      finalizers:
+      - resources-finalizer.argocd.argoproj.io/background
+    spec:
+      project: platform
+      destination:
+        name: '{{cluster}}'
+        namespace: gloo-mesh
+      syncPolicy:
+        automated:
+          prune: true
+      ignoreDifferences:
+      - group: apiextensions.k8s.io
+        kind: CustomResourceDefinition
+        name: istiooperators.install.istio.io
+        jsonPointers:
+        - /metadata/labels
+      - kind: Secret
+        name: postgresql
+        jsonPointers:
+        - /data/postgres-password
+      - group: certificate.cert-manager.io
+        kind: Certificate
+        jsonPointers:
+        - /spec/duration
+        - /spec/renewBefore
+      sources:
+      - chart: gloo-platform-crds
+        repoURL: https://storage.googleapis.com/gloo-platform/helm-charts
+        targetRevision: 2.4.7
+        helm:
+          releaseName: gloo-platform-crds
+      - chart: gloo-platform
+        repoURL: https://storage.googleapis.com/gloo-platform/helm-charts
+        targetRevision: 2.4.7
+        helm:
+          releaseName: gloo-platform
+          valueFiles:
+          - \$values/platform/argo-cd/gloo-platform-agents-installation-values.yaml
+          parameters:
+          - name: common.cluster
+            value: '{{cluster}}'
+      - repoURL: http://$(kubectl --context ${MGMT} -n gitea get svc gitea-http -o jsonpath='{.status.loadBalancer.ingress[0].*}'):3180/gloo-gitops/gitops-repo.git
+        targetRevision: HEAD
+        ref: values
+EOF
+```
+
+We'll use the following Helm values file to configure the Gloo Platform agents:
+
+```bash
+cat <<EOF > ${GITOPS_PLATFORM}/argo-cd/gloo-platform-agents-installation-values.yaml
 glooAgent:
   enabled: true
   relay:
@@ -432,6 +1020,30 @@ telemetryCollector:
         endpoint: "${ENDPOINT_TELEMETRY_GATEWAY}"
 EOF
 ```
+
+Add these files for `Kustomize` to include:
+
+```bash
+cat <<EOF >>${GITOPS_PLATFORM}/argo-cd/kustomization.yaml
+- gloo-platform-agents-installation.yaml
+EOF
+```
+
+Commit and push the clusters' configuration for it to take effect:
+
+```bash
+git -C ${GITOPS_REPO_LOCAL} add .
+git -C ${GITOPS_REPO_LOCAL} commit -m "Onboard workload clusters"
+git -C ${GITOPS_REPO_LOCAL} push
+```
+<!--bash
+echo -n Waiting for Argo CD to sync...
+timeout -v 5m bash -c "until [[ \$(kubectl --context ${MGMT} -n gloo-mesh get kubernetescluster cluster1 2>/dev/null) ]]; do
+  sleep 1
+  echo -n .
+done"
+echo
+-->
 
 You can check the cluster(s) have been registered correctly using the following commands:
 ```
@@ -453,7 +1065,8 @@ relay_push_clients_connected{cluster="cluster2"} 1
 Finally, you need to specify which gateways you want to use for cross cluster traffic:
 
 ```bash
-kubectl apply --context ${MGMT} -f - <<EOF
+mkdir -p ${GITOPS_PLATFORM}/${MGMT}/workspaces
+cat <<EOF > ${GITOPS_PLATFORM}/${MGMT}/workspaces/workspace-global.yaml
 apiVersion: admin.gloo.solo.io/v2
 kind: WorkspaceSettings
 metadata:
@@ -466,7 +1079,25 @@ spec:
           labels:
             istio: eastwestgateway
 EOF
+
+cat <<EOF >${GITOPS_PLATFORM}/${MGMT}/workspaces/kustomization.yaml
+commonAnnotations:
+  argocd.argoproj.io/sync-wave: "2"
+resources:
+- workspace-global.yaml
+EOF
+
+cat <<EOF >>${GITOPS_PLATFORM}/${MGMT}/kustomization.yaml
+- workspaces
+EOF
+
+git -C ${GITOPS_REPO_LOCAL} add .
+git -C ${GITOPS_REPO_LOCAL} commit -m "Indicate east-west gateway"
+git -C ${GITOPS_REPO_LOCAL} push
 ```
+
+Take a look at the repo in the **Git** tab. Notice that we've created all our resources in the directory under
+`environments` that corresponds to the management server or the Argo CD installation.
 <!--bash
 cat <<'EOF' > ./test.js
 var chai = require('chai');
@@ -493,19 +1124,103 @@ timeout 2m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} |
 
 
 
-## Lab 3 - Deploy Istio using Gloo Mesh Lifecycle Manager <a name="lab-3---deploy-istio-using-gloo-mesh-lifecycle-manager-"></a>
+## Lab 5 - Deploy Istio using Gloo Mesh Lifecycle Manager <a name="lab-5---deploy-istio-using-gloo-mesh-lifecycle-manager-"></a>
 [<img src="https://img.youtube.com/vi/f76-KOEjqHs/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/f76-KOEjqHs "Video Link")
 
 We are going to deploy Istio using Gloo Mesh Lifecycle Manager.
 
-Let's create Kubernetes services for the gateways:
+In this GitOps workshop, we'll assume that the platform team and the gateways team are separate teams,
+so they will have separate subdirectories in the GitOps repo to work in. Let's create the directory for
+the gateways team to manage their configuration in:
 
 ```bash
-registry=localhost:5000
-kubectl --context ${CLUSTER1} create ns istio-gateways
-kubectl --context ${CLUSTER1} label namespace istio-gateways istio.io/rev=1-19 --overwrite
+export GITOPS_GATEWAYS=${GITOPS_REPO_LOCAL}/gateways
+mkdir -p ${GITOPS_GATEWAYS}
+```
 
-kubectl apply --context ${CLUSTER1} -f - <<EOF
+We'll use an Argo CD project and `ApplicationSet` to apply the gateway team's resources. This will create
+an Argo CD `Application` for each configured cluster, and apply cluster-specific configuration from the
+respective cluster subdirectory:
+
+```bash
+cat <<EOF > ${GITOPS_ARGOCD}/gateways.yaml
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: gateways
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+  finalizers:
+  - resources-finalizer.argocd.argoproj.io
+spec:
+  sourceRepos:
+  - '*'
+  destinations:
+  - namespace: '*'
+    server: '*'
+  clusterResourceWhitelist:
+  - group: '*'
+    kind: '*'
+---
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: gateways
+spec:
+  generators:
+  - list:
+      elements:
+      - cluster: ${MGMT}
+      - cluster: ${CLUSTER1}
+      - cluster: ${CLUSTER2}
+  template:
+    metadata:
+      name: gateways-{{cluster}}
+      finalizers:
+      - resources-finalizer.argocd.argoproj.io/background
+    spec:
+      project: gateways
+      source:
+        repoURL: ${GITEA_HTTP}/gloo-gitops/gitops-repo.git
+        targetRevision: HEAD
+        path: gateways/{{cluster}}
+      destination:
+        name: '{{cluster}}'
+        namespace: gloo-mesh
+      syncPolicy:
+        automated:
+          allowEmpty: true
+          prune: true
+        syncOptions:
+        - ApplyOutOfSyncOnly=true
+EOF
+```
+
+Let's create Kubernetes services for the gateways:
+
+We're going to define base manifests for the gateway services, and then apply customisations
+using Kustomize to modify them for their target clusters:
+
+```bash
+mkdir -p ${GITOPS_GATEWAYS}/base/gateway-services
+
+cat <<EOF > ${GITOPS_GATEWAYS}/base/gateway-services/ns.yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: istio-gateways
+  labels:
+    istio.io/rev: 1-19
+EOF
+
+cat <<EOF >${GITOPS_GATEWAYS}/base/gateway-services/kustomization.yaml
+commonAnnotations:
+  argocd.argoproj.io/sync-wave: "3"
+resources:
+- ns.yaml
+EOF
+
+cat <<EOF > ${GITOPS_GATEWAYS}/base/gateway-services/ingress.yaml
 apiVersion: v1
 kind: Service
 metadata:
@@ -531,7 +1246,7 @@ spec:
   type: LoadBalancer
 EOF
 
-kubectl apply --context ${CLUSTER1} -f - <<EOF
+cat <<EOF > ${GITOPS_GATEWAYS}/base/gateway-services/east-west.yaml
 apiVersion: v1
 kind: Service
 metadata:
@@ -587,98 +1302,96 @@ spec:
   type: LoadBalancer
 EOF
 
-kubectl --context ${CLUSTER2} create ns istio-gateways
-kubectl --context ${CLUSTER2} label namespace istio-gateways istio.io/rev=1-19 --overwrite
+cat <<EOF >>${GITOPS_GATEWAYS}/base/gateway-services/kustomization.yaml
+- ingress.yaml
+- east-west.yaml
+EOF
+```
 
-kubectl apply --context ${CLUSTER2} -f - <<EOF
-apiVersion: v1
-kind: Service
-metadata:
-  labels:
-    app: istio-ingressgateway
-    istio: ingressgateway
-  name: istio-ingressgateway
-  namespace: istio-gateways
-spec:
-  ports:
-  - name: http2
-    port: 80
-    protocol: TCP
-    targetPort: 8080
-  - name: https
-    port: 443
-    protocol: TCP
-    targetPort: 8443
-  selector:
-    app: istio-ingressgateway
-    istio: ingressgateway
-    revision: 1-19
-  type: LoadBalancer
+We'll use Kustomize to apply tweaks to the base service manifests to match our desired state
+for each workload cluster:
+
+```bash
+mkdir -p ${GITOPS_GATEWAYS}/${CLUSTER1}/services
+
+cat <<EOF > ${GITOPS_GATEWAYS}/${CLUSTER1}/services/kustomization.yaml
+patches:
+- target:
+    kind: Namespace
+    name: istio-system
+  patch: |-
+    - op: replace
+      path: /metadata/labels/topology.istio.io~1network
+      value: cluster1
+- target:
+    kind: Service
+    name: istio-eastwestgateway
+  patch: |-
+    - op: replace
+      path: /metadata/labels/topology.istio.io~1network
+      value: cluster1
+    - op: replace
+      path: /spec/selector/topology.istio.io~1network
+      value: cluster1
+resources:
+- ../../base/gateway-services
 EOF
 
-kubectl apply --context ${CLUSTER2} -f - <<EOF
-apiVersion: v1
-kind: Service
-metadata:
-  labels:
-    app: istio-ingressgateway
-    istio: eastwestgateway
-    topology.istio.io/network: cluster2
-  name: istio-eastwestgateway
-  namespace: istio-gateways
-spec:
-  ports:
-  - name: status-port
-    port: 15021
-    protocol: TCP
-    targetPort: 15021
-  - name: tls
-    port: 15443
-    protocol: TCP
-    targetPort: 15443
-  - name: https
-    port: 16443
-    protocol: TCP
-    targetPort: 16443
-  - name: tls-spire
-    port: 8081
-    protocol: TCP
-    targetPort: 8081
-  - name: tls-otel
-    port: 4317
-    protocol: TCP
-    targetPort: 4317
-  - name: grpc-cacert
-    port: 31338
-    protocol: TCP
-    targetPort: 31338
-  - name: grpc-ew-bootstrap
-    port: 31339
-    protocol: TCP
-    targetPort: 31339
-  - name: tcp-istiod
-    port: 15012
-    protocol: TCP
-    targetPort: 15012
-  - name: tcp-webhook
-    port: 15017
-    protocol: TCP
-    targetPort: 15017
-  selector:
-    app: istio-ingressgateway
-    istio: eastwestgateway
-    revision: 1-19
-    topology.istio.io/network: cluster2
-  type: LoadBalancer
+cat <<EOF >${GITOPS_GATEWAYS}/${CLUSTER1}/kustomization.yaml
+resources:
+- services
+EOF
+
+mkdir -p ${GITOPS_GATEWAYS}/${CLUSTER2}/services
+
+cat <<EOF > ${GITOPS_GATEWAYS}/${CLUSTER2}/services/kustomization.yaml
+patches:
+- target:
+    kind: Namespace
+    name: istio-system
+  patch: |-
+    - op: replace
+      path: /metadata/labels/topology.istio.io~1network
+      value: cluster2
+- target:
+    kind: Service
+    name: istio-eastwestgateway
+  patch: |-
+    - op: replace
+      path: /metadata/labels/topology.istio.io~1network
+      value: cluster2
+    - op: replace
+      path: /spec/selector/topology.istio.io~1network
+      value: cluster2
+resources:
+- ../../base/gateway-services
+EOF
+
+cat <<EOF >${GITOPS_GATEWAYS}/${CLUSTER2}/kustomization.yaml
+resources:
+- services
 EOF
 ```
 
 It allows us to have full control on which Istio revision we want to use.
 
-Then, we can tell Gloo Mesh to deploy the Istio control planes and the gateways in the cluster(s).
+Commit and push the service manifests to Git for them to take effect:
 
 ```bash
-kubectl apply --context ${MGMT} -f - <<EOF
+git -C ${GITOPS_REPO_LOCAL} add .
+git -C ${GITOPS_REPO_LOCAL} commit -m "Gateway services"
+git -C ${GITOPS_REPO_LOCAL} push
+```
+
+Then, we can tell Gloo Mesh to deploy the Istio control planes and the gateways in the cluster(s).
+
+This will involve two teams, the platform team that manages Istio, and the gateways team for the gateways themselves.
+The platform team will create the `IstioLifecycleManager`s to roll out Istio on the workload clusters:
+
+```bash
+mkdir -p ${GITOPS_PLATFORM}/${MGMT}/istio
+
+cat <<EOF > ${GITOPS_PLATFORM}/${MGMT}/istio/ilm-cluster1.yaml
 apiVersion: admin.gloo.solo.io/v2
 kind: IstioLifecycleManager
 metadata:
@@ -726,7 +1439,73 @@ spec:
             enabled: false
 EOF
 
-kubectl apply --context ${MGMT} -f - <<EOF
+cat <<EOF > ${GITOPS_PLATFORM}/${MGMT}/istio/ilm-cluster2.yaml
+apiVersion: admin.gloo.solo.io/v2
+kind: IstioLifecycleManager
+metadata:
+  name: cluster2-installation
+  namespace: gloo-mesh
+spec:
+  installations:
+    - clusters:
+      - name: cluster2
+        defaultRevision: true
+      revision: 1-19
+      istioOperatorSpec:
+        profile: minimal
+        hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
+        tag: 1.19.3-solo
+        namespace: istio-system
+        values:
+          global:
+            meshID: mesh1
+            multiCluster:
+              clusterName: cluster2
+            network: cluster2
+          cni:
+            excludeNamespaces:
+            - istio-system
+            - kube-system
+            logLevel: info
+        meshConfig:
+          accessLogFile: /dev/stdout
+          defaultConfig:
+            proxyMetadata:
+              ISTIO_META_DNS_CAPTURE: "true"
+              ISTIO_META_DNS_AUTO_ALLOCATE: "true"
+        components:
+          pilot:
+            k8s:
+              env:
+                - name: PILOT_ENABLE_K8S_SELECT_WORKLOAD_ENTRIES
+                  value: "false"
+          cni:
+            enabled: true
+            namespace: kube-system
+          ingressGateways:
+          - name: istio-ingressgateway
+            enabled: false
+EOF
+
+cat <<EOF >${GITOPS_PLATFORM}/${MGMT}/istio/kustomization.yaml
+commonAnnotations:
+  argocd.argoproj.io/sync-wave: "3"
+resources:
+- ilm-cluster1.yaml
+- ilm-cluster2.yaml
+EOF
+
+cat <<EOF >>${GITOPS_PLATFORM}/${MGMT}/kustomization.yaml
+- istio
+EOF
+```
+
+The gateways team will create the `GatewayLifecycleManager`s to create the Istio gateways on the workload clusters:
+
+```bash
+mkdir -p ${GITOPS_GATEWAYS}/${MGMT}
+
+cat <<EOF > ${GITOPS_GATEWAYS}/${MGMT}/glm-cluster1.yaml
 apiVersion: admin.gloo.solo.io/v2
 kind: GatewayLifecycleManager
 metadata:
@@ -789,55 +1568,7 @@ spec:
                     value: cluster1
 EOF
 
-kubectl apply --context ${MGMT} -f - <<EOF
-apiVersion: admin.gloo.solo.io/v2
-kind: IstioLifecycleManager
-metadata:
-  name: cluster2-installation
-  namespace: gloo-mesh
-spec:
-  installations:
-    - clusters:
-      - name: cluster2
-        defaultRevision: true
-      revision: 1-19
-      istioOperatorSpec:
-        profile: minimal
-        hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.19.3-solo
-        namespace: istio-system
-        values:
-          global:
-            meshID: mesh1
-            multiCluster:
-              clusterName: cluster2
-            network: cluster2
-          cni:
-            excludeNamespaces:
-            - istio-system
-            - kube-system
-            logLevel: info
-        meshConfig:
-          accessLogFile: /dev/stdout
-          defaultConfig:
-            proxyMetadata:
-              ISTIO_META_DNS_CAPTURE: "true"
-              ISTIO_META_DNS_AUTO_ALLOCATE: "true"
-        components:
-          pilot:
-            k8s:
-              env:
-                - name: PILOT_ENABLE_K8S_SELECT_WORKLOAD_ENTRIES
-                  value: "false"
-          cni:
-            enabled: true
-            namespace: kube-system
-          ingressGateways:
-          - name: istio-ingressgateway
-            enabled: false
-EOF
-
-kubectl apply --context ${MGMT} -f - <<EOF
+cat <<EOF > ${GITOPS_GATEWAYS}/${MGMT}/glm-cluster2.yaml
 apiVersion: admin.gloo.solo.io/v2
 kind: GatewayLifecycleManager
 metadata:
@@ -899,7 +1630,29 @@ spec:
                   - name: ISTIO_META_REQUESTED_NETWORK_VIEW
                     value: cluster2
 EOF
+
+cat <<EOF >${GITOPS_GATEWAYS}/${MGMT}/kustomization.yaml
+resources:
+- glm-cluster1.yaml
+- glm-cluster2.yaml
+EOF
 ```
+
+Commit and push the lifecycle manager manifests to Git for them to take effect:
+
+```bash
+git -C ${GITOPS_REPO_LOCAL} add .
+git -C ${GITOPS_REPO_LOCAL} commit -m "Istio and gateway lifecycle managers"
+git -C ${GITOPS_REPO_LOCAL} push
+```
+<!--bash
+echo -n Waiting for Argo CD to sync...
+timeout -v 5m bash -c "until [[ \$(kubectl --context ${MGMT} -n gloo-mesh get ilm cluster1-installation 2>/dev/null) ]]; do
+  sleep 1
+  echo -n .
+done"
+echo
+-->
 
 <!--bash
 until kubectl --context ${MGMT} -n gloo-mesh wait --timeout=180s --for=jsonpath='{.status.clusters.cluster1.installations.*.state}'=HEALTHY istiolifecyclemanagers/cluster1-installation; do
@@ -1038,33 +1791,175 @@ timeout 2m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} |
 
 
 
-## Lab 4 - Deploy the Bookinfo demo app <a name="lab-4---deploy-the-bookinfo-demo-app-"></a>
+## Lab 6 - Deploy the Bookinfo demo app <a name="lab-6---deploy-the-bookinfo-demo-app-"></a>
 [<img src="https://img.youtube.com/vi/nzYcrjalY5A/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/nzYcrjalY5A "Video Link")
 
 We're going to deploy the bookinfo application to demonstrate several features of Gloo Mesh.
 
 You can find more information about this application [here](https://istio.io/latest/docs/examples/bookinfo/).
 
-Run the following commands to deploy the bookinfo application on `cluster1`:
+Our example bookinfo application will be managed by its own team, who will use their own subdirectory in the
+shared GitOps repo:
 
 ```bash
-kubectl --context ${CLUSTER1} create ns bookinfo-frontends
-kubectl --context ${CLUSTER1} create ns bookinfo-backends
-kubectl --context ${CLUSTER1} label namespace bookinfo-frontends istio.io/rev=1-19 --overwrite
-kubectl --context ${CLUSTER1} label namespace bookinfo-backends istio.io/rev=1-19 --overwrite
+export GITOPS_BOOKINFO=${GITOPS_REPO_LOCAL}/bookinfo
+mkdir -p ${GITOPS_BOOKINFO}
+```
 
-# Deploy the frontend bookinfo service in the bookinfo-frontends namespace
-kubectl --context ${CLUSTER1} -n bookinfo-frontends apply -f data/steps/deploy-bookinfo/productpage-v1.yaml
+We'll use an Argo CD project and `ApplicationSet` to apply the bookinfo team's resources. This will create
+an Argo CD `Application` for each configured cluster, and apply cluster-specific configuration from the
+respective cluster subdirectory:
 
-# Deploy the backend bookinfo services in the bookinfo-backends namespace for all versions less than v3
-kubectl --context ${CLUSTER1} -n bookinfo-backends apply \
-  -f data/steps/deploy-bookinfo/details-v1.yaml \
-  -f data/steps/deploy-bookinfo/ratings-v1.yaml \
-  -f data/steps/deploy-bookinfo/reviews-v1-v2.yaml
+```bash
+cat <<EOF > ${GITOPS_ARGOCD}/bookinfo.yaml
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: bookinfo
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+  finalizers:
+  - resources-finalizer.argocd.argoproj.io
+spec:
+  sourceRepos:
+  - '*'
+  destinations:
+  - namespace: '*'
+    server: '*'
+  clusterResourceWhitelist:
+  - group: '*'
+    kind: '*'
+---
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: bookinfo
+spec:
+  generators:
+  - list:
+      elements:
+      - cluster: ${CLUSTER1}
+      - cluster: ${CLUSTER2}
+  template:
+    metadata:
+      name: bookinfo-{{cluster}}
+      finalizers:
+      - resources-finalizer.argocd.argoproj.io
+    spec:
+      project: bookinfo
+      source:
+        repoURL: ${GITEA_HTTP}/gloo-gitops/gitops-repo.git
+        targetRevision: HEAD
+        path: bookinfo/{{cluster}}
+      destination:
+        name: '{{cluster}}'
+        namespace: default
+      syncPolicy:
+        automated:
+          allowEmpty: true
+          prune: true
+        syncOptions:
+        - ApplyOutOfSyncOnly=true
+EOF
+```
 
-# Update the reviews service to display where it is coming from
-kubectl --context ${CLUSTER1} -n bookinfo-backends set env deploy/reviews-v1 CLUSTER_NAME=${CLUSTER1}
-kubectl --context ${CLUSTER1} -n bookinfo-backends set env deploy/reviews-v2 CLUSTER_NAME=${CLUSTER1}
+Then, we'll copy the separate constituents of the bookinfo distributed application into our Git repo:
+
+```bash
+mkdir -p ${GITOPS_BOOKINFO}/base/frontends
+cp data/steps/deploy-bookinfo/productpage-v1.yaml ${GITOPS_BOOKINFO}/base/frontends/
+
+mkdir -p ${GITOPS_BOOKINFO}/base/backends
+cp data/steps/deploy-bookinfo/details-v1.yaml data/steps/deploy-bookinfo/ratings-v1.yaml data/steps/deploy-bookinfo/reviews-v1-v2.yaml \
+  ${GITOPS_BOOKINFO}/base/backends/
+```
+
+We'll define two namespaces with the necessary labels for Istio injection:
+```bash
+cat <<EOF >${GITOPS_BOOKINFO}/base/frontends/ns.yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: bookinfo-frontends
+EOF
+
+cat <<EOF >${GITOPS_BOOKINFO}/base/backends/ns.yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: bookinfo-backends
+EOF
+```
+
+Next, add the Kustomize resources to include these manifests:
+
+```bash
+cat <<EOF >${GITOPS_BOOKINFO}/base/frontends/kustomization.yaml
+resources:
+- ns.yaml
+- productpage-v1.yaml
+EOF
+
+cat <<EOF >${GITOPS_BOOKINFO}/base/backends/kustomization.yaml
+resources:
+- ns.yaml
+- details-v1.yaml
+- ratings-v1.yaml
+- reviews-v1-v2.yaml
+EOF
+```
+
+Run the following commands to deploy the bookinfo application on `cluster1`:
+
+Create `Kustomization`s to adapt the base resources for the first cluster:
+
+```bash
+mkdir -p ${GITOPS_BOOKINFO}/${CLUSTER1}/frontends ${GITOPS_BOOKINFO}/${CLUSTER1}/backends
+
+cat <<EOF >${GITOPS_BOOKINFO}/${CLUSTER1}/frontends/kustomization.yaml
+namespace: bookinfo-frontends
+resources:
+- ../../base/frontends
+EOF
+
+cat <<EOF > ${GITOPS_BOOKINFO}/${CLUSTER1}/backends/kustomization.yaml
+namespace: bookinfo-backends
+patches:
+- target:
+    kind: Deployment
+    name: reviews-v1
+  patch: |-
+    - op: add
+      path: /spec/template/spec/containers/0/env/-
+      value:
+        name: CLUSTER_NAME
+        value: ${CLUSTER1}
+- target:
+    kind: Deployment
+    name: reviews-v2
+  patch: |-
+    - op: add
+      path: /spec/template/spec/containers/0/env/-
+      value:
+        name: CLUSTER_NAME
+        value: ${CLUSTER1}
+resources:
+- ../../base/backends
+EOF
+
+cat <<EOF >${GITOPS_BOOKINFO}/${CLUSTER1}/kustomization.yaml
+resources:
+- frontends
+- backends
+EOF
+```
+
+Commit and push the application manifests to Git for them to start deploying in the first cluster:
+
+```bash
+git -C ${GITOPS_REPO_LOCAL} add .
+git -C ${GITOPS_REPO_LOCAL} commit -m "Bookinfo on ${CLUSTER1}"
+git -C ${GITOPS_REPO_LOCAL} push
 ```
 
 <!--bash
@@ -1091,25 +1986,169 @@ And we deployed the `v1` and `v2` versions of the `reviews` microservice, not th
 
 Now, run the following commands to deploy the bookinfo application on `cluster2`:
 
+Copy the first cluster's configuration:
+
 ```bash
-kubectl --context ${CLUSTER2} create ns bookinfo-frontends
-kubectl --context ${CLUSTER2} create ns bookinfo-backends
-kubectl --context ${CLUSTER2} label namespace bookinfo-frontends istio.io/rev=1-19 --overwrite
-kubectl --context ${CLUSTER2} label namespace bookinfo-backends istio.io/rev=1-19 --overwrite
+cp -r ${GITOPS_BOOKINFO}/${CLUSTER1} ${GITOPS_BOOKINFO}/${CLUSTER2}
+```
 
-# Deploy the frontend bookinfo service in the bookinfo-frontends namespace
-kubectl --context ${CLUSTER2} -n bookinfo-frontends apply -f data/steps/deploy-bookinfo/productpage-v1.yaml
-# Deploy the backend bookinfo services in the bookinfo-backends namespace for all versions
-kubectl --context ${CLUSTER2} -n bookinfo-backends apply \
-  -f data/steps/deploy-bookinfo/details-v1.yaml \
-  -f data/steps/deploy-bookinfo/ratings-v1.yaml \
-  -f data/steps/deploy-bookinfo/reviews-v1-v2.yaml \
-  -f data/steps/deploy-bookinfo/reviews-v3.yaml
-# Update the reviews service to display where it is coming from
-kubectl --context ${CLUSTER2} -n bookinfo-backends set env deploy/reviews-v1 CLUSTER_NAME=${CLUSTER2}
-kubectl --context ${CLUSTER2} -n bookinfo-backends set env deploy/reviews-v2 CLUSTER_NAME=${CLUSTER2}
-kubectl --context ${CLUSTER2} -n bookinfo-backends set env deploy/reviews-v3 CLUSTER_NAME=${CLUSTER2}
+Create a `Kustomization` to adapt the base resources for the second cluster:
 
+```bash
+cat <<EOF > ${GITOPS_BOOKINFO}/${CLUSTER2}/backends/kustomization.yaml
+namespace: bookinfo-backends
+patches:
+- target:
+    kind: Deployment
+    name: reviews-v1
+  patch: |-
+    - op: add
+      path: /spec/template/spec/containers/0/env/-
+      value:
+        name: CLUSTER_NAME
+        value: ${CLUSTER2}
+- target:
+    kind: Deployment
+    name: reviews-v2
+  patch: |-
+    - op: add
+      path: /spec/template/spec/containers/0/env/-
+      value:
+        name: CLUSTER_NAME
+        value: ${CLUSTER2}
+- target:
+    kind: Deployment
+    name: reviews-v3
+  patch: |-
+    - op: add
+      path: /spec/template/spec/containers/0/env/-
+      value:
+        name: CLUSTER_NAME
+        value: ${CLUSTER2}
+resources:
+- ../../base/backends
+EOF
+```
+
+Commit and push the application manifests to Git for them to start deploying in the second cluster:
+
+```bash
+git -C ${GITOPS_REPO_LOCAL} add .
+git -C ${GITOPS_REPO_LOCAL} commit -m "Bookinfo on ${CLUSTER2}"
+git -C ${GITOPS_REPO_LOCAL} push
+```
+
+<!--bash
+echo -n Waiting for bookinfo pods to be ready...
+timeout -v 5m bash -c "
+until [[ \$(kubectl --context ${CLUSTER2} -n bookinfo-frontends get deploy -o json | jq '[.items[].status.readyReplicas] | add') -eq 1 && \\
+  \$(kubectl --context ${CLUSTER2} -n bookinfo-backends get deploy -o json | jq '[.items[].status.readyReplicas] | add') -eq 4 ]] 2>/dev/null
+do
+  sleep 1
+  echo -n .
+done"
+echo
+-->
+
+Now, we'll demonstrate audit and control of cluster resources by using a basic Git workflow to approve changes.
+We'll add v3 of the `reviews` service in a new branch, then create a pull request for that branch to merge
+the change to the `main` branch that is syncing to our clusters. Upon approval and merging of that pull request,
+the new service will get deployed automatically.
+
+By adding this workflow, we can enforce some rigour and policy to any changes by requiring them to be reviewed
+or tested before they get applied. Most hosted Git offerings allow very flexible controls to be configured to
+determined how changes get reviewed and approved, and many offer tools for automatically inspecting or testing
+changes that must meet certain standards before they can be approved. We don't use those here, but by making
+the change via a pull request we hopefully show how this pattern can be used.
+
+First, create a new branch to make the change on:
+
+```bash
+git -C ${GITOPS_REPO_LOCAL} checkout -b reviews-v3
+```
+
+Define the new version of the `reviews` service by copying a new manifest into the repo:
+
+```bash
+cp data/steps/deploy-bookinfo/reviews-v3.yaml ${GITOPS_BOOKINFO}/${CLUSTER2}/backends/reviews-v3.yaml
+```
+
+Modify the `Kustomization` resource so that this new version is included when we sync to the cluster:
+
+```bash
+cat <<EOF >>${GITOPS_BOOKINFO}/${CLUSTER2}/backends/kustomization.yaml
+- reviews-v3.yaml
+EOF
+```
+
+Commit and push the new branch:
+
+```bash
+git -C ${GITOPS_REPO_LOCAL} add .
+git -C ${GITOPS_REPO_LOCAL} commit -m "v3 of reviews service"
+git -C ${GITOPS_REPO_LOCAL} push -u origin reviews-v3
+git -C ${GITOPS_REPO_LOCAL} checkout main
+```
+
+Next, we'll create a new pull request for these changes. You can create the pull request in the **Git** tab (you'll
+need to sign in as user `gloo-gitops` with password `password`), or you can use the Gitea API to create the PR and
+store the PR identifier in an environment variable with the following command:
+
+```bash
+{ PR_ID=$(curl -Ss ${GITEA_HTTP}/api/v1/repos/gloo-gitops/gitops-repo/pulls \
+  -H "accept: application/json" -H "Content-Type: application/json" \
+  -H "Authorization: token ${GITEA_ADMIN_TOKEN}" \
+  -d '{
+    "title": "Add v3 of bookinfo reviews",
+    "base": "main",
+    "head": "reviews-v3"
+  }' | tee /dev/fd/3 | jq '.id'); } 3>&1
+```
+
+Before approving the pull request, confirm that only `v1` and `v2` of the `reviews` service are running in the
+second cluster:
+
+```bash
+kubectl --context ${CLUSTER2} -n bookinfo-frontends get pods && kubectl --context ${CLUSTER2} -n bookinfo-backends get pods
+```
+
+Approve and merge the pull request in the **Git** tab, or use the Gitea API directly:
+
+```bash
+curl -i ${GITEA_HTTP}/api/v1/repos/gloo-gitops/gitops-repo/pulls/${PR_ID}/merge \
+  --fail-with-body \
+  -H "accept: application/json" -H "Content-Type: application/json" \
+  -H "Authorization: token ${GITEA_ADMIN_TOKEN}" \
+  -d '{ "do": "merge" }'
+```
+
+<!--bash
+until [[ $? -eq 0 ]]; do
+  attempt=$((attempt+1))
+  sleep 2
+  echo "Retrying merge command ($attempt)..."
+  if [[ $attempt -lt 5 ]]; then
+    curl -i ${GITEA_HTTP}/api/v1/repos/gloo-gitops/gitops-repo/pulls/${PR_ID}/merge \
+      --fail-with-body \
+      -H "accept: application/json" -H "Content-Type: application/json" \
+      -H "Authorization: token ${GITEA_ADMIN_TOKEN}" \
+      -d '{ "do": "merge" }'
+  fi
+done
+-->
+
+With the change merged, Argo CD will pick up the new manifest and apply it to the right cluster.
+
+<!--bash
+sleep 2
+-->
+
+Switch back to the main branch and pull the change to our local clone:
+
+```bash
+git -C ${GITOPS_REPO_LOCAL} checkout main
+git -C ${GITOPS_REPO_LOCAL} fetch
+git -C ${GITOPS_REPO_LOCAL} pull
 ```
 
 <!--bash
@@ -1165,167 +2204,7 @@ timeout 2m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} |
 
 
 
-## Lab 5 - Deploy the httpbin demo app <a name="lab-5---deploy-the-httpbin-demo-app-"></a>
-[<img src="https://img.youtube.com/vi/w1xB-o_gHs0/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/w1xB-o_gHs0 "Video Link")
-
-We're going to deploy the httpbin application to demonstrate several features of Gloo Mesh.
-
-You can find more information about this application [here](http://httpbin.org/).
-
-Run the following commands to deploy the httpbin app on `cluster1`. The deployment will be called `not-in-mesh` and won't have the sidecar injected (because we don't label the namespace).
-
-```bash
-kubectl --context ${CLUSTER1} create ns httpbin
-kubectl apply --context ${CLUSTER1} -f - <<EOF
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: not-in-mesh
-  namespace: httpbin
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: not-in-mesh
-  namespace: httpbin
-  labels:
-    app: not-in-mesh
-    service: not-in-mesh
-spec:
-  ports:
-  - name: http
-    port: 8000
-    targetPort: 80
-  selector:
-    app: not-in-mesh
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: not-in-mesh
-  namespace: httpbin
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: not-in-mesh
-      version: v1
-  template:
-    metadata:
-      labels:
-        app: not-in-mesh
-        version: v1
-    spec:
-      serviceAccountName: not-in-mesh
-      containers:
-      - image: docker.io/kennethreitz/httpbin
-        imagePullPolicy: IfNotPresent
-        name: not-in-mesh
-        ports:
-        - containerPort: 80
-EOF
-```
-
-Then, we deploy a second version, which will be called `in-mesh` and will have the sidecar injected (because of the label `istio.io/rev` in the Pod template).
-
-```bash
-kubectl apply --context ${CLUSTER1} -f - <<EOF
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: in-mesh
-  namespace: httpbin
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: in-mesh
-  namespace: httpbin
-  labels:
-    app: in-mesh
-    service: in-mesh
-spec:
-  ports:
-  - name: http
-    port: 8000
-    targetPort: 80
-  selector:
-    app: in-mesh
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: in-mesh
-  namespace: httpbin
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: in-mesh
-      version: v1
-  template:
-    metadata:
-      labels:
-        app: in-mesh
-        version: v1
-        istio.io/rev: 1-19
-    spec:
-      serviceAccountName: in-mesh
-      containers:
-      - image: docker.io/kennethreitz/httpbin
-        imagePullPolicy: IfNotPresent
-        name: in-mesh
-        ports:
-        - containerPort: 80
-EOF
-```
-
-
-<!--bash
-echo -n Waiting for httpbin pods to be ready...
-timeout -v 5m bash -c "
-until [[ \$(kubectl --context ${CLUSTER1} -n httpbin get deploy -o json | jq '[.items[].status.readyReplicas] | add') -eq 2 ]] 2>/dev/null
-do
-  sleep 1
-  echo -n .
-done"
-echo
--->
-
-You can follow the progress using the following command:
-
-```bash
-kubectl --context ${CLUSTER1} -n httpbin get pods
-```
-
-```,nocopy
-NAME                           READY   STATUS    RESTARTS   AGE
-in-mesh-5d9d9549b5-qrdgd       2/2     Running   0          11s
-not-in-mesh-5c64bb49cd-m9kwm   1/1     Running   0          11s
-```
-<!--bash
-cat <<'EOF' > ./test.js
-const helpers = require('./tests/chai-exec');
-
-describe("httpbin app", () => {
-  let cluster = process.env.CLUSTER1
-  
-  let deployments = ["not-in-mesh", "in-mesh"];
-  
-  deployments.forEach(deploy => {
-    it(deploy + ' pods are ready in ' + cluster, () => helpers.checkDeployment({ context: cluster, namespace: "httpbin", k8sObj: deploy }));
-  });
-});
-EOF
-echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/apps/httpbin/deploy-httpbin/tests/check-httpbin.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout 2m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
--->
-
-
-
-## Lab 6 - Deploy Gloo Mesh Addons <a name="lab-6---deploy-gloo-mesh-addons-"></a>
+## Lab 7 - Deploy Gloo Mesh Addons <a name="lab-7---deploy-gloo-mesh-addons-"></a>
 [<img src="https://img.youtube.com/vi/_rorug_2bk8/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/_rorug_2bk8 "Video Link")
 
 To use the Gloo Mesh Gateway advanced features (external authentication, rate limiting, ...), you need to install the Gloo Mesh addons.
@@ -1333,23 +2212,85 @@ To use the Gloo Mesh Gateway advanced features (external authentication, rate li
 First, you need to create a namespace for the addons, with Istio injection enabled:
 
 ```bash
-kubectl --context ${CLUSTER1} create namespace gloo-mesh-addons
-kubectl --context ${CLUSTER1} label namespace gloo-mesh-addons istio.io/rev=1-19 --overwrite
-kubectl --context ${CLUSTER2} create namespace gloo-mesh-addons
-kubectl --context ${CLUSTER2} label namespace gloo-mesh-addons istio.io/rev=1-19 --overwrite
+cat <<EOF >${GITOPS_PLATFORM}/${CLUSTER1}/ns-gloo-mesh-addons.yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: gloo-mesh-addons
+  labels:
+    istio.io/rev: 1-19
+EOF
+
+cat <<EOF >>${GITOPS_PLATFORM}/${CLUSTER1}/kustomization.yaml
+- ns-gloo-mesh-addons.yaml
+EOF
+
+cp ${GITOPS_PLATFORM}/${CLUSTER1}/ns-gloo-mesh-addons.yaml ${GITOPS_PLATFORM}/${CLUSTER2}/
+
+cat <<EOF >>${GITOPS_PLATFORM}/${CLUSTER2}/kustomization.yaml
+- ns-gloo-mesh-addons.yaml
+EOF
 ```
 
 Then, you can deploy the addons on the cluster(s) using Helm:
 
+Create an Argo CD `Application` to install the Gloo Platform add-ons:
+
 ```bash
-helm upgrade --install gloo-platform gloo-platform \
-  --repo https://storage.googleapis.com/gloo-platform/helm-charts \
-  --namespace gloo-mesh-addons \
-  --kube-context ${CLUSTER1} \
-  --version 2.5.0 \
-  -f -<<EOF
+cat <<EOF > ${GITOPS_PLATFORM}/argo-cd/gloo-platform-addons-installation.yaml
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: gloo-platform-addons
+spec:
+  generators:
+  - list:
+      elements:
+      - cluster: ${CLUSTER1}
+      - cluster: ${CLUSTER2}
+  template:
+    metadata:
+      name: gloo-platform-addons-{{cluster}}
+      annotations:
+        argocd.argoproj.io/sync-wave: "2"
+      finalizers:
+      - resources-finalizer.argocd.argoproj.io/background
+    spec:
+      project: platform
+      destination:
+        name: '{{cluster}}'
+        namespace: gloo-mesh-addons
+      syncPolicy:
+        automated:
+          prune: true
+      ignoreDifferences:
+      - kind: Secret
+        name: ext-auth-service-signing-key
+        jsonPointers:
+        - /data/signing-key
+      sources:
+      - chart: gloo-platform
+        repoURL: https://storage.googleapis.com/gloo-platform/helm-charts
+        targetRevision: 2.4.7
+        helm:
+          releaseName: gloo-platform
+          valueFiles:
+          - \$values/platform/argo-cd/gloo-platform-addons-installation-values.yaml
+          parameters:
+          - name: common.cluster
+            value: '{{cluster}}'
+      - repoURL: http://$(kubectl --context ${MGMT} -n gitea get svc gitea-http -o jsonpath='{.status.loadBalancer.ingress[0].*}'):3180/gloo-gitops/gitops-repo.git
+        targetRevision: HEAD
+        ref: values
+EOF
+```
+
+We'll use the following Helm values file to configure the Gloo Platform add-ons:
+
+```bash
+cat <<EOF > ${GITOPS_PLATFORM}/argo-cd/gloo-platform-addons-installation-values.yaml
 common:
-  cluster: cluster1
+  cluster: undefined
 glooAgent:
   enabled: false
 extAuthService:
@@ -1365,29 +2306,13 @@ extAuthService:
 rateLimiter:
   enabled: true
 EOF
+```
 
-helm upgrade --install gloo-platform gloo-platform \
-  --repo https://storage.googleapis.com/gloo-platform/helm-charts \
-  --namespace gloo-mesh-addons \
-  --kube-context ${CLUSTER2} \
-  --version 2.5.0 \
-  -f -<<EOF
-common:
-  cluster: cluster2
-glooAgent:
-  enabled: false
-extAuthService:
-  enabled: true
-  extAuth:
-    apiKeyStorage:
-      name: redis
-      enabled: true
-      config: 
-        connection: 
-          host: redis.gloo-mesh-addons:6379
-      secretKey: ThisIsSecret
-rateLimiter:
-  enabled: true
+Add these files for `Kustomize` to include:
+
+```bash
+cat <<EOF >>${GITOPS_PLATFORM}/argo-cd/kustomization.yaml
+- gloo-platform-addons-installation.yaml
 EOF
 ```
 
@@ -1396,7 +2321,7 @@ For teams to setup external authentication, the gateways team needs to create an
 Let's create the `ExtAuthServer` object:
 
 ```bash
-kubectl apply --context ${CLUSTER1} -f - <<EOF
+cat <<EOF > ${GITOPS_PLATFORM}/${CLUSTER1}/ext-auth-server.yaml
 apiVersion: admin.gloo.solo.io/v2
 kind: ExtAuthServer
 metadata:
@@ -1419,7 +2344,7 @@ For teams to setup rate limiting, the gateways team needs to create and `RateLim
 Let's create the `RateLimitServerSettings` object:
 
 ```bash
-kubectl apply --context ${CLUSTER1} -f - <<EOF
+cat <<EOF > ${GITOPS_PLATFORM}/${CLUSTER1}/rate-limit-server-settings.yaml
 apiVersion: admin.gloo.solo.io/v2
 kind: RateLimitServerSettings
 metadata:
@@ -1435,6 +2360,32 @@ spec:
       name: grpc
 EOF
 ```
+
+Update the `Kustomization` to include these files:
+
+```bash
+cat <<EOF >>${GITOPS_PLATFORM}/${CLUSTER1}/kustomization.yaml
+- ext-auth-server.yaml
+- rate-limit-server-settings.yaml
+EOF
+```
+
+Commit to the GitOps repo:
+
+```bash
+git -C ${GITOPS_REPO_LOCAL} add .
+git -C ${GITOPS_REPO_LOCAL} commit -m "Gloo Platform add-ons"
+git -C ${GITOPS_REPO_LOCAL} push
+```
+
+<!--bash
+echo -n Waiting for Argo CD to sync...
+timeout -v 5m bash -c "until [[ \$(kubectl --context ${CLUSTER1} -n gloo-mesh-addons get eas ext-auth-server 2>/dev/null) ]]; do
+  sleep 1
+  echo -n .
+done"
+echo
+-->
 <!--bash
 cat <<'EOF' > ./test.js
 const helpers = require('./tests/chai-exec');
@@ -1491,17 +2442,22 @@ This is what the environment looks like now:
 
 
 
-## Lab 7 - Create the gateways workspace <a name="lab-7---create-the-gateways-workspace-"></a>
+## Lab 8 - Create the gateways workspace <a name="lab-8---create-the-gateways-workspace-"></a>
 [<img src="https://img.youtube.com/vi/QeVBH0eswWw/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/QeVBH0eswWw "Video Link")
 
 We're going to create a workspace for the team in charge of the Gateways.
 
 The platform team needs to create the corresponding `Workspace` Kubernetes objects in the Gloo Mesh management cluster.
+We'll create those in the `workspaces` directory in our GitOps repo:
+
+```bash
+mkdir -p ${GITOPS_PLATFORM}/${MGMT}/workspaces
+```
 
 Let's create the `gateways` workspace which corresponds to the `istio-gateways` and the `gloo-mesh-addons` namespaces on the cluster(s):
 
 ```bash
-kubectl apply --context ${MGMT} -f - <<EOF
+cat <<EOF > ${GITOPS_PLATFORM}/${MGMT}/workspaces/gateways.yaml
 apiVersion: admin.gloo.solo.io/v2
 kind: Workspace
 metadata:
@@ -1523,7 +2479,7 @@ EOF
 Then, the Gateway team creates a `WorkspaceSettings` Kubernetes object in one of the namespaces of the `gateways` workspace (so the `istio-gateways` or the `gloo-mesh-addons` namespace):
 
 ```bash
-kubectl apply --context ${CLUSTER1} -f - <<EOF
+cat <<EOF > ${GITOPS_GATEWAYS}/${CLUSTER1}/workspace-settings.yaml
 apiVersion: admin.gloo.solo.io/v2
 kind: WorkspaceSettings
 metadata:
@@ -1552,18 +2508,59 @@ The Gateway team has decided to import the following from the workspaces that ha
 - all the Kubernetes services exported by these workspaces
 - all the resources (RouteTables, VirtualDestination, ...) exported by these workspaces that have the label `expose` set to `true`
 
+Track these resources for Kustomize and commit them to the GitOps repo:
+
+```bash
+if [ ! -f ${GITOPS_PLATFORM}/${MGMT}/workspaces/kustomization.yaml ]; then
+  cat <<EOF >${GITOPS_PLATFORM}/${MGMT}/workspaces/kustomization.yaml
+resources:
+EOF
+fi
+
+cat <<EOF >>${GITOPS_PLATFORM}/${MGMT}/workspaces/kustomization.yaml
+- gateways.yaml
+EOF
+
+if [ $(yq 'contains({"resources": ["workspaces"]})' ${GITOPS_PLATFORM}/${MGMT}/kustomization.yaml) = false ]; then
+  cat <<EOF >>${GITOPS_PLATFORM}/${MGMT}/kustomization.yaml
+- workspaces
+EOF
+fi
+
+cat <<EOF >>${GITOPS_GATEWAYS}/${CLUSTER1}/kustomization.yaml
+- workspace-settings.yaml
+EOF
+
+git -C ${GITOPS_REPO_LOCAL} add .
+git -C ${GITOPS_REPO_LOCAL} commit -m "Gateways workspace"
+git -C ${GITOPS_REPO_LOCAL} push
+```
+<!--bash
+echo -n Waiting for Argo CD to sync...
+timeout -v 5m bash -c "until [[ \$(kubectl --context ${MGMT} -n gloo-mesh get workspace gateways 2>/dev/null) ]]; do
+  sleep 1
+  echo -n .
+done"
+echo
+-->
 
 
-## Lab 8 - Create the bookinfo workspace <a name="lab-8---create-the-bookinfo-workspace-"></a>
+
+## Lab 9 - Create the bookinfo workspace <a name="lab-9---create-the-bookinfo-workspace-"></a>
 
 We're going to create a workspace for the team in charge of the Bookinfo application.
 
 The platform team needs to create the corresponding `Workspace` Kubernetes objects in the Gloo Mesh management cluster.
+We'll create those in the `workspaces` directory in our GitOps repo:
+
+```bash
+mkdir -p ${GITOPS_PLATFORM}/${MGMT}/workspaces
+```
 
 Let's create the `bookinfo` workspace which corresponds to the `bookinfo-frontends` and `bookinfo-backends` namespaces on the cluster(s):
 
 ```bash
-kubectl apply --context ${MGMT} -f - <<EOF
+cat <<EOF > ${GITOPS_PLATFORM}/${MGMT}/workspaces/bookinfo.yaml
 apiVersion: admin.gloo.solo.io/v2
 kind: Workspace
 metadata:
@@ -1587,7 +2584,7 @@ EOF
 Then, the Bookinfo team creates a `WorkspaceSettings` Kubernetes object in one of the namespaces of the `bookinfo` workspace (so the `bookinfo-frontends` or the `bookinfo-backends` namespace):
 
 ```bash
-kubectl apply --context ${CLUSTER1} -f - <<EOF
+cat <<EOF > ${GITOPS_BOOKINFO}/${CLUSTER1}/workspace-settings.yaml
 apiVersion: admin.gloo.solo.io/v2
 kind: WorkspaceSettings
 metadata:
@@ -1622,6 +2619,42 @@ The Bookinfo team has decided to export the following to the `gateway` workspace
 - the `productpage` and the `reviews` Kubernetes services
 - all the resources (RouteTables, VirtualDestination, ...) that have the label `expose` set to `true`
 
+Track these resources for Kustomize and commit them to the GitOps repo:
+
+```bash
+if [ ! -f ${GITOPS_PLATFORM}/${MGMT}/workspaces/kustomization.yaml ]; then
+  cat <<EOF >${GITOPS_PLATFORM}/${MGMT}/workspaces/kustomization.yaml
+resources:
+EOF
+fi
+
+cat <<EOF >>${GITOPS_PLATFORM}/${MGMT}/workspaces/kustomization.yaml
+- bookinfo.yaml
+EOF
+
+if [ $(yq 'contains({"resources": ["workspaces"]})' ${GITOPS_PLATFORM}/${MGMT}/kustomization.yaml) = false ]; then
+  cat <<EOF >>${GITOPS_PLATFORM}/${MGMT}/kustomization.yaml
+- workspaces
+EOF
+fi
+
+cat <<EOF >>${GITOPS_BOOKINFO}/${CLUSTER1}/kustomization.yaml
+- workspace-settings.yaml
+EOF
+
+git -C ${GITOPS_REPO_LOCAL} add .
+git -C ${GITOPS_REPO_LOCAL} commit -m "Bookinfo workspace"
+git -C ${GITOPS_REPO_LOCAL} push
+```
+<!--bash
+echo -n Waiting for Argo CD to sync...
+timeout -v 5m bash -c "until [[ \$(kubectl --context ${MGMT} -n gloo-mesh get workspace bookinfo 2>/dev/null) ]]; do
+  sleep 1
+  echo -n .
+done"
+echo
+-->
+
 This is how the environment looks like with the workspaces:
 
 ![Gloo Mesh Workspaces](images/steps/create-bookinfo-workspace/gloo-mesh-workspaces.svg)
@@ -1629,7 +2662,7 @@ This is how the environment looks like with the workspaces:
 
 
 
-## Lab 9 - Expose the productpage through a gateway <a name="lab-9---expose-the-productpage-through-a-gateway-"></a>
+## Lab 10 - Expose the productpage through a gateway <a name="lab-10---expose-the-productpage-through-a-gateway-"></a>
 [<img src="https://img.youtube.com/vi/emyIu99AOOA/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/emyIu99AOOA "Video Link")
 
 In this step, we're going to expose the `productpage` service through the Ingress Gateway using Gloo Mesh.
@@ -1637,7 +2670,7 @@ In this step, we're going to expose the `productpage` service through the Ingres
 The Gateway team must create a `VirtualGateway` to configure the Istio Ingress Gateway in cluster1 to listen to incoming requests.
 
 ```bash
-kubectl apply --context ${CLUSTER1} -f - <<EOF
+cat <<EOF > ${GITOPS_GATEWAYS}/${CLUSTER1}/virtualgateway.yaml
 apiVersion: networking.gloo.solo.io/v2
 kind: VirtualGateway
 metadata:
@@ -1661,7 +2694,7 @@ EOF
 Then, the Gateway team should create a parent `RouteTable` to configure the main routing.
 
 ```bash
-kubectl apply --context ${CLUSTER1} -f - <<EOF
+cat <<EOF > ${GITOPS_GATEWAYS}/${CLUSTER1}/routetable-main.yaml
 apiVersion: networking.gloo.solo.io/v2
 kind: RouteTable
 metadata:
@@ -1722,10 +2755,23 @@ In this example, you can see that the Gateway team is delegating the routing det
 
 The Gateway team can use this main `RouteTable` to enforce a global WAF policy, but also to have control on which hostnames and paths can be used by each application team.
 
+The Gateway team will track these resources for Kustomize and commit them to the GitOps repo:
+
+```bash
+cat <<EOF >>${GITOPS_GATEWAYS}/${CLUSTER1}/kustomization.yaml
+- virtualgateway.yaml
+- routetable-main.yaml
+EOF
+
+git -C ${GITOPS_REPO_LOCAL} add .
+git -C ${GITOPS_REPO_LOCAL} commit -m "Virtual gateway and main route table"
+git -C ${GITOPS_REPO_LOCAL} push
+```
+
 Then, the Bookinfo team can create a `RouteTable` to determine how they want to handle the traffic.
 
 ```bash
-kubectl apply --context ${CLUSTER1} -f - <<EOF
+cat <<EOF > ${GITOPS_BOOKINFO}/${CLUSTER1}/routetable-productpage.yaml
 apiVersion: networking.gloo.solo.io/v2
 kind: RouteTable
 metadata:
@@ -1753,6 +2799,26 @@ spec:
               number: 9080
 EOF
 ```
+
+The Bookinfo team will track this resource for Kustomize and commit it to the GitOps repo:
+
+```bash
+cat <<EOF >>${GITOPS_BOOKINFO}/${CLUSTER1}/kustomization.yaml
+- routetable-productpage.yaml
+EOF
+
+git -C ${GITOPS_REPO_LOCAL} add .
+git -C ${GITOPS_REPO_LOCAL} commit -m "Bookinfo route table"
+git -C ${GITOPS_REPO_LOCAL} push
+```
+<!--bash
+echo -n Waiting for Argo CD to sync...
+timeout -v 5m bash -c "until [[ \$(kubectl --context ${CLUSTER1} -n bookinfo-frontends get rt productpage 2>/dev/null) ]]; do
+  sleep 1
+  echo -n .
+done"
+echo
+-->
 Let's add the domains to our `/etc/hosts` file:
 
 ```bash
@@ -1761,7 +2827,7 @@ Let's add the domains to our `/etc/hosts` file:
 ./scripts/register-domain.sh cluster2-bookinfo.example.com ${HOST_GW_CLUSTER2}
 ```
 
-You can access the `productpage` service
+Once Argo CD has synced these resources, you can access the `productpage` service
 using this URL: [http://cluster1-bookinfo.example.com/productpage](http://cluster1-bookinfo.example.com/productpage).
 
 You should now be able to access the `productpage` application through the browser.
@@ -1792,19 +2858,32 @@ openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
 Then, you have to store them in a Kubernetes secret running the following commands:
 
 ```bash
-kubectl --context ${CLUSTER1} -n istio-gateways create secret generic tls-secret \
-  --from-file=tls.key=tls.key \
-  --from-file=tls.crt=tls.crt
+cat <<EOF >${GITOPS_GATEWAYS}/base/gateway-services/ingress-certs.yaml
+apiVersion: v1
+kind: Secret
+type: kubernetes.io/tls
+metadata:
+  name: tls-secret
+  namespace: istio-gateways
+stringData:
+  tls.crt: |
+$(cat tls.crt | sed 's/^/    /')
+  tls.key: |
+$(cat tls.key | sed 's/^/    /')
+EOF
 
-kubectl --context ${CLUSTER2} -n istio-gateways create secret generic tls-secret \
-  --from-file=tls.key=tls.key \
-  --from-file=tls.crt=tls.crt
+cat <<EOF >>${GITOPS_GATEWAYS}/base/gateway-services/kustomization.yaml
+- ingress-certs.yaml
+EOF
 ```
+
+> <i>Note: Secrets should not be stored in the GitOps repo in an unencrypted form (see [Sealed Secrets](https://sealed-secrets.netlify.app/)
+for a mechanism to store secrets properly). We store them unencrypted in this workshop for simplicity.</i>
 
 Finally, the Gateway team needs to update the `VirtualGateway` to use this secret:
 
 ```bash
-kubectl apply --context ${CLUSTER1} -f - <<EOF
+cat <<EOF > ${GITOPS_GATEWAYS}/${CLUSTER1}/virtualgateway.yaml
 apiVersion: networking.gloo.solo.io/v2
 kind: VirtualGateway
 metadata:
@@ -1838,7 +2917,23 @@ spec:
 EOF
 ```
 
-You can now access the `productpage` application securely through the browser.
+Commit these changes to the GitOps repo:
+
+```bash
+git -C ${GITOPS_REPO_LOCAL} add .
+git -C ${GITOPS_REPO_LOCAL} commit -m "Secure the gateway"
+git -C ${GITOPS_REPO_LOCAL} push
+```
+<!--bash
+echo -n Waiting for Argo CD to sync...
+timeout -v 5m bash -c "until [[ \"\$(kubectl --context ${CLUSTER1} -n istio-gateways get vg north-south-gw -ojsonpath='{.spec.listeners[?(@.tls.mode==\"SIMPLE\")]}' 2>/dev/null)\" != \"\" ]]; do
+  sleep 1
+  echo -n .
+done"
+echo
+-->
+
+Once Argo CD has synced these resources, you can now access the `productpage` application securely through the browser.
 You can access the `productpage` service using this URL: <https://cluster1-bookinfo.example.com/productpage>.
 
 Notice that we specificed a minimumProtocolVersion, so if the client is trying to use an deprecated TLS version the request will be denied.
@@ -1904,185 +2999,442 @@ This diagram shows the flow of the request (through the Istio Ingress Gateway):
 
 
 
-## Lab 10 - Traffic policies <a name="lab-10---traffic-policies-"></a>
-[<img src="https://img.youtube.com/vi/ZBdt8WA0U64/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/ZBdt8WA0U64 "Video Link")
+## Lab 11 - Adding services to the mesh <a name="lab-11---adding-services-to-the-mesh-"></a>
 
-We're going to use Gloo Mesh policies to inject faults and configure timeouts.
+In this lab, you will incrementally add services to the mesh. The mesh is actually integrated with the services themselves which makes it mostly transparent to the service implementation.
 
-Let's create the following `FaultInjectionPolicy` to inject a delay when the `v2` version of the `reviews` service talk to the `ratings` service:
+## Sidecar injection
+
+Adding services to the mesh requires that the client-side proxies be associated with the service components and registered with the control plane. With Istio, you have several methods to inject the Envoy Proxy sidecar into the microservice Kubernetes pods:
+
+* Automatic sidecar injection. In this mode, the sidecar is automatically injected into the pods based on the namespace annotation.
+* Manual sidecar injection. In this mode, you manually inject the sidecar into the pods.
+1. To enable the automatic sidecar injection, use the command below to add the label `istio.io/rev` the `bookinfo-frontends` and `bookinfo-backends` namespaces:
+We'll define two namespaces with the necessary labels for Istio injection:
 
 ```bash
-kubectl apply --context ${CLUSTER1} -f - <<EOF
-apiVersion: resilience.policy.gloo.solo.io/v2
-kind: FaultInjectionPolicy
+cat <<EOF >${GITOPS_BOOKINFO}/base/frontends/ns.yaml
+apiVersion: v1
+kind: Namespace
 metadata:
-  name: ratings-fault-injection
-  namespace: bookinfo-frontends
-spec:
-  applyToRoutes:
-  - route:
-      labels:
-        fault_injection: "true"
-  config:
-    delay:
-      fixedDelay: 2s
-      percentage: 100
+  name: bookinfo-frontends
+  labels:
+    istio.io/rev: 1-19
+EOF
+
+cat <<EOF >${GITOPS_BOOKINFO}/base/backends/ns.yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: bookinfo-backends
+  labels:
+    istio.io/rev: 1-19
 EOF
 ```
 
-As you can see, it will be applied to all the routes that have the label `fault_injection` set to `"true"`.
-
-So, you need to create a `RouteTable` with this label set in the corresponding route.
+Commit and push the application manifests to Git for them to start deploying:
 
 ```bash
-kubectl apply --context ${CLUSTER1} -f - <<EOF
-apiVersion: networking.gloo.solo.io/v2
-kind: RouteTable
-metadata:
-  name: ratings
-  namespace: bookinfo-frontends
-spec:
-  hosts:
-    - 'ratings.bookinfo-backends.svc.cluster.local'
-  workloadSelectors:
-  - selector:
-      labels:
-        app: reviews
-  http:
-    - name: ratings
-      labels:
-        fault_injection: "true"
-      matchers:
-      - uri:
-          prefix: /
-      forwardTo:
-        destinations:
-          - ref:
-              name: ratings
-              namespace: bookinfo-backends
-            port:
-              number: 9080
-EOF
-```
-
-If you refresh the webpage, you should see that it takes longer to get the `productpage` loaded when version `v2` of the `reviews` services is called.
-
-Now, let's configure a 0.5s request timeout when the `productpage` service calls the `reviews` service on cluster1.
-
-You need to create the following `RetryTimeoutPolicy`:
-
-```bash
-kubectl apply --context ${CLUSTER1} -f - <<EOF
-apiVersion: resilience.policy.gloo.solo.io/v2
-kind: RetryTimeoutPolicy
-metadata:
-  name: reviews-request-timeout
-  namespace: bookinfo-frontends
-spec:
-  applyToRoutes:
-  - route:
-      labels:
-        request_timeout: "0.5s"
-  config:
-    requestTimeout: 0.5s
-EOF
-```
-
-As you can see, it will be applied to all the routes that have the label `request_timeout` set to `"0.5s"`.
-
-Then, you need to create a `RouteTable` with this label set in the corresponding route.
-
-```bash
-kubectl apply --context ${CLUSTER1} -f - <<EOF
-apiVersion: networking.gloo.solo.io/v2
-kind: RouteTable
-metadata:
-  name: reviews
-  namespace: bookinfo-frontends
-spec:
-  hosts:
-    - 'reviews.bookinfo-backends.svc.cluster.local'
-  workloadSelectors:
-  - selector:
-      labels:
-        app: productpage
-  http:
-    - name: reviews
-      labels:
-        request_timeout: "0.5s"
-      matchers:
-      - uri:
-          prefix: /
-      forwardTo:
-        destinations:
-          - ref:
-              name: reviews
-              namespace: bookinfo-backends
-            port:
-              number: 9080
-            subset:
-              version: v2
-EOF
+git -C ${GITOPS_REPO_LOCAL} add .
+git -C ${GITOPS_REPO_LOCAL} commit -m "Make bookinfo namespaces part of the mesh"
+git -C ${GITOPS_REPO_LOCAL} push
 ```
 <!--bash
+echo -n Waiting for Argo CD to sync cluster1...
+timeout -v 1m bash -c "until \$(kubectl --context ${CLUSTER1} get ns bookinfo-frontends -o json | jq -r '.metadata.labels[\"istio.io/rev\"] == \"1-19\"' 2>/dev/null); do
+sleep 1
+echo -n .
+done"
+timeout -v 1m bash -c "until \$(kubectl --context ${CLUSTER1} get ns bookinfo-backends -o json | jq -r '.metadata.labels[\"istio.io/rev\"] == \"1-19\"' 2>/dev/null); do
+sleep 1
+echo -n .
+done"
+echo
+echo -n Waiting for Argo CD to sync cluster2...
+timeout -v 1m bash -c "until \$(kubectl --context ${CLUSTER2} get ns bookinfo-frontends -o json | jq -r '.metadata.labels[\"istio.io/rev\"] == \"1-19\"' 2>/dev/null); do
+sleep 1
+echo -n .
+done"
+timeout -v 1m bash -c "until \$(kubectl --context ${CLUSTER2} get ns bookinfo-backends -o json | jq -r '.metadata.labels[\"istio.io/rev\"] == \"1-19\"' 2>/dev/null); do
+sleep 1
+echo -n .
+done"
+echo
+-->
+
+2. Validate the namespaces are annotated with the `istio.io/rev` label:
+
+```shell
+kubectl --context ${CLUSTER1} get namespace -L istio.io/rev
+kubectl --context ${CLUSTER2} get namespace -L istio.io/rev
+```
+Now that you have both namespaces with automatic sidecar injection enabled, you are ready to start adding services to the mesh. Since you added the istio.io/rev label to the namespace, the Istio mutating admission controller automatically injects the Envoy Proxy sidecar during the initial deployment or restart of the pod.
+
+## Adding services to the mesh
+1. You can add a sidecar to each of the services in the `bookinfo-frontends` namespace, starting with the `productpage-v1` service:
+
+```bash
+kubectl --context ${CLUSTER1} rollout restart deployment productpage-v1 -n bookinfo-frontends
+kubectl --context ${CLUSTER2} rollout restart deployment productpage-v1 -n bookinfo-frontends
+```
+<!--bash
+echo -n Waiting for restart...
+kubectl --context ${CLUSTER1} rollout status deployment productpage-v1 -n bookinfo-frontends
+kubectl --context ${CLUSTER2} rollout status deployment productpage-v1 -n bookinfo-frontends
+-->
+
+2. Validate the `productpage` pod is running with Istio's default sidecar proxy injected:
+
+```shell
+kubectl --context ${CLUSTER1} get pod -l app=productpage -n bookinfo-frontends
+kubectl --context ${CLUSTER2} get pod -l app=productpage -n bookinfo-frontends
+```
+
+You should see `2/2` in the output. This indicates the sidecar proxy is running alongside the `productpage` application container in the `productpage` pod:
+```text,nocopy
+NAME                           READY   STATUS    RESTARTS   AGE
+productpage-7d5ccfd7b4-m7lkj   2/2     Running   0          9m4s
+```
+
+3. Validate the `productpage` pod log looks good:
+
+```shell
+kubectl --context ${CLUSTER1} logs deploy/productpage -c productpage -n bookinfo-frontends
+```
+
+4. Validate you can continue to call the `productpage` service securely:
+
+```shell
+curl http://cluster1-bookinfo.example.com/productpage
+```
+
+## Add more services to the Istio service mesh
+
+1. Next, you can add the `istio-proxy` sidecar to the other services in the `bookinfo-backends` namespace
+
+```bash
+kubectl --context ${CLUSTER1} -n bookinfo-frontends rollout status deployment
+kubectl --context ${CLUSTER1} -n bookinfo-backends rollout status deployment
+kubectl --context ${CLUSTER2} -n bookinfo-frontends rollout status deployment
+kubectl --context ${CLUSTER2} -n bookinfo-backends rollout status deployment
+```
+<!--bash
+echo -n Waiting for restart...
+kubectl --context ${CLUSTER1} -n bookinfo-frontends rollout status deployment
+kubectl --context ${CLUSTER1} -n bookinfo-backends rollout status deployment
+kubectl --context ${CLUSTER2} -n bookinfo-frontends rollout status deployment
+kubectl --context ${CLUSTER2} -n bookinfo-backends rollout status deployment
+-->
+
+2. Validate that all the pods in the `bookinfo-backends` namespace are running with Istio's default sidecar proxy injected:
+
+```shell
+kubectl --context ${CLUSTER1} get pods -n bookinfo-backends
+kubectl --context ${CLUSTER2} get pods -n bookinfo-backends
+```
+
+3. Validate that you can continue to call the `productpage` service securely:
+
+```shell
+curl http://cluster1-bookinfo.example.com/productpage
+```
+
+## What have you gained?
+
+One of the values of using a service mesh is that you will gain immediate insight into the behavior and interactions between your services. Istio gives you access to important telemetry data, just by adding services to the mesh. In addition, you get a lot of functionality for free, such as load balancing, circuit breaking, mutual TLS, and more.
+<!--bash
 cat <<'EOF' > ./test.js
-var chai = require('chai');
-var expect = chai.expect;
-const chaiHttp = require("chai-http");
-chai.use(chaiHttp);
+const helpers = require('./tests/chai-exec');
 
-process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
-
-afterEach(function (done) {
-  if (this.currentTest.currentRetry() > 0) {
-    process.stdout.write(".");
-    setTimeout(done, 1000);
-  } else {
-    done();
-  }
-});
-
-let searchTest="Sorry, product reviews are currently unavailable for this book.";
-
-describe("Reviews shouldn't be available", () => {
-  it("Checking text '" + searchTest + "' in cluster1", async () => {
-    await chai.request(`https://cluster1-bookinfo.example.com`)
-      .get('/productpage')
-      .send()
-      .then((res) => {
-        expect(res.text).to.contain(searchTest);
-      });
+describe("Bookinfo app", () => {
+  let cluster = process.env.CLUSTER1
+  let deployments = ["productpage-v1"];
+  deployments.forEach(deploy => {
+    it(deploy + ' pods are ready in ' + cluster, () => helpers.checkDeployment({ context: cluster, namespace: "bookinfo-frontends", k8sObj: deploy }));
   });
-
+  deployments = ["ratings-v1", "details-v1", "reviews-v1", "reviews-v2"];
+  deployments.forEach(deploy => {
+    it(deploy + ' pods are ready in ' + cluster, () => helpers.checkDeployment({ context: cluster, namespace: "bookinfo-backends", k8sObj: deploy }));
+  });
+  cluster = process.env.CLUSTER2
+  deployments = ["productpage-v1"];
+  deployments.forEach(deploy => {
+    it(deploy + ' pods are ready in ' + cluster, () => helpers.checkDeployment({ context: cluster, namespace: "bookinfo-frontends", k8sObj: deploy }));
+  });
+  deployments = ["ratings-v1", "details-v1", "reviews-v1", "reviews-v2", "reviews-v3"];
+  deployments.forEach(deploy => {
+    it(deploy + ' pods are ready in ' + cluster, () => helpers.checkDeployment({ context: cluster, namespace: "bookinfo-backends", k8sObj: deploy }));
+  });
 });
-
 EOF
-echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/apps/bookinfo/traffic-policies/tests/traffic-policies-reviews-unavailable.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/apps/bookinfo/adding-services-to-mesh/../deploy-bookinfo/tests/check-bookinfo.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 timeout 2m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
 -->
 
-If you refresh the page several times, you'll see an error message telling that reviews are unavailable when the productpage is trying to communicate with the version `v2` of the `reviews` service.
 
-![Bookinfo reviews unavailable](images/steps/traffic-policies/reviews-unavailable.png)
 
-This diagram shows where the timeout and delay have been applied:
 
-![Gloo Mesh Traffic Policies](images/steps/traffic-policies/gloo-mesh-traffic-policies.svg)
+## Lab 12 - Deploy the httpbin demo app <a name="lab-12---deploy-the-httpbin-demo-app-"></a>
+[<img src="https://img.youtube.com/vi/w1xB-o_gHs0/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/w1xB-o_gHs0 "Video Link")
 
-Let's delete the Gloo Mesh objects we've created:
+We're going to deploy the httpbin application to demonstrate several features of Gloo Mesh.
+
+You can find more information about this application [here](http://httpbin.org/).
+
+Our example httpbin application will be managed by its own team, who will use their own subdirectory in the
+shared GitOps repo:
 
 ```bash
-kubectl --context ${CLUSTER1} -n bookinfo-frontends delete faultinjectionpolicy ratings-fault-injection
-kubectl --context ${CLUSTER1} -n bookinfo-frontends delete routetable ratings
-kubectl --context ${CLUSTER1} -n bookinfo-frontends delete retrytimeoutpolicy reviews-request-timeout
-kubectl --context ${CLUSTER1} -n bookinfo-frontends delete routetable reviews
+export GITOPS_HTTPBIN=${GITOPS_REPO_LOCAL}/httpbin
+mkdir -p ${GITOPS_HTTPBIN}
 ```
 
+We'll use an Argo CD project and `ApplicationSet` to apply the httpbin team's resources. This will create
+an Argo CD `Application` for each configured cluster, and apply cluster-specific configuration from the
+respective cluster subdirectory:
+
+```bash
+cat <<EOF > ${GITOPS_ARGOCD}/httpbin.yaml
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: httpbin
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+  finalizers:
+  - resources-finalizer.argocd.argoproj.io
+spec:
+  sourceRepos:
+  - '*'
+  destinations:
+  - namespace: '*'
+    server: '*'
+  clusterResourceWhitelist:
+  - group: '*'
+    kind: '*'
+---
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: httpbin
+spec:
+  generators:
+  - list:
+      elements:
+      - cluster: ${CLUSTER1}
+  template:
+    metadata:
+      name: httpbin-{{cluster}}
+      finalizers:
+      - resources-finalizer.argocd.argoproj.io
+    spec:
+      project: httpbin
+      source:
+        repoURL: ${GITEA_HTTP}/gloo-gitops/gitops-repo.git
+        targetRevision: HEAD
+        path: httpbin/{{cluster}}
+      destination:
+        name: '{{cluster}}'
+        namespace: default
+      syncPolicy:
+        automated:
+          allowEmpty: true
+          prune: true
+        syncOptions:
+        - ApplyOutOfSyncOnly=true
+EOF
+```
+
+Run the following commands to deploy the httpbin app on `cluster1`. The deployment will be called `not-in-mesh` and won't have the sidecar injected (because we don't label the namespace).
+
+```bash
+mkdir -p ${GITOPS_HTTPBIN}/base
+
+cat <<EOF >${GITOPS_HTTPBIN}/base/ns.yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: httpbin
+EOF
+
+cat <<EOF > ${GITOPS_HTTPBIN}/base/not-in-mesh.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: not-in-mesh
+  namespace: httpbin
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: not-in-mesh
+  namespace: httpbin
+  labels:
+    app: not-in-mesh
+    service: not-in-mesh
+spec:
+  ports:
+  - name: http
+    port: 8000
+    targetPort: 80
+  selector:
+    app: not-in-mesh
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: not-in-mesh
+  namespace: httpbin
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: not-in-mesh
+      version: v1
+  template:
+    metadata:
+      labels:
+        app: not-in-mesh
+        version: v1
+    spec:
+      serviceAccountName: not-in-mesh
+      containers:
+      - image: docker.io/kennethreitz/httpbin
+        imagePullPolicy: IfNotPresent
+        name: not-in-mesh
+        ports:
+        - containerPort: 80
+EOF
+```
+
+Then, we deploy a second version, which will be called `in-mesh` and will have the sidecar injected (because of the label `istio.io/rev` in the Pod template).
+
+```bash
+cat <<EOF > ${GITOPS_HTTPBIN}/base/in-mesh.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: in-mesh
+  namespace: httpbin
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: in-mesh
+  namespace: httpbin
+  labels:
+    app: in-mesh
+    service: in-mesh
+spec:
+  ports:
+  - name: http
+    port: 8000
+    targetPort: 80
+  selector:
+    app: in-mesh
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: in-mesh
+  namespace: httpbin
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: in-mesh
+      version: v1
+  template:
+    metadata:
+      labels:
+        app: in-mesh
+        version: v1
+        istio.io/rev: 1-19
+    spec:
+      serviceAccountName: in-mesh
+      containers:
+      - image: docker.io/kennethreitz/httpbin
+        imagePullPolicy: IfNotPresent
+        name: in-mesh
+        ports:
+        - containerPort: 80
+EOF
+```
+
+Add the Kustomize resources to include these manifests:
+
+```bash
+cat <<EOF >${GITOPS_HTTPBIN}/base/kustomization.yaml
+resources:
+- ns.yaml
+- not-in-mesh.yaml
+- in-mesh.yaml
+EOF
+
+mkdir -p ${GITOPS_HTTPBIN}/${CLUSTER1}
+
+cat <<EOF >${GITOPS_HTTPBIN}/${CLUSTER1}/kustomization.yaml
+namespace: httpbin
+resources:
+- ../base
+EOF
+```
+
+Commit to the GitOps repo:
+
+```bash
+git -C ${GITOPS_REPO_LOCAL} add .
+git -C ${GITOPS_REPO_LOCAL} commit -m "httpbin on ${CLUSTER1}"
+git -C ${GITOPS_REPO_LOCAL} push
+```
+
+<!--bash
+echo -n Waiting for httpbin pods to be ready...
+timeout -v 5m bash -c "
+until [[ \$(kubectl --context ${CLUSTER1} -n httpbin get deploy -o json | jq '[.items[].status.readyReplicas] | add') -eq 2 ]] 2>/dev/null
+do
+  sleep 1
+  echo -n .
+done"
+echo
+-->
+
+You can follow the progress using the following command:
+
+```bash
+kubectl --context ${CLUSTER1} -n httpbin get pods
+```
+
+```,nocopy
+NAME                           READY   STATUS    RESTARTS   AGE
+in-mesh-5d9d9549b5-qrdgd       2/2     Running   0          11s
+not-in-mesh-5c64bb49cd-m9kwm   1/1     Running   0          11s
+```
+<!--bash
+cat <<'EOF' > ./test.js
+const helpers = require('./tests/chai-exec');
+
+describe("httpbin app", () => {
+  let cluster = process.env.CLUSTER1
+  
+  let deployments = ["not-in-mesh", "in-mesh"];
+  
+  deployments.forEach(deploy => {
+    it(deploy + ' pods are ready in ' + cluster, () => helpers.checkDeployment({ context: cluster, namespace: "httpbin", k8sObj: deploy }));
+  });
+});
+EOF
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/apps/httpbin/deploy-httpbin/tests/check-httpbin.test.js.liquid"
+tempfile=$(mktemp)
+echo "saving errors in ${tempfile}"
+timeout 2m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
+-->
 
 
-## Lab 11 - Create the Root Trust Policy <a name="lab-11---create-the-root-trust-policy-"></a>
+
+## Lab 13 - Create the Root Trust Policy <a name="lab-13---create-the-root-trust-policy-"></a>
 [<img src="https://img.youtube.com/vi/-A2U2fYYgrU/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/-A2U2fYYgrU "Video Link")
 
 To allow secured (end-to-end mTLS) cross cluster communications, we need to make sure the certificates issued by the Istio control plane on each cluster are signed with intermediate certificates which have a common root CA.
@@ -2094,7 +3446,7 @@ Gloo Mesh fully automates this process.
 Run the following command to create the *Root Trust Policy*:
 
 ```bash
-kubectl apply --context ${MGMT} -f - <<EOF
+cat <<EOF > ${GITOPS_PLATFORM}/${MGMT}/root-trust.yaml
 apiVersion: admin.gloo.solo.io/v2
 kind: RootTrustPolicy
 metadata:
@@ -2106,6 +3458,31 @@ spec:
       generated: {}
     autoRestartPods: true # Restarting pods automatically is NOT RECOMMENDED in Production
 EOF
+```
+
+Track this resource for Kustomize and commit it to the GitOps repo:
+
+```bash
+cat <<EOF >>${GITOPS_PLATFORM}/${MGMT}/kustomization.yaml
+- root-trust.yaml
+EOF
+
+git -C ${GITOPS_REPO_LOCAL} add .
+git -C ${GITOPS_REPO_LOCAL} commit -m "Root trust policy"
+git -C ${GITOPS_REPO_LOCAL} push
+```
+<!--bash
+echo -n Waiting for Argo CD to sync...
+timeout -v 5m bash -c "until [[ \$(kubectl --context ${MGMT} -n gloo-mesh get rtp root-trust-policy 2>/dev/null) ]]; do
+  sleep 1
+  echo -n .
+done"
+echo
+-->
+Wait for the policy to take effect in the management cluster:
+
+```bash
+until [[ $(kubectl --context ${MGMT} -n gloo-mesh get rtp root-trust-policy 2>/dev/null) ]]; do sleep 1; done
 ```
 
 When we create the RootTrustPolicy, Gloo Mesh will kick off the process of unifying identities under a shared root.
@@ -2235,14 +3612,14 @@ kubectl --context ${CLUSTER1} -n httpbin rollout restart deploy/in-mesh
 
 
 
-## Lab 12 - Leverage Virtual Destinations for east west communications <a name="lab-12---leverage-virtual-destinations-for-east-west-communications-"></a>
+## Lab 14 - Leverage Virtual Destinations for east west communications <a name="lab-14---leverage-virtual-destinations-for-east-west-communications-"></a>
 
 We can create a Virtual Destination which will be composed of the `reviews` services running in both clusters.
 
 Let's create this Virtual Destination.
 
 ```bash
-kubectl apply --context ${CLUSTER1} -f - <<EOF
+cat <<EOF > ${GITOPS_BOOKINFO}/${CLUSTER1}/virtualdestination-reviews.yaml
 apiVersion: networking.gloo.solo.io/v2
 kind: VirtualDestination
 metadata:
@@ -2259,7 +3636,27 @@ spec:
     - number: 9080
       protocol: HTTP
 EOF
+
+cat <<EOF >>${GITOPS_BOOKINFO}/${CLUSTER1}/kustomization.yaml
+- virtualdestination-reviews.yaml
+EOF
 ```
+
+Commit to the GitOps repo:
+
+```bash
+git -C ${GITOPS_REPO_LOCAL} add .
+git -C ${GITOPS_REPO_LOCAL} commit -m "Route to reviews using virtual destination"
+git -C ${GITOPS_REPO_LOCAL} push
+```
+<!--bash
+echo -n Waiting for Argo CD to sync...
+timeout -v 5m bash -c "until [[ \$(kubectl --context ${CLUSTER1} -n bookinfo-backends get vd reviews 2>/dev/null) ]]; do
+  sleep 1
+  echo -n .
+done"
+echo
+-->
 
 You can now send requests from the `productpage` service to the host `reviews.global`:
 
@@ -2311,7 +3708,7 @@ In order to do that we need to create 2 other policies.
 The first one is a `FailoverPolicy`:
 
 ```bash
-kubectl apply --context ${CLUSTER1} -f - <<EOF
+cat <<EOF > ${GITOPS_BOOKINFO}/${CLUSTER1}/failover-reviews.yaml
 apiVersion: resilience.policy.gloo.solo.io/v2
 kind: FailoverPolicy
 metadata:
@@ -2335,7 +3732,7 @@ Note that failover is enabled by default, so creating this `FailoverPolicy` is o
 The second one is an `OutlierDetectionPolicy`:
 
 ```bash
-kubectl apply --context ${CLUSTER1} -f - <<EOF
+cat <<EOF > ${GITOPS_BOOKINFO}/${CLUSTER1}/outlierdetection-reviews.yaml
 apiVersion: resilience.policy.gloo.solo.io/v2
 kind: OutlierDetectionPolicy
 metadata:
@@ -2362,7 +3759,7 @@ As you can see, both policies will be applied to `VirtualDestination` objects th
 So we need to update the `VirtualDestination`:
 
 ```bash
-kubectl apply --context ${CLUSTER1} -f - <<EOF
+cat <<EOF > ${GITOPS_BOOKINFO}/${CLUSTER1}/virtualdestination-reviews.yaml
 apiVersion: networking.gloo.solo.io/v2
 kind: VirtualDestination
 metadata:
@@ -2382,6 +3779,27 @@ spec:
       protocol: HTTP
 EOF
 ```
+
+Add the new resources to Kustomize and commit these updates to the GitOps repo:
+
+```bash
+cat <<EOF >>${GITOPS_BOOKINFO}/${CLUSTER1}/kustomization.yaml
+- failover-reviews.yaml
+- outlierdetection-reviews.yaml
+EOF
+
+git -C ${GITOPS_REPO_LOCAL} add .
+git -C ${GITOPS_REPO_LOCAL} commit -m "Manage reviews traffic with failover"
+git -C ${GITOPS_REPO_LOCAL} push
+```
+<!--bash
+echo -n Waiting for Argo CD to sync...
+timeout -v 5m bash -c "until [[ \$(kubectl --context ${CLUSTER1} -n bookinfo-backends get failoverpolicy failover 2>/dev/null) ]]; do
+  sleep 1
+  echo -n .
+done"
+echo
+-->
 
 <!--bash
 cat <<'EOF' > ./test.js
@@ -2491,17 +3909,17 @@ kubectl --context ${CLUSTER1} -n bookinfo-backends rollout status deploy/reviews
 kubectl --context ${CLUSTER1} -n bookinfo-backends rollout status deploy/reviews-v2
 ```
 
-Let's delete the different objects we've created:
+Let's revert the commits we made:
 
 ```bash
-kubectl --context ${CLUSTER1} -n bookinfo-backends delete virtualdestination reviews
-kubectl --context ${CLUSTER1} -n bookinfo-backends delete failoverpolicy failover
-kubectl --context ${CLUSTER1} -n bookinfo-backends delete outlierdetectionpolicy outlier-detection
+git -C ${GITOPS_REPO_LOCAL} revert --no-commit HEAD~2..
+git -C ${GITOPS_REPO_LOCAL} commit -m "Revert reviews virtual destination routing"
+git -C ${GITOPS_REPO_LOCAL} push
 ```
 
 
 
-## Lab 13 - Zero trust <a name="lab-13---zero-trust-"></a>
+## Lab 15 - Zero trust <a name="lab-15---zero-trust-"></a>
 [<img src="https://img.youtube.com/vi/BiaBlUaplEs/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/BiaBlUaplEs "Video Link")
 
 In the previous step, we federated multiple meshes and established a shared root CA for a shared identity domain.
@@ -2582,7 +4000,7 @@ We'll leverage the Gloo Mesh workspaces to get to a state where:
 The Bookinfo team must update its `WorkspaceSettings` Kubernetes object to enable service isolation.
 
 ```bash
-kubectl apply --context ${CLUSTER1} -f - <<EOF
+cat <<EOF > ${GITOPS_BOOKINFO}/${CLUSTER1}/workspace-settings.yaml
 apiVersion: admin.gloo.solo.io/v2
 kind: WorkspaceSettings
 metadata:
@@ -2615,7 +4033,19 @@ spec:
       enabled: true
       trimProxyConfig: true
 EOF
+
+git -C ${GITOPS_REPO_LOCAL} add .
+git -C ${GITOPS_REPO_LOCAL} commit -m "Enable service isolation"
+git -C ${GITOPS_REPO_LOCAL} push
 ```
+<!--bash
+echo -n Waiting for Argo CD to sync...
+timeout -v 5m bash -c "until [[ \"\$(kubectl --context ${CLUSTER1} -n bookinfo-frontends get workspacesettings bookinfo -ojsonpath='{.spec.options.serviceIsolation.enabled}' 2>/dev/null)\" = \"true\" ]]; do
+  sleep 1
+  echo -n .
+done"
+echo
+-->
 
 When service isolation is enabled, Gloo Mesh creates the corresponding Istio `AuthorizationPolicy` and `PeerAuthentication` objects to enforce zero trust.
 
@@ -2692,7 +4122,7 @@ We are going to define AccessPolicies from the point of view of a service produc
 Productpage app is the only service which is exposed to the internet, so we will create an `AccessPolicy` to allow the Istio Ingress Gateway to forward requests to the productpage service.
 
 ```bash
-kubectl apply --context ${CLUSTER1} -f - <<EOF
+cat <<EOF > ${GITOPS_BOOKINFO}/${CLUSTER1}/accesspolicy-productpage.yaml
 apiVersion: security.policy.gloo.solo.io/v2
 kind: AccessPolicy
 metadata:
@@ -2718,7 +4148,7 @@ EOF
 Details and reviews are both used by the productpage service, so we will create an AccessPolicy to allow the productpage service to forward requests to the details and reviews services.
 
 ```bash
-kubectl apply --context ${CLUSTER1} -f - <<EOF
+cat <<EOF > ${GITOPS_BOOKINFO}/${CLUSTER1}/accesspolicy-details-reviews.yaml
 apiVersion: security.policy.gloo.solo.io/v2
 kind: AccessPolicy
 metadata:
@@ -2747,7 +4177,7 @@ Note that this is a layer 7 policy because we only allow the `GET` method to be 
 Finally, we will create an AccessPolicy to allow the reviews service to forward requests to the ratings service.
 
 ```bash
-kubectl apply --context ${CLUSTER1} -f - <<EOF
+cat <<EOF > ${GITOPS_BOOKINFO}/${CLUSTER1}/accesspolicy-ratings.yaml
 apiVersion: security.policy.gloo.solo.io/v2
 kind: AccessPolicy
 metadata:
@@ -2766,6 +4196,27 @@ spec:
 EOF
 ```
 
+Add these to Kustomize and commit them:
+
+```bash
+cat <<EOF >>${GITOPS_BOOKINFO}/${CLUSTER1}/kustomization.yaml
+- accesspolicy-productpage.yaml
+- accesspolicy-details-reviews.yaml
+- accesspolicy-ratings.yaml
+EOF
+
+git -C ${GITOPS_REPO_LOCAL} add .
+git -C ${GITOPS_REPO_LOCAL} commit -m "Access policies"
+git -C ${GITOPS_REPO_LOCAL} push
+```
+<!--bash
+echo -n Waiting for Argo CD to sync...
+timeout -v 5m bash -c "until [[ \$(kubectl --context ${CLUSTER1} -n bookinfo-frontends get accesspolicy allow-productpage 2>/dev/null) ]]; do
+  sleep 1
+  echo -n .
+done"
+echo
+-->
 Let's check that requests from `productpage` are denied/allowed properly:
 
 ```sh
@@ -2820,930 +4271,12 @@ echo "saving errors in ${tempfile}"
 timeout 2m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
 -->
 
-Let's rollback the change we've made in the `WorkspaceSettings` object:
+Let's revert the commits we made:
 
 ```bash
-kubectl apply --context ${CLUSTER1} -f - <<EOF
-apiVersion: admin.gloo.solo.io/v2
-kind: WorkspaceSettings
-metadata:
-  name: bookinfo
-  namespace: bookinfo-frontends
-spec:
-  importFrom:
-  - workspaces:
-    - name: gateways
-    resources:
-    - kind: SERVICE
-  exportTo:
-  - workspaces:
-    - name: gateways
-    resources:
-    - kind: SERVICE
-      labels:
-        app: productpage
-    - kind: SERVICE
-      labels:
-        app: reviews
-    - kind: SERVICE
-      labels:
-        app: ratings
-    - kind: ALL
-      labels:
-        expose: "true"
-EOF
-```
-
-and delete the `AccessPolicies`:
-
-```bash
-kubectl --context ${CLUSTER1} delete accesspolicies -n bookinfo-frontends --all
-```
-
-
-
-## Lab 14 - See how Gloo Platform can help with observability <a name="lab-14---see-how-gloo-platform-can-help-with-observability-"></a>
-[<img src="https://img.youtube.com/vi/UhWsk4YnOy0/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/UhWsk4YnOy0 "Video Link")
-
-# Observability with Gloo Platform
-
-Let's take a look at how Gloo Platform can help with observability!
-
-![Gloo Platform OTel arch](images/steps/gloo-platform-observability/metrics-architecture-otel.svg)
-
-Our telemetry pipeline's main goal is to collect all the metrics, and securely forward them to the management cluster, making all the metrics available for our UI to visualize the service graph.
-
-Since our pipeline is leveraging OpenTelemetry, this pipeline can be customized and extended to cover all possible use-cases, e.g. collecting telemetry from other workloads, or integrating with centralized observability platform/SaaS solutions.
-
-## Gloo Platform Operational Dashboard 
-
-First let's deploy the usual Prometheus stack, and explore our management plane metrics.
-
-```bash
-helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
-helm repo update
-
-helm upgrade --install kube-prometheus-stack \
-prometheus-community/kube-prometheus-stack \
---kube-context ${MGMT} \
---version 55.9.0 \
---namespace monitoring \
---create-namespace \
---values - <<EOF
-grafana:
-  service:
-    type: LoadBalancer
-    port: 3000
-  additionalDataSources:
-  - name: prometheus-GM
-    uid: prometheus-GM
-    type: prometheus
-    url: http://prometheus-server.gloo-mesh:80
-  grafana.ini:
-    auth.anonymous:
-      enabled: true
-  defaultDashboardsEnabled: false
-EOF
-```
-<!--bash
-cat <<'EOF' > ./test.js
-const helpers = require('./tests/chai-exec');
-
-describe("kube-prometheus-stack deployments are ready", () => {
-  it('kube-prometheus-stack-kube-state-metrics pods are ready', () => helpers.checkDeployment({ context: process.env.MGMT, namespace: "monitoring", k8sObj: "kube-prometheus-stack-kube-state-metrics" }));
-  it('kube-prometheus-stack-grafana pods are ready', () => helpers.checkDeployment({ context: process.env.MGMT, namespace: "monitoring", k8sObj: "kube-prometheus-stack-grafana" }));
-  it('kube-prometheus-stack-operator pods are ready', () => helpers.checkDeployment({ context: process.env.MGMT, namespace: "monitoring", k8sObj: "kube-prometheus-stack-operator" }));
-});
-
-describe("kube-prometheus-stack daemonset is ready", () => {
-  it('kube-prometheus-stack-prometheus-node-exporter pods are ready', () => helpers.checkDaemonSet({ context: process.env.MGMT, namespace: "monitoring", k8sObj: "kube-prometheus-stack-prometheus-node-exporter" }));
-});
-EOF
-echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/gloo-platform-observability/tests/grafana-installed.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout 2m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
--->
-Let's install a few dashboards!
-
-Now, you can go the the Grafana tab, log in with the default login credentials, admin/prom-operator, and import the dashboard of Istio control plane.
-
-Add the Operational Dashboard
-=============================
-
-Our Gloo components are all instrumented with Prometheus compatible metrics, providing an easy way to pinpoint a potential degradation.
-
-You can import the following dashboard to see our Operational Dashboard, covering all of our components in the stack.
-
-Here, you have specific rows for each components, such as the management server, the agent, the telemetry collectors, and some additional information regarding resource usage.
-
-```bash
-kubectl --context ${MGMT} -n monitoring create cm operational-dashboard \
---from-file=data/steps/gloo-platform-observability/operational-dashboard.json
-kubectl --context ${MGMT} label -n monitoring cm operational-dashboard grafana_dashboard=1
-```
-
-Out-of-box alerting
-===================
-
-Our Prometheus comes with useful alerts by default, making it easier to get notified if something breaks.
-
-All of the default alerts have corresponding panels on the Operational Dashboard.
-
-You can click the "Bell" icon on the left, and choose "Alert rules", and check "GlooPlatformAlerts" to take a closer look at them. 
-
-Let's trigger one of the alerts!
-
-If you scale down the Gloo Agent in let's say `cluster1`, you should have an alert called `GlooPlatformAgentsAreDisconnected` go into first PENDING, then FIRING, let's check this!
-
-```sh
-kubectl --context $CLUSTER1 scale deployment.apps/gloo-mesh-agent -n gloo-mesh --replicas=0
-```
-
-The alert will fire in 5m, but even before that, it will reach PENDING state, let's wait for this!
-
-Don't forget to scale it up after:
-
-```sh
-kubectl --context $CLUSTER1 scale deployment.apps/gloo-mesh-agent -n gloo-mesh --replicas=1
-```
-
-Collect remote IstioD metrics securely
-======================================
-
-Let's take a look how easy it is to modify the metrics collection in the workload clusters, to collect IstioD metrics, and ship them to the management cluster over TLS.
-
-```bash
-helm upgrade --install gloo-platform gloo-platform \
-  --repo https://storage.googleapis.com/gloo-platform/helm-charts \
-  --namespace gloo-mesh \
-  --kube-context ${CLUSTER1} \
-  --reuse-values \
-  --version 2.5.0 \
-  --values - <<EOF
-telemetryCollectorCustomization:
-  extraProcessors:
-    batch/istiod:
-      send_batch_size: 10000
-      timeout: 10s
-    filter/istiod:
-      metrics:
-        include:
-          match_type: regexp
-          metric_names:
-            - "pilot.*"
-            - "process.*"
-            - "go.*"
-            - "container.*"
-            - "envoy.*"
-            - "galley.*"
-            - "sidecar.*"
-          # - "istio_build.*" re-enable this after this is fixed upstream
-  extraPipelines:
-    metrics/istiod:
-      receivers:
-      - prometheus
-      processors:
-      - memory_limiter
-      - batch/istiod
-      - filter/istiod
-      exporters:
-      - otlp
-EOF
-```
-
-This configuration update will
-  - create a new processor, called `filter/istiod`, that will enable all the IstioD/Pilot related metrics
-  - create a new pipeline, called `metrics/istiod`, that will have the aforementioned processor to include the control plane metrics
-
-Then, we just need to perform a rollout restart for the metrics collector, so the new pods can pick up the config change.
-
-```bash
-kubectl --context $CLUSTER1 rollout restart daemonset/gloo-telemetry-collector-agent -n gloo-mesh
-```
-
-Now, let's import the Istio Control Plane Dashboard, and see the metrics!
-
-```bash
-kubectl --context ${MGMT} -n monitoring create cm istio-control-plane-dashboard \
---from-file=data/steps/gloo-platform-observability/istio-control-plane-dashboard.json
-kubectl --context ${MGMT} label -n monitoring cm istio-control-plane-dashboard grafana_dashboard=1
-```
-
-
-
-## Lab 15 - Securing the egress traffic <a name="lab-15---securing-the-egress-traffic-"></a>
-[<img src="https://img.youtube.com/vi/tQermml1Ryo/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/tQermml1Ryo "Video Link")
-
-
-In this step, we're going to secure the egress traffic.
-
-We're going to deploy an egress gateway, configure Kubernetes `NetworkPolicies` to force all the traffic to go through it and implement some access control at the gateway level.
-
-<!--bash
-cat <<'EOF' > ./test.js
-var chai = require('chai');
-var expect = chai.expect;
-const helpers = require('./tests/chai-exec');
-
-describe("Communication status", () => {
-  it("Productpage can send requests to httpbin.org", () => {
-    const command = helpers.getOutputForCommand({ command: "kubectl --context " + process.env.CLUSTER1 + " -n bookinfo-frontends exec deploy/productpage-v1 -- python -c \"import requests; r = requests.get('http://httpbin.org/get'); print(r.status_code)\"" }).replaceAll("'", "");
-    expect(command).to.contain("200");
-  });
-});
-
-EOF
-echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/apps/bookinfo/secure-egress/tests/productpage-to-httpbin-allowed.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout 2m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
--->
-
-The gateways team is going to deploy an egress gateway:
-
-```bash
-kubectl apply --context ${MGMT} -f - <<EOF
-apiVersion: admin.gloo.solo.io/v2
-kind: GatewayLifecycleManager
-metadata:
-  name: cluster1-egress
-  namespace: gloo-mesh
-spec:
-  installations:
-    - clusters:
-        - name: cluster1
-          activeGateway: false
-      gatewayRevision: 1-19
-      istioOperatorSpec:
-        profile: empty
-        hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.19.3-solo
-        components:
-          egressGateways:
-            - enabled: true
-              label:
-                istio: egressgateway
-              name: istio-egressgateway
-              namespace: istio-gateways
-EOF
-```
-
-Check that the egress gateway has been deployed using the following command:
-
-```shell
-kubectl --context ${CLUSTER1} -n istio-gateways get pods -l istio=egressgateway
-```
-<!--bash
-ATTEMPTS=1
-until [[ $(kubectl --context $CLUSTER1 -n istio-gateways get deploy -l istio=egressgateway -o json | jq '[.items[].status.readyReplicas] | add') -ge 1 ]] || [ $ATTEMPTS -gt 120 ]; do
-  printf "."
-  ATTEMPTS=$((ATTEMPTS + 1))
-  sleep 1
-done
--->
-
-You should get an output similar to:
-
-```,nocopy
-NAME                                        READY   STATUS    RESTARTS   AGE
-istio-egressgateway-1-17-55fcbddd96-bwntr   1/1     Running   0          25m
-```
-
-Then, the gateway team needs to create a `VirtualGateway` and can define which hosts can be accessed through it:
-
-```bash
-kubectl apply --context ${CLUSTER1} -f - <<EOF
-apiVersion: networking.gloo.solo.io/v2
-kind: VirtualGateway
-metadata:
-  name: egress-gw
-  namespace: istio-gateways
-spec:
-  listeners:
-    - exposedExternalServices:
-        - host: httpbin.org
-      appProtocol: HTTPS
-      port:
-        number: 443
-      tls:
-        mode: ISTIO_MUTUAL
-  workloads:
-    - selector:
-        labels:
-          app: istio-egressgateway
-          istio: egressgateway
-EOF
-```
-
-As you can see, only the `httpbin.org` host has been allowed.
-
-After that, the bookinfo or platform team needs to create a Kubernetes `NetworkPolicy` to only allow the following egress traffic in the `bookinfo-frontends` namespace:
-- from the Pods to the egress gateway
-- from the Pods to the Kubernetes DNS server
-
-```bash
-kubectl apply --context ${CLUSTER1} -f - <<EOF
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
-metadata:
-  name: restrict-egress
-  namespace: bookinfo-frontends
-spec:
-  podSelector: {}
-  policyTypes:
-  - Egress
-  egress:
-  - to:
-    - namespaceSelector:
-        matchLabels: {}
-      podSelector:
-        matchLabels: {}
-  - to:
-    - ipBlock:
-        cidr: $(kubectl --context ${CLUSTER2} -n istio-gateways get svc -l istio=eastwestgateway -o jsonpath='{.items[].status.loadBalancer.ingress[0].*}')/32
-    ports:
-      - protocol: TCP
-        port: 15443
-        endPort: 15443
-EOF
-```
-
-Try to to access the `httpbin.org` site from the `productpage` Pod:
-
-```shell
-kubectl --context ${CLUSTER1} -n bookinfo-frontends exec $(kubectl --context ${CLUSTER1} -n bookinfo-frontends get pods -l app=productpage -o jsonpath='{.items[0].metadata.name}') -- python -c "import requests; r = requests.get('http://httpbin.org/get'); print(r.text)"
-```
-
-<!--bash
-cat <<'EOF' > ./test.js
-var chai = require('chai');
-var expect = chai.expect;
-const helpers = require('./tests/chai-exec');
-
-describe("Communication not allowed", () => {
-  it("Productpage can NOT send requests to httpbin.org", () => {
-    const command = helpers.getOutputForCommand({ command: "kubectl --context " + process.env.CLUSTER1 + " -n bookinfo-frontends exec deploy/productpage-v1 -- python -c \"import requests; r = requests.get('http://httpbin.org/get', timeout=5); print(r.text)\"" }).replaceAll("'", "");
-    expect(command).not.to.contain("User-Agent");
-  });
-});
-
-EOF
-echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/apps/bookinfo/secure-egress/tests/productpage-to-httpbin-not-allowed.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout 2m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
--->
-
-It's not working.
-
-You can now create an `ExternalService` to expose `httpbin.org` through the egress gateway:
-
-```bash
-kubectl apply --context ${CLUSTER1} -f - <<EOF
-apiVersion: networking.gloo.solo.io/v2
-kind: ExternalService
-metadata:
-  name: httpbin
-  namespace: bookinfo-frontends
-  labels:
-    expose: 'true'
-spec:
-  hosts:
-    - httpbin.org
-  ports:
-    - clientsideTls: {}
-      egressGatewayRoutes:
-        portMatch: 80
-        virtualGatewayRefs:
-          - cluster: cluster1
-            name: egress-gw
-            namespace: istio-gateways
-      name: https
-      number: 443
-      protocol: HTTPS
-EOF
-```
-
-Try to access the `httpbin.org` site from the `productpage` Pod:
-
-```bash
-kubectl --context ${CLUSTER1} -n bookinfo-frontends exec $(kubectl --context ${CLUSTER1} -n bookinfo-frontends get pods -l app=productpage -o jsonpath='{.items[0].metadata.name}') -- python -c "import requests; r = requests.get('http://httpbin.org/get'); print(r.text)"
-```
-
-<!--bash
-cat <<'EOF' > ./test.js
-var chai = require('chai');
-var expect = chai.expect;
-const helpers = require('./tests/chai-exec');
-
-describe("Communication status", () => {
-  it("Productpage can send requests to httpbin.org", () => {
-    const command = helpers.getOutputForCommand({ command: "kubectl --context " + process.env.CLUSTER1 + " -n bookinfo-frontends exec deploy/productpage-v1 -- python -c \"import requests; r = requests.get('http://httpbin.org/get'); print(r.status_code)\"" }).replaceAll("'", "");
-    expect(command).to.contain("200");
-  });
-});
-
-EOF
-echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/apps/bookinfo/secure-egress/tests/productpage-to-httpbin-allowed.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout 2m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
--->
-
-Now, it works!
-
-And you can run the following command to check that the request went through the egress gateway:
-
-```shell
-kubectl --context ${CLUSTER1} -n istio-gateways logs -l istio=egressgateway --tail 1
-```
-
-Here is the expected output:
-
-```,nocopy
-[2023-05-11T20:10:30.274Z] "GET /get HTTP/1.1" 200 - via_upstream - "-" 0 3428 793 773 "10.102.1.127" "python-requests/2.28.1" "e6fb42b7-2519-4a59-beb8-0841380d445e" "httpbin.org" "34.193.132.77:443" outbound|443||httpbin.org 10.102.2.119:39178 10.102.2.119:8443 10.102.1.127:48388 httpbin.org -
-```
-
-The gateway team can also restrict which HTTP method can be used by the Pods when sending requests to `httpbin.org`:
-
-```bash
-kubectl apply --context ${CLUSTER1} -f - <<EOF
-apiVersion: security.policy.gloo.solo.io/v2
-kind: AccessPolicy
-metadata:
-  name: allow-get-httpbin
-  namespace: istio-gateways
-spec:
-  applyToDestinations:
-  - kind: EXTERNAL_SERVICE
-    selector: 
-      name: httpbin
-      namespace: bookinfo-frontends
-      cluster: cluster1
-  config:
-    authz:
-      allowedClients:
-      - serviceAccountSelector:
-          name: bookinfo-productpage
-      allowedMethods:
-      - GET
-    enforcementLayers:
-      mesh: true
-      cni: false
-EOF
-```
-
-<!--bash
-cat <<'EOF' > ./test.js
-var chai = require('chai');
-var expect = chai.expect;
-const helpers = require('./tests/chai-exec');
-
-describe("Communication status", () => {
-  it("Productpage can send GET requests to httpbin.org", () => {
-    const command = helpers.getOutputForCommand({ command: "kubectl --context " + process.env.CLUSTER1 + " -n bookinfo-frontends exec deploy/productpage-v1 -- python -c \"import requests; r = requests.get('http://httpbin.org/get'); print(r.status_code)\"" }).replaceAll("'", "");
-    expect(command).to.contain("200");
-  });
-
-  it("Productpage can't send POST requests to httpbin.org", () => {
-    const command = helpers.getOutputForCommand({ command: "kubectl --context " + process.env.CLUSTER1 + " -n bookinfo-frontends exec deploy/productpage-v1 -- python -c \"import requests; r = requests.post('http://httpbin.org/post'); print(r.status_code)\"" }).replaceAll("'", "");
-    expect(command).to.contain("403");
-  });
-});
-
-EOF
-echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/apps/bookinfo/secure-egress/tests/productpage-to-httpbin-only-get-allowed.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout 2m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
--->
-
-You can still send GET requests to the `httpbin.org` site from the `productpage` Pod:
-
-```shell
-kubectl --context ${CLUSTER1} -n bookinfo-frontends exec $(kubectl --context ${CLUSTER1} -n bookinfo-frontends get pods -l app=productpage -o jsonpath='{.items[0].metadata.name}') -- python -c "import requests; r = requests.get('http://httpbin.org/get'); print(r.text)"
-```
-
-But you can't send POST requests to the `httpbin.org` site from the `productpage` Pod:
-
-```shell
-kubectl --context ${CLUSTER1} -n bookinfo-frontends exec $(kubectl --context ${CLUSTER1} -n bookinfo-frontends get pods -l app=productpage -o jsonpath='{.items[0].metadata.name}') -- python -c "import requests; r = requests.post('http://httpbin.org/post'); print(r.text)"
-```
-
-You'll get the following response:
-
-```,nocopy
-RBAC: access denied
-```
-
-Let's delete the Gloo Mesh objects we've created:
-
-```bash
-kubectl --context ${CLUSTER1} -n bookinfo-frontends delete networkpolicy restrict-egress
-kubectl --context ${CLUSTER1} -n bookinfo-frontends delete externalservice httpbin
-kubectl --context ${CLUSTER1} -n istio-gateways delete accesspolicy allow-get-httpbin
-```
-
-
-
-## Lab 16 - VM integration with Spire <a name="lab-16---vm-integration-with-spire-"></a>
-
-Let's see how we can configure a VM to be part of the Mesh.
-
-To make it easier (and more fun), we'll use a Docker container to simulate a VM.
-
-The certificates will be generated by the Spire server. We need to restart it to use the intermediate CA certificate generated by the `RootTrustPolicy`.
-
-```bash
-kubectl --context ${CLUSTER1} -n gloo-mesh rollout restart deploy gloo-spire-server
-```
-
-First of all, we need to define a few environment variables:
-
-```bash
-export VM_APP="vm1"
-export VM_NAMESPACE="virtualmachines"
-export VM_NETWORK="vm-network"
-```
-
-Create the namespace that will host the virtual machine:
-
-```bash
-kubectl --context ${CLUSTER1} create namespace "${VM_NAMESPACE}"
-```
-
-Let's update the bookinfo `Workspace` to include the `virtualmachines` namespace of the first cluster:
-
-```bash
-kubectl apply --context ${MGMT} -f - <<EOF
-apiVersion: admin.gloo.solo.io/v2
-kind: Workspace
-metadata:
-  name: bookinfo
-  namespace: gloo-mesh
-  labels:
-    allow_ingress: "true"
-spec:
-  workloadClusters:
-  - name: cluster1
-    namespaces:
-    - name: bookinfo-frontends
-    - name: bookinfo-backends
-    - name: virtualmachines
-  - name: cluster2
-    namespaces:
-    - name: bookinfo-frontends
-    - name: bookinfo-backends
-EOF
-```
-
-We also need to update the gateways `Workspace` to include the `gloo-mesh` namespace of the first cluster (to allow the VM to send metrics to the OTel collector):
-
-```bash
-kubectl apply --context ${MGMT} -f - <<EOF
-apiVersion: admin.gloo.solo.io/v2
-kind: Workspace
-metadata:
-  name: gateways
-  namespace: gloo-mesh
-spec:
-  workloadClusters:
-  - name: cluster1
-    namespaces:
-    - name: istio-gateways
-    - name: gloo-mesh-addons
-    - name: gloo-mesh
-  - name: cluster2
-    namespaces:
-    - name: istio-gateways
-    - name: gloo-mesh-addons
-EOF
-```
-
-Run a Docker container that we'll use to simulate a VM:
-
-```bash
-docker run -d --name vm1 --network kind --privileged -v `pwd`/vm1:/vm djannot/ubuntu-systemd:22.04
-```
-
-Here is the DockerFile used to create the image. It allows us to use systemd.
-
-```
-FROM ubuntu:22.04
-
-# Install systemd
-RUN apt-get update && apt-get install -y systemd systemd-sysv
-
-# Remove unnecessary systemd services that might cause issues
-RUN (cd /lib/systemd/system/sysinit.target.wants/; for i in *; do [ $i == systemd-tmpfiles-setup.service ] || rm -f $i; done); \
-    rm -f /lib/systemd/system/multi-user.target.wants/*;\
-    rm -f /etc/systemd/system/*.wants/*;\
-    rm -f /lib/systemd/system/local-fs.target.wants/*; \
-    rm -f /lib/systemd/system/sockets.target.wants/*udev*; \
-    rm -f /lib/systemd/system/sockets.target.wants/*initctl*; \
-    rm -f /lib/systemd/system/basic.target.wants/*;\
-    rm -f /lib/systemd/system/anaconda.target.wants/*;
-
-# Override the default command, to initiate systemd
-CMD ["/sbin/init"]
-```
-
-Update the DNS configuration:
-
-```bash
-docker exec vm1 bash -c "sed 's/127.0.0.11/8.8.8.8/' /etc/resolv.conf > /vm/resolv.conf"
-docker exec vm1 cp /vm/resolv.conf /etc/resolv.conf
-```
-
-Install the dependencies:
-
-```bash
-docker exec vm1 apt update -y
-docker exec vm1 apt-get install -y iputils-ping curl iproute2 iptables python3 sudo dnsutils
-```
-
-Create routes to allow the VM to access the Pods on the 2 Kubernetes clusters:
-
-```bash
-cluster1_cidr=$(kubectl --context ${CLUSTER1} -n kube-system get pod -l component=kube-controller-manager -o jsonpath='{.items[0].spec.containers[0].command}' | jq -r '.[] | select(. | startswith("--cluster-cidr="))' | cut -d= -f2)
-cluster2_cidr=$(kubectl --context ${CLUSTER2} -n kube-system get pod -l component=kube-controller-manager -o jsonpath='{.items[0].spec.containers[0].command}' | jq -r '.[] | select(. | startswith("--cluster-cidr="))' | cut -d= -f2)
-
-docker exec vm1 $(kubectl --context ${CLUSTER1} get nodes -o=jsonpath='{range .items[*]}{"ip route add "}{"'${cluster1_cidr}' via "}{.status.addresses[?(@.type=="InternalIP")].address}{"\n"}{end}')
-docker exec vm1 $(kubectl --context ${CLUSTER2} get nodes -o=jsonpath='{range .items[*]}{"ip route add "}{"'${cluster2_cidr}' via "}{.status.addresses[?(@.type=="InternalIP")].address}{"\n"}{end}')
-```
-
-Copy `meshctl` into the container:
-
-```bash
-docker cp $HOME/.gloo-mesh/bin/meshctl vm1:/usr/local/bin/
-```
-
-Create an `ExternalWorkload` object to represent the VM and the applications it runs:
-
-```bash
-kubectl apply --context ${CLUSTER1} -f - <<EOF
-apiVersion: networking.gloo.solo.io/v2alpha1
-kind: ExternalWorkload
-metadata:
-  name: ${VM_APP}
-  namespace: virtualmachines
-  labels:
-    app: ${VM_APP}
-spec:
-  connectedClusters:
-    ${CLUSTER1}: virtualmachines
-  identitySelector:
-    joinToken:
-      enable: true
-  ports:
-    - name: http-vm
-      number: 9999
-    - name: tcp-db
-      number: 3306
-      protocol: TCP
-EOF
-```
-
-<!--bash
-uuid_regex="^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
-
-# Loop until JOIN_TOKEN matches the UUID format
-while [[ ! "${JOIN_TOKEN}" =~ ${uuid_regex} ]]; do
-    echo "Waiting for JOIN_TOKEN to have the correct format..."
-    export JOIN_TOKEN=$(meshctl external-workload gen-token --kubecontext ${CLUSTER1} --ext-workload virtualmachines/${VM_APP} --trust-domain ${CLUSTER1} --plain 2>&1 | grep INFO | awk '{ print $4}')
-    sleep 1 # Pause for 1 second
-done
--->
-
-Get a Spire token to register the VM:
-
-```bash
-export JOIN_TOKEN=$(meshctl external-workload gen-token \
-  --kubecontext ${CLUSTER1} \
-  --ext-workload virtualmachines/${VM_APP} \
-  --trust-domain ${CLUSTER1} \
-  --plain 2>&1 | grep INFO | awk '{ print $4}')
-```
-
-Get the IP address of the E/W gateway the VM will use to register itself:
-
-```bash
-export EW_GW_ADDR=$(kubectl --context ${CLUSTER1} -n istio-gateways get svc -l istio=eastwestgateway -o jsonpath='{.items[0].status.loadBalancer.ingress[0].*}')
-```
-
-Register the VM:
-
-```bash
-export GLOO_AGENT_URL=https://storage.googleapis.com/gloo-platform/vm/v2.5.0/gloo-workload-agent.deb
-export ISTIO_URL=https://storage.googleapis.com/solo-workshops/istio-binaries/1.19.3/istio-sidecar.deb
-
-docker exec vm1 meshctl ew onboard --install \
-  --attestor token \
-  --join-token ${JOIN_TOKEN} \
-  --cluster ${CLUSTER1} \
-  --gateway-addr ${EW_GW_ADDR} \
-  --gateway istio-gateways/istio-eastwestgateway-1-19 \
-  --trust-domain ${CLUSTER1} \
-  --istio-rev 1-19 \
-  --network vm-network \
-  --gloo ${GLOO_AGENT_URL} \
-  --istio ${ISTIO_URL} \
-  --ext-workload virtualmachines/${VM_APP}
-```
-
-Take a look at the Envoy clusters:
-
-```bash
-docker exec vm1 curl -v localhost:15000/clusters | grep productpage.bookinfo-frontends.svc.cluster.local
-```
-
-It should return several lines similar to the one below:
-
-```,nocopy
-outbound|9080||productpage.bookinfo-frontends.svc.cluster.local::172.18.2.1:15443::cx_active::0
-```
-
-You can see that the IP address corresponds to the IP address of the E/W Gateway.
-
-You should now be able to reach the product page application from the VM:
-
-```bash
-docker exec vm1 curl -I productpage.bookinfo-frontends.svc.cluster.local:9080/productpage
-```
-
-<!--bash
-cat <<'EOF' > ./test.js
-const helpers = require('./tests/chai-exec');
-
-describe("The VM should be able to access the productpage service", () => {
-  const command = 'docker exec vm1 curl -s -o /dev/null -w "%{http_code}" productpage.bookinfo-frontends.svc.cluster.local:9080/productpage';
-  it("Got the expected status code 200", () => helpers.genericCommand({ command: command, responseContains: "200" }));
-})
-
-EOF
-echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/apps/bookinfo/vm-integration-spire/tests/vm-access-productpage.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout 2m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
--->
-
-Now, let's do the opposite and access an application running in the VM from a Pod.
-
-Run the following command to start a web server:
-
-```bash
-docker exec -d vm1 python3 -m http.server 9999
-```
-
-Try to access the app from the `productpage` Pod:
-
-```bash
-kubectl --context ${CLUSTER1} -n bookinfo-frontends exec $(kubectl --context ${CLUSTER1} -n bookinfo-frontends get pods -l app=productpage -o jsonpath='{.items[0].metadata.name}') -- python -c "import requests; r = requests.get('http://${VM_APP}.virtualmachines.ext.cluster.local:9999'); print(r.text)"
-```
-
-<!--bash
-cat <<'EOF' > ./test.js
-const helpers = require('./tests/chai-exec');
-
-describe("The productpage service should be able to access the VM", () => {
-  const podName = helpers.getOutputForCommand({ command: "kubectl -n bookinfo-frontends get pods -l app=productpage -o jsonpath='{.items[0].metadata.name}' --context " + process.env.CLUSTER1 }).replaceAll("'", "");
-  const command = "kubectl -n bookinfo-frontends exec " + podName + " --context " + process.env.CLUSTER1 + " -- python -c \"import requests; r = requests.get('http://" + process.env.VM_APP + ".virtualmachines.ext.cluster.local:9999'); print(r.status_code)\"";
-  it('Got the expected status code 200', () => helpers.genericCommand({ command: command, responseContains: "200" }));
-});
-EOF
-echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/apps/bookinfo/vm-integration-spire/tests/productpage-access-vm.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout 2m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
--->
-
-Finally, let's deploy MariaDB in the VM and configure the ratings service to use it as a backend.
-
-```bash
-docker exec vm1 apt-get update
-docker exec vm1 apt-get install -y mariadb-server
-```
-
-We need to configure the database properly:
-
-```bash
-docker exec vm1 sed -i '/bind-address/c\bind-address  = 0.0.0.0' /etc/mysql/mariadb.conf.d/50-server.cnf
-docker exec vm1 systemctl start mysql
-
-docker exec -i vm1 mysql <<EOF
-# Grant access to root
-GRANT ALL PRIVILEGES ON *.* TO 'root'@'localhost' IDENTIFIED BY 'password' WITH GRANT OPTION;
-# Grant root access to other IPs
-CREATE USER 'root'@'%' IDENTIFIED BY 'password';
-GRANT ALL PRIVILEGES ON *.* TO 'root'@'%' WITH GRANT OPTION;
-FLUSH PRIVILEGES;
-SELECT host, user FROM mysql.user;
-EOF
-
-docker exec vm1 systemctl restart mysql
-docker exec vm1 curl -LO https://raw.githubusercontent.com/istio/istio/master/samples/bookinfo/src/mysql/mysqldb-init.sql
-docker exec vm1 sh -c 'mysql -u root -ppassword < mysqldb-init.sql'
-```
-
-We can check that the `ratings` table is correctly configured:
-
-```bash
-docker exec vm1 mysql -u root -ppassword test -e "select * from ratings;"
-```
-
-Deploy a new version of the ratings service that is using the database and scale down the current version:
-
-```bash
-kubectl --context ${CLUSTER1} -n bookinfo-backends apply -f data/steps/vm-integration-spire/bookinfo-ratings-v2-mysql-vm.yaml
-```
-
-Scale down the original `ratings` deployment:
-
-```bash
-kubectl --context ${CLUSTER1} -n bookinfo-backends scale deploy/ratings-v1 --replicas=0
-```
-
-Wait for the original deployment to terminate:
-
-```bash
-kubectl --context ${CLUSTER1} -n bookinfo-backends wait --for=delete pod -l app=ratings,version=v1
-```
-<!--bash
-cat <<'EOF' > ./test.js
-const helpers = require('./tests/chai-http');
-
-describe("The ratings service should use the database running on the VM", () => {
-  it('Got reviews v2 with ratings in cluster1', () => helpers.checkBody({ host: `https://cluster1-bookinfo.example.com`, path: '/productpage', body: 'color="black"', match: true }));
-})
-
-EOF
-echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/apps/bookinfo/vm-integration-spire/tests/ratings-using-vm.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout 2m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
--->
-
-
-Let's delete the objects we've created:
-
-```bash
-kubectl --context ${CLUSTER1} -n "${VM_NAMESPACE}" delete externalworkload ${VM_APP}
-kubectl --context ${CLUSTER1} delete namespace "${VM_NAMESPACE}"
-kubectl --context ${CLUSTER1} -n bookinfo-backends delete -f https://raw.githubusercontent.com/istio/istio/master/samples/bookinfo/platform/kube/bookinfo-ratings-v2-mysql-vm.yaml
-kubectl --context ${CLUSTER1} -n bookinfo-backends scale deploy/ratings-v1 --replicas=1
-```
-
-Let's apply the original bookinfo Workspace:
-
-```bash
-kubectl apply --context ${MGMT} -f - <<EOF
-apiVersion: admin.gloo.solo.io/v2
-kind: Workspace
-metadata:
-  name: bookinfo
-  namespace: gloo-mesh
-  labels:
-    allow_ingress: "true"
-spec:
-  workloadClusters:
-  - name: cluster1
-    namespaces:
-    - name: bookinfo-frontends
-    - name: bookinfo-backends
-  - name: cluster2
-    namespaces:
-    - name: bookinfo-frontends
-    - name: bookinfo-backends
-EOF
-```
-
-Let's apply the original gateways Workspace:
-
-```bash
-kubectl apply --context ${MGMT} -f - <<EOF
-apiVersion: admin.gloo.solo.io/v2
-kind: Workspace
-metadata:
-  name: gateways
-  namespace: gloo-mesh
-spec:
-  workloadClusters:
-  - name: cluster1
-    namespaces:
-    - name: istio-gateways
-    - name: gloo-mesh-addons
-  - name: cluster2
-    namespaces:
-    - name: istio-gateways
-    - name: gloo-mesh-addons
-EOF
-```
-
-And let's delete the Docker container which represents the VM:
-
-```bash
-docker rm -f vm1
+git -C ${GITOPS_REPO_LOCAL} revert --no-commit HEAD~2..
+git -C ${GITOPS_REPO_LOCAL} commit -m "Revert zero trust configuration"
+git -C ${GITOPS_REPO_LOCAL} push
 ```
 
 
