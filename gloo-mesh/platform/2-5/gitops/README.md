@@ -3011,7 +3011,8 @@ Adding services to the mesh requires that the client-side proxies be associated 
 
 * Automatic sidecar injection. In this mode, the sidecar is automatically injected into the pods based on the namespace annotation.
 * Manual sidecar injection. In this mode, you manually inject the sidecar into the pods.
-1. To enable the automatic sidecar injection, use the command below to add the label `istio.io/rev` the `bookinfo-frontends` and `bookinfo-backends` namespaces:
+1. To enable the automatic sidecar injection, use the command below to add the label `istio.io/rev` to the `bookinfo-frontends` and `bookinfo-backends` namespaces:
+
 We'll define two namespaces with the necessary labels for Istio injection:
 
 ```bash
@@ -3047,17 +3048,9 @@ timeout -v 1m bash -c "until \$(kubectl --context ${CLUSTER1} get ns bookinfo-fr
 sleep 1
 echo -n .
 done"
-timeout -v 1m bash -c "until \$(kubectl --context ${CLUSTER1} get ns bookinfo-backends -o json | jq -r '.metadata.labels[\"istio.io/rev\"] == \"1-19\"' 2>/dev/null); do
-sleep 1
-echo -n .
-done"
 echo
 echo -n Waiting for Argo CD to sync cluster2...
 timeout -v 1m bash -c "until \$(kubectl --context ${CLUSTER2} get ns bookinfo-frontends -o json | jq -r '.metadata.labels[\"istio.io/rev\"] == \"1-19\"' 2>/dev/null); do
-sleep 1
-echo -n .
-done"
-timeout -v 1m bash -c "until \$(kubectl --context ${CLUSTER2} get ns bookinfo-backends -o json | jq -r '.metadata.labels[\"istio.io/rev\"] == \"1-19\"' 2>/dev/null); do
 sleep 1
 echo -n .
 done"
@@ -3115,16 +3108,12 @@ curl http://cluster1-bookinfo.example.com/productpage
 1. Next, you can add the `istio-proxy` sidecar to the other services in the `bookinfo-backends` namespace
 
 ```bash
-kubectl --context ${CLUSTER1} -n bookinfo-frontends rollout status deployment
-kubectl --context ${CLUSTER1} -n bookinfo-backends rollout status deployment
-kubectl --context ${CLUSTER2} -n bookinfo-frontends rollout status deployment
-kubectl --context ${CLUSTER2} -n bookinfo-backends rollout status deployment
+kubectl --context ${CLUSTER1} -n bookinfo-backends rollout restart deployment
+kubectl --context ${CLUSTER2} -n bookinfo-backends rollout restart deployment
 ```
 <!--bash
 echo -n Waiting for restart...
-kubectl --context ${CLUSTER1} -n bookinfo-frontends rollout status deployment
 kubectl --context ${CLUSTER1} -n bookinfo-backends rollout status deployment
-kubectl --context ${CLUSTER2} -n bookinfo-frontends rollout status deployment
 kubectl --context ${CLUSTER2} -n bookinfo-backends rollout status deployment
 -->
 
