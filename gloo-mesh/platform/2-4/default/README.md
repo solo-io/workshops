@@ -1743,7 +1743,8 @@ Adding services to the mesh requires that the client-side proxies be associated 
 
 * Automatic sidecar injection. In this mode, the sidecar is automatically injected into the pods based on the namespace annotation.
 * Manual sidecar injection. In this mode, you manually inject the sidecar into the pods.
-1. To enable the automatic sidecar injection, use the command below to add the label `istio.io/rev` the `bookinfo-frontends` and `bookinfo-backends` namespaces:
+1. To enable the automatic sidecar injection, use the command below to add the label `istio.io/rev` to the `bookinfo-frontends` and `bookinfo-backends` namespaces:
+
 ```bash
 kubectl --context ${CLUSTER1} label namespace bookinfo-frontends istio.io/rev=1-19
 kubectl --context ${CLUSTER1} label namespace bookinfo-backends istio.io/rev=1-19
@@ -1802,16 +1803,12 @@ curl http://cluster1-bookinfo.example.com/productpage
 1. Next, you can add the `istio-proxy` sidecar to the other services in the `bookinfo-backends` namespace
 
 ```bash
-kubectl --context ${CLUSTER1} -n bookinfo-frontends rollout status deployment
-kubectl --context ${CLUSTER1} -n bookinfo-backends rollout status deployment
-kubectl --context ${CLUSTER2} -n bookinfo-frontends rollout status deployment
-kubectl --context ${CLUSTER2} -n bookinfo-backends rollout status deployment
+kubectl --context ${CLUSTER1} -n bookinfo-backends rollout restart deployment
+kubectl --context ${CLUSTER2} -n bookinfo-backends rollout restart deployment
 ```
 <!--bash
 echo -n Waiting for restart...
-kubectl --context ${CLUSTER1} -n bookinfo-frontends rollout status deployment
 kubectl --context ${CLUSTER1} -n bookinfo-backends rollout status deployment
-kubectl --context ${CLUSTER2} -n bookinfo-frontends rollout status deployment
 kubectl --context ${CLUSTER2} -n bookinfo-backends rollout status deployment
 -->
 
