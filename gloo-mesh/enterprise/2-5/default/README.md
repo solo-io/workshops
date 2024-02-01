@@ -27,9 +27,8 @@ source ./scripts/assert.sh
 * [Lab 11 - Create the Root Trust Policy](#lab-11---create-the-root-trust-policy-)
 * [Lab 12 - Leverage Virtual Destinations for east west communications](#lab-12---leverage-virtual-destinations-for-east-west-communications-)
 * [Lab 13 - Zero trust](#lab-13---zero-trust-)
-* [Lab 14 - See how Gloo Platform can help with observability](#lab-14---see-how-gloo-platform-can-help-with-observability-)
-* [Lab 15 - Securing the egress traffic](#lab-15---securing-the-egress-traffic-)
-* [Lab 16 - VM integration with Spire](#lab-16---vm-integration-with-spire-)
+* [Lab 14 - Securing the egress traffic](#lab-14---securing-the-egress-traffic-)
+* [Lab 15 - VM integration with Spire](#lab-15---vm-integration-with-spire-)
 
 
 
@@ -2862,177 +2861,7 @@ kubectl --context ${CLUSTER1} delete accesspolicies -n bookinfo-frontends --all
 
 
 
-## Lab 14 - See how Gloo Platform can help with observability <a name="lab-14---see-how-gloo-platform-can-help-with-observability-"></a>
-[<img src="https://img.youtube.com/vi/UhWsk4YnOy0/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/UhWsk4YnOy0 "Video Link")
-
-# Observability with Gloo Platform
-
-Let's take a look at how Gloo Platform can help with observability!
-
-![Gloo Platform OTel arch](images/steps/gloo-platform-observability/metrics-architecture-otel.svg)
-
-Our telemetry pipeline's main goal is to collect all the metrics, and securely forward them to the management cluster, making all the metrics available for our UI to visualize the service graph.
-
-Since our pipeline is leveraging OpenTelemetry, this pipeline can be customized and extended to cover all possible use-cases, e.g. collecting telemetry from other workloads, or integrating with centralized observability platform/SaaS solutions.
-
-## Gloo Platform Operational Dashboard 
-
-First let's deploy the usual Prometheus stack, and explore our management plane metrics.
-
-```bash
-helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
-helm repo update
-
-helm upgrade --install kube-prometheus-stack \
-prometheus-community/kube-prometheus-stack \
---kube-context ${MGMT} \
---version 55.9.0 \
---namespace monitoring \
---create-namespace \
---values - <<EOF
-grafana:
-  service:
-    type: LoadBalancer
-    port: 3000
-  additionalDataSources:
-  - name: prometheus-GM
-    uid: prometheus-GM
-    type: prometheus
-    url: http://prometheus-server.gloo-mesh:80
-  grafana.ini:
-    auth.anonymous:
-      enabled: true
-  defaultDashboardsEnabled: false
-EOF
-```
-<!--bash
-cat <<'EOF' > ./test.js
-const helpers = require('./tests/chai-exec');
-
-describe("kube-prometheus-stack deployments are ready", () => {
-  it('kube-prometheus-stack-kube-state-metrics pods are ready', () => helpers.checkDeployment({ context: process.env.MGMT, namespace: "monitoring", k8sObj: "kube-prometheus-stack-kube-state-metrics" }));
-  it('kube-prometheus-stack-grafana pods are ready', () => helpers.checkDeployment({ context: process.env.MGMT, namespace: "monitoring", k8sObj: "kube-prometheus-stack-grafana" }));
-  it('kube-prometheus-stack-operator pods are ready', () => helpers.checkDeployment({ context: process.env.MGMT, namespace: "monitoring", k8sObj: "kube-prometheus-stack-operator" }));
-});
-
-describe("kube-prometheus-stack daemonset is ready", () => {
-  it('kube-prometheus-stack-prometheus-node-exporter pods are ready', () => helpers.checkDaemonSet({ context: process.env.MGMT, namespace: "monitoring", k8sObj: "kube-prometheus-stack-prometheus-node-exporter" }));
-});
-EOF
-echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/gloo-platform-observability/tests/grafana-installed.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout 2m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
--->
-Let's install a few dashboards!
-
-Now, you can go the the Grafana tab, log in with the default login credentials, admin/prom-operator, and import the dashboard of Istio control plane.
-
-Add the Operational Dashboard
-=============================
-
-Our Gloo components are all instrumented with Prometheus compatible metrics, providing an easy way to pinpoint a potential degradation.
-
-You can import the following dashboard to see our Operational Dashboard, covering all of our components in the stack.
-
-Here, you have specific rows for each components, such as the management server, the agent, the telemetry collectors, and some additional information regarding resource usage.
-
-```bash
-kubectl --context ${MGMT} -n monitoring create cm operational-dashboard \
---from-file=data/steps/gloo-platform-observability/operational-dashboard.json
-kubectl --context ${MGMT} label -n monitoring cm operational-dashboard grafana_dashboard=1
-```
-
-Out-of-box alerting
-===================
-
-Our Prometheus comes with useful alerts by default, making it easier to get notified if something breaks.
-
-All of the default alerts have corresponding panels on the Operational Dashboard.
-
-You can click the "Bell" icon on the left, and choose "Alert rules", and check "GlooPlatformAlerts" to take a closer look at them. 
-
-Let's trigger one of the alerts!
-
-If you scale down the Gloo Agent in let's say `cluster1`, you should have an alert called `GlooPlatformAgentsAreDisconnected` go into first PENDING, then FIRING, let's check this!
-
-```sh
-kubectl --context $CLUSTER1 scale deployment.apps/gloo-mesh-agent -n gloo-mesh --replicas=0
-```
-
-The alert will fire in 5m, but even before that, it will reach PENDING state, let's wait for this!
-
-Don't forget to scale it up after:
-
-```sh
-kubectl --context $CLUSTER1 scale deployment.apps/gloo-mesh-agent -n gloo-mesh --replicas=1
-```
-
-Collect remote IstioD metrics securely
-======================================
-
-Let's take a look how easy it is to modify the metrics collection in the workload clusters, to collect IstioD metrics, and ship them to the management cluster over TLS.
-
-```bash
-helm upgrade --install gloo-platform gloo-platform \
-  --repo https://storage.googleapis.com/gloo-platform/helm-charts \
-  --namespace gloo-mesh \
-  --kube-context ${CLUSTER1} \
-  --reuse-values \
-  --version 2.5.0 \
-  --values - <<EOF
-telemetryCollectorCustomization:
-  extraProcessors:
-    batch/istiod:
-      send_batch_size: 10000
-      timeout: 10s
-    filter/istiod:
-      metrics:
-        include:
-          match_type: regexp
-          metric_names:
-            - "pilot.*"
-            - "process.*"
-            - "go.*"
-            - "container.*"
-            - "envoy.*"
-            - "galley.*"
-            - "sidecar.*"
-          # - "istio_build.*" re-enable this after this is fixed upstream
-  extraPipelines:
-    metrics/istiod:
-      receivers:
-      - prometheus
-      processors:
-      - memory_limiter
-      - batch/istiod
-      - filter/istiod
-      exporters:
-      - otlp
-EOF
-```
-
-This configuration update will
-  - create a new processor, called `filter/istiod`, that will enable all the IstioD/Pilot related metrics
-  - create a new pipeline, called `metrics/istiod`, that will have the aforementioned processor to include the control plane metrics
-
-Then, we just need to perform a rollout restart for the metrics collector, so the new pods can pick up the config change.
-
-```bash
-kubectl --context $CLUSTER1 rollout restart daemonset/gloo-telemetry-collector-agent -n gloo-mesh
-```
-
-Now, let's import the Istio Control Plane Dashboard, and see the metrics!
-
-```bash
-kubectl --context ${MGMT} -n monitoring create cm istio-control-plane-dashboard \
---from-file=data/steps/gloo-platform-observability/istio-control-plane-dashboard.json
-kubectl --context ${MGMT} label -n monitoring cm istio-control-plane-dashboard grafana_dashboard=1
-```
-
-
-
-## Lab 15 - Securing the egress traffic <a name="lab-15---securing-the-egress-traffic-"></a>
+## Lab 14 - Securing the egress traffic <a name="lab-14---securing-the-egress-traffic-"></a>
 [<img src="https://img.youtube.com/vi/tQermml1Ryo/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/tQermml1Ryo "Video Link")
 
 
@@ -3347,7 +3176,7 @@ kubectl --context ${CLUSTER1} -n istio-gateways delete accesspolicy allow-get-ht
 
 
 
-## Lab 16 - VM integration with Spire <a name="lab-16---vm-integration-with-spire-"></a>
+## Lab 15 - VM integration with Spire <a name="lab-15---vm-integration-with-spire-"></a>
 
 Let's see how we can configure a VM to be part of the Mesh.
 
