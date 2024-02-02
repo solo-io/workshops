@@ -73,7 +73,6 @@ fi
 done
 
 mkdir -p oidc
-
 cat <<'EOF' >./oidc/sa-signer-pkcs8.pub
 -----BEGIN PUBLIC KEY-----
 MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA53YiBcrn7+ZK0Vb4odeA
@@ -85,7 +84,6 @@ zIM9OviX8iEF8xHWUtz4BAMDG8N6+zpLo0pAzaei5hKuLZ9dZOzHBC8VOW82cQMm
 ywIDAQAB
 -----END PUBLIC KEY-----
 EOF
-
 cat <<'EOF' >./oidc/sa-signer.key
 -----BEGIN RSA PRIVATE KEY-----
 MIIEpAIBAAKCAQEA53YiBcrn7+ZK0Vb4odeA1riYdvEb8To4H6/HtF+OKzuCIXFQ
@@ -115,7 +113,6 @@ Yu+tZtHXtKYf3B99GwPrFzw/7yfDwae5YeWmi2/pFTH96wv3brJBqkAWY8G5Rsmd
 qF50p34vIFqUBniNRwSArx8t2dq/CuAMgLAtSjh70Q6ZAnCF85PD8Q==
 -----END RSA PRIVATE KEY-----
 EOF
-
 cat << EOF > kind${number}.yaml
 kind: Cluster
 apiVersion: kind.x-k8s.io/v1alpha4
@@ -177,14 +174,33 @@ networkkind=$(echo ${ipkind} | awk -F. '{ print $1"."$2 }')
 
 kubectl config set-cluster kind-kind${number} --server=https://${myip}:70${twodigits} --insecure-skip-tls-verify=true
 
+helm repo add cilium https://helm.cilium.io/
+
+helm --kube-context kind-kind${number} install cilium cilium/cilium --version 1.12.0 \
+   --namespace kube-system \
+   --set prometheus.enabled=true \
+   --set operator.prometheus.enabled=true \
+   --set hubble.enabled=true \
+   --set hubble.metrics.enabled="{dns:destinationContext=pod|ip;sourceContext=pod|ip,drop:destinationContext=pod|ip;sourceContext=pod|ip,tcp:destinationContext=pod|ip;sourceContext=pod|ip,flow:destinationContext=pod|ip;sourceContext=pod|ip,port-distribution:destinationContext=pod|ip;sourceContext=pod|ip}" \
+   --set hubble.relay.enabled=true \
+   --set hubble.ui.enabled=true \
+   --set kubeProxyReplacement=partial \
+   --set hostServices.enabled=false \
+   --set hostServices.protocols="tcp" \
+   --set externalIPs.enabled=true \
+   --set nodePort.enabled=true \
+   --set hostPort.enabled=true \
+   --set bpf.masquerade=false \
+   --set image.pullPolicy=IfNotPresent \
+   --set ipam.mode=kubernetes
+kubectl --context=kind-kind${number} -n kube-system rollout status ds cilium || true
+
 docker network connect "kind" "${reg_name}" || true
 docker network connect "kind" docker || true
 docker network connect "kind" us-docker || true
 docker network connect "kind" us-central1-docker || true
 docker network connect "kind" quay || true
 docker network connect "kind" gcr || true
-
-kubectl --context kind-kind${number} apply -f https://raw.githubusercontent.com/projectcalico/calico/v3.27.0/manifests/calico.yaml
 
 # Preload MetalLB images
 docker pull quay.io/metallb/controller:v0.13.12
@@ -218,6 +234,7 @@ kubectl --context=kind-kind${number} apply -f metallb${number}.yaml && break
 sleep 2
 done
 
+# connect the registry to the cluster network if not already connected
 printf "Renaming context kind-kind${number} to ${name}\n"
 for i in {1..100}; do
   (kubectl config get-contexts -oname | grep ${name}) && break
@@ -226,6 +243,9 @@ for i in {1..100}; do
   sleep 2
   [ $i -lt 100 ] || exit 1
 done
+
+# Document the local registry
+# https://github.com/kubernetes/enhancements/tree/master/keps/sig-cluster-lifecycle/generic/1755-communicating-a-local-registry
 cat <<EOF | kubectl --context=${name} apply -f -
 apiVersion: v1
 kind: ConfigMap
@@ -237,4 +257,3 @@ data:
     host: "localhost:${reg_port}"
     help: "https://kind.sigs.k8s.io/docs/user/local-registry/"
 EOF
-
