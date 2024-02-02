@@ -15,21 +15,22 @@ source ./scripts/assert.sh
 ## Table of Contents
 * [Introduction](#introduction)
 * [Lab 1 - Deploy a KinD cluster](#lab-1---deploy-a-kind-cluster-)
-* [Lab 2 - Deploy and register Gloo Mesh](#lab-2---deploy-and-register-gloo-mesh-)
-* [Lab 3 - Deploy the Bookinfo demo app](#lab-3---deploy-the-bookinfo-demo-app-)
-* [Lab 4 - Deploy the httpbin demo app](#lab-4---deploy-the-httpbin-demo-app-)
-* [Lab 5 - Deploy Gloo Mesh Addons](#lab-5---deploy-gloo-mesh-addons-)
-* [Lab 6 - Create the gateways workspace](#lab-6---create-the-gateways-workspace-)
-* [Lab 7 - Create the bookinfo workspace](#lab-7---create-the-bookinfo-workspace-)
-* [Lab 8 - Expose the productpage through a gateway](#lab-8---expose-the-productpage-through-a-gateway-)
-* [Lab 9 - Create the httpbin workspace](#lab-9---create-the-httpbin-workspace-)
-* [Lab 10 - Expose an external service](#lab-10---expose-an-external-service-)
-* [Lab 11 - Deploy Keycloak](#lab-11---deploy-keycloak-)
-* [Lab 12 - Securing the access with OAuth](#lab-12---securing-the-access-with-oauth-)
-* [Lab 13 - Use the transformation filter to manipulate headers](#lab-13---use-the-transformation-filter-to-manipulate-headers-)
-* [Lab 14 - Use the DLP policy to mask sensitive data](#lab-14---use-the-dlp-policy-to-mask-sensitive-data-)
-* [Lab 15 - Apply rate limiting to the Gateway](#lab-15---apply-rate-limiting-to-the-gateway-)
-* [Lab 16 - Use the Web Application Firewall filter](#lab-16---use-the-web-application-firewall-filter-)
+* [Lab 2 - Prepare airgap environment](#lab-2---prepare-airgap-environment-)
+* [Lab 3 - Deploy and register Gloo Mesh](#lab-3---deploy-and-register-gloo-mesh-)
+* [Lab 4 - Deploy the Bookinfo demo app](#lab-4---deploy-the-bookinfo-demo-app-)
+* [Lab 5 - Deploy the httpbin demo app](#lab-5---deploy-the-httpbin-demo-app-)
+* [Lab 6 - Deploy Gloo Mesh Addons](#lab-6---deploy-gloo-mesh-addons-)
+* [Lab 7 - Create the gateways workspace](#lab-7---create-the-gateways-workspace-)
+* [Lab 8 - Create the bookinfo workspace](#lab-8---create-the-bookinfo-workspace-)
+* [Lab 9 - Expose the productpage through a gateway](#lab-9---expose-the-productpage-through-a-gateway-)
+* [Lab 10 - Create the httpbin workspace](#lab-10---create-the-httpbin-workspace-)
+* [Lab 11 - Expose an external service](#lab-11---expose-an-external-service-)
+* [Lab 12 - Deploy Keycloak](#lab-12---deploy-keycloak-)
+* [Lab 13 - Securing the access with OAuth](#lab-13---securing-the-access-with-oauth-)
+* [Lab 14 - Use the transformation filter to manipulate headers](#lab-14---use-the-transformation-filter-to-manipulate-headers-)
+* [Lab 15 - Use the DLP policy to mask sensitive data](#lab-15---use-the-dlp-policy-to-mask-sensitive-data-)
+* [Lab 16 - Apply rate limiting to the Gateway](#lab-16---apply-rate-limiting-to-the-gateway-)
+* [Lab 17 - Use the Web Application Firewall filter](#lab-17---use-the-web-application-firewall-filter-)
 
 
 
@@ -133,7 +134,68 @@ timeout 2m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} |
 
 
 
-## Lab 2 - Deploy and register Gloo Mesh <a name="lab-2---deploy-and-register-gloo-mesh-"></a>
+## Lab 2 - Prepare airgap environment <a name="lab-2---prepare-airgap-environment-"></a>
+
+Set the registry variable:
+```bash
+export registry=localhost:5000
+```
+
+Pull and push locally the Docker images needed:
+
+```bash
+cat <<'EOF' > images.txt
+docker.io/curlimages/curl
+docker.io/kennethreitz/httpbin
+docker.io/nginx:1.25.3
+docker.io/openpolicyagent/opa:0.57.1-debug
+docker.io/redis:7.0.14-alpine
+gcr.io/gloo-mesh/ext-auth-service:0.55.3
+gcr.io/gloo-mesh/gloo-mesh-agent:2.5.0
+gcr.io/gloo-mesh/gloo-mesh-apiserver:2.5.0
+gcr.io/gloo-mesh/gloo-mesh-envoy:2.5.0
+gcr.io/gloo-mesh/gloo-mesh-mgmt-server:2.5.0
+gcr.io/gloo-mesh/gloo-mesh-ui:2.5.0
+gcr.io/gloo-mesh/gloo-otel-collector:2.5.0
+gcr.io/gloo-mesh/rate-limiter:0.11.7
+jimmidyson/configmap-reload:v0.8.0
+quay.io/keycloak/keycloak:22.0.5
+quay.io/prometheus/prometheus:v2.41.0
+us-docker.pkg.dev/gloo-mesh/istio-workshops/operator:1.19.3-solo
+us-docker.pkg.dev/gloo-mesh/istio-workshops/pilot:1.19.3-solo
+us-docker.pkg.dev/gloo-mesh/istio-workshops/proxyv2:1.19.3-solo
+EOF
+
+for url in https://raw.githubusercontent.com/istio/istio/master/samples/bookinfo/platform/kube/bookinfo.yaml https://raw.githubusercontent.com/istio/istio/master/samples/bookinfo/networking/bookinfo-gateway.yaml
+do
+  for image in $(curl -sfL ${url}|grep image:|awk '{print $2}')
+  do
+    echo $image >> images.txt
+  done
+done
+
+cat images.txt | while read image; do
+  nohup sh -c "echo $image | xargs -P10 -n1 docker pull" </dev/null >nohup.out 2>nohup.err &
+done
+
+cat images.txt | while read image; do
+  src=$(echo $image | sed 's/^docker\.io\///g' | sed 's/^library\///g')
+  dst=$(echo $image | awk -F/ '{ if(NF>3){ print $3"/"$4}else{if(NF>2){ print $2"/"$3}else{if($1=="docker.io"){print $2}else{print $1"/"$2}}}}' | sed 's/^library\///g')
+  docker pull $image
+
+  id=$(docker images $src  --format "{{.ID}}") 
+
+  docker tag $id ${registry}/$dst
+  docker push ${registry}/$dst
+  dst_dev=$(echo ${dst} | sed 's/gloo-platform-dev/gloo-mesh/')
+  docker tag $id ${registry}/$dst_dev
+  docker push ${registry}/$dst_dev
+done
+```
+
+
+
+## Lab 3 - Deploy and register Gloo Mesh <a name="lab-3---deploy-and-register-gloo-mesh-"></a>
 [<img src="https://img.youtube.com/vi/djfFiepK4GY/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/djfFiepK4GY "Video Link")
 
 
@@ -202,25 +264,49 @@ glooMgmtServer:
   ports:
     healthcheck: 8091
   registerCluster: true
+  image:
+    registry: ${registry}/gloo-mesh
 prometheus:
   enabled: true
+  server:
+    image:
+      repository: ${registry}/prometheus/prometheus
+  configmapReload:
+    prometheus:
+      image:
+        repository: ${registry}/jimmidyson/configmap-reload
 redis:
   deployment:
     enabled: true
+    image:
+      registry: ${registry}
 telemetryGateway:
   enabled: true
+  image:
+    repository: ${registry}/gloo-mesh/gloo-otel-collector
   service:
     type: LoadBalancer
+  image:
+    repository: ${registry}/gloo-mesh/gloo-otel-collector
 glooUi:
   enabled: true
   serviceType: LoadBalancer
+  image:
+    registry: ${registry}/gloo-mesh
+  sidecars:
+    console:
+      image:
+        registry: ${registry}/gloo-mesh
+    envoy:
+      image:
+        registry: ${registry}/gloo-mesh
 istioInstallations:
   enabled: true
   controlPlane:
     enabled: true
     installations:
       - istioOperatorSpec:
-          hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
+          hub: ${registry}/istio-workshops
           tag: 1.19.3-solo
         revision: 1-19
   northSouthGateways:
@@ -232,7 +318,7 @@ istioInstallations:
             activeGateway: false
           gatewayRevision: 1-19
           istioOperatorSpec:
-            hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
+            hub: ${registry}/istio-workshops
             tag: 1.19.3-solo
             profile: empty
             components:
@@ -247,12 +333,18 @@ glooAgent:
   relay:
     serverAddress: gloo-mesh-mgmt-server:9900
     authority: gloo-mesh-mgmt-server.gloo-mesh
+  image:
+    registry: ${registry}/gloo-mesh
 telemetryCollector:
+  image:
+    repository: ${registry}/gloo-mesh/gloo-otel-collector
   enabled: true
   config:
     exporters:
       otlp:
         endpoint: gloo-telemetry-gateway:4317
+  image:
+    repository: ${registry}/gloo-mesh/gloo-otel-collector
 EOF
 
 kubectl --context ${MGMT} -n gloo-mesh rollout status deploy/gloo-mesh-mgmt-server
@@ -282,7 +374,7 @@ const helpers = require('./tests/chai-exec');
 describe("Cluster registration", () => {
   it("cluster1 is registered", () => {
     podName = helpers.getOutputForCommand({ command: "kubectl -n gloo-mesh get pods -l app=gloo-mesh-mgmt-server -o jsonpath='{.items[0].metadata.name}' --context " + process.env.MGMT }).replaceAll("'", "");
-    command = helpers.getOutputForCommand({ command: "kubectl --context " + process.env.MGMT + " -n gloo-mesh debug -q -i " + podName + " --image=curlimages/curl -- curl -s http://localhost:9091/metrics" }).replaceAll("'", "");
+    command = helpers.getOutputForCommand({ command: "kubectl --context " + process.env.MGMT + " -n gloo-mesh debug -q -i " + podName + " --image=" + process.env.registry + "/curlimages/curl -- curl -s http://localhost:9091/metrics" }).replaceAll("'", "");
     expect(command).to.contain("cluster1");
   });
 });
@@ -295,12 +387,22 @@ timeout 2m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} |
 
 
 
-## Lab 3 - Deploy the Bookinfo demo app <a name="lab-3---deploy-the-bookinfo-demo-app-"></a>
+## Lab 4 - Deploy the Bookinfo demo app <a name="lab-4---deploy-the-bookinfo-demo-app-"></a>
 [<img src="https://img.youtube.com/vi/nzYcrjalY5A/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/nzYcrjalY5A "Video Link")
 
 We're going to deploy the bookinfo application to demonstrate several features of Gloo Mesh.
 
 You can find more information about this application [here](https://istio.io/latest/docs/examples/bookinfo/).
+Update the registry in our bookinfo manifests:
+
+```bash
+sed -i'' -e "s/image: docker.io/image: ${registry}/g" \
+  data/steps/deploy-bookinfo/productpage-v1.yaml \
+  data/steps/deploy-bookinfo/details-v1.yaml \
+  data/steps/deploy-bookinfo/ratings-v1.yaml \
+  data/steps/deploy-bookinfo/reviews-v1-v2.yaml \
+  data/steps/deploy-bookinfo/reviews-v3.yaml
+```
 
 Run the following commands to deploy the bookinfo application on `cluster1`:
 
@@ -367,7 +469,7 @@ timeout 2m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} |
 
 
 
-## Lab 4 - Deploy the httpbin demo app <a name="lab-4---deploy-the-httpbin-demo-app-"></a>
+## Lab 5 - Deploy the httpbin demo app <a name="lab-5---deploy-the-httpbin-demo-app-"></a>
 [<img src="https://img.youtube.com/vi/w1xB-o_gHs0/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/w1xB-o_gHs0 "Video Link")
 
 We're going to deploy the httpbin application to demonstrate several features of Gloo Mesh.
@@ -420,7 +522,7 @@ spec:
     spec:
       serviceAccountName: not-in-mesh
       containers:
-      - image: docker.io/kennethreitz/httpbin
+      - image: ${registry}/kennethreitz/httpbin
         imagePullPolicy: IfNotPresent
         name: not-in-mesh
         ports:
@@ -472,7 +574,7 @@ timeout 2m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} |
 
 
 
-## Lab 5 - Deploy Gloo Mesh Addons <a name="lab-5---deploy-gloo-mesh-addons-"></a>
+## Lab 6 - Deploy Gloo Mesh Addons <a name="lab-6---deploy-gloo-mesh-addons-"></a>
 [<img src="https://img.youtube.com/vi/_rorug_2bk8/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/_rorug_2bk8 "Video Link")
 
 To use the Gloo Mesh Gateway advanced features (external authentication, rate limiting, ...), you need to install the Gloo Mesh addons.
@@ -498,6 +600,8 @@ helm upgrade --install gloo-platform gloo-platform \
   -f -<<EOF
 common:
   cluster: cluster1
+  image:
+    registry: ${registry}/gloo-mesh
 glooAgent:
   enabled: false
 extAuthService:
@@ -510,8 +614,16 @@ extAuthService:
         connection: 
           host: redis.gloo-mesh-addons:6379
       secretKey: ThisIsSecret
+    image:
+      registry: ${registry}/gloo-mesh
 rateLimiter:
   enabled: true
+  rateLimiter:
+    image:
+      registry: ${registry}/gloo-mesh
+  redis:
+    image:
+      registry: ${registry}
 EOF
 ```
 
@@ -601,7 +713,7 @@ This is what the environment looks like now:
 
 
 
-## Lab 6 - Create the gateways workspace <a name="lab-6---create-the-gateways-workspace-"></a>
+## Lab 7 - Create the gateways workspace <a name="lab-7---create-the-gateways-workspace-"></a>
 [<img src="https://img.youtube.com/vi/QeVBH0eswWw/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/QeVBH0eswWw "Video Link")
 
 We're going to create a workspace for the team in charge of the Gateways.
@@ -660,7 +772,7 @@ The Gateway team has decided to import the following from the workspaces that ha
 
 
 
-## Lab 7 - Create the bookinfo workspace <a name="lab-7---create-the-bookinfo-workspace-"></a>
+## Lab 8 - Create the bookinfo workspace <a name="lab-8---create-the-bookinfo-workspace-"></a>
 
 We're going to create a workspace for the team in charge of the Bookinfo application.
 
@@ -731,7 +843,7 @@ This is how the environment looks like with the workspaces:
 
 
 
-## Lab 8 - Expose the productpage through a gateway <a name="lab-8---expose-the-productpage-through-a-gateway-"></a>
+## Lab 9 - Expose the productpage through a gateway <a name="lab-9---expose-the-productpage-through-a-gateway-"></a>
 [<img src="https://img.youtube.com/vi/emyIu99AOOA/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/emyIu99AOOA "Video Link")
 
 In this step, we're going to expose the `productpage` service through the Ingress Gateway using Gloo Mesh.
@@ -981,7 +1093,7 @@ const helpers = require('./tests/chai-exec');
 describe("Otel metrics", () => {
   it("cluster1 is sending metrics to telemetryGateway", () => {
     podName = helpers.getOutputForCommand({ command: "kubectl -n gloo-mesh get pods -l app=prometheus -o jsonpath='{.items[0].metadata.name}' --context " + process.env.MGMT }).replaceAll("'", "");
-    command = helpers.getOutputForCommand({ command: "kubectl --context " + process.env.MGMT + " -n gloo-mesh debug -q -i " + podName + " --image=curlimages/curl -- curl -s http://localhost:9090/api/v1/query?query=istio_requests_total" }).replaceAll("'", "");
+    command = helpers.getOutputForCommand({ command: "kubectl --context " + process.env.MGMT + " -n gloo-mesh debug -q -i " + podName + " --image=" + process.env.registry + "/curlimages/curl -- curl -s http://localhost:9090/api/v1/query?query=istio_requests_total" }).replaceAll("'", "");
     expect(command).to.contain("cluster\":\"cluster1");
   });
 });
@@ -1001,7 +1113,7 @@ This diagram shows the flow of the request (through the Istio Ingress Gateway):
 
 
 
-## Lab 9 - Create the httpbin workspace <a name="lab-9---create-the-httpbin-workspace-"></a>
+## Lab 10 - Create the httpbin workspace <a name="lab-10---create-the-httpbin-workspace-"></a>
 
 We're going to create a workspace for the team in charge of the httpbin application.
 
@@ -1060,7 +1172,7 @@ The Httpbin team has decided to export the following to the `gateway` workspace 
 
 
 
-## Lab 10 - Expose an external service <a name="lab-10---expose-an-external-service-"></a>
+## Lab 11 - Expose an external service <a name="lab-11---expose-an-external-service-"></a>
 [<img src="https://img.youtube.com/vi/jEqDoITpRss/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/jEqDoITpRss "Video Link")
 
 In this step, we're going to expose an external service through a Gateway using Gloo Mesh and show how we can then migrate this service to the Mesh.
@@ -1268,7 +1380,7 @@ kubectl --context ${CLUSTER1} -n httpbin delete externalservices.networking.gloo
 
 
 
-## Lab 11 - Deploy Keycloak <a name="lab-11---deploy-keycloak-"></a>
+## Lab 12 - Deploy Keycloak <a name="lab-12---deploy-keycloak-"></a>
 
 In many use cases, you need to restrict the access to your applications to authenticated users.
 
@@ -1319,7 +1431,7 @@ spec:
     spec:
       containers:
       - name: keycloak
-        image: quay.io/keycloak/keycloak:22.0.5
+        image: ${registry}/keycloak/keycloak:22.0.5
         args: ["start-dev"]
         env:
         - name: KEYCLOAK_ADMIN
@@ -1509,7 +1621,7 @@ KEYCLOAK_TOKEN=$(curl -m 2 -d "client_id=admin-cli" -d "username=admin" -d "pass
 
 
 
-## Lab 12 - Securing the access with OAuth <a name="lab-12---securing-the-access-with-oauth-"></a>
+## Lab 13 - Securing the access with OAuth <a name="lab-13---securing-the-access-with-oauth-"></a>
 [<img src="https://img.youtube.com/vi/fKZjr0AYxYs/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/fKZjr0AYxYs "Video Link")
 
 In this step, we're going to secure the access to the `httpbin` service using OAuth.
@@ -1780,7 +1892,7 @@ This diagram shows the flow of the request (with the Istio ingress gateway lever
 
 
 
-## Lab 13 - Use the transformation filter to manipulate headers <a name="lab-13---use-the-transformation-filter-to-manipulate-headers-"></a>
+## Lab 14 - Use the transformation filter to manipulate headers <a name="lab-14---use-the-transformation-filter-to-manipulate-headers-"></a>
 
 
 In this step, we're going to use a regular expression to extract a part of an existing header and to create a new one:
@@ -1838,7 +1950,7 @@ timeout 2m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} |
 
 
 
-## Lab 14 - Use the DLP policy to mask sensitive data <a name="lab-14---use-the-dlp-policy-to-mask-sensitive-data-"></a>
+## Lab 15 - Use the DLP policy to mask sensitive data <a name="lab-15---use-the-dlp-policy-to-mask-sensitive-data-"></a>
 [<img src="https://img.youtube.com/vi/Uark0F4g47s/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/Uark0F4g47s "Video Link")
 
 
@@ -1896,7 +2008,7 @@ timeout 2m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} |
 
 
 
-## Lab 15 - Apply rate limiting to the Gateway <a name="lab-15---apply-rate-limiting-to-the-gateway-"></a>
+## Lab 16 - Apply rate limiting to the Gateway <a name="lab-16---apply-rate-limiting-to-the-gateway-"></a>
 
 
 In this step, we're going to apply rate limiting to the Gateway to only allow 3 requests per minute for the users of the `solo.io` organization.
@@ -2060,7 +2172,7 @@ kubectl --context ${CLUSTER1} -n httpbin delete ratelimitserverconfig httpbin
 
 
 
-## Lab 16 - Use the Web Application Firewall filter <a name="lab-16---use-the-web-application-firewall-filter-"></a>
+## Lab 17 - Use the Web Application Firewall filter <a name="lab-17---use-the-web-application-firewall-filter-"></a>
 [<img src="https://img.youtube.com/vi/9q2TxtBDqrA/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/9q2TxtBDqrA "Video Link")
 
 A web application firewall (WAF) protects web applications by monitoring, filtering, and blocking potentially harmful traffic and attacks that can overtake or exploit them.
