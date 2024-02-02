@@ -33,12 +33,11 @@ source ./scripts/assert.sh
 * [Lab 17 - Use the Web Application Firewall filter](#lab-17---use-the-web-application-firewall-filter-)
 * [Lab 18 - Adding services to the mesh](#lab-18---adding-services-to-the-mesh-)
 * [Lab 19 - Traffic policies](#lab-19---traffic-policies-)
-* [Lab 20 - Deploy the httpbin demo app](#lab-20---deploy-the-httpbin-demo-app-)
-* [Lab 21 - Create the Root Trust Policy](#lab-21---create-the-root-trust-policy-)
-* [Lab 22 - Leverage Virtual Destinations for east west communications](#lab-22---leverage-virtual-destinations-for-east-west-communications-)
-* [Lab 23 - Zero trust](#lab-23---zero-trust-)
-* [Lab 24 - Securing the egress traffic](#lab-24---securing-the-egress-traffic-)
-* [Lab 25 - VM integration with Spire](#lab-25---vm-integration-with-spire-)
+* [Lab 20 - Create the Root Trust Policy](#lab-20---create-the-root-trust-policy-)
+* [Lab 21 - Leverage Virtual Destinations for east west communications](#lab-21---leverage-virtual-destinations-for-east-west-communications-)
+* [Lab 22 - Zero trust](#lab-22---zero-trust-)
+* [Lab 23 - Securing the egress traffic](#lab-23---securing-the-egress-traffic-)
+* [Lab 24 - VM integration with Spire](#lab-24---vm-integration-with-spire-)
 
 
 
@@ -1227,11 +1226,65 @@ spec:
 EOF
 ```
 
+Then, we deploy a second version, which will be called `in-mesh` and will have the sidecar injected (because of the label `istio.io/rev` in the Pod template).
+
+```bash
+kubectl apply --context ${CLUSTER1} -f - <<EOF
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: in-mesh
+  namespace: httpbin
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: in-mesh
+  namespace: httpbin
+  labels:
+    app: in-mesh
+    service: in-mesh
+spec:
+  ports:
+  - name: http
+    port: 8000
+    targetPort: 80
+  selector:
+    app: in-mesh
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: in-mesh
+  namespace: httpbin
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: in-mesh
+      version: v1
+  template:
+    metadata:
+      labels:
+        app: in-mesh
+        version: v1
+        istio.io/rev: 1-19
+    spec:
+      serviceAccountName: in-mesh
+      containers:
+      - image: docker.io/kennethreitz/httpbin
+        imagePullPolicy: IfNotPresent
+        name: in-mesh
+        ports:
+        - containerPort: 80
+EOF
+```
+
 
 <!--bash
 echo -n Waiting for httpbin pods to be ready...
 timeout -v 5m bash -c "
-until [[ \$(kubectl --context ${CLUSTER1} -n httpbin get deploy not-in-mesh -o json | jq '.status.readyReplicas') -eq 1 ]] 2>/dev/null
+until [[ \$(kubectl --context ${CLUSTER1} -n httpbin get deploy -o json | jq '[.items[].status.readyReplicas] | add') -eq 2 ]] 2>/dev/null
 do
   sleep 1
   echo -n .
@@ -1247,6 +1300,7 @@ kubectl --context ${CLUSTER1} -n httpbin get pods
 
 ```,nocopy
 NAME                           READY   STATUS    RESTARTS   AGE
+in-mesh-5d9d9549b5-qrdgd       2/2     Running   0          11s
 not-in-mesh-5c64bb49cd-m9kwm   1/1     Running   0          11s
 ```
 <!--bash
@@ -1256,7 +1310,7 @@ const helpers = require('./tests/chai-exec');
 describe("httpbin app", () => {
   let cluster = process.env.CLUSTER1
   
-  let deployments = ["not-in-mesh"];
+  let deployments = ["not-in-mesh", "in-mesh"];
   
   deployments.forEach(deploy => {
     it(deploy + ' pods are ready in ' + cluster, () => helpers.checkDeployment({ context: cluster, namespace: "httpbin", k8sObj: deploy }));
@@ -3093,7 +3147,7 @@ kubectl --context ${CLUSTER1} -n httpbin delete wafpolicies.security.policy.gloo
 
 In this lab, you will incrementally add services to the mesh. The mesh is actually integrated with the services themselves which makes it mostly transparent to the service implementation.
 
-Before we start, take a look at the UI Graph. You can see the gateway and
+Before we start, take a look at the UI Graph. You can see the gateway and the services that have interacted with it. The services are not part of the mesh yet, so you can't see the traffic between them.
 ![UI-no-Mesh](images/steps/adding-services-to-mesh/ui-no-mesh.png)
 
 ## Sidecar injection
@@ -3102,22 +3156,20 @@ Adding services to the mesh requires that the client-side proxies be associated 
 
 * Automatic sidecar injection. In this mode, the sidecar is automatically injected into the pods based on the namespace annotation.
 * Manual sidecar injection. In this mode, you manually inject the sidecar into the pods.
-1. To enable the automatic sidecar injection, use the command below to add the label `istio.io/rev` to the `bookinfo-frontends` and `bookinfo-backends` namespaces:
+1. To enable the automatic sidecar injection, use the command below to add the label `istio.io/rev` to the `bookinfo-frontends` namespace:
 
 ```bash
 kubectl --context ${CLUSTER1} label namespace bookinfo-frontends istio.io/rev=1-19
-kubectl --context ${CLUSTER1} label namespace bookinfo-backends istio.io/rev=1-19
 kubectl --context ${CLUSTER2} label namespace bookinfo-frontends istio.io/rev=1-19
-kubectl --context ${CLUSTER2} label namespace bookinfo-backends istio.io/rev=1-19
 ```
 
-2. Validate the namespaces are annotated with the `istio.io/rev` label:
+2. Validate the namespace is annotated with the `istio.io/rev` label:
 
 ```shell
 kubectl --context ${CLUSTER1} get namespace -L istio.io/rev
 kubectl --context ${CLUSTER2} get namespace -L istio.io/rev
 ```
-Now that you have both namespaces with automatic sidecar injection enabled, you are ready to start adding services to the mesh. Since you added the istio.io/rev label to the namespace, the Istio mutating admission controller automatically injects the Envoy Proxy sidecar during the initial deployment or restart of the pod.
+Now that you have a namespace with automatic sidecar injection enabled, you are ready to start adding services to the mesh. Since you added the istio.io/rev label to the namespace, the Istio mutating admission controller automatically injects the Envoy Proxy sidecar during the initial deployment or restart of the pod.
 
 ## Adding services to the mesh
 1. You can add a sidecar to each of the services in the `bookinfo-frontends` namespace, starting with the `productpage-v1` service:
@@ -3156,6 +3208,15 @@ kubectl --context ${CLUSTER1} logs deploy/productpage-v1 -c productpage -n booki
 [http://cluster1-bookinfo.example.com/productpage](http://cluster1-bookinfo.example.com/productpage)
 
 ## Add more services to the Istio service mesh
+
+Now that you have added the `productpage` service to the mesh, you can add the other services to the mesh as well. The `details`, `reviews`, and `ratings` services are part of the `bookinfo-backends` namespace.
+
+1. First, you need to annotate the `bookinfo-backends` namespace to enable automatic sidecar injection:
+
+```bash
+kubectl --context ${CLUSTER1} label namespace bookinfo-backends istio.io/rev=1-19
+kubectl --context ${CLUSTER2} label namespace bookinfo-backends istio.io/rev=1-19
+```
 
 1. Next, you can add the `istio-proxy` sidecar to the other services in the `bookinfo-backends` namespace
 
@@ -3399,167 +3460,7 @@ kubectl --context ${CLUSTER1} -n bookinfo-frontends delete routetable reviews
 
 
 
-## Lab 20 - Deploy the httpbin demo app <a name="lab-20---deploy-the-httpbin-demo-app-"></a>
-[<img src="https://img.youtube.com/vi/w1xB-o_gHs0/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/w1xB-o_gHs0 "Video Link")
-
-We're going to deploy the httpbin application to demonstrate several features of Gloo Mesh.
-
-You can find more information about this application [here](http://httpbin.org/).
-
-Run the following commands to deploy the httpbin app on `cluster1`. The deployment will be called `not-in-mesh` and won't have the sidecar injected (because we don't label the namespace).
-
-```bash
-kubectl --context ${CLUSTER1} create ns httpbin
-kubectl apply --context ${CLUSTER1} -f - <<EOF
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: not-in-mesh
-  namespace: httpbin
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: not-in-mesh
-  namespace: httpbin
-  labels:
-    app: not-in-mesh
-    service: not-in-mesh
-spec:
-  ports:
-  - name: http
-    port: 8000
-    targetPort: 80
-  selector:
-    app: not-in-mesh
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: not-in-mesh
-  namespace: httpbin
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: not-in-mesh
-      version: v1
-  template:
-    metadata:
-      labels:
-        app: not-in-mesh
-        version: v1
-    spec:
-      serviceAccountName: not-in-mesh
-      containers:
-      - image: docker.io/kennethreitz/httpbin
-        imagePullPolicy: IfNotPresent
-        name: not-in-mesh
-        ports:
-        - containerPort: 80
-EOF
-```
-
-Then, we deploy a second version, which will be called `in-mesh` and will have the sidecar injected (because of the label `istio.io/rev` in the Pod template).
-
-```bash
-kubectl apply --context ${CLUSTER1} -f - <<EOF
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: in-mesh
-  namespace: httpbin
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: in-mesh
-  namespace: httpbin
-  labels:
-    app: in-mesh
-    service: in-mesh
-spec:
-  ports:
-  - name: http
-    port: 8000
-    targetPort: 80
-  selector:
-    app: in-mesh
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: in-mesh
-  namespace: httpbin
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: in-mesh
-      version: v1
-  template:
-    metadata:
-      labels:
-        app: in-mesh
-        version: v1
-        istio.io/rev: 1-19
-    spec:
-      serviceAccountName: in-mesh
-      containers:
-      - image: docker.io/kennethreitz/httpbin
-        imagePullPolicy: IfNotPresent
-        name: in-mesh
-        ports:
-        - containerPort: 80
-EOF
-```
-
-
-<!--bash
-echo -n Waiting for httpbin pods to be ready...
-timeout -v 5m bash -c "
-until [[ \$(kubectl --context ${CLUSTER1} -n httpbin get deploy -o json | jq '[.items[].status.readyReplicas] | add') -eq 2 ]] 2>/dev/null
-do
-  sleep 1
-  echo -n .
-done"
-echo
--->
-
-You can follow the progress using the following command:
-
-```bash
-kubectl --context ${CLUSTER1} -n httpbin get pods
-```
-
-```,nocopy
-NAME                           READY   STATUS    RESTARTS   AGE
-in-mesh-5d9d9549b5-qrdgd       2/2     Running   0          11s
-not-in-mesh-5c64bb49cd-m9kwm   1/1     Running   0          11s
-```
-<!--bash
-cat <<'EOF' > ./test.js
-const helpers = require('./tests/chai-exec');
-
-describe("httpbin app", () => {
-  let cluster = process.env.CLUSTER1
-  
-  let deployments = ["not-in-mesh", "in-mesh"];
-  
-  deployments.forEach(deploy => {
-    it(deploy + ' pods are ready in ' + cluster, () => helpers.checkDeployment({ context: cluster, namespace: "httpbin", k8sObj: deploy }));
-  });
-});
-EOF
-echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/apps/httpbin/deploy-httpbin/tests/check-httpbin.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout 2m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
--->
-
-
-
-## Lab 21 - Create the Root Trust Policy <a name="lab-21---create-the-root-trust-policy-"></a>
+## Lab 20 - Create the Root Trust Policy <a name="lab-20---create-the-root-trust-policy-"></a>
 [<img src="https://img.youtube.com/vi/-A2U2fYYgrU/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/-A2U2fYYgrU "Video Link")
 
 To allow secured (end-to-end mTLS) cross cluster communications, we need to make sure the certificates issued by the Istio control plane on each cluster are signed with intermediate certificates which have a common root CA.
@@ -3712,7 +3613,7 @@ kubectl --context ${CLUSTER1} -n httpbin rollout restart deploy/in-mesh
 
 
 
-## Lab 22 - Leverage Virtual Destinations for east west communications <a name="lab-22---leverage-virtual-destinations-for-east-west-communications-"></a>
+## Lab 21 - Leverage Virtual Destinations for east west communications <a name="lab-21---leverage-virtual-destinations-for-east-west-communications-"></a>
 
 We can create a Virtual Destination which will be composed of the `reviews` services running in both clusters.
 
@@ -3978,7 +3879,7 @@ kubectl --context ${CLUSTER1} -n bookinfo-backends delete outlierdetectionpolicy
 
 
 
-## Lab 23 - Zero trust <a name="lab-23---zero-trust-"></a>
+## Lab 22 - Zero trust <a name="lab-22---zero-trust-"></a>
 [<img src="https://img.youtube.com/vi/BiaBlUaplEs/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/BiaBlUaplEs "Video Link")
 
 In the previous step, we federated multiple meshes and established a shared root CA for a shared identity domain.
@@ -4339,7 +4240,7 @@ kubectl --context ${CLUSTER1} delete accesspolicies -n bookinfo-frontends --all
 
 
 
-## Lab 24 - Securing the egress traffic <a name="lab-24---securing-the-egress-traffic-"></a>
+## Lab 23 - Securing the egress traffic <a name="lab-23---securing-the-egress-traffic-"></a>
 [<img src="https://img.youtube.com/vi/tQermml1Ryo/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/tQermml1Ryo "Video Link")
 
 
@@ -4654,7 +4555,7 @@ kubectl --context ${CLUSTER1} -n istio-gateways delete accesspolicy allow-get-ht
 
 
 
-## Lab 25 - VM integration with Spire <a name="lab-25---vm-integration-with-spire-"></a>
+## Lab 24 - VM integration with Spire <a name="lab-24---vm-integration-with-spire-"></a>
 
 Let's see how we can configure a VM to be part of the Mesh.
 
