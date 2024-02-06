@@ -1,38 +1,157 @@
 <!DOCTYPE html>
 <html lang="en">
   <head>
-<style>
-body {
-  background-image: url('solo-webassembly-graphic-120921@2x.png');
-  background-repeat: repeat;
-  background-position: center center;
-  background-size: cover;
-</style>
+    <style>
+table {
+    border-collapse: collapse;
+    margin: 25px;
+    font-size: 0.9em;
+    font-family: sans-serif;
+    min-width: 400px;
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.15);
+}
+
+thead tr {
+    background-color: #048ced;
+    color: #ffffff;
+    text-align: center;
+}
+
+table td,th {
+    padding: 15px 50px;
+}
+
+table tbody tr {
+    border-bottom: 1px solid #dddddd;
+}
+
+table tbody tr:nth-of-type(even) {
+    background-color: #f3f3f3;
+}
+
+table tbody tr:last-of-type {
+    border-bottom: 2px solid #048ced;
+}
+    </style>
   </head>
-    <body>
-      <BODY TEXT="#092d07" LINK="#487FDE " VLINK= "#000000" ALINK="#000000">
-      <section id="workshops" class="text-white tm-font-big tm-parallax">
-        <header>
-            <h2>Gloo Edge Workshops</h2>
-          <h3>
-            <ul>
-           <li><a href="https://github.com/solo-io/workshops/blob/master/gloo-edge/README.md" target=”_blank”>Gloo Edge Workshop</a></li>
-           <li><a href="https://github.com/solo-io/workshops/blob/master/gloo-portal/README.md" target=”_blank”>Gloo Portal Workshop</a></li>
-            </ul>
-          </h3>
-        </header>
-        <header>
-           <h2>Gloo Mesh Workshops</h2>
-              <h3>
-            <ul>
-            <li><a href="https://github.com/solo-io/workshops/tree/master/gloo-mesh-2-1/default/README.md" target=”_blank”>Gloo Mesh Workshop</a></li>
-            <li><a href="https://github.com/solo-io/workshops/tree/master/gloo-mesh-2-1/node-ports/README.md" target=”_blank”>Gloo Mesh Workshop using NodePort services</a></li>
-            <li><a href="https://github.com/solo-io/workshops/tree/master/gloo-mesh-2-1/airgap/README.md" target=”_blank”>Gloo Mesh Workshop airgap</a></li>
-            <li><a href="https://github.com/solo-io/workshops/tree/master/gloo-mesh-2-1/openshift/README.md" target=”_blank”>Gloo Mesh Workshop on Openshift</a></li>
-            <li><a href="https://github.com/solo-io/workshops/tree/master/gloo-mesh-2-1/eks-and-openshift/README.md" target=”_blank”>Gloo Mesh Workshop on EKS and Openshift</a></li>
-            <li><a href="https://github.com/solo-io/workshops/tree/master/gloo-mesh-2-1/single-workspace/README.md" target=”_blank”>Gloo Mesh Workshop using a single workspace</a></li>
-            <li><a href="https://github.com/solo-io/workshops/tree/master/gloo-mesh-2-1/single-cluster/README.md" target=”_blank”>Gloo Mesh Workshop using a single cluster</a></li>
-            <li><a href="https://github.com/solo-io/workshops/tree/master/gloo-mesh-2-1/single-cluster-single-workspace/README.md" target=”_blank”>Gloo Mesh Workshop using a single workspace on a single cluster</a></li>
-              </h3>
-    </body>
+  <body>
+    <h1>Gloo workshops in markdown format</h1>
+    <table>
+      <thead>
+        <tr>
+          <th>Workshop</th>
+          <th>default</th>
+          <th>airgap</th>
+          <th>gitops</th>
+          <th>standalone</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Gloo Mesh Core</td>
+          <td><a href="https://github.com/solo-io/workshops/tree/master/gloo-mesh/core/2-5/default" target=”_blank”>2.5</a></td>
+          <td></td>
+          <td></td>
+          <td></td>
+        </tr>
+        <tr>
+          <td>Gloo Mesh Enterprise</td>
+          <td><a href="https://github.com/solo-io/workshops/tree/master/gloo-mesh/enterprise/2-5/default" target=”_blank”>2.5</a></td>
+          <td><a href="https://github.com/solo-io/workshops/tree/master/gloo-mesh/enterprise/2-5/airgap" target=”_blank”>2.5</a></td>
+          <td><a href="https://github.com/solo-io/workshops/tree/master/gloo-mesh/enterprise/2-5/gitops" target=”_blank”>2.5</a></td>
+          <td></td>
+        </tr>
+        <tr>
+          <td>Gloo Mesh Gateway</td>
+          <td><a href="https://github.com/solo-io/workshops/tree/master/gloo-mesh/gateway/2-5/default" target=”_blank”>2.5</a></td>
+          <td><a href="https://github.com/solo-io/workshops/tree/master/gloo-mesh/gateway/2-5/airgap/default" target=”_blank”>2.5</a></td>
+          <td></td>
+          <td><a href="https://github.com/solo-io/workshops/tree/master/gloo-mesh/gateway/2-5/standalone" target=”_blank”>2.5</a></td>
+        </tr>
+        <tr>
+          <td>Gloo Mesh Gateway Portal</td>
+          <td><a href="https://github.com/solo-io/workshops/tree/master/gloo-mesh/gateway/2-5/portal" target=”_blank”>2.5</a></td>
+          <td><a href="https://github.com/solo-io/workshops/tree/master/gloo-mesh/gateway/2-5/airgap/portal" target=”_blank”>2.5</a></td>
+          <td></td>
+          <td><a href="https://github.com/solo-io/workshops/tree/master/gloo-mesh/gateway/2-5/standalone-portal" target=”_blank”>2.5</a></td>
+        </tr>
+        <tr>
+          <td>Gloo Mesh Gateway Advanced&nbsp;</td>
+          <td><a href="https://github.com/solo-io/workshops/tree/master/gloo-mesh/gateway/2-5/advanced" target=”_blank”>2.5</a></td>
+          <td><a href="https://github.com/solo-io/workshops/tree/master/gloo-mesh/gateway/2-5/airgap/advanced" target=”_blank”>2.5</a></td>
+          <td></td>
+          <td></td>
+        </tr>
+        <tr>
+          <td>Gloo Platform (Mesh + Gateway)&nbsp;</td>
+          <td><a href="https://github.com/solo-io/workshops/tree/master/gloo-mesh/platform/2-5/default" target=”_blank”>2.5</a></td>
+          <td><a href="https://github.com/solo-io/workshops/tree/master/gloo-mesh/platform/2-5/airgap/default" target=”_blank”>2.5</a></td>
+          <td></td>
+          <td></td>
+        </tr>
+        <tr>
+          <td>Gloo Edge</td>
+          <td><a href="https://github.com/solo-io/workshops/tree/master/gloo-edge" target=”_blank”>2.5</a></td>
+          <td></td>
+          <td></td>
+          <td></td>
+        </tr>
+      </tbody>
+    </table>
+    <h1>Gloo workshops in Instruqt</h1>
+    <table>
+      <thead>
+        <tr>
+          <th>Workshop</th>
+          <th>default</th>
+          <th>gitops</th>
+          <th>standalone</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Gloo Mesh Core</td>
+          <td><a href="https://play.instruqt.com/manage/soloio/tracks/core-2-5-default" target=”_blank”>2.5</a> / <a href="https://play.instruqt.com/manage/soloio/tracks/core-2-5-default-fast" target=”_blank”>2.5-fast</a></td>
+          <td></td>
+          <td></td>
+        </tr>
+        <tr>
+          <td>Gloo Mesh Enterprise</td>
+          <td><a href="https://play.instruqt.com/manage/soloio/tracks/enterprise-2-5-default" target=”_blank”>2.5</a> / <a href="https://play.instruqt.com/manage/soloio/tracks/enterprise-2-5-default-fast" target=”_blank”>2.5-fast</a></td>
+          <td></td>
+          <td></td>
+        </tr>
+        <tr>
+          <td>Gloo Mesh Gateway</td>
+          <td><a href="https://play.instruqt.com/manage/soloio/tracks/gateway-2-5-default" target=”_blank”>2.5</a> / <a href="https://play.instruqt.com/manage/soloio/tracks/gateway-2-5-default-fast" target=”_blank”>2.5-fast</a></td>
+          <td></td>
+          <td><a href="https://play.instruqt.com/manage/soloio/tracks/gateway-2-5-standalone" target=”_blank”>2.5</a></td>
+        </tr>
+        <tr>
+          <td>Gloo Mesh Gateway Portal</td>
+          <td><a href="https://play.instruqt.com/manage/soloio/tracks/gateway-2-5-portal" target=”_blank”>2.5</a> / <a href="https://play.instruqt.com/manage/soloio/tracks/gateway-2-5-portal-fast" target=”_blank”>2.5-fast</a></td>
+          <td></td>
+          <td><a href="https://play.instruqt.com/manage/soloio/tracks/gateway-2-5-portal-standalone" target=”_blank”>2.5</a> / <a href="https://play.instruqt.com/manage/soloio/tracks/gateway-2-5-portal-standalone-fast" target=”_blank”>2.5-fast</a></td>
+        </tr>
+        <tr>
+          <td>Gloo Mesh Gateway Advanced&nbsp;</td>
+          <td><a href="https://play.instruqt.com/manage/soloio/tracks/gateway-2-5-advanced" target=”_blank”>2.5</a> / <a href="https://play.instruqt.com/manage/soloio/tracks/gateway-2-5-advanced-fast" target=”_blank”>2.5-fast</a></td>
+          <td></td>
+          <td></td>
+        </tr>
+        <tr>
+          <td>Gloo Platform (Mesh + Gateway)&nbsp;</td>
+          <td><a href="https://play.instruqt.com/manage/soloio/tracks/platform-2-5-default" target=”_blank”>2.5</a></td>
+          <td></td>
+          <td></td>
+        </tr>
+        <tr>
+          <td>Gloo Edge</td>
+          <td><a href="https://play.instruqt.com/manage/soloio/tracks/gloo-edge" target=”_blank”>2.5</a></td>
+          <td></td>
+          <td></td>
+        </tr>
+      </tbody>
+    </table>
+  </body>
 </html>
