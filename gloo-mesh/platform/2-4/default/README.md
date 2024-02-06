@@ -36,10 +36,10 @@ source ./scripts/assert.sh
 * [Lab 20 - Create the Root Trust Policy](#lab-20---create-the-root-trust-policy-)
 * [Lab 21 - Leverage Virtual Destinations for east west communications](#lab-21---leverage-virtual-destinations-for-east-west-communications-)
 * [Lab 22 - Zero trust](#lab-22---zero-trust-)
-* [Lab 23 - VM integration with Spire](#lab-23---vm-integration-with-spire-)
-* [Lab 24 - Upgrade Istio using Gloo Mesh Lifecycle Manager](#lab-24---upgrade-istio-using-gloo-mesh-lifecycle-manager-)
-* [Lab 25 - Gloo Mesh Management Plane failover](#lab-25---gloo-mesh-management-plane-failover-)
-* [Lab 26 - Securing the egress traffic](#lab-26---securing-the-egress-traffic-)
+* [Lab 23 - Securing the egress traffic](#lab-23---securing-the-egress-traffic-)
+* [Lab 24 - VM integration with Spire](#lab-24---vm-integration-with-spire-)
+* [Lab 25 - Upgrade Istio using Gloo Mesh Lifecycle Manager](#lab-25---upgrade-istio-using-gloo-mesh-lifecycle-manager-)
+* [Lab 26 - Gloo Mesh Management Plane failover](#lab-26---gloo-mesh-management-plane-failover-)
 
 
 
@@ -4242,7 +4242,322 @@ kubectl --context ${CLUSTER1} delete accesspolicies -n bookinfo-frontends --all
 
 
 
-## Lab 23 - VM integration with Spire <a name="lab-23---vm-integration-with-spire-"></a>
+## Lab 23 - Securing the egress traffic <a name="lab-23---securing-the-egress-traffic-"></a>
+[<img src="https://img.youtube.com/vi/tQermml1Ryo/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/tQermml1Ryo "Video Link")
+
+
+In this step, we're going to secure the egress traffic.
+
+We're going to deploy an egress gateway, configure Kubernetes `NetworkPolicies` to force all the traffic to go through it and implement some access control at the gateway level.
+
+<!--bash
+cat <<'EOF' > ./test.js
+var chai = require('chai');
+var expect = chai.expect;
+const helpers = require('./tests/chai-exec');
+
+describe("Communication status", () => {
+  it("Productpage can send requests to httpbin.org", () => {
+    const command = helpers.getOutputForCommand({ command: "kubectl --context " + process.env.CLUSTER1 + " -n bookinfo-frontends exec deploy/productpage-v1 -- python -c \"import requests; r = requests.get('http://httpbin.org/get'); print(r.status_code)\"" }).replaceAll("'", "");
+    expect(command).to.contain("200");
+  });
+});
+
+EOF
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/apps/bookinfo/secure-egress/tests/productpage-to-httpbin-allowed.test.js.liquid"
+tempfile=$(mktemp)
+echo "saving errors in ${tempfile}"
+timeout 2m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
+-->
+
+The gateways team is going to deploy an egress gateway:
+
+```bash
+kubectl apply --context ${MGMT} -f - <<EOF
+apiVersion: admin.gloo.solo.io/v2
+kind: GatewayLifecycleManager
+metadata:
+  name: cluster1-egress
+  namespace: gloo-mesh
+spec:
+  installations:
+    - clusters:
+        - name: cluster1
+          activeGateway: false
+      gatewayRevision: 1-19
+      istioOperatorSpec:
+        profile: empty
+        hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
+        tag: 1.19.3-solo
+        components:
+          egressGateways:
+            - enabled: true
+              label:
+                istio: egressgateway
+              name: istio-egressgateway
+              namespace: istio-gateways
+EOF
+```
+
+Check that the egress gateway has been deployed using the following command:
+
+```shell
+kubectl --context ${CLUSTER1} -n istio-gateways get pods -l istio=egressgateway
+```
+<!--bash
+ATTEMPTS=1
+until [[ $(kubectl --context $CLUSTER1 -n istio-gateways get deploy -l istio=egressgateway -o json | jq '[.items[].status.readyReplicas] | add') -ge 1 ]] || [ $ATTEMPTS -gt 120 ]; do
+  printf "."
+  ATTEMPTS=$((ATTEMPTS + 1))
+  sleep 1
+done
+-->
+
+You should get an output similar to:
+
+```,nocopy
+NAME                                        READY   STATUS    RESTARTS   AGE
+istio-egressgateway-1-17-55fcbddd96-bwntr   1/1     Running   0          25m
+```
+
+Then, the gateway team needs to create a `VirtualGateway` and can define which hosts can be accessed through it:
+
+```bash
+kubectl apply --context ${CLUSTER1} -f - <<EOF
+apiVersion: networking.gloo.solo.io/v2
+kind: VirtualGateway
+metadata:
+  name: egress-gw
+  namespace: istio-gateways
+spec:
+  listeners:
+    - exposedExternalServices:
+        - host: httpbin.org
+      appProtocol: HTTPS
+      port:
+        number: 443
+      tls:
+        mode: ISTIO_MUTUAL
+  workloads:
+    - selector:
+        labels:
+          app: istio-egressgateway
+          istio: egressgateway
+EOF
+```
+
+As you can see, only the `httpbin.org` host has been allowed.
+
+After that, the bookinfo or platform team needs to create a Kubernetes `NetworkPolicy` to only allow the following egress traffic in the `bookinfo-frontends` namespace:
+- from the Pods to the egress gateway
+- from the Pods to the Kubernetes DNS server
+
+```bash
+kubectl apply --context ${CLUSTER1} -f - <<EOF
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: restrict-egress
+  namespace: bookinfo-frontends
+spec:
+  podSelector: {}
+  policyTypes:
+  - Egress
+  egress:
+  - to:
+    - namespaceSelector:
+        matchLabels: {}
+      podSelector:
+        matchLabels: {}
+  - to:
+    - ipBlock:
+        cidr: $(kubectl --context ${CLUSTER2} -n istio-gateways get svc -l istio=eastwestgateway -o jsonpath='{.items[].status.loadBalancer.ingress[0].*}')/32
+    ports:
+      - protocol: TCP
+        port: 15443
+        endPort: 15443
+EOF
+```
+
+Try to to access the `httpbin.org` site from the `productpage` Pod:
+
+```shell
+kubectl --context ${CLUSTER1} -n bookinfo-frontends exec $(kubectl --context ${CLUSTER1} -n bookinfo-frontends get pods -l app=productpage -o jsonpath='{.items[0].metadata.name}') -- python -c "import requests; r = requests.get('http://httpbin.org/get'); print(r.text)"
+```
+
+<!--bash
+cat <<'EOF' > ./test.js
+var chai = require('chai');
+var expect = chai.expect;
+const helpers = require('./tests/chai-exec');
+
+describe("Communication not allowed", () => {
+  it("Productpage can NOT send requests to httpbin.org", () => {
+    const command = helpers.getOutputForCommand({ command: "kubectl --context " + process.env.CLUSTER1 + " -n bookinfo-frontends exec deploy/productpage-v1 -- python -c \"import requests; r = requests.get('http://httpbin.org/get', timeout=5); print(r.text)\"" }).replaceAll("'", "");
+    expect(command).not.to.contain("User-Agent");
+  });
+});
+
+EOF
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/apps/bookinfo/secure-egress/tests/productpage-to-httpbin-not-allowed.test.js.liquid"
+tempfile=$(mktemp)
+echo "saving errors in ${tempfile}"
+timeout 2m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
+-->
+
+It's not working.
+
+You can now create an `ExternalService` to expose `httpbin.org` through the egress gateway:
+
+```bash
+kubectl apply --context ${CLUSTER1} -f - <<EOF
+apiVersion: networking.gloo.solo.io/v2
+kind: ExternalService
+metadata:
+  name: httpbin
+  namespace: bookinfo-frontends
+  labels:
+    expose: 'true'
+spec:
+  hosts:
+    - httpbin.org
+  ports:
+    - clientsideTls: {}
+      egressGatewayRoutes:
+        portMatch: 80
+        virtualGatewayRefs:
+          - cluster: cluster1
+            name: egress-gw
+            namespace: istio-gateways
+      name: https
+      number: 443
+      protocol: HTTPS
+EOF
+```
+
+Try to access the `httpbin.org` site from the `productpage` Pod:
+
+```bash
+kubectl --context ${CLUSTER1} -n bookinfo-frontends exec $(kubectl --context ${CLUSTER1} -n bookinfo-frontends get pods -l app=productpage -o jsonpath='{.items[0].metadata.name}') -- python -c "import requests; r = requests.get('http://httpbin.org/get'); print(r.text)"
+```
+
+<!--bash
+cat <<'EOF' > ./test.js
+var chai = require('chai');
+var expect = chai.expect;
+const helpers = require('./tests/chai-exec');
+
+describe("Communication status", () => {
+  it("Productpage can send requests to httpbin.org", () => {
+    const command = helpers.getOutputForCommand({ command: "kubectl --context " + process.env.CLUSTER1 + " -n bookinfo-frontends exec deploy/productpage-v1 -- python -c \"import requests; r = requests.get('http://httpbin.org/get'); print(r.status_code)\"" }).replaceAll("'", "");
+    expect(command).to.contain("200");
+  });
+});
+
+EOF
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/apps/bookinfo/secure-egress/tests/productpage-to-httpbin-allowed.test.js.liquid"
+tempfile=$(mktemp)
+echo "saving errors in ${tempfile}"
+timeout 2m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
+-->
+
+Now, it works!
+
+And you can run the following command to check that the request went through the egress gateway:
+
+```shell
+kubectl --context ${CLUSTER1} -n istio-gateways logs -l istio=egressgateway --tail 1
+```
+
+Here is the expected output:
+
+```,nocopy
+[2023-05-11T20:10:30.274Z] "GET /get HTTP/1.1" 200 - via_upstream - "-" 0 3428 793 773 "10.102.1.127" "python-requests/2.28.1" "e6fb42b7-2519-4a59-beb8-0841380d445e" "httpbin.org" "34.193.132.77:443" outbound|443||httpbin.org 10.102.2.119:39178 10.102.2.119:8443 10.102.1.127:48388 httpbin.org -
+```
+
+The gateway team can also restrict which HTTP method can be used by the Pods when sending requests to `httpbin.org`:
+
+```bash
+kubectl apply --context ${CLUSTER1} -f - <<EOF
+apiVersion: security.policy.gloo.solo.io/v2
+kind: AccessPolicy
+metadata:
+  name: allow-get-httpbin
+  namespace: istio-gateways
+spec:
+  applyToDestinations:
+  - kind: EXTERNAL_SERVICE
+    selector: 
+      name: httpbin
+      namespace: bookinfo-frontends
+      cluster: cluster1
+  config:
+    authz:
+      allowedClients:
+      - serviceAccountSelector:
+          name: bookinfo-productpage
+      allowedMethods:
+      - GET
+    enforcementLayers:
+      mesh: true
+      cni: false
+EOF
+```
+
+<!--bash
+cat <<'EOF' > ./test.js
+var chai = require('chai');
+var expect = chai.expect;
+const helpers = require('./tests/chai-exec');
+
+describe("Communication status", () => {
+  it("Productpage can send GET requests to httpbin.org", () => {
+    const command = helpers.getOutputForCommand({ command: "kubectl --context " + process.env.CLUSTER1 + " -n bookinfo-frontends exec deploy/productpage-v1 -- python -c \"import requests; r = requests.get('http://httpbin.org/get'); print(r.status_code)\"" }).replaceAll("'", "");
+    expect(command).to.contain("200");
+  });
+
+  it("Productpage can't send POST requests to httpbin.org", () => {
+    const command = helpers.getOutputForCommand({ command: "kubectl --context " + process.env.CLUSTER1 + " -n bookinfo-frontends exec deploy/productpage-v1 -- python -c \"import requests; r = requests.post('http://httpbin.org/post'); print(r.status_code)\"" }).replaceAll("'", "");
+    expect(command).to.contain("403");
+  });
+});
+
+EOF
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/apps/bookinfo/secure-egress/tests/productpage-to-httpbin-only-get-allowed.test.js.liquid"
+tempfile=$(mktemp)
+echo "saving errors in ${tempfile}"
+timeout 2m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
+-->
+
+You can still send GET requests to the `httpbin.org` site from the `productpage` Pod:
+
+```shell
+kubectl --context ${CLUSTER1} -n bookinfo-frontends exec $(kubectl --context ${CLUSTER1} -n bookinfo-frontends get pods -l app=productpage -o jsonpath='{.items[0].metadata.name}') -- python -c "import requests; r = requests.get('http://httpbin.org/get'); print(r.text)"
+```
+
+But you can't send POST requests to the `httpbin.org` site from the `productpage` Pod:
+
+```shell
+kubectl --context ${CLUSTER1} -n bookinfo-frontends exec $(kubectl --context ${CLUSTER1} -n bookinfo-frontends get pods -l app=productpage -o jsonpath='{.items[0].metadata.name}') -- python -c "import requests; r = requests.post('http://httpbin.org/post'); print(r.text)"
+```
+
+You'll get the following response:
+
+```,nocopy
+RBAC: access denied
+```
+
+Let's delete the Gloo Mesh objects we've created:
+
+```bash
+kubectl --context ${CLUSTER1} -n bookinfo-frontends delete networkpolicy restrict-egress
+kubectl --context ${CLUSTER1} -n bookinfo-frontends delete externalservice httpbin
+kubectl --context ${CLUSTER1} -n istio-gateways delete accesspolicy allow-get-httpbin
+```
+
+
+
+## Lab 24 - VM integration with Spire <a name="lab-24---vm-integration-with-spire-"></a>
 
 Let's see how we can configure a VM to be part of the Mesh.
 
@@ -4643,7 +4958,7 @@ docker rm -f vm1
 
 
 
-## Lab 24 - Upgrade Istio using Gloo Mesh Lifecycle Manager <a name="lab-24---upgrade-istio-using-gloo-mesh-lifecycle-manager-"></a>
+## Lab 25 - Upgrade Istio using Gloo Mesh Lifecycle Manager <a name="lab-25---upgrade-istio-using-gloo-mesh-lifecycle-manager-"></a>
 [<img src="https://img.youtube.com/vi/6DtGVkecArs/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/6DtGVkecArs "Video Link")
 
 Set the variables corresponding to the old and new revision tags:
@@ -5550,7 +5865,7 @@ timeout 2m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} |
 
 
 
-## Lab 25 - Gloo Mesh Management Plane failover <a name="lab-25---gloo-mesh-management-plane-failover-"></a>
+## Lab 26 - Gloo Mesh Management Plane failover <a name="lab-26---gloo-mesh-management-plane-failover-"></a>
 
 
 Before we start the failover procedure, let's capture the current output snapshot:
@@ -5993,321 +6308,6 @@ tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 timeout 2m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
 -->
-
-
-
-## Lab 26 - Securing the egress traffic <a name="lab-26---securing-the-egress-traffic-"></a>
-[<img src="https://img.youtube.com/vi/tQermml1Ryo/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/tQermml1Ryo "Video Link")
-
-
-In this step, we're going to secure the egress traffic.
-
-We're going to deploy an egress gateway, configure Kubernetes `NetworkPolicies` to force all the traffic to go through it and implement some access control at the gateway level.
-
-<!--bash
-cat <<'EOF' > ./test.js
-var chai = require('chai');
-var expect = chai.expect;
-const helpers = require('./tests/chai-exec');
-
-describe("Communication status", () => {
-  it("Productpage can send requests to httpbin.org", () => {
-    const command = helpers.getOutputForCommand({ command: "kubectl --context " + process.env.CLUSTER1 + " -n bookinfo-frontends exec deploy/productpage-v1 -- python -c \"import requests; r = requests.get('http://httpbin.org/get'); print(r.status_code)\"" }).replaceAll("'", "");
-    expect(command).to.contain("200");
-  });
-});
-
-EOF
-echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/apps/bookinfo/secure-egress/tests/productpage-to-httpbin-allowed.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout 2m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
--->
-
-The gateways team is going to deploy an egress gateway:
-
-```bash
-kubectl apply --context ${MGMT} -f - <<EOF
-apiVersion: admin.gloo.solo.io/v2
-kind: GatewayLifecycleManager
-metadata:
-  name: cluster1-egress
-  namespace: gloo-mesh
-spec:
-  installations:
-    - clusters:
-        - name: cluster1
-          activeGateway: false
-      gatewayRevision: 1-20
-      istioOperatorSpec:
-        profile: empty
-        hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.20.1-patch0-solo
-        components:
-          egressGateways:
-            - enabled: true
-              label:
-                istio: egressgateway
-              name: istio-egressgateway
-              namespace: istio-gateways
-EOF
-```
-
-Check that the egress gateway has been deployed using the following command:
-
-```shell
-kubectl --context ${CLUSTER1} -n istio-gateways get pods -l istio=egressgateway
-```
-<!--bash
-ATTEMPTS=1
-until [[ $(kubectl --context $CLUSTER1 -n istio-gateways get deploy -l istio=egressgateway -o json | jq '[.items[].status.readyReplicas] | add') -ge 1 ]] || [ $ATTEMPTS -gt 120 ]; do
-  printf "."
-  ATTEMPTS=$((ATTEMPTS + 1))
-  sleep 1
-done
--->
-
-You should get an output similar to:
-
-```,nocopy
-NAME                                        READY   STATUS    RESTARTS   AGE
-istio-egressgateway-1-17-55fcbddd96-bwntr   1/1     Running   0          25m
-```
-
-Then, the gateway team needs to create a `VirtualGateway` and can define which hosts can be accessed through it:
-
-```bash
-kubectl apply --context ${CLUSTER1} -f - <<EOF
-apiVersion: networking.gloo.solo.io/v2
-kind: VirtualGateway
-metadata:
-  name: egress-gw
-  namespace: istio-gateways
-spec:
-  listeners:
-    - exposedExternalServices:
-        - host: httpbin.org
-      appProtocol: HTTPS
-      port:
-        number: 443
-      tls:
-        mode: ISTIO_MUTUAL
-  workloads:
-    - selector:
-        labels:
-          app: istio-egressgateway
-          istio: egressgateway
-EOF
-```
-
-As you can see, only the `httpbin.org` host has been allowed.
-
-After that, the bookinfo or platform team needs to create a Kubernetes `NetworkPolicy` to only allow the following egress traffic in the `bookinfo-frontends` namespace:
-- from the Pods to the egress gateway
-- from the Pods to the Kubernetes DNS server
-
-```bash
-kubectl apply --context ${CLUSTER1} -f - <<EOF
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
-metadata:
-  name: restrict-egress
-  namespace: bookinfo-frontends
-spec:
-  podSelector: {}
-  policyTypes:
-  - Egress
-  egress:
-  - to:
-    - namespaceSelector:
-        matchLabels: {}
-      podSelector:
-        matchLabels: {}
-  - to:
-    - ipBlock:
-        cidr: $(kubectl --context ${CLUSTER2} -n istio-gateways get svc -l istio=eastwestgateway -o jsonpath='{.items[].status.loadBalancer.ingress[0].*}')/32
-    ports:
-      - protocol: TCP
-        port: 15443
-        endPort: 15443
-EOF
-```
-
-Try to to access the `httpbin.org` site from the `productpage` Pod:
-
-```shell
-kubectl --context ${CLUSTER1} -n bookinfo-frontends exec $(kubectl --context ${CLUSTER1} -n bookinfo-frontends get pods -l app=productpage -o jsonpath='{.items[0].metadata.name}') -- python -c "import requests; r = requests.get('http://httpbin.org/get'); print(r.text)"
-```
-
-<!--bash
-cat <<'EOF' > ./test.js
-var chai = require('chai');
-var expect = chai.expect;
-const helpers = require('./tests/chai-exec');
-
-describe("Communication not allowed", () => {
-  it("Productpage can NOT send requests to httpbin.org", () => {
-    const command = helpers.getOutputForCommand({ command: "kubectl --context " + process.env.CLUSTER1 + " -n bookinfo-frontends exec deploy/productpage-v1 -- python -c \"import requests; r = requests.get('http://httpbin.org/get', timeout=5); print(r.text)\"" }).replaceAll("'", "");
-    expect(command).not.to.contain("User-Agent");
-  });
-});
-
-EOF
-echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/apps/bookinfo/secure-egress/tests/productpage-to-httpbin-not-allowed.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout 2m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
--->
-
-It's not working.
-
-You can now create an `ExternalService` to expose `httpbin.org` through the egress gateway:
-
-```bash
-kubectl apply --context ${CLUSTER1} -f - <<EOF
-apiVersion: networking.gloo.solo.io/v2
-kind: ExternalService
-metadata:
-  name: httpbin
-  namespace: bookinfo-frontends
-  labels:
-    expose: 'true'
-spec:
-  hosts:
-    - httpbin.org
-  ports:
-    - clientsideTls: {}
-      egressGatewayRoutes:
-        portMatch: 80
-        virtualGatewayRefs:
-          - cluster: cluster1
-            name: egress-gw
-            namespace: istio-gateways
-      name: https
-      number: 443
-      protocol: HTTPS
-EOF
-```
-
-Try to access the `httpbin.org` site from the `productpage` Pod:
-
-```bash
-kubectl --context ${CLUSTER1} -n bookinfo-frontends exec $(kubectl --context ${CLUSTER1} -n bookinfo-frontends get pods -l app=productpage -o jsonpath='{.items[0].metadata.name}') -- python -c "import requests; r = requests.get('http://httpbin.org/get'); print(r.text)"
-```
-
-<!--bash
-cat <<'EOF' > ./test.js
-var chai = require('chai');
-var expect = chai.expect;
-const helpers = require('./tests/chai-exec');
-
-describe("Communication status", () => {
-  it("Productpage can send requests to httpbin.org", () => {
-    const command = helpers.getOutputForCommand({ command: "kubectl --context " + process.env.CLUSTER1 + " -n bookinfo-frontends exec deploy/productpage-v1 -- python -c \"import requests; r = requests.get('http://httpbin.org/get'); print(r.status_code)\"" }).replaceAll("'", "");
-    expect(command).to.contain("200");
-  });
-});
-
-EOF
-echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/apps/bookinfo/secure-egress/tests/productpage-to-httpbin-allowed.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout 2m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
--->
-
-Now, it works!
-
-And you can run the following command to check that the request went through the egress gateway:
-
-```shell
-kubectl --context ${CLUSTER1} -n istio-gateways logs -l istio=egressgateway --tail 1
-```
-
-Here is the expected output:
-
-```,nocopy
-[2023-05-11T20:10:30.274Z] "GET /get HTTP/1.1" 200 - via_upstream - "-" 0 3428 793 773 "10.102.1.127" "python-requests/2.28.1" "e6fb42b7-2519-4a59-beb8-0841380d445e" "httpbin.org" "34.193.132.77:443" outbound|443||httpbin.org 10.102.2.119:39178 10.102.2.119:8443 10.102.1.127:48388 httpbin.org -
-```
-
-The gateway team can also restrict which HTTP method can be used by the Pods when sending requests to `httpbin.org`:
-
-```bash
-kubectl apply --context ${CLUSTER1} -f - <<EOF
-apiVersion: security.policy.gloo.solo.io/v2
-kind: AccessPolicy
-metadata:
-  name: allow-get-httpbin
-  namespace: istio-gateways
-spec:
-  applyToDestinations:
-  - kind: EXTERNAL_SERVICE
-    selector: 
-      name: httpbin
-      namespace: bookinfo-frontends
-      cluster: cluster1
-  config:
-    authz:
-      allowedClients:
-      - serviceAccountSelector:
-          name: bookinfo-productpage
-      allowedMethods:
-      - GET
-    enforcementLayers:
-      mesh: true
-      cni: false
-EOF
-```
-
-<!--bash
-cat <<'EOF' > ./test.js
-var chai = require('chai');
-var expect = chai.expect;
-const helpers = require('./tests/chai-exec');
-
-describe("Communication status", () => {
-  it("Productpage can send GET requests to httpbin.org", () => {
-    const command = helpers.getOutputForCommand({ command: "kubectl --context " + process.env.CLUSTER1 + " -n bookinfo-frontends exec deploy/productpage-v1 -- python -c \"import requests; r = requests.get('http://httpbin.org/get'); print(r.status_code)\"" }).replaceAll("'", "");
-    expect(command).to.contain("200");
-  });
-
-  it("Productpage can't send POST requests to httpbin.org", () => {
-    const command = helpers.getOutputForCommand({ command: "kubectl --context " + process.env.CLUSTER1 + " -n bookinfo-frontends exec deploy/productpage-v1 -- python -c \"import requests; r = requests.post('http://httpbin.org/post'); print(r.status_code)\"" }).replaceAll("'", "");
-    expect(command).to.contain("403");
-  });
-});
-
-EOF
-echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/apps/bookinfo/secure-egress/tests/productpage-to-httpbin-only-get-allowed.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout 2m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
--->
-
-You can still send GET requests to the `httpbin.org` site from the `productpage` Pod:
-
-```shell
-kubectl --context ${CLUSTER1} -n bookinfo-frontends exec $(kubectl --context ${CLUSTER1} -n bookinfo-frontends get pods -l app=productpage -o jsonpath='{.items[0].metadata.name}') -- python -c "import requests; r = requests.get('http://httpbin.org/get'); print(r.text)"
-```
-
-But you can't send POST requests to the `httpbin.org` site from the `productpage` Pod:
-
-```shell
-kubectl --context ${CLUSTER1} -n bookinfo-frontends exec $(kubectl --context ${CLUSTER1} -n bookinfo-frontends get pods -l app=productpage -o jsonpath='{.items[0].metadata.name}') -- python -c "import requests; r = requests.post('http://httpbin.org/post'); print(r.text)"
-```
-
-You'll get the following response:
-
-```,nocopy
-RBAC: access denied
-```
-
-Let's delete the Gloo Mesh objects we've created:
-
-```bash
-kubectl --context ${CLUSTER1} -n bookinfo-frontends delete networkpolicy restrict-egress
-kubectl --context ${CLUSTER1} -n bookinfo-frontends delete externalservice httpbin
-kubectl --context ${CLUSTER1} -n istio-gateways delete accesspolicy allow-get-httpbin
-```
 
 
 
