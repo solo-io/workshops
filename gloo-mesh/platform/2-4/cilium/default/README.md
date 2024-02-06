@@ -97,9 +97,9 @@ export CLUSTER2=cluster2
 Run the following commands to deploy three Kubernetes clusters using [Kind](https://kind.sigs.k8s.io/):
 
 ```bash
-./scripts/deploy-multi-with-calico.sh 1 mgmt
-./scripts/deploy-multi-with-calico.sh 2 cluster1 us-west us-west-1
-./scripts/deploy-multi-with-calico.sh 3 cluster2 us-west us-west-2
+./scripts/deploy-multi-with-cilium.sh 1 mgmt
+./scripts/deploy-multi-with-cilium.sh 2 cluster1 us-west us-west-1
+./scripts/deploy-multi-with-cilium.sh 3 cluster2 us-west us-west-2
 ```
 
 Then run the following commands to wait for all the Pods to be ready:
@@ -5888,7 +5888,7 @@ We can use it later to check the failover hasn't impacted the Istio configuratio
 We're going to deploy a new Kubernetes cluster to host the standby Gloo Platform management plane:
 
 ```bash
-./scripts/deploy-multi-with-calico.sh 4 mgmt2
+./scripts/deploy-multi-with-cilium.sh 4 mgmt2
 ```
 
 Then, run the following commands to wait for all the Pods to be ready:
