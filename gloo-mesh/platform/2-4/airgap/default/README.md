@@ -39,6 +39,7 @@ source ./scripts/assert.sh
 * [Lab 23 - Zero trust](#lab-23---zero-trust-)
 * [Lab 24 - Securing the egress traffic](#lab-24---securing-the-egress-traffic-)
 * [Lab 25 - VM integration with Spire](#lab-25---vm-integration-with-spire-)
+* [Lab 26 - Gloo Mesh Management Plane failover](#lab-26---gloo-mesh-management-plane-failover-)
 
 
 
@@ -189,10 +190,10 @@ gcr.io/gloo-mesh/rate-limiter:0.10.3
 jimmidyson/configmap-reload:v0.8.0
 quay.io/keycloak/keycloak:22.0.5
 quay.io/prometheus/prometheus:v2.41.0
-us-docker.pkg.dev/gloo-mesh/istio-workshops/install-cni:1.19.3-solo
-us-docker.pkg.dev/gloo-mesh/istio-workshops/operator:1.19.3-solo
-us-docker.pkg.dev/gloo-mesh/istio-workshops/pilot:1.19.3-solo
-us-docker.pkg.dev/gloo-mesh/istio-workshops/proxyv2:1.19.3-solo
+us-docker.pkg.dev/gloo-mesh/istio-workshops/install-cni:1.20.2-solo
+us-docker.pkg.dev/gloo-mesh/istio-workshops/operator:1.20.2-solo
+us-docker.pkg.dev/gloo-mesh/istio-workshops/pilot:1.20.2-solo
+us-docker.pkg.dev/gloo-mesh/istio-workshops/proxyv2:1.20.2-solo
 EOF
 
 for url in https://raw.githubusercontent.com/istio/istio/master/samples/bookinfo/platform/kube/bookinfo.yaml https://raw.githubusercontent.com/istio/istio/master/samples/bookinfo/networking/bookinfo-gateway.yaml
@@ -610,7 +611,7 @@ Let's create Kubernetes services for the gateways:
 ```bash
 registry=localhost:5000
 kubectl --context ${CLUSTER1} create ns istio-gateways
-kubectl --context ${CLUSTER1} label namespace istio-gateways istio.io/rev=1-19 --overwrite
+kubectl --context ${CLUSTER1} label namespace istio-gateways istio.io/rev=1-20 --overwrite
 
 kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: v1
@@ -634,7 +635,7 @@ spec:
   selector:
     app: istio-ingressgateway
     istio: ingressgateway
-    revision: 1-19
+    revision: 1-20
   type: LoadBalancer
 EOF
 
@@ -689,13 +690,13 @@ spec:
   selector:
     app: istio-ingressgateway
     istio: eastwestgateway
-    revision: 1-19
+    revision: 1-20
     topology.istio.io/network: cluster1
   type: LoadBalancer
 EOF
 
 kubectl --context ${CLUSTER2} create ns istio-gateways
-kubectl --context ${CLUSTER2} label namespace istio-gateways istio.io/rev=1-19 --overwrite
+kubectl --context ${CLUSTER2} label namespace istio-gateways istio.io/rev=1-20 --overwrite
 
 kubectl apply --context ${CLUSTER2} -f - <<EOF
 apiVersion: v1
@@ -719,7 +720,7 @@ spec:
   selector:
     app: istio-ingressgateway
     istio: ingressgateway
-    revision: 1-19
+    revision: 1-20
   type: LoadBalancer
 EOF
 
@@ -774,7 +775,7 @@ spec:
   selector:
     app: istio-ingressgateway
     istio: eastwestgateway
-    revision: 1-19
+    revision: 1-20
     topology.istio.io/network: cluster2
   type: LoadBalancer
 EOF
@@ -796,11 +797,11 @@ spec:
     - clusters:
       - name: cluster1
         defaultRevision: true
-      revision: 1-19
+      revision: 1-20
       istioOperatorSpec:
         profile: minimal
         hub: ${registry}/istio-workshops
-        tag: 1.19.3-solo
+        tag: 1.20.2-solo
         namespace: istio-system
         values:
           global:
@@ -845,11 +846,11 @@ spec:
     - clusters:
       - name: cluster1
         activeGateway: false
-      gatewayRevision: 1-19
+      gatewayRevision: 1-20
       istioOperatorSpec:
         profile: empty
         hub: ${registry}/istio-workshops
-        tag: 1.19.3-solo
+        tag: 1.20.2-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -872,11 +873,11 @@ spec:
     - clusters:
       - name: cluster1
         activeGateway: false
-      gatewayRevision: 1-19
+      gatewayRevision: 1-20
       istioOperatorSpec:
         profile: empty
         hub: ${registry}/istio-workshops
-        tag: 1.19.3-solo
+        tag: 1.20.2-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -908,11 +909,11 @@ spec:
     - clusters:
       - name: cluster2
         defaultRevision: true
-      revision: 1-19
+      revision: 1-20
       istioOperatorSpec:
         profile: minimal
         hub: ${registry}/istio-workshops
-        tag: 1.19.3-solo
+        tag: 1.20.2-solo
         namespace: istio-system
         values:
           global:
@@ -957,11 +958,11 @@ spec:
     - clusters:
       - name: cluster2
         activeGateway: false
-      gatewayRevision: 1-19
+      gatewayRevision: 1-20
       istioOperatorSpec:
         profile: empty
         hub: ${registry}/istio-workshops
-        tag: 1.19.3-solo
+        tag: 1.20.2-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -984,11 +985,11 @@ spec:
     - clusters:
       - name: cluster2
         activeGateway: false
-      gatewayRevision: 1-19
+      gatewayRevision: 1-20
       istioOperatorSpec:
         profile: empty
         hub: ${registry}/istio-workshops
-        tag: 1.19.3-solo
+        tag: 1.20.2-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -1381,7 +1382,7 @@ spec:
       labels:
         app: in-mesh
         version: v1
-        istio.io/rev: 1-19
+        istio.io/rev: 1-20
     spec:
       serviceAccountName: in-mesh
       containers:
@@ -1447,9 +1448,9 @@ First, you need to create a namespace for the addons, with Istio injection enabl
 
 ```bash
 kubectl --context ${CLUSTER1} create namespace gloo-mesh-addons
-kubectl --context ${CLUSTER1} label namespace gloo-mesh-addons istio.io/rev=1-19 --overwrite
+kubectl --context ${CLUSTER1} label namespace gloo-mesh-addons istio.io/rev=1-20 --overwrite
 kubectl --context ${CLUSTER2} create namespace gloo-mesh-addons
-kubectl --context ${CLUSTER2} label namespace gloo-mesh-addons istio.io/rev=1-19 --overwrite
+kubectl --context ${CLUSTER2} label namespace gloo-mesh-addons istio.io/rev=1-20 --overwrite
 ```
 
 Then, you can deploy the addons on the cluster(s) using Helm:
@@ -3292,8 +3293,8 @@ Adding services to the mesh requires that the client-side proxies be associated 
 1. To enable the automatic sidecar injection, use the command below to add the label `istio.io/rev` to the `bookinfo-frontends` namespace:
 
 ```bash
-kubectl --context ${CLUSTER1} label namespace bookinfo-frontends istio.io/rev=1-19
-kubectl --context ${CLUSTER2} label namespace bookinfo-frontends istio.io/rev=1-19
+kubectl --context ${CLUSTER1} label namespace bookinfo-frontends istio.io/rev=1-20
+kubectl --context ${CLUSTER2} label namespace bookinfo-frontends istio.io/rev=1-20
 ```
 
 2. Validate the namespace is annotated with the `istio.io/rev` label:
@@ -3347,8 +3348,8 @@ Now that you have added the `productpage` service to the mesh, you can add the o
 1. First, you need to annotate the `bookinfo-backends` namespace to enable automatic sidecar injection:
 
 ```bash
-kubectl --context ${CLUSTER1} label namespace bookinfo-backends istio.io/rev=1-19
-kubectl --context ${CLUSTER2} label namespace bookinfo-backends istio.io/rev=1-19
+kubectl --context ${CLUSTER1} label namespace bookinfo-backends istio.io/rev=1-20
+kubectl --context ${CLUSTER2} label namespace bookinfo-backends istio.io/rev=1-20
 ```
 
 2. Next, you can add the `istio-proxy` sidecar to the other services in the `bookinfo-backends` namespace
@@ -4218,10 +4219,10 @@ spec:
     authz:
       allowedClients:
       - serviceAccountSelector:
-          name: istio-ingressgateway-1-19-service-account
+          name: istio-ingressgateway-1-20-service-account
           namespace: istio-gateways
       - serviceAccountSelector:
-          name: istio-eastwestgateway-1-19-service-account
+          name: istio-eastwestgateway-1-20-service-account
           namespace: istio-gateways
 EOF
 ```
@@ -4415,11 +4416,11 @@ spec:
     - clusters:
         - name: cluster1
           activeGateway: false
-      gatewayRevision: 1-19
+      gatewayRevision: 1-20
       istioOperatorSpec:
         profile: empty
         hub: ${registry}/istio-workshops
-        tag: 1.19.3-solo
+        tag: 1.20.2-solo
         components:
           egressGateways:
             - enabled: true
@@ -4877,16 +4878,16 @@ Register the VM:
 
 ```bash
 export GLOO_AGENT_URL=https://storage.googleapis.com/gloo-platform/vm/v2.4.7/gloo-workload-agent.deb
-export ISTIO_URL=https://storage.googleapis.com/solo-workshops/istio-binaries/1.19.3/istio-sidecar.deb
+export ISTIO_URL=https://storage.googleapis.com/solo-workshops/istio-binaries/1.20.2/istio-sidecar.deb
 
 docker exec vm1 meshctl ew onboard --install \
   --attestor token \
   --join-token ${JOIN_TOKEN} \
   --cluster ${CLUSTER1} \
   --gateway-addr ${EW_GW_ADDR} \
-  --gateway istio-gateways/istio-eastwestgateway-1-19 \
+  --gateway istio-gateways/istio-eastwestgateway-1-20 \
   --trust-domain ${CLUSTER1} \
-  --istio-rev 1-19 \
+  --istio-rev 1-20 \
   --network vm-network \
   --gloo ${GLOO_AGENT_URL} \
   --istio ${ISTIO_URL} \
@@ -5086,6 +5087,490 @@ And let's delete the Docker container which represents the VM:
 ```bash
 docker rm -f vm1
 ```
+
+
+
+## Lab 26 - Gloo Mesh Management Plane failover <a name="lab-26---gloo-mesh-management-plane-failover-"></a>
+
+
+Before we start the failover procedure, let's capture the current output snapshot:
+
+```shell
+pod=$(kubectl --context ${MGMT} -n gloo-mesh get pods -l app=gloo-mesh-mgmt-server -o jsonpath='{.items[0].metadata.name}')
+kubectl --context ${MGMT} -n gloo-mesh debug -q -i ${pod} --image=${registry}/curlimages/curl -- curl -s http://localhost:9091/snapshots/output > output
+```
+
+We can use it later to check the translation produces the same output on the new management plane.
+
+Also, let's capture all Istio objects as well:
+
+```bash
+kubectl --context ${CLUSTER1} get istio-io -A -o json > cluster1_original
+kubectl --context ${CLUSTER2} get istio-io -A -o json > cluster2_original
+```
+
+We can use it later to check the failover hasn't impacted the Istio configuration (no objects have been modified).
+We're going to deploy a new Kubernetes cluster to host the standby Gloo Platform management plane:
+
+```bash
+./scripts/deploy-multi-with-calico.sh 4 mgmt2
+```
+
+Then, run the following commands to wait for all the Pods to be ready:
+
+```bash
+./scripts/check.sh mgmt2
+```
+
+We also need to create a new environment variable:
+```bash
+export MGMT2=mgmt2
+```
+<!--bash
+cat <<'EOF' > ./test.js
+const helpers = require('./tests/chai-exec');
+
+describe("Clusters are healthy", () => {
+    const clusters = [process.env.MGMT2];
+    clusters.forEach(cluster => {
+        it(`Cluster ${cluster} is healthy`, () => helpers.k8sObjectIsPresent({ context: cluster, namespace: "default", k8sType: "service", k8sObj: "kubernetes" }));
+    });
+});
+EOF
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/gloo-mesh-mgmt-failover/tests/cluster-healthy.test.js.liquid"
+tempfile=$(mktemp)
+echo "saving errors in ${tempfile}"
+timeout 2m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
+-->
+Copy the relay secrets used by the previous management plane to the new one:
+
+```bash
+kubectl --context ${MGMT2} create ns gloo-mesh
+kubectl --context ${MGMT} -n gloo-mesh get secret relay-identity-token-secret -o yaml | kubectl --context ${MGMT2} -n gloo-mesh apply -f -
+kubectl --context ${MGMT} -n gloo-mesh get secret relay-root-tls-secret -o yaml | kubectl --context ${MGMT2} -n gloo-mesh apply -f -
+kubectl --context ${MGMT} -n gloo-mesh get secret relay-server-tls-secret -o yaml | kubectl --context ${MGMT2} -n gloo-mesh apply -f -
+kubectl --context ${MGMT} -n gloo-mesh get secret relay-tls-signing-secret -o yaml | kubectl --context ${MGMT2} -n gloo-mesh apply -f -
+```
+
+After that, we can deploy Gloo Platform on this cluster.
+
+Run the following commands to deploy the Gloo Platform management plane (and scale it down):
+
+```bash
+kubectl --context ${MGMT2} create ns gloo-mesh
+
+helm upgrade --install gloo-platform-crds gloo-platform-crds \
+  --repo https://storage.googleapis.com/gloo-platform/helm-charts \
+  --namespace gloo-mesh \
+  --kube-context ${MGMT2} \
+  --version 2.4.7
+
+helm upgrade --install gloo-platform gloo-platform \
+  --repo https://storage.googleapis.com/gloo-platform/helm-charts \
+  --namespace gloo-mesh \
+  --kube-context ${MGMT2} \
+  --version 2.4.7 \
+  -f -<<EOF
+licensing:
+  licenseKey: ${GLOO_MESH_LICENSE_KEY}
+common:
+  cluster: mgmt
+glooMgmtServer:
+  enabled: true
+  ports:
+    healthcheck: 8091
+  image:
+    registry: ${registry}/gloo-mesh
+prometheus:
+  enabled: true
+  server:
+    image:
+      repository: ${registry}/prometheus/prometheus
+  configmapReload:
+    prometheus:
+      image:
+        repository: ${registry}/jimmidyson/configmap-reload
+redis:
+  deployment:
+    enabled: true
+    image:
+      registry: ${registry}
+telemetryGateway:
+  enabled: true
+  image:
+    repository: ${registry}/gloo-mesh/gloo-otel-collector
+  service:
+    type: LoadBalancer
+  image:
+    repository: ${registry}/gloo-mesh/gloo-otel-collector
+glooUi:
+  enabled: true
+  serviceType: LoadBalancer
+  image:
+    registry: ${registry}/gloo-mesh
+  sidecars:
+    console:
+      image:
+        registry: ${registry}/gloo-mesh
+    envoy:
+      image:
+        registry: ${registry}/gloo-mesh
+telemetryCollector:
+  image:
+    repository: ${registry}/gloo-mesh/gloo-otel-collector
+  enabled: true
+EOF
+
+kubectl --context ${MGMT2} -n gloo-mesh rollout status deploy/gloo-mesh-mgmt-server
+
+kubectl --context ${MGMT2} -n gloo-mesh scale deploy/gloo-mesh-mgmt-server --replicas=0
+```
+
+Finally, you need to specify which gateways you want to use for cross cluster traffic:
+
+```bash
+cat <<EOF | kubectl --context ${MGMT2} apply -f -
+apiVersion: admin.gloo.solo.io/v2
+kind: WorkspaceSettings
+metadata:
+  name: global
+  namespace: gloo-mesh
+spec:
+  options:
+    eastWestGateways:
+      - selector:
+          labels:
+            istio: eastwestgateway
+EOF
+```
+
+Copy the `KubernetesCluster` objects from the previous management plane to the new one:
+
+```bash
+kubectl --context ${MGMT} -n gloo-mesh get KubernetesCluster cluster1 -o yaml | kubectl --context ${MGMT2} -n gloo-mesh apply -f -
+kubectl --context ${MGMT} -n gloo-mesh get KubernetesCluster cluster2 -o yaml | kubectl --context ${MGMT2} -n gloo-mesh apply -f -
+```
+
+Copy the secret containing the root CA certificate used by the previous management plane to the new one:
+
+```bash
+kubectl --context ${MGMT} -n gloo-mesh get secret root-trust-policy.gloo-mesh -o yaml | kubectl --context ${MGMT2} -n gloo-mesh apply -f -
+```
+
+Copy the `IstioLifecycleManager` and `GatewayLifecycleManager` objects from the previous management plane to the new one:
+
+```bash
+kubectl --context ${MGMT} -n gloo-mesh get IstioLifecycleManager cluster1-installation -o yaml | kubectl --context ${MGMT2} -n gloo-mesh apply -f -
+kubectl --context ${MGMT} -n gloo-mesh get IstioLifecycleManager cluster2-installation -o yaml | kubectl --context ${MGMT2} -n gloo-mesh apply -f -
+kubectl --context ${MGMT} -n gloo-mesh get GatewayLifecycleManager cluster1-ingress -o yaml | kubectl --context ${MGMT2} -n gloo-mesh apply -f -
+kubectl --context ${MGMT} -n gloo-mesh get GatewayLifecycleManager cluster1-eastwest -o yaml | kubectl --context ${MGMT2} -n gloo-mesh apply -f -
+kubectl --context ${MGMT} -n gloo-mesh get GatewayLifecycleManager cluster2-ingress -o yaml | kubectl --context ${MGMT2} -n gloo-mesh apply -f -
+kubectl --context ${MGMT} -n gloo-mesh get GatewayLifecycleManager cluster2-eastwest -o yaml | kubectl --context ${MGMT2} -n gloo-mesh apply -f -
+```
+
+Create the following `RootTrustPolicy` object which will create the new `cacerts` secret using the previous root CA certificate.
+
+```bash
+cat << EOF | kubectl --context ${MGMT2} apply -f -
+apiVersion: admin.gloo.solo.io/v2
+kind: RootTrustPolicy
+metadata:
+  name: root-trust-policy
+  namespace: gloo-mesh
+spec:
+  config:
+    mgmtServerCa:
+      secretRef:
+        name: root-trust-policy.gloo-mesh
+        namespace: gloo-mesh
+    autoRestartPods: false
+EOF
+```
+
+Let's create the `gateways` workspace which corresponds to the `istio-gateways` and the `gloo-mesh-addons` namespaces on the cluster(s):
+
+```bash
+kubectl apply --context ${MGMT2} -f- <<EOF
+apiVersion: admin.gloo.solo.io/v2
+kind: Workspace
+metadata:
+  name: gateways
+  namespace: gloo-mesh
+spec:
+  workloadClusters:
+  - name: cluster1
+    namespaces:
+    - name: istio-gateways
+    - name: gloo-mesh-addons
+  - name: cluster2
+    namespaces:
+    - name: istio-gateways
+    - name: gloo-mesh-addons
+EOF
+```
+
+Let's create the `bookinfo` workspace which corresponds to the `bookinfo-frontends` and `bookinfo-backends` namespaces on the cluster(s):
+
+```bash
+kubectl apply --context ${MGMT2} -f- <<EOF
+apiVersion: admin.gloo.solo.io/v2
+kind: Workspace
+metadata:
+  name: bookinfo
+  namespace: gloo-mesh
+  labels:
+    allow_ingress: "true"
+spec:
+  workloadClusters:
+  - name: cluster1
+    namespaces:
+    - name: bookinfo-frontends
+    - name: bookinfo-backends
+  - name: cluster2
+    namespaces:
+    - name: bookinfo-frontends
+    - name: bookinfo-backends
+EOF
+```
+
+Let's create the `httpbin` workspace which corresponds to the `httpbin` namespace on `cluster1`:
+
+```bash
+kubectl apply --context ${MGMT2} -f- <<EOF
+apiVersion: admin.gloo.solo.io/v2
+kind: Workspace
+metadata:
+  name: httpbin
+  namespace: gloo-mesh
+  labels:
+    allow_ingress: "true"
+spec:
+  workloadClusters:
+  - name: cluster1
+    namespaces:
+    - name: httpbin
+EOF
+```
+
+Then, you need to set the environment variable to tell the Gloo Platform agents how to communicate with the management plane:
+
+```bash
+export ENDPOINT_GLOO_MESH=$(kubectl --context ${MGMT2} -n gloo-mesh get svc gloo-mesh-mgmt-server -o jsonpath='{.status.loadBalancer.ingress[0].*}'):9900
+export HOST_GLOO_MESH=$(echo ${ENDPOINT_GLOO_MESH%:*})
+export ENDPOINT_TELEMETRY_GATEWAY=$(kubectl --context ${MGMT2} -n gloo-mesh get svc gloo-telemetry-gateway -o jsonpath='{.status.loadBalancer.ingress[0].*}'):4317
+```
+
+Now, let's update the agents to use the new management plane.
+
+```bash
+kubectl apply --context ${MGMT} -f - <<EOF
+apiVersion: admin.gloo.solo.io/v2
+kind: KubernetesCluster
+metadata:
+  name: cluster1
+  namespace: gloo-mesh
+spec:
+  clusterDomain: cluster.local
+EOF
+
+kubectl --context ${CLUSTER1} create ns gloo-mesh
+
+kubectl get secret relay-root-tls-secret -n gloo-mesh --context ${MGMT} -o jsonpath='{.data.ca\.crt}' | base64 -d > ca.crt
+kubectl create secret generic relay-root-tls-secret -n gloo-mesh --context ${CLUSTER1} --from-file ca.crt=ca.crt
+rm ca.crt
+
+kubectl get secret relay-identity-token-secret -n gloo-mesh --context ${MGMT} -o jsonpath='{.data.token}' | base64 -d > token
+kubectl create secret generic relay-identity-token-secret -n gloo-mesh --context ${CLUSTER1} --from-file token=token
+rm token
+
+helm upgrade --install gloo-platform-crds gloo-platform-crds \
+  --repo https://storage.googleapis.com/gloo-platform/helm-charts \
+  --namespace gloo-mesh \
+  --kube-context ${CLUSTER1} \
+  --version 2.4.7
+
+helm upgrade --install gloo-platform gloo-platform \
+  --repo https://storage.googleapis.com/gloo-platform/helm-charts \
+  --namespace gloo-mesh \
+  --kube-context ${CLUSTER1} \
+  --version 2.4.7 \
+  -f -<<EOF
+common:
+  cluster: cluster1
+glooAgent:
+  enabled: true
+  relay:
+    serverAddress: "${ENDPOINT_GLOO_MESH}"
+    authority: gloo-mesh-mgmt-server.gloo-mesh
+  image:
+    registry: ${registry}/gloo-mesh
+telemetryCollector:
+  image:
+    repository: ${registry}/gloo-mesh/gloo-otel-collector
+  enabled: true
+  config:
+    exporters:
+      otlp:
+        endpoint: "${ENDPOINT_TELEMETRY_GATEWAY}"
+  image:
+    repository: ${registry}/gloo-mesh/gloo-otel-collector
+EOF
+
+kubectl apply --context ${MGMT} -f - <<EOF
+apiVersion: admin.gloo.solo.io/v2
+kind: KubernetesCluster
+metadata:
+  name: cluster2
+  namespace: gloo-mesh
+spec:
+  clusterDomain: cluster.local
+EOF
+
+kubectl --context ${CLUSTER2} create ns gloo-mesh
+
+kubectl get secret relay-root-tls-secret -n gloo-mesh --context ${MGMT} -o jsonpath='{.data.ca\.crt}' | base64 -d > ca.crt
+kubectl create secret generic relay-root-tls-secret -n gloo-mesh --context ${CLUSTER2} --from-file ca.crt=ca.crt
+rm ca.crt
+
+kubectl get secret relay-identity-token-secret -n gloo-mesh --context ${MGMT} -o jsonpath='{.data.token}' | base64 -d > token
+kubectl create secret generic relay-identity-token-secret -n gloo-mesh --context ${CLUSTER2} --from-file token=token
+rm token
+
+helm upgrade --install gloo-platform-crds gloo-platform-crds \
+  --repo https://storage.googleapis.com/gloo-platform/helm-charts \
+  --namespace gloo-mesh \
+  --kube-context ${CLUSTER2} \
+  --version 2.4.7
+
+helm upgrade --install gloo-platform gloo-platform \
+  --repo https://storage.googleapis.com/gloo-platform/helm-charts \
+  --namespace gloo-mesh \
+  --kube-context ${CLUSTER2} \
+  --version 2.4.7 \
+  -f -<<EOF
+common:
+  cluster: cluster2
+glooAgent:
+  enabled: true
+  relay:
+    serverAddress: "${ENDPOINT_GLOO_MESH}"
+    authority: gloo-mesh-mgmt-server.gloo-mesh
+  image:
+    registry: ${registry}/gloo-mesh
+telemetryCollector:
+  image:
+    repository: ${registry}/gloo-mesh/gloo-otel-collector
+  enabled: true
+  config:
+    exporters:
+      otlp:
+        endpoint: "${ENDPOINT_TELEMETRY_GATEWAY}"
+  image:
+    repository: ${registry}/gloo-mesh/gloo-otel-collector
+EOF
+```
+
+Let's scale up the management plane:
+
+```bash
+kubectl --context ${MGMT2} -n gloo-mesh scale deploy/gloo-mesh-mgmt-server --replicas=1
+```
+
+And update the variables to use the new management plane from now on:
+```bash
+export MGMT=${MGMT2}
+```
+<!--bash
+cat <<'EOF' > ./test.js
+var chai = require('chai');
+var expect = chai.expect;
+const helpers = require('./tests/chai-exec');
+describe("Cluster registration", () => {
+  it("cluster1 is registered", () => {
+    podName = helpers.getOutputForCommand({ command: "kubectl -n gloo-mesh get pods -l app=gloo-mesh-mgmt-server -o jsonpath='{.items[0].metadata.name}' --context " + process.env.MGMT }).replaceAll("'", "");
+    command = helpers.getOutputForCommand({ command: "kubectl --context " + process.env.MGMT + " -n gloo-mesh debug -q -i " + podName + " --image=" + process.env.registry + "/curlimages/curl -- curl -s http://localhost:9091/metrics" }).replaceAll("'", "");
+    expect(command).to.contain("cluster1");
+  });
+  it("cluster2 is registered", () => {
+    podName = helpers.getOutputForCommand({ command: "kubectl -n gloo-mesh get pods -l app=gloo-mesh-mgmt-server -o jsonpath='{.items[0].metadata.name}' --context " + process.env.MGMT }).replaceAll("'", "");
+    command = helpers.getOutputForCommand({ command: "kubectl --context " + process.env.MGMT + " -n gloo-mesh debug -q -i " + podName + " --image=" + process.env.registry + "/curlimages/curl -- curl -s http://localhost:9091/metrics" }).replaceAll("'", "");
+    expect(command).to.contain("cluster2");
+  });
+});
+EOF
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/gloo-mesh-mgmt-failover/../deploy-and-register-gloo-mesh/tests/cluster-registration.test.js.liquid"
+tempfile=$(mktemp)
+echo "saving errors in ${tempfile}"
+timeout 2m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
+-->
+
+Finally we can check that the istio objects are the same as before the failover:
+
+```bash
+kubectl --context ${CLUSTER1} get istio-io -A -o json > cluster1_final
+kubectl --context ${CLUSTER2} get istio-io -A -o json > cluster2_final
+```
+<!--bash
+ATTEMPTS=1
+until [[ $(jq -r '.items|length' cluster1_final) -ge 1 ]] || [ $ATTEMPTS -gt 12 ]; do
+  printf "."
+  ATTEMPTS=$((ATTEMPTS + 1))
+  sleep 10
+  kubectl --context ${CLUSTER1} get istio-io -A -o json > cluster1_final
+done
+ATTEMPTS=1
+until [[ $(jq -r '.items|length' cluster2_final) -ge 1 ]] || [ $ATTEMPTS -gt 12 ]; do
+  printf "."
+  ATTEMPTS=$((ATTEMPTS + 1))
+  sleep 10
+  kubectl --context ${CLUSTER2} get istio-io -A -o json > cluster2_final
+done
+
+npm install -g json-diff
+json-diff -x metadata cluster1_original cluster1_final
+json-diff -x metadata cluster2_original cluster2_final
+
+-->
+<!--bash
+cat <<'EOF' > ./test.js
+var chai = require('chai');
+var fs = require("fs-extra");
+var jsonDiff = require('json-diff');
+var expect = chai.expect;
+
+afterEach(function (done) {
+  if (this.currentTest.currentRetry() > 0) {
+    process.stdout.write(".");
+    setTimeout(done, 1000);
+  } else {
+    done();
+  }
+});
+
+const compare = (originalFileName, finalFileName) => {
+  const original = JSON.parse(fs.readFileSync(originalFileName, 'utf8'));
+  const final = JSON.parse(fs.readFileSync(finalFileName, 'utf8'));
+
+  const result = jsonDiff.diff(original, final, { excludeKeys: ["metadata"] });
+  return result;
+}
+
+describe("failover has no impact", () => {
+  it("Istio objects haven't been modified in cluster1", () => {
+    const result = compare('cluster1_original', 'cluster1_final');
+    expect(result).to.be.undefined;
+  });
+  it("Istio objects haven't been modified in cluster2", () => {
+    const result = compare('cluster2_original', 'cluster2_final');
+    expect(result).to.be.undefined;
+  });
+});
+EOF
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/gloo-mesh-mgmt-failover/tests/failover-has-no-impact.test.js.liquid"
+tempfile=$(mktemp)
+echo "saving errors in ${tempfile}"
+timeout 2m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
+-->
 
 
 
