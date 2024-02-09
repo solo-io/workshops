@@ -500,7 +500,7 @@ Let's create Kubernetes services for the gateways:
 ```bash
 registry=localhost:5000
 kubectl --context ${CLUSTER1} create ns istio-gateways
-kubectl --context ${CLUSTER1} label namespace istio-gateways istio.io/rev=1-19 --overwrite
+kubectl --context ${CLUSTER1} label namespace istio-gateways istio.io/rev=1-20 --overwrite
 
 kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: v1
@@ -524,7 +524,7 @@ spec:
   selector:
     app: istio-ingressgateway
     istio: ingressgateway
-    revision: 1-19
+    revision: 1-20
   type: LoadBalancer
 EOF
 
@@ -579,13 +579,13 @@ spec:
   selector:
     app: istio-ingressgateway
     istio: eastwestgateway
-    revision: 1-19
+    revision: 1-20
     topology.istio.io/network: cluster1
   type: LoadBalancer
 EOF
 
 kubectl --context ${CLUSTER2} create ns istio-gateways
-kubectl --context ${CLUSTER2} label namespace istio-gateways istio.io/rev=1-19 --overwrite
+kubectl --context ${CLUSTER2} label namespace istio-gateways istio.io/rev=1-20 --overwrite
 
 kubectl apply --context ${CLUSTER2} -f - <<EOF
 apiVersion: v1
@@ -609,7 +609,7 @@ spec:
   selector:
     app: istio-ingressgateway
     istio: ingressgateway
-    revision: 1-19
+    revision: 1-20
   type: LoadBalancer
 EOF
 
@@ -664,7 +664,7 @@ spec:
   selector:
     app: istio-ingressgateway
     istio: eastwestgateway
-    revision: 1-19
+    revision: 1-20
     topology.istio.io/network: cluster2
   type: LoadBalancer
 EOF
@@ -686,11 +686,11 @@ spec:
     - clusters:
       - name: cluster1
         defaultRevision: true
-      revision: 1-19
+      revision: 1-20
       istioOperatorSpec:
         profile: minimal
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.19.3-solo
+        tag: 1.20.2-solo
         namespace: istio-system
         values:
           global:
@@ -734,11 +734,11 @@ spec:
     - clusters:
       - name: cluster1
         activeGateway: false
-      gatewayRevision: 1-19
+      gatewayRevision: 1-20
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.19.3-solo
+        tag: 1.20.2-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -761,11 +761,11 @@ spec:
     - clusters:
       - name: cluster1
         activeGateway: false
-      gatewayRevision: 1-19
+      gatewayRevision: 1-20
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.19.3-solo
+        tag: 1.20.2-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -797,11 +797,11 @@ spec:
     - clusters:
       - name: cluster2
         defaultRevision: true
-      revision: 1-19
+      revision: 1-20
       istioOperatorSpec:
         profile: minimal
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.19.3-solo
+        tag: 1.20.2-solo
         namespace: istio-system
         values:
           global:
@@ -845,11 +845,11 @@ spec:
     - clusters:
       - name: cluster2
         activeGateway: false
-      gatewayRevision: 1-19
+      gatewayRevision: 1-20
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.19.3-solo
+        tag: 1.20.2-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -872,11 +872,11 @@ spec:
     - clusters:
       - name: cluster2
         activeGateway: false
-      gatewayRevision: 1-19
+      gatewayRevision: 1-20
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.19.3-solo
+        tag: 1.20.2-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -1047,8 +1047,8 @@ Run the following commands to deploy the bookinfo application on `cluster1`:
 ```bash
 kubectl --context ${CLUSTER1} create ns bookinfo-frontends
 kubectl --context ${CLUSTER1} create ns bookinfo-backends
-kubectl --context ${CLUSTER1} label namespace bookinfo-frontends istio.io/rev=1-19 --overwrite
-kubectl --context ${CLUSTER1} label namespace bookinfo-backends istio.io/rev=1-19 --overwrite
+kubectl --context ${CLUSTER1} label namespace bookinfo-frontends istio.io/rev=1-20 --overwrite
+kubectl --context ${CLUSTER1} label namespace bookinfo-backends istio.io/rev=1-20 --overwrite
 
 # Deploy the frontend bookinfo service in the bookinfo-frontends namespace
 kubectl --context ${CLUSTER1} -n bookinfo-frontends apply -f data/steps/deploy-bookinfo/productpage-v1.yaml
@@ -1091,8 +1091,8 @@ Now, run the following commands to deploy the bookinfo application on `cluster2`
 ```bash
 kubectl --context ${CLUSTER2} create ns bookinfo-frontends
 kubectl --context ${CLUSTER2} create ns bookinfo-backends
-kubectl --context ${CLUSTER2} label namespace bookinfo-frontends istio.io/rev=1-19 --overwrite
-kubectl --context ${CLUSTER2} label namespace bookinfo-backends istio.io/rev=1-19 --overwrite
+kubectl --context ${CLUSTER2} label namespace bookinfo-frontends istio.io/rev=1-20 --overwrite
+kubectl --context ${CLUSTER2} label namespace bookinfo-backends istio.io/rev=1-20 --overwrite
 
 # Deploy the frontend bookinfo service in the bookinfo-frontends namespace
 kubectl --context ${CLUSTER2} -n bookinfo-frontends apply -f data/steps/deploy-bookinfo/productpage-v1.yaml
@@ -1265,7 +1265,7 @@ spec:
       labels:
         app: in-mesh
         version: v1
-        istio.io/rev: 1-19
+        istio.io/rev: 1-20
     spec:
       serviceAccountName: in-mesh
       containers:
@@ -1331,9 +1331,9 @@ First, you need to create a namespace for the addons, with Istio injection enabl
 
 ```bash
 kubectl --context ${CLUSTER1} create namespace gloo-mesh-addons
-kubectl --context ${CLUSTER1} label namespace gloo-mesh-addons istio.io/rev=1-19 --overwrite
+kubectl --context ${CLUSTER1} label namespace gloo-mesh-addons istio.io/rev=1-20 --overwrite
 kubectl --context ${CLUSTER2} create namespace gloo-mesh-addons
-kubectl --context ${CLUSTER2} label namespace gloo-mesh-addons istio.io/rev=1-19 --overwrite
+kubectl --context ${CLUSTER2} label namespace gloo-mesh-addons istio.io/rev=1-20 --overwrite
 ```
 
 Then, you can deploy the addons on the cluster(s) using Helm:
@@ -2704,10 +2704,10 @@ spec:
     authz:
       allowedClients:
       - serviceAccountSelector:
-          name: istio-ingressgateway-1-19-service-account
+          name: istio-ingressgateway-1-20-service-account
           namespace: istio-gateways
       - serviceAccountSelector:
-          name: istio-eastwestgateway-1-19-service-account
+          name: istio-eastwestgateway-1-20-service-account
           namespace: istio-gateways
 EOF
 ```
@@ -2901,11 +2901,11 @@ spec:
     - clusters:
         - name: cluster1
           activeGateway: false
-      gatewayRevision: 1-19
+      gatewayRevision: 1-20
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.19.3-solo
+        tag: 1.20.2-solo
         components:
           egressGateways:
             - enabled: true
@@ -3363,16 +3363,16 @@ Register the VM:
 
 ```bash
 export GLOO_AGENT_URL=https://storage.googleapis.com/gloo-platform/vm/v2.4.7/gloo-workload-agent.deb
-export ISTIO_URL=https://storage.googleapis.com/solo-workshops/istio-binaries/1.19.3/istio-sidecar.deb
+export ISTIO_URL=https://storage.googleapis.com/solo-workshops/istio-binaries/1.20.2/istio-sidecar.deb
 
 docker exec vm1 meshctl ew onboard --install \
   --attestor token \
   --join-token ${JOIN_TOKEN} \
   --cluster ${CLUSTER1} \
   --gateway-addr ${EW_GW_ADDR} \
-  --gateway istio-gateways/istio-eastwestgateway-1-19 \
+  --gateway istio-gateways/istio-eastwestgateway-1-20 \
   --trust-domain ${CLUSTER1} \
-  --istio-rev 1-19 \
+  --istio-rev 1-20 \
   --network vm-network \
   --gloo ${GLOO_AGENT_URL} \
   --istio ${ISTIO_URL} \
