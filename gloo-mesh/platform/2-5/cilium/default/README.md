@@ -8,7 +8,7 @@ source ./scripts/assert.sh
 
 
 ![Gloo Mesh Enterprise](images/gloo-mesh-enterprise.png)
-# <center>Gloo Mesh Platform (2.4.7)</center>
+# <center>Gloo Mesh Platform (2.5.0)</center>
 
 
 
@@ -97,9 +97,9 @@ export CLUSTER2=cluster2
 Run the following commands to deploy three Kubernetes clusters using [Kind](https://kind.sigs.k8s.io/):
 
 ```bash
-./scripts/deploy-multi-with-calico.sh 1 mgmt
-./scripts/deploy-multi-with-calico.sh 2 cluster1 us-west us-west-1
-./scripts/deploy-multi-with-calico.sh 3 cluster2 us-west us-west-2
+./scripts/deploy-multi-with-cilium.sh 1 mgmt
+./scripts/deploy-multi-with-cilium.sh 2 cluster1 us-west us-west-1
+./scripts/deploy-multi-with-cilium.sh 3 cluster2 us-west us-west-2
 ```
 
 Then run the following commands to wait for all the Pods to be ready:
@@ -170,7 +170,7 @@ timeout 2m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} |
 Before we get started, let's install the `meshctl` CLI:
 
 ```bash
-export GLOO_MESH_VERSION=v2.4.7
+export GLOO_MESH_VERSION=v2.5.0
 curl -sL https://run.solo.io/meshctl/install | sh -
 export PATH=$HOME/.gloo-mesh/bin:$PATH
 ```
@@ -214,18 +214,20 @@ helm upgrade --install gloo-platform-crds gloo-platform-crds \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${MGMT} \
-  --version 2.4.7
+  --version 2.5.0
 
 helm upgrade --install gloo-platform gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${MGMT} \
-  --version 2.4.7 \
+  --version 2.5.0 \
   -f -<<EOF
 licensing:
   licenseKey: ${GLOO_MESH_LICENSE_KEY}
 common:
   cluster: mgmt
+glooInsightsEngine:
+  enabled: false
 glooMgmtServer:
   enabled: true
   ports:
@@ -364,13 +366,13 @@ helm upgrade --install gloo-platform-crds gloo-platform-crds \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${CLUSTER1} \
-  --version 2.4.7
+  --version 2.5.0
 
 helm upgrade --install gloo-platform gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${CLUSTER1} \
-  --version 2.4.7 \
+  --version 2.5.0 \
   -f -<<EOF
 common:
   cluster: cluster1
@@ -417,13 +419,13 @@ helm upgrade --install gloo-platform-crds gloo-platform-crds \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${CLUSTER2} \
-  --version 2.4.7
+  --version 2.5.0
 
 helm upgrade --install gloo-platform gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${CLUSTER2} \
-  --version 2.4.7 \
+  --version 2.5.0 \
   -f -<<EOF
 common:
   cluster: cluster2
@@ -1348,7 +1350,7 @@ helm upgrade --install gloo-platform gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh-addons \
   --kube-context ${CLUSTER1} \
-  --version 2.4.7 \
+  --version 2.5.0 \
   -f -<<EOF
 common:
   cluster: cluster1
@@ -1372,7 +1374,7 @@ helm upgrade --install gloo-platform gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh-addons \
   --kube-context ${CLUSTER2} \
-  --version 2.4.7 \
+  --version 2.5.0 \
   -f -<<EOF
 common:
   cluster: cluster2
@@ -4430,7 +4432,7 @@ export EW_GW_ADDR=$(kubectl --context ${CLUSTER1} -n istio-gateways get svc -l i
 Register the VM:
 
 ```bash
-export GLOO_AGENT_URL=https://storage.googleapis.com/gloo-platform/vm/v2.4.7/gloo-workload-agent.deb
+export GLOO_AGENT_URL=https://storage.googleapis.com/gloo-platform/vm/v2.5.0/gloo-workload-agent.deb
 export ISTIO_URL=https://storage.googleapis.com/solo-workshops/istio-binaries/1.19.3/istio-sidecar.deb
 
 docker exec vm1 meshctl ew onboard --install \
@@ -5575,7 +5577,7 @@ We can use it later to check the failover hasn't impacted the Istio configuratio
 We're going to deploy a new Kubernetes cluster to host the standby Gloo Platform management plane:
 
 ```bash
-./scripts/deploy-multi-with-calico.sh 4 mgmt2
+./scripts/deploy-multi-with-cilium.sh 4 mgmt2
 ```
 
 Then, run the following commands to wait for all the Pods to be ready:
@@ -5625,18 +5627,20 @@ helm upgrade --install gloo-platform-crds gloo-platform-crds \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${MGMT2} \
-  --version 2.4.7
+  --version 2.5.0
 
 helm upgrade --install gloo-platform gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${MGMT2} \
-  --version 2.4.7 \
+  --version 2.5.0 \
   -f -<<EOF
 licensing:
   licenseKey: ${GLOO_MESH_LICENSE_KEY}
 common:
   cluster: mgmt
+glooInsightsEngine:
+  enabled: false
 glooMgmtServer:
   enabled: true
   ports:
@@ -5823,13 +5827,13 @@ helm upgrade --install gloo-platform-crds gloo-platform-crds \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${CLUSTER1} \
-  --version 2.4.7
+  --version 2.5.0
 
 helm upgrade --install gloo-platform gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${CLUSTER1} \
-  --version 2.4.7 \
+  --version 2.5.0 \
   -f -<<EOF
 common:
   cluster: cluster1
@@ -5870,13 +5874,13 @@ helm upgrade --install gloo-platform-crds gloo-platform-crds \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${CLUSTER2} \
-  --version 2.4.7
+  --version 2.5.0
 
 helm upgrade --install gloo-platform gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${CLUSTER2} \
-  --version 2.4.7 \
+  --version 2.5.0 \
   -f -<<EOF
 common:
   cluster: cluster2
