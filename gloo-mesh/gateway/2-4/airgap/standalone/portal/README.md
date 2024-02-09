@@ -7,7 +7,8 @@ source ./scripts/assert.sh
 
 
 
-![Gloo Mesh Enterprise](images/gloo-mesh-enterprise.png)
+<center><img src="images/gloo-gateway.png" alt="Gloo Mesh Gateway" width="70%"/></center>
+
 # <center>Gloo Portal (2.4.7)</center>
 
 
@@ -37,38 +38,45 @@ source ./scripts/assert.sh
 
 ## Introduction <a name="introduction"></a>
 
-[Gloo Mesh Enterprise](https://www.solo.io/products/gloo-mesh/) is a management plane which makes it easy to operate [Istio](https://istio.io) on one or many Kubernetes clusters deployed anywhere (any platform, anywhere).
+Gloo Mesh Gateway is a feature-rich, Kubernetes-native ingress controller and next-generation API gateway, based on Istio and Envoy.
 
-### Istio support
+With Gloo Mesh Gateway, you have access to its exceptional function-level routing, discovery capabilities, numerous features, tight integration with leading open-source projects, and support for legacy apps, microservices, and serverless.
+It is uniquely designed to support hybrid applications in which multiple technologies, architectures, protocols, and clouds can co-exist.
 
-The Gloo Mesh Enterprise subscription includes end to end Istio support:
+Built on [Istio's ingress gateway](https://www.solo.io/topics/istio/istio-ingress-gateway/), Gloo Mesh Gateway uses an Envoy proxy as the ingress gateway to manage and control traffic that enters your Kubernetes cluster.
+You use custom resources, such as Gloo virtual gateways, route tables, and policies to implement security measures that meet your business and app requirements, and that simplify configuring ingress traffic rules.
+Because these resources offer declarative, API-driven configuration, you can easily integrate Gloo Mesh Gateway into your existing GitOps and CI/CD workflows.
 
-- Upstream first
-- Specialty builds available (FIPS, ARM, etc)
-- Long Term Support (LTS) N-4 
-- Critical security patches
-- Production break-fix
-- One hour SLA Severity 1
-- Install / upgrade
-- Architecture and operational guidance, best practices
+### Why would you choose an API Gateway based on Istio and Envoy?
 
-### Gloo Mesh overview
+There are many good reasons why:
 
-Gloo Mesh provides many unique features, including:
+* First of all, it's high-performance software written in C++
+* They're driven by a neutral foundation (CNCF, like Kubernetes), so their roadmaps aren't driven by a single vendor
+* And probably, more importantly, you have already adopted or you're probably going to adopt a service mesh in the future. Chances are high that this service mesh will be Istio and if it's not the case it will most probably be a service mesh based on Envoy
+* So choosing an API Gateway based on Istio and Envoy will allow you to get the metrics for your API Gateway and your Service Mesh in the same format. So you can troubleshoot issues in a common way
 
-- multi-tenancy based on global workspaces
-- zero trust enforcement
-- global observability (centralized metrics and access logging)
-- simplified cross cluster communications (using virtual destinations)
-- advanced gateway capabilities (oauth, jwt, transformations, rate limiting, web application firewall, ...)
+### Why would you choose Gloo Mesh Gateway?
 
-![Gloo Mesh graph](images/gloo-mesh-graph.png)
+* It has been developed from the beginning with the idea to be configured 100% through YAML
+* It provides all the functionalities you expect from a modern API Gateway:
+  * External authentication based on OAuth2, JWT, API keys, …
+  * Authorization based on OPA
+  * Advanced rate-limiting
+  * Web Application Firewall based on ModSecurity
+  * Advanced transformation
+  * Customization through WebAssembly
+* It includes Gloo Portal, a Kubernetes-native developer portal
+* And much more
 
-### Want to learn more about Gloo Mesh
+These features enable Platform Engineers as well as development teams to implement powerful mechanisms to manage and secure traffic, implement access control, transform requests and responses, and gain observability over their services.
 
-You can find more information about Gloo Mesh in the official documentation:
+The true power unfolds when combining the above-mentioned capabilities to achieve the desired outcome.
+In the labs that follow we present some of the common patterns that our customers use and provide a good entry point into the workings of Gloo Mesh Gateway.
 
-[https://docs.solo.io/gloo-mesh/latest/](https://docs.solo.io/gloo-mesh/latest/)
+### Want to learn more about Gloo Mesh Gateway?
+
+You can find more information about Gloo Mesh Gateway in the official documentation: <https://docs.solo.io/gloo-gateway/>
 
 
 
