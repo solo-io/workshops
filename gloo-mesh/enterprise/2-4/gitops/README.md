@@ -7,7 +7,8 @@ source ./scripts/assert.sh
 
 
 
-![Gloo Mesh Enterprise](images/gloo-mesh-enterprise.png)
+<center><img src="images/gloo-mesh.png" alt="Gloo Mesh Enterprise" style="width:70%;max-width:800px" /></center>
+
 # <center>Gloo Mesh Enterprise (2.4.7)</center>
 
 
@@ -36,38 +37,34 @@ source ./scripts/assert.sh
 
 ## Introduction <a name="introduction"></a>
 
-[Gloo Mesh Enterprise](https://www.solo.io/products/gloo-mesh/) is a management plane which makes it easy to operate [Istio](https://istio.io) on one or many Kubernetes clusters deployed anywhere (any platform, anywhere).
+Gloo Mesh Enterprise is a distribution of the [Istio](https://istio.io/) service mesh that is hardened for production support across multicluster hybrid clusters and service meshes.
+With Gloo Mesh Enterprise, you get an extensible, open-source based set of API tools to connect and manage your services across multiple clusters and service meshes.
+It includes n-4 Istio version support with security patches to address Common Vulnerabilities and Exposures (CVEs), as well as special builds to meet regulatory standards such as Federal Information Processing Standards (FIPS).
 
-### Istio support
+The Gloo Mesh API simplifies the complexity of your service mesh by installing custom resource definitions (CRDs) that you configure.
+Then, Gloo Mesh translates these CRDs into Istio resources across your environment, and provides visibility across all of the resources and traffic.
+Enterprise features include multitenancy, global failover and routing, observability, and east-west rate limiting and policy enforcement through authorization and authentication plug-ins.
 
-The Gloo Mesh Enterprise subscription includes end to end Istio support:
+### Gloo Mesh Enterprise overview
 
-- Upstream first
-- Specialty builds available (FIPS, ARM, etc)
-- Long Term Support (LTS) N-4 
-- Critical security patches
-- Production break-fix
-- One hour SLA Severity 1
-- Install / upgrade
-- Architecture and operational guidance, best practices
+Gloo Mesh Enterprise provides many unique features, including:
 
-### Gloo Mesh overview
+* Upstream-first approach to feature development
+* Installation, upgrade, and management across clusters and service meshes
+* Advanced features for security, traffic routing, tranformations, observability, and more
+* End-to-end Istio support and CVE security patching for n-4 versions
+* Specialty builds for distroless and FIPS compliance
+* 24x7 production support and one-hour Severity 1 SLA
+* GraphQL and Portal modules to extend functionality
+* Workspaces for simplified multi-tenancy
+* Zero-trust architecture for both north-south ingress and east-west service traffic
+* Single pane of glass for operational management of Istio, including global observability
 
-Gloo Mesh provides many unique features, including:
+<img src="images/gloo-mesh-graph.png" alt="Gloo Mesh Enterprise graph" style="width:100%;max-width:800px" />
 
-- multi-tenancy based on global workspaces
-- zero trust enforcement
-- global observability (centralized metrics and access logging)
-- simplified cross cluster communications (using virtual destinations)
-- advanced gateway capabilities (oauth, jwt, transformations, rate limiting, web application firewall, ...)
+### Want to learn more about Gloo Mesh Enterprise?
 
-![Gloo Mesh graph](images/gloo-mesh-graph.png)
-
-### Want to learn more about Gloo Mesh
-
-You can find more information about Gloo Mesh in the official documentation:
-
-[https://docs.solo.io/gloo-mesh/latest/](https://docs.solo.io/gloo-mesh/latest/)
+You can find more information about Gloo Mesh Enterprise in the official documentation: <https://docs.solo.io/gloo-mesh/>
 
 
 

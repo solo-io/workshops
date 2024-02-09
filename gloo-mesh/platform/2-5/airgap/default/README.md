@@ -7,7 +7,8 @@ source ./scripts/assert.sh
 
 
 
-![Gloo Mesh Enterprise](images/gloo-mesh-enterprise.png)
+<center><img src="images/gloo-mesh.png" alt="Gloo Mesh Enterprise" style="width:70%;max-width:800px" /></center>
+
 # <center>Gloo Mesh Platform (2.5.0)</center>
 
 
@@ -46,38 +47,57 @@ source ./scripts/assert.sh
 
 ## Introduction <a name="introduction"></a>
 
-[Gloo Mesh Enterprise](https://www.solo.io/products/gloo-mesh/) is a management plane which makes it easy to operate [Istio](https://istio.io) on one or many Kubernetes clusters deployed anywhere (any platform, anywhere).
+Gloo Mesh Enterprise is a distribution of the [Istio](https://istio.io/) service mesh that is hardened for production support across multicluster hybrid clusters and service meshes.
+It includes Gloo Mesh Gateway, a feature-rich, Kubernetes-native ingress controller and next-generation API gateway, based on Istio and Envoy.
+With Gloo Mesh Enterprise, you get an extensible, open-source based set of API tools to connect and manage your services across multiple clusters and service meshes.
+It includes n-4 Istio version support with security patches to address Common Vulnerabilities and Exposures (CVEs), as well as special builds to meet regulatory standards such as Federal Information Processing Standards (FIPS).
 
-### Istio support
+The Gloo Mesh API simplifies the complexity of your service mesh by installing custom resource definitions (CRDs) that you configure.
+Then, Gloo Mesh translates these CRDs into Istio resources across your environment, and provides visibility across all of the resources and traffic.
+Enterprise features include multitenancy, global failover and routing, observability, and east-west rate limiting and policy enforcement through authorization and authentication plug-ins.
 
-The Gloo Mesh Enterprise subscription includes end to end Istio support:
+## Gloo Mesh Enterprise
 
-- Upstream first
-- Specialty builds available (FIPS, ARM, etc)
-- Long Term Support (LTS) N-4 
-- Critical security patches
-- Production break-fix
-- One hour SLA Severity 1
-- Install / upgrade
-- Architecture and operational guidance, best practices
+Gloo Mesh Enterprise provides many unique features, including:
 
-### Gloo Mesh overview
+* Upstream-first approach to feature development
+* Installation, upgrade, and management across clusters and service meshes
+* Advanced features for security, traffic routing, tranformations, observability, and more
+* End-to-end Istio support and CVE security patching for n-4 versions
+* Specialty builds for distroless and FIPS compliance
+* 24x7 production support and one-hour Severity 1 SLA
+* GraphQL and Portal modules to extend functionality
+* Workspaces for simplified multi-tenancy
+* Zero-trust architecture for both north-south ingress and east-west service traffic
+* Single pane of glass for operational management of Istio, including global observability
 
-Gloo Mesh provides many unique features, including:
+<img src="images/gloo-mesh-graph.png" alt="Gloo Mesh Enterprise graph" style="width:100%;max-width:800px" />
 
-- multi-tenancy based on global workspaces
-- zero trust enforcement
-- global observability (centralized metrics and access logging)
-- simplified cross cluster communications (using virtual destinations)
-- advanced gateway capabilities (oauth, jwt, transformations, rate limiting, web application firewall, ...)
+## Gloo Mesh Gateway
 
-![Gloo Mesh graph](images/gloo-mesh-graph.png)
+With Gloo Mesh Gateway, you have access to its exceptional function-level routing, discovery capabilities, numerous features, tight integration with leading open-source projects, and support for legacy apps, microservices, and serverless.
+It is uniquely designed to support hybrid applications in which multiple technologies, architectures, protocols, and clouds can co-exist.
 
-### Want to learn more about Gloo Mesh
+Built on [Istio's ingress gateway](https://www.solo.io/topics/istio/istio-ingress-gateway/), Gloo Mesh Gateway uses an Envoy proxy as the ingress gateway to manage and control traffic that enters your Kubernetes cluster.
+You use custom resources, such as Gloo virtual gateways, route tables, and policies to implement security measures that meet your business and app requirements, and that simplify configuring ingress traffic rules.
+Because these resources offer declarative, API-driven configuration, you can easily integrate Gloo Mesh Gateway into your existing GitOps and CI/CD workflows.
 
-You can find more information about Gloo Mesh in the official documentation:
+### Why would you choose Gloo Mesh Gateway?
 
-[https://docs.solo.io/gloo-mesh/latest/](https://docs.solo.io/gloo-mesh/latest/)
+* It has been developed from the beginning with the idea to be configured 100% through YAML
+* It provides all the functionalities you expect from a modern API Gateway:
+  * External authentication based on OAuth2, JWT, API keys, …
+  * Authorization based on OPA
+  * Advanced rate-limiting
+  * Web Application Firewall based on ModSecurity
+  * Advanced transformation
+  * Customization through WebAssembly
+* It includes Gloo Portal, a Kubernetes-native developer portal
+* And much more
+
+### Want to learn more about Gloo Mesh Enterprise?
+
+You can find more information about Gloo Mesh Enterprise in the official documentation: <https://docs.solo.io/gloo-mesh/>
 
 
 
