@@ -7,7 +7,7 @@ source ./scripts/assert.sh
 
 
 
-<center><img src="images/gloo-gateway.png" alt="Gloo Mesh Gateway" width="70%"/></center>
+<center><img src="images/gloo-gateway.png" alt="Gloo Mesh Gateway" style="width:70%;max-width:800px" /></center>
 
 # <center>Gloo Mesh Gateway (2.4.7)</center>
 

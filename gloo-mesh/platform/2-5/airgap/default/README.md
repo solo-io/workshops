@@ -7,7 +7,7 @@ source ./scripts/assert.sh
 
 
 
-<center><img src="images/gloo-mesh.png" alt="Gloo Mesh Enterprise" width="70%"/></center>
+<center><img src="images/gloo-mesh.png" alt="Gloo Mesh Enterprise" style="width:70%;max-width:800px" /></center>
 
 # <center>Gloo Mesh Platform (2.5.0)</center>
 
@@ -71,7 +71,7 @@ Gloo Mesh Enterprise provides many unique features, including:
 * Zero-trust architecture for both north-south ingress and east-west service traffic
 * Single pane of glass for operational management of Istio, including global observability
 
-![Gloo Mesh graph](images/gloo-mesh-graph.png)
+<img src="images/gloo-mesh-graph.png" alt="Gloo Mesh Enterprise graph" style="width:100%;max-width:800px" />
 
 ## Gloo Mesh Gateway
 
