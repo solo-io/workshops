@@ -7,7 +7,8 @@ source ./scripts/assert.sh
 
 
 
-![Gloo Mesh Enterprise](images/gloo-mesh-enterprise.png)
+<center><img src="images/gloo-mesh.png" alt="Gloo Mesh Enterprise" width="70%"/></center>
+
 # <center>Gloo Mesh Core (2.5.0)</center>
 
 
@@ -29,34 +30,41 @@ source ./scripts/assert.sh
 
 ## Introduction <a name="introduction"></a>
 
-[Gloo Mesh Core](https://www.solo.io/products/gloo-mesh/) is a management plane which makes it easy to operate [Istio](https://istio.io) on one or many Kubernetes clusters deployed anywhere (any platform, anywhere).
+[Gloo Mesh Core](https://www.solo.io/products/gloo-mesh/) is a management plane that makes it easy to operate [Istio](https://istio.io).
+
+Gloo Mesh Core works with community [Istio](https://istio.io/) out of the box.
+You get instant insights into your Istio environment through a custom dashboard.
+Observability pipelines let you analyze many data sources that you already have.
+You can even automate installing and upgrading Istio with the Gloo lifecycle manager, on one or many Kubernetes clusters deployed anywhere.
+
+But Gloo Mesh Core includes more than tooling to complement an existing Istio installation.
+You can also replace community Istio with Solo’s hardened Istio images. These images unlock enterprise-level support.
+Later, you might choose to upgrade seamlessly to Gloo Mesh Enterprise for a full-stack service mesh and API gateway solution.
+This approach lets you scale as you need more advanced routing and security features.
 
 ### Istio support
 
-The Gloo Mesh Core subscription includes end to end Istio support:
+The Gloo Mesh Core subscription includes end-to-end Istio support:
 
-- Upstream first
-- Specialty builds available (FIPS, ARM, etc)
-- Long Term Support (LTS) N-4 
-- Critical security patches
-- Production break-fix
-- One hour SLA Severity 1
-- Install / upgrade
-- Architecture and operational guidance, best practices
+* Upstream feature development
+* CI/CD-ready automated installation and upgrade
+* End-to-end Istio support and CVE security patching
+* Long-term n-4 version support with Solo images
+* Special image builds for distroless and FIPS compliance
+* 24x7 production support and one-hour Severity 1 SLA
 
 ### Gloo Mesh Core overview
 
 Gloo Mesh Core provides many unique features, including:
 
-- insights generated from configuration and metrics
-- simplified Istio lifecycle management
-- global observability (centralized metrics and access logging)
+* Single pane of glass for operational management of Istio, including global observability
+* Insights based on environment checks with corrective actions and best practices
+* [Cilium](https://cilium.io/) support
+* Seamless migration to full-stack service mesh
 
-### Want to learn more about Gloo Mesh Core
+### Want to learn more about Gloo Mesh Core?
 
-You can find more information about Gloo Mesh Core in the official documentation:
-
-[https://docs.solo.io/gloo-mesh-core](https://docs.solo.io/gloo-mesh-core)
+You can find more information about Gloo Mesh Core in the official documentation: <https://docs.solo.io/gloo-mesh-core>
 
 
 
