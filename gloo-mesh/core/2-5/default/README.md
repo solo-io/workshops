@@ -7,7 +7,7 @@ source ./scripts/assert.sh
 
 
 
-<center><img src="images/gloo-mesh.png" alt="Gloo Mesh Enterprise" width="70%"/></center>
+<center><img src="images/gloo-mesh.png" alt="Gloo Mesh Enterprise" style="width:70%;max-width:800px" /></center>
 
 # <center>Gloo Mesh Core (2.5.0)</center>
 
