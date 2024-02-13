@@ -128,6 +128,10 @@ nodes:
   extraMounts:
   - containerPath: /etc/kubernetes/oidc
     hostPath: /${PWD}/oidc
+  labels:
+    ingress-ready: true
+    topology.kubernetes.io/region: ${region}
+    topology.kubernetes.io/zone: ${zone}
 networking:
   disableDefaultCNI: true
   serviceSubnet: "10.$(echo $twodigits | sed 's/^0*//').0.0/16"
@@ -149,11 +153,6 @@ kubeadmConfigPatches:
       readOnly: true
   metadata:
     name: config
-- |
-  kind: InitConfiguration
-  nodeRegistration:
-    kubeletExtraArgs:
-      node-labels: "ingress-ready=true,topology.kubernetes.io/region=${region},topology.kubernetes.io/zone=${zone}"
 containerdConfigPatches:
 - |-
   [plugins."io.containerd.grpc.v1.cri".registry.mirrors."localhost:${reg_port}"]
