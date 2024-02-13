@@ -200,7 +200,7 @@ helm upgrade --install gloo-platform-mgmt gloo-platform \
   --version 2.5.0 \
   -f -<<EOF
 licensing:
-  licenseKey: ${GLOO_MESH_LICENSE_KEY}
+  glooTrialLicenseKey: ${GLOO_MESH_LICENSE_KEY}
 common:
   cluster: cluster1
 glooInsightsEngine:
@@ -261,6 +261,7 @@ telemetryCollector:
     exporters:
       otlp:
         endpoint: gloo-telemetry-gateway:4317
+
 EOF
 
 kubectl --context ${MGMT} -n gloo-mesh rollout status deploy/gloo-mesh-mgmt-server
