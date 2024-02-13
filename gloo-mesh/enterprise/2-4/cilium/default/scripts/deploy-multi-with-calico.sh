@@ -79,20 +79,26 @@ nodes:
   extraPortMappings:
   - containerPort: 6443
     hostPort: 70${twodigits}
+  labels:
+    ingress-ready: true
+    topology.kubernetes.io/region: ${region}
+    topology.kubernetes.io/zone: ${zone}
 - role: worker
   image: ${kindest_node}
+  labels:
+    ingress-ready: true
+    topology.kubernetes.io/region: ${region}
+    topology.kubernetes.io/zone: ${zone}
 - role: worker
   image: ${kindest_node}
+  labels:
+    ingress-ready: true
+    topology.kubernetes.io/region: ${region}
+    topology.kubernetes.io/zone: ${zone}
 networking:
   disableDefaultCNI: true
   serviceSubnet: "10.$(echo $twodigits | sed 's/^0*//').0.0/16"
   podSubnet: "10.1${twodigits}.0.0/16"
-kubeadmConfigPatches:
-- |
-  kind: InitConfiguration
-  nodeRegistration:
-    kubeletExtraArgs:
-      node-labels: "ingress-ready=true,topology.kubernetes.io/region=${region},topology.kubernetes.io/zone=${zone}"
 containerdConfigPatches:
 - |-
   [plugins."io.containerd.grpc.v1.cri".registry.mirrors."localhost:${reg_port}"]
