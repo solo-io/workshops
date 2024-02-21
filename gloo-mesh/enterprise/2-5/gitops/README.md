@@ -30,8 +30,8 @@ source ./scripts/assert.sh
 * [Lab 13 - Create the Root Trust Policy](#lab-13---create-the-root-trust-policy-)
 * [Lab 14 - Leverage Virtual Destinations for east west communications](#lab-14---leverage-virtual-destinations-for-east-west-communications-)
 * [Lab 15 - Zero trust](#lab-15---zero-trust-)
-* [Lab 16 - Securing the egress traffic](#lab-16---securing-the-egress-traffic-)
-* [Lab 17 - VM integration with Spire](#lab-17---vm-integration-with-spire-)
+* [Lab 16 - VM integration with Spire](#lab-16---vm-integration-with-spire-)
+* [Lab 17 - Securing the egress traffic](#lab-17---securing-the-egress-traffic-)
 
 
 
@@ -85,9 +85,9 @@ export CLUSTER2=cluster2
 Run the following commands to deploy three Kubernetes clusters using [Kind](https://kind.sigs.k8s.io/):
 
 ```bash
-./scripts/deploy-multi-with-calico.sh 1 mgmt
-./scripts/deploy-multi-with-calico.sh 2 cluster1 us-west us-west-1
-./scripts/deploy-multi-with-calico.sh 3 cluster2 us-west us-west-2
+./scripts/deploy-aws-with-calico.sh 1 mgmt
+./scripts/deploy-aws-with-calico.sh 2 cluster1 us-west us-west-1
+./scripts/deploy-aws-with-calico.sh 3 cluster2 us-west us-west-2
 ```
 
 Then run the following commands to wait for all the Pods to be ready:
@@ -154,7 +154,7 @@ timeout 2m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} |
 ## Lab 2 - Deploy Gitea <a name="lab-2---deploy-gitea-"></a>
 
 GitOps is a DevOps automation technique based on Git. To implement it, your processes depend
-on a centralised Git hosting tool such as GitHub or GitLab. In this exercise we’ll provide
+on a centralised Git hosting tool such as GitHub or GitLab. In this exercise we'll provide
 our own hosted Git instance that can be used to push code changes to, and create and approve
 pull requests in.
 
@@ -201,7 +201,7 @@ EOF
 kubectl --context ${MGMT} -n gitea wait svc gitea-http --for=jsonpath='{.status.loadBalancer.ingress[0].*}' --timeout=300s
 ```
 
-Let’s create a user that can create a new repo, push changes, and work with pull requests:
+Let's create a user that can create a new repo, push changes, and work with pull requests:
 
 ```bash
 export GITEA_HTTP=http://$(kubectl --context ${MGMT} -n gitea get svc gitea-http -o jsonpath='{.status.loadBalancer.ingress[0].*}'):3180
@@ -229,7 +229,7 @@ You can now see the list of Gitea repos by clicking the "Git" tab above. If you 
 can log in with username `gloo-gitops` and password `password` that were used to create the user.
 
 Now, if you need to push a repo to Gitea, you can simply add a remote to it and push.
-We don’t have a repo to work with yet but this is how you would do it:
+We don't have a repo to work with yet but this is how you would do it:
 
 ```,nocopy
 git config credential.helper '!f() { sleep 1; echo "username=gloo-gitops"; echo "password=password"; }; f'
@@ -275,7 +275,7 @@ EOF
 kubectl --context ${MGMT} -n argocd wait svc argo-cd-argocd-server --for=jsonpath='{.status.loadBalancer.ingress[0].*}' --timeout=300s
 ```
 
-Download and install the `argocd` CLI tool that we’ll use to manage the Argo CD server:
+Download and install the `argocd` CLI tool that we'll use to manage the Argo CD server:
 
 ```bash
 mkdir -p ${HOME}/bin
@@ -295,7 +295,7 @@ argocd --kube-context ${MGMT} login ${ARGOCD_HTTP_IP}:3280 --username admin --pa
 
 argocd cluster set in-cluster --name ${MGMT}
 ```
-Finally, let’s tell Argo CD about our other clusters so that we can deploy apps to those too:
+Finally, let's tell Argo CD about our other clusters so that we can deploy apps to those too:
 
 ```bash
 argocd cluster add ${CLUSTER1} --name ${CLUSTER1} -y --cluster-endpoint kube-public
@@ -316,8 +316,8 @@ https://kind3-control-plane:6443  cluster2           Unknown  Cluster has no app
 https://kubernetes.default.svc    mgmt               Unknown  Cluster has no applications and is not being monitored.
 ```
 
-Now we’re ready to use Argo CD to manage applications as part of continuous delivery and GitOps.
-We’ll start by creating a GitOps repo that our teams will share. Note that teams can have their own repos
+Now we're ready to use Argo CD to manage applications as part of continuous delivery and GitOps.
+We'll start by creating a GitOps repo that our teams will share. Note that teams can have their own repos
 to work separately if that suits their workflow better.
 
 ```bash
@@ -325,7 +325,7 @@ mkdir -p data/steps/gitops-repo
 export GITOPS_REPO_LOCAL=$(realpath data/steps/gitops-repo)
 ```
 
-At the root of our shared GitOps directory, we’ll create a new subdirectory called `argo-cd` that we’ll use to sync
+At the root of our shared GitOps directory, we'll create a new subdirectory called `argo-cd` that we'll use to sync
 configuration to Argo CD:
 
 ```bash
@@ -341,7 +341,7 @@ git -C ${GITOPS_REPO_LOCAL} config user.email "gloo-gitops@solo.io"
 git -C ${GITOPS_REPO_LOCAL} config user.name "Solo.io GitOps User"
 ```
 
-We’ll need the URL of our Git server. Save that in an environment variable:
+We'll need the URL of our Git server. Save that in an environment variable:
 
 ```bash
 GITEA_HTTP=http://$(kubectl --context ${MGMT} -n gitea get svc gitea-http -o jsonpath='{.status.loadBalancer.ingress[0].*}'):3180
@@ -359,8 +359,8 @@ git -C ${GITOPS_REPO_LOCAL} remote add origin ${GITEA_HTTP}/gloo-gitops/gitops-r
 git -C ${GITOPS_REPO_LOCAL} push -u origin main
 ```
 
-While we now have a Git repo that we’ll use to sync Argo CD configuration, we need to tell Argo CD where to
-get that configuration from and how to apply it. We’ll use two Kubernetes custom resources for this, one to
+While we now have a Git repo that we'll use to sync Argo CD configuration, we need to tell Argo CD where to
+get that configuration from and how to apply it. We'll use two Kubernetes custom resources for this, one to
 define a new "project" and another to create an "application" that declares how the config will be synced:
 
 ```bash
@@ -453,7 +453,7 @@ tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 timeout 2m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
 -->
-Finally, let’s test that everything is working correctly. We’ll define a pod manifest, commit
+Finally, let's test that everything is working correctly. We'll define a pod manifest, commit
 it to our repo, push it to the remote, and check that Argo CD creates that pod in our cluster.
 
 First, switch back to the terminal and create our pod manifest:
@@ -496,16 +496,16 @@ fi
 -->
 
 Now, check the Argo CD UI tab again and click into the "argocd-[[ Instruqt-Var key="MGMT" hostname="" ]]"
-application. After a short period, you’ll see an `nginx` pod appear linked to the application.
+application. After a short period, you'll see an `nginx` pod appear linked to the application.
 The status of this pod will be shown as a tag on the pod box in the UI.
 
-Let’s make sure the pod got deployed by switching back to the terminal and running this command:
+Let's make sure the pod got deployed by switching back to the terminal and running this command:
 
 ```bash
 until kubectl --context ${MGMT} -n default wait --for=condition=ready pod/nginx --timeout=30s 2>/dev/null; do sleep 1; done
 ```
 
-Now let’s delete the pod manifest from the repo and check that it gets removed from the
+Now let's delete the pod manifest from the repo and check that it gets removed from the
 cluster:
 
 ```bash
@@ -683,6 +683,9 @@ spec:
     targetRevision: 2.5.0
     helm:
       releaseName: gloo-platform-crds
+      parameters:
+      - name: "featureGates.ExternalWorkloads"
+        value: "true"
   - chart: gloo-platform
     repoURL: https://storage.googleapis.com/gloo-platform/helm-charts
     targetRevision: 2.5.0
@@ -701,7 +704,7 @@ We'll use the following Helm values file to configure the Gloo Platform manageme
 ```bash
 cat <<EOF > ${GITOPS_PLATFORM}/argo-cd/gloo-platform-mgmt-installation-values.yaml
 licensing:
-  licenseKey: ${GLOO_MESH_LICENSE_KEY}
+  glooTrialLicenseKey: ${GLOO_MESH_LICENSE_KEY}
 common:
   cluster: mgmt
 glooInsightsEngine:
@@ -712,9 +715,12 @@ glooMgmtServer:
     healthcheck: 8091
 prometheus:
   enabled: true
+  skipAutoMigration: true
 redis:
   deployment:
     enabled: true
+featureGates:
+  ExternalWorkloads: true
 telemetryGateway:
   enabled: true
   service:
@@ -724,6 +730,7 @@ glooUi:
   serviceType: LoadBalancer
 telemetryCollector:
   enabled: true
+
 EOF
 ```
 
@@ -988,6 +995,9 @@ spec:
         targetRevision: 2.5.0
         helm:
           releaseName: gloo-platform-crds
+          parameters:
+          - name: "featureGates.ExternalWorkloads"
+            value: "true"
       - chart: gloo-platform
         repoURL: https://storage.googleapis.com/gloo-platform/helm-charts
         targetRevision: 2.5.0
@@ -997,6 +1007,8 @@ spec:
           - \$values/platform/argo-cd/gloo-platform-agents-installation-values.yaml
           parameters:
           - name: common.cluster
+            value: '{{cluster}}'
+          - name: "glooSpireServer.server.trustDomain"
             value: '{{cluster}}'
       - repoURL: http://$(kubectl --context ${MGMT} -n gitea get svc gitea-http -o jsonpath='{.status.loadBalancer.ingress[0].*}'):3180/gloo-gitops/gitops-repo.git
         targetRevision: HEAD
@@ -1019,6 +1031,27 @@ telemetryCollector:
     exporters:
       otlp:
         endpoint: "${ENDPOINT_TELEMETRY_GATEWAY}"
+glooSpireServer:
+  enabled: true
+  controller:
+    verbose: true
+  server:
+    trustDomain: undefined
+postgresql:
+  enabled: true
+  global:
+    postgresql:
+      auth:
+        database: spire
+        password: gloomesh
+        username: spire
+telemetryCollectorCustomization:
+  pipelines:
+    metrics/otlp_relay:
+      enabled: true
+      pipeline:
+        processors:
+        - batch
 EOF
 ```
 
@@ -4327,7 +4360,416 @@ git -C ${GITOPS_REPO_LOCAL} push
 
 
 
-## Lab 16 - Securing the egress traffic <a name="lab-16---securing-the-egress-traffic-"></a>
+## Lab 16 - VM integration with Spire <a name="lab-16---vm-integration-with-spire-"></a>
+
+
+Let's see how we can configure a VM to be part of the Mesh.
+
+To make it easier (and more fun), we'll use a Docker container to simulate a VM.
+
+The certificates will be generated by the Spire server. We need to restart it to use the intermediate CA certificate generated by the `RootTrustPolicy`.
+
+```bash
+kubectl --context ${CLUSTER1} -n gloo-mesh rollout restart deploy gloo-spire-server
+```
+
+First of all, we need to define a few environment variables:
+
+```bash
+export VM_APP="vm1"
+export VM_NAMESPACE="virtualmachines"
+export VM_NETWORK="vm-network"
+```
+
+Create the namespace that will host the virtual machine:
+
+```bash
+cat <<EOF >${GITOPS_BOOKINFO}/${CLUSTER1}/ns-virtualmachines.yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ${VM_NAMESPACE}
+EOF
+```
+
+Let's update the bookinfo `Workspace` to include the `virtualmachines` namespace of the first cluster:
+
+```bash
+cat <<EOF > ${GITOPS_PLATFORM}/${MGMT}/workspaces/bookinfo.yaml
+apiVersion: admin.gloo.solo.io/v2
+kind: Workspace
+metadata:
+  name: bookinfo
+  namespace: gloo-mesh
+  labels:
+    allow_ingress: "true"
+spec:
+  workloadClusters:
+  - name: cluster1
+    namespaces:
+    - name: bookinfo-frontends
+    - name: bookinfo-backends
+    - name: virtualmachines
+  - name: cluster2
+    namespaces:
+    - name: bookinfo-frontends
+    - name: bookinfo-backends
+EOF
+```
+
+We also need to update the gateways `Workspace` to include the `gloo-mesh` namespace of the first cluster (to allow the VM to send metrics to the OTel collector):
+
+```bash
+cat <<EOF > ${GITOPS_PLATFORM}/${MGMT}/workspaces/gateways.yaml
+apiVersion: admin.gloo.solo.io/v2
+kind: Workspace
+metadata:
+  name: gateways
+  namespace: gloo-mesh
+spec:
+  workloadClusters:
+  - name: cluster1
+    namespaces:
+    - name: istio-gateways
+    - name: gloo-mesh-addons
+    - name: gloo-mesh
+  - name: cluster2
+    namespaces:
+    - name: istio-gateways
+    - name: gloo-mesh-addons
+EOF
+```
+
+Run a Docker container that we'll use to simulate a VM:
+
+```bash
+docker run -d --name vm1 --network kind --privileged -v `pwd`/vm1:/vm djannot/ubuntu-systemd:22.04
+```
+
+Here is the DockerFile used to create the image. It allows us to use systemd.
+
+```
+FROM ubuntu:22.04
+
+# Install systemd
+RUN apt-get update && apt-get install -y systemd systemd-sysv
+
+# Remove unnecessary systemd services that might cause issues
+RUN (cd /lib/systemd/system/sysinit.target.wants/; for i in *; do [ $i == systemd-tmpfiles-setup.service ] || rm -f $i; done); \
+    rm -f /lib/systemd/system/multi-user.target.wants/*;\
+    rm -f /etc/systemd/system/*.wants/*;\
+    rm -f /lib/systemd/system/local-fs.target.wants/*; \
+    rm -f /lib/systemd/system/sockets.target.wants/*udev*; \
+    rm -f /lib/systemd/system/sockets.target.wants/*initctl*; \
+    rm -f /lib/systemd/system/basic.target.wants/*;\
+    rm -f /lib/systemd/system/anaconda.target.wants/*;
+
+# Override the default command, to initiate systemd
+CMD ["/sbin/init"]
+```
+
+Update the DNS configuration:
+
+```bash
+docker exec vm1 bash -c "sed 's/127.0.0.11/8.8.8.8/' /etc/resolv.conf > /vm/resolv.conf"
+docker exec vm1 cp /vm/resolv.conf /etc/resolv.conf
+```
+
+Install the dependencies:
+
+```bash
+docker exec vm1 apt update -y
+docker exec vm1 apt-get install -y iputils-ping curl iproute2 iptables python3 sudo dnsutils
+```
+
+Create routes to allow the VM to access the Pods on the 2 Kubernetes clusters:
+
+```bash
+cluster1_cidr=$(kubectl --context ${CLUSTER1} -n kube-system get pod -l component=kube-controller-manager -o jsonpath='{.items[0].spec.containers[0].command}' | jq -r '.[] | select(. | startswith("--cluster-cidr="))' | cut -d= -f2)
+cluster2_cidr=$(kubectl --context ${CLUSTER2} -n kube-system get pod -l component=kube-controller-manager -o jsonpath='{.items[0].spec.containers[0].command}' | jq -r '.[] | select(. | startswith("--cluster-cidr="))' | cut -d= -f2)
+
+docker exec vm1 $(kubectl --context ${CLUSTER1} get nodes -o=jsonpath='{range .items[*]}{"ip route add "}{"'${cluster1_cidr}' via "}{.status.addresses[?(@.type=="InternalIP")].address}{"\n"}{end}')
+docker exec vm1 $(kubectl --context ${CLUSTER2} get nodes -o=jsonpath='{range .items[*]}{"ip route add "}{"'${cluster2_cidr}' via "}{.status.addresses[?(@.type=="InternalIP")].address}{"\n"}{end}')
+```
+
+Copy `meshctl` into the container:
+
+```bash
+docker cp $HOME/.gloo-mesh/bin/meshctl vm1:/usr/local/bin/
+```
+
+Create an `ExternalWorkload` object to represent the VM and the applications it runs:
+
+```bash
+cat <<EOF > ${GITOPS_BOOKINFO}/${CLUSTER1}/externalworkload.yaml
+apiVersion: networking.gloo.solo.io/v2alpha1
+kind: ExternalWorkload
+metadata:
+  name: ${VM_APP}
+  namespace: virtualmachines
+  labels:
+    app: ${VM_APP}
+spec:
+  connectedClusters:
+    ${CLUSTER1}: virtualmachines
+  identitySelector:
+    joinToken:
+      enable: true
+  ports:
+    - name: http-vm
+      number: 9999
+    - name: tcp-db
+      number: 3306
+      protocol: TCP
+EOF
+```
+
+Update Kustomize and commit these changes:
+
+```bash
+cat <<EOF >>${GITOPS_BOOKINFO}/${CLUSTER1}/kustomization.yaml
+- ns-virtualmachines.yaml
+- externalworkload.yaml
+EOF
+
+git -C ${GITOPS_REPO_LOCAL} add .
+git -C ${GITOPS_REPO_LOCAL} commit -m "External workload"
+git -C ${GITOPS_REPO_LOCAL} push
+```
+<!--bash
+echo -n Waiting for Argo CD to sync...
+timeout -v 5m bash -c "until [[ \$(kubectl --context ${CLUSTER1} get ns ${VM_NAMESPACE} 2>/dev/null) ]]; do
+  sleep 1
+  echo -n .
+done"
+echo
+-->
+<!--bash
+uuid_regex="^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+start_time=$(date +%s) # Capture start time
+duration=120 # Set duration for 2 minutes (120 seconds)
+# Loop until JOIN_TOKEN matches the UUID format
+while [[ ! "${JOIN_TOKEN}" =~ ${uuid_regex} ]]; do
+    current_time=$(date +%s)
+    elapsed=$((current_time - start_time))
+    if [[ $elapsed -ge $duration ]]; then
+        echo "Timeout reached. Exiting loop."
+        break
+    fi
+
+    echo "Waiting for JOIN_TOKEN to have the correct format..."
+    export JOIN_TOKEN=$(meshctl external-workload gen-token --kubecontext ${CLUSTER1} --ext-workload virtualmachines/${VM_APP} --trust-domain ${CLUSTER1} --plain 2>&1 | grep INFO | awk '{ print $4}')
+    sleep 1 # Pause for 1 second
+done
+-->
+
+Get a Spire token to register the VM:
+
+```bash
+export JOIN_TOKEN=$(meshctl external-workload gen-token \
+  --kubecontext ${CLUSTER1} \
+  --ext-workload virtualmachines/${VM_APP} \
+  --trust-domain ${CLUSTER1} \
+  --plain 2>&1 | grep INFO | awk '{ print $4}')
+```
+
+Get the IP address of the E/W gateway the VM will use to register itself:
+
+```bash
+export EW_GW_ADDR=$(kubectl --context ${CLUSTER1} -n istio-gateways get svc -l istio=eastwestgateway -o jsonpath='{.items[0].status.loadBalancer.ingress[0].*}')
+```
+
+Register the VM:
+<!--bash
+echo -n Waiting for EW be ready...
+timeout -v 1m bash -c "
+until nc -z ${EW_GW_ADDR} 31338;
+do
+  sleep 1
+  echo -n .
+done"
+echo
+-->
+
+```bash
+export GLOO_AGENT_URL=https://storage.googleapis.com/gloo-platform/vm/v2.5.0/gloo-workload-agent.deb
+export ISTIO_URL=https://storage.googleapis.com/solo-workshops/istio-binaries/1.20.2/istio-sidecar.deb
+
+docker exec vm1 meshctl ew onboard --install \
+  --attestor token \
+  --join-token ${JOIN_TOKEN} \
+  --cluster ${CLUSTER1} \
+  --gateway-addr ${EW_GW_ADDR} \
+  --gateway istio-gateways/istio-eastwestgateway-1-20 \
+  --trust-domain ${CLUSTER1} \
+  --istio-rev 1-20 \
+  --network vm-network \
+  --gloo ${GLOO_AGENT_URL} \
+  --istio ${ISTIO_URL} \
+  --ext-workload virtualmachines/${VM_APP}
+```
+
+Take a look at the Envoy clusters:
+
+```bash
+docker exec vm1 curl -v localhost:15000/clusters | grep productpage.bookinfo-frontends.svc.cluster.local
+```
+
+It should return several lines similar to the one below:
+
+```,nocopy
+outbound|9080||productpage.bookinfo-frontends.svc.cluster.local::172.18.2.1:15443::cx_active::0
+```
+
+You can see that the IP address corresponds to the IP address of the E/W Gateway.
+
+You should now be able to reach the product page application from the VM:
+
+```bash
+docker exec vm1 curl -I productpage.bookinfo-frontends.svc.cluster.local:9080/productpage
+```
+
+<!--bash
+cat <<'EOF' > ./test.js
+const helpers = require('./tests/chai-exec');
+
+describe("The VM should be able to access the productpage service", () => {
+  const command = 'docker exec vm1 curl -s -o /dev/null -w "%{http_code}" productpage.bookinfo-frontends.svc.cluster.local:9080/productpage';
+  it("Got the expected status code 200", () => helpers.genericCommand({ command: command, responseContains: "200" }));
+})
+
+EOF
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/apps/bookinfo/vm-integration-spire/tests/vm-access-productpage.test.js.liquid"
+tempfile=$(mktemp)
+echo "saving errors in ${tempfile}"
+timeout 2m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
+-->
+
+Now, let's do the opposite and access an application running in the VM from a Pod.
+
+Run the following command to start a web server:
+
+```bash
+docker exec -d vm1 python3 -m http.server 9999
+```
+
+Try to access the app from the `productpage` Pod:
+
+```bash
+kubectl --context ${CLUSTER1} -n bookinfo-frontends exec $(kubectl --context ${CLUSTER1} -n bookinfo-frontends get pods -l app=productpage -o jsonpath='{.items[0].metadata.name}') -- python -c "import requests; r = requests.get('http://${VM_APP}.virtualmachines.ext.cluster.local:9999'); print(r.text)"
+```
+
+<!--bash
+cat <<'EOF' > ./test.js
+const helpers = require('./tests/chai-exec');
+
+describe("The productpage service should be able to access the VM", () => {
+  const podName = helpers.getOutputForCommand({ command: "kubectl -n bookinfo-frontends get pods -l app=productpage -o jsonpath='{.items[0].metadata.name}' --context " + process.env.CLUSTER1 }).replaceAll("'", "");
+  const command = "kubectl -n bookinfo-frontends exec " + podName + " --context " + process.env.CLUSTER1 + " -- python -c \"import requests; r = requests.get('http://" + process.env.VM_APP + ".virtualmachines.ext.cluster.local:9999'); print(r.status_code)\"";
+  it('Got the expected status code 200', () => helpers.genericCommand({ command: command, responseContains: "200" }));
+});
+EOF
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/apps/bookinfo/vm-integration-spire/tests/productpage-access-vm.test.js.liquid"
+tempfile=$(mktemp)
+echo "saving errors in ${tempfile}"
+timeout 2m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
+-->
+
+Finally, let's deploy MariaDB in the VM and configure the ratings service to use it as a backend.
+
+```bash
+docker exec vm1 apt-get update
+docker exec vm1 apt-get install -y mariadb-server
+```
+
+We need to configure the database properly:
+
+```bash
+docker exec vm1 sed -i '/bind-address/c\bind-address  = 0.0.0.0' /etc/mysql/mariadb.conf.d/50-server.cnf
+docker exec vm1 systemctl start mysql
+
+docker exec -i vm1 mysql <<EOF
+# Grant access to root
+GRANT ALL PRIVILEGES ON *.* TO 'root'@'localhost' IDENTIFIED BY 'password' WITH GRANT OPTION;
+# Grant root access to other IPs
+CREATE USER 'root'@'%' IDENTIFIED BY 'password';
+GRANT ALL PRIVILEGES ON *.* TO 'root'@'%' WITH GRANT OPTION;
+FLUSH PRIVILEGES;
+SELECT host, user FROM mysql.user;
+EOF
+
+docker exec vm1 systemctl restart mysql
+docker exec vm1 curl -LO https://raw.githubusercontent.com/istio/istio/master/samples/bookinfo/src/mysql/mysqldb-init.sql
+docker exec vm1 sh -c 'mysql -u root -ppassword < mysqldb-init.sql'
+```
+
+We can check that the `ratings` table is correctly configured:
+
+```bash
+docker exec vm1 mysql -u root -ppassword test -e "select * from ratings;"
+```
+
+Deploy a new version of the ratings service that is using the database and scale down the current version:
+
+```bash
+cp data/steps/vm-integration-spire/bookinfo-ratings-v2-mysql-vm.yaml ${GITOPS_BOOKINFO}/${CLUSTER1}/backends/ratings-v2-mysql-vm.yaml
+
+cat <<EOF >>${GITOPS_BOOKINFO}/${CLUSTER1}/backends/kustomization.yaml
+- ratings-v2-mysql-vm.yaml
+EOF
+
+yq -i '. |= ({"replicas":[{"name":"ratings-v1","count":0}]}) + .' ${GITOPS_BOOKINFO}/${CLUSTER1}/backends/kustomization.yaml
+
+git -C ${GITOPS_REPO_LOCAL} add .
+git -C ${GITOPS_REPO_LOCAL} commit -m "New ratings version with external database"
+git -C ${GITOPS_REPO_LOCAL} push
+```
+<!--bash
+echo -n Waiting for Argo CD to sync...
+timeout -v 5m bash -c "until [[ \$(kubectl --context ${CLUSTER1} -n bookinfo-backends get deploy ratings-v2-mysql-vm 2>/dev/null) ]]; do
+  sleep 1
+  echo -n .
+done"
+echo
+-->
+Wait for the original deployment to terminate:
+
+```bash
+kubectl --context ${CLUSTER1} -n bookinfo-backends wait --for=delete pod -l app=ratings,version=v1
+```
+<!--bash
+cat <<'EOF' > ./test.js
+const helpers = require('./tests/chai-http');
+
+describe("The ratings service should use the database running on the VM", () => {
+  it('Got reviews v2 with ratings in cluster1', () => helpers.checkBody({ host: `https://cluster1-bookinfo.example.com`, path: '/productpage', body: 'color="black"', match: true }));
+})
+
+EOF
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/apps/bookinfo/vm-integration-spire/tests/ratings-using-vm.test.js.liquid"
+tempfile=$(mktemp)
+echo "saving errors in ${tempfile}"
+timeout 2m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
+-->
+
+
+Let's revert the commits we made:
+
+```bash
+git -C ${GITOPS_REPO_LOCAL} revert --no-commit HEAD~2..
+git -C ${GITOPS_REPO_LOCAL} commit -m "Revert external workload"
+git -C ${GITOPS_REPO_LOCAL} push
+```
+
+And let's delete the Docker container which represents the VM:
+
+```bash
+docker rm -f vm1
+```
+
+
+
+## Lab 17 - Securing the egress traffic <a name="lab-17---securing-the-egress-traffic-"></a>
 [<img src="https://img.youtube.com/vi/tQermml1Ryo/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/tQermml1Ryo "Video Link")
 
 
@@ -4709,396 +5151,6 @@ Let's revert the commits we made:
 git -C ${GITOPS_REPO_LOCAL} revert --no-commit HEAD~4..
 git -C ${GITOPS_REPO_LOCAL} commit -m "Revert egress resources"
 git -C ${GITOPS_REPO_LOCAL} push
-```
-
-
-
-## Lab 17 - VM integration with Spire <a name="lab-17---vm-integration-with-spire-"></a>
-
-Let's see how we can configure a VM to be part of the Mesh.
-
-To make it easier (and more fun), we'll use a Docker container to simulate a VM.
-
-The certificates will be generated by the Spire server. We need to restart it to use the intermediate CA certificate generated by the `RootTrustPolicy`.
-
-```bash
-kubectl --context ${CLUSTER1} -n gloo-mesh rollout restart deploy gloo-spire-server
-```
-
-First of all, we need to define a few environment variables:
-
-```bash
-export VM_APP="vm1"
-export VM_NAMESPACE="virtualmachines"
-export VM_NETWORK="vm-network"
-```
-
-Create the namespace that will host the virtual machine:
-
-```bash
-cat <<EOF >${GITOPS_BOOKINFO}/${CLUSTER1}/ns-virtualmachines.yaml
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: ${VM_NAMESPACE}
-EOF
-```
-
-Let's update the bookinfo `Workspace` to include the `virtualmachines` namespace of the first cluster:
-
-```bash
-cat <<EOF > ${GITOPS_PLATFORM}/${MGMT}/workspaces/bookinfo.yaml
-apiVersion: admin.gloo.solo.io/v2
-kind: Workspace
-metadata:
-  name: bookinfo
-  namespace: gloo-mesh
-  labels:
-    allow_ingress: "true"
-spec:
-  workloadClusters:
-  - name: cluster1
-    namespaces:
-    - name: bookinfo-frontends
-    - name: bookinfo-backends
-    - name: virtualmachines
-  - name: cluster2
-    namespaces:
-    - name: bookinfo-frontends
-    - name: bookinfo-backends
-EOF
-```
-
-We also need to update the gateways `Workspace` to include the `gloo-mesh` namespace of the first cluster (to allow the VM to send metrics to the OTel collector):
-
-```bash
-cat <<EOF > ${GITOPS_PLATFORM}/${MGMT}/workspaces/gateways.yaml
-apiVersion: admin.gloo.solo.io/v2
-kind: Workspace
-metadata:
-  name: gateways
-  namespace: gloo-mesh
-spec:
-  workloadClusters:
-  - name: cluster1
-    namespaces:
-    - name: istio-gateways
-    - name: gloo-mesh-addons
-    - name: gloo-mesh
-  - name: cluster2
-    namespaces:
-    - name: istio-gateways
-    - name: gloo-mesh-addons
-EOF
-```
-
-Run a Docker container that we'll use to simulate a VM:
-
-```bash
-docker run -d --name vm1 --network kind --privileged -v `pwd`/vm1:/vm djannot/ubuntu-systemd:22.04
-```
-
-Here is the DockerFile used to create the image. It allows us to use systemd.
-
-```
-FROM ubuntu:22.04
-
-# Install systemd
-RUN apt-get update && apt-get install -y systemd systemd-sysv
-
-# Remove unnecessary systemd services that might cause issues
-RUN (cd /lib/systemd/system/sysinit.target.wants/; for i in *; do [ $i == systemd-tmpfiles-setup.service ] || rm -f $i; done); \
-    rm -f /lib/systemd/system/multi-user.target.wants/*;\
-    rm -f /etc/systemd/system/*.wants/*;\
-    rm -f /lib/systemd/system/local-fs.target.wants/*; \
-    rm -f /lib/systemd/system/sockets.target.wants/*udev*; \
-    rm -f /lib/systemd/system/sockets.target.wants/*initctl*; \
-    rm -f /lib/systemd/system/basic.target.wants/*;\
-    rm -f /lib/systemd/system/anaconda.target.wants/*;
-
-# Override the default command, to initiate systemd
-CMD ["/sbin/init"]
-```
-
-Update the DNS configuration:
-
-```bash
-docker exec vm1 bash -c "sed 's/127.0.0.11/8.8.8.8/' /etc/resolv.conf > /vm/resolv.conf"
-docker exec vm1 cp /vm/resolv.conf /etc/resolv.conf
-```
-
-Install the dependencies:
-
-```bash
-docker exec vm1 apt update -y
-docker exec vm1 apt-get install -y iputils-ping curl iproute2 iptables python3 sudo dnsutils
-```
-
-Create routes to allow the VM to access the Pods on the 2 Kubernetes clusters:
-
-```bash
-cluster1_cidr=$(kubectl --context ${CLUSTER1} -n kube-system get pod -l component=kube-controller-manager -o jsonpath='{.items[0].spec.containers[0].command}' | jq -r '.[] | select(. | startswith("--cluster-cidr="))' | cut -d= -f2)
-cluster2_cidr=$(kubectl --context ${CLUSTER2} -n kube-system get pod -l component=kube-controller-manager -o jsonpath='{.items[0].spec.containers[0].command}' | jq -r '.[] | select(. | startswith("--cluster-cidr="))' | cut -d= -f2)
-
-docker exec vm1 $(kubectl --context ${CLUSTER1} get nodes -o=jsonpath='{range .items[*]}{"ip route add "}{"'${cluster1_cidr}' via "}{.status.addresses[?(@.type=="InternalIP")].address}{"\n"}{end}')
-docker exec vm1 $(kubectl --context ${CLUSTER2} get nodes -o=jsonpath='{range .items[*]}{"ip route add "}{"'${cluster2_cidr}' via "}{.status.addresses[?(@.type=="InternalIP")].address}{"\n"}{end}')
-```
-
-Copy `meshctl` into the container:
-
-```bash
-docker cp $HOME/.gloo-mesh/bin/meshctl vm1:/usr/local/bin/
-```
-
-Create an `ExternalWorkload` object to represent the VM and the applications it runs:
-
-```bash
-cat <<EOF > ${GITOPS_BOOKINFO}/${CLUSTER1}/externalworkload.yaml
-apiVersion: networking.gloo.solo.io/v2alpha1
-kind: ExternalWorkload
-metadata:
-  name: ${VM_APP}
-  namespace: virtualmachines
-  labels:
-    app: ${VM_APP}
-spec:
-  connectedClusters:
-    ${CLUSTER1}: virtualmachines
-  identitySelector:
-    joinToken:
-      enable: true
-  ports:
-    - name: http-vm
-      number: 9999
-    - name: tcp-db
-      number: 3306
-      protocol: TCP
-EOF
-```
-
-Update Kustomize and commit these changes:
-
-```bash
-cat <<EOF >>${GITOPS_BOOKINFO}/${CLUSTER1}/kustomization.yaml
-- ns-virtualmachines.yaml
-- externalworkload.yaml
-EOF
-
-git -C ${GITOPS_REPO_LOCAL} add .
-git -C ${GITOPS_REPO_LOCAL} commit -m "External workload"
-git -C ${GITOPS_REPO_LOCAL} push
-```
-<!--bash
-echo -n Waiting for Argo CD to sync...
-timeout -v 5m bash -c "until [[ \$(kubectl --context ${CLUSTER1} get ns  2>/dev/null) ]]; do
-  sleep 1
-  echo -n .
-done"
-echo
--->
-<!--bash
-uuid_regex="^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
-
-# Loop until JOIN_TOKEN matches the UUID format
-while [[ ! "${JOIN_TOKEN}" =~ ${uuid_regex} ]]; do
-    echo "Waiting for JOIN_TOKEN to have the correct format..."
-    export JOIN_TOKEN=$(meshctl external-workload gen-token --kubecontext ${CLUSTER1} --ext-workload virtualmachines/${VM_APP} --trust-domain ${CLUSTER1} --plain 2>&1 | grep INFO | awk '{ print $4}')
-    sleep 1 # Pause for 1 second
-done
--->
-
-Get a Spire token to register the VM:
-
-```bash
-export JOIN_TOKEN=$(meshctl external-workload gen-token \
-  --kubecontext ${CLUSTER1} \
-  --ext-workload virtualmachines/${VM_APP} \
-  --trust-domain ${CLUSTER1} \
-  --plain 2>&1 | grep INFO | awk '{ print $4}')
-```
-
-Get the IP address of the E/W gateway the VM will use to register itself:
-
-```bash
-export EW_GW_ADDR=$(kubectl --context ${CLUSTER1} -n istio-gateways get svc -l istio=eastwestgateway -o jsonpath='{.items[0].status.loadBalancer.ingress[0].*}')
-```
-
-Register the VM:
-
-```bash
-export GLOO_AGENT_URL=https://storage.googleapis.com/gloo-platform/vm/v2.5.0/gloo-workload-agent.deb
-export ISTIO_URL=https://storage.googleapis.com/solo-workshops/istio-binaries/1.20.2/istio-sidecar.deb
-
-docker exec vm1 meshctl ew onboard --install \
-  --attestor token \
-  --join-token ${JOIN_TOKEN} \
-  --cluster ${CLUSTER1} \
-  --gateway-addr ${EW_GW_ADDR} \
-  --gateway istio-gateways/istio-eastwestgateway-1-20 \
-  --trust-domain ${CLUSTER1} \
-  --istio-rev 1-20 \
-  --network vm-network \
-  --gloo ${GLOO_AGENT_URL} \
-  --istio ${ISTIO_URL} \
-  --ext-workload virtualmachines/${VM_APP}
-```
-
-Take a look at the Envoy clusters:
-
-```bash
-docker exec vm1 curl -v localhost:15000/clusters | grep productpage.bookinfo-frontends.svc.cluster.local
-```
-
-It should return several lines similar to the one below:
-
-```,nocopy
-outbound|9080||productpage.bookinfo-frontends.svc.cluster.local::172.18.2.1:15443::cx_active::0
-```
-
-You can see that the IP address corresponds to the IP address of the E/W Gateway.
-
-You should now be able to reach the product page application from the VM:
-
-```bash
-docker exec vm1 curl -I productpage.bookinfo-frontends.svc.cluster.local:9080/productpage
-```
-
-<!--bash
-cat <<'EOF' > ./test.js
-const helpers = require('./tests/chai-exec');
-
-describe("The VM should be able to access the productpage service", () => {
-  const command = 'docker exec vm1 curl -s -o /dev/null -w "%{http_code}" productpage.bookinfo-frontends.svc.cluster.local:9080/productpage';
-  it("Got the expected status code 200", () => helpers.genericCommand({ command: command, responseContains: "200" }));
-})
-
-EOF
-echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/apps/bookinfo/vm-integration-spire/tests/vm-access-productpage.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout 2m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
--->
-
-Now, let's do the opposite and access an application running in the VM from a Pod.
-
-Run the following command to start a web server:
-
-```bash
-docker exec -d vm1 python3 -m http.server 9999
-```
-
-Try to access the app from the `productpage` Pod:
-
-```bash
-kubectl --context ${CLUSTER1} -n bookinfo-frontends exec $(kubectl --context ${CLUSTER1} -n bookinfo-frontends get pods -l app=productpage -o jsonpath='{.items[0].metadata.name}') -- python -c "import requests; r = requests.get('http://${VM_APP}.virtualmachines.ext.cluster.local:9999'); print(r.text)"
-```
-
-<!--bash
-cat <<'EOF' > ./test.js
-const helpers = require('./tests/chai-exec');
-
-describe("The productpage service should be able to access the VM", () => {
-  const podName = helpers.getOutputForCommand({ command: "kubectl -n bookinfo-frontends get pods -l app=productpage -o jsonpath='{.items[0].metadata.name}' --context " + process.env.CLUSTER1 }).replaceAll("'", "");
-  const command = "kubectl -n bookinfo-frontends exec " + podName + " --context " + process.env.CLUSTER1 + " -- python -c \"import requests; r = requests.get('http://" + process.env.VM_APP + ".virtualmachines.ext.cluster.local:9999'); print(r.status_code)\"";
-  it('Got the expected status code 200', () => helpers.genericCommand({ command: command, responseContains: "200" }));
-});
-EOF
-echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/apps/bookinfo/vm-integration-spire/tests/productpage-access-vm.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout 2m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
--->
-
-Finally, let's deploy MariaDB in the VM and configure the ratings service to use it as a backend.
-
-```bash
-docker exec vm1 apt-get update
-docker exec vm1 apt-get install -y mariadb-server
-```
-
-We need to configure the database properly:
-
-```bash
-docker exec vm1 sed -i '/bind-address/c\bind-address  = 0.0.0.0' /etc/mysql/mariadb.conf.d/50-server.cnf
-docker exec vm1 systemctl start mysql
-
-docker exec -i vm1 mysql <<EOF
-# Grant access to root
-GRANT ALL PRIVILEGES ON *.* TO 'root'@'localhost' IDENTIFIED BY 'password' WITH GRANT OPTION;
-# Grant root access to other IPs
-CREATE USER 'root'@'%' IDENTIFIED BY 'password';
-GRANT ALL PRIVILEGES ON *.* TO 'root'@'%' WITH GRANT OPTION;
-FLUSH PRIVILEGES;
-SELECT host, user FROM mysql.user;
-EOF
-
-docker exec vm1 systemctl restart mysql
-docker exec vm1 curl -LO https://raw.githubusercontent.com/istio/istio/master/samples/bookinfo/src/mysql/mysqldb-init.sql
-docker exec vm1 sh -c 'mysql -u root -ppassword < mysqldb-init.sql'
-```
-
-We can check that the `ratings` table is correctly configured:
-
-```bash
-docker exec vm1 mysql -u root -ppassword test -e "select * from ratings;"
-```
-
-Deploy a new version of the ratings service that is using the database and scale down the current version:
-
-```bash
-cp data/steps/vm-integration-spire/bookinfo-ratings-v2-mysql-vm.yaml ${GITOPS_BOOKINFO}/${CLUSTER1}/backends/ratings-v2-mysql-vm.yaml
-
-cat <<EOF >>${GITOPS_BOOKINFO}/${CLUSTER1}/backends/kustomization.yaml
-- ratings-v2-mysql-vm.yaml
-EOF
-
-yq -i '. |= ({"replicas":[{"name":"ratings-v1","count":0}]}) + .' ${GITOPS_BOOKINFO}/${CLUSTER1}/backends/kustomization.yaml
-
-git -C ${GITOPS_REPO_LOCAL} add .
-git -C ${GITOPS_REPO_LOCAL} commit -m "New ratings version with external database"
-git -C ${GITOPS_REPO_LOCAL} push
-```
-<!--bash
-echo -n Waiting for Argo CD to sync...
-timeout -v 5m bash -c "until [[ \$(kubectl --context ${CLUSTER1} -n bookinfo-backends get deploy ratings-v2-mysql-vm 2>/dev/null) ]]; do
-  sleep 1
-  echo -n .
-done"
-echo
--->
-Wait for the original deployment to terminate:
-
-```bash
-kubectl --context ${CLUSTER1} -n bookinfo-backends wait --for=delete pod -l app=ratings,version=v1
-```
-<!--bash
-cat <<'EOF' > ./test.js
-const helpers = require('./tests/chai-http');
-
-describe("The ratings service should use the database running on the VM", () => {
-  it('Got reviews v2 with ratings in cluster1', () => helpers.checkBody({ host: `https://cluster1-bookinfo.example.com`, path: '/productpage', body: 'color="black"', match: true }));
-})
-
-EOF
-echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/apps/bookinfo/vm-integration-spire/tests/ratings-using-vm.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout 2m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
--->
-
-
-Let's revert the commits we made:
-
-```bash
-git -C ${GITOPS_REPO_LOCAL} revert --no-commit HEAD~2..
-git -C ${GITOPS_REPO_LOCAL} commit -m "Revert external workload"
-git -C ${GITOPS_REPO_LOCAL} push
-```
-
-And let's delete the Docker container which represents the VM:
-
-```bash
-docker rm -f vm1
 ```
 
 

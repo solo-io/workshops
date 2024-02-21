@@ -180,7 +180,7 @@ us-docker.pkg.dev/gloo-mesh/istio-workshops/pilot:1.20.2-solo
 us-docker.pkg.dev/gloo-mesh/istio-workshops/proxyv2:1.20.2-solo
 EOF
 
-for url in https://raw.githubusercontent.com/istio/istio/master/samples/bookinfo/platform/kube/bookinfo.yaml https://raw.githubusercontent.com/istio/istio/master/samples/bookinfo/networking/bookinfo-gateway.yaml
+for url in https://raw.githubusercontent.com/istio/istio/master/samples/bookinfo/platform/kube/bookinfo.yaml https://raw.githubusercontent.com/istio/istio/master/samples/bookinfo/networking/bookinfo-gateway.yaml https://raw.githubusercontent.com/istio/istio/master/samples/bookinfo/platform/kube/bookinfo-ratings-v2-mysql-vm.yaml
 do
   for image in $(curl -sfL ${url}|grep image:|awk '{print $2}')
   do
@@ -288,7 +288,7 @@ helm upgrade --install gloo-platform-mgmt gloo-platform \
   --version 2.5.0 \
   -f -<<EOF
 licensing:
-  licenseKey: ${GLOO_MESH_LICENSE_KEY}
+  glooTrialLicenseKey: ${GLOO_MESH_LICENSE_KEY}
 common:
   cluster: cluster1
 glooInsightsEngine:
@@ -403,6 +403,7 @@ telemetryCollectorCustomization:
       password: password
   image:
     repository: ${registry}/gloo-mesh/gloo-otel-collector
+
 EOF
 
 kubectl --context ${MGMT} -n gloo-mesh rollout status deploy/gloo-mesh-mgmt-server

@@ -38,7 +38,7 @@ Observability pipelines let you analyze many data sources that you already have.
 You can even automate installing and upgrading Istio with the Gloo lifecycle manager, on one or many Kubernetes clusters deployed anywhere.
 
 But Gloo Mesh Core includes more than tooling to complement an existing Istio installation.
-You can also replace community Istio with Solo’s hardened Istio images. These images unlock enterprise-level support.
+You can also replace community Istio with Solo's hardened Istio images. These images unlock enterprise-level support.
 Later, you might choose to upgrade seamlessly to Gloo Mesh Enterprise for a full-stack service mesh and API gateway solution.
 This approach lets you scale as you need more advanced routing and security features.
 
@@ -212,7 +212,7 @@ helm upgrade --install gloo-platform gloo-platform \
   --version 2.5.0 \
   -f -<<EOF
 licensing:
-  licenseKey: ${GLOO_MESH_LICENSE_KEY}
+  glooTrialLicenseKey: ${GLOO_MESH_LICENSE_KEY}
 common:
   cluster: mgmt
 glooInsightsEngine:
@@ -235,6 +235,7 @@ glooUi:
   serviceType: LoadBalancer
 telemetryCollector:
   enabled: true
+
 EOF
 
 kubectl --context ${MGMT} -n gloo-mesh rollout status deploy/gloo-mesh-mgmt-server
