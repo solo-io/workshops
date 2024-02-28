@@ -1,12 +1,14 @@
 #!/usr/bin/env bash
+# Here we use the script that includes the certificates to be able to execute some test lambda functions. If you are not going to try the lambda integration, you can use the `deploy.sh` script instead.
+
 set -o errexit
 
 number=$1
 name=$2
 region=$3
 zone=$4
-twodigits=$(printf "%02d\n" $number)
 kindest_node=${KINDEST_NODE:-kindest\/node:v1.28.0@sha256:b7a4cad12c197af3ba43202d3efe03246b3f0793f162afb40a33c923952d5b31}
+twodigits=$(printf "%02d\n" $number)
 
 if [ -z "$3" ]; then
   region=us-east-1
@@ -67,7 +69,7 @@ health:
 EOF
 
   docker run \
-    -d --restart=always ${DEPLOY_EXTRA_PARAMS} -v ${HOME}/.${cache_name}-config.yml:/etc/docker/registry/config.yml --name "${cache_name}" \
+    -d --restart=always -v ${HOME}/.${cache_name}-config.yml:/etc/docker/registry/config.yml --name "${cache_name}" \
     registry:2
 fi
 done
@@ -133,7 +135,6 @@ nodes:
     topology.kubernetes.io/region: ${region}
     topology.kubernetes.io/zone: ${zone}
 networking:
-  disableDefaultCNI: true
   serviceSubnet: "10.$(echo $twodigits | sed 's/^0*//').0.0/16"
   podSubnet: "10.1${twodigits}.0.0/16"
 kubeadmConfigPatches:
@@ -183,10 +184,12 @@ docker network connect "kind" us-central1-docker || true
 docker network connect "kind" quay || true
 docker network connect "kind" gcr || true
 
-kubectl --context kind-kind${number} apply -f https://raw.githubusercontent.com/projectcalico/calico/v3.27.0/manifests/calico.yaml
-
 # Preload MetalLB images
-kubectl --context=kind-kind${number} apply -f https://raw.githubusercontent.com/metallb/metallb/v0.13.12/config/manifests/metallb-native.yaml
+docker pull quay.io/metallb/controller:v0.13.12
+docker pull quay.io/metallb/speaker:v0.13.12
+kind load docker-image quay.io/metallb/controller:v0.13.12 --name kind${number}
+kind load docker-image quay.io/metallb/speaker:v0.13.12 --name kind${number}
+for i in 1 2 3 4 5; do kubectl --context=kind-kind${number} apply -f https://raw.githubusercontent.com/metallb/metallb/v0.13.12/config/manifests/metallb-native.yaml && break || sleep 15; done
 kubectl --context=kind-kind${number} create secret generic -n metallb-system memberlist --from-literal=secretkey="$(openssl rand -base64 128)"
 kubectl --context=kind-kind${number} -n metallb-system rollout status deploy controller || true
 
@@ -213,6 +216,7 @@ kubectl --context=kind-kind${number} apply -f metallb${number}.yaml && break
 sleep 2
 done
 
+# connect the registry to the cluster network if not already connected
 printf "Renaming context kind-kind${number} to ${name}\n"
 for i in {1..100}; do
   (kubectl config get-contexts -oname | grep ${name}) && break
@@ -221,6 +225,9 @@ for i in {1..100}; do
   sleep 2
   [ $i -lt 100 ] || exit 1
 done
+
+# Document the local registry
+# https://github.com/kubernetes/enhancements/tree/master/keps/sig-cluster-lifecycle/generic/1755-communicating-a-local-registry
 cat <<EOF | kubectl --context=${name} apply -f -
 apiVersion: v1
 kind: ConfigMap
