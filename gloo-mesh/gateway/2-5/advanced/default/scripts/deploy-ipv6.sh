@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
-set -o errexit
 
 number=$1
 name=$2
 region=$3
 zone=$4
-twodigits=$(printf "%02d\n" $number)
 kindest_node=${KINDEST_NODE:-kindest\/node:v1.28.0@sha256:b7a4cad12c197af3ba43202d3efe03246b3f0793f162afb40a33c923952d5b31}
+twodigits=$(printf "%02d\n" $number)
+# https://www.site24x7.com/tools/ipv6-subnetcalculator.html
+metalLBSubnet=(null 2001:db8::100/120 2001:db8::200/120 2001:db8::300/120)
 
 if [ -z "$3" ]; then
   region=us-east-1
@@ -16,7 +17,7 @@ if [ -z "$4" ]; then
   zone=us-east-1a
 fi
 
-if hostname -I 2>/dev/null; then
+if hostname -I; then
   myip=$(hostname -I | awk '{ print $1 }')
 else
   myip=$(ipconfig getifaddr en0)
@@ -67,54 +68,10 @@ health:
 EOF
 
   docker run \
-    -d --restart=always ${DEPLOY_EXTRA_PARAMS} -v ${HOME}/.${cache_name}-config.yml:/etc/docker/registry/config.yml --name "${cache_name}" \
+    -d --restart=always -v ${HOME}/.${cache_name}-config.yml:/etc/docker/registry/config.yml --name "${cache_name}" \
     registry:2
 fi
 done
-
-mkdir -p oidc
-
-cat <<'EOF' >./oidc/sa-signer-pkcs8.pub
------BEGIN PUBLIC KEY-----
-MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA53YiBcrn7+ZK0Vb4odeA
-1riYdvEb8To4H6/HtF+OKzuCIXFQ+bRy7yMrDGITYpfYPrTZOgfdeTLZqOiAj+cL
-395nvxdly83SUrdh7ItfOPRluuuiPHnFn111wpyjBw5nut4Kx+M5MksNfA1hU0Zw
-zIM9OviX8iEF8xHWUtz4BAMDG8N6+zpLo0pAzaei5hKuLZ9dZOzHBC8VOW82cQMm
-5X5uOKsCHMtNSjqYUNB1DxN6xxM+odGWT/6xthPGk6YCxmO28YHPFZfiS2eAIpD8
-2p/16KQKU6TkZSrldkYxiHIPhu+5f9faZJG7dB9pLN1SfdTBio4PK5Mz9muLUCv9
-ywIDAQAB
------END PUBLIC KEY-----
-EOF
-
-cat <<'EOF' >./oidc/sa-signer.key
------BEGIN RSA PRIVATE KEY-----
-MIIEpAIBAAKCAQEA53YiBcrn7+ZK0Vb4odeA1riYdvEb8To4H6/HtF+OKzuCIXFQ
-+bRy7yMrDGITYpfYPrTZOgfdeTLZqOiAj+cL395nvxdly83SUrdh7ItfOPRluuui
-PHnFn111wpyjBw5nut4Kx+M5MksNfA1hU0ZwzIM9OviX8iEF8xHWUtz4BAMDG8N6
-+zpLo0pAzaei5hKuLZ9dZOzHBC8VOW82cQMm5X5uOKsCHMtNSjqYUNB1DxN6xxM+
-odGWT/6xthPGk6YCxmO28YHPFZfiS2eAIpD82p/16KQKU6TkZSrldkYxiHIPhu+5
-f9faZJG7dB9pLN1SfdTBio4PK5Mz9muLUCv9ywIDAQABAoIBAB8tro+RMYUDRHjG
-el9ypAxIeWEsQVNRQFYkW4ZUiNYSAgl3Ni0svX6xAg989peFVL+9pLVIcfDthJxY
-FVlNCjBxyQ/YmwHFC9vQkARJEd6eLUXsj8INtS0ubbp1VxCQRDDL0C/0z7OSoJJh
-SwboqjEiTJExA2a+RArmEDTBRzdi3t+kT8G23JcqOivrITt17K6bQYyJXw7/vUdc
-r/R+hfd5TqVq92VddzDT7RNJAxsbPPXjGnESlq1GALBDs+uBGYsP0fiEJb2nicSv
-z9fBnBeERhut1gcE0C0iLRQZb+3r8TitBtxrZv+0BHgXrkKtXDwWTqGEKOwC4dBn
-7nxkH2ECgYEA6+/DOTABGYOWOQftFkJMjcugzDrjoGpuXuVOTb65T+3FHAzU93zy
-3bt3wQxrlugluyy9Sc/PL3ck2LgUsPHZ+s7zsdGvvGALBD6bOSSKATz9JgjwifO8
-PgqUz1kXRwez2CtKLOOCFFtcIzEdWIzsa1ubNqLzgN7rD+XBkUc2uEcCgYEA+yTy
-72EDMQVoIZOygytHsDNdy0iS2RsBbdurT27wkYuFpFUVWdbNSL+8haE+wJHseHcw
-BD4WIMpU+hnS4p4OO8+6V7PiXOS5E/se91EJigZAoixgDUiC8ihojWgK9PYEavUo
-hULWbayO59SxYWeUI4Ze0GP8Jw8vdB86ib4ulF0CgYEAgyzRuLjk05+iZODwQyDn
-WSquov3W0rh51s7cw0LX2wWSQm8r9NGGYhs5kJ5sLwGxAKj2MNSWF4jBdrCZ6Gr+
-y4BGY0X209/+IAUC3jlfdSLIiF4OBlT6AvB1HfclhvtUVUp0OhLfnpvQ1UwYScRI
-KcRLvovIoIzP2g3emfwjAz8CgYEAxUHhOhm1mwRHJNBQTuxok0HVMrze8n1eov39
-0RcvBvJSVp+pdHXdqX1HwqHCmxhCZuAeq8ZkNP8WvZYY6HwCbAIdt5MHgbT4lXQR
-f2l8F5gPnhFCpExG5ZLNg/urV3oAQE4stHap21zEpdyOMhZb6Yc5424U+EzaFdgN
-b3EcPtUCgYAkKvUlSnBbgiJz1iaN6fuTqH0efavuFGMhjNmG7GtpNXdgyl1OWIuc
-Yu+tZtHXtKYf3B99GwPrFzw/7yfDwae5YeWmi2/pFTH96wv3brJBqkAWY8G5Rsmd
-qF50p34vIFqUBniNRwSArx8t2dq/CuAMgLAtSjh70Q6ZAnCF85PD8Q==
------END RSA PRIVATE KEY-----
-EOF
 
 cat << EOF > kind${number}.yaml
 kind: Cluster
@@ -125,34 +82,12 @@ nodes:
   extraPortMappings:
   - containerPort: 6443
     hostPort: 70${twodigits}
-  extraMounts:
-  - containerPath: /etc/kubernetes/oidc
-    hostPath: /${PWD}/oidc
   labels:
     ingress-ready: true
     topology.kubernetes.io/region: ${region}
     topology.kubernetes.io/zone: ${zone}
 networking:
-  disableDefaultCNI: true
-  serviceSubnet: "10.$(echo $twodigits | sed 's/^0*//').0.0/16"
-  podSubnet: "10.1${twodigits}.0.0/16"
-kubeadmConfigPatches:
-- |
-  kind: ClusterConfiguration
-  apiServer:
-    extraArgs:
-      service-account-key-file: /etc/kubernetes/pki/sa.pub
-      service-account-key-file: /etc/kubernetes/oidc/sa-signer-pkcs8.pub
-      service-account-signing-key-file: /etc/kubernetes/oidc/sa-signer.key
-      service-account-issuer: https://solo-workshop-oidc.s3.us-east-1.amazonaws.com
-      api-audiences: sts.amazonaws.com
-    extraVolumes:
-    - name: oidc
-      hostPath: /etc/kubernetes/oidc
-      mountPath: /etc/kubernetes/oidc
-      readOnly: true
-  metadata:
-    name: config
+  ipFamily: ipv6
 containerdConfigPatches:
 - |-
   [plugins."io.containerd.grpc.v1.cri".registry.mirrors."localhost:${reg_port}"]
@@ -171,10 +106,10 @@ EOF
 
 kind create cluster --name kind${number} --config kind${number}.yaml
 
-ipkind=$(docker inspect kind${number}-control-plane | jq -r '.[0].NetworkSettings.Networks[].IPAddress')
-networkkind=$(echo ${ipkind} | awk -F. '{ print $1"."$2 }')
+ipkind=$(docker inspect kind${number}-control-plane | jq -r '.[0].NetworkSettings.Networks[].GlobalIPv6Address')
+networkkind=$(echo ${ipkind} | rev | cut -d: -f2- | rev):
 
-kubectl config set-cluster kind-kind${number} --server=https://${myip}:70${twodigits} --insecure-skip-tls-verify=true
+#kubectl config set-cluster kind-kind${number} --server=https://${myip}:70${twodigits} --insecure-skip-tls-verify=true
 
 docker network connect "kind" "${reg_name}" || true
 docker network connect "kind" docker || true
@@ -183,10 +118,12 @@ docker network connect "kind" us-central1-docker || true
 docker network connect "kind" quay || true
 docker network connect "kind" gcr || true
 
-kubectl --context kind-kind${number} apply -f https://raw.githubusercontent.com/projectcalico/calico/v3.27.0/manifests/calico.yaml
-
 # Preload MetalLB images
-kubectl --context=kind-kind${number} apply -f https://raw.githubusercontent.com/metallb/metallb/v0.13.12/config/manifests/metallb-native.yaml
+docker pull quay.io/metallb/controller:v0.13.12
+docker pull quay.io/metallb/speaker:v0.13.12
+kind load docker-image quay.io/metallb/controller:v0.13.12 --name kind${number}
+kind load docker-image quay.io/metallb/speaker:v0.13.12 --name kind${number}
+for i in 1 2 3 4 5; do kubectl --context=kind-kind${number} apply -f https://raw.githubusercontent.com/metallb/metallb/v0.13.12/config/manifests/metallb-native.yaml && break || sleep 15; done
 kubectl --context=kind-kind${number} create secret generic -n metallb-system memberlist --from-literal=secretkey="$(openssl rand -base64 128)"
 kubectl --context=kind-kind${number} -n metallb-system rollout status deploy controller || true
 
@@ -198,7 +135,7 @@ metadata:
   namespace: metallb-system
 spec:
   addresses:
-  - ${networkkind}.1${twodigits}.1-${networkkind}.1${twodigits}.254
+  - ${networkkind}${number}1-${networkkind}${number}9
 ---
 apiVersion: metallb.io/v1beta1
 kind: L2Advertisement
@@ -213,6 +150,7 @@ kubectl --context=kind-kind${number} apply -f metallb${number}.yaml && break
 sleep 2
 done
 
+# connect the registry to the cluster network if not already connected
 printf "Renaming context kind-kind${number} to ${name}\n"
 for i in {1..100}; do
   (kubectl config get-contexts -oname | grep ${name}) && break
@@ -221,6 +159,9 @@ for i in {1..100}; do
   sleep 2
   [ $i -lt 100 ] || exit 1
 done
+
+# Document the local registry
+# https://github.com/kubernetes/enhancements/tree/master/keps/sig-cluster-lifecycle/generic/1755-communicating-a-local-registry
 cat <<EOF | kubectl --context=${name} apply -f -
 apiVersion: v1
 kind: ConfigMap
@@ -232,4 +173,3 @@ data:
     host: "localhost:${reg_port}"
     help: "https://kind.sigs.k8s.io/docs/user/local-registry/"
 EOF
-
