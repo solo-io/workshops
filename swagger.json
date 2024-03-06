@@ -198,7 +198,7 @@
           "description" : "Number of pages of the book"
         }
       },
-      "description" : "Detailed information about my product"
+      "description" : "Detailed information about a product"
     },
     "ProductReviews" : {
       "type" : "object",
