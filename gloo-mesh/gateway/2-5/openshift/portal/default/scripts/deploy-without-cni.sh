@@ -4,8 +4,8 @@ number=$1
 name=$2
 region=$3
 zone=$4
-twodigits=$(printf "%02d\n" $number)
 kindest_node=${KINDEST_NODE:-kindest\/node:v1.28.0@sha256:b7a4cad12c197af3ba43202d3efe03246b3f0793f162afb40a33c923952d5b31}
+twodigits=$(printf "%02d\n" $number)
 
 if [ -z "$3" ]; then
   region=us-east-1
@@ -115,16 +115,7 @@ docker network connect "kind" us-central1-docker || true
 docker network connect "kind" quay || true
 docker network connect "kind" gcr || true
 
-kubectl --context kind-kind${number} apply -f https://raw.githubusercontent.com/projectcalico/calico/v3.27.0/manifests/calico.yaml
-
-# Preload MetalLB images
-docker pull quay.io/metallb/controller:v0.13.12 || true
-docker pull quay.io/metallb/speaker:v0.13.12 || true
-kind load docker-image quay.io/metallb/controller:v0.13.12 --name kind${number} || true
-kind load docker-image quay.io/metallb/speaker:v0.13.12 --name kind${number} || true
-for i in 1 2 3 4 5; do kubectl --context=kind-kind${number} apply -f https://raw.githubusercontent.com/metallb/metallb/v0.13.12/config/manifests/metallb-native.yaml && break || sleep 15; done
-kubectl --context=kind-kind${number} create secret generic -n metallb-system memberlist --from-literal=secretkey="$(openssl rand -base64 128)"
-kubectl --context=kind-kind${number} -n metallb-system rollout status deploy controller || true
+curl -s https://raw.githubusercontent.com/metallb/metallb/v0.13.12/config/manifests/metallb-native.yaml | sed 's/Fail/Ignore/' | kubectl --context=kind-kind${number} apply -f -
 
 cat << EOF > metallb${number}.yaml
 apiVersion: metallb.io/v1beta1
