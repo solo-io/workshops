@@ -107,4 +107,9 @@ global = {
 
 module.exports = global;
 
-afterEach(function(done) { utils.waitOnFailedTest(done, this.currentTest.currentRetry())});
+afterEach(function(done) {
+  if (this.currentTest.currentRetry() % 5 === 0) {
+    console.log(`Test "${this.currentTest.fullTitle()}" retry: ${this.currentTest.currentRetry()}`);
+  }
+  utils.waitOnFailedTest(done, this.currentTest.currentRetry())
+});
