@@ -319,7 +319,7 @@ spec:
       istioOperatorSpec:
         profile: minimal
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.20.2-fips
+        tag: 1.20.4-fips
         namespace: istio-system
         values:
           global:
@@ -359,7 +359,7 @@ spec:
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.20.2-fips
+        tag: 1.20.4-fips
         values:
           gateways:
             istio-ingressgateway:
