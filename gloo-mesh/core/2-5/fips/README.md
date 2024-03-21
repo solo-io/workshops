@@ -695,8 +695,8 @@ spec:
       revision: 1-20
       istioOperatorSpec:
         profile: minimal
-        hub: docker.io/istio
-        tag: 1.20.2
+        hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
+        tag: 1.20.2-fips
         namespace: istio-system
         values:
           global:
@@ -735,8 +735,8 @@ spec:
       gatewayRevision: 1-20
       istioOperatorSpec:
         profile: empty
-        hub: docker.io/istio
-        tag: 1.20.2
+        hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
+        tag: 1.20.2-fips
         values:
           gateways:
             istio-ingressgateway:
@@ -762,8 +762,8 @@ spec:
       gatewayRevision: 1-20
       istioOperatorSpec:
         profile: empty
-        hub: docker.io/istio
-        tag: 1.20.2
+        hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
+        tag: 1.20.2-fips
         values:
           gateways:
             istio-ingressgateway:
@@ -798,8 +798,8 @@ spec:
       revision: 1-20
       istioOperatorSpec:
         profile: minimal
-        hub: docker.io/istio
-        tag: 1.20.2
+        hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
+        tag: 1.20.2-fips
         namespace: istio-system
         values:
           global:
@@ -838,8 +838,8 @@ spec:
       gatewayRevision: 1-20
       istioOperatorSpec:
         profile: empty
-        hub: docker.io/istio
-        tag: 1.20.2
+        hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
+        tag: 1.20.2-fips
         values:
           gateways:
             istio-ingressgateway:
@@ -865,8 +865,8 @@ spec:
       gatewayRevision: 1-20
       istioOperatorSpec:
         profile: empty
-        hub: docker.io/istio
-        tag: 1.20.2
+        hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
+        tag: 1.20.2-fips
         values:
           gateways:
             istio-ingressgateway:
