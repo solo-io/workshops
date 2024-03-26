@@ -19,6 +19,8 @@
       <td></td>
       <td></td>
       <td></td>
+      <td></td>
+      <td></td>
     </tr>
     <tr>
       <td>Gloo Mesh Enterprise</td>
@@ -73,6 +75,7 @@
     <tr>
       <td>Gloo Edge</td>
       <td><a href="https://github.com/solo-io/workshops/tree/master/gloo-edge" target=”_blank”>1.16.4</a></td>
+      <td></td>
       <td></td>
       <td></td>
       <td></td>
