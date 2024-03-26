@@ -67,7 +67,7 @@ health:
 EOF
 
   docker run \
-    -d --restart=always -v ${HOME}/.${cache_name}-config.yml:/etc/docker/registry/config.yml --name "${cache_name}" \
+    -d --restart=always ${DEPLOY_EXTRA_PARAMS} -v ${HOME}/.${cache_name}-config.yml:/etc/docker/registry/config.yml --name "${cache_name}" \
     registry:2
 fi
 done
@@ -128,6 +128,10 @@ nodes:
   extraMounts:
   - containerPath: /etc/kubernetes/oidc
     hostPath: /${PWD}/oidc
+  labels:
+    ingress-ready: true
+    topology.kubernetes.io/region: ${region}
+    topology.kubernetes.io/zone: ${zone}
 networking:
   disableDefaultCNI: true
   serviceSubnet: "10.$(echo $twodigits | sed 's/^0*//').0.0/16"
@@ -149,11 +153,6 @@ kubeadmConfigPatches:
       readOnly: true
   metadata:
     name: config
-- |
-  kind: InitConfiguration
-  nodeRegistration:
-    kubeletExtraArgs:
-      node-labels: "ingress-ready=true,topology.kubernetes.io/region=${region},topology.kubernetes.io/zone=${zone}"
 containerdConfigPatches:
 - |-
   [plugins."io.containerd.grpc.v1.cri".registry.mirrors."localhost:${reg_port}"]
@@ -184,13 +183,13 @@ docker network connect "kind" us-central1-docker || true
 docker network connect "kind" quay || true
 docker network connect "kind" gcr || true
 
-kubectl --context kind-kind${number} apply -f https://raw.githubusercontent.com/projectcalico/calico/v3.25.0/manifests/calico.yaml
+kubectl --context kind-kind${number} apply -f https://raw.githubusercontent.com/projectcalico/calico/v3.27.0/manifests/calico.yaml
 
 # Preload MetalLB images
-docker pull quay.io/metallb/controller:v0.13.12
-docker pull quay.io/metallb/speaker:v0.13.12
-kind load docker-image quay.io/metallb/controller:v0.13.12 --name kind${number}
-kind load docker-image quay.io/metallb/speaker:v0.13.12 --name kind${number}
+docker pull quay.io/metallb/controller:v0.13.12 || true
+docker pull quay.io/metallb/speaker:v0.13.12 || true
+kind load docker-image quay.io/metallb/controller:v0.13.12 --name kind${number} || true
+kind load docker-image quay.io/metallb/speaker:v0.13.12 --name kind${number} || true
 kubectl --context=kind-kind${number} apply -f https://raw.githubusercontent.com/metallb/metallb/v0.13.12/config/manifests/metallb-native.yaml
 kubectl --context=kind-kind${number} create secret generic -n metallb-system memberlist --from-literal=secretkey="$(openssl rand -base64 128)"
 kubectl --context=kind-kind${number} -n metallb-system rollout status deploy controller || true

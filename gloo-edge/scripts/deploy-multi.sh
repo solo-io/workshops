@@ -81,17 +81,19 @@ nodes:
   extraPortMappings:
   - containerPort: 6443
     hostPort: 70${twodigits}
+  labels:
+    ingress-ready: true
+    topology.kubernetes.io/region: ${region}
+    topology.kubernetes.io/zone: ${zone}
 - role: worker
   image: ${kindest_node}
+  labels:
+    ingress-ready: true
+    topology.kubernetes.io/region: ${region}
+    topology.kubernetes.io/zone: ${zone}
 networking:
   serviceSubnet: "10.$(echo $twodigits | sed 's/^0*//').0.0/16"
   podSubnet: "10.1${twodigits}.0.0/16"
-kubeadmConfigPatches:
-- |
-  kind: InitConfiguration
-  nodeRegistration:
-    kubeletExtraArgs:
-      node-labels: "ingress-ready=true,topology.kubernetes.io/region=${region},topology.kubernetes.io/zone=${zone}"
 containerdConfigPatches:
 - |-
   [plugins."io.containerd.grpc.v1.cri".registry.mirrors."localhost:${reg_port}"]
@@ -123,11 +125,11 @@ docker network connect "kind" quay || true
 docker network connect "kind" gcr || true
 
 # Preload MetalLB images
-docker pull quay.io/metallb/controller:v0.13.12
-docker pull quay.io/metallb/speaker:v0.13.12
-kind load docker-image quay.io/metallb/controller:v0.13.12 --name kind${number}
-kind load docker-image quay.io/metallb/speaker:v0.13.12 --name kind${number}
-kubectl --context=kind-kind${number} apply -f https://raw.githubusercontent.com/metallb/metallb/v0.13.12/config/manifests/metallb-native.yaml
+docker pull quay.io/metallb/controller:v0.13.12 || true
+docker pull quay.io/metallb/speaker:v0.13.12 || true
+kind load docker-image quay.io/metallb/controller:v0.13.12 --name kind${number} || true
+kind load docker-image quay.io/metallb/speaker:v0.13.12 --name kind${number} || true
+for i in 1 2 3 4 5; do kubectl --context=kind-kind${number} apply -f https://raw.githubusercontent.com/metallb/metallb/v0.13.12/config/manifests/metallb-native.yaml && break || sleep 15; done
 kubectl --context=kind-kind${number} create secret generic -n metallb-system memberlist --from-literal=secretkey="$(openssl rand -base64 128)"
 kubectl --context=kind-kind${number} -n metallb-system rollout status deploy controller || true
 
