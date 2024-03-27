@@ -9,7 +9,7 @@ source ./scripts/assert.sh
 
 <center><img src="images/gloo-gateway.png" alt="Gloo Mesh Gateway" style="width:70%;max-width:800px" /></center>
 
-# <center>Gloo Mesh Gateway (2.5.3)</center>
+# <center>Gloo Mesh Gateway (2.5.4)</center>
 
 
 
@@ -166,12 +166,12 @@ docker.io/nginx:1.25.3
 docker.io/openpolicyagent/opa:0.57.1-debug
 docker.io/redis:7.2.4-alpine
 gcr.io/gloo-mesh/ext-auth-service:0.56.0
-gcr.io/gloo-mesh/gloo-mesh-agent:2.5.3
-gcr.io/gloo-mesh/gloo-mesh-apiserver:2.5.3
-gcr.io/gloo-mesh/gloo-mesh-envoy:2.5.3
-gcr.io/gloo-mesh/gloo-mesh-mgmt-server:2.5.3
-gcr.io/gloo-mesh/gloo-mesh-ui:2.5.3
-gcr.io/gloo-mesh/gloo-otel-collector:2.5.3
+gcr.io/gloo-mesh/gloo-mesh-agent:2.5.4
+gcr.io/gloo-mesh/gloo-mesh-apiserver:2.5.4
+gcr.io/gloo-mesh/gloo-mesh-envoy:2.5.4
+gcr.io/gloo-mesh/gloo-mesh-mgmt-server:2.5.4
+gcr.io/gloo-mesh/gloo-mesh-ui:2.5.4
+gcr.io/gloo-mesh/gloo-otel-collector:2.5.4
 gcr.io/gloo-mesh/rate-limiter:0.11.9
 quay.io/keycloak/keycloak:22.0.5
 quay.io/prometheus-operator/prometheus-config-reloader:v0.71.2
@@ -210,7 +210,7 @@ done
 Before we get started, let's install the `meshctl` CLI:
 
 ```bash
-export GLOO_MESH_VERSION=v2.5.3
+export GLOO_MESH_VERSION=v2.5.4
 curl -sL https://run.solo.io/meshctl/install | sh -
 export PATH=$HOME/.gloo-mesh/bin:$PATH
 ```
@@ -253,13 +253,13 @@ helm upgrade --install gloo-platform-crds gloo-platform-crds \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${MGMT} \
-  --version 2.5.3
+  --version 2.5.4
 
 helm upgrade --install gloo-platform-mgmt gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${MGMT} \
-  --version 2.5.3 \
+  --version 2.5.4 \
   -f -<<EOF
 licensing:
   glooTrialLicenseKey: ${GLOO_MESH_LICENSE_KEY}
@@ -485,7 +485,7 @@ done
 timeout 2m bash -c "until [[ \$(kubectl --context ${CLUSTER1} -n istio-system get deploy -o json | jq '[.items[].status.readyReplicas] | add') -ge 1 ]]; do
   sleep 1
 done"
-timeout 2m bash -c "until [[ \$(kubectl --context ${CLUSTER1} -n istio-gateways get deploy -o json | jq '[.items[].status.readyReplicas] | add') -eq 2 ]]; do
+timeout 2m bash -c "until [[ \$(kubectl --context ${CLUSTER1} -n istio-gateways get deploy -o json | jq '[.items[].status.readyReplicas] | add') -eq 1 ]]; do
   sleep 1
 done"
 -->
@@ -831,7 +831,7 @@ helm upgrade --install gloo-platform gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh-addons \
   --kube-context ${CLUSTER1} \
-  --version 2.5.3 \
+  --version 2.5.4 \
   -f -<<EOF
 common:
   cluster: cluster1

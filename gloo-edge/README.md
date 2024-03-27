@@ -128,14 +128,14 @@ var expect = chai.expect;
 
 describe("Required environment variables should contain value", () => {
   it("Gloo Edge licence environment variables should not be empty", () => {
-    expect(process.env.LICENSE_KEY).to.not.be.empty
+    expect(process.env.LICENSE_KEY).not.to.be.empty
   });
 });
 EOF
-echo "executing test procs/gloo-edge/build/templates/steps/deploy-gloo-edge/tests/environment-variables.test.js.liquid"
+echo "executing test dist/workshop/build/templates/steps/deploy-gloo-edge/tests/environment-variables.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
-timeout 2m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
 -->
 
 Run the commands below to deploy the Gloo Edge Enterprise components:
@@ -143,14 +143,14 @@ Run the commands below to deploy the Gloo Edge Enterprise components:
 
 
 ```bash
-export GLOO_VERSION=v1.15.18
+export GLOO_VERSION=v1.16.7
 curl -sL https://run.solo.io/gloo/install | sh
 export PATH=$HOME/.gloo/bin:$PATH
 
 helm repo add glooe https://storage.googleapis.com/gloo-ee-helm
 helm repo update
 helm upgrade --install gloo glooe/gloo-ee --namespace gloo-system \
-  --create-namespace --version 1.15.10 --set-string license_key=$LICENSE_KEY --devel
+  --create-namespace --version 1.16.4 --set-string license_key=$LICENSE_KEY --devel
 ```
 
 <!--bash
@@ -163,7 +163,7 @@ chai.use(chaiExec);
 describe("Check glooctl version", () => {
 
   it("GLOO_VERSION environment variable exists", () => {
-    expect(process.env.GLOO_VERSION).to.not.be.empty;
+    expect(process.env.GLOO_VERSION).not.to.be.empty;
     expect(process.env.GLOO_VERSION).to.be.a('string').and.satisfy(msg => msg.startsWith('v'));
   });
 
@@ -175,10 +175,10 @@ describe("Check glooctl version", () => {
   });
 });
 EOF
-echo "executing test procs/gloo-edge/build/templates/steps/deploy-gloo-edge/tests/glooctl-version.test.js.liquid"
+echo "executing test dist/workshop/build/templates/steps/deploy-gloo-edge/tests/glooctl-version.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
-timeout 2m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
 -->
 
 Use the following commands to wait for the Gloo Edge components to be deployed:
@@ -745,10 +745,10 @@ describe("httpbin receives requests that don't specify the host header", () => {
 })
 
 EOF
-echo "executing test procs/gloo-edge/build/templates/steps/traffic-management/tests/verify-routing.test.js.liquid"
+echo "executing test dist/workshop/build/templates/steps/traffic-management/tests/verify-routing.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
-timeout 2m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
 -->
 
 
@@ -868,10 +868,10 @@ describe("httpbin is available (https)", () => {
 })
 
 EOF
-echo "executing test procs/gloo-edge/build/templates/steps/security-and-authentication/tests/https.test.js.liquid"
+echo "executing test dist/workshop/build/templates/steps/security-and-authentication/tests/https.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
-timeout 2m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
 -->
 
 ## Authentication with OIDC (OpenID Connect)
@@ -1074,10 +1074,10 @@ describe("Authentication is working properly", function() {
   it('httpbin is accessible after authenticating', () => helpersHttp.checkURL({ host: "https://httpbin.solo.io/", headers: [{key: 'Authorization', value: 'Bearer ' + keycloak_token}], retCode: 200 }));
 });
 EOF
-echo "executing test procs/gloo-edge/build/templates/steps/security-and-authentication/tests/authentication.test.js.liquid"
+echo "executing test dist/workshop/build/templates/steps/security-and-authentication/tests/authentication.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
-timeout 2m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
 -->
 
 ## Refactor time
@@ -1275,10 +1275,10 @@ describe("admin1 who is an administrator", function() {
   it("is authorized to make POST requests", () => helpersHttp.checkWithMethod({ host: "https://httpbin.solo.io", path: "/post", headers: [{key: 'Authorization', value: 'Bearer ' + keycloak_token}], method: "post", retCode: 200 }));
 });
 EOF
-echo "executing test procs/gloo-edge/build/templates/steps/opa-authorization/tests/authorization.test.js.liquid"
+echo "executing test dist/workshop/build/templates/steps/opa-authorization/tests/authorization.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
-timeout 2m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
 -->
 
 
@@ -1504,10 +1504,10 @@ describe("The request is transformed", function() {
 });
 
 EOF
-echo "executing test procs/gloo-edge/build/templates/steps/request-transformation/tests/transformations.test.js.liquid"
+echo "executing test dist/workshop/build/templates/steps/request-transformation/tests/transformations.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
-timeout 2m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
 -->
 
 
@@ -1740,7 +1740,7 @@ spec:
 EOF
 ```
 
-After the refactoring, if you re-query the `echo` service, you will see that everything still works the same: the request is authenticated and authorized, claims are extracted and stored as headers, and rate-limiting applies. 
+After the refactoring, if you re-query the `httpbin` service, you will see that everything still works the same: the request is authenticated and authorized, claims are extracted and stored as headers, and rate-limiting applies. 
 
 <!--bash
 cat <<'EOF' > ./test.js
@@ -1786,10 +1786,10 @@ describe("The rate limit for enterprise sub users", function() {
   });
 });
 EOF
-echo "executing test procs/gloo-edge/build/templates/steps/rate-limiting/tests/subscription-based-rate-limit.test.js.liquid"
+echo "executing test dist/workshop/build/templates/steps/rate-limiting/tests/subscription-based-rate-limit.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
-timeout 2m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
 -->
 
 
@@ -1975,10 +1975,10 @@ describe("Request should be blocked for jndi header", () => {
 });
 
 EOF
-echo "executing test procs/gloo-edge/build/templates/steps/web-application-firewall/tests/firewall-block-agent.test.js.liquid"
+echo "executing test dist/workshop/build/templates/steps/web-application-firewall/tests/firewall-block-agent.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
-timeout 2m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
 -->
 
 
