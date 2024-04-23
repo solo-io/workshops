@@ -9,7 +9,7 @@ source ./scripts/assert.sh
 
 <center><img src="images/gloo-gateway.png" alt="Gloo Mesh Gateway" style="width:70%;max-width:800px" /></center>
 
-# <center>Gloo Portal (2.5.6)</center>
+# <center>Gloo Gateway and Portal (2.5.6)</center>
 
 
 
