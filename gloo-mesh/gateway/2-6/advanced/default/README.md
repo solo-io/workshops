@@ -223,18 +223,17 @@ telemetryGateway:
 glooUi:
   enabled: true
   serviceType: LoadBalancer
-glooAgent:
-  enabled: true
-  relay:
-    serverAddress: gloo-mesh-mgmt-server:9900
-    authority: gloo-mesh-mgmt-server.gloo-mesh
 telemetryCollector:
   enabled: true
   config:
     exporters:
       otlp:
         endpoint: gloo-telemetry-gateway:4317
-
+glooAgent:
+  enabled: true
+  relay:
+    serverAddress: gloo-mesh-mgmt-server:9900
+    authority: gloo-mesh-mgmt-server.gloo-mesh
 EOF
 
 kubectl --context ${MGMT} -n gloo-mesh rollout status deploy/gloo-mesh-mgmt-server
@@ -242,13 +241,6 @@ kubectl --context ${MGMT} -n gloo-mesh rollout status deploy/gloo-mesh-mgmt-serv
 kubectl --context ${MGMT} delete workspaces -A --all
 kubectl --context ${MGMT} delete workspacesettings -A --all
 ```
-
-<!--bash
-kubectl wait --context ${MGMT} --for=condition=Ready -n gloo-mesh --all pod
-timeout 2m bash -c "until [[ \$(kubectl --context ${MGMT} -n gloo-mesh get svc gloo-mesh-mgmt-server -o json | jq '.status.loadBalancer | length') -gt 0 ]]; do
-  sleep 1
-done"
--->
 
 <!--bash
 cat <<'EOF' > ./test.js
