@@ -19,7 +19,7 @@ global = {
     let diff = deepObjectDiff.detailedDiff(json, data);
     let expectedObject = false;
     console.log(Object.keys(diff.deleted).length);
-    if(Object.keys(diff.updated).length === 0 && Object.keys(diff.deleted).length === 0) {
+    if (Object.keys(diff.updated).length === 0 && Object.keys(diff.deleted).length === 0) {
       expectedObject = true;
     }
     expect(expectedObject, "The following object can't be found or is not as expected:\n" + yaml).to.be.true;
@@ -28,8 +28,8 @@ global = {
     let command = "kubectl --context " + context + " -n " + namespace + " get deploy " + k8sObj + " -o jsonpath='{.status}'";
     let cli = chaiExec(command);
     cli.stderr.should.be.empty;
-    let readyReplicas = JSON.parse(cli.stdout.slice(1,-1)).readyReplicas || 0;
-    let replicas = JSON.parse(cli.stdout.slice(1,-1)).replicas;
+    let readyReplicas = JSON.parse(cli.stdout.slice(1, -1)).readyReplicas || 0;
+    let replicas = JSON.parse(cli.stdout.slice(1, -1)).replicas;
     if (readyReplicas != replicas) {
       console.log("    ----> " + k8sObj + " in " + context + " not ready...");
       await utils.sleep(1000);
@@ -41,7 +41,7 @@ global = {
     let command = "kubectl --context " + context + " -n " + namespace + " get deploy -l " + labels + " -o jsonpath='{.items}'";
     let cli = chaiExec(command);
     cli.stderr.should.be.empty;
-    let deployments = JSON.parse(cli.stdout.slice(1,-1));
+    let deployments = JSON.parse(cli.stdout.slice(1, -1));
     expect(deployments).to.have.lengthOf(instances);
     deployments.forEach((deployment) => {
       let readyReplicas = deployment.status.readyReplicas || 0;
@@ -58,8 +58,8 @@ global = {
     let command = "kubectl --context " + context + " -n " + namespace + " get sts " + k8sObj + " -o jsonpath='{.status}'";
     let cli = chaiExec(command);
     cli.stderr.should.be.empty;
-    let readyReplicas = JSON.parse(cli.stdout.slice(1,-1)).readyReplicas || 0;
-    let replicas = JSON.parse(cli.stdout.slice(1,-1)).replicas;
+    let readyReplicas = JSON.parse(cli.stdout.slice(1, -1)).readyReplicas || 0;
+    let replicas = JSON.parse(cli.stdout.slice(1, -1)).replicas;
     if (readyReplicas != replicas) {
       console.log("    ----> " + k8sObj + " in " + context + " not ready...");
       await utils.sleep(1000);
@@ -71,8 +71,8 @@ global = {
     let command = "kubectl --context " + context + " -n " + namespace + " get ds " + k8sObj + " -o jsonpath='{.status}'";
     let cli = chaiExec(command);
     cli.stderr.should.be.empty;
-    let readyReplicas = JSON.parse(cli.stdout.slice(1,-1)).numberReady || 0;
-    let replicas = JSON.parse(cli.stdout.slice(1,-1)).desiredNumberScheduled;
+    let readyReplicas = JSON.parse(cli.stdout.slice(1, -1)).numberReady || 0;
+    let replicas = JSON.parse(cli.stdout.slice(1, -1)).desiredNumberScheduled;
     if (readyReplicas != replicas) {
       console.log("    ----> " + k8sObj + " in " + context + " not ready...");
       await utils.sleep(1000);
@@ -87,7 +87,7 @@ global = {
     cli.stderr.should.be.empty;
     cli.should.exit.with.code(0);
   },
-  genericCommand: async ({ command, responseContains="" }) => {
+  genericCommand: async ({ command, responseContains = "" }) => {
     let cli = chaiExec(command);
     if (cli.stderr && cli.stderr != "") {
       console.log("    ----> " + command + " not succesful...");
@@ -95,7 +95,7 @@ global = {
     }
     cli.stderr.should.be.empty;
     cli.should.exit.with.code(0);
-    if(responseContains!=""){
+    if (responseContains != "") {
       cli.stdout.should.contain(responseContains);
     }
   },
@@ -107,8 +107,8 @@ global = {
 
 module.exports = global;
 
-afterEach(function(done) {
-  if (this.currentTest.currentRetry() % 5 === 0) {
+afterEach(function (done) {
+  if (this.currentTest.currentRetry() > 0 && this.currentTest.currentRetry() % 5 === 0) {
     console.log(`Test "${this.currentTest.fullTitle()}" retry: ${this.currentTest.currentRetry()}`);
   }
   utils.waitOnFailedTest(done, this.currentTest.currentRetry())
