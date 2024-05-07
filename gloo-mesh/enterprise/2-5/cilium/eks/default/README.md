@@ -9,7 +9,7 @@ source ./scripts/assert.sh
 
 <center><img src="images/gloo-mesh.png" alt="Gloo Mesh Enterprise" style="width:70%;max-width:800px" /></center>
 
-# <center>Gloo Mesh Enterprise (2.5.4)</center>
+# <center>Gloo Mesh Enterprise (2.5.6)</center>
 
 
 
@@ -156,7 +156,7 @@ timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> 
 Before we get started, let's install the `meshctl` CLI:
 
 ```bash
-export GLOO_MESH_VERSION=v2.5.4
+export GLOO_MESH_VERSION=v2.5.6
 curl -sL https://run.solo.io/meshctl/install | sh -
 export PATH=$HOME/.gloo-mesh/bin:$PATH
 ```
@@ -200,15 +200,13 @@ helm upgrade --install gloo-platform-crds gloo-platform-crds \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${MGMT} \
-  --set featureGates.ExternalWorkloads=true \
-  --set enabledExperimentalApi="{externalworkloads.networking.gloo.solo.io/v2alpha1,spireregistrationentries.internal.gloo.solo.io/v2alpha1}" \
-  --version 2.5.4
+  --version 2.5.6
 
 helm upgrade --install gloo-platform gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${MGMT} \
-  --version 2.5.4 \
+  --version 2.5.6 \
   -f -<<EOF
 licensing:
   glooTrialLicenseKey: ${GLOO_MESH_LICENSE_KEY}
@@ -225,8 +223,6 @@ prometheus:
 redis:
   deployment:
     enabled: true
-featureGates:
-  ExternalWorkloads: true
 telemetryGateway:
   enabled: true
   service:
@@ -236,7 +232,10 @@ glooUi:
   serviceType: LoadBalancer
 telemetryCollector:
   enabled: true
-
+  config:
+    exporters:
+      otlp:
+        endpoint: gloo-telemetry-gateway:4317
 EOF
 
 kubectl --context ${MGMT} -n gloo-mesh rollout status deploy/gloo-mesh-mgmt-server
@@ -330,6 +329,7 @@ timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> 
 -->
 Finally, you need to register the cluster(s).
 
+
 Here is how you register the first one:
 
 ```bash
@@ -357,15 +357,13 @@ helm upgrade --install gloo-platform-crds gloo-platform-crds \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${CLUSTER1} \
-  --set featureGates.ExternalWorkloads=true \
-  --set enabledExperimentalApi="{externalworkloads.networking.gloo.solo.io/v2alpha1,spireregistrationentries.internal.gloo.solo.io/v2alpha1}" \
-  --version 2.5.4
+  --version 2.5.6
 
 helm upgrade --install gloo-platform gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${CLUSTER1} \
-  --version 2.5.4 \
+  --version 2.5.6 \
   -f -<<EOF
 common:
   cluster: cluster1
@@ -380,27 +378,6 @@ telemetryCollector:
     exporters:
       otlp:
         endpoint: "${ENDPOINT_TELEMETRY_GATEWAY}"
-glooSpireServer:
-  enabled: true
-  controller:
-    verbose: true
-  server:
-    trustDomain: cluster1
-postgresql:
-  enabled: true
-  global:
-    postgresql:
-      auth:
-        database: spire
-        password: gloomesh
-        username: spire
-telemetryCollectorCustomization:
-  pipelines:
-    metrics/otlp_relay:
-      enabled: true
-      pipeline:
-        processors:
-        - batch
 EOF
 ```
 
@@ -433,15 +410,13 @@ helm upgrade --install gloo-platform-crds gloo-platform-crds \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${CLUSTER2} \
-  --set featureGates.ExternalWorkloads=true \
-  --set enabledExperimentalApi="{externalworkloads.networking.gloo.solo.io/v2alpha1,spireregistrationentries.internal.gloo.solo.io/v2alpha1}" \
-  --version 2.5.4
+  --version 2.5.6
 
 helm upgrade --install gloo-platform gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${CLUSTER2} \
-  --version 2.5.4 \
+  --version 2.5.6 \
   -f -<<EOF
 common:
   cluster: cluster2
@@ -456,27 +431,6 @@ telemetryCollector:
     exporters:
       otlp:
         endpoint: "${ENDPOINT_TELEMETRY_GATEWAY}"
-glooSpireServer:
-  enabled: true
-  controller:
-    verbose: true
-  server:
-    trustDomain: cluster2
-postgresql:
-  enabled: true
-  global:
-    postgresql:
-      auth:
-        database: spire
-        password: gloomesh
-        username: spire
-telemetryCollectorCustomization:
-  pipelines:
-    metrics/otlp_relay:
-      enabled: true
-      pipeline:
-        processors:
-        - batch
 EOF
 ```
 
@@ -1404,7 +1358,7 @@ helm upgrade --install gloo-platform gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh-addons \
   --kube-context ${CLUSTER1} \
-  --version 2.5.4 \
+  --version 2.5.6 \
   -f -<<EOF
 common:
   cluster: cluster1
@@ -1428,7 +1382,7 @@ helm upgrade --install gloo-platform gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh-addons \
   --kube-context ${CLUSTER2} \
-  --version 2.5.4 \
+  --version 2.5.6 \
   -f -<<EOF
 common:
   cluster: cluster2
@@ -2927,11 +2881,92 @@ Let's see how we can configure a VM to be part of the Mesh.
 
 To make it easier (and more fun), we'll use a Docker container to simulate a VM.
 
+We'll be updating the helm values to enable the Spire feature:
+
+```bash
+helm upgrade --install gloo-platform-crds gloo-platform-crds \
+  --repo https://storage.googleapis.com/gloo-platform/helm-charts \
+  --namespace gloo-mesh \
+  --kube-context ${MGMT} \
+  --set featureGates.ExternalWorkloads=true \
+  --version 2.5.6 \
+  --reuse-values \
+  -f -<<EOF
+featureGates:
+  ExternalWorkloads: true
+EOF
+
+helm upgrade gloo-platform gloo-platform \
+  --repo https://storage.googleapis.com/gloo-platform/helm-charts \
+  --namespace gloo-mesh \
+  --kube-context ${MGMT} \
+  --version 2.5.6 \
+  --reuse-values \
+  -f -<<EOF
+featureGates:
+  ExternalWorkloads: true
+prometheus:
+  skipAutoMigration: true
+EOF
+
+helm upgrade --install gloo-platform-crds gloo-platform-crds \
+  --repo https://storage.googleapis.com/gloo-platform/helm-charts \
+  --namespace gloo-mesh \
+  --kube-context ${CLUSTER1} \
+  --version 2.5.6 \
+  --reuse-values \
+  -f -<<EOF
+featureGates:
+  ExternalWorkloads: true
+EOF
+
+helm upgrade gloo-platform gloo-platform \
+  --repo https://storage.googleapis.com/gloo-platform/helm-charts \
+  --namespace gloo-mesh \
+  --kube-context ${CLUSTER1} \
+  --version 2.5.6 \
+  --reuse-values \
+  -f -<<EOF
+glooSpireServer:
+  enabled: true
+  controller:
+    verbose: true
+  server:
+    trustDomain: cluster1
+postgresql:
+  enabled: true
+  global:
+    postgresql:
+      auth:
+        database: spire
+        password: gloomesh
+        username: spire
+telemetryCollectorCustomization:
+  pipelines:
+    metrics/otlp_relay:
+      enabled: true
+prometheus:
+  skipAutoMigration: true
+EOF
+```
 The certificates will be generated by the Spire server. We need to restart it to use the intermediate CA certificate generated by the `RootTrustPolicy`.
 
 ```bash
-kubectl --context ${CLUSTER1} -n gloo-mesh rollout restart deploy gloo-spire-server
+kubectl --context ${CLUSTER1} -n istio-system delete secrets cacerts
+kubectl --context ${CLUSTER1} -n istio-system delete issuedcertificates,podbouncedirectives --all
+kubectl --context ${CLUSTER1} -n gloo-mesh rollout status deploy
+kubectl --context ${CLUSTER1} -n istio-system delete pod -l app=istiod
+kubectl --context ${CLUSTER1} -n istio-system rollout status deploy
+kubectl --context ${CLUSTER1} -n istio-gateways delete pod -l app=istio-ingressgateway
+kubectl --context ${CLUSTER1} -n gloo-mesh rollout restart deploy gloo-mesh-agent
 ```
+<!--bash
+printf "Waiting for all pods needed for the test..."
+printf "\n"
+kubectl --context ${CLUSTER1} -n istio-gateways rollout status deploy
+kubectl --context ${CLUSTER1} -n gloo-mesh rollout status deploy
+printf "\n"
+-->
 
 First of all, we need to define a few environment variables:
 
@@ -3127,7 +3162,7 @@ echo
 -->
 
 ```bash
-export GLOO_AGENT_URL=https://storage.googleapis.com/gloo-platform/vm/v2.5.4/gloo-workload-agent.deb
+export GLOO_AGENT_URL=https://storage.googleapis.com/gloo-platform/vm/v2.5.6/gloo-workload-agent.deb
 export ISTIO_URL=https://storage.googleapis.com/solo-workshops/istio-binaries/1.20.2/istio-sidecar.deb
 
 docker exec vm1 meshctl ew onboard --install \
