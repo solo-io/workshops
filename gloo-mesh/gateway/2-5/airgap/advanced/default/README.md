@@ -9,7 +9,7 @@ source ./scripts/assert.sh
 
 <center><img src="images/gloo-gateway.png" alt="Gloo Mesh Gateway" style="width:70%;max-width:800px" /></center>
 
-# <center>Gloo Mesh Gateway Advanced (2.5.4)</center>
+# <center>Gloo Mesh Gateway Advanced (2.5.6)</center>
 
 
 
@@ -167,18 +167,18 @@ docker.io/nginx:1.25.3
 docker.io/openpolicyagent/opa:0.57.1-debug
 docker.io/redis:7.2.4-alpine
 gcr.io/field-engineering-eu/graphql-passthrough-grpc-service:0.1
-gcr.io/gloo-mesh/ext-auth-service:0.56.0
-gcr.io/gloo-mesh/gloo-mesh-agent:2.5.4
-gcr.io/gloo-mesh/gloo-mesh-apiserver:2.5.4
-gcr.io/gloo-mesh/gloo-mesh-envoy:2.5.4
-gcr.io/gloo-mesh/gloo-mesh-mgmt-server:2.5.4
-gcr.io/gloo-mesh/gloo-mesh-ui:2.5.4
-gcr.io/gloo-mesh/gloo-otel-collector:2.5.4
-gcr.io/gloo-mesh/rate-limiter:0.11.9
+gcr.io/gloo-mesh/ext-auth-service:0.56.7
+gcr.io/gloo-mesh/gloo-mesh-agent:2.5.6
+gcr.io/gloo-mesh/gloo-mesh-apiserver:2.5.6
+gcr.io/gloo-mesh/gloo-mesh-envoy:2.5.6
+gcr.io/gloo-mesh/gloo-mesh-mgmt-server:2.5.6
+gcr.io/gloo-mesh/gloo-mesh-ui:2.5.6
+gcr.io/gloo-mesh/gloo-otel-collector:2.5.6
+gcr.io/gloo-mesh/rate-limiter:0.11.10
 quay.io/jetstack/cert-manager-cainjector:v1.12.4
 quay.io/jetstack/cert-manager-controller:v1.12.4
 quay.io/jetstack/cert-manager-webhook:v1.12.4
-quay.io/keycloak/keycloak:22.0.5
+quay.io/keycloak/keycloak:24.0.2
 quay.io/prometheus-operator/prometheus-config-reloader:v0.71.2
 quay.io/prometheus/prometheus:v2.49.1
 quay.io/solo-io/kubectl:1.16.4
@@ -215,7 +215,7 @@ done
 Before we get started, let's install the `meshctl` CLI:
 
 ```bash
-export GLOO_MESH_VERSION=v2.5.4
+export GLOO_MESH_VERSION=v2.5.6
 curl -sL https://run.solo.io/meshctl/install | sh -
 export PATH=$HOME/.gloo-mesh/bin:$PATH
 ```
@@ -258,13 +258,13 @@ helm upgrade --install gloo-platform-crds gloo-platform-crds \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${MGMT} \
-  --version 2.5.4
+  --version 2.5.6
 
 helm upgrade --install gloo-platform-mgmt gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${MGMT} \
-  --version 2.5.4 \
+  --version 2.5.6 \
   -f -<<EOF
 licensing:
   glooTrialLicenseKey: ${GLOO_MESH_LICENSE_KEY}
@@ -299,8 +299,6 @@ telemetryGateway:
     repository: ${registry}/gloo-mesh/gloo-otel-collector
   service:
     type: LoadBalancer
-  image:
-    repository: ${registry}/gloo-mesh/gloo-otel-collector
 glooUi:
   enabled: true
   serviceType: LoadBalancer
@@ -313,13 +311,6 @@ glooUi:
     envoy:
       image:
         registry: ${registry}/gloo-mesh
-glooAgent:
-  enabled: true
-  relay:
-    serverAddress: gloo-mesh-mgmt-server:9900
-    authority: gloo-mesh-mgmt-server.gloo-mesh
-  image:
-    registry: ${registry}/gloo-mesh
 telemetryCollector:
   image:
     repository: ${registry}/gloo-mesh/gloo-otel-collector
@@ -328,9 +319,13 @@ telemetryCollector:
     exporters:
       otlp:
         endpoint: gloo-telemetry-gateway:4317
+glooAgent:
+  enabled: true
+  relay:
+    serverAddress: gloo-mesh-mgmt-server:9900
+    authority: gloo-mesh-mgmt-server.gloo-mesh
   image:
-    repository: ${registry}/gloo-mesh/gloo-otel-collector
-
+    registry: ${registry}/gloo-mesh
 EOF
 
 kubectl --context ${MGMT} -n gloo-mesh rollout status deploy/gloo-mesh-mgmt-server
@@ -338,13 +333,6 @@ kubectl --context ${MGMT} -n gloo-mesh rollout status deploy/gloo-mesh-mgmt-serv
 kubectl --context ${MGMT} delete workspaces -A --all
 kubectl --context ${MGMT} delete workspacesettings -A --all
 ```
-
-<!--bash
-kubectl wait --context ${MGMT} --for=condition=Ready -n gloo-mesh --all pod
-timeout 2m bash -c "until [[ \$(kubectl --context ${MGMT} -n gloo-mesh get svc gloo-mesh-mgmt-server -o json | jq '.status.loadBalancer | length') -gt 0 ]]; do
-  sleep 1
-done"
--->
 
 <!--bash
 cat <<'EOF' > ./test.js
@@ -836,7 +824,7 @@ helm upgrade --install gloo-platform gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh-addons \
   --kube-context ${CLUSTER1} \
-  --version 2.5.4 \
+  --version 2.5.6 \
   -f -<<EOF
 common:
   cluster: cluster1
