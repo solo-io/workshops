@@ -235,7 +235,10 @@ glooUi:
   serviceType: LoadBalancer
 telemetryCollector:
   enabled: true
-
+  config:
+    exporters:
+      otlp:
+        endpoint: gloo-telemetry-gateway:4317
 EOF
 
 kubectl --context ${MGMT} -n gloo-mesh rollout status deploy/gloo-mesh-mgmt-server
@@ -328,6 +331,7 @@ echo "saving errors in ${tempfile}"
 timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
 -->
 Finally, you need to register the cluster(s).
+
 
 Here is how you register the first one:
 
@@ -1544,7 +1548,15 @@ var expect = chai.expect;
 const helpers = require('./tests/chai-exec');
 
 describe("Insight generation", () => {
-  it("Insight BP0002 has been triggered", () => {
+  it("Insight BP0002 has been triggered in the source (MGMT)", () => {
+    podName = helpers.getOutputForCommand({ command: "kubectl -n gloo-mesh get pods -l app=gloo-mesh-mgmt-server -o jsonpath='{.items[0].metadata.name}' --context " + process.env.MGMT }).replaceAll("'", "");
+    command = helpers.getOutputForCommand({ command: "kubectl --context " + process.env.MGMT + " -n gloo-mesh debug -q -i " + podName + " --image=curlimages/curl -- curl -s http://localhost:9094/metrics" }).replaceAll("'", "");
+    const regex = /solo_io_insights{.*BP0002.*} 1/;
+    const match = command.match(regex);
+    expect(match).to.not.be.null;
+  });
+
+  it("Insight BP0002 has been triggered in PROMETHEUS", () => {
     podName = helpers.getOutputForCommand({ command: "kubectl -n gloo-mesh get pods -l app.kubernetes.io/name=prometheus -o jsonpath='{.items[0].metadata.name}' --context " + process.env.MGMT }).replaceAll("'", "");
     command = helpers.getOutputForCommand({ command: "kubectl --context " + process.env.MGMT + " -n gloo-mesh debug -q -i " + podName + " --image=curlimages/curl -- curl -s 'http://localhost:9090/api/v1/query?query=solo_io_insights'" }).replaceAll("'", "");
     let result = JSON.parse(command);
@@ -1809,7 +1821,15 @@ var expect = chai.expect;
 const helpers = require('./tests/chai-exec');
 
 describe("Insight generation", () => {
-  it("Insight CFG0001 has been triggered", () => {
+  it("Insight CFG0001 has been triggered in the source (MGMT)", () => {
+    podName = helpers.getOutputForCommand({ command: "kubectl -n gloo-mesh get pods -l app=gloo-mesh-mgmt-server -o jsonpath='{.items[0].metadata.name}' --context " + process.env.MGMT }).replaceAll("'", "");
+    command = helpers.getOutputForCommand({ command: "kubectl --context " + process.env.MGMT + " -n gloo-mesh debug -q -i " + podName + " --image=curlimages/curl -- curl -s http://localhost:9094/metrics" }).replaceAll("'", "");
+    const regex = /solo_io_insights{.*CFG0001.*} 1/;
+    const match = command.match(regex);
+    expect(match).to.not.be.null;
+  });
+
+  it("Insight CFG0001 has been triggered in PROMETHEUS", () => {
     podName = helpers.getOutputForCommand({ command: "kubectl -n gloo-mesh get pods -l app.kubernetes.io/name=prometheus -o jsonpath='{.items[0].metadata.name}' --context " + process.env.MGMT }).replaceAll("'", "");
     command = helpers.getOutputForCommand({ command: "kubectl --context " + process.env.MGMT + " -n gloo-mesh debug -q -i " + podName + " --image=curlimages/curl -- curl -s 'http://localhost:9090/api/v1/query?query=solo_io_insights'" }).replaceAll("'", "");
     let result = JSON.parse(command);
@@ -1864,7 +1884,15 @@ var expect = chai.expect;
 const helpers = require('./tests/chai-exec');
 
 describe("Insight generation", () => {
-  it("Insight CFG0001 has not been triggered", () => {
+  it("Insight CFG0001 has not been triggered in the source (MGMT)", () => {
+    podName = helpers.getOutputForCommand({ command: "kubectl -n gloo-mesh get pods -l app=gloo-mesh-mgmt-server -o jsonpath='{.items[0].metadata.name}' --context " + process.env.MGMT }).replaceAll("'", "");
+    command = helpers.getOutputForCommand({ command: "kubectl --context " + process.env.MGMT + " -n gloo-mesh debug -q -i " + podName + " --image=curlimages/curl -- curl -s http://localhost:9094/metrics" }).replaceAll("'", "");
+    const regex = /solo_io_insights{.*CFG0001.*} 1/;
+    const match = command.match(regex);
+    expect(match).to.be.null;
+  });
+
+  it("Insight CFG0001 has not been triggered in PROMETHEUS", () => {
     podName = helpers.getOutputForCommand({ command: "kubectl -n gloo-mesh get pods -l app.kubernetes.io/name=prometheus -o jsonpath='{.items[0].metadata.name}' --context " + process.env.MGMT }).replaceAll("'", "");
     command = helpers.getOutputForCommand({ command: "kubectl --context " + process.env.MGMT + " -n gloo-mesh debug -q -i " + podName + " --image=curlimages/curl -- curl -s 'http://localhost:9090/api/v1/query?query=solo_io_insights'" }).replaceAll("'", "");
     let result = JSON.parse(command);
@@ -1957,7 +1985,15 @@ var expect = chai.expect;
 const helpers = require('./tests/chai-exec');
 
 describe("Insight generation", () => {
-  it("Insight SEC0008 has been triggered", () => {
+  it("Insight SEC0008 has been triggered in the source (MGMT)", () => {
+    podName = helpers.getOutputForCommand({ command: "kubectl -n gloo-mesh get pods -l app=gloo-mesh-mgmt-server -o jsonpath='{.items[0].metadata.name}' --context " + process.env.MGMT }).replaceAll("'", "");
+    command = helpers.getOutputForCommand({ command: "kubectl --context " + process.env.MGMT + " -n gloo-mesh debug -q -i " + podName + " --image=curlimages/curl -- curl -s http://localhost:9094/metrics" }).replaceAll("'", "");
+    const regex = /solo_io_insights{.*SEC0008.*} 1/;
+    const match = command.match(regex);
+    expect(match).to.not.be.null;
+  });
+
+  it("Insight SEC0008 has been triggered in PROMETHEUS", () => {
     podName = helpers.getOutputForCommand({ command: "kubectl -n gloo-mesh get pods -l app.kubernetes.io/name=prometheus -o jsonpath='{.items[0].metadata.name}' --context " + process.env.MGMT }).replaceAll("'", "");
     command = helpers.getOutputForCommand({ command: "kubectl --context " + process.env.MGMT + " -n gloo-mesh debug -q -i " + podName + " --image=curlimages/curl -- curl -s 'http://localhost:9090/api/v1/query?query=solo_io_insights'" }).replaceAll("'", "");
     let result = JSON.parse(command);
@@ -2001,7 +2037,15 @@ var expect = chai.expect;
 const helpers = require('./tests/chai-exec');
 
 describe("Insight generation", () => {
-  it("Insight SEC0008 has not been triggered", () => {
+  it("Insight SEC0008 has not been triggered in the source (MGMT)", () => {
+    podName = helpers.getOutputForCommand({ command: "kubectl -n gloo-mesh get pods -l app=gloo-mesh-mgmt-server -o jsonpath='{.items[0].metadata.name}' --context " + process.env.MGMT }).replaceAll("'", "");
+    command = helpers.getOutputForCommand({ command: "kubectl --context " + process.env.MGMT + " -n gloo-mesh debug -q -i " + podName + " --image=curlimages/curl -- curl -s http://localhost:9094/metrics" }).replaceAll("'", "");
+    const regex = /solo_io_insights{.*SEC0008.*} 1/;
+    const match = command.match(regex);
+    expect(match).to.be.null;
+  });
+
+  it("Insight SEC0008 has not been triggered in PROMETHEUS", () => {
     podName = helpers.getOutputForCommand({ command: "kubectl -n gloo-mesh get pods -l app.kubernetes.io/name=prometheus -o jsonpath='{.items[0].metadata.name}' --context " + process.env.MGMT }).replaceAll("'", "");
     command = helpers.getOutputForCommand({ command: "kubectl --context " + process.env.MGMT + " -n gloo-mesh debug -q -i " + podName + " --image=curlimages/curl -- curl -s 'http://localhost:9090/api/v1/query?query=solo_io_insights'" }).replaceAll("'", "");
     let result = JSON.parse(command);
@@ -2051,7 +2095,15 @@ var expect = chai.expect;
 const helpers = require('./tests/chai-exec');
 
 describe("Insight generation", () => {
-  it("Insight HLT0011 has been triggered", () => {
+  it("Insight HLT0011 has been triggered in the source (MGMT)", () => {
+    podName = helpers.getOutputForCommand({ command: "kubectl -n gloo-mesh get pods -l app=gloo-mesh-mgmt-server -o jsonpath='{.items[0].metadata.name}' --context " + process.env.MGMT }).replaceAll("'", "");
+    command = helpers.getOutputForCommand({ command: "kubectl --context " + process.env.MGMT + " -n gloo-mesh debug -q -i " + podName + " --image=curlimages/curl -- curl -s http://localhost:9094/metrics" }).replaceAll("'", "");
+    const regex = /solo_io_insights{.*HLT0011.*} 1/;
+    const match = command.match(regex);
+    expect(match).to.not.be.null;
+  });
+
+  it("Insight HLT0011 has been triggered in PROMETHEUS", () => {
     podName = helpers.getOutputForCommand({ command: "kubectl -n gloo-mesh get pods -l app.kubernetes.io/name=prometheus -o jsonpath='{.items[0].metadata.name}' --context " + process.env.MGMT }).replaceAll("'", "");
     command = helpers.getOutputForCommand({ command: "kubectl --context " + process.env.MGMT + " -n gloo-mesh debug -q -i " + podName + " --image=curlimages/curl -- curl -s 'http://localhost:9090/api/v1/query?query=solo_io_insights'" }).replaceAll("'", "");
     let result = JSON.parse(command);
@@ -2090,7 +2142,15 @@ var expect = chai.expect;
 const helpers = require('./tests/chai-exec');
 
 describe("Insight generation", () => {
-  it("Insight HLT0011 has not been triggered", () => {
+  it("Insight HLT0011 has not been triggered in the source (MGMT)", () => {
+    podName = helpers.getOutputForCommand({ command: "kubectl -n gloo-mesh get pods -l app=gloo-mesh-mgmt-server -o jsonpath='{.items[0].metadata.name}' --context " + process.env.MGMT }).replaceAll("'", "");
+    command = helpers.getOutputForCommand({ command: "kubectl --context " + process.env.MGMT + " -n gloo-mesh debug -q -i " + podName + " --image=curlimages/curl -- curl -s http://localhost:9094/metrics" }).replaceAll("'", "");
+    const regex = /solo_io_insights{.*HLT0011.*} 1/;
+    const match = command.match(regex);
+    expect(match).to.be.null;
+  });
+
+  it("Insight HLT0011 has not been triggered in PROMETHEUS", () => {
     podName = helpers.getOutputForCommand({ command: "kubectl -n gloo-mesh get pods -l app.kubernetes.io/name=prometheus -o jsonpath='{.items[0].metadata.name}' --context " + process.env.MGMT }).replaceAll("'", "");
     command = helpers.getOutputForCommand({ command: "kubectl --context " + process.env.MGMT + " -n gloo-mesh debug -q -i " + podName + " --image=curlimages/curl -- curl -s 'http://localhost:9090/api/v1/query?query=solo_io_insights'" }).replaceAll("'", "");
     let result = JSON.parse(command);
