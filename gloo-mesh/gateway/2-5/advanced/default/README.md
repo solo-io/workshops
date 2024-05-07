@@ -9,7 +9,7 @@ source ./scripts/assert.sh
 
 <center><img src="images/gloo-gateway.png" alt="Gloo Mesh Gateway" style="width:70%;max-width:800px" /></center>
 
-# <center>Gloo Mesh Gateway Advanced (2.5.4)</center>
+# <center>Gloo Mesh Gateway Advanced (2.5.6)</center>
 
 
 
@@ -149,7 +149,7 @@ timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> 
 Before we get started, let's install the `meshctl` CLI:
 
 ```bash
-export GLOO_MESH_VERSION=v2.5.4
+export GLOO_MESH_VERSION=v2.5.6
 curl -sL https://run.solo.io/meshctl/install | sh -
 export PATH=$HOME/.gloo-mesh/bin:$PATH
 ```
@@ -192,13 +192,13 @@ helm upgrade --install gloo-platform-crds gloo-platform-crds \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${MGMT} \
-  --version 2.5.4
+  --version 2.5.6
 
 helm upgrade --install gloo-platform-mgmt gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${MGMT} \
-  --version 2.5.4 \
+  --version 2.5.6 \
   -f -<<EOF
 licensing:
   glooTrialLicenseKey: ${GLOO_MESH_LICENSE_KEY}
@@ -223,18 +223,17 @@ telemetryGateway:
 glooUi:
   enabled: true
   serviceType: LoadBalancer
-glooAgent:
-  enabled: true
-  relay:
-    serverAddress: gloo-mesh-mgmt-server:9900
-    authority: gloo-mesh-mgmt-server.gloo-mesh
 telemetryCollector:
   enabled: true
   config:
     exporters:
       otlp:
         endpoint: gloo-telemetry-gateway:4317
-
+glooAgent:
+  enabled: true
+  relay:
+    serverAddress: gloo-mesh-mgmt-server:9900
+    authority: gloo-mesh-mgmt-server.gloo-mesh
 EOF
 
 kubectl --context ${MGMT} -n gloo-mesh rollout status deploy/gloo-mesh-mgmt-server
@@ -242,13 +241,6 @@ kubectl --context ${MGMT} -n gloo-mesh rollout status deploy/gloo-mesh-mgmt-serv
 kubectl --context ${MGMT} delete workspaces -A --all
 kubectl --context ${MGMT} delete workspacesettings -A --all
 ```
-
-<!--bash
-kubectl wait --context ${MGMT} --for=condition=Ready -n gloo-mesh --all pod
-timeout 2m bash -c "until [[ \$(kubectl --context ${MGMT} -n gloo-mesh get svc gloo-mesh-mgmt-server -o json | jq '.status.loadBalancer | length') -gt 0 ]]; do
-  sleep 1
-done"
--->
 
 <!--bash
 cat <<'EOF' > ./test.js
@@ -729,7 +721,7 @@ helm upgrade --install gloo-platform gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh-addons \
   --kube-context ${CLUSTER1} \
-  --version 2.5.4 \
+  --version 2.5.6 \
   -f -<<EOF
 common:
   cluster: cluster1
