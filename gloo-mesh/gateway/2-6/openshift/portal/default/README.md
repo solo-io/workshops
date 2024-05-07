@@ -242,12 +242,6 @@ glooUi:
   enabled: true
   serviceType: LoadBalancer
   floatingUserId: true
-glooAgent:
-  enabled: true
-  relay:
-    serverAddress: gloo-mesh-mgmt-server:9900
-    authority: gloo-mesh-mgmt-server.gloo-mesh
-  floatingUserId: true
 telemetryCollector:
   presets:
     logsCollection:
@@ -258,6 +252,12 @@ telemetryCollector:
     exporters:
       otlp:
         endpoint: gloo-telemetry-gateway:4317
+glooAgent:
+  enabled: true
+  relay:
+    serverAddress: gloo-mesh-mgmt-server:9900
+    authority: gloo-mesh-mgmt-server.gloo-mesh
+  floatingUserId: true
 telemetryCollectorCustomization:
   pipelines:
     logs/portal:
@@ -278,7 +278,6 @@ telemetryCollectorCustomization:
       hostPort: 0
     zipkin:
       hostPort: 0
-
 EOF
 
 kubectl --context ${MGMT} -n gloo-mesh rollout status deploy/gloo-mesh-mgmt-server
@@ -286,13 +285,6 @@ kubectl --context ${MGMT} -n gloo-mesh rollout status deploy/gloo-mesh-mgmt-serv
 kubectl --context ${MGMT} delete workspaces -A --all
 kubectl --context ${MGMT} delete workspacesettings -A --all
 ```
-
-<!--bash
-kubectl wait --context ${MGMT} --for=condition=Ready -n gloo-mesh --all pod
-timeout 2m bash -c "until [[ \$(kubectl --context ${MGMT} -n gloo-mesh get svc gloo-mesh-mgmt-server -o json | jq '.status.loadBalancer | length') -gt 0 ]]; do
-  sleep 1
-done"
--->
 
 <!--bash
 cat <<'EOF' > ./test.js
@@ -1407,11 +1399,155 @@ The goal of OIDC is to address this ambiguity by additionally requiring Identity
 
 In this lab, we're going to install Keycloak. It will allow us to setup OIDC workflows later.
 
-Let's install it:
+First, we need to define an ID and secret for a "client", which will be the service that delegates to Keycloak for authorization:
+
+```bash
+KEYCLOAK_CLIENT=gloo-ext-auth
+KEYCLOAK_SECRET=hKcDcqmUKCrPkyDJtCw066hTLzUbAiri
+```
+
+We need to store these in a secret on each cluster that we'll be calling Keycloak from:
+
+```bash
+kubectl apply --context ${CLUSTER1} -f - <<EOF
+apiVersion: v1
+kind: Secret
+metadata:
+  name: oauth
+  namespace: gloo-mesh-addons
+type: extauth.solo.io/oauth
+stringData:
+  client-id: ${KEYCLOAK_CLIENT}
+  client-secret: ${KEYCLOAK_SECRET}
+EOF
+```
+
+We need to supply the initial configuration of the realm we'll use for these labs. This will include two users that we can use later:
+
+- User1 credentials: `user1/password`
+  Email: user1@example.com
+
+- User2 credentials: `user2/password`
+  Email: user2@solo.io
+
+Create this configuration in a `ConfigMap`:
 
 ```bash
 kubectl --context ${MGMT} create namespace keycloak
 
+kubectl apply --context ${MGMT} -f - <<EOF
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: realms
+  namespace: keycloak
+data:
+  workshop-realm.json: |-
+    {
+      "realm": "workshop",
+      "enabled": true,
+      "displayName": "solo.io",
+      "accessTokenLifespan": 1800,
+      "sslRequired": "NONE",
+      "users": [
+        {
+          "username": "user1",
+          "enabled": true,
+          "email": "user1@example.com",
+          "attributes": {
+            "group": [
+              "users"
+            ]
+          },
+          "credentials": [
+            {
+              "type": "password",
+              "secretData": "{\"value\":\"JsfNbCOIdZUbyBJ+BT+VoGI91Ec2rWLOvkLPDaX8e9k=\",\"salt\":\"P5rtFkGtPfoaryJ6PizUJw==\",\"additionalParameters\":{}}",
+              "credentialData": "{\"hashIterations\":27500,\"algorithm\":\"pbkdf2-sha256\",\"additionalParameters\":{}}"
+            }
+          ]
+        },
+        {
+          "username": "user2",
+          "enabled": true,
+          "email": "user2@solo.io",
+          "attributes": {
+            "group": [
+              "users"
+            ],
+            "show_personal_data": [
+              "false"
+            ]
+          },
+          "credentials": [
+            {
+              "type": "password",
+              "secretData": "{\"value\":\"RITBVPdh5pvXOa4JzJ5pZTE0rG96zhnQNmSsKCf83aU=\",\"salt\":\"drB9e5Smf3cbfUfF3FUerw==\",\"additionalParameters\":{}}",
+              "credentialData": "{\"hashIterations\":27500,\"algorithm\":\"pbkdf2-sha256\",\"additionalParameters\":{}}"
+            }
+          ]
+        }
+      ],
+      "clients": [
+        {
+          "clientId": "${KEYCLOAK_CLIENT}",
+          "secret": "${KEYCLOAK_SECRET}",
+          "redirectUris": [
+            "https://cluster1-httpbin.example.com/*",
+            "https://cluster1-portal.example.com/*",
+            "https://cluster1-backstage.example.com/*"
+          ],
+          "webOrigins": [
+            "+"
+          ],
+          "authorizationServicesEnabled": true,
+          "directAccessGrantsEnabled": true,
+          "serviceAccountsEnabled": true,
+          "protocolMappers": [
+            {
+              "name": "group",
+              "protocol": "openid-connect",
+              "protocolMapper": "oidc-usermodel-attribute-mapper",
+              "config": {
+                "claim.name": "group",
+                "user.attribute": "group",
+                "access.token.claim": "true",
+                "id.token.claim": "true"
+              }
+            },
+            {
+              "name": "show_personal_data",
+              "protocol": "openid-connect",
+              "protocolMapper": "oidc-usermodel-attribute-mapper",
+              "config": {
+                "claim.name": "show_personal_data",
+                "user.attribute": "show_personal_data",
+                "access.token.claim": "true",
+                "id.token.claim": "true"
+              }
+            }
+          ]
+        }
+      ],
+      "components": {
+        "org.keycloak.userprofile.UserProfileProvider": [
+          {
+            "providerId": "declarative-user-profile",
+            "config": {
+              "kc.user.profile.config": [
+                "{\"attributes\":[{\"name\":\"username\"},{\"name\":\"email\"}],\"unmanagedAttributePolicy\":\"ENABLED\"}"
+              ]
+            }
+          }
+        ]
+      }
+    }
+EOF
+```
+
+Now let's install Keycloak:
+
+```bash
 kubectl apply --context ${MGMT} -f - <<EOF
 apiVersion: v1
 kind: Service
@@ -1448,8 +1584,8 @@ spec:
     spec:
       containers:
       - name: keycloak
-        image: quay.io/keycloak/keycloak:22.0.5
-        args: ["start-dev"]
+        image: quay.io/keycloak/keycloak:24.0.2
+        args: ["start-dev", "--import-realm"]
         env:
         - name: KEYCLOAK_ADMIN
           value: "admin"
@@ -1462,15 +1598,23 @@ spec:
           containerPort: 8080
         readinessProbe:
           httpGet:
-            path: /realms/master
+            path: /realms/workshop
             port: 8080
+        volumeMounts:
+        - name: realms
+          mountPath: /opt/keycloak/data/import
+      volumes:
+      - name: realms
+        configMap:
+          name: realms
 EOF
-
-kubectl --context ${MGMT} -n keycloak rollout status deploy/keycloak
 ```
 
+Wait while Keycloak finishes rolling out:
 
-
+```bash
+kubectl --context ${MGMT} -n keycloak rollout status deploy/keycloak
+```
 <!--bash
 cat <<'EOF' > ./test.js
 const helpers = require('./tests/chai-exec');
@@ -1484,7 +1628,6 @@ tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
 -->
-
 <!--bash
 cat <<'EOF' > ./test.js
 const chaiExec = require("@jsdevtools/chai-exec");
@@ -1514,19 +1657,10 @@ tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
 -->
-
-Then, we will configure it and create two users:
-
-- User1 credentials: `user1/password`
-  Email: user1@example.com
-
-- User2 credentials: `user2/password`
-  Email: user2@solo.io
-
 <!--bash
-until [[ $(kubectl --context ${MGMT} -n keycloak get svc keycloak -o json | jq '.status.loadBalancer | length') -gt 0 ]]; do
+timeout 2m bash -c "until [[ \$(kubectl --context ${MGMT} -n keycloak get svc keycloak -o json | jq '.status.loadBalancer | length') -gt 0 ]]; do
   sleep 1
-done
+done"
 -->
 
 Let's set the environment variables we need:
@@ -1564,11 +1698,11 @@ echo "saving errors in ${tempfile}"
 timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
 -->
 <!--bash
-echo "Waiting for Keycloak to be ready at $KEYCLOAK_URL/realms/master/protocol/openid-connect/token"
-timeout 300 bash -c 'while [[ "$(curl -m 2 -s -o /dev/null -w ''%{http_code}'' $KEYCLOAK_URL/realms/master/protocol/openid-connect/token)" != "405" ]]; do printf '.';sleep 1; done' || false
+echo "Waiting for Keycloak to be ready at $KEYCLOAK_URL/realms/workshop/protocol/openid-connect/token"
+timeout 300 bash -c 'while [[ "$(curl -m 2 -s -o /dev/null -w ''%{http_code}'' $KEYCLOAK_URL/realms/workshop/protocol/openid-connect/token)" != "405" ]]; do printf '.';sleep 1; done' || false
 -->
 
-Now, we need to get a token:
+Finally, save off a token for any Keycloak API operations we need to do later:
 
 ```bash
 export KEYCLOAK_TOKEN=$(curl -Ssm 10 --fail-with-body \
@@ -1579,62 +1713,6 @@ export KEYCLOAK_TOKEN=$(curl -Ssm 10 --fail-with-body \
   "$KEYCLOAK_URL/realms/master/protocol/openid-connect/token" |
   jq -r .access_token)
 ```
-
-After that, we configure Keycloak:
-
-```bash
-# Create initial token to register the client
-read -r client token <<<$(curl -Ssm 10 --fail-with-body -H "Authorization: Bearer ${KEYCLOAK_TOKEN}" -H "Content-Type: application/json" \
-  -d '{ "expiration": 0, "count": 1 }' \
-  $KEYCLOAK_URL/admin/realms/master/clients-initial-access |
-  jq -r '[.id, .token] | @tsv')
-KEYCLOAK_CLIENT=${client}
-
-# Register the client
-read -r id secret <<<$(curl -Ssm 10 --fail-with-body -H "Authorization: bearer ${token}" -H "Content-Type: application/json" \
-  -d '{ "clientId": "'${KEYCLOAK_CLIENT}'" }' \
-  ${KEYCLOAK_URL}/realms/master/clients-registrations/default |
-  jq -r '[.id, .secret] | @tsv')
-KEYCLOAK_SECRET=${secret}
-
-# Add allowed redirect URIs
-curl -m 10 --fail-with-body -H "Authorization: Bearer ${KEYCLOAK_TOKEN}" -H "Content-Type: application/json" \
-  -X PUT -d '{ "serviceAccountsEnabled": true, "directAccessGrantsEnabled": true, "authorizationServicesEnabled": true, "redirectUris": ["'https://cluster1-httpbin.example.com'/*","'https://cluster1-portal.example.com'/*","'https://cluster1-backstage.example.com'/*"] }' \
-  ${KEYCLOAK_URL}/admin/realms/master/clients/${id}
-
-# Set access token lifetime to 30m (default is 1m)
-curl -m 10 --fail-with-body -H "Authorization: Bearer ${KEYCLOAK_TOKEN}" -H "Content-Type: application/json" \
-  -X PUT -d '{ "accessTokenLifespan": 1800 }' \
-  ${KEYCLOAK_URL}/admin/realms/master
-
-# Add the group attribute in the JWT token returned by Keycloak
-curl -m 10 --fail-with-body -H "Authorization: Bearer ${KEYCLOAK_TOKEN}" -H "Content-Type: application/json" \
-  -d '{ "name": "group", "protocol": "openid-connect", "protocolMapper": "oidc-usermodel-attribute-mapper", "config": { "claim.name": "group", "jsonType.label": "String", "user.attribute": "group", "id.token.claim": "true", "access.token.claim": "true" } }' \
-  ${KEYCLOAK_URL}/admin/realms/master/clients/${id}/protocol-mappers/models
-
-# Add the show_personal_data attribute in the JWT token returned by Keycloak
-curl -m 10 --fail-with-body -H "Authorization: Bearer ${KEYCLOAK_TOKEN}" -H "Content-Type: application/json" \
-  -d '{ "name": "show_personal_data", "protocol": "openid-connect", "protocolMapper": "oidc-usermodel-attribute-mapper", "config": { "claim.name": "show_personal_data", "jsonType.label": "String", "user.attribute": "show_personal_data", "id.token.claim": "true", "access.token.claim": "true"} } ' \
-  ${KEYCLOAK_URL}/admin/realms/master/clients/${id}/protocol-mappers/models
-
-# Create first user
-curl -m 10 --fail-with-body -H "Authorization: Bearer ${KEYCLOAK_TOKEN}" -H "Content-Type: application/json" \
-  -d '{ "username": "user1", "email": "user1@example.com", "enabled": true, "attributes": { "group": "users" }, "credentials": [ { "type": "password", "value": "password", "temporary": false } ] }' \
-  ${KEYCLOAK_URL}/admin/realms/master/users
-
-# Create second user
-curl -m 10 --fail-with-body -H "Authorization: Bearer ${KEYCLOAK_TOKEN}" -H "Content-Type: application/json" \
-  -d '{ "username": "user2", "email": "user2@solo.io", "enabled": true, "attributes": { "group": "users", "show_personal_data": false }, "credentials": [ { "type": "password", "value": "password", "temporary": false } ] }' \
-  ${KEYCLOAK_URL}/admin/realms/master/users
-
-```
-
-> **Note:** If you get a *Not Authorized* error, please, re-run the following command and continue from the command that started to fail:
-
-```
-KEYCLOAK_TOKEN=$(curl -m 2 -d "client_id=admin-cli" -d "username=admin" -d "password=admin" -d "grant_type=password" "$KEYCLOAK_URL/realms/master/protocol/openid-connect/token" | jq -r .access_token)
-```
-
 
 
 
@@ -2559,22 +2637,7 @@ timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=300 --bail 2> 
 
 We need to secure the access to the portal frontend.
 
-First, you need to create a Kubernetes Secret that contains the OIDC secret:
-
-```bash
-kubectl --context ${CLUSTER1} apply -f - <<EOF
-apiVersion: v1
-kind: Secret
-metadata:
-  name: oauth
-  namespace: gloo-mesh-addons
-type: extauth.solo.io/oauth
-data:
-  client-secret: $(echo -n ${KEYCLOAK_SECRET} | base64)
-EOF
-```
-
-Then, you need to create an `ExtAuthPolicy`: 
+You need to create an `ExtAuthPolicy`. We've already got a secret named `oidc` that we can reference in this policy:
 
 ```bash
 kubectl apply --context ${CLUSTER1} -f - <<EOF
@@ -2603,7 +2666,7 @@ spec:
             clientSecretRef:
               name: oauth
               namespace: gloo-mesh-addons
-            issuerUrl: "${KEYCLOAK_URL}/realms/master/"
+            issuerUrl: "${KEYCLOAK_URL}/realms/workshop/"
             logoutPath: /v1/logout
             session:
               failOnFetchFailure: true
@@ -3341,11 +3404,11 @@ spec:
           - name: APP_CONFIG_backend_baseUrl
             value: https://cluster1-backstage.example.com
           - name: TOKEN_ENDPOINT
-            value: "${KEYCLOAK_URL}/realms/master/protocol/openid-connect/token"
+            value: "${KEYCLOAK_URL}/realms/workshop/protocol/openid-connect/token"
           - name: AUTH_ENDPOINT
-            value: "${KEYCLOAK_URL}/realms/master/protocol/openid-connect/auth"
+            value: "${KEYCLOAK_URL}/realms/workshop/protocol/openid-connect/auth"
           - name: LOGOUT_ENDPOINT
-            value: "${KEYCLOAK_URL}/realms/master/protocol/openid-connect/logout"
+            value: "${KEYCLOAK_URL}/realms/workshop/protocol/openid-connect/logout"
           - name: NODE_TLS_REJECT_UNAUTHORIZED
             value: "0"
           - name: POSTGRES_HOST
@@ -3404,7 +3467,7 @@ spec:
           accessTokenValidation:
             jwt:
               remoteJwks:
-                url: "${KEYCLOAK_URL}/realms/master/protocol/openid-connect/certs"
+                url: "${KEYCLOAK_URL}/realms/workshop/protocol/openid-connect/certs"
 EOF
 ```
 
