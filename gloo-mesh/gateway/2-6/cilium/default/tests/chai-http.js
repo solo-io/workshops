@@ -35,7 +35,7 @@ global = {
     return request
       .send()
       .then(async function (res) {
-          expectedHeaders.forEach(header => expect(res.header[header.key]).to.equal(header.value));
+        expectedHeaders.forEach(header => expect(res.header[header.key]).to.equal(header.value));
       });
   },
   checkWithMethod: ({ host, path, headers = [], method = "get", retCode }) => {
@@ -55,13 +55,13 @@ global = {
       .then(async function (res) {
         expect(res).to.have.status(retCode);
       });
-    }
+  }
 };
 
 module.exports = global;
 
-afterEach(function(done) {
-  if (this.currentTest.currentRetry() % 5 === 0) {
+afterEach(function (done) {
+  if (this.currentTest.currentRetry() > 0 && this.currentTest.currentRetry() % 5 === 0) {
     console.log(`Test "${this.currentTest.fullTitle()}" retry: ${this.currentTest.currentRetry()}`);
   }
   utils.waitOnFailedTest(done, this.currentTest.currentRetry())
