@@ -214,8 +214,6 @@ licensing:
   glooTrialLicenseKey: ${GLOO_MESH_LICENSE_KEY}
 common:
   cluster: mgmt
-featureGates:
-  HubbleUI: true
 glooInsightsEngine:
   enabled: true
 glooMgmtServer:
@@ -242,6 +240,8 @@ telemetryCollector:
     exporters:
       otlp:
         endpoint: gloo-telemetry-gateway:4317
+featureGates:
+  HubbleUI: true
 EOF
 
 kubectl --context ${MGMT} -n gloo-mesh rollout status deploy/gloo-mesh-mgmt-server
@@ -373,8 +373,6 @@ helm upgrade --install gloo-platform gloo-platform \
   -f -<<EOF
 common:
   cluster: cluster1
-featureGates:
-  HubbleUI: true
 glooAgent:
   enabled: true
   relay:
@@ -436,8 +434,6 @@ helm upgrade --install gloo-platform gloo-platform \
   -f -<<EOF
 common:
   cluster: cluster2
-featureGates:
-  HubbleUI: true
 glooAgent:
   enabled: true
   relay:

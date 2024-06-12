@@ -191,8 +191,6 @@ licensing:
   glooTrialLicenseKey: ${GLOO_MESH_LICENSE_KEY}
 common:
   cluster: cluster1
-featureGates:
-  HubbleUI: true
 glooInsightsEngine:
   enabled: true
 glooMgmtServer:
@@ -225,6 +223,16 @@ glooAgent:
   relay:
     serverAddress: gloo-mesh-mgmt-server:9900
     authority: gloo-mesh-mgmt-server.gloo-mesh
+glooAnalyzer:
+  enabled: true
+telemetryCollectorCustomization:
+  pipelines:
+    metrics/cilium:
+      enabled: true
+    logs/cilium_flows:
+      enabled: true
+featureGates:
+  HubbleUI: true
 EOF
 
 kubectl --context ${MGMT} -n gloo-mesh rollout status deploy/gloo-mesh-mgmt-server
