@@ -9,7 +9,7 @@ source ./scripts/assert.sh
 
 <center><img src="images/gloo-gateway.png" alt="Gloo Mesh Gateway" style="width:70%;max-width:800px" /></center>
 
-# <center>Gloo Mesh Gateway Advanced (2.6.0-beta2)</center>
+# <center>Gloo Mesh Gateway Advanced (2.6.0-rc1)</center>
 
 
 
@@ -165,23 +165,23 @@ docker.io/istio/examples-bookinfo-reviews-v3:1.18.0
 docker.io/kennethreitz/httpbin
 docker.io/nginx:1.25.3
 docker.io/openpolicyagent/opa:0.57.1-debug
-docker.io/redis:7.2.4-alpine
 gcr.io/field-engineering-eu/graphql-passthrough-grpc-service:0.1
-gcr.io/gloo-mesh/ext-auth-service:0.56.0
-gcr.io/gloo-mesh/gloo-mesh-agent:2.6.0-beta2
-gcr.io/gloo-mesh/gloo-mesh-apiserver:2.6.0-beta2
-gcr.io/gloo-mesh/gloo-mesh-envoy:2.6.0-beta2
-gcr.io/gloo-mesh/gloo-mesh-mgmt-server:2.6.0-beta2
-gcr.io/gloo-mesh/gloo-mesh-ui:2.6.0-beta2
-gcr.io/gloo-mesh/gloo-otel-collector:2.6.0-beta2
-gcr.io/gloo-mesh/rate-limiter:0.11.9
+gcr.io/gloo-mesh/ext-auth-service:0.56.8
+gcr.io/gloo-mesh/gloo-mesh-agent:2.6.0-rc1
+gcr.io/gloo-mesh/gloo-mesh-apiserver:2.6.0-rc1
+gcr.io/gloo-mesh/gloo-mesh-envoy:2.6.0-rc1
+gcr.io/gloo-mesh/gloo-mesh-mgmt-server:2.6.0-rc1
+gcr.io/gloo-mesh/gloo-mesh-ui:2.6.0-rc1
+gcr.io/gloo-mesh/gloo-otel-collector:2.6.0-rc1
+gcr.io/gloo-mesh/kubectl:1.16.4
+gcr.io/gloo-mesh/prometheus:v2.49.1
+gcr.io/gloo-mesh/rate-limiter:0.11.11
+gcr.io/gloo-mesh/redis:7.2.4-alpine
 quay.io/jetstack/cert-manager-cainjector:v1.12.4
 quay.io/jetstack/cert-manager-controller:v1.12.4
 quay.io/jetstack/cert-manager-webhook:v1.12.4
-quay.io/keycloak/keycloak:24.0.2
+quay.io/keycloak/keycloak:24.0.4
 quay.io/prometheus-operator/prometheus-config-reloader:v0.71.2
-quay.io/prometheus/prometheus:v2.49.1
-quay.io/solo-io/kubectl:1.16.4
 us-docker.pkg.dev/gloo-mesh/istio-workshops/operator:1.20.2-solo
 us-docker.pkg.dev/gloo-mesh/istio-workshops/pilot:1.20.2-solo
 us-docker.pkg.dev/gloo-mesh/istio-workshops/proxyv2:1.20.2-solo
@@ -215,7 +215,7 @@ done
 Before we get started, let's install the `meshctl` CLI:
 
 ```bash
-export GLOO_MESH_VERSION=v2.6.0-beta2
+export GLOO_MESH_VERSION=v2.6.0-rc1
 curl -sL https://run.solo.io/meshctl/install | sh -
 export PATH=$HOME/.gloo-mesh/bin:$PATH
 ```
@@ -258,13 +258,13 @@ helm upgrade --install gloo-platform-crds gloo-platform-crds \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${MGMT} \
-  --version 2.6.0-beta2
+  --version 2.6.0-rc1
 
 helm upgrade --install gloo-platform-mgmt gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${MGMT} \
-  --version 2.6.0-beta2 \
+  --version 2.6.0-rc1 \
   -f -<<EOF
 licensing:
   glooTrialLicenseKey: ${GLOO_MESH_LICENSE_KEY}
@@ -283,7 +283,7 @@ prometheus:
   enabled: true
   server:
     image:
-      repository: ${registry}/prometheus/prometheus
+      repository: ${registry}/gloo-mesh/prometheus
   configmapReload:
     prometheus:
       image:
@@ -292,7 +292,7 @@ redis:
   deployment:
     enabled: true
     image:
-      registry: ${registry}
+      registry: ${registry}/gloo-mesh
 telemetryGateway:
   enabled: true
   image:
@@ -365,7 +365,6 @@ Let's create Kubernetes services for the gateways:
 ```bash
 registry=localhost:5000
 kubectl --context ${CLUSTER1} create ns istio-gateways
-kubectl --context ${CLUSTER1} label namespace istio-gateways istio.io/rev=1-20 --overwrite
 
 kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: v1
@@ -824,7 +823,7 @@ helm upgrade --install gloo-platform gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh-addons \
   --kube-context ${CLUSTER1} \
-  --version 2.6.0-beta2 \
+  --version 2.6.0-rc1 \
   -f -<<EOF
 common:
   cluster: cluster1
@@ -851,7 +850,7 @@ rateLimiter:
       registry: ${registry}/gloo-mesh
   redis:
     image:
-      registry: ${registry}
+      registry: ${registry}/gloo-mesh
 EOF
 ```
 
@@ -2186,7 +2185,7 @@ describe("GraphQL", function() {
     let command = `curl -ks "https://cluster1-bookinfo.example.com/openlibrary" --data '{"query":"{product(title: \\"The Comedy of Errors\\"){title languages}}"}'`
     let cli = chaiExec(command);
     expect(cli).to.exit.with.code(0);
-    expect(cli).output.to.contain('{"data":{"product":{"title":"The Comedy of Errors","languages":["chi","dut","eng","esp","fin","fre","ger","heb","ita","mul","nor","slo","spa","tsw","tur","und"]}}}');
+    expect(cli).output.to.contain('{"data":{"product":{"title":"The Comedy of Errors","languages":["chi","dut","eng","epo","fin","fre","ger","heb","ita","mul","nor","slo","spa","tsn","tur","und"]}}}');
   })
 });
 EOF
@@ -2326,7 +2325,7 @@ describe("GraphQL stitched", function() {
     let command = `curl -ks "https://cluster1-bookinfo.example.com/graphql-stitched" --data '{"query":" {productsForHome { title languages ratings {reviewer numStars}}}"}'`
     let cli = chaiExec(command);
     expect(cli).to.exit.with.code(0);
-    expect(cli).output.to.contain('{"data":{"productsForHome":[{"title":"The Comedy of Errors","languages":["chi","dut","eng","esp","fin","fre","ger","heb","ita","mul","nor","slo","spa","tsw","tur","und"],"ratings":[{"reviewer":"Reviewer1","numStars":5},{"reviewer":"Reviewer2","numStars":4}]}]}}');
+    expect(cli).output.to.contain('{"data":{"productsForHome":[{"title":"The Comedy of Errors","languages":["chi","dut","eng","epo","fin","fre","ger","heb","ita","mul","nor","slo","spa","tsn","tur","und"],"ratings":[{"reviewer":"Reviewer1","numStars":5},{"reviewer":"Reviewer2","numStars":4}]}]}}');
   })
 });
 EOF
