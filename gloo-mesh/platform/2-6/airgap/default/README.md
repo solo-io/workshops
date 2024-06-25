@@ -9,7 +9,7 @@ source ./scripts/assert.sh
 
 <center><img src="images/gloo-mesh.png" alt="Gloo Mesh Enterprise" style="width:70%;max-width:800px" /></center>
 
-# <center>Gloo Mesh Platform (2.6.0-beta2)</center>
+# <center>Gloo Mesh Platform (2.6.0-rc1)</center>
 
 
 
@@ -33,15 +33,16 @@ source ./scripts/assert.sh
 * [Lab 16 - Use the DLP policy to mask sensitive data](#lab-16---use-the-dlp-policy-to-mask-sensitive-data-)
 * [Lab 17 - Apply rate limiting to the Gateway](#lab-17---apply-rate-limiting-to-the-gateway-)
 * [Lab 18 - Use the Web Application Firewall filter](#lab-18---use-the-web-application-firewall-filter-)
-* [Lab 19 - Adding services to the mesh](#lab-19---adding-services-to-the-mesh-)
-* [Lab 20 - Traffic policies](#lab-20---traffic-policies-)
-* [Lab 21 - Create the Root Trust Policy](#lab-21---create-the-root-trust-policy-)
-* [Lab 22 - Leverage Virtual Destinations for east west communications](#lab-22---leverage-virtual-destinations-for-east-west-communications-)
-* [Lab 23 - Zero trust](#lab-23---zero-trust-)
-* [Lab 24 - VM integration with Spire](#lab-24---vm-integration-with-spire-)
-* [Lab 25 - Upgrade Istio using Gloo Mesh Lifecycle Manager](#lab-25---upgrade-istio-using-gloo-mesh-lifecycle-manager-)
-* [Lab 26 - Gloo Mesh Management Plane failover](#lab-26---gloo-mesh-management-plane-failover-)
-* [Lab 27 - Securing the egress traffic](#lab-27---securing-the-egress-traffic-)
+* [Lab 19 - Use the JWT filter to create headers from claims](#lab-19---use-the-jwt-filter-to-create-headers-from-claims-)
+* [Lab 20 - Adding services to the mesh](#lab-20---adding-services-to-the-mesh-)
+* [Lab 21 - Traffic policies](#lab-21---traffic-policies-)
+* [Lab 22 - Create the Root Trust Policy](#lab-22---create-the-root-trust-policy-)
+* [Lab 23 - Leverage Virtual Destinations for east west communications](#lab-23---leverage-virtual-destinations-for-east-west-communications-)
+* [Lab 24 - Zero trust](#lab-24---zero-trust-)
+* [Lab 25 - VM integration with Spire](#lab-25---vm-integration-with-spire-)
+* [Lab 26 - Upgrade Istio using Gloo Mesh Lifecycle Manager](#lab-26---upgrade-istio-using-gloo-mesh-lifecycle-manager-)
+* [Lab 27 - Gloo Mesh Management Plane failover](#lab-27---gloo-mesh-management-plane-failover-)
+* [Lab 28 - Securing the egress traffic](#lab-28---securing-the-egress-traffic-)
 
 
 
@@ -207,21 +208,21 @@ docker.io/istio/examples-bookinfo-reviews-v3:1.18.0
 docker.io/kennethreitz/httpbin
 docker.io/nginx:1.25.3
 docker.io/openpolicyagent/opa:0.57.1-debug
-docker.io/redis:7.2.4-alpine
-gcr.io/gloo-mesh/ext-auth-service:0.56.0
-gcr.io/gloo-mesh/gloo-mesh-agent:2.6.0-beta2
-gcr.io/gloo-mesh/gloo-mesh-apiserver:2.6.0-beta2
-gcr.io/gloo-mesh/gloo-mesh-envoy:2.6.0-beta2
-gcr.io/gloo-mesh/gloo-mesh-mgmt-server:2.6.0-beta2
-gcr.io/gloo-mesh/gloo-mesh-spire-controller:2.6.0-beta2
-gcr.io/gloo-mesh/gloo-mesh-ui:2.6.0-beta2
-gcr.io/gloo-mesh/gloo-otel-collector:2.6.0-beta2
-gcr.io/gloo-mesh/rate-limiter:0.11.9
-ghcr.io/spiffe/spire-server:1.8.6
-quay.io/keycloak/keycloak:24.0.2
+gcr.io/gloo-mesh/ext-auth-service:0.56.8
+gcr.io/gloo-mesh/gloo-mesh-agent:2.6.0-rc1
+gcr.io/gloo-mesh/gloo-mesh-apiserver:2.6.0-rc1
+gcr.io/gloo-mesh/gloo-mesh-envoy:2.6.0-rc1
+gcr.io/gloo-mesh/gloo-mesh-mgmt-server:2.6.0-rc1
+gcr.io/gloo-mesh/gloo-mesh-spire-controller:2.6.0-rc1
+gcr.io/gloo-mesh/gloo-mesh-ui:2.6.0-rc1
+gcr.io/gloo-mesh/gloo-otel-collector:2.6.0-rc1
+gcr.io/gloo-mesh/kubectl:1.16.4
+gcr.io/gloo-mesh/prometheus:v2.49.1
+gcr.io/gloo-mesh/rate-limiter:0.11.11
+gcr.io/gloo-mesh/redis:7.2.4-alpine
+gcr.io/gloo-mesh/spire-server:1.8.6
+quay.io/keycloak/keycloak:24.0.4
 quay.io/prometheus-operator/prometheus-config-reloader:v0.71.2
-quay.io/prometheus/prometheus:v2.49.1
-quay.io/solo-io/kubectl:1.16.4
 us-docker.pkg.dev/gloo-mesh/istio-workshops/install-cni:1.19.3-solo
 us-docker.pkg.dev/gloo-mesh/istio-workshops/install-cni:1.20.2-solo
 us-docker.pkg.dev/gloo-mesh/istio-workshops/operator:1.19.3-solo
@@ -260,7 +261,7 @@ done
 Before we get started, let's install the `meshctl` CLI:
 
 ```bash
-export GLOO_MESH_VERSION=v2.6.0-beta2
+export GLOO_MESH_VERSION=v2.6.0-rc1
 curl -sL https://run.solo.io/meshctl/install | sh -
 export PATH=$HOME/.gloo-mesh/bin:$PATH
 ```
@@ -304,13 +305,13 @@ helm upgrade --install gloo-platform-crds gloo-platform-crds \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${MGMT} \
-  --version 2.6.0-beta2
+  --version 2.6.0-rc1
 
 helm upgrade --install gloo-platform gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${MGMT} \
-  --version 2.6.0-beta2 \
+  --version 2.6.0-rc1 \
   -f -<<EOF
 licensing:
   glooTrialLicenseKey: ${GLOO_MESH_LICENSE_KEY}
@@ -328,7 +329,7 @@ prometheus:
   enabled: true
   server:
     image:
-      repository: ${registry}/prometheus/prometheus
+      repository: ${registry}/gloo-mesh/prometheus
   configmapReload:
     prometheus:
       image:
@@ -337,7 +338,7 @@ redis:
   deployment:
     enabled: true
     image:
-      registry: ${registry}
+      registry: ${registry}/gloo-mesh
 telemetryGateway:
   enabled: true
   image:
@@ -485,13 +486,13 @@ helm upgrade --install gloo-platform-crds gloo-platform-crds \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${CLUSTER1} \
-  --version 2.6.0-beta2
+  --version 2.6.0-rc1
 
 helm upgrade --install gloo-platform gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${CLUSTER1} \
-  --version 2.6.0-beta2 \
+  --version 2.6.0-rc1 \
   -f -<<EOF
 common:
   cluster: cluster1
@@ -544,13 +545,13 @@ helm upgrade --install gloo-platform-crds gloo-platform-crds \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${CLUSTER2} \
-  --version 2.6.0-beta2
+  --version 2.6.0-rc1
 
 helm upgrade --install gloo-platform gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${CLUSTER2} \
-  --version 2.6.0-beta2 \
+  --version 2.6.0-rc1 \
   -f -<<EOF
 common:
   cluster: cluster2
@@ -644,7 +645,6 @@ Let's create Kubernetes services for the gateways:
 ```bash
 registry=localhost:5000
 kubectl --context ${CLUSTER1} create ns istio-gateways
-kubectl --context ${CLUSTER1} label namespace istio-gateways istio.io/rev=1-19 --overwrite
 
 kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: v1
@@ -727,9 +727,7 @@ spec:
     topology.istio.io/network: cluster1
   type: LoadBalancer
 EOF
-
 kubectl --context ${CLUSTER2} create ns istio-gateways
-kubectl --context ${CLUSTER2} label namespace istio-gateways istio.io/rev=1-19 --overwrite
 
 kubectl apply --context ${CLUSTER2} -f - <<EOF
 apiVersion: v1
@@ -1493,7 +1491,7 @@ helm upgrade --install gloo-platform gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh-addons \
   --kube-context ${CLUSTER1} \
-  --version 2.6.0-beta2 \
+  --version 2.6.0-rc1 \
   -f -<<EOF
 common:
   cluster: cluster1
@@ -1520,14 +1518,14 @@ rateLimiter:
       registry: ${registry}/gloo-mesh
   redis:
     image:
-      registry: ${registry}
+      registry: ${registry}/gloo-mesh
 EOF
 
 helm upgrade --install gloo-platform gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh-addons \
   --kube-context ${CLUSTER2} \
-  --version 2.6.0-beta2 \
+  --version 2.6.0-rc1 \
   -f -<<EOF
 common:
   cluster: cluster2
@@ -1554,7 +1552,7 @@ rateLimiter:
       registry: ${registry}/gloo-mesh
   redis:
     image:
-      registry: ${registry}
+      registry: ${registry}/gloo-mesh
 EOF
 ```
 
@@ -2409,7 +2407,7 @@ data:
       "enabled": true,
       "displayName": "solo.io",
       "accessTokenLifespan": 1800,
-      "sslRequired": "NONE",
+      "sslRequired": "none",
       "users": [
         {
           "username": "user1",
@@ -2545,15 +2543,13 @@ spec:
     spec:
       containers:
       - name: keycloak
-        image: ${registry}/keycloak/keycloak:24.0.2
+        image: ${registry}/keycloak/keycloak:24.0.4
         args: ["start-dev", "--import-realm"]
         env:
         - name: KEYCLOAK_ADMIN
-          value: "admin"
+          value: admin
         - name: KEYCLOAK_ADMIN_PASSWORD
-          value: "admin"
-        - name: PROXY_ADDRESS_FORWARDING
-          value: "true"
+          value: admin
         ports:
         - name: http
           containerPort: 8080
@@ -2663,18 +2659,6 @@ echo "Waiting for Keycloak to be ready at $KEYCLOAK_URL/realms/workshop/protocol
 timeout 300 bash -c 'while [[ "$(curl -m 2 -s -o /dev/null -w ''%{http_code}'' $KEYCLOAK_URL/realms/workshop/protocol/openid-connect/token)" != "405" ]]; do printf '.';sleep 1; done' || false
 -->
 
-Finally, save off a token for any Keycloak API operations we need to do later:
-
-```bash
-export KEYCLOAK_TOKEN=$(curl -Ssm 10 --fail-with-body \
-  -d "client_id=admin-cli" \
-  -d "username=admin" \
-  -d "password=admin" \
-  -d "grant_type=password" \
-  "$KEYCLOAK_URL/realms/master/protocol/openid-connect/token" |
-  jq -r .access_token)
-```
-
 
 
 ## Lab 14 - Securing the access with OAuth <a name="lab-14---securing-the-access-with-oauth-"></a>
@@ -2781,6 +2765,8 @@ until ([ ! -z "$USER2_TOKEN" ] && [[ $USER2_TOKEN != *"dummy"* ]]) || [ $ATTEMPT
   sleep 1
   export USER2_TOKEN=$(node tests/keycloak-token.js "https://cluster1-httpbin.example.com/get" user2)
 done
+kubectl -n keycloak create secret generic user1-token --from-literal=token=$USER1_TOKEN --dry-run=client -oyaml | kubectl --context ${MGMT} apply -f -
+kubectl -n keycloak create secret generic user2-token --from-literal=token=$USER2_TOKEN --dry-run=client -oyaml | kubectl --context ${MGMT} apply -f -
 echo "User1 token: $USER1_TOKEN"
 echo "User2 token: $USER2_TOKEN"
 -->
@@ -3205,6 +3191,8 @@ EOF
 
 And also delete the different objects we've created:
 ```bash
+kubectl --context ${CLUSTER1} -n httpbin delete extauthpolicies httpbin
+kubectl --context ${CLUSTER1} -n httpbin delete dlppolicy basic-dlp-policy
 kubectl --context ${CLUSTER1} -n httpbin delete ratelimitpolicy httpbin
 kubectl --context ${CLUSTER1} -n httpbin delete ratelimitserverconfig httpbin
 ```
@@ -3387,13 +3375,248 @@ EOF
 And also delete the waf policy we've created:
 
 ```bash
-kubectl --context ${CLUSTER1} -n httpbin delete wafpolicies.security.policy.gloo.solo.io log4shell
+kubectl --context ${CLUSTER1} -n httpbin delete wafpolicies log4shell
 ```
 
 
 
 
-## Lab 19 - Adding services to the mesh <a name="lab-19---adding-services-to-the-mesh-"></a>
+## Lab 19 - Use the JWT filter to create headers from claims <a name="lab-19---use-the-jwt-filter-to-create-headers-from-claims-"></a>
+[<img src="https://img.youtube.com/vi/bpFKbhUIwgM/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/bpFKbhUIwgM "Video Link")
+
+In this step, we're going to validate the JWT token and to create a new header from the `email` claim.
+
+You can restrict a request's access based on the claims and scopes in a JWT. `Claims` are key-value pairs that provide identity details, such as the subject's user ID, the entity that issued the token, and expiration time. `Scopes` are strings that indicate the permissions granted to the token holder.
+
+Keycloak is running outside of the Service Mesh, so we need to define an `ExternalService` and its associated `ExternalEndpoint`:
+
+Let's start by the latter:
+
+```bash
+kubectl apply --context ${CLUSTER1} -f - <<EOF
+apiVersion: networking.gloo.solo.io/v2
+kind: ExternalEndpoint
+metadata:
+  name: keycloak
+  namespace: httpbin
+  labels:
+    host: keycloak
+spec:
+  address: ${HOST_KEYCLOAK}
+  ports:
+  - name: http
+    number: ${PORT_KEYCLOAK}
+EOF
+```
+
+Then we can create the former:
+
+```bash
+kubectl apply --context ${CLUSTER1} -f - <<EOF
+apiVersion: networking.gloo.solo.io/v2
+kind: ExternalService
+metadata:
+  name: keycloak
+  namespace: httpbin
+  labels:
+    expose: "true"
+spec:
+  hosts:
+  - keycloak
+  ports:
+  - name: http
+    number: ${PORT_KEYCLOAK}
+    protocol: HTTP
+  selector:
+    host: keycloak
+EOF
+```
+
+Now, we can create a `JWTPolicy` to extract the claim.
+
+Create the policy:
+
+```bash
+kubectl apply --context ${CLUSTER1} -f - <<EOF
+apiVersion: security.policy.gloo.solo.io/v2
+kind: JWTPolicy
+metadata:
+  name: httpbin
+  namespace: httpbin
+spec:
+  applyToRoutes:
+  - route:
+      labels:
+        oauth: "true"
+  config:
+    phase:
+      preAuthz: {}
+    claims:
+    - key: "email"
+      values:
+      - "*@solo.io"
+    requiredScopes:
+    - "email"
+    providers:
+      keycloak:
+        issuer: ${KEYCLOAK_URL}/realms/workshop
+        tokenSource:
+          headers:
+          - name: jwt
+        remote:
+          url: ${KEYCLOAK_URL}/realms/workshop/protocol/openid-connect/certs
+          destinationRef:
+            kind: EXTERNAL_SERVICE
+            ref:
+              name: keycloak
+            port:
+              number: ${PORT_KEYCLOAK}
+        claimsToHeaders:
+        - claim: email
+          header: X-Email-Jwt
+EOF
+```
+
+And update the routable:
+
+```bash
+kubectl apply --context ${CLUSTER1} -f - <<EOF
+apiVersion: networking.gloo.solo.io/v2
+kind: RouteTable
+metadata:
+  name: httpbin
+  namespace: httpbin
+  labels:
+    expose: "true"
+spec:
+  http:
+    - name: httpbin
+      labels:
+        oauth: "true"
+      matchers:
+      - uri:
+          exact: /get
+      - uri:
+          exact: /logout
+      - uri:
+          prefix: /callback
+      forwardTo:
+        destinations:
+        - ref:
+            name: not-in-mesh
+            namespace: httpbin
+            cluster: cluster1
+          port:
+            number: 8000
+EOF
+```
+
+We will use gloo to add conditional access to the `httpbin` service based on the `email` scope and claim in the JWT token.
+
+```shell
+export USER2_TOKEN_JWT=$(curl -Ssm 10 --fail-with-body \
+  -d "client_id=gloo-ext-auth" \
+  -d "client_secret=hKcDcqmUKCrPkyDJtCw066hTLzUbAiri" \
+  -d "username=user2" \
+  -d "password=password" \
+  -d "grant_type=password" \
+  "$KEYCLOAK_URL/realms/workshop/protocol/openid-connect/token" |
+  jq -r .access_token)
+curl -kis https://cluster1-httpbin.example.com/get -H "jwt: ${USER2_TOKEN_JWT}"
+```
+
+You should see a new `X-Email-Jwt` header added to the request with the value `user2@solo.io`
+
+<!--bash
+source data/steps/gateway-jwt/kc-token.sh
+-->
+<!--bash
+cat <<'EOF' > ./test.js
+const helpersHttp = require('./tests/chai-http');
+
+describe("Claim to header is working properly", function() {
+  const jwtString = process.env.USER2_TOKEN_JWT;
+  it('The new header has been added', () => helpersHttp.checkBody({ host: `https://cluster1-httpbin.example.com`, path: '/get', headers: [{ key: 'jwt', value: jwtString }], body: '"X-Email-Jwt":' }));
+  it('The new header has value', () => helpersHttp.checkBody({ host: `https://cluster1-httpbin.example.com`, path: '/get', headers: [{ key: 'jwt', value: jwtString }], body: '"user2@solo.io"' }));
+});
+
+EOF
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/apps/httpbin/gateway-jwt/tests/header-added.test.js.liquid"
+tempfile=$(mktemp)
+echo "saving errors in ${tempfile}"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
+-->
+
+Let's apply the original `RouteTable` yaml:
+
+```bash
+kubectl apply --context ${CLUSTER1} -f - <<EOF
+apiVersion: networking.gloo.solo.io/v2
+kind: RouteTable
+metadata:
+  name: main-bookinfo
+  namespace: istio-gateways
+spec:
+  hosts:
+    - cluster1-bookinfo.example.com
+    - cluster2-bookinfo.example.com
+  virtualGateways:
+    - name: north-south-gw
+      namespace: istio-gateways
+      cluster: cluster1
+  workloadSelectors: []
+  http:
+    - name: root
+      matchers:
+      - uri:
+          prefix: /
+      delegate:
+        routeTables:
+          - labels:
+              expose: "true"
+            workspace: bookinfo
+          - labels:
+              expose: "true"
+            workspace: gateways
+        sortMethod: ROUTE_SPECIFICITY
+---
+apiVersion: networking.gloo.solo.io/v2
+kind: RouteTable
+metadata:
+  name: main-httpbin
+  namespace: istio-gateways
+spec:
+  hosts:
+    - cluster1-httpbin.example.com
+  virtualGateways:
+    - name: north-south-gw
+      namespace: istio-gateways
+      cluster: cluster1
+  workloadSelectors: []
+  http:
+    - name: root
+      matchers:
+      - uri:
+          prefix: /
+      delegate:
+        routeTables:
+          - labels:
+              expose: "true"
+            workspace: httpbin
+        sortMethod: ROUTE_SPECIFICITY
+EOF
+```
+
+And also delete the jwt policy we've created:
+
+```bash
+kubectl --context ${CLUSTER1} -n httpbin delete jwtpolicies httpbin
+```
+
+
+
+
+## Lab 20 - Adding services to the mesh <a name="lab-20---adding-services-to-the-mesh-"></a>
 
 In this lab, you will incrementally add services to the mesh. The mesh is actually integrated with the services themselves which makes it mostly transparent to the service implementation.
 
@@ -3532,7 +3755,7 @@ timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> 
 
 
 
-## Lab 20 - Traffic policies <a name="lab-20---traffic-policies-"></a>
+## Lab 21 - Traffic policies <a name="lab-21---traffic-policies-"></a>
 [<img src="https://img.youtube.com/vi/ZBdt8WA0U64/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/ZBdt8WA0U64 "Video Link")
 
 We're going to use Gloo Mesh policies to inject faults and configure timeouts.
@@ -3710,7 +3933,7 @@ kubectl --context ${CLUSTER1} -n bookinfo-frontends delete routetable reviews
 
 
 
-## Lab 21 - Create the Root Trust Policy <a name="lab-21---create-the-root-trust-policy-"></a>
+## Lab 22 - Create the Root Trust Policy <a name="lab-22---create-the-root-trust-policy-"></a>
 [<img src="https://img.youtube.com/vi/-A2U2fYYgrU/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/-A2U2fYYgrU "Video Link")
 
 To allow secured (end-to-end mTLS) cross cluster communications, we need to make sure the certificates issued by the Istio control plane on each cluster are signed with intermediate certificates which have a common root CA.
@@ -3863,7 +4086,7 @@ kubectl --context ${CLUSTER1} -n httpbin rollout restart deploy/in-mesh
 
 
 
-## Lab 22 - Leverage Virtual Destinations for east west communications <a name="lab-22---leverage-virtual-destinations-for-east-west-communications-"></a>
+## Lab 23 - Leverage Virtual Destinations for east west communications <a name="lab-23---leverage-virtual-destinations-for-east-west-communications-"></a>
 
 We can create a Virtual Destination which will be composed of the `reviews` services running in both clusters.
 
@@ -4129,7 +4352,7 @@ kubectl --context ${CLUSTER1} -n bookinfo-backends delete outlierdetectionpolicy
 
 
 
-## Lab 23 - Zero trust <a name="lab-23---zero-trust-"></a>
+## Lab 24 - Zero trust <a name="lab-24---zero-trust-"></a>
 [<img src="https://img.youtube.com/vi/BiaBlUaplEs/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/BiaBlUaplEs "Video Link")
 
 In the previous step, we federated multiple meshes and established a shared root CA for a shared identity domain.
@@ -4490,7 +4713,7 @@ kubectl --context ${CLUSTER1} delete accesspolicies -n bookinfo-frontends --all
 
 
 
-## Lab 24 - VM integration with Spire <a name="lab-24---vm-integration-with-spire-"></a>
+## Lab 25 - VM integration with Spire <a name="lab-25---vm-integration-with-spire-"></a>
 
 
 Let's see how we can configure a VM to be part of the Mesh.
@@ -4505,7 +4728,7 @@ helm upgrade --install gloo-platform-crds gloo-platform-crds \
   --namespace gloo-mesh \
   --kube-context ${MGMT} \
   --set featureGates.ExternalWorkloads=true \
-  --version 2.6.0-beta2 \
+  --version 2.6.0-rc1 \
   --reuse-values \
   -f -<<EOF
 featureGates:
@@ -4516,7 +4739,7 @@ helm upgrade gloo-platform gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${MGMT} \
-  --version 2.6.0-beta2 \
+  --version 2.6.0-rc1 \
   --reuse-values \
   -f -<<EOF
 featureGates:
@@ -4529,7 +4752,7 @@ helm upgrade --install gloo-platform-crds gloo-platform-crds \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${CLUSTER1} \
-  --version 2.6.0-beta2 \
+  --version 2.6.0-rc1 \
   --reuse-values \
   -f -<<EOF
 featureGates:
@@ -4540,7 +4763,7 @@ helm upgrade gloo-platform gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${CLUSTER1} \
-  --version 2.6.0-beta2 \
+  --version 2.6.0-rc1 \
   --reuse-values \
   -f -<<EOF
 glooSpireServer:
@@ -4550,7 +4773,7 @@ glooSpireServer:
   server:
     trustDomain: cluster1
   image:
-    registry: ${registry}/spiffe
+    registry: ${registry}/gloo-mesh
   sidecars:
     glooSpireController:
       image:
@@ -4785,7 +5008,7 @@ echo
 -->
 
 ```bash
-export GLOO_AGENT_URL=https://storage.googleapis.com/gloo-platform/vm/v2.6.0-beta2/gloo-workload-agent.deb
+export GLOO_AGENT_URL=https://storage.googleapis.com/gloo-platform/vm/v2.6.0-rc1/gloo-workload-agent.deb
 export ISTIO_URL=https://storage.googleapis.com/solo-workshops/istio-binaries/1.19.3/istio-sidecar.deb
 
 docker exec vm1 meshctl ew onboard --install \
@@ -4793,6 +5016,7 @@ docker exec vm1 meshctl ew onboard --install \
   --join-token ${JOIN_TOKEN} \
   --cluster ${CLUSTER1} \
   --gateway-addr ${EW_GW_ADDR} \
+  --gateway-service-account $(kubectl --context ${CLUSTER1} -n istio-gateways get sa -l istio=eastwestgateway -o jsonpath='{.items[0].metadata.name}') \
   --gateway istio-gateways/istio-eastwestgateway-1-19 \
   --trust-domain ${CLUSTER1} \
   --istio-rev 1-19 \
@@ -5004,7 +5228,7 @@ docker rm -f vm1
 
 
 
-## Lab 25 - Upgrade Istio using Gloo Mesh Lifecycle Manager <a name="lab-25---upgrade-istio-using-gloo-mesh-lifecycle-manager-"></a>
+## Lab 26 - Upgrade Istio using Gloo Mesh Lifecycle Manager <a name="lab-26---upgrade-istio-using-gloo-mesh-lifecycle-manager-"></a>
 [<img src="https://img.youtube.com/vi/6DtGVkecArs/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/6DtGVkecArs "Video Link")
 
 Set the variables corresponding to the old and new revision tags:
@@ -5445,8 +5669,8 @@ kubectl --context ${CLUSTER1} -n istio-system rollout status deploy
 -->
 
 When the upgrade is completed, the state at the end of the objects will be `HEALTHY`.
-
 Now, let's restart all the Istio Pods to use the new revision:
+
 
 ```bash
 kubectl --context ${CLUSTER1} get ns -l istio.io/rev=${OLD_REVISION} -o json | jq -r '.items[].metadata.name' | while read ns; do
@@ -5463,10 +5687,10 @@ kubectl --context ${CLUSTER1} -n httpbin patch deploy in-mesh --patch "{\"spec\"
 kubectl --context ${CLUSTER1} -n httpbin rollout status deploy in-mesh
 -->
 
-Test that you can still access the `in-mesh` service through the Istio Ingress Gateway corresponding to the old revision using the command below:
+Test that you can still access the `productpage` service through the Istio Ingress Gateway corresponding to the old revision using the command below:
 
 ```bash
-curl -k "https://cluster1-httpbin.example.com/get" -I
+curl -k "https://cluster1-bookinfo.example.com/productpage" -I
 ```
 
 You should get a response similar to the following one:
@@ -5486,12 +5710,12 @@ x-envoy-upstream-service-time: 7
 cat <<'EOF' > ./test.js
 const helpers = require('./tests/chai-http');
 
-describe("httpbin is accessible", () => {
-  it('/get is available in cluster1', () => helpers.checkURL({ host: `https://cluster1-httpbin.example.com`, path: '/get', retCode: 200 }));
+describe("productpage is accessible", () => {
+  it('/productpage is available in cluster1', () => helpers.checkURL({ host: `https://cluster1-bookinfo.example.com`, path: '/productpage', retCode: 200 }));
 })
 
 EOF
-echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/istio-lifecycle-manager-upgrade/tests/httpbin-available.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/istio-lifecycle-manager-upgrade/tests/productpage-available.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -5508,10 +5732,10 @@ kubectl --context ${CLUSTER2} -n istio-gateways patch svc istio-eastwestgateway 
 
 We don't switch the selector directly from one the old revision to the new one to avoid any request to be dropped.
 
-Test that you can still access the `in-mesh` service:
+Test that you can still access the `productpage` service:
 
 ```bash
-curl -k "https://cluster1-httpbin.example.com/get" -I
+curl -k "https://cluster1-bookinfo.example.com/productpage" -I
 ```
 
 You should get a response similar to the following one:
@@ -5530,12 +5754,12 @@ access-control-allow-credentials: true
 cat <<'EOF' > ./test.js
 const helpers = require('./tests/chai-http');
 
-describe("httpbin is accessible", () => {
-  it('/get is available in cluster1', () => helpers.checkURL({ host: `https://cluster1-httpbin.example.com`, path: '/get', retCode: 200 }));
+describe("productpage is accessible", () => {
+  it('/productpage is available in cluster1', () => helpers.checkURL({ host: `https://cluster1-bookinfo.example.com`, path: '/productpage', retCode: 200 }));
 })
 
 EOF
-echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/istio-lifecycle-manager-upgrade/tests/httpbin-available.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/istio-lifecycle-manager-upgrade/tests/productpage-available.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -5550,10 +5774,10 @@ kubectl --context ${CLUSTER2} -n istio-gateways patch svc istio-ingressgateway -
 kubectl --context ${CLUSTER2} -n istio-gateways patch svc istio-eastwestgateway --patch "{\"spec\": {\"selector\": {\"revision\": \"${NEW_REVISION}\" }}}"
 ```
 
-Test that you can still access the `in-mesh` service:
+Test that you can still access the `productpage` service:
 
 ```bash
-curl -k "https://cluster1-httpbin.example.com/get" -I
+curl -k "https://cluster1-bookinfo.example.com/productpage" -I
 ```
 
 You should get a response similar to the following one:
@@ -5572,12 +5796,12 @@ access-control-allow-credentials: true
 cat <<'EOF' > ./test.js
 const helpers = require('./tests/chai-http');
 
-describe("httpbin is accessible", () => {
-  it('/get is available in cluster1', () => helpers.checkURL({ host: `https://cluster1-httpbin.example.com`, path: '/get', retCode: 200 }));
+describe("productpage is accessible", () => {
+  it('/productpage is available in cluster1', () => helpers.checkURL({ host: `https://cluster1-bookinfo.example.com`, path: '/productpage', retCode: 200 }));
 })
 
 EOF
-echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/istio-lifecycle-manager-upgrade/tests/httpbin-available.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/istio-lifecycle-manager-upgrade/tests/productpage-available.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -5919,7 +6143,7 @@ timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> 
 
 
 
-## Lab 26 - Gloo Mesh Management Plane failover <a name="lab-26---gloo-mesh-management-plane-failover-"></a>
+## Lab 27 - Gloo Mesh Management Plane failover <a name="lab-27---gloo-mesh-management-plane-failover-"></a>
 
 
 Before we start the failover procedure, let's capture the current output snapshot:
@@ -5992,13 +6216,13 @@ helm upgrade --install gloo-platform-crds gloo-platform-crds \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${MGMT2} \
-  --version 2.6.0-beta2
+  --version 2.6.0-rc1
 
 helm upgrade --install gloo-platform gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${MGMT2} \
-  --version 2.6.0-beta2 \
+  --version 2.6.0-rc1 \
   -f -<<EOF
 licensing:
   glooTrialLicenseKey: ${GLOO_MESH_LICENSE_KEY}
@@ -6016,7 +6240,7 @@ prometheus:
   enabled: true
   server:
     image:
-      repository: ${registry}/prometheus/prometheus
+      repository: ${registry}/gloo-mesh/prometheus
   configmapReload:
     prometheus:
       image:
@@ -6025,7 +6249,7 @@ redis:
   deployment:
     enabled: true
     image:
-      registry: ${registry}
+      registry: ${registry}/gloo-mesh
 telemetryGateway:
   enabled: true
   image:
@@ -6220,13 +6444,13 @@ helm upgrade --install gloo-platform-crds gloo-platform-crds \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${CLUSTER1} \
-  --version 2.6.0-beta2
+  --version 2.6.0-rc1
 
 helm upgrade --install gloo-platform gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${CLUSTER1} \
-  --version 2.6.0-beta2 \
+  --version 2.6.0-rc1 \
   -f -<<EOF
 common:
   cluster: cluster1
@@ -6273,13 +6497,13 @@ helm upgrade --install gloo-platform-crds gloo-platform-crds \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${CLUSTER2} \
-  --version 2.6.0-beta2
+  --version 2.6.0-rc1
 
 helm upgrade --install gloo-platform gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${CLUSTER2} \
-  --version 2.6.0-beta2 \
+  --version 2.6.0-rc1 \
   -f -<<EOF
 common:
   cluster: cluster2
@@ -6407,7 +6631,7 @@ timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> 
 
 
 
-## Lab 27 - Securing the egress traffic <a name="lab-27---securing-the-egress-traffic-"></a>
+## Lab 28 - Securing the egress traffic <a name="lab-28---securing-the-egress-traffic-"></a>
 [<img src="https://img.youtube.com/vi/tQermml1Ryo/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/tQermml1Ryo "Video Link")
 
 
@@ -6503,6 +6727,7 @@ spec:
         number: 443
       tls:
         mode: ISTIO_MUTUAL
+      http: {}
   workloads:
     - selector:
         labels:
