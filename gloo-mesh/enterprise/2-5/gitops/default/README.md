@@ -9,7 +9,7 @@ source ./scripts/assert.sh
 
 <center><img src="images/gloo-mesh.png" alt="Gloo Mesh Enterprise" style="width:70%;max-width:800px" /></center>
 
-# <center>Gloo Mesh Enterprise (2.5.6)</center>
+# <center>Gloo Mesh Enterprise (2.5.7)</center>
 
 
 
@@ -525,7 +525,7 @@ kubectl --context ${MGMT} -n default wait --for=delete pod/nginx --timeout=30s
 Before we get started, let's install the `meshctl` CLI:
 
 ```bash
-export GLOO_MESH_VERSION=v2.5.6
+export GLOO_MESH_VERSION=v2.5.7
 curl -sL https://run.solo.io/meshctl/install | sh -
 export PATH=$HOME/.gloo-mesh/bin:$PATH
 ```
@@ -680,7 +680,7 @@ spec:
   sources:
   - chart: gloo-platform-crds
     repoURL: https://storage.googleapis.com/gloo-platform/helm-charts
-    targetRevision: 2.5.6
+    targetRevision: 2.5.7
     helm:
       releaseName: gloo-platform-crds
       parameters:
@@ -688,7 +688,7 @@ spec:
         value: "true"
   - chart: gloo-platform
     repoURL: https://storage.googleapis.com/gloo-platform/helm-charts
-    targetRevision: 2.5.6
+    targetRevision: 2.5.7
     helm:
       releaseName: gloo-platform
       valueFiles:
@@ -995,7 +995,7 @@ spec:
       sources:
       - chart: gloo-platform-crds
         repoURL: https://storage.googleapis.com/gloo-platform/helm-charts
-        targetRevision: 2.5.6
+        targetRevision: 2.5.7
         helm:
           releaseName: gloo-platform-crds
           parameters:
@@ -1003,7 +1003,7 @@ spec:
             value: "true"
       - chart: gloo-platform
         repoURL: https://storage.googleapis.com/gloo-platform/helm-charts
-        targetRevision: 2.5.6
+        targetRevision: 2.5.7
         helm:
           releaseName: gloo-platform
           valueFiles:
@@ -1023,6 +1023,8 @@ We'll use the following Helm values file to configure the Gloo Platform agents:
 
 ```bash
 cat <<EOF > ${GITOPS_PLATFORM}/argo-cd/gloo-platform-agents-installation-values.yaml
+common:
+  cluster: undefined
 glooAgent:
   enabled: true
   relay:
@@ -2549,7 +2551,7 @@ spec:
       sources:
       - chart: gloo-platform
         repoURL: https://storage.googleapis.com/gloo-platform/helm-charts
-        targetRevision: 2.5.6
+        targetRevision: 2.5.7
         helm:
           releaseName: gloo-platform
           valueFiles:
@@ -4627,7 +4629,7 @@ echo
 -->
 
 ```bash
-export GLOO_AGENT_URL=https://storage.googleapis.com/gloo-platform/vm/v2.5.6/gloo-workload-agent.deb
+export GLOO_AGENT_URL=https://storage.googleapis.com/gloo-platform/vm/v2.5.7/gloo-workload-agent.deb
 export ISTIO_URL=https://storage.googleapis.com/solo-workshops/istio-binaries/1.20.2/istio-sidecar.deb
 
 docker exec vm1 meshctl ew onboard --install \
@@ -4916,6 +4918,7 @@ spec:
         number: 443
       tls:
         mode: ISTIO_MUTUAL
+      http: {}
   workloads:
     - selector:
         labels:
