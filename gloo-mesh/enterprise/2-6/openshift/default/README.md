@@ -9,7 +9,7 @@ source ./scripts/assert.sh
 
 <center><img src="images/gloo-mesh.png" alt="Gloo Mesh Enterprise" style="width:70%;max-width:800px" /></center>
 
-# <center>Gloo Mesh Enterprise (2.6.0-beta2)</center>
+# <center>Gloo Mesh Enterprise (2.6.0-rc1)</center>
 
 
 
@@ -75,9 +75,9 @@ Clone this repository and go to the directory where this `README.md` file is.
 Set the context environment variables:
 
 ```bash
-export MGMT=mgmt
-export CLUSTER1=cluster1
-export CLUSTER2=cluster2
+export MGMT=
+export CLUSTER1=
+export CLUSTER2=
 ```
 
 > Note that in case you can't have a Kubernetes cluster dedicated for the management plane, you would set the variables like that:
@@ -87,7 +87,7 @@ export CLUSTER2=cluster2
 > export CLUSTER2=cluster2
 > ```
 
-You also need to rename the Kubernete contexts of each Kubernetes cluster to match `mgmt`, `cluster1`, ...
+You also need to rename the Kubernetes contexts of each Kubernetes cluster to match `mgmt`, `cluster1`, ...
 
 Here is an example showing how to rename a Kubernetes context:
 
@@ -110,7 +110,7 @@ kubectl config use-context ${MGMT}
 Before we get started, let's install the `meshctl` CLI:
 
 ```bash
-export GLOO_MESH_VERSION=v2.6.0-beta2
+export GLOO_MESH_VERSION=v2.6.0-rc1
 curl -sL https://run.solo.io/meshctl/install | sh -
 export PATH=$HOME/.gloo-mesh/bin:$PATH
 ```
@@ -156,13 +156,13 @@ helm upgrade --install gloo-platform-crds gloo-platform-crds \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${MGMT} \
-  --version 2.6.0-beta2
+  --version 2.6.0-rc1
 
 helm upgrade --install gloo-platform gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${MGMT} \
-  --version 2.6.0-beta2 \
+  --version 2.6.0-rc1 \
   -f -<<EOF
 licensing:
   glooTrialLicenseKey: ${GLOO_MESH_LICENSE_KEY}
@@ -322,13 +322,13 @@ helm upgrade --install gloo-platform-crds gloo-platform-crds \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${CLUSTER1} \
-  --version 2.6.0-beta2
+  --version 2.6.0-rc1
 
 helm upgrade --install gloo-platform gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${CLUSTER1} \
-  --version 2.6.0-beta2 \
+  --version 2.6.0-rc1 \
   -f -<<EOF
 common:
   cluster: cluster1
@@ -389,13 +389,13 @@ helm upgrade --install gloo-platform-crds gloo-platform-crds \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${CLUSTER2} \
-  --version 2.6.0-beta2
+  --version 2.6.0-rc1
 
 helm upgrade --install gloo-platform gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${CLUSTER2} \
-  --version 2.6.0-beta2 \
+  --version 2.6.0-rc1 \
   -f -<<EOF
 common:
   cluster: cluster2
@@ -497,7 +497,6 @@ Let's create Kubernetes services for the gateways:
 
 ```bash
 kubectl --context ${CLUSTER1} create ns istio-gateways
-kubectl --context ${CLUSTER1} label namespace istio-gateways istio.io/rev=1-20 --overwrite
 
 kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: v1
@@ -580,9 +579,7 @@ spec:
     topology.istio.io/network: cluster1
   type: LoadBalancer
 EOF
-
 kubectl --context ${CLUSTER2} create ns istio-gateways
-kubectl --context ${CLUSTER2} label namespace istio-gateways istio.io/rev=1-20 --overwrite
 
 kubectl apply --context ${CLUSTER2} -f - <<EOF
 apiVersion: v1
@@ -1453,7 +1450,7 @@ helm upgrade --install gloo-platform gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh-addons \
   --kube-context ${CLUSTER1} \
-  --version 2.6.0-beta2 \
+  --version 2.6.0-rc1 \
   -f -<<EOF
 common:
   cluster: cluster1
@@ -1478,7 +1475,7 @@ helm upgrade --install gloo-platform gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh-addons \
   --kube-context ${CLUSTER2} \
-  --version 2.6.0-beta2 \
+  --version 2.6.0-rc1 \
   -f -<<EOF
 common:
   cluster: cluster2
@@ -2986,7 +2983,7 @@ helm upgrade --install gloo-platform-crds gloo-platform-crds \
   --namespace gloo-mesh \
   --kube-context ${MGMT} \
   --set featureGates.ExternalWorkloads=true \
-  --version 2.6.0-beta2 \
+  --version 2.6.0-rc1 \
   --reuse-values \
   -f -<<EOF
 featureGates:
@@ -2997,7 +2994,7 @@ helm upgrade gloo-platform gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${MGMT} \
-  --version 2.6.0-beta2 \
+  --version 2.6.0-rc1 \
   --reuse-values \
   -f -<<EOF
 featureGates:
@@ -3010,7 +3007,7 @@ helm upgrade --install gloo-platform-crds gloo-platform-crds \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${CLUSTER1} \
-  --version 2.6.0-beta2 \
+  --version 2.6.0-rc1 \
   --reuse-values \
   -f -<<EOF
 featureGates:
@@ -3021,7 +3018,7 @@ helm upgrade gloo-platform gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${CLUSTER1} \
-  --version 2.6.0-beta2 \
+  --version 2.6.0-rc1 \
   --reuse-values \
   -f -<<EOF
 glooSpireServer:
@@ -3259,7 +3256,7 @@ echo
 -->
 
 ```bash
-export GLOO_AGENT_URL=https://storage.googleapis.com/gloo-platform/vm/v2.6.0-beta2/gloo-workload-agent.deb
+export GLOO_AGENT_URL=https://storage.googleapis.com/gloo-platform/vm/v2.6.0-rc1/gloo-workload-agent.deb
 export ISTIO_URL=https://storage.googleapis.com/solo-workshops/istio-binaries/1.20.2/istio-sidecar.deb
 
 docker exec vm1 meshctl ew onboard --install \
@@ -3267,6 +3264,7 @@ docker exec vm1 meshctl ew onboard --install \
   --join-token ${JOIN_TOKEN} \
   --cluster ${CLUSTER1} \
   --gateway-addr ${EW_GW_ADDR} \
+  --gateway-service-account $(kubectl --context ${CLUSTER1} -n istio-gateways get sa -l istio=eastwestgateway -o jsonpath='{.items[0].metadata.name}') \
   --gateway istio-gateways/istio-eastwestgateway-1-20 \
   --trust-domain ${CLUSTER1} \
   --istio-rev 1-20 \
@@ -3568,6 +3566,7 @@ spec:
         number: 443
       tls:
         mode: ISTIO_MUTUAL
+      http: {}
   workloads:
     - selector:
         labels:
