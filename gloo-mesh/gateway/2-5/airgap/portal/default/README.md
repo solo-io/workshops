@@ -9,7 +9,7 @@ source ./scripts/assert.sh
 
 <center><img src="images/gloo-gateway.png" alt="Gloo Mesh Gateway" style="width:70%;max-width:800px" /></center>
 
-# <center>Gloo Portal (2.5.6)</center>
+# <center>Gloo Portal (2.5.7)</center>
 
 
 
@@ -170,16 +170,16 @@ docker.io/kennethreitz/httpbin
 docker.io/nginx:1.25.3
 docker.io/openpolicyagent/opa:0.57.1-debug
 docker.io/redis:7.2.4-alpine
-gcr.io/gloo-mesh/ext-auth-service:0.56.7
-gcr.io/gloo-mesh/gloo-mesh-agent:2.5.6
-gcr.io/gloo-mesh/gloo-mesh-apiserver:2.5.6
-gcr.io/gloo-mesh/gloo-mesh-envoy:2.5.6
-gcr.io/gloo-mesh/gloo-mesh-mgmt-server:2.5.6
-gcr.io/gloo-mesh/gloo-mesh-portal-server:2.5.6
-gcr.io/gloo-mesh/gloo-mesh-ui:2.5.6
-gcr.io/gloo-mesh/gloo-otel-collector:2.5.6
-gcr.io/gloo-mesh/rate-limiter:0.11.10
-quay.io/keycloak/keycloak:24.0.2
+gcr.io/gloo-mesh/ext-auth-service:0.56.8
+gcr.io/gloo-mesh/gloo-mesh-agent:2.5.7
+gcr.io/gloo-mesh/gloo-mesh-apiserver:2.5.7
+gcr.io/gloo-mesh/gloo-mesh-envoy:2.5.7
+gcr.io/gloo-mesh/gloo-mesh-mgmt-server:2.5.7
+gcr.io/gloo-mesh/gloo-mesh-portal-server:2.5.7
+gcr.io/gloo-mesh/gloo-mesh-ui:2.5.7
+gcr.io/gloo-mesh/gloo-otel-collector:2.5.7
+gcr.io/gloo-mesh/rate-limiter:0.11.11
+quay.io/keycloak/keycloak:24.0.4
 quay.io/prometheus-operator/prometheus-config-reloader:v0.71.2
 quay.io/prometheus/prometheus:v2.49.1
 quay.io/solo-io/kubectl:1.16.4
@@ -216,7 +216,7 @@ done
 Before we get started, let's install the `meshctl` CLI:
 
 ```bash
-export GLOO_MESH_VERSION=v2.5.6
+export GLOO_MESH_VERSION=v2.5.7
 curl -sL https://run.solo.io/meshctl/install | sh -
 export PATH=$HOME/.gloo-mesh/bin:$PATH
 ```
@@ -279,13 +279,13 @@ helm upgrade --install gloo-platform-crds gloo-platform-crds \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${MGMT} \
-  --version 2.5.6
+  --version 2.5.7
 
 helm upgrade --install gloo-platform-mgmt gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${MGMT} \
-  --version 2.5.6 \
+  --version 2.5.7 \
   -f -<<EOF
 licensing:
   glooTrialLicenseKey: ${GLOO_MESH_LICENSE_KEY}
@@ -410,7 +410,6 @@ Let's create Kubernetes services for the gateways:
 ```bash
 registry=localhost:5000
 kubectl --context ${CLUSTER1} create ns istio-gateways
-kubectl --context ${CLUSTER1} label namespace istio-gateways istio.io/rev=1-20 --overwrite
 
 kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: v1
@@ -869,7 +868,7 @@ helm upgrade --install gloo-platform gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh-addons \
   --kube-context ${CLUSTER1} \
-  --version 2.5.6 \
+  --version 2.5.7 \
   -f -<<EOF
 common:
   cluster: cluster1
@@ -1511,7 +1510,7 @@ data:
       "enabled": true,
       "displayName": "solo.io",
       "accessTokenLifespan": 1800,
-      "sslRequired": "NONE",
+      "sslRequired": "none",
       "users": [
         {
           "username": "user1",
@@ -1647,15 +1646,13 @@ spec:
     spec:
       containers:
       - name: keycloak
-        image: ${registry}/keycloak/keycloak:24.0.2
+        image: ${registry}/keycloak/keycloak:24.0.4
         args: ["start-dev", "--import-realm"]
         env:
         - name: KEYCLOAK_ADMIN
-          value: "admin"
+          value: admin
         - name: KEYCLOAK_ADMIN_PASSWORD
-          value: "admin"
-        - name: PROXY_ADDRESS_FORWARDING
-          value: "true"
+          value: admin
         ports:
         - name: http
           containerPort: 8080
@@ -1764,18 +1761,6 @@ timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> 
 echo "Waiting for Keycloak to be ready at $KEYCLOAK_URL/realms/workshop/protocol/openid-connect/token"
 timeout 300 bash -c 'while [[ "$(curl -m 2 -s -o /dev/null -w ''%{http_code}'' $KEYCLOAK_URL/realms/workshop/protocol/openid-connect/token)" != "405" ]]; do printf '.';sleep 1; done' || false
 -->
-
-Finally, save off a token for any Keycloak API operations we need to do later:
-
-```bash
-export KEYCLOAK_TOKEN=$(curl -Ssm 10 --fail-with-body \
-  -d "client_id=admin-cli" \
-  -d "username=admin" \
-  -d "password=admin" \
-  -d "grant_type=password" \
-  "$KEYCLOAK_URL/realms/master/protocol/openid-connect/token" |
-  jq -r .access_token)
-```
 
 
 
@@ -2988,6 +2973,8 @@ until ([ ! -z "$USER2_TOKEN" ] && [[ $USER2_TOKEN != *"dummy"* ]]) || [ $ATTEMPT
   sleep 1
   export USER2_TOKEN=$(node tests/keycloak-token.js "https://cluster1-portal.example.com/v1/login" user2)
 done
+kubectl -n keycloak create secret generic user1-token --from-literal=token=$USER1_TOKEN --dry-run=client -oyaml | kubectl --context ${MGMT} apply -f -
+kubectl -n keycloak create secret generic user2-token --from-literal=token=$USER2_TOKEN --dry-run=client -oyaml | kubectl --context ${MGMT} apply -f -
 echo "User1 token: $USER1_TOKEN"
 echo "User2 token: $USER2_TOKEN"
 -->
@@ -3297,7 +3284,7 @@ const helpers = require('./tests/chai-exec');
 
 describe("Monetization is working", () => {
   it('Response contains all the required monetization fields', () => {
-    const response = helpers.getOutputForCommand({ command: `curl -k -H \"api-key: ${process.env.API_KEY_USER1}\" https://cluster1-bookinfo.example.com/api/bookinfo/v1` });
+    const response = helpers.getOutputForCommand({ command: `curl -k -H "api-key: ${process.env.API_KEY_USER1}" https://cluster1-bookinfo.example.com/api/bookinfo/v1` });
     const output = JSON.parse(helpers.getOutputForCommand({ command: `kubectl --context ${process.env.CLUSTER1} -n istio-gateways logs -l istio=ingressgateway --tail 1` }));
     expect(output.usage_plan).to.equals("gold");
     expect(output.api_product_id).to.equals("bookinfo");
