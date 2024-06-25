@@ -9,7 +9,7 @@ source ./scripts/assert.sh
 
 <center><img src="images/gloo-mesh.png" alt="Gloo Mesh Enterprise" style="width:70%;max-width:800px" /></center>
 
-# <center>Gloo Mesh Enterprise (2.6.0-beta2)</center>
+# <center>Gloo Mesh Enterprise (2.6.0-rc1)</center>
 
 
 
@@ -173,21 +173,21 @@ docker.io/istio/examples-bookinfo-reviews-v3:1.18.0
 docker.io/kennethreitz/httpbin
 docker.io/nginx:1.25.3
 docker.io/openpolicyagent/opa:0.57.1-debug
-docker.io/redis:7.2.4-alpine
-gcr.io/gloo-mesh/ext-auth-service:0.56.0
-gcr.io/gloo-mesh/gloo-mesh-agent:2.6.0-beta2
-gcr.io/gloo-mesh/gloo-mesh-apiserver:2.6.0-beta2
-gcr.io/gloo-mesh/gloo-mesh-envoy:2.6.0-beta2
-gcr.io/gloo-mesh/gloo-mesh-mgmt-server:2.6.0-beta2
-gcr.io/gloo-mesh/gloo-mesh-spire-controller:2.6.0-beta2
-gcr.io/gloo-mesh/gloo-mesh-ui:2.6.0-beta2
-gcr.io/gloo-mesh/gloo-otel-collector:2.6.0-beta2
-gcr.io/gloo-mesh/rate-limiter:0.11.9
-ghcr.io/spiffe/spire-server:1.8.6
-quay.io/keycloak/keycloak:24.0.2
+gcr.io/gloo-mesh/ext-auth-service:0.56.8
+gcr.io/gloo-mesh/gloo-mesh-agent:2.6.0-rc1
+gcr.io/gloo-mesh/gloo-mesh-apiserver:2.6.0-rc1
+gcr.io/gloo-mesh/gloo-mesh-envoy:2.6.0-rc1
+gcr.io/gloo-mesh/gloo-mesh-mgmt-server:2.6.0-rc1
+gcr.io/gloo-mesh/gloo-mesh-spire-controller:2.6.0-rc1
+gcr.io/gloo-mesh/gloo-mesh-ui:2.6.0-rc1
+gcr.io/gloo-mesh/gloo-otel-collector:2.6.0-rc1
+gcr.io/gloo-mesh/kubectl:1.16.4
+gcr.io/gloo-mesh/prometheus:v2.49.1
+gcr.io/gloo-mesh/rate-limiter:0.11.11
+gcr.io/gloo-mesh/redis:7.2.4-alpine
+gcr.io/gloo-mesh/spire-server:1.8.6
+quay.io/keycloak/keycloak:24.0.4
 quay.io/prometheus-operator/prometheus-config-reloader:v0.71.2
-quay.io/prometheus/prometheus:v2.49.1
-quay.io/solo-io/kubectl:1.16.4
 us-docker.pkg.dev/gloo-mesh/istio-workshops/install-cni:1.20.2-solo
 us-docker.pkg.dev/gloo-mesh/istio-workshops/operator:1.20.2-solo
 us-docker.pkg.dev/gloo-mesh/istio-workshops/pilot:1.20.2-solo
@@ -222,7 +222,7 @@ done
 Before we get started, let's install the `meshctl` CLI:
 
 ```bash
-export GLOO_MESH_VERSION=v2.6.0-beta2
+export GLOO_MESH_VERSION=v2.6.0-rc1
 curl -sL https://run.solo.io/meshctl/install | sh -
 export PATH=$HOME/.gloo-mesh/bin:$PATH
 ```
@@ -266,13 +266,13 @@ helm upgrade --install gloo-platform-crds gloo-platform-crds \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${MGMT} \
-  --version 2.6.0-beta2
+  --version 2.6.0-rc1
 
 helm upgrade --install gloo-platform gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${MGMT} \
-  --version 2.6.0-beta2 \
+  --version 2.6.0-rc1 \
   -f -<<EOF
 licensing:
   glooTrialLicenseKey: ${GLOO_MESH_LICENSE_KEY}
@@ -290,7 +290,7 @@ prometheus:
   enabled: true
   server:
     image:
-      repository: ${registry}/prometheus/prometheus
+      repository: ${registry}/gloo-mesh/prometheus
   configmapReload:
     prometheus:
       image:
@@ -299,7 +299,7 @@ redis:
   deployment:
     enabled: true
     image:
-      registry: ${registry}
+      registry: ${registry}/gloo-mesh
 telemetryGateway:
   enabled: true
   image:
@@ -447,13 +447,13 @@ helm upgrade --install gloo-platform-crds gloo-platform-crds \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${CLUSTER1} \
-  --version 2.6.0-beta2
+  --version 2.6.0-rc1
 
 helm upgrade --install gloo-platform gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${CLUSTER1} \
-  --version 2.6.0-beta2 \
+  --version 2.6.0-rc1 \
   -f -<<EOF
 common:
   cluster: cluster1
@@ -506,13 +506,13 @@ helm upgrade --install gloo-platform-crds gloo-platform-crds \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${CLUSTER2} \
-  --version 2.6.0-beta2
+  --version 2.6.0-rc1
 
 helm upgrade --install gloo-platform gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${CLUSTER2} \
-  --version 2.6.0-beta2 \
+  --version 2.6.0-rc1 \
   -f -<<EOF
 common:
   cluster: cluster2
@@ -606,7 +606,6 @@ Let's create Kubernetes services for the gateways:
 ```bash
 registry=localhost:5000
 kubectl --context ${CLUSTER1} create ns istio-gateways
-kubectl --context ${CLUSTER1} label namespace istio-gateways istio.io/rev=1-20 --overwrite
 
 kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: v1
@@ -689,9 +688,7 @@ spec:
     topology.istio.io/network: cluster1
   type: LoadBalancer
 EOF
-
 kubectl --context ${CLUSTER2} create ns istio-gateways
-kubectl --context ${CLUSTER2} label namespace istio-gateways istio.io/rev=1-20 --overwrite
 
 kubectl apply --context ${CLUSTER2} -f - <<EOF
 apiVersion: v1
@@ -1461,7 +1458,7 @@ helm upgrade --install gloo-platform gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh-addons \
   --kube-context ${CLUSTER1} \
-  --version 2.6.0-beta2 \
+  --version 2.6.0-rc1 \
   -f -<<EOF
 common:
   cluster: cluster1
@@ -1488,14 +1485,14 @@ rateLimiter:
       registry: ${registry}/gloo-mesh
   redis:
     image:
-      registry: ${registry}
+      registry: ${registry}/gloo-mesh
 EOF
 
 helm upgrade --install gloo-platform gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh-addons \
   --kube-context ${CLUSTER2} \
-  --version 2.6.0-beta2 \
+  --version 2.6.0-rc1 \
   -f -<<EOF
 common:
   cluster: cluster2
@@ -1522,7 +1519,7 @@ rateLimiter:
       registry: ${registry}/gloo-mesh
   redis:
     image:
-      registry: ${registry}
+      registry: ${registry}/gloo-mesh
 EOF
 ```
 
@@ -3012,7 +3009,7 @@ helm upgrade --install gloo-platform-crds gloo-platform-crds \
   --namespace gloo-mesh \
   --kube-context ${MGMT} \
   --set featureGates.ExternalWorkloads=true \
-  --version 2.6.0-beta2 \
+  --version 2.6.0-rc1 \
   --reuse-values \
   -f -<<EOF
 featureGates:
@@ -3023,7 +3020,7 @@ helm upgrade gloo-platform gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${MGMT} \
-  --version 2.6.0-beta2 \
+  --version 2.6.0-rc1 \
   --reuse-values \
   -f -<<EOF
 featureGates:
@@ -3036,7 +3033,7 @@ helm upgrade --install gloo-platform-crds gloo-platform-crds \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${CLUSTER1} \
-  --version 2.6.0-beta2 \
+  --version 2.6.0-rc1 \
   --reuse-values \
   -f -<<EOF
 featureGates:
@@ -3047,7 +3044,7 @@ helm upgrade gloo-platform gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${CLUSTER1} \
-  --version 2.6.0-beta2 \
+  --version 2.6.0-rc1 \
   --reuse-values \
   -f -<<EOF
 glooSpireServer:
@@ -3057,7 +3054,7 @@ glooSpireServer:
   server:
     trustDomain: cluster1
   image:
-    registry: ${registry}/spiffe
+    registry: ${registry}/gloo-mesh
   sidecars:
     glooSpireController:
       image:
@@ -3292,7 +3289,7 @@ echo
 -->
 
 ```bash
-export GLOO_AGENT_URL=https://storage.googleapis.com/gloo-platform/vm/v2.6.0-beta2/gloo-workload-agent.deb
+export GLOO_AGENT_URL=https://storage.googleapis.com/gloo-platform/vm/v2.6.0-rc1/gloo-workload-agent.deb
 export ISTIO_URL=https://storage.googleapis.com/solo-workshops/istio-binaries/1.20.2/istio-sidecar.deb
 
 docker exec vm1 meshctl ew onboard --install \
@@ -3300,6 +3297,7 @@ docker exec vm1 meshctl ew onboard --install \
   --join-token ${JOIN_TOKEN} \
   --cluster ${CLUSTER1} \
   --gateway-addr ${EW_GW_ADDR} \
+  --gateway-service-account $(kubectl --context ${CLUSTER1} -n istio-gateways get sa -l istio=eastwestgateway -o jsonpath='{.items[0].metadata.name}') \
   --gateway istio-gateways/istio-eastwestgateway-1-20 \
   --trust-domain ${CLUSTER1} \
   --istio-rev 1-20 \
@@ -3607,6 +3605,7 @@ spec:
         number: 443
       tls:
         mode: ISTIO_MUTUAL
+      http: {}
   workloads:
     - selector:
         labels:
