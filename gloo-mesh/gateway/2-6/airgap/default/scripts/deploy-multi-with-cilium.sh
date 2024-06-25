@@ -124,6 +124,15 @@ networkkind=$(echo ${ipkind} | awk -F. '{ print $1"."$2 }')
 
 kubectl config set-cluster kind-kind${number} --server=https://${myip}:70${twodigits} --insecure-skip-tls-verify=true
 
+cat <<'EOF' > images.txt
+quay.io/cilium/cilium:v1.12.0
+quay.io/cilium/operator-generic:v1.12.0
+EOF
+cat images.txt | while read image; do
+  docker pull $image
+  kind load docker-image $image --name kind${number}
+done
+
 helm repo add cilium https://helm.cilium.io/
 
 helm --kube-context kind-kind${number} install cilium cilium/cilium --version 1.12.0 \
