@@ -6,6 +6,7 @@ const expect = chai.expect;
 const should = chai.should();
 chai.use(chaiExec);
 const utils = require('./utils');
+chai.config.truncateThreshold = 4000; // length threshold for actual and expected values in assertion errors
 
 global = {
   checkKubernetesObject: async ({ context, namespace, kind, k8sObj, yaml }) => {
@@ -90,7 +91,7 @@ global = {
   genericCommand: async ({ command, responseContains = "" }) => {
     let cli = chaiExec(command);
     if (cli.stderr && cli.stderr != "") {
-      console.log("    ----> " + command + " not succesful...");
+      console.log("    ----> " + command + " not succesful: " + cli.stderr);
       await utils.sleep(1000);
     }
     cli.stderr.should.be.empty;
@@ -102,6 +103,9 @@ global = {
   getOutputForCommand: ({ command }) => {
     let cli = chaiExec(command);
     return cli.stdout;
+  },
+  curlInPod: ({ curlCommand, podName, namespace }) => {
+    return global.getOutputForCommand({ command: `kubectl -n ${namespace} debug -i -q ${podName} --image=curlimages/curl -- sh -c \'${curlCommand}\'` }).replaceAll("'", "");
   },
 };
 
