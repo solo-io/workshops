@@ -1,7 +1,5 @@
 
 <!--bash
-#!/usr/bin/env bash
-
 source ./scripts/assert.sh
 -->
 
@@ -641,7 +639,17 @@ spec:
         imagePullPolicy: IfNotPresent
         name: not-in-mesh
         ports:
-        - containerPort: 80
+        - name: http
+          containerPort: 80
+        livenessProbe:
+          httpGet:
+            path: /status/200
+            port: http
+        readinessProbe:
+          httpGet:
+            path: /status/200
+            port: http
+
 EOF
 ```
 
@@ -695,7 +703,17 @@ spec:
         imagePullPolicy: IfNotPresent
         name: in-mesh
         ports:
-        - containerPort: 80
+        - name: http
+          containerPort: 80
+        livenessProbe:
+          httpGet:
+            path: /status/200
+            port: http
+        readinessProbe:
+          httpGet:
+            path: /status/200
+            port: http
+
 EOF
 ```
 
@@ -2486,7 +2504,7 @@ spec:
     spec:
       serviceAccountName: portal-frontend
       containers:
-      - image: djannot/portal-frontend:0.1
+      - image: gcr.io/solo-public/docs/portal-frontend:v0.0.25
         args: ["--host", "0.0.0.0"]
         imagePullPolicy: Always
         name: portal-frontend
@@ -2553,6 +2571,10 @@ spec:
               number: 4000
 EOF
 ```
+
+<!--bash 
+kubectl --context ${CLUSTER1} -n gloo-mesh-addons rollout status deploy portal-frontend
+-->
 
 <!--bash
 cat <<'EOF' > ./test.js
@@ -2875,7 +2897,7 @@ describe("Authentication is working properly", function() {
   });
 
   it("The portal frontend is accessible after authenticating", () => {
-    return helpersHttp.checkURL({ host: `https://cluster1-portal.example.com`, path: '/v1/login', headers: [{ key: 'Cookie', value: cookieString }], retCode: 404 });
+    return helpersHttp.checkURL({ host: `https://cluster1-portal.example.com`, path: '/v1/login', headers: [{ key: 'Cookie', value: cookieString }], retCode: 200 });
   });
 });
 EOF
