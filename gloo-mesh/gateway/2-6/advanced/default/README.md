@@ -1,7 +1,5 @@
 
 <!--bash
-#!/usr/bin/env bash
-
 source ./scripts/assert.sh
 -->
 
@@ -295,7 +293,7 @@ spec:
   selector:
     app: istio-ingressgateway
     istio: ingressgateway
-    revision: 1-20
+    revision: 1-22
   type: LoadBalancer
 EOF
 ```
@@ -316,11 +314,11 @@ spec:
     - clusters:
       - name: cluster1
         defaultRevision: true
-      revision: 1-20
+      revision: 1-22
       istioOperatorSpec:
         profile: minimal
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.20.2-solo
+        tag: 1.22.1-solo
         namespace: istio-system
         values:
           global:
@@ -356,11 +354,11 @@ spec:
     - clusters:
       - name: cluster1
         activeGateway: false
-      gatewayRevision: 1-20
+      gatewayRevision: 1-22
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.20.2-solo
+        tag: 1.22.1-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -478,8 +476,8 @@ Run the following commands to deploy the bookinfo application on `cluster1`:
 ```bash
 kubectl --context ${CLUSTER1} create ns bookinfo-frontends
 kubectl --context ${CLUSTER1} create ns bookinfo-backends
-kubectl --context ${CLUSTER1} label namespace bookinfo-frontends istio.io/rev=1-20 --overwrite
-kubectl --context ${CLUSTER1} label namespace bookinfo-backends istio.io/rev=1-20 --overwrite
+kubectl --context ${CLUSTER1} label namespace bookinfo-frontends istio.io/rev=1-22 --overwrite
+kubectl --context ${CLUSTER1} label namespace bookinfo-backends istio.io/rev=1-22 --overwrite
 
 # Deploy the frontend bookinfo service in the bookinfo-frontends namespace
 kubectl --context ${CLUSTER1} -n bookinfo-frontends apply -f data/steps/deploy-bookinfo/productpage-v1.yaml
@@ -598,7 +596,17 @@ spec:
         imagePullPolicy: IfNotPresent
         name: not-in-mesh
         ports:
-        - containerPort: 80
+        - name: http
+          containerPort: 80
+        livenessProbe:
+          httpGet:
+            path: /status/200
+            port: http
+        readinessProbe:
+          httpGet:
+            path: /status/200
+            port: http
+
 EOF
 ```
 
@@ -644,7 +652,7 @@ spec:
       labels:
         app: in-mesh
         version: v1
-        istio.io/rev: 1-20
+        istio.io/rev: 1-22
     spec:
       serviceAccountName: in-mesh
       containers:
@@ -652,7 +660,17 @@ spec:
         imagePullPolicy: IfNotPresent
         name: in-mesh
         ports:
-        - containerPort: 80
+        - name: http
+          containerPort: 80
+        livenessProbe:
+          httpGet:
+            path: /status/200
+            port: http
+        readinessProbe:
+          httpGet:
+            path: /status/200
+            port: http
+
 EOF
 ```
 
@@ -710,7 +728,7 @@ First, you need to create a namespace for the addons, with Istio injection enabl
 
 ```bash
 kubectl --context ${CLUSTER1} create namespace gloo-mesh-addons
-kubectl --context ${CLUSTER1} label namespace gloo-mesh-addons istio.io/rev=1-20 --overwrite
+kubectl --context ${CLUSTER1} label namespace gloo-mesh-addons istio.io/rev=1-22 --overwrite
 ```
 
 Then, you can deploy the addons on the cluster(s) using Helm:
