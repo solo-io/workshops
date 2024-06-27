@@ -1,7 +1,5 @@
 
 <!--bash
-#!/usr/bin/env bash
-
 source ./scripts/assert.sh
 -->
 
@@ -1228,7 +1226,7 @@ kind: Namespace
 metadata:
   name: istio-gateways
   labels:
-    istio.io/rev: 1-20
+    istio.io/rev: 1-22
 EOF
 
 cat <<EOF >${GITOPS_GATEWAYS}/base/gateway-services/kustomization.yaml
@@ -1260,7 +1258,7 @@ spec:
   selector:
     app: istio-ingressgateway
     istio: ingressgateway
-    revision: 1-20
+    revision: 1-22
   type: LoadBalancer
 EOF
 
@@ -1315,7 +1313,7 @@ spec:
   selector:
     app: istio-ingressgateway
     istio: eastwestgateway
-    revision: 1-20
+    revision: 1-22
     topology.istio.io/network: cluster1
   type: LoadBalancer
 EOF
@@ -1420,11 +1418,11 @@ spec:
     - clusters:
       - name: cluster1
         defaultRevision: true
-      revision: 1-20
+      revision: 1-22
       istioOperatorSpec:
         profile: minimal
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.20.2-solo
+        tag: 1.22.1-solo
         namespace: istio-system
         values:
           global:
@@ -1468,11 +1466,11 @@ spec:
     - clusters:
       - name: cluster2
         defaultRevision: true
-      revision: 1-20
+      revision: 1-22
       istioOperatorSpec:
         profile: minimal
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.20.2-solo
+        tag: 1.22.1-solo
         namespace: istio-system
         values:
           global:
@@ -1534,11 +1532,11 @@ spec:
     - clusters:
       - name: cluster1
         activeGateway: false
-      gatewayRevision: 1-20
+      gatewayRevision: 1-22
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.20.2-solo
+        tag: 1.22.1-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -1561,11 +1559,11 @@ spec:
     - clusters:
       - name: cluster1
         activeGateway: false
-      gatewayRevision: 1-20
+      gatewayRevision: 1-22
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.20.2-solo
+        tag: 1.22.1-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -1597,11 +1595,11 @@ spec:
     - clusters:
       - name: cluster2
         activeGateway: false
-      gatewayRevision: 1-20
+      gatewayRevision: 1-22
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.20.2-solo
+        tag: 1.22.1-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -1624,11 +1622,11 @@ spec:
     - clusters:
       - name: cluster2
         activeGateway: false
-      gatewayRevision: 1-20
+      gatewayRevision: 1-22
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.20.2-solo
+        tag: 1.22.1-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -1900,7 +1898,7 @@ kind: Namespace
 metadata:
   name: bookinfo-frontends
   labels:
-    istio.io/rev: 1-20
+    istio.io/rev: 1-22
 EOF
 
 cat <<EOF >${GITOPS_BOOKINFO}/base/backends/ns.yaml
@@ -1909,7 +1907,7 @@ kind: Namespace
 metadata:
   name: bookinfo-backends
   labels:
-    istio.io/rev: 1-20
+    istio.io/rev: 1-22
 EOF
 ```
 
@@ -2355,7 +2353,17 @@ spec:
         imagePullPolicy: IfNotPresent
         name: not-in-mesh
         ports:
-        - containerPort: 80
+        - name: http
+          containerPort: 80
+        livenessProbe:
+          httpGet:
+            path: /status/200
+            port: http
+        readinessProbe:
+          httpGet:
+            path: /status/200
+            port: http
+
 EOF
 ```
 
@@ -2401,7 +2409,7 @@ spec:
       labels:
         app: in-mesh
         version: v1
-        istio.io/rev: 1-20
+        istio.io/rev: 1-22
     spec:
       serviceAccountName: in-mesh
       containers:
@@ -2409,7 +2417,17 @@ spec:
         imagePullPolicy: IfNotPresent
         name: in-mesh
         ports:
-        - containerPort: 80
+        - name: http
+          containerPort: 80
+        livenessProbe:
+          httpGet:
+            path: /status/200
+            port: http
+        readinessProbe:
+          httpGet:
+            path: /status/200
+            port: http
+
 EOF
 ```
 
@@ -2498,7 +2516,7 @@ kind: Namespace
 metadata:
   name: gloo-mesh-addons
   labels:
-    istio.io/rev: 1-20
+    istio.io/rev: 1-22
 EOF
 
 cat <<EOF >>${GITOPS_PLATFORM}/${CLUSTER1}/kustomization.yaml
@@ -4200,10 +4218,10 @@ spec:
     authz:
       allowedClients:
       - serviceAccountSelector:
-          name: istio-ingressgateway-1-20-service-account
+          name: istio-ingressgateway-1-22-service-account
           namespace: istio-gateways
       - serviceAccountSelector:
-          name: istio-eastwestgateway-1-20-service-account
+          name: istio-eastwestgateway-1-22-service-account
           namespace: istio-gateways
 EOF
 ```
@@ -4630,7 +4648,7 @@ echo
 
 ```bash
 export GLOO_AGENT_URL=https://storage.googleapis.com/gloo-platform/vm/v2.6.0-rc1/gloo-workload-agent.deb
-export ISTIO_URL=https://storage.googleapis.com/solo-workshops/istio-binaries/1.20.2/istio-sidecar.deb
+export ISTIO_URL=https://storage.googleapis.com/solo-workshops/istio-binaries/1.22.1/istio-sidecar.deb
 
 docker exec vm1 meshctl ew onboard --install \
   --attestor token \
@@ -4638,9 +4656,9 @@ docker exec vm1 meshctl ew onboard --install \
   --cluster ${CLUSTER1} \
   --gateway-addr ${EW_GW_ADDR} \
   --gateway-service-account $(kubectl --context ${CLUSTER1} -n istio-gateways get sa -l istio=eastwestgateway -o jsonpath='{.items[0].metadata.name}') \
-  --gateway istio-gateways/istio-eastwestgateway-1-20 \
+  --gateway istio-gateways/istio-eastwestgateway-1-22 \
   --trust-domain ${CLUSTER1} \
-  --istio-rev 1-20 \
+  --istio-rev 1-22 \
   --network vm-network \
   --gloo ${GLOO_AGENT_URL} \
   --istio ${ISTIO_URL} \
@@ -4849,11 +4867,11 @@ spec:
     - clusters:
         - name: cluster1
           activeGateway: false
-      gatewayRevision: 1-20
+      gatewayRevision: 1-22
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.20.2-solo
+        tag: 1.22.1-solo
         components:
           egressGateways:
             - enabled: true
