@@ -1,7 +1,5 @@
 
 <!--bash
-#!/usr/bin/env bash
-
 source ./scripts/assert.sh
 -->
 
@@ -529,7 +527,7 @@ spec:
   selector:
     app: istio-ingressgateway
     istio: ingressgateway
-    revision: 1-20
+    revision: 1-22
   type: LoadBalancer
 EOF
 
@@ -584,7 +582,7 @@ spec:
   selector:
     app: istio-ingressgateway
     istio: eastwestgateway
-    revision: 1-20
+    revision: 1-22
     topology.istio.io/network: cluster1
   type: LoadBalancer
 EOF
@@ -612,7 +610,7 @@ spec:
   selector:
     app: istio-ingressgateway
     istio: ingressgateway
-    revision: 1-20
+    revision: 1-22
   type: LoadBalancer
 EOF
 
@@ -667,7 +665,7 @@ spec:
   selector:
     app: istio-ingressgateway
     istio: eastwestgateway
-    revision: 1-20
+    revision: 1-22
     topology.istio.io/network: cluster2
   type: LoadBalancer
 EOF
@@ -689,11 +687,11 @@ spec:
     - clusters:
       - name: cluster1
         defaultRevision: true
-      revision: 1-20
+      revision: 1-22
       istioOperatorSpec:
         profile: minimal
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.20.2-solo
+        tag: 1.22.1-solo
         namespace: istio-system
         values:
           global:
@@ -737,11 +735,11 @@ spec:
     - clusters:
       - name: cluster1
         activeGateway: false
-      gatewayRevision: 1-20
+      gatewayRevision: 1-22
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.20.2-solo
+        tag: 1.22.1-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -764,11 +762,11 @@ spec:
     - clusters:
       - name: cluster1
         activeGateway: false
-      gatewayRevision: 1-20
+      gatewayRevision: 1-22
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.20.2-solo
+        tag: 1.22.1-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -800,11 +798,11 @@ spec:
     - clusters:
       - name: cluster2
         defaultRevision: true
-      revision: 1-20
+      revision: 1-22
       istioOperatorSpec:
         profile: minimal
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.20.2-solo
+        tag: 1.22.1-solo
         namespace: istio-system
         values:
           global:
@@ -848,11 +846,11 @@ spec:
     - clusters:
       - name: cluster2
         activeGateway: false
-      gatewayRevision: 1-20
+      gatewayRevision: 1-22
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.20.2-solo
+        tag: 1.22.1-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -875,11 +873,11 @@ spec:
     - clusters:
       - name: cluster2
         activeGateway: false
-      gatewayRevision: 1-20
+      gatewayRevision: 1-22
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.20.2-solo
+        tag: 1.22.1-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -1050,8 +1048,8 @@ Run the following commands to deploy the bookinfo application on `cluster1`:
 ```bash
 kubectl --context ${CLUSTER1} create ns bookinfo-frontends
 kubectl --context ${CLUSTER1} create ns bookinfo-backends
-kubectl --context ${CLUSTER1} label namespace bookinfo-frontends istio.io/rev=1-20 --overwrite
-kubectl --context ${CLUSTER1} label namespace bookinfo-backends istio.io/rev=1-20 --overwrite
+kubectl --context ${CLUSTER1} label namespace bookinfo-frontends istio.io/rev=1-22 --overwrite
+kubectl --context ${CLUSTER1} label namespace bookinfo-backends istio.io/rev=1-22 --overwrite
 
 # Deploy the frontend bookinfo service in the bookinfo-frontends namespace
 kubectl --context ${CLUSTER1} -n bookinfo-frontends apply -f data/steps/deploy-bookinfo/productpage-v1.yaml
@@ -1094,8 +1092,8 @@ Now, run the following commands to deploy the bookinfo application on `cluster2`
 ```bash
 kubectl --context ${CLUSTER2} create ns bookinfo-frontends
 kubectl --context ${CLUSTER2} create ns bookinfo-backends
-kubectl --context ${CLUSTER2} label namespace bookinfo-frontends istio.io/rev=1-20 --overwrite
-kubectl --context ${CLUSTER2} label namespace bookinfo-backends istio.io/rev=1-20 --overwrite
+kubectl --context ${CLUSTER2} label namespace bookinfo-frontends istio.io/rev=1-22 --overwrite
+kubectl --context ${CLUSTER2} label namespace bookinfo-backends istio.io/rev=1-22 --overwrite
 
 # Deploy the frontend bookinfo service in the bookinfo-frontends namespace
 kubectl --context ${CLUSTER2} -n bookinfo-frontends apply -f data/steps/deploy-bookinfo/productpage-v1.yaml
@@ -1229,7 +1227,17 @@ spec:
         - gevent
         command: ["gunicorn"]
         ports:
-        - containerPort: 80
+        - name: http
+          containerPort: 80
+        livenessProbe:
+          httpGet:
+            path: /status/200
+            port: http
+        readinessProbe:
+          httpGet:
+            path: /status/200
+            port: http
+
 EOF
 ```
 
@@ -1275,7 +1283,7 @@ spec:
       labels:
         app: in-mesh
         version: v1
-        istio.io/rev: 1-20
+        istio.io/rev: 1-22
     spec:
       serviceAccountName: in-mesh
       containers:
@@ -1290,7 +1298,17 @@ spec:
         - gevent
         command: ["gunicorn"]
         ports:
-        - containerPort: 80
+        - name: http
+          containerPort: 80
+        livenessProbe:
+          httpGet:
+            path: /status/200
+            port: http
+        readinessProbe:
+          httpGet:
+            path: /status/200
+            port: http
+
 EOF
 ```
 
@@ -1348,9 +1366,9 @@ First, you need to create a namespace for the addons, with Istio injection enabl
 
 ```bash
 kubectl --context ${CLUSTER1} create namespace gloo-mesh-addons
-kubectl --context ${CLUSTER1} label namespace gloo-mesh-addons istio.io/rev=1-20 --overwrite
+kubectl --context ${CLUSTER1} label namespace gloo-mesh-addons istio.io/rev=1-22 --overwrite
 kubectl --context ${CLUSTER2} create namespace gloo-mesh-addons
-kubectl --context ${CLUSTER2} label namespace gloo-mesh-addons istio.io/rev=1-20 --overwrite
+kubectl --context ${CLUSTER2} label namespace gloo-mesh-addons istio.io/rev=1-22 --overwrite
 ```
 
 Then, you can deploy the addons on the cluster(s) using Helm:
@@ -2721,10 +2739,10 @@ spec:
     authz:
       allowedClients:
       - serviceAccountSelector:
-          name: istio-ingressgateway-1-20-service-account
+          name: istio-ingressgateway-1-22-service-account
           namespace: istio-gateways
       - serviceAccountSelector:
-          name: istio-eastwestgateway-1-20-service-account
+          name: istio-eastwestgateway-1-22-service-account
           namespace: istio-gateways
 EOF
 ```
@@ -3165,7 +3183,7 @@ echo
 
 ```bash
 export GLOO_AGENT_URL=https://storage.googleapis.com/gloo-platform/vm/v2.6.0-rc1/gloo-workload-agent.deb
-export ISTIO_URL=https://storage.googleapis.com/solo-workshops/istio-binaries/1.20.2/istio-sidecar.deb
+export ISTIO_URL=https://storage.googleapis.com/solo-workshops/istio-binaries/1.22.1/istio-sidecar.deb
 
 docker exec vm1 meshctl ew onboard --install \
   --attestor token \
@@ -3173,9 +3191,9 @@ docker exec vm1 meshctl ew onboard --install \
   --cluster ${CLUSTER1} \
   --gateway-addr ${EW_GW_ADDR} \
   --gateway-service-account $(kubectl --context ${CLUSTER1} -n istio-gateways get sa -l istio=eastwestgateway -o jsonpath='{.items[0].metadata.name}') \
-  --gateway istio-gateways/istio-eastwestgateway-1-20 \
+  --gateway istio-gateways/istio-eastwestgateway-1-22 \
   --trust-domain ${CLUSTER1} \
-  --istio-rev 1-20 \
+  --istio-rev 1-22 \
   --network vm-network \
   --gloo ${GLOO_AGENT_URL} \
   --istio ${ISTIO_URL} \
@@ -3420,11 +3438,11 @@ spec:
     - clusters:
         - name: cluster1
           activeGateway: false
-      gatewayRevision: 1-20
+      gatewayRevision: 1-22
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.20.2-solo
+        tag: 1.22.1-solo
         components:
           egressGateways:
             - enabled: true
