@@ -1,7 +1,5 @@
 
 <!--bash
-#!/usr/bin/env bash
-
 source ./scripts/assert.sh
 -->
 
@@ -236,8 +234,8 @@ istioInstallations:
     installations:
       - istioOperatorSpec:
           hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-          tag: 1.20.2-solo
-        revision: 1-20
+          tag: 1.22.1-solo
+        revision: 1-22
   northSouthGateways:
     - enabled: true
       name: istio-ingressgateway
@@ -245,10 +243,10 @@ istioInstallations:
         - clusters:
           - name: cluster1
             activeGateway: false
-          gatewayRevision: 1-20
+          gatewayRevision: 1-22
           istioOperatorSpec:
             hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-            tag: 1.20.2-solo
+            tag: 1.22.1-solo
             profile: empty
             components:
               ingressGateways:
@@ -426,7 +424,17 @@ spec:
         imagePullPolicy: IfNotPresent
         name: not-in-mesh
         ports:
-        - containerPort: 80
+        - name: http
+          containerPort: 80
+        livenessProbe:
+          httpGet:
+            path: /status/200
+            port: http
+        readinessProbe:
+          httpGet:
+            path: /status/200
+            port: http
+
 EOF
 ```
 
@@ -483,13 +491,13 @@ First, you need to create a namespace for the addons, with Istio injection enabl
 
 ```bash
 kubectl --context ${CLUSTER1} create namespace gloo-mesh-addons
-kubectl --context ${CLUSTER1} label namespace gloo-mesh-addons istio.io/rev=1-20 --overwrite
+kubectl --context ${CLUSTER1} label namespace gloo-mesh-addons istio.io/rev=1-22 --overwrite
 ```
 
 Then, you can deploy the addons on the cluster(s) using Helm:
 
 ```bash
-timeout 2m bash -c "until [[ \$(kubectl --context ${MGMT} -n istio-system get deploy istiod-1-20 -o json | jq '.status.availableReplicas') -gt 0 ]]; do
+timeout 2m bash -c "until [[ \$(kubectl --context ${MGMT} -n istio-system get deploy istiod-1-22 -o json | jq '.status.availableReplicas') -gt 0 ]]; do
   sleep 1
 done"
 helm upgrade --install gloo-platform gloo-platform \
