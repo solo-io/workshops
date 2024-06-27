@@ -1,7 +1,5 @@
 
 <!--bash
-#!/usr/bin/env bash
-
 source ./scripts/assert.sh
 -->
 
@@ -9,7 +7,7 @@ source ./scripts/assert.sh
 
 <center><img src="images/gloo-mesh.png" alt="Gloo Mesh Enterprise" style="width:70%;max-width:800px" /></center>
 
-# <center>Gloo Mesh Platform (2.5.7)</center>
+# <center>Gloo Mesh Platform (2.5.0)</center>
 
 
 
@@ -208,21 +206,20 @@ docker.io/istio/examples-bookinfo-reviews-v3:1.18.0
 docker.io/kennethreitz/httpbin
 docker.io/nginx:1.25.3
 docker.io/openpolicyagent/opa:0.57.1-debug
-docker.io/redis:7.2.4-alpine
-gcr.io/gloo-mesh/ext-auth-service:0.56.8
-gcr.io/gloo-mesh/gloo-mesh-agent:2.5.7
-gcr.io/gloo-mesh/gloo-mesh-apiserver:2.5.7
-gcr.io/gloo-mesh/gloo-mesh-envoy:2.5.7
-gcr.io/gloo-mesh/gloo-mesh-mgmt-server:2.5.7
-gcr.io/gloo-mesh/gloo-mesh-spire-controller:2.5.7
-gcr.io/gloo-mesh/gloo-mesh-ui:2.5.7
-gcr.io/gloo-mesh/gloo-otel-collector:2.5.7
-gcr.io/gloo-mesh/rate-limiter:0.11.11
+docker.io/redis:7.0.14-alpine
+gcr.io/gloo-mesh/ext-auth-service:0.55.3
+gcr.io/gloo-mesh/gloo-mesh-agent:2.5.0
+gcr.io/gloo-mesh/gloo-mesh-apiserver:2.5.0
+gcr.io/gloo-mesh/gloo-mesh-envoy:2.5.0
+gcr.io/gloo-mesh/gloo-mesh-mgmt-server:2.5.0
+gcr.io/gloo-mesh/gloo-mesh-spire-controller:2.5.0
+gcr.io/gloo-mesh/gloo-mesh-ui:2.5.0
+gcr.io/gloo-mesh/gloo-otel-collector:2.5.0
+gcr.io/gloo-mesh/rate-limiter:0.11.7
 ghcr.io/spiffe/spire-server:1.8.6
+jimmidyson/configmap-reload:v0.8.0
 quay.io/keycloak/keycloak:24.0.4
-quay.io/prometheus-operator/prometheus-config-reloader:v0.71.2
-quay.io/prometheus/prometheus:v2.49.1
-quay.io/solo-io/kubectl:1.16.4
+quay.io/prometheus/prometheus:v2.41.0
 us-docker.pkg.dev/gloo-mesh/istio-workshops/install-cni:1.19.3-solo
 us-docker.pkg.dev/gloo-mesh/istio-workshops/install-cni:1.20.2-solo
 us-docker.pkg.dev/gloo-mesh/istio-workshops/operator:1.19.3-solo
@@ -261,7 +258,7 @@ done
 Before we get started, let's install the `meshctl` CLI:
 
 ```bash
-export GLOO_MESH_VERSION=v2.5.7
+export GLOO_MESH_VERSION=v2.5.0
 curl -sL https://run.solo.io/meshctl/install | sh -
 export PATH=$HOME/.gloo-mesh/bin:$PATH
 ```
@@ -305,13 +302,13 @@ helm upgrade --install gloo-platform-crds gloo-platform-crds \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${MGMT} \
-  --version 2.5.7
+  --version 2.5.0
 
 helm upgrade --install gloo-platform gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${MGMT} \
-  --version 2.5.7 \
+  --version 2.5.0 \
   -f -<<EOF
 licensing:
   glooTrialLicenseKey: ${GLOO_MESH_LICENSE_KEY}
@@ -333,7 +330,7 @@ prometheus:
   configmapReload:
     prometheus:
       image:
-        repository: ${registry}/prometheus-operator/prometheus-config-reloader
+        repository: ${registry}/jimmidyson/configmap-reload
 redis:
   deployment:
     enabled: true
@@ -486,13 +483,13 @@ helm upgrade --install gloo-platform-crds gloo-platform-crds \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${CLUSTER1} \
-  --version 2.5.7
+  --version 2.5.0
 
 helm upgrade --install gloo-platform gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${CLUSTER1} \
-  --version 2.5.7 \
+  --version 2.5.0 \
   -f -<<EOF
 common:
   cluster: cluster1
@@ -545,13 +542,13 @@ helm upgrade --install gloo-platform-crds gloo-platform-crds \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${CLUSTER2} \
-  --version 2.5.7
+  --version 2.5.0
 
 helm upgrade --install gloo-platform gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${CLUSTER2} \
-  --version 2.5.7 \
+  --version 2.5.0 \
   -f -<<EOF
 common:
   cluster: cluster2
@@ -1367,7 +1364,17 @@ spec:
         imagePullPolicy: IfNotPresent
         name: not-in-mesh
         ports:
-        - containerPort: 80
+        - name: http
+          containerPort: 80
+        livenessProbe:
+          httpGet:
+            path: /status/200
+            port: http
+        readinessProbe:
+          httpGet:
+            path: /status/200
+            port: http
+
 EOF
 ```
 
@@ -1421,7 +1428,17 @@ spec:
         imagePullPolicy: IfNotPresent
         name: in-mesh
         ports:
-        - containerPort: 80
+        - name: http
+          containerPort: 80
+        livenessProbe:
+          httpGet:
+            path: /status/200
+            port: http
+        readinessProbe:
+          httpGet:
+            path: /status/200
+            port: http
+
 EOF
 ```
 
@@ -1491,7 +1508,7 @@ helm upgrade --install gloo-platform gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh-addons \
   --kube-context ${CLUSTER1} \
-  --version 2.5.7 \
+  --version 2.5.0 \
   -f -<<EOF
 common:
   cluster: cluster1
@@ -1525,7 +1542,7 @@ helm upgrade --install gloo-platform gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh-addons \
   --kube-context ${CLUSTER2} \
-  --version 2.5.7 \
+  --version 2.5.0 \
   -f -<<EOF
 common:
   cluster: cluster2
@@ -2048,7 +2065,7 @@ const helpers = require('./tests/chai-exec');
 
 describe("Otel metrics", () => {
   it("cluster1 is sending metrics to telemetryGateway", () => {
-    podName = helpers.getOutputForCommand({ command: "kubectl -n gloo-mesh get pods -l app.kubernetes.io/name=prometheus -o jsonpath='{.items[0].metadata.name}' --context " + process.env.MGMT }).replaceAll("'", "");
+    podName = helpers.getOutputForCommand({ command: "kubectl -n gloo-mesh get pods -l app=prometheus -o jsonpath='{.items[0].metadata.name}' --context " + process.env.MGMT }).replaceAll("'", "");
     command = helpers.getOutputForCommand({ command: "kubectl --context " + process.env.MGMT + " -n gloo-mesh debug -q -i " + podName + " --image=" + process.env.registry + "/curlimages/curl -- curl -s http://localhost:9090/api/v1/query?query=istio_requests_total" }).replaceAll("'", "");
     expect(command).to.contain("cluster\":\"cluster1");
   });
@@ -4728,7 +4745,7 @@ helm upgrade --install gloo-platform-crds gloo-platform-crds \
   --namespace gloo-mesh \
   --kube-context ${MGMT} \
   --set featureGates.ExternalWorkloads=true \
-  --version 2.5.7 \
+  --version 2.5.0 \
   --reuse-values \
   -f -<<EOF
 featureGates:
@@ -4739,7 +4756,7 @@ helm upgrade gloo-platform gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${MGMT} \
-  --version 2.5.7 \
+  --version 2.5.0 \
   --reuse-values \
   -f -<<EOF
 featureGates:
@@ -4752,7 +4769,7 @@ helm upgrade --install gloo-platform-crds gloo-platform-crds \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${CLUSTER1} \
-  --version 2.5.7 \
+  --version 2.5.0 \
   --reuse-values \
   -f -<<EOF
 featureGates:
@@ -4763,7 +4780,7 @@ helm upgrade gloo-platform gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${CLUSTER1} \
-  --version 2.5.7 \
+  --version 2.5.0 \
   --reuse-values \
   -f -<<EOF
 glooSpireServer:
@@ -5008,7 +5025,7 @@ echo
 -->
 
 ```bash
-export GLOO_AGENT_URL=https://storage.googleapis.com/gloo-platform/vm/v2.5.7/gloo-workload-agent.deb
+export GLOO_AGENT_URL=https://storage.googleapis.com/gloo-platform/vm/v2.5.0/gloo-workload-agent.deb
 export ISTIO_URL=https://storage.googleapis.com/solo-workshops/istio-binaries/1.19.3/istio-sidecar.deb
 
 docker exec vm1 meshctl ew onboard --install \
@@ -5695,7 +5712,7 @@ curl -k "https://cluster1-bookinfo.example.com/productpage" -I
 You should get a response similar to the following one:
 
 ```
-HTTP/2 200 
+HTTP/2 200
 server: istio-envoy
 date: Wed, 24 Aug 2022 14:58:22 GMT
 content-type: application/json
@@ -5740,7 +5757,7 @@ curl -k "https://cluster1-bookinfo.example.com/productpage" -I
 You should get a response similar to the following one:
 
 ```
-HTTP/2 200 
+HTTP/2 200
 server: istio-envoy
 date: Wed, 24 Aug 2022 14:58:22 GMT
 content-type: application/json
@@ -5764,49 +5781,7 @@ echo "saving errors in ${tempfile}"
 timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
 -->
 
-Everything is working, so we can now configure the Istio gateway service(s) to use only the new revision:
-
-```bash
-kubectl --context ${CLUSTER1} -n istio-gateways patch svc istio-ingressgateway --patch "{\"spec\": {\"selector\": {\"revision\": \"${NEW_REVISION}\" }}}"
-kubectl --context ${CLUSTER1} -n istio-gateways patch svc istio-eastwestgateway --patch "{\"spec\": {\"selector\": {\"revision\": \"${NEW_REVISION}\" }}}"
-kubectl --context ${CLUSTER2} -n istio-gateways patch svc istio-ingressgateway --patch "{\"spec\": {\"selector\": {\"revision\": \"${NEW_REVISION}\" }}}"
-kubectl --context ${CLUSTER2} -n istio-gateways patch svc istio-eastwestgateway --patch "{\"spec\": {\"selector\": {\"revision\": \"${NEW_REVISION}\" }}}"
-```
-
-Test that you can still access the `productpage` service:
-
-```bash
-curl -k "https://cluster1-bookinfo.example.com/productpage" -I
-```
-
-You should get a response similar to the following one:
-
-```
-HTTP/2 200 
-server: istio-envoy
-date: Wed, 24 Aug 2022 14:58:22 GMT
-content-type: application/json
-content-length: 670
-access-control-allow-origin: *
-access-control-allow-credentials: true
-```
-
-<!--bash
-cat <<'EOF' > ./test.js
-const helpers = require('./tests/chai-http');
-
-describe("productpage is accessible", () => {
-  it('/productpage is available in cluster1', () => helpers.checkURL({ host: `https://cluster1-bookinfo.example.com`, path: '/productpage', retCode: 200 }));
-})
-
-EOF
-echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/istio-lifecycle-manager-upgrade/tests/productpage-available.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
--->
-
-Now that everything is working well with the new version, we can uninstall the previous version.
+Everything is working well with the new version, we can uninstall the previous version.
 
 Let's start with the gateways
 
@@ -6096,6 +6071,47 @@ istio-ingressgateway-1-19-784f69b4bb-lcfk9    1/1     Running   0          25m
 
 It confirms that only the new version is running.
 
+Finally, you can update the service to point only to the new revision.
+
+```bash
+kubectl --context ${CLUSTER1} -n istio-gateways patch svc istio-ingressgateway --patch "{\"spec\": {\"selector\": {\"revision\": \"${NEW_REVISION}\" }}}"
+kubectl --context ${CLUSTER1} -n istio-gateways patch svc istio-eastwestgateway --patch "{\"spec\": {\"selector\": {\"revision\": \"${NEW_REVISION}\" }}}"
+kubectl --context ${CLUSTER2} -n istio-gateways patch svc istio-ingressgateway --patch "{\"spec\": {\"selector\": {\"revision\": \"${NEW_REVISION}\" }}}"
+kubectl --context ${CLUSTER2} -n istio-gateways patch svc istio-eastwestgateway --patch "{\"spec\": {\"selector\": {\"revision\": \"${NEW_REVISION}\" }}}"
+```
+
+Test that you can still access the `productpage` service:
+
+```bash
+curl -k "https://cluster1-bookinfo.example.com/productpage" -I
+```
+
+You should get a response similar to the following one:
+
+```
+HTTP/2 200
+server: istio-envoy
+date: Wed, 24 Aug 2022 14:58:22 GMT
+content-type: application/json
+content-length: 670
+access-control-allow-origin: *
+access-control-allow-credentials: true
+```
+
+<!--bash
+cat <<'EOF' > ./test.js
+const helpers = require('./tests/chai-http');
+
+describe("productpage is accessible", () => {
+  it('/productpage is available in cluster1', () => helpers.checkURL({ host: `https://cluster1-bookinfo.example.com`, path: '/productpage', retCode: 200 }));
+})
+
+EOF
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/istio-lifecycle-manager-upgrade/tests/productpage-available.test.js.liquid"
+tempfile=$(mktemp)
+echo "saving errors in ${tempfile}"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
+-->
 <!--bash
 cat <<'EOF' > ./test.js
 const chaiExec = require("@jsdevtools/chai-exec");
@@ -6215,13 +6231,13 @@ helm upgrade --install gloo-platform-crds gloo-platform-crds \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${MGMT2} \
-  --version 2.5.7
+  --version 2.5.0
 
 helm upgrade --install gloo-platform gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${MGMT2} \
-  --version 2.5.7 \
+  --version 2.5.0 \
   -f -<<EOF
 licensing:
   glooTrialLicenseKey: ${GLOO_MESH_LICENSE_KEY}
@@ -6243,7 +6259,7 @@ prometheus:
   configmapReload:
     prometheus:
       image:
-        repository: ${registry}/prometheus-operator/prometheus-config-reloader
+        repository: ${registry}/jimmidyson/configmap-reload
 redis:
   deployment:
     enabled: true
@@ -6443,13 +6459,13 @@ helm upgrade --install gloo-platform-crds gloo-platform-crds \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${CLUSTER1} \
-  --version 2.5.7
+  --version 2.5.0
 
 helm upgrade --install gloo-platform gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${CLUSTER1} \
-  --version 2.5.7 \
+  --version 2.5.0 \
   -f -<<EOF
 common:
   cluster: cluster1
@@ -6496,13 +6512,13 @@ helm upgrade --install gloo-platform-crds gloo-platform-crds \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${CLUSTER2} \
-  --version 2.5.7
+  --version 2.5.0
 
 helm upgrade --install gloo-platform gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${CLUSTER2} \
-  --version 2.5.7 \
+  --version 2.5.0 \
   -f -<<EOF
 common:
   cluster: cluster2
