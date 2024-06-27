@@ -1,7 +1,5 @@
 
 <!--bash
-#!/usr/bin/env bash
-
 source ./scripts/assert.sh
 -->
 
@@ -340,7 +338,7 @@ spec:
   selector:
     app: istio-ingressgateway
     istio: ingressgateway
-    revision: 1-20
+    revision: 1-22
   type: LoadBalancer
 EOF
 ```
@@ -352,7 +350,7 @@ For Openshift clusters, you also need to run the following commands:
 ```bash
 oc --context ${CLUSTER1} adm policy add-scc-to-group anyuid system:serviceaccounts:istio-system
 oc --context ${CLUSTER1} adm policy add-scc-to-group anyuid system:serviceaccounts:istio-gateways
-oc --context ${CLUSTER1} adm policy add-scc-to-group anyuid system:serviceaccounts:gm-iop-1-20
+oc --context ${CLUSTER1} adm policy add-scc-to-group anyuid system:serviceaccounts:gm-iop-1-22
 
 cat <<EOF | oc --context ${CLUSTER1} -n istio-gateways create -f -
 apiVersion: "k8s.cni.cncf.io/v1"
@@ -375,11 +373,11 @@ spec:
     - clusters:
       - name: cluster1
         defaultRevision: true
-      revision: 1-20
+      revision: 1-22
       istioOperatorSpec:
         profile: minimal
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.20.2-solo
+        tag: 1.22.1-solo
         namespace: istio-system
         values:
           global:
@@ -437,11 +435,11 @@ spec:
     - clusters:
       - name: cluster1
         activeGateway: false
-      gatewayRevision: 1-20
+      gatewayRevision: 1-22
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.20.2-solo
+        tag: 1.22.1-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -577,8 +575,8 @@ metadata:
   name: istio-cni
 EOF
 
-kubectl --context ${CLUSTER1} label namespace bookinfo-frontends istio.io/rev=1-20 --overwrite
-kubectl --context ${CLUSTER1} label namespace bookinfo-backends istio.io/rev=1-20 --overwrite
+kubectl --context ${CLUSTER1} label namespace bookinfo-frontends istio.io/rev=1-22 --overwrite
+kubectl --context ${CLUSTER1} label namespace bookinfo-backends istio.io/rev=1-22 --overwrite
 
 # Deploy the frontend bookinfo service in the bookinfo-frontends namespace
 kubectl --context ${CLUSTER1} -n bookinfo-frontends apply -f data/steps/deploy-bookinfo/productpage-v1.yaml
@@ -706,7 +704,17 @@ spec:
         imagePullPolicy: IfNotPresent
         name: not-in-mesh
         ports:
-        - containerPort: 80
+        - name: http
+          containerPort: 80
+        livenessProbe:
+          httpGet:
+            path: /status/200
+            port: http
+        readinessProbe:
+          httpGet:
+            path: /status/200
+            port: http
+
 EOF
 ```
 
@@ -752,7 +760,7 @@ spec:
       labels:
         app: in-mesh
         version: v1
-        istio.io/rev: 1-20
+        istio.io/rev: 1-22
     spec:
       serviceAccountName: in-mesh
       containers:
@@ -760,7 +768,17 @@ spec:
         imagePullPolicy: IfNotPresent
         name: in-mesh
         ports:
-        - containerPort: 80
+        - name: http
+          containerPort: 80
+        livenessProbe:
+          httpGet:
+            path: /status/200
+            port: http
+        readinessProbe:
+          httpGet:
+            path: /status/200
+            port: http
+
 EOF
 ```
 
@@ -818,7 +836,7 @@ First, you need to create a namespace for the addons, with Istio injection enabl
 
 ```bash
 kubectl --context ${CLUSTER1} create namespace gloo-mesh-addons
-kubectl --context ${CLUSTER1} label namespace gloo-mesh-addons istio.io/rev=1-20 --overwrite
+kubectl --context ${CLUSTER1} label namespace gloo-mesh-addons istio.io/rev=1-22 --overwrite
 oc --context ${CLUSTER1} adm policy add-scc-to-group anyuid system:serviceaccounts:gloo-mesh-addons
 
 cat <<EOF | oc --context ${CLUSTER1} -n gloo-mesh-addons create -f -
@@ -2560,7 +2578,7 @@ spec:
     spec:
       serviceAccountName: portal-frontend
       containers:
-      - image: djannot/portal-frontend:0.1
+      - image: gcr.io/solo-public/docs/portal-frontend:v0.0.25
         args: ["--host", "0.0.0.0"]
         imagePullPolicy: Always
         name: portal-frontend
@@ -2627,6 +2645,10 @@ spec:
               number: 4000
 EOF
 ```
+
+<!--bash 
+kubectl --context ${CLUSTER1} -n gloo-mesh-addons rollout status deploy portal-frontend
+-->
 
 <!--bash
 cat <<'EOF' > ./test.js
@@ -2949,7 +2971,7 @@ describe("Authentication is working properly", function() {
   });
 
   it("The portal frontend is accessible after authenticating", () => {
-    return helpersHttp.checkURL({ host: `https://cluster1-portal.example.com`, path: '/v1/login', headers: [{ key: 'Cookie', value: cookieString }], retCode: 404 });
+    return helpersHttp.checkURL({ host: `https://cluster1-portal.example.com`, path: '/v1/login', headers: [{ key: 'Cookie', value: cookieString }], retCode: 200 });
   });
 });
 EOF
@@ -3308,7 +3330,7 @@ metadata:
   labels:
     host: gloo-mesh-portal-server
 spec:
-  address: istio-ingressgateway-1-20.istio-gateways.svc.cluster.local
+  address: istio-ingressgateway-1-22.istio-gateways.svc.cluster.local
   ports:
   - name: https
     number: 443
