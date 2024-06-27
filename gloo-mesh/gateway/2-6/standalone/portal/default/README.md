@@ -1,7 +1,5 @@
 
 <!--bash
-#!/usr/bin/env bash
-
 source ./scripts/assert.sh
 -->
 
@@ -271,8 +269,8 @@ istioInstallations:
     installations:
       - istioOperatorSpec:
           hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-          tag: 1.20.2-solo
-        revision: 1-20
+          tag: 1.22.1-solo
+        revision: 1-22
   northSouthGateways:
     - enabled: true
       name: istio-ingressgateway
@@ -280,10 +278,10 @@ istioInstallations:
         - clusters:
           - name: cluster1
             activeGateway: false
-          gatewayRevision: 1-20
+          gatewayRevision: 1-22
           istioOperatorSpec:
             hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-            tag: 1.20.2-solo
+            tag: 1.22.1-solo
             profile: empty
             components:
               ingressGateways:
@@ -468,7 +466,17 @@ spec:
         imagePullPolicy: IfNotPresent
         name: not-in-mesh
         ports:
-        - containerPort: 80
+        - name: http
+          containerPort: 80
+        livenessProbe:
+          httpGet:
+            path: /status/200
+            port: http
+        readinessProbe:
+          httpGet:
+            path: /status/200
+            port: http
+
 EOF
 ```
 
@@ -525,13 +533,13 @@ First, you need to create a namespace for the addons, with Istio injection enabl
 
 ```bash
 kubectl --context ${CLUSTER1} create namespace gloo-mesh-addons
-kubectl --context ${CLUSTER1} label namespace gloo-mesh-addons istio.io/rev=1-20 --overwrite
+kubectl --context ${CLUSTER1} label namespace gloo-mesh-addons istio.io/rev=1-22 --overwrite
 ```
 
 Then, you can deploy the addons on the cluster(s) using Helm:
 
 ```bash
-timeout 2m bash -c "until [[ \$(kubectl --context ${MGMT} -n istio-system get deploy istiod-1-20 -o json | jq '.status.availableReplicas') -gt 0 ]]; do
+timeout 2m bash -c "until [[ \$(kubectl --context ${MGMT} -n istio-system get deploy istiod-1-22 -o json | jq '.status.availableReplicas') -gt 0 ]]; do
   sleep 1
 done"
 helm upgrade --install gloo-platform gloo-platform \
@@ -2261,7 +2269,7 @@ spec:
     spec:
       serviceAccountName: portal-frontend
       containers:
-      - image: djannot/portal-frontend:0.1
+      - image: gcr.io/solo-public/docs/portal-frontend:v0.0.25
         args: ["--host", "0.0.0.0"]
         imagePullPolicy: Always
         name: portal-frontend
@@ -2328,6 +2336,10 @@ spec:
               number: 4000
 EOF
 ```
+
+<!--bash 
+kubectl --context ${CLUSTER1} -n gloo-mesh-addons rollout status deploy portal-frontend
+-->
 
 <!--bash
 cat <<'EOF' > ./test.js
@@ -2650,7 +2662,7 @@ describe("Authentication is working properly", function() {
   });
 
   it("The portal frontend is accessible after authenticating", () => {
-    return helpersHttp.checkURL({ host: `https://cluster1-portal.example.com`, path: '/v1/login', headers: [{ key: 'Cookie', value: cookieString }], retCode: 404 });
+    return helpersHttp.checkURL({ host: `https://cluster1-portal.example.com`, path: '/v1/login', headers: [{ key: 'Cookie', value: cookieString }], retCode: 200 });
   });
 });
 EOF
@@ -3007,7 +3019,7 @@ metadata:
   labels:
     host: gloo-mesh-portal-server
 spec:
-  address: istio-ingressgateway-1-20.istio-gateways.svc.cluster.local
+  address: istio-ingressgateway-1-22.istio-gateways.svc.cluster.local
   ports:
   - name: https
     number: 443
