@@ -5,6 +5,7 @@ chai.use(chaiHttp);
 const utils = require('./utils');
 
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+chai.config.truncateThreshold = 4000; // length threshold for actual and expected values in assertion errors
 
 global = {
   checkURL: ({ host, path = "", headers = [], retCode }) => {
