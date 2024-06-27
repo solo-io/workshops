@@ -1,7 +1,5 @@
 
 <!--bash
-#!/usr/bin/env bash
-
 source ./scripts/assert.sh
 -->
 
@@ -156,7 +154,6 @@ Pull and push locally the Docker images needed:
 ```bash
 cat <<'EOF' > images.txt
 docker.io/curlimages/curl
-djannot/portal-frontend:0.1
 docker.io/bats/bats:v1.4.1
 docker.io/bitnami/clickhouse:23.11.1-debian-11-r1
 docker.io/grafana/grafana:10.0.3
@@ -179,6 +176,7 @@ gcr.io/gloo-mesh/gloo-mesh-portal-server:2.5.7
 gcr.io/gloo-mesh/gloo-mesh-ui:2.5.7
 gcr.io/gloo-mesh/gloo-otel-collector:2.5.7
 gcr.io/gloo-mesh/rate-limiter:0.11.11
+gcr.io/solo-public/docs/portal-frontend:v0.0.25
 quay.io/keycloak/keycloak:24.0.4
 quay.io/prometheus-operator/prometheus-config-reloader:v0.71.2
 quay.io/prometheus/prometheus:v2.49.1
@@ -746,7 +744,17 @@ spec:
         imagePullPolicy: IfNotPresent
         name: not-in-mesh
         ports:
-        - containerPort: 80
+        - name: http
+          containerPort: 80
+        livenessProbe:
+          httpGet:
+            path: /status/200
+            port: http
+        readinessProbe:
+          httpGet:
+            path: /status/200
+            port: http
+
 EOF
 ```
 
@@ -800,7 +808,17 @@ spec:
         imagePullPolicy: IfNotPresent
         name: in-mesh
         ports:
-        - containerPort: 80
+        - name: http
+          containerPort: 80
+        livenessProbe:
+          httpGet:
+            path: /status/200
+            port: http
+        readinessProbe:
+          httpGet:
+            path: /status/200
+            port: http
+
 EOF
 ```
 
@@ -2601,7 +2619,7 @@ spec:
     spec:
       serviceAccountName: portal-frontend
       containers:
-      - image: ${registry}/djannot/portal-frontend:0.1
+      - image: ${registry}/docs/portal-frontend:v0.0.25
         args: ["--host", "0.0.0.0"]
         imagePullPolicy: Always
         name: portal-frontend
@@ -2668,6 +2686,10 @@ spec:
               number: 4000
 EOF
 ```
+
+<!--bash 
+kubectl --context ${CLUSTER1} -n gloo-mesh-addons rollout status deploy portal-frontend
+-->
 
 <!--bash
 cat <<'EOF' > ./test.js
@@ -2990,7 +3012,7 @@ describe("Authentication is working properly", function() {
   });
 
   it("The portal frontend is accessible after authenticating", () => {
-    return helpersHttp.checkURL({ host: `https://cluster1-portal.example.com`, path: '/v1/login', headers: [{ key: 'Cookie', value: cookieString }], retCode: 404 });
+    return helpersHttp.checkURL({ host: `https://cluster1-portal.example.com`, path: '/v1/login', headers: [{ key: 'Cookie', value: cookieString }], retCode: 200 });
   });
 });
 EOF
