@@ -175,7 +175,7 @@ kubectl config set-cluster kind-kind${number} --server=https://${myip}:70${twodi
 
 helm repo add cilium https://helm.cilium.io/
 
-helm --kube-context kind-kind${number} install cilium cilium/cilium --version 1.12.0 \
+helm --kube-context kind-kind${number} install cilium cilium/cilium --version 1.15.5 \
    --namespace kube-system \
    --set prometheus.enabled=true \
    --set operator.prometheus.enabled=true \
