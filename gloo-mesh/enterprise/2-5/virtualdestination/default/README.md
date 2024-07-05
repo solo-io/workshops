@@ -111,6 +111,8 @@ metallb-system       controller-5c9894b5cd-cn9x2                   1/1     Runni
 metallb-system       speaker-d7jkp                                 1/1     Running   0          4h26m
 ```
 
+**Note:** The CNI pods might be different, depending on which CNI you have deployed.
+
 You can see that your currently connected to this cluster by executing the `kubectl config get-contexts` command:
 
 ```
@@ -141,6 +143,7 @@ tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
 -->
+
 
 
 
