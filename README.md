@@ -82,6 +82,16 @@
       <td></td>
       <td></td>
     </tr>
+    <tr>
+      <td>Gloo Gateway Enterprise</td>
+      <td><a href="https://github.com/solo-io/workshops/tree/master/gloo-gateway/1-17/enterprise/default" target=”_blank”>stable</a></td>
+      <td></td>
+      <td></td>
+      <td></td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
   </tbody>
 </table>
 <h1>Gloo workshops in Instruqt</h1>
