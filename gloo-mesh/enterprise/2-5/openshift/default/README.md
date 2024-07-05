@@ -177,14 +177,15 @@ prometheus:
   enabled: true
   server:
     securityContext:
-      fsGroup: 1000680000
-      runAsGroup: 1000680000
+      fsGroup: 1000670000
+      runAsGroup: 1000670000
       runAsNonRoot: true
-      runAsUser: 1000680000
+      runAsUser: 1000670000
 redis:
   deployment:
     enabled: true
     floatingUserId: true
+    podSecurityContext: {}
 telemetryGateway:
   enabled: true
   service:
@@ -342,19 +343,6 @@ telemetryCollector:
     exporters:
       otlp:
         endpoint: "${ENDPOINT_TELEMETRY_GATEWAY}"
-  ports:
-    otlp:
-      hostPort: 0
-    otlp-http:
-      hostPort: 0
-    jaeger-compact:
-      hostPort: 0
-    jaeger-thrift:
-      hostPort: 0
-    jaeger-grpc:
-      hostPort: 0
-    zipkin:
-      hostPort: 0
 EOF
 ```
 
@@ -409,19 +397,6 @@ telemetryCollector:
     exporters:
       otlp:
         endpoint: "${ENDPOINT_TELEMETRY_GATEWAY}"
-  ports:
-    otlp:
-      hostPort: 0
-    otlp-http:
-      hostPort: 0
-    jaeger-compact:
-      hostPort: 0
-    jaeger-thrift:
-      hostPort: 0
-    jaeger-grpc:
-      hostPort: 0
-    zipkin:
-      hostPort: 0
 EOF
 ```
 
