@@ -209,14 +209,15 @@ prometheus:
   enabled: true
   server:
     securityContext:
-      fsGroup: 1000680000
-      runAsGroup: 1000680000
+      fsGroup: 1000670000
+      runAsGroup: 1000670000
       runAsNonRoot: true
-      runAsUser: 1000680000
+      runAsUser: 1000670000
 redis:
   deployment:
     enabled: true
     floatingUserId: true
+    podSecurityContext: {}
 clickhouse:
   enabled: true
   persistence:
@@ -263,19 +264,6 @@ telemetryCollectorCustomization:
   extraExporters:
     clickhouse:
       password: password
-  ports:
-    otlp:
-      hostPort: 0
-    otlp-http:
-      hostPort: 0
-    jaeger-compact:
-      hostPort: 0
-    jaeger-thrift:
-      hostPort: 0
-    jaeger-grpc:
-      hostPort: 0
-    zipkin:
-      hostPort: 0
 EOF
 
 kubectl --context ${MGMT} -n gloo-mesh rollout status deploy/gloo-mesh-mgmt-server
@@ -1449,6 +1437,8 @@ We need to store these in a secret on each cluster that we'll be calling Keycloa
 
 ```bash
 kubectl apply --context ${CLUSTER1} -f - <<EOF
+
+---
 apiVersion: v1
 kind: Secret
 metadata:
@@ -1532,9 +1522,7 @@ data:
           "clientId": "${KEYCLOAK_CLIENT}",
           "secret": "${KEYCLOAK_SECRET}",
           "redirectUris": [
-            "https://cluster1-httpbin.example.com/*",
-            "https://cluster1-portal.example.com/*",
-            "https://cluster1-backstage.example.com/*"
+            "*"
           ],
           "webOrigins": [
             "+"
@@ -1561,6 +1549,17 @@ data:
               "config": {
                 "claim.name": "show_personal_data",
                 "user.attribute": "show_personal_data",
+                "access.token.claim": "true",
+                "id.token.claim": "true"
+              }
+            },
+            {
+              "name": "name",
+              "protocol": "openid-connect",
+              "protocolMapper": "oidc-usermodel-property-mapper",
+              "config": {
+                "claim.name": "name",
+                "user.attribute": "username",
                 "access.token.claim": "true",
                 "id.token.claim": "true"
               }
@@ -1623,7 +1622,7 @@ spec:
     spec:
       containers:
       - name: keycloak
-        image: quay.io/keycloak/keycloak:24.0.4
+        image: quay.io/keycloak/keycloak:25.0.1
         args: ["start-dev", "--import-realm"]
         env:
         - name: KEYCLOAK_ADMIN
