@@ -122,6 +122,9 @@ local-path-storage   local-path-provisioner-58f6947c7-lfmdx        1/1     Runni
 metallb-system       controller-5c9894b5cd-cn9x2                   1/1     Running   0          4h26m
 metallb-system       speaker-d7jkp                                 1/1     Running   0          4h26m
 ```
+
+**Note:** The CNI pods might be different, depending on which CNI you have deployed.
+
 <!--bash
 cat <<'EOF' > ./test.js
 const helpers = require('./tests/chai-exec');
@@ -138,6 +141,7 @@ tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
 -->
+
 
 
 
@@ -173,7 +177,7 @@ gcr.io/gloo-mesh/kubectl:1.16.4
 gcr.io/gloo-mesh/prometheus:v2.49.1
 gcr.io/gloo-mesh/rate-limiter:0.11.11
 gcr.io/gloo-mesh/redis:7.2.4-alpine
-quay.io/keycloak/keycloak:24.0.4
+quay.io/keycloak/keycloak:25.0.1
 quay.io/prometheus-operator/prometheus-config-reloader:v0.71.2
 us-docker.pkg.dev/gloo-mesh/istio-workshops/operator:1.22.1-solo
 us-docker.pkg.dev/gloo-mesh/istio-workshops/pilot:1.22.1-solo
@@ -1406,6 +1410,8 @@ We need to store these in a secret on each cluster that we'll be calling Keycloa
 
 ```bash
 kubectl apply --context ${CLUSTER1} -f - <<EOF
+
+---
 apiVersion: v1
 kind: Secret
 metadata:
@@ -1489,9 +1495,7 @@ data:
           "clientId": "${KEYCLOAK_CLIENT}",
           "secret": "${KEYCLOAK_SECRET}",
           "redirectUris": [
-            "https://cluster1-httpbin.example.com/*",
-            "https://cluster1-portal.example.com/*",
-            "https://cluster1-backstage.example.com/*"
+            "*"
           ],
           "webOrigins": [
             "+"
@@ -1518,6 +1522,17 @@ data:
               "config": {
                 "claim.name": "show_personal_data",
                 "user.attribute": "show_personal_data",
+                "access.token.claim": "true",
+                "id.token.claim": "true"
+              }
+            },
+            {
+              "name": "name",
+              "protocol": "openid-connect",
+              "protocolMapper": "oidc-usermodel-property-mapper",
+              "config": {
+                "claim.name": "name",
+                "user.attribute": "username",
                 "access.token.claim": "true",
                 "id.token.claim": "true"
               }
@@ -1580,7 +1595,7 @@ spec:
     spec:
       containers:
       - name: keycloak
-        image: ${registry}/keycloak/keycloak:24.0.4
+        image: ${registry}/keycloak/keycloak:25.0.1
         args: ["start-dev", "--import-realm"]
         env:
         - name: KEYCLOAK_ADMIN
