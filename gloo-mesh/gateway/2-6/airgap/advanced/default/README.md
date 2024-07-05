@@ -122,6 +122,9 @@ local-path-storage   local-path-provisioner-58f6947c7-lfmdx        1/1     Runni
 metallb-system       controller-5c9894b5cd-cn9x2                   1/1     Running   0          4h26m
 metallb-system       speaker-d7jkp                                 1/1     Running   0          4h26m
 ```
+
+**Note:** The CNI pods might be different, depending on which CNI you have deployed.
+
 <!--bash
 cat <<'EOF' > ./test.js
 const helpers = require('./tests/chai-exec');
@@ -138,6 +141,7 @@ tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
 -->
+
 
 
 
@@ -178,7 +182,7 @@ gcr.io/gloo-mesh/redis:7.2.4-alpine
 quay.io/jetstack/cert-manager-cainjector:v1.12.4
 quay.io/jetstack/cert-manager-controller:v1.12.4
 quay.io/jetstack/cert-manager-webhook:v1.12.4
-quay.io/keycloak/keycloak:24.0.4
+quay.io/keycloak/keycloak:25.0.1
 quay.io/prometheus-operator/prometheus-config-reloader:v0.71.2
 us-docker.pkg.dev/gloo-mesh/istio-workshops/operator:1.22.1-solo
 us-docker.pkg.dev/gloo-mesh/istio-workshops/pilot:1.22.1-solo
