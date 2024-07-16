@@ -117,7 +117,6 @@ helm upgrade -i -n gloo-system \
   --kube-context ${CLUSTER1} \
   -f -<<EOF
 kubeGateway:
-  # Enable K8s Gateway integration
   enabled: true
 gatewayProxies:
   gatewayProxy:
@@ -126,25 +125,17 @@ gateway:
   persistProxySpec: true
   logLevel: info
   validation:
-    allowWarnings: true
     alwaysAcceptResources: false
 gloo:
   logLevel: info
-  # To simplify the demo, we disable any features that are affected by leader election
-  # In Gloo Gateway, this is just status reporting, but still we do this to be safe
-  disableLeaderElection: true
   deployment:
     replicas: 1
     livenessProbeEnabled: true
 discovery:
-  # We don't need the discovery deployment for our Gloo Gateway demo
   enabled: false
 rbac:
   namespaced: true
   nameSuffix: gg-demo
-settings:
-  # Expose the Control Plane Admin API (port 10010 on Gloo)
-  devMode: true
 EOF
 ```
 
