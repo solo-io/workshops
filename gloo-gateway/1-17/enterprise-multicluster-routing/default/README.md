@@ -115,7 +115,7 @@ helm repo update
 helm upgrade -i -n gloo-system \
   gloo-gateway gloo-ee-helm/gloo-ee \
   --create-namespace \
-  --version 1.17.0-rc4 \
+  --version 1.17.0 \
   --kube-context $CLUSTER1 \
   --set-string license_key=$LICENSE_KEY \
   -f -<<EOF
@@ -141,7 +141,7 @@ gloo:
       replicas: 1
       customEnv:
         # The portal plugin is disabled by default, so must explicitly enable it
-        - name: GG_EXPERIMENTAL_PORTAL_PLUGIN
+        - name: GG_PORTAL_PLUGIN
           value: "true"
       livenessProbeEnabled: true
   discovery:
@@ -181,20 +181,18 @@ gloo-fed:
 gateway-portal-web-server:
   # Enable the sub-chart for the Portal webserver
   enabled: true
-
+settings:
+  disableKubernetesDestinations: true
 global:
   extensions:
     # Rate-Limit Configuration
     rateLimit:
       enabled: true
-      deployment:
-        logLevel: debug
 
     # Ext-Auth Configuration
     extAuth:
       enabled: true
-      deployment:
-        logLevel: debug
+
 EOF
 ```
 
@@ -514,12 +512,12 @@ export PROXY_IP=$(kubectl --context ${CLUSTER1} -n gloo-system get svc gloo-prox
 
 <!--bash
 RETRY_COUNT=0
-MAX_RETRIES=30
+MAX_RETRIES=60
 while [[ -z "$PROXY_IP" && $RETRY_COUNT -lt $MAX_RETRIES ]]; do
   echo "Waiting for PROXY_IP to be assigned... Attempt $((RETRY_COUNT + 1))/$MAX_RETRIES"
   PROXY_IP=$(kubectl --context ${CLUSTER1} -n gloo-system get svc gloo-proxy-http -o jsonpath='{.status.loadBalancer.ingress[0].*}')
   RETRY_COUNT=$((RETRY_COUNT + 1))
-  sleep 2
+  sleep 5
 done
 
 # if PROXY_IP is a hostname, resolve it to an IP address
@@ -528,7 +526,7 @@ if [[ -n "$PROXY_IP" && $PROXY_IP =~ [a-zA-Z] ]]; then
     echo "Waiting for PROXY_IP to be propagated in DNS... Attempt $((RETRY_COUNT + 1))/$MAX_RETRIES"
     IP=$(dig +short A "$PROXY_IP")
     RETRY_COUNT=$((RETRY_COUNT + 1))
-    sleep 2
+    sleep 5
   done
 else
   IP="$PROXY_IP"
@@ -612,7 +610,7 @@ kubectl create --context ${CLUSTER1} -n gloo-system secret tls tls-secret --key 
    --cert tls.crt
 ```
 
-Update the `Gateway` resource to add an HTTPS listener.
+Update the `Gateway` resource to add HTTPS listeners.
 
 ```bash
 kubectl apply --context ${CLUSTER1} -f - <<EOF
@@ -624,6 +622,18 @@ metadata:
 spec:
   gatewayClassName: gloo-gateway
   listeners:
+  - protocol: HTTPS
+    port: 443
+    name: https-httpbin
+    hostname: httpbin.example.com
+    tls:
+      mode: Terminate
+      certificateRefs:
+        - name: tls-secret
+          kind: Secret
+    allowedRoutes:
+      namespaces:
+        from: All
   - protocol: HTTPS
     port: 443
     name: https
@@ -644,6 +654,10 @@ spec:
 EOF
 ```
 
+As you can see, we've added 2 new listeners. One for the httpbin.example.com hostname and one for all the other hostnames.
+
+We used the same secret to keep things simple, but the goal is to demonstrate we can have different HTTPS listeners.
+
 Update the `HTTPRoute` resource to expose the `httpbin` app through HTTPS.
 
 ```bash
@@ -657,7 +671,7 @@ spec:
   parentRefs:
     - name: http
       namespace: gloo-system
-      sectionName: https
+      sectionName: https-httpbin
   hostnames:
     - "httpbin.example.com"
   rules:
@@ -821,7 +835,7 @@ spec:
   parentRefs:
     - name: http
       namespace: gloo-system
-      sectionName: https
+      sectionName: https-httpbin
   hostnames:
     - "httpbin.example.com"
   rules:
@@ -993,7 +1007,7 @@ helm repo update
 helm upgrade -i -n gloo-system \
   gloo-gateway gloo-ee-helm/gloo-ee \
   --create-namespace \
-  --version 1.17.0-rc4 \
+  --version 1.17.0 \
   --kube-context $CLUSTER2 \
   --set-string license_key=$LICENSE_KEY \
   -f -<<EOF
@@ -1019,7 +1033,7 @@ gloo:
       replicas: 1
       customEnv:
         # The portal plugin is disabled by default, so must explicitly enable it
-        - name: GG_EXPERIMENTAL_PORTAL_PLUGIN
+        - name: GG_PORTAL_PLUGIN
           value: "true"
       livenessProbeEnabled: true
   discovery:
@@ -1059,20 +1073,18 @@ gloo-fed:
 gateway-portal-web-server:
   # Enable the sub-chart for the Portal webserver
   enabled: true
-
+settings:
+  disableKubernetesDestinations: true
 global:
   extensions:
     # Rate-Limit Configuration
     rateLimit:
       enabled: true
-      deployment:
-        logLevel: debug
 
     # Ext-Auth Configuration
     extAuth:
       enabled: true
-      deployment:
-        logLevel: debug
+
 EOF
 ```
 
