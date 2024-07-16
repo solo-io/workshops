@@ -135,7 +135,6 @@ helm upgrade -i -n gloo-system \
   -f -<<EOF
 gloo:
   kubeGateway:
-    # Enable K8s Gateway integration
     enabled: true
   gatewayProxies:
     gatewayProxy:
@@ -144,66 +143,38 @@ gloo:
     persistProxySpec: true
     logLevel: info
     validation:
-      allowWarnings: true
       alwaysAcceptResources: false
   gloo:
     logLevel: info
-    # To simplify the demo, we disable any features that are affected by leader election
-    # In Gloo Gateway, this is just status reporting, but still we do this to be safe
-    disableLeaderElection: true
     deployment:
       replicas: 1
       customEnv:
-        # The portal plugin is disabled by default, so must explicitly enable it
         - name: GG_PORTAL_PLUGIN
           value: "true"
       livenessProbeEnabled: true
   discovery:
-    # We don't need the discovery deployment for our Gloo Gateway demo
     enabled: false
   rbac:
     namespaced: true
     nameSuffix: gg-demo
-  settings:
-    # Expose the Control Plane Admin API (port 10010 on Gloo)
-    devMode: true
-
-    # Configure some standard descriptors to be used by the rate-limit portion of our tests
-    # This rule states: "if a request has a descriptor with key=generic_key, value=2, apply 1 requests/second rate limit"
-    rateLimit:
-      descriptors:
-        - key: generic_key
-          value: "2"
-          rateLimit:
-            requestsPerUnit: 1
-            unit: SECOND
 observability:
   enabled: false
 prometheus:
-  # setting to false will disable prometheus, removing it from Gloo's chart dependencies
   enabled: false
-
 grafana:
-  # setting to false will disable grafana, removing it from Gloo's chart dependencies
   defaultInstallationEnabled: false
-# This demo does not deal with Gloo Federation, so we disable the components to simplify the installation
 gloo-fed:
   enabled: false
   glooFedApiserver:
     enable: false
-
 gateway-portal-web-server:
-  # Enable the sub-chart for the Portal webserver
   enabled: true
 settings:
   disableKubernetesDestinations: true
 global:
   extensions:
-    # Rate-Limit Configuration
     rateLimit:
       enabled: true
-
-    # Ext-Auth Configuration
     extAuth:
       enabled: true
 
