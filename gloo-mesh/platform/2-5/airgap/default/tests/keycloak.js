@@ -29,6 +29,8 @@ global = {
         if (sessionCookie) {
             ret = `${sessionCookie.name}=${sessionCookie.value}`; // Construct the cookie string
         } else {
+            // console.error(await page.content()); // very verbose
+            // await page.screenshot({path: 'screenshot.png'});
             console.error(`    No session cookie found for ${user}`);
             ret = "keycloak-session=dummy";
         }
