@@ -24,15 +24,16 @@ source ./scripts/assert.sh
 * [Lab 11 - Use the transformation filter to manipulate headers](#lab-11---use-the-transformation-filter-to-manipulate-headers-)
 * [Lab 12 - Apply rate limiting to the Gateway](#lab-12---apply-rate-limiting-to-the-gateway-)
 * [Lab 13 - Use the Web Application Firewall filter](#lab-13---use-the-web-application-firewall-filter-)
-* [Lab 14 - Deploy Argo Rollouts](#lab-14---deploy-argo-rollouts-)
-* [Lab 15 - Roll out a new app version using Argo Rollouts](#lab-15---roll-out-a-new-app-version-using-argo-rollouts-)
-* [Lab 16 - Deploy the Bookinfo sample application](#lab-16---deploy-the-bookinfo-sample-application-)
-* [Lab 17 - Expose the productpage API securely](#lab-17---expose-the-productpage-api-securely-)
-* [Lab 18 - Expose an external API and stitch it with the productpage API](#lab-18---expose-an-external-api-and-stitch-it-with-the-productpage-api-)
-* [Lab 19 - Expose the dev portal backend](#lab-19---expose-the-dev-portal-backend-)
-* [Lab 20 - Deploy and expose the dev portal frontend](#lab-20---deploy-and-expose-the-dev-portal-frontend-)
-* [Lab 21 - Dev portal monetization](#lab-21---dev-portal-monetization-)
-* [Lab 22 - Deploy Backstage with the backend plugin](#lab-22---deploy-backstage-with-the-backend-plugin-)
+* [Lab 14 - Use the JWT filter to validate JWT and create headers from claims](#lab-14---use-the-jwt-filter-to-validate-jwt-and-create-headers-from-claims-)
+* [Lab 15 - Deploy Argo Rollouts](#lab-15---deploy-argo-rollouts-)
+* [Lab 16 - Roll out a new app version using Argo Rollouts](#lab-16---roll-out-a-new-app-version-using-argo-rollouts-)
+* [Lab 17 - Deploy the Bookinfo sample application](#lab-17---deploy-the-bookinfo-sample-application-)
+* [Lab 18 - Expose the productpage API securely](#lab-18---expose-the-productpage-api-securely-)
+* [Lab 19 - Expose an external API and stitch it with the productpage API](#lab-19---expose-an-external-api-and-stitch-it-with-the-productpage-api-)
+* [Lab 20 - Expose the dev portal backend](#lab-20---expose-the-dev-portal-backend-)
+* [Lab 21 - Deploy and expose the dev portal frontend](#lab-21---deploy-and-expose-the-dev-portal-frontend-)
+* [Lab 22 - Dev portal monetization](#lab-22---dev-portal-monetization-)
+* [Lab 23 - Deploy Backstage with the backend plugin](#lab-23---deploy-backstage-with-the-backend-plugin-)
 
 
 
@@ -227,13 +228,12 @@ helm repo update
 helm upgrade -i -n gloo-system \
   gloo-gateway gloo-ee-helm/gloo-ee \
   --create-namespace \
-  --version 1.17.0-rc4 \
+  --version 1.17.0 \
   --kube-context $CLUSTER1 \
   --set-string license_key=$LICENSE_KEY \
   -f -<<EOF
 gloo:
   kubeGateway:
-    # Enable K8s Gateway integration
     enabled: true
   gatewayProxies:
     gatewayProxy:
@@ -242,71 +242,41 @@ gloo:
     persistProxySpec: true
     logLevel: info
     validation:
-      allowWarnings: true
       alwaysAcceptResources: false
   gloo:
     logLevel: info
-    # To simplify the demo, we disable any features that are affected by leader election
-    # In Gloo Gateway, this is just status reporting, but still we do this to be safe
-    disableLeaderElection: true
     deployment:
       replicas: 1
       customEnv:
-        # The portal plugin is disabled by default, so must explicitly enable it
-        - name: GG_EXPERIMENTAL_PORTAL_PLUGIN
+        - name: GG_PORTAL_PLUGIN
           value: "true"
       livenessProbeEnabled: true
   discovery:
-    # We don't need the discovery deployment for our Gloo Gateway demo
     enabled: false
   rbac:
     namespaced: true
     nameSuffix: gg-demo
-  settings:
-    # Expose the Control Plane Admin API (port 10010 on Gloo)
-    devMode: true
-
-    # Configure some standard descriptors to be used by the rate-limit portion of our tests
-    # This rule states: "if a request has a descriptor with key=generic_key, value=2, apply 1 requests/second rate limit"
-    rateLimit:
-      descriptors:
-        - key: generic_key
-          value: "2"
-          rateLimit:
-            requestsPerUnit: 1
-            unit: SECOND
 observability:
   enabled: false
 prometheus:
-  # setting to false will disable prometheus, removing it from Gloo's chart dependencies
   enabled: false
-
 grafana:
-  # setting to false will disable grafana, removing it from Gloo's chart dependencies
   defaultInstallationEnabled: false
-# This demo does not deal with Gloo Federation, so we disable the components to simplify the installation
 gloo-fed:
   enabled: false
   glooFedApiserver:
     enable: false
-
 gateway-portal-web-server:
-  # Enable the sub-chart for the Portal webserver
   enabled: true
-
+settings:
+  disableKubernetesDestinations: true
 global:
   extensions:
-    # Rate-Limit Configuration
     rateLimit:
       enabled: true
-      deployment:
-        logLevel: debug
-
-    # Ext-Auth Configuration
     extAuth:
       enabled: true
-      deployment:
-        logLevel: debug
+
 EOF
 ```
 
@@ -950,12 +920,12 @@ export PROXY_IP=$(kubectl --context ${CLUSTER1} -n gloo-system get svc gloo-prox
 
 <!--bash
 RETRY_COUNT=0
-MAX_RETRIES=30
+MAX_RETRIES=60
 while [[ -z "$PROXY_IP" && $RETRY_COUNT -lt $MAX_RETRIES ]]; do
   echo "Waiting for PROXY_IP to be assigned... Attempt $((RETRY_COUNT + 1))/$MAX_RETRIES"
   PROXY_IP=$(kubectl --context ${CLUSTER1} -n gloo-system get svc gloo-proxy-http -o jsonpath='{.status.loadBalancer.ingress[0].*}')
   RETRY_COUNT=$((RETRY_COUNT + 1))
-  sleep 2
+  sleep 5
 done
 
 # if PROXY_IP is a hostname, resolve it to an IP address
@@ -964,7 +934,7 @@ if [[ -n "$PROXY_IP" && $PROXY_IP =~ [a-zA-Z] ]]; then
     echo "Waiting for PROXY_IP to be propagated in DNS... Attempt $((RETRY_COUNT + 1))/$MAX_RETRIES"
     IP=$(dig +short A "$PROXY_IP")
     RETRY_COUNT=$((RETRY_COUNT + 1))
-    sleep 2
+    sleep 5
   done
 else
   IP="$PROXY_IP"
@@ -1048,7 +1018,7 @@ kubectl create --context ${CLUSTER1} -n gloo-system secret tls tls-secret --key 
    --cert tls.crt
 ```
 
-Update the `Gateway` resource to add an HTTPS listener.
+Update the `Gateway` resource to add HTTPS listeners.
 
 ```bash
 kubectl apply --context ${CLUSTER1} -f - <<EOF
@@ -1060,6 +1030,18 @@ metadata:
 spec:
   gatewayClassName: gloo-gateway
   listeners:
+  - protocol: HTTPS
+    port: 443
+    name: https-httpbin
+    hostname: httpbin.example.com
+    tls:
+      mode: Terminate
+      certificateRefs:
+        - name: tls-secret
+          kind: Secret
+    allowedRoutes:
+      namespaces:
+        from: All
   - protocol: HTTPS
     port: 443
     name: https
@@ -1080,6 +1062,10 @@ spec:
 EOF
 ```
 
+As you can see, we've added 2 new listeners. One for the httpbin.example.com hostname and one for all the other hostnames.
+
+We used the same secret to keep things simple, but the goal is to demonstrate we can have different HTTPS listeners.
+
 Update the `HTTPRoute` resource to expose the `httpbin` app through HTTPS.
 
 ```bash
@@ -1093,7 +1079,7 @@ spec:
   parentRefs:
     - name: http
       namespace: gloo-system
-      sectionName: https
+      sectionName: https-httpbin
   hostnames:
     - "httpbin.example.com"
   rules:
@@ -1257,7 +1243,7 @@ spec:
   parentRefs:
     - name: http
       namespace: gloo-system
-      sectionName: https
+      sectionName: https-httpbin
   hostnames:
     - "httpbin.example.com"
   rules:
@@ -1777,17 +1763,19 @@ ATTEMPTS=1
 timeout 60 bash -c 'while [[ "$(curl -m 2 --max-time 2 --insecure -s -o /dev/null -w ''%{http_code}'' https://httpbin.example.com/get)" != "302" ]]; do sleep 5; done'
 export USER1_COOKIE=$(node tests/keycloak-token.js "https://httpbin.example.com/get" user1)
 export USER2_COOKIE=$(node tests/keycloak-token.js "https://httpbin.example.com/get" user2)
-until ([ ! -z "$USER1_COOKIE" ] && [[ $USER1_COOKIE != *"dummy"* ]]) || [ $ATTEMPTS -gt 20 ]; do
-  printf "."
-  ATTEMPTS=$((ATTEMPTS + 1))
-  sleep 1
-  export USER1_COOKIE=$(node tests/keycloak-token.js "https://httpbin.example.com/get" user1)
-done
+ATTEMPTS=1
 until ([ ! -z "$USER2_COOKIE" ] && [[ $USER2_COOKIE != *"dummy"* ]]) || [ $ATTEMPTS -gt 20 ]; do
   printf "."
   ATTEMPTS=$((ATTEMPTS + 1))
-  sleep 1
+  sleep 3
   export USER2_COOKIE=$(node tests/keycloak-token.js "https://httpbin.example.com/get" user2)
+done
+ATTEMPTS=1
+until ([ ! -z "$USER1_COOKIE" ] && [[ $USER1_COOKIE != *"dummy"* ]]) || [ $ATTEMPTS -gt 20 ]; do
+  printf "."
+  ATTEMPTS=$((ATTEMPTS + 1))
+  sleep 3
+  export USER1_COOKIE=$(node tests/keycloak-token.js "https://httpbin.example.com/get" user1)
 done
 echo "User1 token: $USER1_COOKIE"
 echo "User2 token: $USER2_COOKIE"
@@ -2198,7 +2186,233 @@ Log4Shell malicious payload
 
 
 
-## Lab 14 - Deploy Argo Rollouts <a name="lab-14---deploy-argo-rollouts-"></a>
+## Lab 14 - Use the JWT filter to validate JWT and create headers from claims <a name="lab-14---use-the-jwt-filter-to-validate-jwt-and-create-headers-from-claims-"></a>
+
+In this step, we're going to validate the JWT token and to create a new header from the `email` claim.
+
+You can restrict a request's access based on the claims and scopes in a JWT. `Claims` are key-value pairs that provide identity details, such as the subject's user ID, the entity that issued the token, and expiration time. `Scopes` are strings that indicate the permissions granted to the token holder.
+
+We need to create an `Upstream` representing Keycloak:
+
+```bash
+kubectl apply --context ${CLUSTER1} -f - <<EOF
+apiVersion: gloo.solo.io/v1
+kind: Upstream
+metadata:
+  name: keycloak
+  namespace: gloo-system
+spec:
+  static:
+    hosts:
+      - addr: ${HOST_KEYCLOAK}
+        port: ${PORT_KEYCLOAK}
+EOF
+```
+
+Then, we need to create a `VirtualHostOption` to validate the JWT token and extract the `email` claim.
+
+```bash
+kubectl apply --context ${CLUSTER1} -f - <<EOF
+apiVersion: gateway.solo.io/v1
+kind: VirtualHostOption
+metadata:
+  name: jwt
+  namespace: gloo-system
+spec:
+  targetRefs:
+  - group: gateway.networking.k8s.io
+    kind: Gateway
+    name: http
+    namespace: gloo-system
+    sectionName: https-httpbin
+  options:
+    jwtStaged:
+      beforeExtAuth:
+        providers:
+          keycloak:
+            issuer: ${KEYCLOAK_URL}/realms/workshop
+            tokenSource:
+              headers:
+              - header: jwt
+            jwks:
+              remote:
+                url: ${KEYCLOAK_URL}/realms/workshop/protocol/openid-connect/certs
+                upstreamRef:
+                  name: keycloak
+                  namespace: gloo-system
+            claimsToHeaders:
+            - claim: email
+              header: X-Email
+EOF
+```
+
+This is targeting the `https-httpbin` section of the `Gateway`.
+
+Try accessing the `httpbin` application without any token.
+
+```shell
+curl -k https://httpbin.example.com/get
+```
+
+You should get a `Jwt is missing` error message.
+
+Let's get a JWT token:
+
+```bash
+export USER1_TOKEN_JWT=$(curl -Ssm 10 --fail-with-body \
+  -d "client_id=gloo-ext-auth" \
+  -d "client_secret=hKcDcqmUKCrPkyDJtCw066hTLzUbAiri" \
+  -d "username=user1" \
+  -d "password=password" \
+  -d "grant_type=password" \
+  "$KEYCLOAK_URL/realms/workshop/protocol/openid-connect/token" |
+  jq -r .access_token)
+```
+
+Now, you should be able to access it:
+
+```shell
+curl -k https://httpbin.example.com/get -H "jwt: ${USER1_TOKEN_JWT}"
+```
+
+Here is the expected output:
+
+```
+{
+  "args": {},
+  "headers": {
+    "Accept": [
+      "*/*"
+    ],
+    "Host": [
+      "httpbin.example.com"
+    ],
+    "User-Agent": [
+      "curl/8.5.0"
+    ],
+    "X-Email": [
+      "user1@example.com"
+    ],
+    "X-Envoy-Expected-Rq-Timeout-Ms": [
+      "15000"
+    ],
+    "X-Forwarded-Proto": [
+      "https"
+    ],
+    "X-Request-Id": [
+      "3eda8433-741d-40fd-887e-b6dddca89a3d"
+    ]
+  },
+  "method": "GET",
+  "origin": "10.101.0.18:60788",
+  "url": "https://httpbin.example.com/get"
+}
+```
+
+You should see a new `X-Email` header added to the request with the value `user1@example.com`
+
+<!--bash
+cat <<'EOF' > ./test.js
+const helpersHttp = require('./tests/chai-http');
+
+describe("Claim to header is working properly", function() {
+  const jwtString = process.env.USER1_TOKEN_JWT;
+  it('The new header has been added', () => helpersHttp.checkBody({ host: `https://httpbin.example.com`, path: '/get', headers: [{ key: 'jwt', value: jwtString }], body: '"X-Email":' }));
+  it('The new header has value', () => helpersHttp.checkBody({ host: `https://httpbin.example.com`, path: '/get', headers: [{ key: 'jwt', value: jwtString }], body: '"user1@example.com"' }));
+});
+
+EOF
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/jwt/tests/header-added.test.js.liquid"
+tempfile=$(mktemp)
+echo "saving errors in ${tempfile}"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
+-->
+
+We can also create a `RouteOption` to add a RBAC rule to only allow a user with the email `user2@solo.io` to access the application.
+
+```bash
+kubectl apply --context ${CLUSTER1} -f - <<EOF
+apiVersion: gateway.solo.io/v1
+kind: RouteOption
+metadata:
+  name: jwt
+  namespace: httpbin
+spec:
+  targetRefs:
+  - group: gateway.networking.k8s.io
+    kind: HTTPRoute
+    name: httpbin
+  options:
+    rbac:
+      policies:
+        viewer:
+          principals:
+          - jwtPrincipal:
+              claims:
+                email: user2@solo.io
+EOF
+```
+
+This is targeting the `HTTPRoute`.
+
+Try accessing the `httpbin` application again.
+
+```shell
+curl -k https://httpbin.example.com/get -H "jwt: ${USER1_TOKEN_JWT}"
+```
+
+You should get a `RBAC: access denied` error message.
+
+Let's get a JWT token for the second user.
+
+We will use gloo to add conditional access to the `httpbin` service based on the `email` scope and claim in the JWT token.
+
+```bash
+export USER2_TOKEN_JWT=$(curl -Ssm 10 --fail-with-body \
+  -d "client_id=gloo-ext-auth" \
+  -d "client_secret=hKcDcqmUKCrPkyDJtCw066hTLzUbAiri" \
+  -d "username=user2" \
+  -d "password=password" \
+  -d "grant_type=password" \
+  "$KEYCLOAK_URL/realms/workshop/protocol/openid-connect/token" |
+  jq -r .access_token)
+```
+
+You should be able to access the application with this user.
+
+```shell
+curl -k https://httpbin.example.com/get -H "jwt: ${USER2_TOKEN_JWT}"
+```
+
+<!--bash
+cat <<'EOF' > ./test.js
+const helpersHttp = require('./tests/chai-http');
+
+describe("Only User2 can access httpbin", function() {
+  const jwt1String = process.env.USER1_TOKEN_JWT;
+  it('User1 access is refused', () => helpersHttp.checkBody({ host: `https://httpbin.example.com`, path: '/get', headers: [{ key: 'jwt', value: jwt1String }], body: 'RBAC: access denied' }));
+  const jwt2String = process.env.USER2_TOKEN_JWT;
+  it('User2 access is allowed', () => helpersHttp.checkBody({ host: `https://httpbin.example.com`, path: '/get', headers: [{ key: 'jwt', value: jwt2String }], body: '"user2@solo.io"' }));
+});
+
+EOF
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/jwt/tests/only-user2-allowed.test.js.liquid"
+tempfile=$(mktemp)
+echo "saving errors in ${tempfile}"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
+-->
+
+Let's delete the resources we've created:
+
+```bash
+kubectl --context ${CLUSTER1} -n gloo-system delete virtualhostoption jwt
+kubectl --context ${CLUSTER1} -n httpbin delete routeoption jwt
+```
+
+
+
+
+## Lab 15 - Deploy Argo Rollouts <a name="lab-15---deploy-argo-rollouts-"></a>
 
 [Argo Rollouts](https://argoproj.github.io/rollouts/) is a declarative progressive delivery tool for Kubernetes that we can use to update applications gradually, using a blue/green or canary strategy to manage the rollout.
 
@@ -2219,8 +2433,6 @@ controller:
       - name: "argoproj-labs/gatewayAPI"
         location: "https://github.com/argoproj-labs/rollouts-plugin-trafficrouter-gatewayapi/releases/download/v0.2.0/gateway-api-plugin-linux-amd64"
 EOF
-
-kubectl --context ${CLUSTER1} -n argo-rollouts wait svc argo-rollouts-dashboard --for=jsonpath='{.status.loadBalancer.ingress[0].*}' --timeout=300s
 ```
 
 Download and install the Argo Rollouts plugin for `kubectl`:
@@ -2236,7 +2448,7 @@ Now we're ready to use Argo Rollouts to progressively update applications as par
 
 
 
-## Lab 15 - Roll out a new app version using Argo Rollouts <a name="lab-15---roll-out-a-new-app-version-using-argo-rollouts-"></a>
+## Lab 16 - Roll out a new app version using Argo Rollouts <a name="lab-16---roll-out-a-new-app-version-using-argo-rollouts-"></a>
 
 We're going to use Argo Rollouts to gradually deliver an upgraded version of our httpbin application.
 To do this, we'll define a resource that lets Argo Rollouts know how we want it to handle updates to our application,
@@ -2427,14 +2639,12 @@ metadata:
   name: httpbin
   namespace: httpbin
 spec:
-  parentRefs:
-    - name: http
-      namespace: gloo-system
-      sectionName: https
-  hostnames:
-    - "httpbin.example.com"
   rules:
-    - backendRefs:
+    - matches:
+      - path:
+          type: PathPrefix
+          value: /
+      backendRefs:
         - name: httpbin1
           port: 8000
         - name: httpbin1-canary
@@ -3220,14 +3430,12 @@ metadata:
   name: httpbin
   namespace: httpbin
 spec:
-  parentRefs:
-    - name: http
-      namespace: gloo-system
-      sectionName: https
-  hostnames:
-    - "httpbin.example.com"
   rules:
-    - backendRefs:
+    - matches:
+      - path:
+          type: PathPrefix
+          value: /
+      backendRefs:
         - name: httpbin1
           port: 8000
 EOF
@@ -3235,7 +3443,7 @@ EOF
 
 
 
-## Lab 16 - Deploy the Bookinfo sample application <a name="lab-16---deploy-the-bookinfo-sample-application-"></a>
+## Lab 17 - Deploy the Bookinfo sample application <a name="lab-17---deploy-the-bookinfo-sample-application-"></a>
 [<img src="https://img.youtube.com/vi/nzYcrjalY5A/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/nzYcrjalY5A "Video Link")
 
 We're going to deploy the Bookinfo sample application to demonstrate several features of Gloo Gateway.
@@ -3280,7 +3488,7 @@ Configure your hosts file to resolve bookinfo.example.com with the IP address of
 
 
 
-## Lab 17 - Expose the productpage API securely <a name="lab-17---expose-the-productpage-api-securely-"></a>
+## Lab 18 - Expose the productpage API securely <a name="lab-18---expose-the-productpage-api-securely-"></a>
 
 Gloo Gateway includes a developer portal, which provides a framework for managing API discovery, API client identity, and API policies.
 
@@ -3758,7 +3966,7 @@ As you can see, we can also define custom metadata at the Api product level.
 
 
 
-## Lab 18 - Expose an external API and stitch it with the productpage API <a name="lab-18---expose-an-external-api-and-stitch-it-with-the-productpage-api-"></a>
+## Lab 19 - Expose an external API and stitch it with the productpage API <a name="lab-19---expose-an-external-api-and-stitch-it-with-the-productpage-api-"></a>
 
 You can also use Gloo Gateway to expose an API that is outside of the cluster. In this section, we will expose `https://openlibrary.org/search.json`
 
@@ -4021,7 +4229,7 @@ EOF
 
 
 
-## Lab 19 - Expose the dev portal backend <a name="lab-19---expose-the-dev-portal-backend-"></a>
+## Lab 20 - Expose the dev portal backend <a name="lab-20---expose-the-dev-portal-backend-"></a>
 
 Now that your API has been exposed securely and our plans defined, lets advertise this API through a developer portal.
 
@@ -4185,7 +4393,7 @@ We'll create it later.
 
 
 
-## Lab 20 - Deploy and expose the dev portal frontend <a name="lab-20---deploy-and-expose-the-dev-portal-frontend-"></a>
+## Lab 21 - Deploy and expose the dev portal frontend <a name="lab-21---deploy-and-expose-the-dev-portal-frontend-"></a>
 
 The developer frontend is provided as a fully functional template to allow you to customize it based on your own requirements.
 
@@ -4417,7 +4625,7 @@ Now, if you click on the `VIEW APIS` button, you should see the `Bookinfo REST A
 
 
 
-## Lab 21 - Dev portal monetization <a name="lab-21---dev-portal-monetization-"></a>
+## Lab 22 - Dev portal monetization <a name="lab-22---dev-portal-monetization-"></a>
 
 The `portalMetadata` section of the `ApiProduct` objects we've created previously is used to add some metadata in the access logs.
 
@@ -4547,7 +4755,7 @@ timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=150 --bail 2> 
 
 
 
-## Lab 22 - Deploy Backstage with the backend plugin <a name="lab-22---deploy-backstage-with-the-backend-plugin-"></a>
+## Lab 23 - Deploy Backstage with the backend plugin <a name="lab-23---deploy-backstage-with-the-backend-plugin-"></a>
 
 Let's deploy Postgres, before deploying Backstage:
 
