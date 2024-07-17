@@ -185,11 +185,15 @@ docker network connect "kind" gcr || true
 
 kubectl --context kind-kind${number} apply -f https://raw.githubusercontent.com/projectcalico/calico/v3.27.0/manifests/calico.yaml
 
-# Preload MetalLB images
-docker pull quay.io/metallb/controller:v0.13.12 || true
-docker pull quay.io/metallb/speaker:v0.13.12 || true
-kind load docker-image quay.io/metallb/controller:v0.13.12 --name kind${number} || true
-kind load docker-image quay.io/metallb/speaker:v0.13.12 --name kind${number} || true
+# Preload images
+cat << EOF >> images.txt
+quay.io/metallb/controller:v0.13.12
+quay.io/metallb/speaker:v0.13.12
+EOF
+cat images.txt | while read image; do
+  docker pull $image
+  kind load docker-image $image --name kind${number} || true
+done
 kubectl --context=kind-kind${number} apply -f https://raw.githubusercontent.com/metallb/metallb/v0.13.12/config/manifests/metallb-native.yaml
 kubectl --context=kind-kind${number} create secret generic -n metallb-system memberlist --from-literal=secretkey="$(openssl rand -base64 128)"
 kubectl --context=kind-kind${number} -n metallb-system rollout status deploy controller || true
