@@ -105,6 +105,7 @@ kubectl --context ${CLUSTER1} apply -f https://github.com/kubernetes-sigs/gatewa
 
 Next, install Gloo Gateway. This command installs the Gloo Gateway control plane into the namespace `gloo-system`.
 
+
 ```bash
 helm repo add solo-public-helm https://storage.googleapis.com/solo-public-helm
 
