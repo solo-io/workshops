@@ -3570,14 +3570,15 @@ Adding services to the mesh requires that the client-side proxies be associated 
 
 * Automatic sidecar injection. In this mode, the sidecar is automatically injected into the pods based on the namespace annotation.
 * Manual sidecar injection. In this mode, you manually inject the sidecar into the pods.
-1. To enable the automatic sidecar injection, use the command below to add the label `istio.io/rev` to the `bookinfo-frontends` namespace:
+
+1. To enable the automatic sidecar injection, use the command below to add the necessary labels to the `bookinfo-frontends` namespace:
 
 ```bash
 kubectl --context ${CLUSTER1} label namespace bookinfo-frontends istio.io/rev=1-19
 kubectl --context ${CLUSTER2} label namespace bookinfo-frontends istio.io/rev=1-19
 ```
 
-2. Validate the namespace is annotated with the `istio.io/rev` label:
+2. Validate the namespace is annotated with the necessary labels:
 
 ```shell
 kubectl --context ${CLUSTER1} get namespace -L istio.io/rev
@@ -3644,6 +3645,7 @@ kubectl --context ${CLUSTER1} -n bookinfo-backends rollout status deployment
 kubectl --context ${CLUSTER2} -n bookinfo-backends rollout status deployment
 -->
 
+
 3. Validate that all the pods in the `bookinfo-backends` namespace are running with Istio's default sidecar proxy injected:
 
 ```shell
@@ -3659,7 +3661,7 @@ kubectl --context ${CLUSTER2} get pods -n bookinfo-backends
 
 One of the values of using a service mesh is that you will gain immediate insight into the behavior and interactions between your services. Istio gives you access to important telemetry data, just by adding services to the mesh. In addition, you get a lot of functionality for free, such as load balancing, circuit breaking, mutual TLS, and more.
 
-You can see now the services in the UI Graph, the traffic between them, and if they are healthy or not.
+You can now see the services in the UI Graph, the traffic between them, and if they are healthy or not.
 ![UI-Mesh](images/steps/adding-services-to-mesh/ui-mesh.png)
 
 <!--bash
