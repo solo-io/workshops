@@ -124,13 +124,16 @@ networkkind=$(echo ${ipkind} | awk -F. '{ print $1"."$2 }')
 
 kubectl config set-cluster kind-kind${number} --server=https://${myip}:70${twodigits} --insecure-skip-tls-verify=true
 
-cat <<'EOF' > images.txt
+# Preload images
+cat << EOF >> images.txt
 quay.io/cilium/cilium:v1.12.0
 quay.io/cilium/operator-generic:v1.12.0
+quay.io/metallb/controller:v0.13.12
+quay.io/metallb/speaker:v0.13.12
 EOF
 cat images.txt | while read image; do
   docker pull $image
-  kind load docker-image $image --name kind${number}
+  kind load docker-image $image --name kind${number} || true
 done
 
 helm repo add cilium https://helm.cilium.io/
@@ -161,11 +164,6 @@ docker network connect "kind" us-central1-docker || true
 docker network connect "kind" quay || true
 docker network connect "kind" gcr || true
 
-# Preload MetalLB images
-docker pull quay.io/metallb/controller:v0.13.12 || true
-docker pull quay.io/metallb/speaker:v0.13.12 || true
-kind load docker-image quay.io/metallb/controller:v0.13.12 --name kind${number} || true
-kind load docker-image quay.io/metallb/speaker:v0.13.12 --name kind${number} || true
 for i in 1 2 3 4 5; do kubectl --context=kind-kind${number} apply -f https://raw.githubusercontent.com/metallb/metallb/v0.13.12/config/manifests/metallb-native.yaml && break || sleep 15; done
 kubectl --context=kind-kind${number} create secret generic -n metallb-system memberlist --from-literal=secretkey="$(openssl rand -base64 128)"
 kubectl --context=kind-kind${number} -n metallb-system rollout status deploy controller || true
