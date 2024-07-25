@@ -18,7 +18,7 @@ source ./scripts/assert.sh
 * [Lab 5 - Deploy the httpbin demo app](#lab-5---deploy-the-httpbin-demo-app-)
 * [Lab 6 - Expose the httpbin application through the gateway](#lab-6---expose-the-httpbin-application-through-the-gateway-)
 * [Lab 7 - Delegate with control](#lab-7---delegate-with-control-)
-* [Lab 8 - Modify the request and response headers](#lab-8---modify-the-request-and-response-headers-)
+* [Lab 8 - Modify the requests and responses](#lab-8---modify-the-requests-and-responses-)
 * [Lab 9 - Split traffic between 2 backend services](#lab-9---split-traffic-between-2-backend-services-)
 * [Lab 10 - Securing the access with OAuth](#lab-10---securing-the-access-with-oauth-)
 * [Lab 11 - Use the transformation filter to manipulate headers](#lab-11---use-the-transformation-filter-to-manipulate-headers-)
@@ -1638,9 +1638,9 @@ timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> 
 
 
 
-## Lab 8 - Modify the request and response headers <a name="lab-8---modify-the-request-and-response-headers-"></a>
+## Lab 8 - Modify the requests and responses <a name="lab-8---modify-the-requests-and-responses-"></a>
 
-You can apply filters to transform the requests and the responses.
+The Kubernetes Gateway API provides different options to add/update/remove request and response headers.
 
 Let's start with request headers.
 
@@ -1894,6 +1894,235 @@ tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
 -->
+
+Let's apply the original `HTTPRoute` yaml:
+
+```bash
+kubectl apply --context ${CLUSTER1} -f - <<EOF
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: httpbin
+  namespace: httpbin
+spec:
+  rules:
+    - matches:
+      - path:
+          type: PathPrefix
+          value: /
+      backendRefs:
+        - name: httpbin1
+          port: 8000
+EOF
+```
+
+All these transformations are great, but there are many cases where more flexibility is required.
+
+For example, you may want to create a new header from a value of another header.
+
+Gloo Gateway provides some extensions to manipulate requests and responses in a more advanced way.
+
+Let's extract the product name from the `User-Agent` header (getting read of the product version and comments).
+
+To do that we need to create a Gloo Gateway `RouteOption` object:
+
+```bash
+kubectl apply --context ${CLUSTER1} -f - <<EOF
+apiVersion: gateway.solo.io/v1
+kind: RouteOption
+metadata:
+  name: routeoption
+  namespace: httpbin
+spec:
+  targetRefs:
+  - group: gateway.networking.k8s.io
+    kind: HTTPRoute
+    name: httpbin
+  options:
+    stagedTransformations:
+      regular:
+        requestTransforms:
+        - requestTransformation:
+            transformationTemplate:
+              extractors:
+                client:
+                  header: 'User-Agent'
+                  regex: '^([^/\s]+).*'
+                  subgroup: 1
+              headers:
+                x-client:
+                  text: "{{ client }}"
+EOF
+```
+
+Try to access the application:
+
+```shell
+curl -k https://httpbin.example.com/get
+```
+
+Here is the expected output:
+
+```json,nocopy
+{
+  "args": {},
+  "headers": {
+    "Accept": [
+      "*/*"
+    ],
+    "Host": [
+      "httpbin.example.com"
+    ],
+    "User-Agent": [
+      "curl/8.5.0"
+    ],
+    "X-Client": [
+      "curl"
+    ],
+    "X-Envoy-Expected-Rq-Timeout-Ms": [
+      "15000"
+    ],
+    "X-Forwarded-Proto": [
+      "https"
+    ],
+    "X-Request-Id": [
+      "49dd1010-9388-4d50-b4c7-298cec409f3d"
+    ]
+  },
+  "method": "GET",
+  "origin": "127.0.0.6:48727",
+  "url": "https://httpbin.example.com/get"
+}
+```
+
+<!--bash
+cat <<'EOF' > ./test.js
+const helpersHttp = require('./tests/chai-http');
+
+describe("request transformation applied", () => {
+  it('Checking text \'X-Client\'', () => helpersHttp.checkBody({ host: `https://httpbin.example.com`, path: '/get', headers: [{key: 'User-agent', value: 'curl/8.5.0'}], body: 'X-Client', match: true }));
+})
+EOF
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/transformations/tests/x-client-request-header.test.js.liquid"
+tempfile=$(mktemp)
+echo "saving errors in ${tempfile}"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
+-->
+
+As you can see, we've created a new header called `X-Client` by extracting some data from the `User-Agent` header using a regular expression.
+
+And we've targetted the `HTTPRoute` using the `targetRefs` of the `RouteOption` object. With this approach, it applies to all its rules. 
+
+Another nice capability of the Gloo Gateway transformation filter is the capability to add a response header from some information present in the request.
+
+For example, we can add a `X-Request-Id` response header with the same value than the `X-Request-Id` request header. The user could use this information to report an issue he had with a specific request, for example.
+
+```bash
+kubectl apply --context ${CLUSTER1} -f - <<EOF
+apiVersion: gateway.solo.io/v1
+kind: RouteOption
+metadata:
+  name: routeoption
+  namespace: httpbin
+spec:
+  options:
+    stagedTransformations:
+      regular:
+        responseTransforms:
+        - responseTransformation:
+            transformationTemplate:
+              headers:
+                x-request-id:
+                  text: '{{ request_header("X-Request-Id") }}'
+EOF
+```
+
+This time, we haven't used the `targetRefs` option. Instead, we're going to update the `HTTPRoute` object to target the `RouteOption` object. This way you can apply it to a single rule.
+
+```bash
+kubectl apply --context ${CLUSTER1} -f - <<EOF
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: httpbin
+  namespace: httpbin
+spec:
+  rules:
+    - matches:
+      - path:
+          type: PathPrefix
+          value: /
+      filters:
+        - type: ExtensionRef
+          extensionRef:
+            group: gateway.solo.io
+            kind: RouteOption
+            name: routeoption
+      backendRefs:
+        - name: httpbin1
+          port: 8000
+EOF
+```
+
+Try to access the application:
+
+```shell
+curl -k "https://httpbin.example.com/get" -I
+```
+
+Here is the expected output:
+
+```http,nocopy
+HTTP/2 200 
+access-control-allow-credentials: true
+access-control-allow-origin: *
+date: Tue, 23 Jul 2024 13:13:53 GMT
+x-envoy-upstream-service-time: 0
+x-request-id: 67052060-3b22-4782-8078-1344b26a774a
+server: envoy
+```
+
+You can see the `X-Request-Id` response header has been added correctly.
+
+<!--bash
+cat <<'EOF' > ./test.js
+const helpersHttp = require('./tests/chai-http');
+
+describe("response transformation applied", () => {
+  it('Checking \'X-Request-Id\' header', () => helpersHttp.checkHeaders({ host: `https://httpbin.example.com`, path: '/get', expectedHeaders: [{'key': 'x-request-id', 'value': '*'}]}));
+})
+EOF
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/transformations/tests/x-request-id-response-header.js.liquid"
+tempfile=$(mktemp)
+echo "saving errors in ${tempfile}"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
+-->
+
+Let's apply the original `HTTPRoute` yaml:
+
+```bash
+kubectl apply --context ${CLUSTER1} -f - <<EOF
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: httpbin
+  namespace: httpbin
+spec:
+  rules:
+    - matches:
+      - path:
+          type: PathPrefix
+          value: /
+      backendRefs:
+        - name: httpbin1
+          port: 8000
+EOF
+```
+
+Let's delete the `RouteOption` object:
+```bash
+kubectl delete --context ${CLUSTER1} -n httpbin routeoption routeoption
+```
 
 
 
