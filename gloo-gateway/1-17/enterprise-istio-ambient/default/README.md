@@ -2687,9 +2687,13 @@ kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: gateway.solo.io/v1
 kind: RouteOption
 metadata:
-  name: routeoption
-  namespace: httpbin
+  name: waf
+  namespace: gloo-system
 spec:
+  targetRefs:
+  - group: gateway.networking.k8s.io
+    kind: HTTPRoute
+    name: httpbin
   options:
     waf:
       customInterventionMessage: 'Log4Shell malicious payload'
@@ -2703,32 +2707,7 @@ spec:
 EOF
 ```
 
-Then, you need to update the `HTTPRoute` to use this `RouteOption`:
-
-```bash
-kubectl apply --context ${CLUSTER1} -f - <<EOF
-apiVersion: gateway.networking.k8s.io/v1
-kind: HTTPRoute
-metadata:
-  name: httpbin
-  namespace: httpbin
-spec:
-  rules:
-    - matches:
-      - path:
-          type: PathPrefix
-          value: /
-      filters:
-        - type: ExtensionRef
-          extensionRef:
-            group: gateway.solo.io
-            kind: RouteOption
-            name: routeoption
-      backendRefs:
-        - name: httpbin1
-          port: 8000
-EOF
-```
+As you can see, this `RouteOption` targets the parent `HTTPRoute`. That way, the WAF rule is applied to all the traffic targetting the `httpbin` application.
 
 <!--bash
 cat <<'EOF' > ./test.js
@@ -2764,6 +2743,13 @@ server: istio-envoy
 
 Log4Shell malicious payload
 ```
+
+Let's delete the `RouteOption` we've created:
+
+```bash
+kubectl --context ${CLUSTER1} -n gloo-system delete routeoption waf
+```
+
 
 
 
@@ -2909,21 +2895,40 @@ echo "saving errors in ${tempfile}"
 timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
 -->
 
-We can also create a `RouteOption` to add a RBAC rule to only allow a user with the email `user2@solo.io` to access the application.
+We can also update the `VirtualHostOption` to add a RBAC rule to only allow a user with the email `user2@solo.io` to access the application.
 
 ```bash
 kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: gateway.solo.io/v1
-kind: RouteOption
+kind: VirtualHostOption
 metadata:
   name: jwt
-  namespace: httpbin
+  namespace: gloo-system
 spec:
   targetRefs:
   - group: gateway.networking.k8s.io
-    kind: HTTPRoute
-    name: httpbin
+    kind: Gateway
+    name: http
+    namespace: gloo-system
+    sectionName: https-httpbin
   options:
+    jwtStaged:
+      beforeExtAuth:
+        providers:
+          keycloak:
+            issuer: ${KEYCLOAK_URL}/realms/workshop
+            tokenSource:
+              headers:
+              - header: jwt
+            jwks:
+              remote:
+                url: ${KEYCLOAK_URL}/realms/workshop/protocol/openid-connect/certs
+                upstreamRef:
+                  name: keycloak
+                  namespace: gloo-system
+            claimsToHeaders:
+            - claim: email
+              header: X-Email
     rbac:
       policies:
         viewer:
@@ -2933,8 +2938,6 @@ spec:
                 email: user2@solo.io
 EOF
 ```
-
-This is targeting the `HTTPRoute`.
 
 Try accessing the `httpbin` application again.
 
@@ -2983,11 +2986,10 @@ echo "saving errors in ${tempfile}"
 timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
 -->
 
-Let's delete the resources we've created:
+Let's delete the `VirtualHostOption` we've created:
 
 ```bash
 kubectl --context ${CLUSTER1} -n gloo-system delete virtualhostoption jwt
-kubectl --context ${CLUSTER1} -n httpbin delete routeoption jwt
 ```
 
 
