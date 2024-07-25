@@ -18,7 +18,7 @@ source ./scripts/assert.sh
 * [Lab 5 - Deploy the httpbin demo app](#lab-5---deploy-the-httpbin-demo-app-)
 * [Lab 6 - Expose the httpbin application through the gateway](#lab-6---expose-the-httpbin-application-through-the-gateway-)
 * [Lab 7 - Delegate with control](#lab-7---delegate-with-control-)
-* [Lab 8 - Modify the request and response headers](#lab-8---modify-the-request-and-response-headers-)
+* [Lab 8 - Modify the requests and responses](#lab-8---modify-the-requests-and-responses-)
 * [Lab 9 - Split traffic between 2 backend services](#lab-9---split-traffic-between-2-backend-services-)
 * [Lab 10 - Securing the access with OAuth](#lab-10---securing-the-access-with-oauth-)
 * [Lab 11 - Use the transformation filter to manipulate headers](#lab-11---use-the-transformation-filter-to-manipulate-headers-)
@@ -27,13 +27,14 @@ source ./scripts/assert.sh
 * [Lab 14 - Use the JWT filter to validate JWT and create headers from claims](#lab-14---use-the-jwt-filter-to-validate-jwt-and-create-headers-from-claims-)
 * [Lab 15 - Deploy Argo Rollouts](#lab-15---deploy-argo-rollouts-)
 * [Lab 16 - Roll out a new app version using Argo Rollouts](#lab-16---roll-out-a-new-app-version-using-argo-rollouts-)
-* [Lab 17 - Deploy the Bookinfo sample application](#lab-17---deploy-the-bookinfo-sample-application-)
-* [Lab 18 - Expose the productpage API securely](#lab-18---expose-the-productpage-api-securely-)
-* [Lab 19 - Expose an external API and stitch it with the productpage API](#lab-19---expose-an-external-api-and-stitch-it-with-the-productpage-api-)
-* [Lab 20 - Expose the dev portal backend](#lab-20---expose-the-dev-portal-backend-)
-* [Lab 21 - Deploy and expose the dev portal frontend](#lab-21---deploy-and-expose-the-dev-portal-frontend-)
-* [Lab 22 - Dev portal monetization](#lab-22---dev-portal-monetization-)
-* [Lab 23 - Deploy Backstage with the backend plugin](#lab-23---deploy-backstage-with-the-backend-plugin-)
+* [Lab 17 - Deploy OpenTelemetry Collector](#lab-17---deploy-opentelemetry-collector-)
+* [Lab 18 - Deploy the Bookinfo sample application](#lab-18---deploy-the-bookinfo-sample-application-)
+* [Lab 19 - Expose the productpage API securely](#lab-19---expose-the-productpage-api-securely-)
+* [Lab 20 - Expose an external API and stitch it with the productpage API](#lab-20---expose-an-external-api-and-stitch-it-with-the-productpage-api-)
+* [Lab 21 - Expose the dev portal backend](#lab-21---expose-the-dev-portal-backend-)
+* [Lab 22 - Deploy and expose the dev portal frontend](#lab-22---deploy-and-expose-the-dev-portal-frontend-)
+* [Lab 23 - Dev portal monetization](#lab-23---dev-portal-monetization-)
+* [Lab 24 - Deploy Backstage with the backend plugin](#lab-24---deploy-backstage-with-the-backend-plugin-)
 
 
 
@@ -1638,9 +1639,9 @@ timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> 
 
 
 
-## Lab 8 - Modify the request and response headers <a name="lab-8---modify-the-request-and-response-headers-"></a>
+## Lab 8 - Modify the requests and responses <a name="lab-8---modify-the-requests-and-responses-"></a>
 
-You can apply filters to transform the requests and the responses.
+The Kubernetes Gateway API provides different options to add/update/remove request and response headers.
 
 Let's start with request headers.
 
@@ -1894,6 +1895,235 @@ tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
 -->
+
+Let's apply the original `HTTPRoute` yaml:
+
+```bash
+kubectl apply --context ${CLUSTER1} -f - <<EOF
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: httpbin
+  namespace: httpbin
+spec:
+  rules:
+    - matches:
+      - path:
+          type: PathPrefix
+          value: /
+      backendRefs:
+        - name: httpbin1
+          port: 8000
+EOF
+```
+
+All these transformations are great, but there are many cases where more flexibility is required.
+
+For example, you may want to create a new header from a value of another header.
+
+Gloo Gateway provides some extensions to manipulate requests and responses in a more advanced way.
+
+Let's extract the product name from the `User-Agent` header (getting read of the product version and comments).
+
+To do that we need to create a Gloo Gateway `RouteOption` object:
+
+```bash
+kubectl apply --context ${CLUSTER1} -f - <<EOF
+apiVersion: gateway.solo.io/v1
+kind: RouteOption
+metadata:
+  name: routeoption
+  namespace: httpbin
+spec:
+  targetRefs:
+  - group: gateway.networking.k8s.io
+    kind: HTTPRoute
+    name: httpbin
+  options:
+    stagedTransformations:
+      regular:
+        requestTransforms:
+        - requestTransformation:
+            transformationTemplate:
+              extractors:
+                client:
+                  header: 'User-Agent'
+                  regex: '^([^/\s]+).*'
+                  subgroup: 1
+              headers:
+                x-client:
+                  text: "{{ client }}"
+EOF
+```
+
+Try to access the application:
+
+```shell
+curl -k https://httpbin.example.com/get
+```
+
+Here is the expected output:
+
+```json,nocopy
+{
+  "args": {},
+  "headers": {
+    "Accept": [
+      "*/*"
+    ],
+    "Host": [
+      "httpbin.example.com"
+    ],
+    "User-Agent": [
+      "curl/8.5.0"
+    ],
+    "X-Client": [
+      "curl"
+    ],
+    "X-Envoy-Expected-Rq-Timeout-Ms": [
+      "15000"
+    ],
+    "X-Forwarded-Proto": [
+      "https"
+    ],
+    "X-Request-Id": [
+      "49dd1010-9388-4d50-b4c7-298cec409f3d"
+    ]
+  },
+  "method": "GET",
+  "origin": "127.0.0.6:48727",
+  "url": "https://httpbin.example.com/get"
+}
+```
+
+<!--bash
+cat <<'EOF' > ./test.js
+const helpersHttp = require('./tests/chai-http');
+
+describe("request transformation applied", () => {
+  it('Checking text \'X-Client\'', () => helpersHttp.checkBody({ host: `https://httpbin.example.com`, path: '/get', headers: [{key: 'User-agent', value: 'curl/8.5.0'}], body: 'X-Client', match: true }));
+})
+EOF
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/transformations/tests/x-client-request-header.test.js.liquid"
+tempfile=$(mktemp)
+echo "saving errors in ${tempfile}"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
+-->
+
+As you can see, we've created a new header called `X-Client` by extracting some data from the `User-Agent` header using a regular expression.
+
+And we've targetted the `HTTPRoute` using the `targetRefs` of the `RouteOption` object. With this approach, it applies to all its rules. 
+
+Another nice capability of the Gloo Gateway transformation filter is the capability to add a response header from some information present in the request.
+
+For example, we can add a `X-Request-Id` response header with the same value than the `X-Request-Id` request header. The user could use this information to report an issue he had with a specific request, for example.
+
+```bash
+kubectl apply --context ${CLUSTER1} -f - <<EOF
+apiVersion: gateway.solo.io/v1
+kind: RouteOption
+metadata:
+  name: routeoption
+  namespace: httpbin
+spec:
+  options:
+    stagedTransformations:
+      regular:
+        responseTransforms:
+        - responseTransformation:
+            transformationTemplate:
+              headers:
+                x-request-id:
+                  text: '{{ request_header("X-Request-Id") }}'
+EOF
+```
+
+This time, we haven't used the `targetRefs` option. Instead, we're going to update the `HTTPRoute` object to target the `RouteOption` object. This way you can apply it to a single rule.
+
+```bash
+kubectl apply --context ${CLUSTER1} -f - <<EOF
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: httpbin
+  namespace: httpbin
+spec:
+  rules:
+    - matches:
+      - path:
+          type: PathPrefix
+          value: /
+      filters:
+        - type: ExtensionRef
+          extensionRef:
+            group: gateway.solo.io
+            kind: RouteOption
+            name: routeoption
+      backendRefs:
+        - name: httpbin1
+          port: 8000
+EOF
+```
+
+Try to access the application:
+
+```shell
+curl -k "https://httpbin.example.com/get" -I
+```
+
+Here is the expected output:
+
+```http,nocopy
+HTTP/2 200 
+access-control-allow-credentials: true
+access-control-allow-origin: *
+date: Tue, 23 Jul 2024 13:13:53 GMT
+x-envoy-upstream-service-time: 0
+x-request-id: 67052060-3b22-4782-8078-1344b26a774a
+server: envoy
+```
+
+You can see the `X-Request-Id` response header has been added correctly.
+
+<!--bash
+cat <<'EOF' > ./test.js
+const helpersHttp = require('./tests/chai-http');
+
+describe("response transformation applied", () => {
+  it('Checking \'X-Request-Id\' header', () => helpersHttp.checkHeaders({ host: `https://httpbin.example.com`, path: '/get', expectedHeaders: [{'key': 'x-request-id', 'value': '*'}]}));
+})
+EOF
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/transformations/tests/x-request-id-response-header.js.liquid"
+tempfile=$(mktemp)
+echo "saving errors in ${tempfile}"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
+-->
+
+Let's apply the original `HTTPRoute` yaml:
+
+```bash
+kubectl apply --context ${CLUSTER1} -f - <<EOF
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: httpbin
+  namespace: httpbin
+spec:
+  rules:
+    - matches:
+      - path:
+          type: PathPrefix
+          value: /
+      backendRefs:
+        - name: httpbin1
+          port: 8000
+EOF
+```
+
+Let's delete the `RouteOption` object:
+```bash
+kubectl delete --context ${CLUSTER1} -n httpbin routeoption routeoption
+```
 
 
 
@@ -3751,7 +3981,174 @@ EOF
 
 
 
-## Lab 17 - Deploy the Bookinfo sample application <a name="lab-17---deploy-the-bookinfo-sample-application-"></a>
+## Lab 17 - Deploy OpenTelemetry Collector <a name="lab-17---deploy-opentelemetry-collector-"></a>
+
+Having metrics is essential for running applications reliably, and gateways are no exceptions.
+
+Using [OpenTelemetry Collectors](https://github.com/open-telemetry/opentelemetry-collector-contrib) is a nice way to collect, transform, and ship telemetry to your observability backends.
+
+Let's deploy the OSS distribution of OpenTelemetry Collector, and get started!
+
+```bash
+helm repo add open-telemetry https://open-telemetry.github.io/opentelemetry-helm-charts
+helm repo update
+
+helm upgrade --install opentelemetry-collector open-telemetry/opentelemetry-collector \
+--version 0.97.1 \
+--set mode=deployment \
+--set image.repository="otel/opentelemetry-collector-contrib" \
+--set command.name="otelcol-contrib" \
+--namespace=otel \
+--create-namespace \
+-f -<<EOF
+clusterRole:
+  create: true
+  rules:
+  - apiGroups:
+    - ''
+    resources:
+    - 'pods'
+    - 'nodes'
+    verbs:
+    - 'get'
+    - 'list'
+    - 'watch'
+ports:
+  promexporter:
+    enabled: true
+    containerPort: 9099
+    servicePort: 9099
+    protocol: TCP
+config:
+  receivers:
+    prometheus/gloo:
+      config:
+        scrape_configs:
+        # Scrape the Gloo pods
+        - job_name: gloo-gateways
+          honor_labels: true
+          kubernetes_sd_configs:
+          - role: pod
+            selectors:
+            - role: pod
+          relabel_configs:
+            - action: keep
+              regex: kube-gateway
+              source_labels:
+              - __meta_kubernetes_pod_label_gloo
+            - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+              action: keep
+              regex: true
+            - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+              action: replace
+              target_label: __metrics_path__
+              regex: (.+)
+            - action: replace
+              source_labels:
+              - __meta_kubernetes_pod_ip
+              - __meta_kubernetes_pod_annotation_prometheus_io_port
+              separator: ':'
+              target_label: __address__
+            - action: labelmap
+              regex: __meta_kubernetes_pod_label_(.+)
+            - source_labels: [__meta_kubernetes_namespace]
+              action: replace
+              target_label: kube_namespace
+            - source_labels: [__meta_kubernetes_pod_name]
+              action: replace
+              target_label: pod
+  exporters:
+    prometheus:
+      endpoint: 0.0.0.0:9099
+    debug: {}
+  service:
+    pipelines:
+      metrics:
+        receivers: [prometheus/gloo]
+        processors: [batch]
+        exporters: [prometheus]
+EOF
+```
+
+This deployment will now scrape our Gateways' metrics, and expose these metrics in Prometheus format.
+
+While you could scrape the Gateway pods directly as well, that might only work if you only want to consume them from the local cluster. Or, you could be standardizing on OpenTelemetry to avoid vendor/project specific agents. In this case, ingesting the metrics into an OTel Collector can make perfect sense, since you can freely transform telemetry data and ship to the backend of your liking.
+
+For simplicity's sake, let's imagine that our desired backend is a local Prometheus instance. Let's get the telemetry data in to that one!
+
+First, let's install kube-prometheus-stack!
+
+```bash
+helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+helm repo update
+
+helm upgrade --install kube-prometheus-stack \
+prometheus-community/kube-prometheus-stack \
+--version 61.2.0 \
+--namespace monitoring \
+--create-namespace \
+--values - <<EOF
+grafana:
+  service:
+    type: LoadBalancer
+    port: 3000
+prometheus:
+  prometheusSpec:
+    ruleSelectorNilUsesHelmValues: false
+    serviceMonitorSelectorNilUsesHelmValues: false
+    podMonitorSelectorNilUsesHelmValues: false
+EOF
+```
+
+Finally, configure scraping for our OTel Collector via a PodMonitor!
+
+```bash
+cat <<EOF | kubectl apply -n otel -f -
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: otel-monitor
+spec:
+  podMetricsEndpoints:
+  - interval: 30s
+    port: promexporter
+    scheme: http
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: opentelemetry-collector
+EOF
+```
+
+Now let's import a sample dashboard!
+
+```bash
+kubectl -n monitoring create cm envoy-dashboard \
+--from-file=data/steps/deploy-otel-collector/envoy.json
+kubectl label -n monitoring cm envoy-dashboard grafana_dashboard=1
+```
+
+Let's generate some traffic!
+
+```shell,run
+for i in {1..5}; do curl https://httpbin.example.com/get -v; done
+```
+
+
+To access Grafana, you need to get the endpoint using the following command:
+
+```bash
+echo "http://$(kubectl --context ${CLUSTER1} -n monitoring get svc kube-prometheus-stack-grafana -o jsonpath='{.status.loadBalancer.ingress[0].*}'):3000"
+```
+
+
+Login with `admin` and `prom-operator` you should be able to see how traffic flows trough your Gateways!
+			    
+![Envoy dashboard](images/steps/deploy-otel-collector/envoy.png)
+
+
+
+
+## Lab 18 - Deploy the Bookinfo sample application <a name="lab-18---deploy-the-bookinfo-sample-application-"></a>
 [<img src="https://img.youtube.com/vi/nzYcrjalY5A/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/nzYcrjalY5A "Video Link")
 
 We're going to deploy the Bookinfo sample application to demonstrate several features of Gloo Gateway.
@@ -3796,7 +4193,7 @@ Configure your hosts file to resolve bookinfo.example.com with the IP address of
 
 
 
-## Lab 18 - Expose the productpage API securely <a name="lab-18---expose-the-productpage-api-securely-"></a>
+## Lab 19 - Expose the productpage API securely <a name="lab-19---expose-the-productpage-api-securely-"></a>
 
 Gloo Gateway includes a developer portal, which provides a framework for managing API discovery, API client identity, and API policies.
 
@@ -4274,7 +4671,7 @@ As you can see, we can also define custom metadata at the Api product level. We 
 
 
 
-## Lab 19 - Expose an external API and stitch it with the productpage API <a name="lab-19---expose-an-external-api-and-stitch-it-with-the-productpage-api-"></a>
+## Lab 20 - Expose an external API and stitch it with the productpage API <a name="lab-20---expose-an-external-api-and-stitch-it-with-the-productpage-api-"></a>
 
 You can also use Gloo Gateway to expose an API that is outside of the cluster. In this section, we will expose `https://openlibrary.org/search.json`
 
@@ -4537,7 +4934,7 @@ EOF
 
 
 
-## Lab 20 - Expose the dev portal backend <a name="lab-20---expose-the-dev-portal-backend-"></a>
+## Lab 21 - Expose the dev portal backend <a name="lab-21---expose-the-dev-portal-backend-"></a>
 
 Now that your API has been exposed securely and our plans defined, lets advertise this API through a developer portal.
 
@@ -4701,7 +5098,7 @@ We'll create it later.
 
 
 
-## Lab 21 - Deploy and expose the dev portal frontend <a name="lab-21---deploy-and-expose-the-dev-portal-frontend-"></a>
+## Lab 22 - Deploy and expose the dev portal frontend <a name="lab-22---deploy-and-expose-the-dev-portal-frontend-"></a>
 
 The developer frontend is provided as a fully functional template to allow you to customize it based on your own requirements.
 
@@ -4933,7 +5330,7 @@ Now, if you click on the `VIEW APIS` button, you should see the `Bookinfo REST A
 
 
 
-## Lab 22 - Dev portal monetization <a name="lab-22---dev-portal-monetization-"></a>
+## Lab 23 - Dev portal monetization <a name="lab-23---dev-portal-monetization-"></a>
 
 The `portalMetadata` section of the `ApiProduct` objects we've created previously is used to add some metadata in the access logs.
 
@@ -5063,7 +5460,7 @@ timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=150 --bail 2> 
 
 
 
-## Lab 23 - Deploy Backstage with the backend plugin <a name="lab-23---deploy-backstage-with-the-backend-plugin-"></a>
+## Lab 24 - Deploy Backstage with the backend plugin <a name="lab-24---deploy-backstage-with-the-backend-plugin-"></a>
 
 Let's deploy Postgres, before deploying Backstage:
 
