@@ -7,7 +7,7 @@ source ./scripts/assert.sh
 
 <center><img src="images/gloo-gateway.png" alt="Gloo Mesh Gateway" style="width:70%;max-width:800px" /></center>
 
-# <center>Gloo Mesh Gateway Advanced (2.5.7)</center>
+# <center>Gloo Mesh Gateway Advanced (2.5.9)</center>
 
 
 
@@ -170,12 +170,12 @@ docker.io/openpolicyagent/opa:0.57.1-debug
 docker.io/redis:7.2.4-alpine
 gcr.io/field-engineering-eu/graphql-passthrough-grpc-service:0.1
 gcr.io/gloo-mesh/ext-auth-service:0.56.8
-gcr.io/gloo-mesh/gloo-mesh-agent:2.5.7
-gcr.io/gloo-mesh/gloo-mesh-apiserver:2.5.7
-gcr.io/gloo-mesh/gloo-mesh-envoy:2.5.7
-gcr.io/gloo-mesh/gloo-mesh-mgmt-server:2.5.7
-gcr.io/gloo-mesh/gloo-mesh-ui:2.5.7
-gcr.io/gloo-mesh/gloo-otel-collector:2.5.7
+gcr.io/gloo-mesh/gloo-mesh-agent:2.5.9
+gcr.io/gloo-mesh/gloo-mesh-apiserver:2.5.9
+gcr.io/gloo-mesh/gloo-mesh-envoy:2.5.9
+gcr.io/gloo-mesh/gloo-mesh-mgmt-server:2.5.9
+gcr.io/gloo-mesh/gloo-mesh-ui:2.5.9
+gcr.io/gloo-mesh/gloo-otel-collector:2.5.9
 gcr.io/gloo-mesh/rate-limiter:0.11.11
 quay.io/jetstack/cert-manager-cainjector:v1.12.4
 quay.io/jetstack/cert-manager-controller:v1.12.4
@@ -217,7 +217,7 @@ done
 Before we get started, let's install the `meshctl` CLI:
 
 ```bash
-export GLOO_MESH_VERSION=v2.5.7
+export GLOO_MESH_VERSION=v2.5.9
 curl -sL https://run.solo.io/meshctl/install | sh -
 export PATH=$HOME/.gloo-mesh/bin:$PATH
 ```
@@ -260,13 +260,13 @@ helm upgrade --install gloo-platform-crds gloo-platform-crds \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${MGMT} \
-  --version 2.5.7
+  --version 2.5.9
 
 helm upgrade --install gloo-platform-mgmt gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${MGMT} \
-  --version 2.5.7 \
+  --version 2.5.9 \
   -f -<<EOF
 licensing:
   glooTrialLicenseKey: ${GLOO_MESH_LICENSE_KEY}
@@ -845,7 +845,7 @@ helm upgrade --install gloo-platform gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh-addons \
   --kube-context ${CLUSTER1} \
-  --version 2.5.7 \
+  --version 2.5.9 \
   -f -<<EOF
 common:
   cluster: cluster1
