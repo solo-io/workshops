@@ -36,7 +36,13 @@ global = {
     return request
       .send()
       .then(async function (res) {
-        expectedHeaders.forEach(header => expect(res.header[header.key]).to.equal(header.value));
+        expectedHeaders.forEach(header => {
+          if (header.value === '*') {
+            expect(res.header).to.have.property(header.key);
+          } else {
+            expect(res.header[header.key]).to.equal(header.value);
+          }
+        });
       });
   },
   checkWithMethod: ({ host, path, headers = [], method = "get", retCode }) => {
