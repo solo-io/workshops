@@ -3450,6 +3450,9 @@ Wait for the original deployment to terminate:
 ```bash
 kubectl --context ${CLUSTER1} -n bookinfo-backends wait --for=delete pod -l app=ratings,version=v1
 ```
+
+Use the `Bookinfo` tab to check you can see stars in the reviews part (on the right). It's showing the VM is providing the right data to the `ratings` service.
+
 <!--bash
 cat <<'EOF' > ./test.js
 const helpers = require('./tests/chai-http');
