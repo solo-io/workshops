@@ -5,6 +5,8 @@ source ./scripts/assert.sh
 
 
 
+<center><img src="images/gloo-gateway.png" alt="Gloo Gateway" style="width:70%;max-width:800px" /></center>
+
 # <center>Gloo Gateway Workshop</center>
 
 
@@ -40,7 +42,46 @@ source ./scripts/assert.sh
 
 ## Introduction <a name="introduction"></a>
 
-Gloo Gateway is a cloud-native Layer 7 proxy that is based on the [Kubernetes Gateway API](https://gateway-api.sigs.k8s.io/).
+[Gloo Gateway](https://www.solo.io/products/gloo-gateway/) is a feature-rich, fast, and flexible Kubernetes-native ingress controller and next-generation API gateway that is built on top of [Envoy proxy](https://www.envoyproxy.io/) and the [Kubernetes Gateway API](https://gateway-api.sigs.k8s.io/).
+
+Gloo Gateway is fully conformant with the Kubernetes Gateway API and extends its functionality with Solo’s custom Gateway APIs, such as `RouteOption`, `VirtualHostOption`, `Upstream`s, `RateLimitConfig`, or `AuthConfig`.
+These resources help to centrally configure routing, security, and resiliency rules for a specific component, such as a host, route, or gateway listener.
+
+These capabilities are grouped into two editions of Gloo Gateway:
+
+### Open source (OSS) Gloo Gateway
+
+Use Kubernetes Gateway API-native features and the following Gloo Gateway extensions to configure basic routing, security, and resiliency capabilities:
+
+* Access logging
+* Buffering
+* Cross-Origin Resource Sharing (CORS)
+* Cross-Site Request Forgery (CSRF)
+* Fault injection
+* Header control
+* Retries
+* Timeouts
+* Traffic tapping
+* Transformations
+
+### Gloo Gateway Enterprise Edition
+
+In addition to the features provided by the OSS edition, many more features are available in the Enterprise Edition, including:
+
+* External authentication and authorization
+* External processing
+* Data loss prevention
+* Developer portal
+* JSON web token (JWT)
+* Rate limiting
+* Response caching
+* Web Application Filters
+
+### Want to learn more about Gloo Gateway?
+
+In the labs that follow we present some of the common patterns that our customers use and provide a good entry point into the workings of Gloo Gateway.
+
+You can find more information about Gloo Gateway in the official documentation: <https://docs.solo.io/gateway/>.
 
 
 
@@ -122,40 +163,40 @@ Install Istio in Ambient mode:
 
 ```bash
 helm upgrade --install istio-base \
-  oci://us-docker.pkg.dev/gloo-mesh/istio-helm-a9ee4fe9f69a/base \
+  oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/base \
   -n istio-system --create-namespace \
   --version 1.22.1-solo \
   --kube-context ${CLUSTER1} \
   --wait
 
 helm upgrade --install istio-cni \
-  oci://us-docker.pkg.dev/gloo-mesh/istio-helm-a9ee4fe9f69a/cni \
+  oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/cni \
   -n istio-system \
   --version 1.22.1-solo \
   --set profile=ambient \
-  --set global.hub=us-docker.pkg.dev/gloo-mesh/istio-a9ee4fe9f69a \
+  --set global.hub=us-docker.pkg.dev/gloo-mesh/istio-<enterprise_istio_repo> \
   --set global.tag=1.22.1-solo \
   --kube-context ${CLUSTER1} \
   --wait
 
 helm upgrade --install istiod \
-  oci://us-docker.pkg.dev/gloo-mesh/istio-helm-a9ee4fe9f69a/istiod \
+  oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/istiod \
   -n istio-system \
   --version 1.22.1-solo \
   --set profile=ambient \
-  --set global.hub=us-docker.pkg.dev/gloo-mesh/istio-a9ee4fe9f69a \
+  --set global.hub=us-docker.pkg.dev/gloo-mesh/istio-<enterprise_istio_repo> \
   --set global.tag=1.22.1-solo \
   --kube-context ${CLUSTER1} \
   --wait
 
 helm upgrade --install ztunnel \
-  oci://us-docker.pkg.dev/gloo-mesh/istio-helm-a9ee4fe9f69a/ztunnel \
+  oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/ztunnel \
   -n istio-system \
   --version 1.22.1-solo \
   --set profile=ambient \
-  --set hub=us-docker.pkg.dev/gloo-mesh/istio-a9ee4fe9f69a \
+  --set hub=us-docker.pkg.dev/gloo-mesh/istio-<enterprise_istio_repo> \
   --set tag=1.22.1-solo \
-  --set L7_ENABLED="true" \
+  --set env.L7_ENABLED="true" \
   --kube-context ${CLUSTER1} \
   --wait
 ```
@@ -240,9 +281,10 @@ gloo:
     gatewayProxy:
       disabled: true
   gateway:
-    persistProxySpec: true
+    persistProxySpec: false
     logLevel: info
     validation:
+      enabled: true
       alwaysAcceptResources: false
   gloo:
     logLevel: info
@@ -658,6 +700,7 @@ Run the following commands to deploy the httpbin app twice (`httpbin1` and `http
 ```bash
 kubectl --context $CLUSTER1 create ns httpbin
 kubectl --context $CLUSTER1 label namespace httpbin istio.io/dataplane-mode=ambient
+kubectl --context $CLUSTER1 label namespace httpbin istio-injection=disabled
 
 kubectl apply --context $CLUSTER1 -f - <<EOF
 apiVersion: v1
@@ -933,7 +976,7 @@ done
 if [[ -n "$PROXY_IP" && $PROXY_IP =~ [a-zA-Z] ]]; then
   while [[ -z "$IP" && $RETRY_COUNT -lt $MAX_RETRIES ]]; do
     echo "Waiting for PROXY_IP to be propagated in DNS... Attempt $((RETRY_COUNT + 1))/$MAX_RETRIES"
-    IP=$(dig +short A "$PROXY_IP")
+    IP=$(dig +short A "$PROXY_IP" | awk '/^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$/ {print; exit}')
     RETRY_COUNT=$((RETRY_COUNT + 1))
     sleep 5
   done
@@ -946,10 +989,12 @@ if [[ -z "$PROXY_IP" ]]; then
   exit 1
 else
   export PROXY_IP
+  export IP
   echo "PROXY_IP has been assigned: $PROXY_IP"
-  echo "PROXY_IP has been resolved to: $IP"
+  echo "IP has been resolved to: $IP"
 fi
 -->
+
 Configure your hosts file to resolve httpbin.example.com with the IP address of the proxy by executing the following command:
 
 ```bash
@@ -2585,7 +2630,6 @@ EOF
 Finally, you need to update the `RouteOption` to use this `RateLimitConfig`:
 
 ```bash
-sleep 5
 kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: gateway.solo.io/v1
 kind: RouteOption
@@ -4066,7 +4110,41 @@ ports:
     protocol: TCP
 config:
   receivers:
-    prometheus/gloo:
+    prometheus/gloo-dataplane:
+      config:
+        scrape_configs:
+        # Scrape the Gloo Gateway pods
+        - job_name: gloo-gateways
+          honor_labels: true
+          kubernetes_sd_configs:
+          - role: pod
+          relabel_configs:
+            - action: keep
+              regex: kube-gateway
+              source_labels:
+              - __meta_kubernetes_pod_label_gloo
+            - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+              action: keep
+              regex: true
+            - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+              action: replace
+              target_label: __metrics_path__
+              regex: (.+)
+            - action: replace
+              source_labels:
+              - __meta_kubernetes_pod_ip
+              - __meta_kubernetes_pod_annotation_prometheus_io_port
+              separator: ':'
+              target_label: __address__
+            - action: labelmap
+              regex: __meta_kubernetes_pod_label_(.+)
+            - source_labels: [__meta_kubernetes_namespace]
+              action: replace
+              target_label: kube_namespace
+            - source_labels: [__meta_kubernetes_pod_name]
+              action: replace
+	      target_label: pod
+    prometheus/gloo-controlplane:
       config:
         scrape_configs:
         # Scrape the Gloo pods
@@ -4074,11 +4152,9 @@ config:
           honor_labels: true
           kubernetes_sd_configs:
           - role: pod
-            selectors:
-            - role: pod
           relabel_configs:
             - action: keep
-              regex: kube-gateway
+              regex: gloo
               source_labels:
               - __meta_kubernetes_pod_label_gloo
             - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
@@ -4109,7 +4185,7 @@ config:
   service:
     pipelines:
       metrics:
-        receivers: [prometheus/gloo]
+        receivers: [prometheus/gloo-dataplane, prometheus/gloo-controlplane]
         processors: [batch]
         exporters: [prometheus]
 EOF
@@ -5112,7 +5188,7 @@ Make sure the domain is in our `/etc/hosts` file:
 
 You should now be able to access the portal API through the gateway:
 
-```bash
+```
 curl -k "https://portal.example.com/v1/api-products"
 ```
 
@@ -5314,6 +5390,11 @@ until ([ ! -z "$USER1_COOKIE" ] && [[ $USER1_COOKIE != *"dummy"* ]]) || [ $ATTEM
   sleep 1
   export USER1_COOKIE=$(node tests/keycloak-token.js "https://portal.example.com/v1/login" user1)
 done
+if [ $ATTEMPTS -gt 20 ]; then
+  echo "User1 token is not valid"
+else
+ATTEMPTS=1
+fi
 until ([ ! -z "$USER2_COOKIE" ] && [[ $USER2_COOKIE != *"dummy"* ]]) || [ $ATTEMPTS -gt 20 ]; do
   printf "."
   ATTEMPTS=$((ATTEMPTS + 1))

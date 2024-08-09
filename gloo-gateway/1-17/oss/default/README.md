@@ -5,6 +5,8 @@ source ./scripts/assert.sh
 
 
 
+<center><img src="images/gloo-gateway.png" alt="Gloo Gateway" style="width:70%;max-width:800px" /></center>
+
 # <center>Gloo Gateway Workshop</center>
 
 
@@ -25,7 +27,46 @@ source ./scripts/assert.sh
 
 ## Introduction <a name="introduction"></a>
 
-Gloo Gateway is a cloud-native Layer 7 proxy that is based on the [Kubernetes Gateway API](https://gateway-api.sigs.k8s.io/).
+[Gloo Gateway](https://www.solo.io/products/gloo-gateway/) is a feature-rich, fast, and flexible Kubernetes-native ingress controller and next-generation API gateway that is built on top of [Envoy proxy](https://www.envoyproxy.io/) and the [Kubernetes Gateway API](https://gateway-api.sigs.k8s.io/).
+
+Gloo Gateway is fully conformant with the Kubernetes Gateway API and extends its functionality with Solo’s custom Gateway APIs, such as `RouteOption`, `VirtualHostOption`, `Upstream`s, `RateLimitConfig`, or `AuthConfig`.
+These resources help to centrally configure routing, security, and resiliency rules for a specific component, such as a host, route, or gateway listener.
+
+These capabilities are grouped into two editions of Gloo Gateway:
+
+### Open source (OSS) Gloo Gateway
+
+Use Kubernetes Gateway API-native features and the following Gloo Gateway extensions to configure basic routing, security, and resiliency capabilities:
+
+* Access logging
+* Buffering
+* Cross-Origin Resource Sharing (CORS)
+* Cross-Site Request Forgery (CSRF)
+* Fault injection
+* Header control
+* Retries
+* Timeouts
+* Traffic tapping
+* Transformations
+
+### Gloo Gateway Enterprise Edition
+
+In addition to the features provided by the OSS edition, many more features are available in the Enterprise Edition, including:
+
+* External authentication and authorization
+* External processing
+* Data loss prevention
+* Developer portal
+* JSON web token (JWT)
+* Rate limiting
+* Response caching
+* Web Application Filters
+
+### Want to learn more about Gloo Gateway?
+
+In the labs that follow we present some of the common patterns that our customers use and provide a good entry point into the workings of Gloo Gateway.
+
+You can find more information about Gloo Gateway in the official documentation: <https://docs.solo.io/gateway/>.
 
 
 
@@ -463,7 +504,7 @@ done
 if [[ -n "$PROXY_IP" && $PROXY_IP =~ [a-zA-Z] ]]; then
   while [[ -z "$IP" && $RETRY_COUNT -lt $MAX_RETRIES ]]; do
     echo "Waiting for PROXY_IP to be propagated in DNS... Attempt $((RETRY_COUNT + 1))/$MAX_RETRIES"
-    IP=$(dig +short A "$PROXY_IP")
+    IP=$(dig +short A "$PROXY_IP" | awk '/^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$/ {print; exit}')
     RETRY_COUNT=$((RETRY_COUNT + 1))
     sleep 5
   done
@@ -476,10 +517,12 @@ if [[ -z "$PROXY_IP" ]]; then
   exit 1
 else
   export PROXY_IP
+  export IP
   echo "PROXY_IP has been assigned: $PROXY_IP"
-  echo "PROXY_IP has been resolved to: $IP"
+  echo "IP has been resolved to: $IP"
 fi
 -->
+
 Configure your hosts file to resolve httpbin.example.com with the IP address of the proxy by executing the following command:
 
 ```bash
