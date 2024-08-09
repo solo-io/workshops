@@ -130,6 +130,7 @@ helm --kube-context kind-kind${number} install cilium cilium/cilium --version 1.
    --set hostPort.enabled=true \
    --set bpf.masquerade=false \
    --set image.pullPolicy=IfNotPresent \
+   --set cni.exclusive=false \
    --set ipam.mode=kubernetes
 kubectl --context=kind-kind${number} -n kube-system rollout status ds cilium || true
 
