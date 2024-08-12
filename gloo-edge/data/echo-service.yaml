@@ -33,7 +33,7 @@ spec:
         version: v1
     spec:
       containers:
-      - image: hashicorp/http-echo:0.2.3
+      - image: hashicorp/http-echo:1.0.0
         imagePullPolicy: IfNotPresent
         name: echo-v1
         args:
