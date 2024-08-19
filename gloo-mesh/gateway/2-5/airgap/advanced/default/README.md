@@ -26,11 +26,9 @@ source ./scripts/assert.sh
 * [Lab 11 - Expose the productpage through a gateway](#lab-11---expose-the-productpage-through-a-gateway-)
 * [Lab 12 - Authorising with OPA](#lab-12---authorising-with-opa-)
 * [Lab 13 - Apply dynamic rate limiting to the Gateway](#lab-13---apply-dynamic-rate-limiting-to-the-gateway-)
-* [Lab 14 - Expose the bookinfo application through GraphQL](#lab-14---expose-the-bookinfo-application-through-graphql-)
-* [Lab 15 - Leverage GraphQL stitching](#lab-15---leverage-graphql-stitching-)
-* [Lab 16 - Apply rate limiting and authorization based on GraphQL queries/mutations](#lab-16---apply-rate-limiting-and-authorization-based-on-graphql-queries/mutations-)
-* [Lab 17 - Deploy the Amazon pod identity webhook](#lab-17---deploy-the-amazon-pod-identity-webhook-)
-* [Lab 18 - Execute Lambda functions](#lab-18---execute-lambda-functions-)
+* [Lab 14 - Apply rate limiting and authorization based on GraphQL queries/mutations](#lab-14---apply-rate-limiting-and-authorization-based-on-graphql-queries/mutations-)
+* [Lab 15 - Deploy the Amazon pod identity webhook](#lab-15---deploy-the-amazon-pod-identity-webhook-)
+* [Lab 16 - Execute Lambda functions](#lab-16---execute-lambda-functions-)
 
 
 
@@ -435,6 +433,8 @@ spec:
               env:
                 - name: PILOT_ENABLE_K8S_SELECT_WORKLOAD_ENTRIES
                   value: "false"
+                - name: PILOT_ENABLE_IP_AUTOALLOCATE
+                  value: "true"
           ingressGateways:
           - name: istio-ingressgateway
             enabled: false
@@ -653,7 +653,7 @@ We're going to deploy the httpbin application to demonstrate several features of
 
 You can find more information about this application [here](http://httpbin.org/).
 
-Run the following commands to deploy the httpbin app on `cluster1`. The deployment will be called `not-in-mesh` and won't have the sidecar injected (because we don't label the namespace).
+Run the following commands to deploy the httpbin app on `cluster1`. The deployment will be called `not-in-mesh` and won't have the sidecar injected, because of the annotation `sidecar.istio.io/inject: "false"`.
 
 ```bash
 kubectl --context ${CLUSTER1} create ns httpbin
@@ -792,7 +792,7 @@ do
 done"
 echo
 -->
-
+```
 You can follow the progress using the following command:
 
 ```bash
@@ -1714,652 +1714,7 @@ kubectl --context ${CLUSTER1} -n httpbin delete ratelimitserverconfig httpbin
 
 
 
-## Lab 14 - Expose the bookinfo application through GraphQL <a name="lab-14---expose-the-bookinfo-application-through-graphql-"></a>
-[<img src="https://img.youtube.com/vi/ucVMxX8oFz0/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/ucVMxX8oFz0 "Video Link")
-
-Gloo Mesh is enhancing the Istio Ingress Gateway to allow exposing some REST services as a GraphQL API.
-
-First, you need to create an `ApiDoc` to define your GraphQL API:
-
-```bash
-kubectl apply --context ${CLUSTER1} -f - <<EOF
-apiVersion: apimanagement.gloo.solo.io/v2
-kind: ApiDoc
-metadata:
-  name: bookinfo-api-doc
-  namespace: bookinfo-frontends
-  labels:
-    expose: "true"
-spec:
-  graphql:
-    schemaDefinition: |-
-      type Query {
-        """Description of a book in HTML"""
-        productsForHome: [Product] 
-      }
-      """Each book has a product entry"""
-      type Product {
-        """Unique identifier for books"""
-        id: String
-        """The book title"""
-        title: String
-        """Number of pages in the book"""
-        pages: Int
-        """Year the book was published"""
-        year: Int
-        """Description of a book in HTML"""
-        descriptionHtml: String
-        """List of reader reviews for this book. Queries the reviews REST service"""
-        reviews: [Review]
-        """List of reader ratings for this book. Queries the ratings REST service"""
-        ratings: [Rating]
-      }
-      """A book review"""
-      type Review {
-        """Name of the reviewer"""
-        reviewer: String
-        """Review details"""
-        text: String
-        "Reviewer Rating, this field is provided by the reviews REST service, which queries the ratings REST service"
-        rating: ReviewerRating
-      }
-      type ReviewerRating {
-        stars: Int
-        color: String
-      }
-      """A book rating"""
-      type Rating {
-        """Name of the user peforming the rating"""
-        reviewer: String
-        """Number of stars for this rating"""
-        numStars: Int
-      }
-EOF
-```
-
-Then, you need to create a `GraphQLResolverMap` to define the resolvers:
-
-```bash
-kubectl apply --context ${CLUSTER1} -f - <<EOF
-apiVersion: apimanagement.gloo.solo.io/v2
-kind: GraphQLResolverMap
-metadata:
-  name: bookinfo-graphql-resolvers
-  namespace: bookinfo-frontends
-  labels:
-    expose: "true"
-spec:
-  types:
-    Query:
-      fields:
-        productsForHome:
-          resolvers:
-          - restResolver:
-              destinations:
-              - port:
-                  number: 9080
-                ref:
-                  name: productpage
-                  namespace: bookinfo-frontends
-                  cluster: cluster1
-              request:
-                headers:
-                  :path:
-                    jq: '"/api/v1/products"'
-    Product:
-      fields:
-        reviews:
-          variables:
-            parentVar:
-              graphqlParent: {}
-            resolverResultVar:
-              resolverResult: {}
-          resolvers:
-          - restResolver:
-              destinations:
-              - port:
-                  number: 9080
-                ref:
-                  name: reviews
-                  namespace: bookinfo-backends
-                  cluster: cluster1
-              request:
-                headers:
-                  :path:
-                    jq: '"/reviews/" + (.parentVar.id | tostring)'
-            resolverResultTransform:
-              jq: '.resolverResultVar.reviews'
-        ratings:
-          variables:
-            parentVar:
-              graphqlParent: {}
-            resolverResultVar:
-              resolverResult: {}
-          resolvers:
-          - restResolver:
-              destinations:
-              - port:
-                  number: 9080
-                ref:
-                  name: ratings
-                  namespace: bookinfo-backends
-                  cluster: cluster1
-              request:
-                headers:
-                  :path:
-                    jq: '"/ratings/" + (.parentVar.id | tostring)'
-            resolverResultTransform:
-              jq: '.resolverResultVar.ratings | to_entries | map(.reviewer=.key | .numStars=.value | del(.key,.value))'
-EOF
-```
-
-After that, you need to create an `ApiSchema` which references the `ApiDoc` and the `GraphQLResolverMap`:
-
-```bash
-kubectl apply --context ${CLUSTER1} -f - <<EOF
-apiVersion: apimanagement.gloo.solo.io/v2
-kind: GraphQLSchema
-metadata:
-  name: bookinfo-graphql-schema
-  namespace: bookinfo-frontends
-  labels:
-    expose: "true"
-spec:
-  schemaRef:
-    name: bookinfo-api-doc
-    namespace: bookinfo-frontends
-    clusterName: cluster1
-  resolved:
-    options: {}
-    resolverMapRefs:
-    - name: bookinfo-graphql-resolvers
-      namespace: bookinfo-frontends
-      clusterName: cluster1
-EOF
-```
-
-Finally, you can create a `RouteTable` to expose the GraphQL API:
-
-```bash
-kubectl apply --context ${CLUSTER1} -f - <<EOF
-apiVersion: networking.gloo.solo.io/v2
-kind: RouteTable
-metadata:
-  name: graphql
-  namespace: bookinfo-frontends
-  labels:
-    expose: "true"
-spec:
-  http:
-  - graphql:
-      schema:
-        name: bookinfo-graphql-schema
-        namespace: bookinfo-frontends
-        clusterName: cluster1
-    matchers:
-    - uri:
-        prefix: /graphql
-    labels:
-      graphql: "true"
-EOF
-```
-
-Now, you can try to 
-
-```bash
-curl -k "https://cluster1-bookinfo.example.com/graphql" --data '{"query":"{productsForHome { title ratings {reviewer numStars}}}"}' | jq .
-```
-
-Here is the expected output:
-
-```
-{
-  "data": {
-    "productsForHome": [
-      {
-        "title": "The Comedy of Errors",
-        "ratings": [
-          {
-            "reviewer": "Reviewer1",
-            "numStars": 5
-          },
-          {
-            "reviewer": "Reviewer2",
-            "numStars": 4
-          }
-        ]
-      }
-    ]
-  }
-}
-```
-
-<!--bash
-cat <<'EOF' > ./test.js
-const chaiExec = require("@jsdevtools/chai-exec");
-var chai = require('chai');
-var expect = chai.expect;
-chai.use(chaiExec);
-
-afterEach(function (done) {
-  if (this.currentTest.currentRetry() > 0) {
-    process.stdout.write(".");
-    setTimeout(done, 1000);
-  } else {
-    done();
-  }
-});
-
-describe("GraphQL", function() {
-  it('GraphQL query returning the expected output', function () {
-    
-    let command = `curl -ks "https://cluster1-bookinfo.example.com/graphql" --data '{"query":" {productsForHome { title ratings {reviewer numStars}}}"}'`
-    let cli = chaiExec(command);
-    expect(cli).to.exit.with.code(0);
-    expect(cli).output.to.contain('{"data":{"productsForHome":[{"title":"The Comedy of Errors","ratings":[{"reviewer":"Reviewer1","numStars":5},{"reviewer":"Reviewer2","numStars":4}]}]}}');
-  })
-});
-EOF
-echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/apps/bookinfo/gateway-graphql/tests/graphql.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
--->
-
-Create the following `CORSPolicy` to allow using the GraphQL explorer from the Gloo Mesh UI:
-
-```bash
-kubectl apply --context ${CLUSTER1} -f - <<EOF
-apiVersion: security.policy.gloo.solo.io/v2
-kind: CORSPolicy
-metadata:
-  name: graphql-explorer
-  namespace: bookinfo-frontends
-spec:
-  applyToRoutes:
-  - route:
-      labels:
-        graphql: "true"
-  config:
-    allowCredentials: true
-    allowHeaders:
-    - apollo-query-plan-experimental
-    - content-type
-    - x-apollo-tracing
-    allowMethods:
-    - POST
-    allowOrigins:
-    - regex: ".*"
-EOF
-```
-
-
-
-## Lab 15 - Leverage GraphQL stitching <a name="lab-15---leverage-graphql-stitching-"></a>
-[<img src="https://img.youtube.com/vi/CuTOrhJNIVs/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/CuTOrhJNIVs "Video Link")
-
-In this lab, we're going to expose and External REST API as a GraphQL API and then to stitch is with the GraphQL API we've created previously.
-
-First, you need to create an `ApiDoc` to define your GraphQL API:
-
-```bash
-kubectl apply --context ${CLUSTER1} -f - <<EOF
-apiVersion: apimanagement.gloo.solo.io/v2
-kind: ApiDoc
-metadata:
-  name: openlibrary-api-doc
-  namespace: bookinfo-frontends
-  labels:
-    expose: "true"
-spec:
-  graphql:
-    schemaDefinition: |-
-      type Query {
-        product(title: String!): Product
-      }
-      type Product {
-        title: String
-        languages: [String]
-      }
-EOF
-```
-
-You also need to create an external service to define how to access the host `openlibrary.org`:
-
-```bash
-kubectl apply --context ${CLUSTER1} -f - <<EOF
-apiVersion: networking.gloo.solo.io/v2
-kind: ExternalService
-metadata:
-  name: openlibrary
-  namespace: bookinfo-frontends
-  labels:
-    expose: "true"
-spec:
-  hosts:
-  - openlibrary.org
-  ports:
-  - name: http
-    number: 80
-    protocol: HTTP
-  - name: https
-    number: 443
-    protocol: HTTPS
-    clientsideTls: {}
-EOF
-```
-
-Then, you need to create a `GraphQLResolverMap` to define the resolvers:
-
-```bash
-kubectl apply --context ${CLUSTER1} -f - <<EOF
-apiVersion: apimanagement.gloo.solo.io/v2
-kind: GraphQLResolverMap
-metadata:
-  name: openlibrary-graphql-resolvers
-  namespace: bookinfo-frontends
-  labels:
-    expose: "true"
-spec:
-  types:
-    Query:
-      fields:
-        product:
-          variables:
-            titleVar:
-              graphqlArg: title
-            resolverResultVar:
-              resolverResult: {}
-          resolvers:
-          - restResolver:
-              destinations:
-              - port:
-                  number: 80
-                kind: EXTERNAL_SERVICE
-                ref:
-                  name: openlibrary
-                  namespace: bookinfo-frontends
-                  cluster: cluster1
-              request:
-                headers:
-                  :authority:
-                    jq: '"openlibrary.org"'
-                  :path:
-                    jq: '"/search.json"'
-                queryParams:
-                  title:
-                    jq: '.titleVar | @uri'
-                  fields:
-                    jq: '"language"'
-            resolverResultTransform:
-              jq: '{title: .titleVar, languages: [.resolverResultVar.docs[] | select(.language != null) | .language] | add | unique}'
-EOF
-```
-
-After that, you need to create an `ApiSchema` which references the `ApiDoc` and the `GraphQLResolverMap`:
-
-```bash
-kubectl apply --context ${CLUSTER1} -f - <<EOF
-apiVersion: apimanagement.gloo.solo.io/v2
-kind: GraphQLSchema
-metadata:
-  name: openlibrary-graphql-schema
-  namespace: bookinfo-frontends
-  labels:
-    expose: "true"
-spec:
-  schemaRef:
-    name: openlibrary-api-doc
-    namespace: bookinfo-frontends
-    clusterName: cluster1
-  resolved:
-    options: {}
-    resolverMapRefs:
-    - name: openlibrary-graphql-resolvers
-      namespace: bookinfo-frontends
-      clusterName: cluster1
-EOF
-```
-
-Finally, you can create a `RouteTable` to expose the GraphQL API:
-
-```bash
-kubectl apply --context ${CLUSTER1} -f - <<EOF
-apiVersion: networking.gloo.solo.io/v2
-kind: RouteTable
-metadata:
-  name: openlibrary
-  namespace: bookinfo-frontends
-  labels:
-    expose: "true"
-spec:
-  http:
-  - graphql:
-      options:
-        logSensitiveInfo: true
-      schema:
-        name: openlibrary-graphql-schema
-        namespace: bookinfo-frontends
-        clusterName: cluster1
-    matchers:
-    - uri:
-        prefix: /openlibrary
-    labels:
-      graphql: "true"
-EOF
-```
-
-Now, you can try to access the GraphQL API:
-
-```
-curl -ks "https://cluster1-bookinfo.example.com/openlibrary" --data '{"query":"{product(title: \"The Comedy of Errors\"){title languages}}"}' -X POST | jq .
-```
-
-Here is the expected output:
-
-```
-{
-  "data": {
-    "product": {
-      "title": "The Comedy of Errors",
-      "languages": [
-        "chi",
-        "dut",
-        "eng",
-        "esp",
-        "fin",
-        "fre",
-        "ger",
-        "heb",
-        "ita",
-        "mul",
-        "nor",
-        "slo",
-        "spa",
-        "tsw",
-        "tur",
-        "und"
-      ]
-    }
-  }
-}
-```
-
-<!--bash
-cat <<'EOF' > ./test.js
-const chaiExec = require("@jsdevtools/chai-exec");
-var chai = require('chai');
-var expect = chai.expect;
-chai.use(chaiExec);
-
-afterEach(function (done) {
-  if (this.currentTest.currentRetry() > 0) {
-    process.stdout.write(".");
-    setTimeout(done, 1000);
-  } else {
-    done();
-  }
-});
-
-describe("GraphQL", function() {
-  it('GraphQL query returning the expected output', function () {
-    
-    let command = `curl -ks "https://cluster1-bookinfo.example.com/openlibrary" --data '{"query":"{product(title: \\"The Comedy of Errors\\"){title languages}}"}'`
-    let cli = chaiExec(command);
-    expect(cli).to.exit.with.code(0);
-    expect(cli).output.to.contain('{"data":{"product":{"title":"The Comedy of Errors","languages":["chi","dut","eng","epo","fin","fre","ger","heb","ita","mul","nor","slo","spa","tsn","tur","und"]}}}');
-  })
-});
-EOF
-echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/apps/bookinfo/gateway-graphql-stitching/tests/graphql.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
--->
-
-Let's now stitch together the 2 GraphQL API.
-
-For this, you need to create a `GraphQLStitchedSchema` which references the 2 existing `GraphQLSchema` and how to merge them:
-
-```bash
-kubectl apply --context ${CLUSTER1} -f - <<EOF
-apiVersion: apimanagement.gloo.solo.io/v2
-kind: GraphQLStitchedSchema
-metadata:
-  name: openlibrary-graphql-stitched-schema
-  namespace: bookinfo-frontends
-  labels:
-    expose: "true"
-spec:
-  subschemas:
-  - schema:
-      name: bookinfo-graphql-schema
-      namespace: bookinfo-frontends
-      clusterName: cluster1
-  - schema:
-      name: openlibrary-graphql-schema
-      namespace: bookinfo-frontends
-      clusterName: cluster1
-    typeMerge:
-      Product:
-        selectionSet: '{ title }'
-        queryName: product
-        args:
-          title: title
-EOF
-```
-
-Then, you can create a new `RouteTable` to expose the stitched GraphQL API:
-
-```bash
-kubectl apply --context ${CLUSTER1} -f - <<EOF
-apiVersion: networking.gloo.solo.io/v2
-kind: RouteTable
-metadata:
-  name: graphql-stitched
-  namespace: bookinfo-frontends
-  labels:
-    expose: "true"
-spec:
-  http:
-  - graphql:
-      stitchedSchema:
-        name: openlibrary-graphql-stitched-schema
-        namespace: bookinfo-frontends
-        clusterName: cluster1
-    matchers:
-    - uri:
-        prefix: /graphql-stitched
-    labels:
-      graphql: "true"
-EOF
-```
-
-Now, you can try to access the GraphQL API:
-
-```
-curl -ks "https://cluster1-bookinfo.example.com/graphql-stitched" --data '{"query":"{productsForHome { title languages ratings {reviewer numStars}}}"}' -X POST | jq .
-```
-
-Here is the expected output:
-
-```
-{
-  "data": {
-    "productsForHome": [
-      {
-        "title": "The Comedy of Errors",
-        "languages": [
-          "chi",
-          "dut",
-          "eng",
-          "esp",
-          "fin",
-          "fre",
-          "ger",
-          "heb",
-          "ita",
-          "mul",
-          "nor",
-          "slo",
-          "spa",
-          "tsw",
-          "tur",
-          "und"
-        ],
-        "ratings": [
-          {
-            "reviewer": "Reviewer1",
-            "numStars": 5
-          },
-          {
-            "reviewer": "Reviewer2",
-            "numStars": 4
-          }
-        ]
-      }
-    ]
-  }
-}
-```
-
-You can see we have an output which combines the data obtained from the 2 GraphQL APIs.
-
-<!--bash
-cat <<'EOF' > ./test.js
-const chaiExec = require("@jsdevtools/chai-exec");
-var chai = require('chai');
-var expect = chai.expect;
-chai.use(chaiExec);
-
-afterEach(function (done) {
-  if (this.currentTest.currentRetry() > 0) {
-    process.stdout.write(".");
-    setTimeout(done, 1000);
-  } else {
-    done();
-  }
-});
-
-describe("GraphQL stitched", function() {
-  it('GraphQL query returning the expected output', function () {
-    
-    let command = `curl -ks "https://cluster1-bookinfo.example.com/graphql-stitched" --data '{"query":" {productsForHome { title languages ratings {reviewer numStars}}}"}'`
-    let cli = chaiExec(command);
-    expect(cli).to.exit.with.code(0);
-    expect(cli).output.to.contain('{"data":{"productsForHome":[{"title":"The Comedy of Errors","languages":["chi","dut","eng","epo","fin","fre","ger","heb","ita","mul","nor","slo","spa","tsn","tur","und"],"ratings":[{"reviewer":"Reviewer1","numStars":5},{"reviewer":"Reviewer2","numStars":4}]}]}}');
-  })
-});
-EOF
-echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/apps/bookinfo/gateway-graphql-stitching/tests/graphql-stitched.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
--->
-
-
-
-## Lab 16 - Apply rate limiting and authorization based on GraphQL queries/mutations <a name="lab-16---apply-rate-limiting-and-authorization-based-on-graphql-queries/mutations-"></a>
+## Lab 14 - Apply rate limiting and authorization based on GraphQL queries/mutations <a name="lab-14---apply-rate-limiting-and-authorization-based-on-graphql-queries/mutations-"></a>
 
 In this lab, we're going to apply some rate limits and authorization based on GraphQL queries/mutations.
 
@@ -2439,9 +1794,9 @@ EOF
 It's going to create the following header for each query/mutation:
 - X-Graphql-Query-Mutation-<query/mutation name>
 
-We have exposed the `product` and `productsForHome` queries so far, so here are the header which will potentially be created:
-- X-Graphql-Query-Mutation-Product
-- X-Graphql-Query-Mutation-ProductsForHome
+We will be using the `countries` and `continents` queries, so here are the header which will potentially be created:
+- X-Graphql-Query-Mutation-Countries
+- X-Graphql-Query-Mutation-Continents
 
 We can use the new headers to apply rate limiting.
 
@@ -2472,7 +1827,7 @@ spec:
           unit: MINUTE
         alwaysApply: true
       - simpleDescriptors:
-          - key: graphql-query-mutation-product
+          - key: graphql-query-mutation-countries
             value: "true"
         rateLimit:
           requestsPerUnit: 10
@@ -2504,11 +1859,11 @@ spec:
       rateLimits:
       - setActions:
         - requestHeaders:
-            descriptorKey: graphql-query-mutation-product
-            headerName: X-Graphql-Query-Mutation-Product
+            descriptorKey: graphql-query-mutation-countries
+            headerName: X-Graphql-Query-Mutation-Countries
         - requestHeaders:
-            descriptorKey: graphql-query-mutation-productsForHome
-            headerName: X-Graphql-Query-Mutation-ProductsForHome
+            descriptorKey: graphql-query-mutation-continents
+            headerName: X-Graphql-Query-Mutation-Continents
     ratelimitServerConfig:
       name: graphql
       namespace: bookinfo-frontends
@@ -2519,49 +1874,57 @@ spec:
 EOF
 ```
 
-Create a Service Entry (temporary workaround):
-
+Expose a GraphQL endpoint on the gateway:
 ```bash
 kubectl apply --context ${CLUSTER1} -f - <<EOF
-apiVersion: networking.istio.io/v1alpha3
-kind: ServiceEntry
+apiVersion: networking.gloo.solo.io/v2
+kind: ExternalService
 metadata:
-  name: graphql-badhost
-  namespace: istio-gateways
+  name: countries-trevorblades-443
+  namespace: bookinfo-frontends
+  labels:
+    expose: "true"
 spec:
   hosts:
-  - graphql-o4bo-WppHSxD6Ox2.badHost.solo.io
-  location: MESH_INTERNAL
+  - countries.trevorblades.com
   ports:
-  - number: 21345
-    name: http
-    protocol: HTTP
-  resolution: STATIC
-  workloadSelector:
-    labels:
-      graphql-badHost: o4bo-WppHSxD6Ox2
+  - name: https
+    number: 443
+    protocol: HTTPS
+    clientsideTls: {}
+---
+apiVersion: networking.gloo.solo.io/v2
+kind: RouteTable
+metadata:
+  name: countries-trevorblades
+  namespace: bookinfo-frontends
+  labels:
+    expose: "true"
+    graphql: "true"
+spec:
+  http:
+    - name: trevorblades
+      matchers:
+      - uri:
+          exact: /graphql
+      forwardTo:
+        hostRewrite: countries.trevorblades.com
+        pathRewrite: /
+        destinations:
+        - kind: EXTERNAL_SERVICE
+          port:
+            number: 443
+          ref:
+            name: countries-trevorblades-443
+            namespace: bookinfo-frontends
+
 EOF
 ```
-
-<!--bash
-cat <<'EOF' > ./test.js
-const helpers = require('./tests/chai-exec');
-
-describe("Rate limiting is working properly", () => {
-  const command = `curl -ks "https://cluster1-bookinfo.example.com/graphql-stitched" --data '{"query":"{productsForHome { title languages ratings {reviewer numStars}}}"}' -X POST -o /dev/null -w "%{http_code}"`;
-  it('Got the expected status code 429', () => helpers.genericCommand({ command: command, responseContains: "429" }));
-});
-EOF
-echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/apps/bookinfo/gateway-graphql-rate-limiting-and-authorization/tests/rate-limited.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
--->
 
 Try to access the GraphQL API multiple times:
 
-```
-curl -ks "https://cluster1-bookinfo.example.com/graphql-stitched" --data '{"query":"{productsForHome { title languages ratings {reviewer numStars}}}"}' -X POST -o /dev/null -w "%{http_code}"
+```shell
+curl -ks "https://cluster1-bookinfo.example.com/graphql --data '{ "query": "{ countries { name, code, capital, currency, languages { code, name } } }" }' https://countries.trevorblades.com/ -o /dev/null -w "%{http_code}"
 ```
 
 <!--bash
@@ -2569,11 +1932,11 @@ cat <<'EOF' > ./test.js
 const helpers = require('./tests/chai-exec');
 
 describe("Rate limiting is working properly", () => {
-  const command = `curl -ks "https://cluster1-bookinfo.example.com/graphql-stitched" --data '{"query":"{productsForHome { title languages ratings {reviewer numStars}}}"}' -X POST -o /dev/null -w "%{http_code}"`;
+  const command = `curl -ks "https://cluster1-bookinfo.example.com/graphql" --data '{ "query": "{ countries { name, code, capital, currency, languages { code, name } } }" }' -H "Content-Type: application/json" -o /dev/null -w "%{http_code}"`;
   it('Got the expected status code 429', () => helpers.genericCommand({ command: command, responseContains: "429" }));
 });
 EOF
-echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/apps/bookinfo/gateway-graphql-rate-limiting-and-authorization/tests/rate-limited.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/gateway-graphql-rate-limiting-and-authorization/tests/rate-limited.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
@@ -2590,7 +1953,7 @@ kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: deny-product
+  name: deny-continents
   namespace: bookinfo-frontends
 data:
   policy.rego: |-
@@ -2602,7 +1965,7 @@ data:
     default deny = false
 
     deny if {
-      input.state["X-Graphql-Query-Mutation-Product"]
+      input.state["X-Graphql-Query-Mutation-Continents"]
     }
 EOF
 ```
@@ -2629,7 +1992,7 @@ spec:
             address: graphql-grpc-auth-service.gloo-mesh-addons.svc.cluster.local:9001
       - opaAuth:
           modules:
-          - name: deny-product
+          - name: deny-continents
             namespace: bookinfo-frontends
           query: "data.test.deny == false"
     server:
@@ -2644,20 +2007,20 @@ cat <<'EOF' > ./test.js
 const helpers = require('./tests/chai-exec');
 
 describe("Authorization is working properly", () => {
-  const command = `curl -ks "https://cluster1-bookinfo.example.com/openlibrary" --data '{"query":"{product(title: \\"The Comedy of Errors\\"){title languages}}"}' -X POST -o /dev/null -w "%{http_code}"`;
+  const command = `curl -ks "https://cluster1-bookinfo.example.com/graphql" --data '{ "query": "{ continents { name countries { name } } }" }' -H "Content-Type: application/json" -o /dev/null -w "%{http_code}"`;
   it('Got the expected status code 403', () => helpers.genericCommand({ command: command, responseContains: "403" }));
 });
 EOF
-echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/apps/bookinfo/gateway-graphql-rate-limiting-and-authorization/tests/authorization.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/gateway-graphql-rate-limiting-and-authorization/tests/authorization.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
 -->
 
-Try to access the `product` GraphQL query:
+Try to access the GraphQL query:
 
-```
-curl -ks "https://cluster1-bookinfo.example.com/openlibrary" --data '{"query":"{product(title: \"The Comedy of Errors\"){title languages}}"}' -X POST -o /dev/null -w "%{http_code}"
+```shell
+curl -ks "https://cluster1-bookinfo.example.com/graphql --data '{ "query": "{ continents { name countries { name } } }" }' -H "Content-Type: application/json" https://countries.trevorblades.com/ -o /dev/null -w "%{http_code}"
 ```
 
 The request should be denied (code 403).
@@ -2670,7 +2033,7 @@ You can build more complex authorization rules. Here is a typical authorization 
 
 
 
-## Lab 17 - Deploy the Amazon pod identity webhook <a name="lab-17---deploy-the-amazon-pod-identity-webhook-"></a>
+## Lab 15 - Deploy the Amazon pod identity webhook <a name="lab-15---deploy-the-amazon-pod-identity-webhook-"></a>
 
 To use the AWS Lambda integration, we need to deploy the Amazon EKS pod identity webhook.
 
@@ -2720,7 +2083,7 @@ timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> 
 
 
 
-## Lab 18 - Execute Lambda functions <a name="lab-18---execute-lambda-functions-"></a>
+## Lab 16 - Execute Lambda functions <a name="lab-16---execute-lambda-functions-"></a>
 [<img src="https://img.youtube.com/vi/gD6GLMlP-Qc/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/gD6GLMlP-Qc "Video Link")
 
 First of all, you need to annotate the service account used by the Istio ingress gateway to allow it to assume an AWS role which can invoke the `echo` Lambda function:
