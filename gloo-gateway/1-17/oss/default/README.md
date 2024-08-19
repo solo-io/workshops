@@ -513,8 +513,7 @@ else
 fi
 
 if [[ -z "$PROXY_IP" ]]; then
-  echo "Maximum number of retries reached. PROXY_IP could not be assigned."
-  exit 1
+  echo "WARNING: Maximum number of retries reached. PROXY_IP could not be assigned."
 else
   export PROXY_IP
   export IP
