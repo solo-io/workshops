@@ -49,7 +49,7 @@ Gloo Mesh Enterprise provides many unique features, including:
 * End-to-end Istio support and CVE security patching for n-4 versions
 * Specialty builds for distroless and FIPS compliance
 * 24x7 production support and one-hour Severity 1 SLA
-* GraphQL and Portal modules to extend functionality
+* Portal modules to extend functionality
 * Workspaces for simplified multi-tenancy
 * Zero-trust architecture for both north-south ingress and east-west service traffic
 * Single pane of glass for operational management of Istio, including global observability
@@ -664,6 +664,8 @@ spec:
               env:
                 - name: PILOT_ENABLE_K8S_SELECT_WORKLOAD_ENTRIES
                   value: "false"
+                - name: PILOT_ENABLE_IP_AUTOALLOCATE
+                  value: "true"
           cni:
             enabled: true
             namespace: kube-system
@@ -775,6 +777,8 @@ spec:
               env:
                 - name: PILOT_ENABLE_K8S_SELECT_WORKLOAD_ENTRIES
                   value: "false"
+                - name: PILOT_ENABLE_IP_AUTOALLOCATE
+                  value: "true"
           cni:
             enabled: true
             namespace: kube-system
@@ -1118,7 +1122,7 @@ We're going to deploy the httpbin application to demonstrate several features of
 
 You can find more information about this application [here](http://httpbin.org/).
 
-Run the following commands to deploy the httpbin app on `cluster1`. The deployment will be called `not-in-mesh` and won't have the sidecar injected (because we don't label the namespace).
+Run the following commands to deploy the httpbin app on `cluster1`. The deployment will be called `not-in-mesh` and won't have the sidecar injected, because of the annotation `sidecar.istio.io/inject: "false"`.
 
 ```bash
 kubectl --context ${CLUSTER1} create ns httpbin
@@ -1257,7 +1261,7 @@ do
 done"
 echo
 -->
-
+```
 You can follow the progress using the following command:
 
 ```bash
@@ -2070,7 +2074,6 @@ spec:
   config:
     mgmtServerCa:
       generated: {}
-    autoRestartPods: true # Restarting pods automatically is NOT RECOMMENDED in Production
 EOF
 ```
 
@@ -2082,13 +2085,16 @@ Then, Gloo Mesh will use the Gloo Mesh Agent on each of the clusters to create a
 
 ![Root Trust Policy](images/steps/root-trust-policy/gloo-mesh-root-trust-policy.svg)
 
-Gloo Mesh will then sign the intermediate certificates with the Root certificate. 
+Gloo Mesh will then sign the intermediate certificates with the Root certificate.
 
 At that point, we want Istio to pick up the new intermediate CA and start using that for its workloads. To do that Gloo Mesh creates a Kubernetes secret called `cacerts` in the `istio-system` namespace.
 
 You can have a look at the Istio documentation [here](https://istio.io/latest/docs/tasks/security/cert-management/plugin-ca-cert) if you want to get more information about this process.
 
 
+In recent versions of Istio, the control plane is able to pick up this new cert without any restart, but we would need to wait for the different Pods to renew their certificates (which happens every hour by default).
+
+To accelerate this process, we can bounce the Pods of the workloads that need to renew their certificates.
 
 <!--bash
 printf "\nWaiting until the secret is created in $CLUSTER1"
@@ -2106,7 +2112,13 @@ do
   sleep 1
 done
 printf "\n"
+
 -->
+```bash
+bash ./data/steps/root-trust-policy/restart-istio-pods.sh ${CLUSTER1}
+bash ./data/steps/root-trust-policy/restart-istio-pods.sh ${CLUSTER2}
+```
+
 
 
 
@@ -2129,16 +2141,6 @@ timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=150 --bail 2> 
 
 
 <!--bash
-printf "Waiting for all pods to be bounced in cluster1"
-until [ $(kubectl --context ${CLUSTER1} -n istio-system get podbouncedirectives -o jsonpath='{.items[].status.state}' | grep FINISHED -c) -eq 1 ]; do
-  printf "%s" "."
-  sleep 1
-done
-printf "Waiting for all pods to be bounced in cluster2"
-until [ $(kubectl --context ${CLUSTER2} -n istio-system get podbouncedirectives -o jsonpath='{.items[].status.state}' | grep FINISHED -c) -eq 1 ]; do
-  printf "%s" "."
-  sleep 1
-done
 printf "Waiting for all pods needed for the test..."
 printf "\n"
 kubectl --context ${CLUSTER1} get deploy -n bookinfo-backends -oname|xargs -I {} kubectl --context ${CLUSTER1} rollout status -n bookinfo-backends {}
@@ -2189,14 +2191,6 @@ timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> 
 
 
 
-
-
-
-We also need to make sure we restart our `in-mesh` deployment because it's not yet part of a `Workspace`:
-
-```bash
-kubectl --context ${CLUSTER1} -n httpbin rollout restart deploy/in-mesh
-```
 
 
 
