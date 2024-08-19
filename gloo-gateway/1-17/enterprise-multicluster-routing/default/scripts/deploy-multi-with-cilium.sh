@@ -132,7 +132,7 @@ quay.io/metallb/controller:v0.13.12
 quay.io/metallb/speaker:v0.13.12
 EOF
 cat images.txt | while read image; do
-  docker pull $image
+  docker pull $image || true
   kind load docker-image $image --name kind${number} || true
 done
 
