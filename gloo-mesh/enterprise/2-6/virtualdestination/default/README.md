@@ -7,7 +7,7 @@ source ./scripts/assert.sh
 
 <center><img src="images/gloo-mesh.png" alt="Gloo Mesh Enterprise" style="width:70%;max-width:800px" /></center>
 
-# <center>Gloo Mesh Enterprise (2.6.0-rc2)</center>
+# <center>Gloo Mesh Enterprise (2.6.0)</center>
 
 
 
@@ -48,7 +48,7 @@ Gloo Mesh Enterprise provides many unique features, including:
 * End-to-end Istio support and CVE security patching for n-4 versions
 * Specialty builds for distroless and FIPS compliance
 * 24x7 production support and one-hour Severity 1 SLA
-* GraphQL and Portal modules to extend functionality
+* Portal modules to extend functionality
 * Workspaces for simplified multi-tenancy
 * Zero-trust architecture for both north-south ingress and east-west service traffic
 * Single pane of glass for operational management of Istio, including global observability
@@ -154,7 +154,7 @@ timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> 
 Before we get started, let's install the `meshctl` CLI:
 
 ```bash
-export GLOO_MESH_VERSION=v2.6.0-rc2
+export GLOO_MESH_VERSION=v2.6.0
 curl -sL https://run.solo.io/meshctl/install | sh -
 export PATH=$HOME/.gloo-mesh/bin:$PATH
 ```
@@ -198,13 +198,13 @@ helm upgrade --install gloo-platform-crds gloo-platform-crds \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${MGMT} \
-  --version 2.6.0-rc2
+  --version 2.6.0
 
 helm upgrade --install gloo-platform gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${MGMT} \
-  --version 2.6.0-rc2 \
+  --version 2.6.0 \
   -f -<<EOF
 licensing:
   glooTrialLicenseKey: ${GLOO_MESH_LICENSE_KEY}
@@ -355,13 +355,13 @@ helm upgrade --install gloo-platform-crds gloo-platform-crds \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${CLUSTER1} \
-  --version 2.6.0-rc2
+  --version 2.6.0
 
 helm upgrade --install gloo-platform gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${CLUSTER1} \
-  --version 2.6.0-rc2 \
+  --version 2.6.0 \
   -f -<<EOF
 common:
   cluster: cluster1
@@ -408,13 +408,13 @@ helm upgrade --install gloo-platform-crds gloo-platform-crds \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${CLUSTER2} \
-  --version 2.6.0-rc2
+  --version 2.6.0
 
 helm upgrade --install gloo-platform gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${CLUSTER2} \
-  --version 2.6.0-rc2 \
+  --version 2.6.0 \
   -f -<<EOF
 common:
   cluster: cluster2
@@ -688,7 +688,7 @@ spec:
       istioOperatorSpec:
         profile: minimal
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.22.1-solo
+        tag: 1.22.3-solo
         namespace: istio-system
         values:
           global:
@@ -713,6 +713,8 @@ spec:
               env:
                 - name: PILOT_ENABLE_K8S_SELECT_WORKLOAD_ENTRIES
                   value: "false"
+                - name: PILOT_ENABLE_IP_AUTOALLOCATE
+                  value: "true"
           cni:
             enabled: true
             namespace: kube-system
@@ -736,7 +738,7 @@ spec:
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.22.1-solo
+        tag: 1.22.3-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -763,7 +765,7 @@ spec:
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.22.1-solo
+        tag: 1.22.3-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -799,7 +801,7 @@ spec:
       istioOperatorSpec:
         profile: minimal
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.22.1-solo
+        tag: 1.22.3-solo
         namespace: istio-system
         values:
           global:
@@ -824,6 +826,8 @@ spec:
               env:
                 - name: PILOT_ENABLE_K8S_SELECT_WORKLOAD_ENTRIES
                   value: "false"
+                - name: PILOT_ENABLE_IP_AUTOALLOCATE
+                  value: "true"
           cni:
             enabled: true
             namespace: kube-system
@@ -847,7 +851,7 @@ spec:
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.22.1-solo
+        tag: 1.22.3-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -874,7 +878,7 @@ spec:
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.22.1-solo
+        tag: 1.22.3-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -1181,7 +1185,7 @@ helm upgrade --install gloo-platform gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh-addons \
   --kube-context ${CLUSTER1} \
-  --version 2.6.0-rc2 \
+  --version 2.6.0 \
   -f -<<EOF
 common:
   cluster: cluster1
@@ -1205,7 +1209,7 @@ helm upgrade --install gloo-platform gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh-addons \
   --kube-context ${CLUSTER2} \
-  --version 2.6.0-rc2 \
+  --version 2.6.0 \
   -f -<<EOF
 common:
   cluster: cluster2
@@ -1939,7 +1943,6 @@ spec:
   config:
     mgmtServerCa:
       generated: {}
-    autoRestartPods: true # Restarting pods automatically is NOT RECOMMENDED in Production
 EOF
 ```
 
@@ -1951,13 +1954,16 @@ Then, Gloo Mesh will use the Gloo Mesh Agent on each of the clusters to create a
 
 ![Root Trust Policy](images/steps/root-trust-policy/gloo-mesh-root-trust-policy.svg)
 
-Gloo Mesh will then sign the intermediate certificates with the Root certificate. 
+Gloo Mesh will then sign the intermediate certificates with the Root certificate.
 
 At that point, we want Istio to pick up the new intermediate CA and start using that for its workloads. To do that Gloo Mesh creates a Kubernetes secret called `cacerts` in the `istio-system` namespace.
 
 You can have a look at the Istio documentation [here](https://istio.io/latest/docs/tasks/security/cert-management/plugin-ca-cert) if you want to get more information about this process.
 
 
+In recent versions of Istio, the control plane is able to pick up this new cert without any restart, but we would need to wait for the different Pods to renew their certificates (which happens every hour by default).
+
+To accelerate this process, we can bounce the Pods of the workloads that need to renew their certificates.
 
 <!--bash
 printf "\nWaiting until the secret is created in $CLUSTER1"
@@ -1975,7 +1981,13 @@ do
   sleep 1
 done
 printf "\n"
+
 -->
+```bash
+bash ./data/steps/root-trust-policy/restart-istio-pods.sh ${CLUSTER1}
+bash ./data/steps/root-trust-policy/restart-istio-pods.sh ${CLUSTER2}
+```
+
 
 
 
@@ -1998,16 +2010,6 @@ timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=150 --bail 2> 
 
 
 <!--bash
-printf "Waiting for all pods to be bounced in cluster1"
-until [ $(kubectl --context ${CLUSTER1} -n istio-system get podbouncedirectives -o jsonpath='{.items[].status.state}' | grep FINISHED -c) -eq 1 ]; do
-  printf "%s" "."
-  sleep 1
-done
-printf "Waiting for all pods to be bounced in cluster2"
-until [ $(kubectl --context ${CLUSTER2} -n istio-system get podbouncedirectives -o jsonpath='{.items[].status.state}' | grep FINISHED -c) -eq 1 ]; do
-  printf "%s" "."
-  sleep 1
-done
 printf "Waiting for all pods needed for the test..."
 printf "\n"
 kubectl --context ${CLUSTER1} get deploy -n bookinfo-backends -oname|xargs -I {} kubectl --context ${CLUSTER1} rollout status -n bookinfo-backends {}
@@ -2058,14 +2060,6 @@ timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> 
 
 
 
-
-
-
-We also need to make sure we restart our `in-mesh` deployment because it's not yet part of a `Workspace`:
-
-```bash
-kubectl --context ${CLUSTER1} -n httpbin rollout restart deploy/in-mesh
-```
 
 
 
