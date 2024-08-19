@@ -38,6 +38,13 @@ global = {
     cli.should.exit.with.code(0);
     readyReplicas.should.equal(replicas);
   },
+  checkDeploymentHasPod: async ({ context, namespace, deployment }) => {
+    let command = "kubectl --context " + context + " -n " + namespace + " get deploy " + deployment + " -o name'";
+    let cli = chaiExec(command);
+    cli.stderr.should.be.empty;
+    cli.stdout.should.not.be.empty;
+    cli.stdout.should.contain(deployment);
+  },
   checkDeploymentsWithLabels: async ({ context, namespace, labels, instances }) => {
     let command = "kubectl --context " + context + " -n " + namespace + " get deploy -l " + labels + " -o jsonpath='{.items}'";
     let cli = chaiExec(command);
