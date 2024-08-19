@@ -6,16 +6,19 @@ global = {
         const browser = await puppeteer.launch({
             headless: "new",
             ignoreHTTPSErrors: true,
-            args: ['--no-sandbox', '--disable-setuid-sandbox'], // needed for instruqt
+            args: ['--no-sandbox', '--disable-setuid-sandbox', '--incognito', '--disable-site-isolation-trials', '--renderer-process-limit=4', '--enable-low-end-device-mode'], // needed for instruqt
         });
-        const page = await browser.newPage();
+        // Create a new browser context
+        const context = await browser.createBrowserContext();
+        const page = await context.newPage();
         await page.goto(url);
         await page.waitForNetworkIdle({ options: { timeout: 1000 } });
         //await utils.sleep(1000);
 
         // Enter credentials
-        //await page.waitForSelector('#username');
-        //await page.waitForSelector('#password');
+        await page.screenshot({path: 'screenshot.png'});
+        await page.waitForSelector('#username', { options: { timeout: 1000 } });
+        await page.waitForSelector('#password', { options: { timeout: 1000 } });
         await page.type('#username', user);
         await page.type('#password', 'password');
         await page.click('#kc-login');
@@ -30,10 +33,11 @@ global = {
             ret = `${sessionCookie.name}=${sessionCookie.value}`; // Construct the cookie string
         } else {
             // console.error(await page.content()); // very verbose
-            // await page.screenshot({path: 'screenshot.png'});
+            await page.screenshot({path: 'screenshot.png'});
             console.error(`    No session cookie found for ${user}`);
             ret = "keycloak-session=dummy";
         }
+        await context.close();
         await browser.close();
         console.log(ret);
         return ret;
