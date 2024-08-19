@@ -191,7 +191,7 @@ quay.io/metallb/controller:v0.13.12
 quay.io/metallb/speaker:v0.13.12
 EOF
 cat images.txt | while read image; do
-  docker pull $image
+  docker pull $image || true
   kind load docker-image $image --name kind${number} || true
 done
 kubectl --context=kind-kind${number} apply -f https://raw.githubusercontent.com/metallb/metallb/v0.13.12/config/manifests/metallb-native.yaml
