@@ -7,7 +7,7 @@ source ./scripts/assert.sh
 
 <center><img src="images/gloo-gateway.png" alt="Gloo Mesh Gateway" style="width:70%;max-width:800px" /></center>
 
-# <center>Gloo Mesh Gateway (2.6.0-rc2)</center>
+# <center>Gloo Mesh Gateway (2.6.0)</center>
 
 
 
@@ -152,7 +152,7 @@ timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> 
 Before we get started, let's install the `meshctl` CLI:
 
 ```bash
-export GLOO_MESH_VERSION=v2.6.0-rc2
+export GLOO_MESH_VERSION=v2.6.0
 curl -sL https://run.solo.io/meshctl/install | sh -
 export PATH=$HOME/.gloo-mesh/bin:$PATH
 ```
@@ -195,13 +195,13 @@ helm upgrade --install gloo-platform-crds gloo-platform-crds \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${MGMT} \
-  --version 2.6.0-rc2
+  --version 2.6.0
 
 helm upgrade --install gloo-platform-mgmt gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${MGMT} \
-  --version 2.6.0-rc2 \
+  --version 2.6.0 \
   -f -<<EOF
 licensing:
   glooTrialLicenseKey: ${GLOO_MESH_LICENSE_KEY}
@@ -323,7 +323,7 @@ spec:
       istioOperatorSpec:
         profile: minimal
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.22.1-solo
+        tag: 1.22.3-solo
         namespace: istio-system
         values:
           global:
@@ -348,6 +348,8 @@ spec:
               env:
                 - name: PILOT_ENABLE_K8S_SELECT_WORKLOAD_ENTRIES
                   value: "false"
+                - name: PILOT_ENABLE_IP_AUTOALLOCATE
+                  value: "true"
           cni:
             enabled: true
             namespace: kube-system
@@ -371,7 +373,7 @@ spec:
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.22.1-solo
+        tag: 1.22.3-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -559,7 +561,7 @@ We're going to deploy the httpbin application to demonstrate several features of
 
 You can find more information about this application [here](http://httpbin.org/).
 
-Run the following commands to deploy the httpbin app on `cluster1`. The deployment will be called `not-in-mesh` and won't have the sidecar injected (because we don't label the namespace).
+Run the following commands to deploy the httpbin app on `cluster1`. The deployment will be called `not-in-mesh` and won't have the sidecar injected, because of the annotation `sidecar.istio.io/inject: "false"`.
 
 ```bash
 kubectl --context ${CLUSTER1} create ns httpbin
@@ -698,7 +700,7 @@ do
 done"
 echo
 -->
-
+```
 You can follow the progress using the following command:
 
 ```bash
@@ -751,7 +753,7 @@ helm upgrade --install gloo-platform gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh-addons \
   --kube-context ${CLUSTER1} \
-  --version 2.6.0-rc2 \
+  --version 2.6.0 \
   -f -<<EOF
 common:
   cluster: cluster1
@@ -1939,24 +1941,24 @@ EOF
 <!--bash
 ATTEMPTS=1
 timeout 60 bash -c 'while [[ "$(curl -m 2 --max-time 2 --insecure -s -o /dev/null -w ''%{http_code}'' https://cluster1-httpbin.example.com/get)" != "302" ]]; do sleep 5; done'
-export USER1_TOKEN=$(node tests/keycloak-token.js "https://cluster1-httpbin.example.com/get" user1)
-export USER2_TOKEN=$(node tests/keycloak-token.js "https://cluster1-httpbin.example.com/get" user2)
-until ([ ! -z "$USER1_TOKEN" ] && [[ $USER1_TOKEN != *"dummy"* ]]) || [ $ATTEMPTS -gt 20 ]; do
+export USER1_COOKIE=$(node tests/keycloak-token.js "https://cluster1-httpbin.example.com/get" user1)
+export USER2_COOKIE=$(node tests/keycloak-token.js "https://cluster1-httpbin.example.com/get" user2)
+ATTEMPTS=1
+until ([ ! -z "$USER2_COOKIE" ] && [[ $USER2_COOKIE != *"dummy"* ]]) || [ $ATTEMPTS -gt 20 ]; do
   printf "."
   ATTEMPTS=$((ATTEMPTS + 1))
-  sleep 1
-  export USER1_TOKEN=$(node tests/keycloak-token.js "https://cluster1-httpbin.example.com/get" user1)
+  sleep 3
+  export USER2_COOKIE=$(node tests/keycloak-token.js "https://cluster1-httpbin.example.com/get" user2)
 done
-until ([ ! -z "$USER2_TOKEN" ] && [[ $USER2_TOKEN != *"dummy"* ]]) || [ $ATTEMPTS -gt 20 ]; do
+ATTEMPTS=1
+until ([ ! -z "$USER1_COOKIE" ] && [[ $USER1_COOKIE != *"dummy"* ]]) || [ $ATTEMPTS -gt 20 ]; do
   printf "."
   ATTEMPTS=$((ATTEMPTS + 1))
-  sleep 1
-  export USER2_TOKEN=$(node tests/keycloak-token.js "https://cluster1-httpbin.example.com/get" user2)
+  sleep 3
+  export USER1_COOKIE=$(node tests/keycloak-token.js "https://cluster1-httpbin.example.com/get" user1)
 done
-kubectl -n keycloak create secret generic user1-token --from-literal=token=$USER1_TOKEN --dry-run=client -oyaml | kubectl --context ${MGMT} apply -f -
-kubectl -n keycloak create secret generic user2-token --from-literal=token=$USER2_TOKEN --dry-run=client -oyaml | kubectl --context ${MGMT} apply -f -
-echo "User1 token: $USER1_TOKEN"
-echo "User2 token: $USER2_TOKEN"
+echo "User1 token: $USER1_COOKIE"
+echo "User2 token: $USER2_COOKIE"
 -->
 
 <!--bash
@@ -1964,7 +1966,7 @@ cat <<'EOF' > ./test.js
 const helpersHttp = require('./tests/chai-http');
 
 describe("Authentication is working properly", function () {
-  const cookieString = process.env.USER1_TOKEN;
+  const cookieString = process.env.USER1_COOKIE;
 
   it("The httpbin page isn't accessible without authenticating", () => helpersHttp.checkURL({ host: `https://cluster1-httpbin.example.com`, path: '/get', retCode: 302 }));
 
@@ -1982,7 +1984,7 @@ cat <<'EOF' > ./test.js
 const helpersHttp = require('./tests/chai-http');
 
 describe("Claim to header is working properly", function() {
-  const cookieString = process.env.USER2_TOKEN;
+  const cookieString = process.env.USER2_COOKIE;
   it('The new header has been added', () => helpersHttp.checkBody({ host: `https://cluster1-httpbin.example.com`, path: '/get', headers: [{ key: 'Cookie', value: cookieString }], body: '"X-Email": "user2@solo.io"' }));
 });
 
@@ -2084,8 +2086,8 @@ const helpersHttp = require('./tests/chai-http');
 
 describe("Authentication is working properly", function () {
 
-  const cookieString_user1 = process.env.USER1_TOKEN;
-  const cookieString_user2 = process.env.USER2_TOKEN;
+  const cookieString_user1 = process.env.USER1_COOKIE;
+  const cookieString_user2 = process.env.USER2_COOKIE;
 
   it("The httpbin page isn't accessible with user1", () => helpersHttp.checkURL({ host: `https://cluster1-httpbin.example.com`, path: '/get', headers: [{ key: 'Cookie', value: cookieString_user1 }], retCode: "keycloak-session=dummy" == cookieString_user1 ? 302 : 403 }));
   it("The httpbin page is accessible with user2", () => helpersHttp.checkURL({ host: `https://cluster1-httpbin.example.com`, path: '/get', headers: [{ key: 'Cookie', value: cookieString_user2 }], retCode: 200 }));
@@ -2152,7 +2154,7 @@ cat <<'EOF' > ./test.js
 const helpersHttp = require('./tests/chai-http');
 
 describe("Tranformation is working properly", function() {
-  const cookieString = process.env.USER2_TOKEN;
+  const cookieString = process.env.USER2_COOKIE;
   it('The new header has been added', () => helpersHttp.checkBody({ host: `https://cluster1-httpbin.example.com`, path: '/get', headers: [{ key: 'Cookie', value: cookieString }], body: '"X-Organization": "solo.io"' }));
 });
 
@@ -2209,7 +2211,7 @@ cat <<'EOF' > ./test.js
 const helpersHttp = require('./tests/chai-http');
 
 describe("DLP Policy", function () {
-  const cookieString = process.env.USER2_TOKEN;
+  const cookieString = process.env.USER2_COOKIE;
 
   it('Email is masked', () => helpersHttp.checkBody({ host: `https://cluster1-httpbin.example.com`, path: '/get', headers: [{ key: 'Cookie', value: cookieString }], body: 'XXXXXXXXXX.io' }));
 });
@@ -2333,7 +2335,7 @@ cat <<'EOF' > ./test.js
 const helpersHttp = require('./tests/chai-http');
 
 describe("Rate limiting is working properly", function() {
-  const cookieString = process.env.USER2_TOKEN;
+  const cookieString = process.env.USER2_COOKIE;
   it('The httpbin page should be rate limited', () => helpersHttp.checkURL({ host: `https://cluster1-httpbin.example.com`, path: '/get', headers: [{ key: 'Cookie', value: cookieString }], retCode: 429 }));
 });
 
@@ -2702,7 +2704,7 @@ EOF
 We will use gloo to add conditional access to the `httpbin` service based on the `email` scope and claim in the JWT token.
 
 ```shell
-export USER2_TOKEN_JWT=$(curl -Ssm 10 --fail-with-body \
+export USER2_COOKIE_JWT=$(curl -Ssm 10 --fail-with-body \
   -d "client_id=gloo-ext-auth" \
   -d "client_secret=hKcDcqmUKCrPkyDJtCw066hTLzUbAiri" \
   -d "username=user2" \
@@ -2710,7 +2712,7 @@ export USER2_TOKEN_JWT=$(curl -Ssm 10 --fail-with-body \
   -d "grant_type=password" \
   "$KEYCLOAK_URL/realms/workshop/protocol/openid-connect/token" |
   jq -r .access_token)
-curl -kis https://cluster1-httpbin.example.com/get -H "jwt: ${USER2_TOKEN_JWT}"
+curl -kis https://cluster1-httpbin.example.com/get -H "jwt: ${USER2_COOKIE_JWT}"
 ```
 
 You should see a new `X-Email-Jwt` header added to the request with the value `user2@solo.io`
@@ -2723,7 +2725,7 @@ cat <<'EOF' > ./test.js
 const helpersHttp = require('./tests/chai-http');
 
 describe("Claim to header is working properly", function() {
-  const jwtString = process.env.USER2_TOKEN_JWT;
+  const jwtString = process.env.USER2_COOKIE_JWT;
   it('The new header has been added', () => helpersHttp.checkBody({ host: `https://cluster1-httpbin.example.com`, path: '/get', headers: [{ key: 'jwt', value: jwtString }], body: '"X-Email-Jwt":' }));
   it('The new header has value', () => helpersHttp.checkBody({ host: `https://cluster1-httpbin.example.com`, path: '/get', headers: [{ key: 'jwt', value: jwtString }], body: '"user2@solo.io"' }));
 });
