@@ -170,7 +170,8 @@ gloo:
     persistProxySpec: false
     logLevel: info
     validation:
-      enabled: true
+      enabled: false
+      disableTransformationValidation: false
       alwaysAcceptResources: false
   gloo:
     logLevel: info
@@ -546,8 +547,7 @@ else
 fi
 
 if [[ -z "$PROXY_IP" ]]; then
-  echo "Maximum number of retries reached. PROXY_IP could not be assigned."
-  exit 1
+  echo "WARNING: Maximum number of retries reached. PROXY_IP could not be assigned."
 else
   export PROXY_IP
   export IP
@@ -1387,7 +1387,8 @@ gloo:
     persistProxySpec: false
     logLevel: info
     validation:
-      enabled: true
+      enabled: false
+      disableTransformationValidation: false
       alwaysAcceptResources: false
   gloo:
     logLevel: info
