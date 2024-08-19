@@ -1,13 +1,12 @@
 #!/usr/bin/env bash
+set -o errexit
 
 number=$1
 name=$2
 region=$3
 zone=$4
-kindest_node=${KINDEST_NODE:-kindest\/node:v1.28.0@sha256:b7a4cad12c197af3ba43202d3efe03246b3f0793f162afb40a33c923952d5b31}
 twodigits=$(printf "%02d\n" $number)
-# https://www.site24x7.com/tools/ipv6-subnetcalculator.html
-metalLBSubnet=(null 2001:db8::100/120 2001:db8::200/120 2001:db8::300/120)
+kindest_node=${KINDEST_NODE:-kindest\/node:v1.28.0@sha256:b7a4cad12c197af3ba43202d3efe03246b3f0793f162afb40a33c923952d5b31}
 
 if [ -z "$3" ]; then
   region=us-east-1
@@ -17,7 +16,7 @@ if [ -z "$4" ]; then
   zone=us-east-1a
 fi
 
-if hostname -I; then
+if hostname -I 2>/dev/null; then
   myip=$(hostname -I | awk '{ print $1 }')
 else
   myip=$(ipconfig getifaddr en0)
@@ -86,8 +85,22 @@ nodes:
     ingress-ready: true
     topology.kubernetes.io/region: ${region}
     topology.kubernetes.io/zone: ${zone}
+- role: worker
+  image: ${kindest_node}
+  labels:
+    ingress-ready: true
+    topology.kubernetes.io/region: ${region}
+    topology.kubernetes.io/zone: ${zone}
+- role: worker
+  image: ${kindest_node}
+  labels:
+    ingress-ready: true
+    topology.kubernetes.io/region: ${region}
+    topology.kubernetes.io/zone: ${zone}
 networking:
-  ipFamily: ipv6
+  disableDefaultCNI: true
+  serviceSubnet: "10.$(echo $twodigits | sed 's/^0*//').0.0/16"
+  podSubnet: "10.1${twodigits}.0.0/16"
 containerdConfigPatches:
 - |-
   [plugins."io.containerd.grpc.v1.cri".registry.mirrors."localhost:${reg_port}"]
@@ -106,10 +119,10 @@ EOF
 
 kind create cluster --name kind${number} --config kind${number}.yaml
 
-ipkind=$(docker inspect kind${number}-control-plane | jq -r '.[0].NetworkSettings.Networks[].GlobalIPv6Address')
-networkkind=$(echo ${ipkind} | rev | cut -d: -f2- | rev):
+ipkind=$(docker inspect kind${number}-control-plane | jq -r '.[0].NetworkSettings.Networks[].IPAddress')
+networkkind=$(echo ${ipkind} | awk -F. '{ print $1"."$2 }')
 
-#kubectl config set-cluster kind-kind${number} --server=https://${myip}:70${twodigits} --insecure-skip-tls-verify=true
+kubectl config set-cluster kind-kind${number} --server=https://${myip}:70${twodigits} --insecure-skip-tls-verify=true
 
 docker network connect "kind" "${reg_name}" || true
 docker network connect "kind" docker || true
@@ -118,18 +131,7 @@ docker network connect "kind" us-central1-docker || true
 docker network connect "kind" quay || true
 docker network connect "kind" gcr || true
 
-# Preload images
-cat << EOF >> images.txt
-quay.io/metallb/controller:v0.13.12
-quay.io/metallb/speaker:v0.13.12
-EOF
-cat images.txt | while read image; do
-  docker pull $image || true
-  kind load docker-image $image --name kind${number} || true
-done
-for i in 1 2 3 4 5; do kubectl --context=kind-kind${number} apply -f https://raw.githubusercontent.com/metallb/metallb/v0.13.12/config/manifests/metallb-native.yaml && break || sleep 15; done
-kubectl --context=kind-kind${number} create secret generic -n metallb-system memberlist --from-literal=secretkey="$(openssl rand -base64 128)"
-kubectl --context=kind-kind${number} -n metallb-system rollout status deploy controller || true
+curl -s https://raw.githubusercontent.com/metallb/metallb/v0.13.12/config/manifests/metallb-native.yaml | sed 's/Fail/Ignore/' | kubectl --context=kind-kind${number} apply -f -
 
 cat << EOF > metallb${number}.yaml
 apiVersion: metallb.io/v1beta1
@@ -139,7 +141,7 @@ metadata:
   namespace: metallb-system
 spec:
   addresses:
-  - ${networkkind}${number}1-${networkkind}${number}9
+  - ${networkkind}.1${twodigits}.1-${networkkind}.1${twodigits}.254
 ---
 apiVersion: metallb.io/v1beta1
 kind: L2Advertisement
@@ -177,3 +179,4 @@ data:
     host: "localhost:${reg_port}"
     help: "https://kind.sigs.k8s.io/docs/user/local-registry/"
 EOF
+
