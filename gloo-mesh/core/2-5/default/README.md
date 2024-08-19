@@ -718,6 +718,8 @@ spec:
               env:
                 - name: PILOT_ENABLE_K8S_SELECT_WORKLOAD_ENTRIES
                   value: "false"
+                - name: PILOT_ENABLE_IP_AUTOALLOCATE
+                  value: "true"
           ingressGateways:
           - name: istio-ingressgateway
             enabled: false
@@ -821,6 +823,8 @@ spec:
               env:
                 - name: PILOT_ENABLE_K8S_SELECT_WORKLOAD_ENTRIES
                   value: "false"
+                - name: PILOT_ENABLE_IP_AUTOALLOCATE
+                  value: "true"
           ingressGateways:
           - name: istio-ingressgateway
             enabled: false
@@ -1161,7 +1165,7 @@ We're going to deploy the httpbin application to demonstrate several features of
 
 You can find more information about this application [here](http://httpbin.org/).
 
-Run the following commands to deploy the httpbin app on `cluster1`. The deployment will be called `not-in-mesh` and won't have the sidecar injected (because we don't label the namespace).
+Run the following commands to deploy the httpbin app on `cluster1`. The deployment will be called `not-in-mesh` and won't have the sidecar injected, because of the annotation `sidecar.istio.io/inject: "false"`.
 
 ```bash
 kubectl --context ${CLUSTER1} create ns httpbin
@@ -1300,7 +1304,7 @@ do
 done"
 echo
 -->
-
+```
 You can follow the progress using the following command:
 
 ```bash
@@ -1388,6 +1392,10 @@ spec:
         host: productpage
 EOF
 ```
+
+
+  
+
 Let's add the domains to our `/etc/hosts` file:
 
 ```bash
@@ -1505,6 +1513,8 @@ timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=150 --bail 2> 
 
 
 ## Lab 7 - Introduction to Insights <a name="lab-7---introduction-to-insights-"></a>
+
+
 
 Gloo Mesh Insights are generated using configuration, logs and metrics collected by the Gloo Mesh agents on the different clusters.
 
