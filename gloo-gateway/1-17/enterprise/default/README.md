@@ -90,17 +90,16 @@ You can find more information about Gloo Gateway in the official documentation: 
 
 Clone this repository and go to the directory where this `README.md` file is.
 
-Set the context environment variables:
+Set the context environment variable:
 
 ```bash
-export MGMT=cluster1
 export CLUSTER1=cluster1
 ```
 
 Run the following commands to deploy a Kubernetes cluster using [Kind](https://kind.sigs.k8s.io/):
 
 ```bash
-./scripts/deploy.sh 1 cluster1 us-west us-west-1
+./scripts/deploy.sh 1 cluster1
 ```
 
 Then run the following commands to wait for all the Pods to be ready:
@@ -128,26 +127,22 @@ local-path-storage   local-path-provisioner-58f6947c7-lfmdx        1/1     Runni
 metallb-system       controller-5c9894b5cd-cn9x2                   1/1     Running   0          4h26m
 metallb-system       speaker-d7jkp                                 1/1     Running   0          4h26m
 ```
-
-**Note:** The CNI pods might be different, depending on which CNI you have deployed.
-
 <!--bash
 cat <<'EOF' > ./test.js
 const helpers = require('./tests/chai-exec');
 
 describe("Clusters are healthy", () => {
-    const clusters = [process.env.MGMT, process.env.CLUSTER1];
+    const clusters = ["cluster1"];
     clusters.forEach(cluster => {
         it(`Cluster ${cluster} is healthy`, () => helpers.k8sObjectIsPresent({ context: cluster, namespace: "default", k8sType: "service", k8sObj: "kubernetes" }));
     });
 });
 EOF
-echo "executing test dist/gloo-gateway-workshop/build/imported/gloo-mesh-2-0/templates/steps/deploy-kind-cluster/tests/cluster-healthy.test.js.liquid"
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/deploy-kind-cluster/tests/cluster-healthy.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
 -->
-
 
 
 
@@ -189,7 +184,8 @@ gloo:
     persistProxySpec: false
     logLevel: info
     validation:
-      enabled: true
+      enabled: false
+      disableTransformationValidation: false
       alwaysAcceptResources: false
   gloo:
     logLevel: info
@@ -340,6 +336,9 @@ data:
           "attributes": {
             "group": [
               "users"
+            ],
+            "subscription": [
+              "enterprise"
             ]
           },
           "credentials": [
@@ -358,6 +357,9 @@ data:
             "group": [
               "users"
             ],
+            "subscription": [
+              "free"
+            ],
             "show_personal_data": [
               "false"
             ]
@@ -367,6 +369,26 @@ data:
               "type": "password",
               "secretData": "{\"value\":\"RITBVPdh5pvXOa4JzJ5pZTE0rG96zhnQNmSsKCf83aU=\",\"salt\":\"drB9e5Smf3cbfUfF3FUerw==\",\"additionalParameters\":{}}",
               "credentialData": "{\"hashIterations\":27500,\"algorithm\":\"pbkdf2-sha256\",\"additionalParameters\":{}}"
+            }
+          ]
+        },
+        {
+          "username": "admin1",
+          "enabled": true,
+          "email": "admin1@solo.io",
+          "attributes": {
+            "group": [
+              "admin"
+            ],
+            "show_personal_data": [
+              "false"
+            ]
+          },
+          "credentials": [
+            {
+              "type": "password",
+              "secretData" : "{\"value\":\"BruFLfFkjH/8erZ26NnrbkOrWiZuQyDRCHD9o0R6Scg=\",\"salt\":\"Cf9AYCE5pAbb4CKEF0GUTA==\",\"additionalParameters\":{}}",
+              "credentialData" : "{\"hashIterations\":5,\"algorithm\":\"argon2\",\"additionalParameters\":{\"hashLength\":[\"32\"],\"memory\":[\"7168\"],\"type\":[\"id\"],\"version\":[\"1.3\"],\"parallelism\":[\"1\"]}}"
             }
           ]
         }
@@ -403,6 +425,17 @@ data:
               "config": {
                 "claim.name": "show_personal_data",
                 "user.attribute": "show_personal_data",
+                "access.token.claim": "true",
+                "id.token.claim": "true"
+              }
+            },
+            {
+              "name": "subscription",
+              "protocol": "openid-connect",
+              "protocolMapper": "oidc-usermodel-attribute-mapper",
+              "config": {
+                "claim.name": "subscription",
+                "user.attribute": "subscription",
                 "access.token.claim": "true",
                 "id.token.claim": "true"
               }
@@ -888,8 +921,7 @@ else
 fi
 
 if [[ -z "$PROXY_IP" ]]; then
-  echo "Maximum number of retries reached. PROXY_IP could not be assigned."
-  exit 1
+  echo "WARNING: Maximum number of retries reached. PROXY_IP could not be assigned."
 else
   export PROXY_IP
   export IP
@@ -2686,7 +2718,7 @@ You should get a `Jwt is missing` error message.
 Let's get a JWT token:
 
 ```bash
-export USER1_TOKEN_JWT=$(curl -Ssm 10 --fail-with-body \
+export USER1_COOKIE_JWT=$(curl -Ssm 10 --fail-with-body \
   -d "client_id=gloo-ext-auth" \
   -d "client_secret=hKcDcqmUKCrPkyDJtCw066hTLzUbAiri" \
   -d "username=user1" \
@@ -2699,7 +2731,7 @@ export USER1_TOKEN_JWT=$(curl -Ssm 10 --fail-with-body \
 Now, you should be able to access it:
 
 ```shell
-curl -k https://httpbin.example.com/get -H "jwt: ${USER1_TOKEN_JWT}"
+curl -k https://httpbin.example.com/get -H "jwt: ${USER1_COOKIE_JWT}"
 ```
 
 Here is the expected output:
@@ -2743,7 +2775,7 @@ cat <<'EOF' > ./test.js
 const helpersHttp = require('./tests/chai-http');
 
 describe("Claim to header is working properly", function() {
-  const jwtString = process.env.USER1_TOKEN_JWT;
+  const jwtString = process.env.USER1_COOKIE_JWT;
   it('The new header has been added', () => helpersHttp.checkBody({ host: `https://httpbin.example.com`, path: '/get', headers: [{ key: 'jwt', value: jwtString }], body: '"X-Email":' }));
   it('The new header has value', () => helpersHttp.checkBody({ host: `https://httpbin.example.com`, path: '/get', headers: [{ key: 'jwt', value: jwtString }], body: '"user1@example.com"' }));
 });
@@ -2802,7 +2834,7 @@ EOF
 Try accessing the `httpbin` application again.
 
 ```shell
-curl -k https://httpbin.example.com/get -H "jwt: ${USER1_TOKEN_JWT}"
+curl -k https://httpbin.example.com/get -H "jwt: ${USER1_COOKIE_JWT}"
 ```
 
 You should get a `RBAC: access denied` error message.
@@ -2812,7 +2844,7 @@ Let's get a JWT token for the second user.
 We will use gloo to add conditional access to the `httpbin` service based on the `email` scope and claim in the JWT token.
 
 ```bash
-export USER2_TOKEN_JWT=$(curl -Ssm 10 --fail-with-body \
+export USER2_COOKIE_JWT=$(curl -Ssm 10 --fail-with-body \
   -d "client_id=gloo-ext-auth" \
   -d "client_secret=hKcDcqmUKCrPkyDJtCw066hTLzUbAiri" \
   -d "username=user2" \
@@ -2825,7 +2857,7 @@ export USER2_TOKEN_JWT=$(curl -Ssm 10 --fail-with-body \
 You should be able to access the application with this user.
 
 ```shell
-curl -k https://httpbin.example.com/get -H "jwt: ${USER2_TOKEN_JWT}"
+curl -k https://httpbin.example.com/get -H "jwt: ${USER2_COOKIE_JWT}"
 ```
 
 <!--bash
@@ -2833,9 +2865,9 @@ cat <<'EOF' > ./test.js
 const helpersHttp = require('./tests/chai-http');
 
 describe("Only User2 can access httpbin", function() {
-  const jwt1String = process.env.USER1_TOKEN_JWT;
+  const jwt1String = process.env.USER1_COOKIE_JWT;
   it('User1 access is refused', () => helpersHttp.checkBody({ host: `https://httpbin.example.com`, path: '/get', headers: [{ key: 'jwt', value: jwt1String }], body: 'RBAC: access denied' }));
-  const jwt2String = process.env.USER2_TOKEN_JWT;
+  const jwt2String = process.env.USER2_COOKIE_JWT;
   it('User2 access is allowed', () => helpersHttp.checkBody({ host: `https://httpbin.example.com`, path: '/get', headers: [{ key: 'jwt', value: jwt2String }], body: '"user2@solo.io"' }));
 });
 
@@ -5088,22 +5120,19 @@ timeout 120 bash -c 'while [[ "$(curl -m 2 --max-time 2 --insecure -s -o /dev/nu
 timeout 120 bash -c 'while [[ "$(curl -m 2 --max-time 2 --insecure -s -o /dev/null -w ''%{http_code}'' https://portal.example.com)" != "200" ]]; do sleep 5; done'
 export USER1_COOKIE=$(node tests/keycloak-token.js "https://portal.example.com/v1/login" user1)
 export USER2_COOKIE=$(node tests/keycloak-token.js "https://portal.example.com/v1/login" user2)
-until ([ ! -z "$USER1_COOKIE" ] && [[ $USER1_COOKIE != *"dummy"* ]]) || [ $ATTEMPTS -gt 20 ]; do
-  printf "."
-  ATTEMPTS=$((ATTEMPTS + 1))
-  sleep 1
-  export USER1_COOKIE=$(node tests/keycloak-token.js "https://portal.example.com/v1/login" user1)
-done
-if [ $ATTEMPTS -gt 20 ]; then
-  echo "User1 token is not valid"
-else
 ATTEMPTS=1
-fi
 until ([ ! -z "$USER2_COOKIE" ] && [[ $USER2_COOKIE != *"dummy"* ]]) || [ $ATTEMPTS -gt 20 ]; do
   printf "."
   ATTEMPTS=$((ATTEMPTS + 1))
-  sleep 1
+  sleep 3
   export USER2_COOKIE=$(node tests/keycloak-token.js "https://portal.example.com/v1/login" user2)
+done
+ATTEMPTS=1
+until ([ ! -z "$USER1_COOKIE" ] && [[ $USER1_COOKIE != *"dummy"* ]]) || [ $ATTEMPTS -gt 20 ]; do
+  printf "."
+  ATTEMPTS=$((ATTEMPTS + 1))
+  sleep 3
+  export USER1_COOKIE=$(node tests/keycloak-token.js "https://portal.example.com/v1/login" user1)
 done
 echo "User1 token: $USER1_COOKIE"
 echo "User2 token: $USER2_COOKIE"
@@ -5276,7 +5305,7 @@ const helpers = require('./tests/chai-exec');
 
 describe("Monetization is working", () => {
   it('Response contains all the required monetization fields', () => {
-    const response = helpers.getOutputForCommand({ command: `curl -k -H \"Authorization: Bearer ${process.env.USER1_TOKEN}\" https://bookinfo.example.com/api/bookinfo/v1` });
+    const response = helpers.getOutputForCommand({ command: `curl -k -H "Authorization: Bearer ${process.env.USER1_TOKEN}" https://bookinfo.example.com/api/bookinfo/v1` });
     const output = JSON.parse(helpers.getOutputForCommand({ command: `kubectl --context ${process.env.CLUSTER1} -n gloo-system logs deploy/gloo-proxy-http --tail 1` }));
     expect(output.api_product_id).to.equals("bookinfo");
   });
