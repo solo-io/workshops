@@ -126,13 +126,13 @@ kubectl config set-cluster kind-kind${number} --server=https://${myip}:70${twodi
 
 # Preload images
 cat << EOF >> images.txt
-quay.io/cilium/cilium:v1.12.0
-quay.io/cilium/operator-generic:v1.12.0
+quay.io/cilium/cilium:v1.15.5
+quay.io/cilium/operator-generic:v1.15.5
 quay.io/metallb/controller:v0.13.12
 quay.io/metallb/speaker:v0.13.12
 EOF
 cat images.txt | while read image; do
-  docker pull $image
+  docker pull $image || true
   kind load docker-image $image --name kind${number} || true
 done
 
@@ -154,6 +154,7 @@ helm --kube-context kind-kind${number} install cilium cilium/cilium --version 1.
    --set hostPort.enabled=true \
    --set bpf.masquerade=false \
    --set image.pullPolicy=IfNotPresent \
+   --set cni.exclusive=false \
    --set ipam.mode=kubernetes
 kubectl --context=kind-kind${number} -n kube-system rollout status ds cilium || true
 
