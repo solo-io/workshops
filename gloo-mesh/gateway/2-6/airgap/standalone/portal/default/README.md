@@ -7,7 +7,7 @@ source ./scripts/assert.sh
 
 <center><img src="images/gloo-gateway.png" alt="Gloo Mesh Gateway" style="width:70%;max-width:800px" /></center>
 
-# <center>Gloo Portal (2.6.0-rc2)</center>
+# <center>Gloo Portal (2.6.0)</center>
 
 
 
@@ -170,13 +170,13 @@ docker.io/kennethreitz/httpbin
 docker.io/nginx:1.25.3
 docker.io/openpolicyagent/opa:0.57.1-debug
 gcr.io/gloo-mesh/ext-auth-service:0.58.2
-gcr.io/gloo-mesh/gloo-mesh-agent:2.6.0-rc2
-gcr.io/gloo-mesh/gloo-mesh-apiserver:2.6.0-rc2
-gcr.io/gloo-mesh/gloo-mesh-envoy:2.6.0-rc2
-gcr.io/gloo-mesh/gloo-mesh-mgmt-server:2.6.0-rc2
-gcr.io/gloo-mesh/gloo-mesh-portal-server:2.6.0-rc2
-gcr.io/gloo-mesh/gloo-mesh-ui:2.6.0-rc2
-gcr.io/gloo-mesh/gloo-otel-collector:2.6.0-rc2
+gcr.io/gloo-mesh/gloo-mesh-agent:2.6.0
+gcr.io/gloo-mesh/gloo-mesh-apiserver:2.6.0
+gcr.io/gloo-mesh/gloo-mesh-envoy:2.6.0
+gcr.io/gloo-mesh/gloo-mesh-mgmt-server:2.6.0
+gcr.io/gloo-mesh/gloo-mesh-portal-server:2.6.0
+gcr.io/gloo-mesh/gloo-mesh-ui:2.6.0
+gcr.io/gloo-mesh/gloo-otel-collector:2.6.0
 gcr.io/gloo-mesh/kubectl:1.16.4
 gcr.io/gloo-mesh/prometheus:v2.53.0
 gcr.io/gloo-mesh/rate-limiter:0.12.2
@@ -184,9 +184,9 @@ gcr.io/gloo-mesh/redis:7.2.4-alpine
 gcr.io/solo-public/docs/portal-frontend:v0.0.25
 quay.io/keycloak/keycloak:25.0.1
 quay.io/prometheus-operator/prometheus-config-reloader:v0.74.0
-us-docker.pkg.dev/gloo-mesh/istio-workshops/operator:1.22.1-solo
-us-docker.pkg.dev/gloo-mesh/istio-workshops/pilot:1.22.1-solo
-us-docker.pkg.dev/gloo-mesh/istio-workshops/proxyv2:1.22.1-solo
+us-docker.pkg.dev/gloo-mesh/istio-workshops/operator:1.22.3-solo
+us-docker.pkg.dev/gloo-mesh/istio-workshops/pilot:1.22.3-solo
+us-docker.pkg.dev/gloo-mesh/istio-workshops/proxyv2:1.22.3-solo
 EOF
 
 cat images.txt | while read image; do
@@ -217,7 +217,7 @@ done
 Before we get started, let's install the `meshctl` CLI:
 
 ```bash
-export GLOO_MESH_VERSION=v2.6.0-rc2
+export GLOO_MESH_VERSION=v2.6.0
 curl -sL https://run.solo.io/meshctl/install | sh -
 export PATH=$HOME/.gloo-mesh/bin:$PATH
 ```
@@ -280,13 +280,13 @@ helm upgrade --install gloo-platform-crds gloo-platform-crds \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${MGMT} \
-  --version 2.6.0-rc2
+  --version 2.6.0
 
 helm upgrade --install gloo-platform-mgmt gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${MGMT} \
-  --version 2.6.0-rc2 \
+  --version 2.6.0 \
   -f -<<EOF
 licensing:
   glooTrialLicenseKey: ${GLOO_MESH_LICENSE_KEY}
@@ -365,7 +365,7 @@ istioInstallations:
     installations:
       - istioOperatorSpec:
           hub: ${registry}/istio-workshops
-          tag: 1.22.1-solo
+          tag: 1.22.3-solo
         revision: 1-22
   northSouthGateways:
     - enabled: true
@@ -377,7 +377,7 @@ istioInstallations:
           gatewayRevision: 1-22
           istioOperatorSpec:
             hub: ${registry}/istio-workshops
-            tag: 1.22.1-solo
+            tag: 1.22.3-solo
             profile: empty
             components:
               ingressGateways:
@@ -524,7 +524,7 @@ We're going to deploy the httpbin application to demonstrate several features of
 
 You can find more information about this application [here](http://httpbin.org/).
 
-Run the following commands to deploy the httpbin app on `cluster1`. The deployment will be called `not-in-mesh` and won't have the sidecar injected (because we don't label the namespace).
+Run the following commands to deploy the httpbin app on `cluster1`. The deployment will be called `not-in-mesh` and won't have the sidecar injected, because of the annotation `sidecar.istio.io/inject: "false"`.
 
 ```bash
 kubectl --context ${CLUSTER1} create ns httpbin
@@ -599,7 +599,7 @@ do
 done"
 echo
 -->
-
+```
 You can follow the progress using the following command:
 
 ```bash
@@ -654,7 +654,7 @@ helm upgrade --install gloo-platform gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh-addons \
   --kube-context ${CLUSTER1} \
-  --version 2.6.0-rc2 \
+  --version 2.6.0 \
   -f -<<EOF
 common:
   cluster: cluster1
@@ -2760,31 +2760,31 @@ echo "https://cluster1-portal.example.com"
 ATTEMPTS=1
 timeout 60 bash -c 'while [[ "$(curl -m 2 --max-time 2 --insecure -s -o /dev/null -w ''%{http_code}'' https://cluster1-portal.example.com/v1/login)" != "302" ]]; do sleep 5; done'
 timeout 60 bash -c 'while [[ "$(curl -m 2 --max-time 2 --insecure -s -o /dev/null -w ''%{http_code}'' https://cluster1-portal.example.com)" != "200" ]]; do sleep 5; done'
-export USER1_TOKEN=$(node tests/keycloak-token.js "https://cluster1-portal.example.com/v1/login" user1)
-export USER2_TOKEN=$(node tests/keycloak-token.js "https://cluster1-portal.example.com/v1/login" user2)
-until ([ ! -z "$USER1_TOKEN" ] && [[ $USER1_TOKEN != *"dummy"* ]]) || [ $ATTEMPTS -gt 20 ]; do
+export USER1_COOKIE=$(node tests/keycloak-token.js "https://cluster1-portal.example.com/v1/login" user1)
+export USER2_COOKIE=$(node tests/keycloak-token.js "https://cluster1-portal.example.com/v1/login" user2)
+ATTEMPTS=1
+until ([ ! -z "$USER2_COOKIE" ] && [[ $USER2_COOKIE != *"dummy"* ]]) || [ $ATTEMPTS -gt 20 ]; do
   printf "."
   ATTEMPTS=$((ATTEMPTS + 1))
-  sleep 1
-  export USER1_TOKEN=$(node tests/keycloak-token.js "https://cluster1-portal.example.com/v1/login" user1)
+  sleep 3
+  export USER2_COOKIE=$(node tests/keycloak-token.js "https://cluster1-portal.example.com/v1/login" user2)
 done
-until ([ ! -z "$USER2_TOKEN" ] && [[ $USER2_TOKEN != *"dummy"* ]]) || [ $ATTEMPTS -gt 20 ]; do
+ATTEMPTS=1
+until ([ ! -z "$USER1_COOKIE" ] && [[ $USER1_COOKIE != *"dummy"* ]]) || [ $ATTEMPTS -gt 20 ]; do
   printf "."
   ATTEMPTS=$((ATTEMPTS + 1))
-  sleep 1
-  export USER2_TOKEN=$(node tests/keycloak-token.js "https://cluster1-portal.example.com/v1/login" user2)
+  sleep 3
+  export USER1_COOKIE=$(node tests/keycloak-token.js "https://cluster1-portal.example.com/v1/login" user1)
 done
-kubectl -n keycloak create secret generic user1-token --from-literal=token=$USER1_TOKEN --dry-run=client -oyaml | kubectl --context ${MGMT} apply -f -
-kubectl -n keycloak create secret generic user2-token --from-literal=token=$USER2_TOKEN --dry-run=client -oyaml | kubectl --context ${MGMT} apply -f -
-echo "User1 token: $USER1_TOKEN"
-echo "User2 token: $USER2_TOKEN"
+echo "User1 token: $USER1_COOKIE"
+echo "User2 token: $USER2_COOKIE"
 -->
 <!--bash
 cat <<'EOF' > ./test.js
 const helpersHttp = require('./tests/chai-http');
 
 describe("Authentication is working properly", function() {
-  const cookieString = process.env.USER1_TOKEN;
+  const cookieString = process.env.USER1_COOKIE;
 
   it("The portal frontend isn't accessible without authenticating", () => {
     return helpersHttp.checkURL({ host: `https://cluster1-portal.example.com`, path: '/v1/login', retCode: 302 });
@@ -2830,12 +2830,12 @@ while [[ $API_KEY_USER1 != *"apiKey"* ]] && [ $ATTEMPTS -lt 25 ]; do
   echo "Waiting for API key to be created ($ATTEMPTS/25)..."
   ATTEMPTS=$((ATTEMPTS + 1))
   sleep 5
-  export API_KEY_USER1=$(curl -k -s -X POST -H 'Content-Type: application/json' -d '{"usagePlan": "gold", "apiKeyName": "key1"}' -H "Cookie: ${USER1_TOKEN}" "https://cluster1-portal.example.com/portal-server/v1/api-keys")
+  export API_KEY_USER1=$(curl -k -s -X POST -H 'Content-Type: application/json' -d '{"usagePlan": "gold", "apiKeyName": "key1"}' -H "Cookie: ${USER1_COOKIE}" "https://cluster1-portal.example.com/portal-server/v1/api-keys")
   echo API key: $API_KEY_USER1
 done
 -->
 ```bash
-export API_KEY_USER1=$(curl -k -s -X POST -H 'Content-Type: application/json' -d '{"usagePlan": "gold", "apiKeyName": "key1"}' -H "Cookie: ${USER1_TOKEN}" "https://cluster1-portal.example.com/portal-server/v1/api-keys"  | jq -r '.apiKey')
+export API_KEY_USER1=$(curl -k -s -X POST -H 'Content-Type: application/json' -d '{"usagePlan": "gold", "apiKeyName": "key1"}' -H "Cookie: ${USER1_COOKIE}" "https://cluster1-portal.example.com/portal-server/v1/api-keys"  | jq -r '.apiKey')
 echo API key: $API_KEY_USER1
 ```
 
