@@ -7,7 +7,7 @@ source ./scripts/assert.sh
 
 <center><img src="images/gloo-mesh.png" alt="Gloo Mesh Enterprise" style="width:70%;max-width:800px" /></center>
 
-# <center>Gloo Mesh Enterprise (2.6.0-rc2)</center>
+# <center>Gloo Mesh Enterprise (2.6.0)</center>
 
 
 
@@ -27,8 +27,9 @@ source ./scripts/assert.sh
 * [Lab 12 - Create the Root Trust Policy](#lab-12---create-the-root-trust-policy-)
 * [Lab 13 - Leverage Virtual Destinations for east west communications](#lab-13---leverage-virtual-destinations-for-east-west-communications-)
 * [Lab 14 - Zero trust](#lab-14---zero-trust-)
-* [Lab 15 - VM integration with Spire](#lab-15---vm-integration-with-spire-)
-* [Lab 16 - Securing the egress traffic](#lab-16---securing-the-egress-traffic-)
+* [Lab 15 - See how Gloo Platform can help with observability](#lab-15---see-how-gloo-platform-can-help-with-observability-)
+* [Lab 16 - VM integration with Spire](#lab-16---vm-integration-with-spire-)
+* [Lab 17 - Securing the egress traffic](#lab-17---securing-the-egress-traffic-)
 
 
 
@@ -52,7 +53,7 @@ Gloo Mesh Enterprise provides many unique features, including:
 * End-to-end Istio support and CVE security patching for n-4 versions
 * Specialty builds for distroless and FIPS compliance
 * 24x7 production support and one-hour Severity 1 SLA
-* GraphQL and Portal modules to extend functionality
+* Portal modules to extend functionality
 * Workspaces for simplified multi-tenancy
 * Zero-trust architecture for both north-south ingress and east-west service traffic
 * Single pane of glass for operational management of Istio, including global observability
@@ -163,7 +164,9 @@ Pull and push locally the Docker images needed:
 ```bash
 cat <<'EOF' > images.txt
 docker.io/curlimages/curl
+docker.io/bats/bats:v1.4.1
 docker.io/bitnami/postgresql:16.1.0-debian-11-r15
+docker.io/grafana/grafana:10.2.3
 docker.io/istio/examples-bookinfo-details-v1:1.18.0
 docker.io/istio/examples-bookinfo-productpage-v1:1.18.0
 docker.io/istio/examples-bookinfo-ratings-v1:1.18.0
@@ -175,24 +178,32 @@ docker.io/kennethreitz/httpbin
 docker.io/nginx:1.25.3
 docker.io/openpolicyagent/opa:0.57.1-debug
 gcr.io/gloo-mesh/ext-auth-service:0.58.2
-gcr.io/gloo-mesh/gloo-mesh-agent:2.6.0-rc2
-gcr.io/gloo-mesh/gloo-mesh-apiserver:2.6.0-rc2
-gcr.io/gloo-mesh/gloo-mesh-envoy:2.6.0-rc2
-gcr.io/gloo-mesh/gloo-mesh-mgmt-server:2.6.0-rc2
-gcr.io/gloo-mesh/gloo-mesh-spire-controller:2.6.0-rc2
-gcr.io/gloo-mesh/gloo-mesh-ui:2.6.0-rc2
-gcr.io/gloo-mesh/gloo-otel-collector:2.6.0-rc2
+gcr.io/gloo-mesh/gloo-mesh-agent:2.6.0
+gcr.io/gloo-mesh/gloo-mesh-apiserver:2.6.0
+gcr.io/gloo-mesh/gloo-mesh-envoy:2.6.0
+gcr.io/gloo-mesh/gloo-mesh-mgmt-server:2.6.0
+gcr.io/gloo-mesh/gloo-mesh-spire-controller:2.6.0
+gcr.io/gloo-mesh/gloo-mesh-ui:2.6.0
+gcr.io/gloo-mesh/gloo-otel-collector:2.6.0
 gcr.io/gloo-mesh/kubectl:1.16.4
 gcr.io/gloo-mesh/prometheus:v2.53.0
 gcr.io/gloo-mesh/rate-limiter:0.12.2
 gcr.io/gloo-mesh/redis:7.2.4-alpine
 gcr.io/gloo-mesh/spire-server:1.8.6
 quay.io/keycloak/keycloak:25.0.1
+quay.io/kiwigrid/k8s-sidecar:1.25.2
+quay.io/prometheus-operator/prometheus-config-reloader:v0.70.0
 quay.io/prometheus-operator/prometheus-config-reloader:v0.74.0
-us-docker.pkg.dev/gloo-mesh/istio-workshops/install-cni:1.22.1-solo
-us-docker.pkg.dev/gloo-mesh/istio-workshops/operator:1.22.1-solo
-us-docker.pkg.dev/gloo-mesh/istio-workshops/pilot:1.22.1-solo
-us-docker.pkg.dev/gloo-mesh/istio-workshops/proxyv2:1.22.1-solo
+quay.io/prometheus-operator/prometheus-operator:v0.70.0
+quay.io/prometheus/alertmanager:v0.26.0
+quay.io/prometheus/node-exporter:v1.7.0
+quay.io/prometheus/prometheus:v2.48.1
+registry.k8s.io/ingress-nginx/kube-webhook-certgen:v20221220-controller-v1.5.1-58-g787ea74b6
+registry.k8s.io/kube-state-metrics/kube-state-metrics:v2.10.1
+us-docker.pkg.dev/gloo-mesh/istio-workshops/install-cni:1.22.3-solo
+us-docker.pkg.dev/gloo-mesh/istio-workshops/operator:1.22.3-solo
+us-docker.pkg.dev/gloo-mesh/istio-workshops/pilot:1.22.3-solo
+us-docker.pkg.dev/gloo-mesh/istio-workshops/proxyv2:1.22.3-solo
 EOF
 
 cat images.txt | while read image; do
@@ -223,7 +234,7 @@ done
 Before we get started, let's install the `meshctl` CLI:
 
 ```bash
-export GLOO_MESH_VERSION=v2.6.0-rc2
+export GLOO_MESH_VERSION=v2.6.0
 curl -sL https://run.solo.io/meshctl/install | sh -
 export PATH=$HOME/.gloo-mesh/bin:$PATH
 ```
@@ -267,13 +278,13 @@ helm upgrade --install gloo-platform-crds gloo-platform-crds \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${MGMT} \
-  --version 2.6.0-rc2
+  --version 2.6.0
 
 helm upgrade --install gloo-platform gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${MGMT} \
-  --version 2.6.0-rc2 \
+  --version 2.6.0 \
   -f -<<EOF
 licensing:
   glooTrialLicenseKey: ${GLOO_MESH_LICENSE_KEY}
@@ -448,13 +459,13 @@ helm upgrade --install gloo-platform-crds gloo-platform-crds \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${CLUSTER1} \
-  --version 2.6.0-rc2
+  --version 2.6.0
 
 helm upgrade --install gloo-platform gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${CLUSTER1} \
-  --version 2.6.0-rc2 \
+  --version 2.6.0 \
   -f -<<EOF
 common:
   cluster: cluster1
@@ -507,13 +518,13 @@ helm upgrade --install gloo-platform-crds gloo-platform-crds \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${CLUSTER2} \
-  --version 2.6.0-rc2
+  --version 2.6.0
 
 helm upgrade --install gloo-platform gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${CLUSTER2} \
-  --version 2.6.0-rc2 \
+  --version 2.6.0 \
   -f -<<EOF
 common:
   cluster: cluster2
@@ -794,7 +805,7 @@ spec:
       istioOperatorSpec:
         profile: minimal
         hub: ${registry}/istio-workshops
-        tag: 1.22.1-solo
+        tag: 1.22.3-solo
         namespace: istio-system
         values:
           global:
@@ -819,6 +830,8 @@ spec:
               env:
                 - name: PILOT_ENABLE_K8S_SELECT_WORKLOAD_ENTRIES
                   value: "false"
+                - name: PILOT_ENABLE_IP_AUTOALLOCATE
+                  value: "true"
           cni:
             enabled: true
             namespace: kube-system
@@ -843,7 +856,7 @@ spec:
       istioOperatorSpec:
         profile: empty
         hub: ${registry}/istio-workshops
-        tag: 1.22.1-solo
+        tag: 1.22.3-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -870,7 +883,7 @@ spec:
       istioOperatorSpec:
         profile: empty
         hub: ${registry}/istio-workshops
-        tag: 1.22.1-solo
+        tag: 1.22.3-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -906,7 +919,7 @@ spec:
       istioOperatorSpec:
         profile: minimal
         hub: ${registry}/istio-workshops
-        tag: 1.22.1-solo
+        tag: 1.22.3-solo
         namespace: istio-system
         values:
           global:
@@ -931,6 +944,8 @@ spec:
               env:
                 - name: PILOT_ENABLE_K8S_SELECT_WORKLOAD_ENTRIES
                   value: "false"
+                - name: PILOT_ENABLE_IP_AUTOALLOCATE
+                  value: "true"
           cni:
             enabled: true
             namespace: kube-system
@@ -955,7 +970,7 @@ spec:
       istioOperatorSpec:
         profile: empty
         hub: ${registry}/istio-workshops
-        tag: 1.22.1-solo
+        tag: 1.22.3-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -982,7 +997,7 @@ spec:
       istioOperatorSpec:
         profile: empty
         hub: ${registry}/istio-workshops
-        tag: 1.22.1-solo
+        tag: 1.22.3-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -1285,7 +1300,7 @@ We're going to deploy the httpbin application to demonstrate several features of
 
 You can find more information about this application [here](http://httpbin.org/).
 
-Run the following commands to deploy the httpbin app on `cluster1`. The deployment will be called `not-in-mesh` and won't have the sidecar injected (because we don't label the namespace).
+Run the following commands to deploy the httpbin app on `cluster1`. The deployment will be called `not-in-mesh` and won't have the sidecar injected, because of the annotation `sidecar.istio.io/inject: "false"`.
 
 ```bash
 kubectl --context ${CLUSTER1} create ns httpbin
@@ -1424,7 +1439,7 @@ do
 done"
 echo
 -->
-
+```
 You can follow the progress using the following command:
 
 ```bash
@@ -1479,7 +1494,7 @@ helm upgrade --install gloo-platform gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh-addons \
   --kube-context ${CLUSTER1} \
-  --version 2.6.0-rc2 \
+  --version 2.6.0 \
   -f -<<EOF
 common:
   cluster: cluster1
@@ -1513,7 +1528,7 @@ helm upgrade --install gloo-platform gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh-addons \
   --kube-context ${CLUSTER2} \
-  --version 2.6.0-rc2 \
+  --version 2.6.0 \
   -f -<<EOF
 common:
   cluster: cluster2
@@ -2257,7 +2272,6 @@ spec:
   config:
     mgmtServerCa:
       generated: {}
-    autoRestartPods: true # Restarting pods automatically is NOT RECOMMENDED in Production
 EOF
 ```
 
@@ -2269,13 +2283,16 @@ Then, Gloo Mesh will use the Gloo Mesh Agent on each of the clusters to create a
 
 ![Root Trust Policy](images/steps/root-trust-policy/gloo-mesh-root-trust-policy.svg)
 
-Gloo Mesh will then sign the intermediate certificates with the Root certificate. 
+Gloo Mesh will then sign the intermediate certificates with the Root certificate.
 
 At that point, we want Istio to pick up the new intermediate CA and start using that for its workloads. To do that Gloo Mesh creates a Kubernetes secret called `cacerts` in the `istio-system` namespace.
 
 You can have a look at the Istio documentation [here](https://istio.io/latest/docs/tasks/security/cert-management/plugin-ca-cert) if you want to get more information about this process.
 
 
+In recent versions of Istio, the control plane is able to pick up this new cert without any restart, but we would need to wait for the different Pods to renew their certificates (which happens every hour by default).
+
+To accelerate this process, we can bounce the Pods of the workloads that need to renew their certificates.
 
 <!--bash
 printf "\nWaiting until the secret is created in $CLUSTER1"
@@ -2293,7 +2310,13 @@ do
   sleep 1
 done
 printf "\n"
+
 -->
+```bash
+bash ./data/steps/root-trust-policy/restart-istio-pods.sh ${CLUSTER1}
+bash ./data/steps/root-trust-policy/restart-istio-pods.sh ${CLUSTER2}
+```
+
 
 
 
@@ -2316,16 +2339,6 @@ timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=150 --bail 2> 
 
 
 <!--bash
-printf "Waiting for all pods to be bounced in cluster1"
-until [ $(kubectl --context ${CLUSTER1} -n istio-system get podbouncedirectives -o jsonpath='{.items[].status.state}' | grep FINISHED -c) -eq 1 ]; do
-  printf "%s" "."
-  sleep 1
-done
-printf "Waiting for all pods to be bounced in cluster2"
-until [ $(kubectl --context ${CLUSTER2} -n istio-system get podbouncedirectives -o jsonpath='{.items[].status.state}' | grep FINISHED -c) -eq 1 ]; do
-  printf "%s" "."
-  sleep 1
-done
 printf "Waiting for all pods needed for the test..."
 printf "\n"
 kubectl --context ${CLUSTER1} get deploy -n bookinfo-backends -oname|xargs -I {} kubectl --context ${CLUSTER1} rollout status -n bookinfo-backends {}
@@ -2376,14 +2389,6 @@ timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> 
 
 
 
-
-
-
-We also need to make sure we restart our `in-mesh` deployment because it's not yet part of a `Workspace`:
-
-```bash
-kubectl --context ${CLUSTER1} -n httpbin rollout restart deploy/in-mesh
-```
 
 
 
@@ -3015,7 +3020,243 @@ kubectl --context ${CLUSTER1} delete accesspolicies -n bookinfo-frontends --all
 
 
 
-## Lab 15 - VM integration with Spire <a name="lab-15---vm-integration-with-spire-"></a>
+## Lab 15 - See how Gloo Platform can help with observability <a name="lab-15---see-how-gloo-platform-can-help-with-observability-"></a>
+[<img src="https://img.youtube.com/vi/UhWsk4YnOy0/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/UhWsk4YnOy0 "Video Link")
+
+# Observability with Gloo Platform
+
+Let's take a look at how Gloo Platform can help with observability!
+
+![Gloo Platform OTel arch](images/steps/gloo-platform-observability/otel-arch.svg)
+
+Our telemetry pipeline's main goal is to collect all the metrics, and securely forward them to the management cluster, making all the metrics available for our UI to visualize the service graph.
+
+Since our pipeline is leveraging OpenTelemetry, this pipeline can be customized and extended to cover all possible use-cases, e.g. collecting telemetry from other workloads, or integrating with centralized observability platform/SaaS solutions.
+
+## Gloo Platform Operational Dashboard 
+
+First let's deploy the usual Prometheus stack, and explore our management plane metrics.
+
+```bash
+helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+helm repo update
+
+helm upgrade --install kube-prometheus-stack \
+prometheus-community/kube-prometheus-stack \
+--kube-context ${MGMT} \
+--version 55.9.0 \
+--namespace monitoring \
+--create-namespace \
+--values - <<EOF
+prometheus:
+  service:
+    type: LoadBalancer
+  prometheusSpec:
+    enableRemoteWriteReceiver: true
+grafana:
+  service:
+    type: LoadBalancer
+    port: 3000
+  additionalDataSources:
+  - name: prometheus-GM
+    uid: prometheus-GM
+    type: prometheus
+    url: http://prometheus-server.gloo-mesh:80
+  grafana.ini:
+    auth.anonymous:
+      enabled: true
+  defaultDashboardsEnabled: false
+global:
+  imageRegistry: ${registry}
+
+EOF
+```
+<!--bash
+cat <<'EOF' > ./test.js
+const helpers = require('./tests/chai-exec');
+
+describe("kube-prometheus-stack deployments are ready", () => {
+  it('kube-prometheus-stack-kube-state-metrics pods are ready', () => helpers.checkDeployment({ context: process.env.MGMT, namespace: "monitoring", k8sObj: "kube-prometheus-stack-kube-state-metrics" }));
+  it('kube-prometheus-stack-grafana pods are ready', () => helpers.checkDeployment({ context: process.env.MGMT, namespace: "monitoring", k8sObj: "kube-prometheus-stack-grafana" }));
+  it('kube-prometheus-stack-operator pods are ready', () => helpers.checkDeployment({ context: process.env.MGMT, namespace: "monitoring", k8sObj: "kube-prometheus-stack-operator" }));
+});
+
+describe("kube-prometheus-stack daemonset is ready", () => {
+  it('kube-prometheus-stack-prometheus-node-exporter pods are ready', () => helpers.checkDaemonSet({ context: process.env.MGMT, namespace: "monitoring", k8sObj: "kube-prometheus-stack-prometheus-node-exporter" }));
+});
+EOF
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/gloo-platform-observability/tests/grafana-installed.test.js.liquid"
+tempfile=$(mktemp)
+echo "saving errors in ${tempfile}"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
+-->
+			    
+Let's populate the following ENV variable with the IP address of Prometheus. We will need this in a bit, as we will be using this Prometheus instance as our production-ready metrics storage!
+
+```bash
+PROD_PROMETHEUS_IP=$(kubectl get svc kube-prometheus-stack-prometheus -n monitoring -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+```
+
+Let's install a few dashboards!
+
+Now, you can go the the Grafana tab, log in with the default login credentials, admin/prom-operator, and import the dashboard of Istio control plane.
+
+Add the Operational Dashboard
+=============================
+
+Our Gloo components are all instrumented with Prometheus compatible metrics, providing an easy way to pinpoint a potential degradation.
+
+Let's make sure all the Gloo Platform metrics are available in the Gloo Telemetry Collector.
+
+
+```bash
+helm upgrade --install gloo-platform gloo-platform \
+  --repo https://storage.googleapis.com/gloo-platform/helm-charts \
+  --namespace gloo-mesh \
+  --kube-context ${CLUSTER1} \
+  --reuse-values \
+  --version 2.6.0 \
+  --values - <<EOF
+telemetryCollectorCustomization:
+  extraProcessors:
+    filter/gloo:
+      metrics:
+        include:
+          match_type: regexp
+          metric_names:
+            - "gloo_mesh_.*"
+            - "relay_.*"
+  extraPipelines:
+    metrics/gloo:
+      receivers:
+      - prometheus
+      processors:
+      - filter/gloo
+      - batch
+      exporters:
+      - otlp
+
+EOF
+```
+
+This configuration update will
+  - create a new processor, called `filter/gloo`, that will enable all the metrics related to Gloo control plane
+  - create a new pipeline, called `metrics/gloo`, that will have the aforementioned processor to include the control plane metrics
+
+Then, we just need to perform a rollout restart for the metrics collector, so the new pods can pick up the config change.
+
+```bash
+kubectl --context $CLUSTER1 rollout restart daemonset/gloo-telemetry-collector-agent -n gloo-mesh
+```
+
+You can import the following dashboard to see our Operational Dashboard, covering all of our components in the stack.
+
+Here, you have specific rows for each components, such as the management server, the agent, the telemetry collectors, and some additional information regarding resource usage.
+
+```bash
+kubectl --context ${MGMT} -n monitoring create cm operational-dashboard \
+--from-file=data/steps/gloo-platform-observability/operational-dashboard.json
+kubectl --context ${MGMT} label -n monitoring cm operational-dashboard grafana_dashboard=1
+```
+
+Out-of-box alerting
+===================
+
+Our Prometheus comes with useful alerts by default, making it easier to get notified if something breaks.
+
+All of the default alerts have corresponding panels on the Operational Dashboard.
+
+You can click the "Bell" icon on the left, and choose "Alert rules", and check "GlooPlatformAlerts" to take a closer look at them. 
+
+Let's trigger one of the alerts!
+
+If you scale down the Gloo Agent in let's say `cluster1`, you should have an alert called `GlooPlatformAgentsAreDisconnected` go into first PENDING, then FIRING, let's check this!
+
+```sh
+kubectl --context $CLUSTER1 scale deployment.apps/gloo-mesh-agent -n gloo-mesh --replicas=0
+```
+
+The alert will fire in 5m, but even before that, it will reach PENDING state, let's wait for this!
+
+Don't forget to scale it up after:
+
+```sh
+kubectl --context $CLUSTER1 scale deployment.apps/gloo-mesh-agent -n gloo-mesh --replicas=1
+```
+
+Collect remote IstioD metrics securely
+======================================
+
+Let's take a look how easy it is to modify the metrics collection in the workload clusters to collect IstioD metrics, and ship them to a remote destination.
+
+Notice that we are doing this in a workload cluster, and NOT via our default OTel pipeline between the Gloo Telemetry Collector and Gateway. The reason for this is that the built-in Prometheus should only be used for metrics related to Gloo Platform. Since our UI is not leveraging additional Istio metrics such as IstioD metrics, it's recommended to forward these to your observability solution you are using as a long term storage. In this case, that's the Prometheus deployed by `kube-prometheus-stack`.
+
+
+```bash
+helm upgrade --install gloo-platform gloo-platform \
+  --repo https://storage.googleapis.com/gloo-platform/helm-charts \
+  --namespace gloo-mesh \
+  --kube-context ${CLUSTER1} \
+  --reuse-values \
+  --version 2.6.0 \
+  --values - <<EOF
+telemetryCollectorCustomization:
+  extraProcessors:
+    batch/istiod:
+      send_batch_size: 10000
+      timeout: 10s
+    filter/istiod:
+      metrics:
+        include:
+          match_type: regexp
+          metric_names:
+            - "pilot.*"
+            - "process.*"
+            - "go.*"
+            - "container.*"
+            - "envoy.*"
+            - "galley.*"
+            - "sidecar.*"
+            # - "istio_build.*" re-enable this after this is fixed upstream
+  extraExporters:
+    prometheusremotewrite/production:
+      endpoint: http://${PROD_PROMETHEUS_IP}:9090/api/v1/write
+  extraPipelines:
+    metrics/istiod:
+      receivers:
+      - prometheus
+      processors:
+      - memory_limiter
+      - batch/istiod
+      - filter/istiod
+      exporters:
+      - prometheusremotewrite/production
+
+EOF
+```
+
+This configuration update will
+  - create a new processor, called `filter/istiod`, that will enable all the IstioD/Pilot related metrics
+  - create a new pipeline, called `metrics/istiod`, that will have the aforementioned processor to include the control plane metrics
+
+Then, we just need to perform a rollout restart for the metrics collector, so the new pods can pick up the config change.
+
+```bash
+kubectl --context $CLUSTER1 rollout restart daemonset/gloo-telemetry-collector-agent -n gloo-mesh
+```
+
+Now, let's import the Istio Control Plane Dashboard, and see the metrics!
+
+```bash
+kubectl --context ${MGMT} -n monitoring create cm istio-control-plane-dashboard \
+--from-file=data/steps/gloo-platform-observability/istio-control-plane-dashboard.json
+kubectl --context ${MGMT} label -n monitoring cm istio-control-plane-dashboard grafana_dashboard=1
+```
+
+
+
+
+## Lab 16 - VM integration with Spire <a name="lab-16---vm-integration-with-spire-"></a>
 
 
 Let's see how we can configure a VM to be part of the Mesh.
@@ -3030,7 +3271,7 @@ helm upgrade --install gloo-platform-crds gloo-platform-crds \
   --namespace gloo-mesh \
   --kube-context ${MGMT} \
   --set featureGates.ExternalWorkloads=true \
-  --version 2.6.0-rc2 \
+  --version 2.6.0 \
   --reuse-values \
   -f -<<EOF
 featureGates:
@@ -3041,7 +3282,7 @@ helm upgrade gloo-platform gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${MGMT} \
-  --version 2.6.0-rc2 \
+  --version 2.6.0 \
   --reuse-values \
   -f -<<EOF
 featureGates:
@@ -3054,7 +3295,7 @@ helm upgrade --install gloo-platform-crds gloo-platform-crds \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${CLUSTER1} \
-  --version 2.6.0-rc2 \
+  --version 2.6.0 \
   --reuse-values \
   -f -<<EOF
 featureGates:
@@ -3065,7 +3306,7 @@ helm upgrade gloo-platform gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${CLUSTER1} \
-  --version 2.6.0-rc2 \
+  --version 2.6.0 \
   --reuse-values \
   -f -<<EOF
 glooSpireServer:
@@ -3103,9 +3344,7 @@ The certificates will be generated by the Spire server. We need to restart it to
 kubectl --context ${CLUSTER1} -n istio-system delete secrets cacerts
 kubectl --context ${CLUSTER1} -n istio-system delete issuedcertificates,podbouncedirectives --all
 kubectl --context ${CLUSTER1} -n gloo-mesh rollout status deploy
-kubectl --context ${CLUSTER1} -n istio-system delete pod -l app=istiod
-kubectl --context ${CLUSTER1} -n istio-system rollout status deploy
-kubectl --context ${CLUSTER1} -n istio-gateways delete pod -l app=istio-ingressgateway
+bash ./data/steps/root-trust-policy/restart-istio-pods.sh ${CLUSTER1}
 kubectl --context ${CLUSTER1} -n gloo-mesh rollout restart deploy gloo-mesh-agent
 ```
 <!--bash
@@ -3276,19 +3515,20 @@ while [[ ! "${JOIN_TOKEN}" =~ ${uuid_regex} ]]; do
     fi
 
     echo "Waiting for JOIN_TOKEN to have the correct format..."
-    export JOIN_TOKEN=$(meshctl external-workload gen-token --kubecontext ${CLUSTER1} --ext-workload virtualmachines/${VM_APP} --trust-domain ${CLUSTER1} --plain 2>&1 | grep INFO | awk '{ print $4}')
+    export JOIN_TOKEN=$(meshctl external-workload gen-token --kubecontext ${CLUSTER1} --trust-domain ${CLUSTER1} --ttl 3600 --ext-workload virtualmachines/${VM_APP} --plain=true | grep -i 'token' | cut -d ':' -f2 | xargs)
     sleep 1 # Pause for 1 second
 done
 -->
 
 Get a Spire token to register the VM:
 
-```bash
+```shell
 export JOIN_TOKEN=$(meshctl external-workload gen-token \
   --kubecontext ${CLUSTER1} \
   --ext-workload virtualmachines/${VM_APP} \
   --trust-domain ${CLUSTER1} \
-  --plain 2>&1 | grep INFO | awk '{ print $4}')
+  --ttl 3600 \
+  --plain=true | grep -i 'token' | cut -d ':' -f2 | xargs)
 ```
 
 Get the IP address of the E/W gateway the VM will use to register itself:
@@ -3310,8 +3550,8 @@ echo
 -->
 
 ```bash
-export GLOO_AGENT_URL=https://storage.googleapis.com/gloo-platform/vm/v2.6.0-rc2/gloo-workload-agent.deb
-export ISTIO_URL=https://storage.googleapis.com/solo-workshops/istio-binaries/1.22.1/istio-sidecar.deb
+export GLOO_AGENT_URL=https://storage.googleapis.com/gloo-platform/vm/v2.6.0/gloo-workload-agent.deb
+export ISTIO_URL=https://storage.googleapis.com/solo-workshops/istio-binaries/1.22.3/istio-sidecar.deb
 
 docker exec vm1 meshctl ew onboard --install \
   --attestor token \
@@ -3533,7 +3773,7 @@ docker rm -f vm1
 
 
 
-## Lab 16 - Securing the egress traffic <a name="lab-16---securing-the-egress-traffic-"></a>
+## Lab 17 - Securing the egress traffic <a name="lab-17---securing-the-egress-traffic-"></a>
 [<img src="https://img.youtube.com/vi/tQermml1Ryo/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/tQermml1Ryo "Video Link")
 
 
@@ -3579,7 +3819,7 @@ spec:
       istioOperatorSpec:
         profile: empty
         hub: ${registry}/istio-workshops
-        tag: 1.22.1-solo
+        tag: 1.22.3-solo
         components:
           egressGateways:
             - enabled: true
