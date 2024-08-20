@@ -183,14 +183,14 @@ Run the commands below to deploy the Gloo Edge Enterprise components:
 
 
 ```bash
-export GLOO_VERSION=v1.17.0
+export GLOO_VERSION=v1.17.1
 curl -sL https://run.solo.io/gloo/install | sh
 export PATH=$HOME/.gloo/bin:$PATH
 
 helm repo add glooe https://storage.googleapis.com/gloo-ee-helm
 helm repo update
 helm upgrade --install gloo-gateway glooe/gloo-ee --namespace gloo-system \
-  --create-namespace --version 1.17.0 --set-string license_key=$LICENSE_KEY --devel
+  --create-namespace --version 1.17.1 --set-string license_key=$LICENSE_KEY --devel
 ```
 
 <!--bash
@@ -2455,7 +2455,7 @@ helm repo update
 helm upgrade -i -n gloo-system \
   gloo-gateway gloo-ee-helm/gloo-ee \
   --create-namespace \
-  --version 1.17.0 \
+  --version 1.17.1 \
   --kube-context $CLUSTER1 \
   --set-string license_key=$LICENSE_KEY \
   -f -<<EOF

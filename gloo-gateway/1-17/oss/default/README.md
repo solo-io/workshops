@@ -155,7 +155,7 @@ helm repo update
 helm upgrade -i -n gloo-system \
   gloo-gateway solo-public-helm/gloo \
   --create-namespace \
-  --version 1.17.0 \
+  --version 1.17.4 \
   --kube-context ${CLUSTER1} \
   -f -<<EOF
 kubeGateway:
