@@ -83,6 +83,16 @@
       <td></td>
     </tr>
     <tr>
+      <td>Gloo Gateway Open Source</td>
+      <td><a href="https://github.com/solo-io/workshops/tree/master/gloo-gateway/1-17/oss/default" target=”_blank”>stable</a></td>
+      <td></td>
+      <td></td>
+      <td></td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
       <td>Gloo Gateway Enterprise</td>
       <td><a href="https://github.com/solo-io/workshops/tree/master/gloo-gateway/1-17/enterprise/default" target=”_blank”>stable</a></td>
       <td></td>
@@ -144,6 +154,18 @@
     <tr>
       <td>Gloo Edge</td>
       <td><a href="https://play.instruqt.com/manage/soloio/tracks/gloo-edge" target=”_blank”>stable</a></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>Gloo Gateway Open Source</td>
+      <td><a href=""https://play.instruqt.com/manage/soloio/tracks/oss-default" target=”_blank”>stable</a></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>Gloo Gateway Enterprise</td>
+      <td><a href="https://play.instruqt.com/manage/soloio/tracks/enterprise-default" target=”_blank”>stable</a></td>
       <td></td>
       <td></td>
     </tr>
