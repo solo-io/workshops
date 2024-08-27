@@ -3879,28 +3879,13 @@ In recent versions of Istio, the control plane is able to pick up this new cert 
 To accelerate this process, we can bounce the Pods of the workloads that need to renew their certificates.
 
 <!--bash
-printf "\nWaiting until the secret is created in $CLUSTER1"
-until kubectl --context ${CLUSTER1} get secret -n istio-system cacerts &>/dev/null
-do
-  printf "%s" "."
-  sleep 1
-done
-printf "\n"
-
-printf "\nWaiting until the secret is created in $CLUSTER2"
-until kubectl --context ${CLUSTER2} get secret -n istio-system cacerts &>/dev/null
-do
-  printf "%s" "."
-  sleep 1
-done
-printf "\n"
 
 -->
+
 ```bash
 bash ./data/steps/root-trust-policy/restart-istio-pods.sh ${CLUSTER1}
 bash ./data/steps/root-trust-policy/restart-istio-pods.sh ${CLUSTER2}
 ```
-
 
 
 
