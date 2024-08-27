@@ -1442,8 +1442,6 @@ Run the following commands to deploy the client on `cluster1`. The deployment wi
 
 ```bash
 kubectl --context ${CLUSTER1} create ns clients
-kubectl --context ${CLUSTER1} label namespace clients istio.io/dataplane-mode=ambient
-kubectl --context ${CLUSTER1} label namespace clients istio-injection=disabled
 
 kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: v1
@@ -2529,32 +2527,46 @@ This step shows Gloo Mesh Core insights about Cilium. Hence, it is skipped when 
 
 ## Lab 13 - Ambient Egress Traffic with Waypoint <a name="lab-13---ambient-egress-traffic-with-waypoint-"></a>
 
-This lab demonstrates the simplicity of configuring Egress traffic in Istio Ambient using Waypoints.
-Start by setting up a Waypoint, which will be used to route and manage egress traffic from our cluster.
+In a typical service mesh, controlling egress traffic—traffic leaving the mesh to external services—is required for security and compliance. Istio's Waypoints can centralize the control of egress traffic by creating a single Waypoint that can be used to enforce egress policies for multiple services across different namespaces.
+
+### Shared Waypoint for Egress Traffic
+
+First, we will create a dedicated namespace called `egress` and deploy our Shared Waypoint for Egress traffic.
+This Waypoint will be shared across various namespaces, allowing us to apply consistent egress rules.
 
 ```bash
 kubectl --context ${CLUSTER1} apply -f - <<EOF
+apiVersion: v1
+kind: Namespace
+metadata:
+  labels:
+    istio.io/dataplane-mode: ambient
+    istio.io/use-waypoint: waypoint
+  name: egress
+---
 apiVersion: gateway.networking.k8s.io/v1
 kind: Gateway
 metadata:
   name: waypoint
-  namespace: clients
+  namespace: egress
 spec:
   gatewayClassName: istio-waypoint
   listeners:
   - name: mesh
     port: 15008
     protocol: HBONE
+    allowedRoutes:
+      namespaces:
+        from: All
 EOF
 ```
 
 Wait for the deployment to be ready:
 
 ```bash
-kubectl --context ${CLUSTER1} -n clients rollout status deployment/waypoint
+kubectl --context ${CLUSTER1} -n egress rollout status deployment/waypoint
 ```
-
-With our Waypoint in place, we'll create a Service Entry for our external service, in this case, 'httpbin.org'. A Service Entry allows us to add an entry to Istio's internal service registry, enabling us to manage traffic for services outside the mesh. We'll configure it to use our newly created Waypoint.
+Next, create a Service Entry to represent the external service 'httpbin.org' and by setting the labels `istio.io/use-waypoint` and `istio.io/use-waypoint-namespace` we configure traffic targeted at this service entry to be routed to the specified Waypoint.
 
 ```bash
 kubectl --context ${CLUSTER1} apply -f - <<EOF
@@ -2564,6 +2576,7 @@ metadata:
   annotations:
   labels:
     istio.io/use-waypoint: waypoint
+    istio.io/use-waypoint-namespace: egress
   name: httpbin.org
   namespace: clients
 spec:
@@ -2589,7 +2602,9 @@ x-envoy-decorator-operation: :80/*
 
 The presence of Envoy headers in the response confirms that our traffic is being routed through the Waypoint as intended.
 
-To showcase more advanced traffic management capabilities, we'll apply a Virtual Service to add a header to the request just as we did in the labs before.
+### Traffic Management to Egress Traffic
+
+To showcase traffic management capabilities, we'll apply a Virtual Service to the waypoint to add a header to the request, just as we did in the labs before.
 
 ```bash
 kubectl --context ${CLUSTER1} apply -f - <<EOF
@@ -2597,7 +2612,7 @@ apiVersion: networking.istio.io/v1
 kind: VirtualService
 metadata:
   name: httpbin
-  namespace: clients
+  namespace: egress
 spec:
   hosts:
   - httpbin.org
@@ -2619,7 +2634,7 @@ kubectl -n clients exec deploy/in-ambient -- curl -s httpbin.org/get | grep -i m
     "My-Added-Header": "added-value",
 ```
 
-In summary, all the capabilities shown in all the labs for east-west traffic can be applied to egress traffic as well!
+By setting up a Waypoint in the egress namespace, we have effectively centralized the management of egress traffic across multiple namespaces. This approach not only simplifies the configuration but also ensures consistent egress policies, improving the security and compliance posture of your service mesh.
 
 <!--bash
 cat <<'EOF' > ./test.js
@@ -2677,7 +2692,7 @@ spec:
       istioOperatorSpec:
         profile: ambient
         hub: us-docker.pkg.dev/gloo-mesh/istio-<enterprise_istio_repo>
-        tag: 1.22.3-patch1-solo
+        tag: 1.23.0-solo
         namespace: istio-system
         values:
           cni:
@@ -2722,7 +2737,7 @@ spec:
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-<enterprise_istio_repo>
-        tag: 1.22.3-patch1-solo
+        tag: 1.23.0-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -2750,7 +2765,7 @@ spec:
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-<enterprise_istio_repo>
-        tag: 1.22.3-patch1-solo
+        tag: 1.23.0-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -2785,7 +2800,7 @@ spec:
       istioOperatorSpec:
         profile: ambient
         hub: us-docker.pkg.dev/gloo-mesh/istio-<enterprise_istio_repo>
-        tag: 1.22.3-patch1-solo
+        tag: 1.23.0-solo
         namespace: istio-system
         values:
           cni:
@@ -2831,7 +2846,7 @@ spec:
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-<enterprise_istio_repo>
-        tag: 1.22.3-patch1-solo
+        tag: 1.23.0-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -2859,7 +2874,7 @@ spec:
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-<enterprise_istio_repo>
-        tag: 1.22.3-patch1-solo
+        tag: 1.23.0-solo
         values:
           gateways:
             istio-ingressgateway:
