@@ -1,4 +1,11 @@
 #!/bin/bash
+printf "\nWaiting until the secret is created in $1"
+until kubectl --context $1 get secret -n istio-system cacerts &>/dev/null
+do
+  printf "%s" "."
+  sleep 1
+done
+printf "\n"
 kubectl --context $1 rollout restart deploy,ds -n istio-system
 kubectl --context $1 rollout status deploy,ds -n istio-system
 namespaces=$(kubectl --context $1 get namespaces -o jsonpath='{.items[*].metadata.name}')
