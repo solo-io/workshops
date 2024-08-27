@@ -143,9 +143,7 @@ Before we get started, let's install the `meshctl` CLI:
 
 ```bash
 export GLOO_MESH_VERSION=v2.6.0
-mkdir -p $HOME/.gloo-mesh/bin
-curl "https://storage.googleapis.com/gloo-platform-dev/meshctl/$GLOO_MESH_VERSION/meshctl-$(uname | tr '[:upper:]' '[:lower:]')-amd64" > $HOME/.gloo-mesh/bin/meshctl
-chmod +x $HOME/.gloo-mesh/bin/meshctl
+curl -sL https://run.solo.io/meshctl/install | sh -
 export PATH=$HOME/.gloo-mesh/bin:$PATH
 ```
 <!--bash
@@ -184,14 +182,14 @@ Run the following commands to deploy the Gloo Mesh management plane:
 kubectl --context ${MGMT} create ns gloo-mesh
 
 helm upgrade --install gloo-platform-crds gloo-platform-crds \
-  --repo https://storage.googleapis.com/gloo-platform-dev/platform-charts/helm-charts \
+  --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${MGMT} \
   --set featureGates.insightsConfiguration=true \
   --version 2.6.0
 
 helm upgrade --install gloo-platform-mgmt gloo-platform \
-  --repo https://storage.googleapis.com/gloo-platform-dev/platform-charts/helm-charts \
+  --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${MGMT} \
   --version 2.6.0 \
