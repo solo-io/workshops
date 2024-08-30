@@ -7,7 +7,7 @@ source ./scripts/assert.sh
 
 <center><img src="images/gloo-mesh.png" alt="Gloo Mesh Enterprise" style="width:70%;max-width:800px" /></center>
 
-# <center>Gloo Mesh Core (2.6.0)</center>
+# <center>Gloo Mesh Core (2.6.2)</center>
 
 
 
@@ -20,13 +20,15 @@ source ./scripts/assert.sh
 * [Lab 5 - Deploy the httpbin demo app](#lab-5---deploy-the-httpbin-demo-app-)
 * [Lab 6 - Deploy the clients to make requests to other services](#lab-6---deploy-the-clients-to-make-requests-to-other-services-)
 * [Lab 7 - Expose the productpage service through a gateway using Istio resources](#lab-7---expose-the-productpage-service-through-a-gateway-using-istio-resources-)
-* [Lab 8 - Ambient L7 observability](#lab-8---ambient-l7-observability-)
-* [Lab 9 - Introduction to Insights](#lab-9---introduction-to-insights-)
-* [Lab 10 - Insights related to configuration errors](#lab-10---insights-related-to-configuration-errors-)
-* [Lab 11 - Insights related to security issues](#lab-11---insights-related-to-security-issues-)
-* [Lab 12 - Insights related to health issues](#lab-12---insights-related-to-health-issues-)
-* [Lab 13 - Ambient Egress Traffic with Waypoint](#lab-13---ambient-egress-traffic-with-waypoint-)
+* [Lab 8 - Ambient Authorization Policies](#lab-8---ambient-authorization-policies-)
+* [Lab 9 - Ambient L7 observability](#lab-9---ambient-l7-observability-)
+* [Lab 10 - Introduction to Insights](#lab-10---introduction-to-insights-)
+* [Lab 11 - Insights related to configuration errors](#lab-11---insights-related-to-configuration-errors-)
+* [Lab 12 - Insights related to security issues](#lab-12---insights-related-to-security-issues-)
+* [Lab 13 - Insights related to health issues](#lab-13---insights-related-to-health-issues-)
 * [Lab 14 - Upgrade Istio using Gloo Mesh Lifecycle Manager to perform an in place upgrade](#lab-14---upgrade-istio-using-gloo-mesh-lifecycle-manager-to-perform-an-in-place-upgrade-)
+* [Lab 15 - Ambient Egress Traffic with Waypoint](#lab-15---ambient-egress-traffic-with-waypoint-)
+* [Lab 16 - Waypoint Deployment Options](#lab-16---waypoint-deployment-options-)
 
 
 
@@ -163,7 +165,7 @@ timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> 
 Before we get started, let's install the `meshctl` CLI:
 
 ```bash
-export GLOO_MESH_VERSION=v2.6.0
+export GLOO_MESH_VERSION=v2.6.2
 curl -sL https://run.solo.io/meshctl/install | sh -
 export PATH=$HOME/.gloo-mesh/bin:$PATH
 ```
@@ -208,13 +210,13 @@ helm upgrade --install gloo-platform-crds gloo-platform-crds \
   --namespace gloo-mesh \
   --kube-context ${MGMT} \
   --set featureGates.insightsConfiguration=true \
-  --version 2.6.0
+  --version 2.6.2
 
 helm upgrade --install gloo-platform gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${MGMT} \
-  --version 2.6.0 \
+  --version 2.6.2 \
   -f -<<EOF
 licensing:
   glooTrialLicenseKey: ${GLOO_MESH_LICENSE_KEY}
@@ -369,13 +371,13 @@ helm upgrade --install gloo-platform-crds gloo-platform-crds \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${CLUSTER1} \
-  --version 2.6.0
+  --version 2.6.2
 
 helm upgrade --install gloo-platform gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${CLUSTER1} \
-  --version 2.6.0 \
+  --version 2.6.2 \
   -f -<<EOF
 common:
   cluster: cluster1
@@ -424,13 +426,13 @@ helm upgrade --install gloo-platform-crds gloo-platform-crds \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${CLUSTER2} \
-  --version 2.6.0
+  --version 2.6.2
 
 helm upgrade --install gloo-platform gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${CLUSTER2} \
-  --version 2.6.0 \
+  --version 2.6.2 \
   -f -<<EOF
 common:
   cluster: cluster2
@@ -706,7 +708,7 @@ spec:
       istioOperatorSpec:
         profile: ambient
         hub: us-docker.pkg.dev/gloo-mesh/istio-<enterprise_istio_repo>
-        tag: 1.22.3-solo
+        tag: 1.23.0-patch0-solo
         namespace: istio-system
         values:
           cni:
@@ -752,7 +754,7 @@ spec:
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-<enterprise_istio_repo>
-        tag: 1.22.3-solo
+        tag: 1.23.0-patch0-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -780,7 +782,7 @@ spec:
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-<enterprise_istio_repo>
-        tag: 1.22.3-solo
+        tag: 1.23.0-patch0-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -815,7 +817,7 @@ spec:
       istioOperatorSpec:
         profile: ambient
         hub: us-docker.pkg.dev/gloo-mesh/istio-<enterprise_istio_repo>
-        tag: 1.22.3-solo
+        tag: 1.23.0-patch0-solo
         namespace: istio-system
         values:
           cni:
@@ -861,7 +863,7 @@ spec:
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-<enterprise_istio_repo>
-        tag: 1.22.3-solo
+        tag: 1.23.0-patch0-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -889,7 +891,7 @@ spec:
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-<enterprise_istio_repo>
-        tag: 1.22.3-solo
+        tag: 1.23.0-patch0-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -1621,7 +1623,7 @@ kubectl --context ${CLUSTER1} -n clients get pods
 
 ```,nocopy
 NAME                           READY   STATUS    RESTARTS   AGE
-in-ambient-5c64bb49cd-m9kwm    2/2     Running   0          4s
+in-ambient-5c64bb49cd-w3dmw    1/1     Running   0          4s
 in-mesh-5d9d9549b5-qrdgd       2/2     Running   0          11s
 not-in-mesh-5c64bb49cd-m9kwm   1/1     Running   0          11s
 ```
@@ -1821,7 +1823,321 @@ timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=150 --bail 2> 
 
 
 
-## Lab 8 - Ambient L7 observability <a name="lab-8---ambient-l7-observability-"></a>
+## Lab 8 - Ambient Authorization Policies <a name="lab-8---ambient-authorization-policies-"></a>
+
+In this lab, we'll explore how to use authorization policies in Istio's Ambient Mesh to control access to services. We'll start with simple policies and gradually increase their complexity.
+
+### Basic Layer 4 Policy
+
+First, we'll apply a basic Layer 4 policy to the bookinfo-backends service. This policy will only allow traffic that originates from within the same namespace as the workloads.
+
+```bash
+kubectl --context ${CLUSTER1} apply -f - <<EOF
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: policy
+  namespace: bookinfo-backends
+spec:
+  action: ALLOW
+  rules:
+  - from:
+    - source:
+        principals:
+        - "cluster1/ns/bookinfo-backends/sa/*"
+EOF
+```
+This policy uses the 'principals' field to specify which service accounts are allowed to access the services. The "*" at the end means all service accounts in the bookinfo-backends namespace are allowed.
+
+After applying this policy, if you refresh the product page, you'll notice the services in bookinfo-backends are unavailable. This is expected because the product page is in a different namespace.
+<!--bash
+cat <<'EOF' > ./test.js
+const helpers = require('./tests/chai-http');
+
+afterEach(function (done) {
+  if (this.currentTest.currentRetry() > 0) {
+    process.stdout.write(".");
+    setTimeout(done, 4000);
+  } else {
+    done();
+  }
+});
+
+describe("Productpage is available (HTTPS)", () => {
+  it('/productpage is available in cluster1', () => helpers.checkURL({ host: `https://cluster1-bookinfo.example.com`, path: '/productpage', retCode: 200 }));
+
+  it('should reject traffic to bookinfo-backends details', () => {
+    return helpers.checkBody({
+      host: `https://cluster1-bookinfo.example.com`,
+      path: '/productpage',
+      retCode: 200,
+      body: 'Error fetching product details!',
+      match: true
+    })
+  });
+
+  it('should reject traffic to bookinfo-backends reviews', () => {
+    return helpers.checkBody({
+      host: `https://cluster1-bookinfo.example.com`,
+      path: '/productpage',
+      retCode: 200,
+      body: 'Error fetching product reviews!',
+      match: true
+    })
+  });
+})
+EOF
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/authorization-policies/tests/bookinfo-backend-services-unavailable.liquid"
+tempfile=$(mktemp)
+echo "saving errors in ${tempfile}"
+timeout --signal=INT 3m mocha ./test.js --timeout 60000 --retries=60 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
+-->
+
+#### Allowing Access from Product Page
+
+Let's update the policy to also allow traffic from the product page:
+
+```bash
+kubectl --context ${CLUSTER1} apply -f - <<EOF
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: policy
+  namespace: bookinfo-backends
+spec:
+  action: ALLOW
+  rules:
+  - from:
+    - source:
+        principals:
+        - "cluster1/ns/bookinfo-frontends/sa/bookinfo-productpage"
+        - "cluster1/ns/bookinfo-backends/sa/*"
+EOF
+```
+
+In this updated policy, we've added the service account for the product page to the list of allowed principals. Now, when you refresh the product page, it should work properly.
+This approach allows us to restrict access to the bookinfo-backends services, ensuring only necessary services can communicate with them.
+
+<!--bash
+cat <<'EOF' > ./test.js
+const helpers = require('./tests/chai-http');
+
+afterEach(function (done) {
+  if (this.currentTest.currentRetry() > 0) {
+    process.stdout.write(".");
+    setTimeout(done, 4000);
+  } else {
+    done();
+  }
+});
+
+describe("Productpage is available (HTTPS)", () => {
+  it('/productpage is available in cluster1', () => helpers.checkURL({ host: `https://cluster1-bookinfo.example.com`, path: '/productpage', retCode: 200 }));
+
+  it('should admit traffic to bookinfo-backends details', () => {
+    return helpers.checkBody({
+      host: `https://cluster1-bookinfo.example.com`,
+      path: '/productpage',
+      retCode: 200,
+      body: 'Book Details',
+      match: true
+    })
+  });
+
+  it('should admit traffic to bookinfo-backends reviews', () => {
+    return helpers.checkBody({
+      host: `https://cluster1-bookinfo.example.com`,
+      path: '/productpage',
+      retCode: 200,
+      body: 'Book Reviews',
+      match: true
+    })
+  });
+})
+EOF
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/authorization-policies/tests/bookinfo-backend-services-available.liquid"
+tempfile=$(mktemp)
+echo "saving errors in ${tempfile}"
+timeout --signal=INT 3m mocha ./test.js --timeout 60000 --retries=60 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
+-->
+
+These two policies are enabled at layer 4 and thus they are handled by ztunnel, which is the layer 4 proxy. Next, we'll explore how to create a policy that operates at layer 7.
+
+### Layer 7 Policy
+
+Now, let's try to implement a more complex policy that operates at Layer 7 (application layer).
+We'll create a policy that only allows GET requests to the bookinfo-backend services:
+
+```bash
+kubectl --context ${CLUSTER1} apply -f - <<EOF
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: policy
+  namespace: bookinfo-backends
+spec:
+  action: ALLOW
+  rules:
+  - from:
+    - source:
+        principals:
+        - "cluster1/ns/bookinfo-frontends/sa/bookinfo-productpage"
+        - "cluster1/ns/bookinfo-backends/sa/*"
+    to:
+    - operation:
+        methods: ["GET"]
+EOF
+```
+
+This policy looks at the HTTP method of the request, which is a Layer 7 property. However, after applying this policy, you'll notice that it doesn't work as expected. This is because Layer 7 policies require a Waypoint proxy to function, and when it is missing the traffic is rejected.
+
+<!--bash
+cat <<'EOF' > ./test.js
+const helpers = require('./tests/chai-http');
+
+afterEach(function (done) {
+  if (this.currentTest.currentRetry() > 0) {
+    process.stdout.write(".");
+    setTimeout(done, 4000);
+  } else {
+    done();
+  }
+});
+
+describe("Productpage is available (HTTPS)", () => {
+  it('/productpage is available in cluster1', () => helpers.checkURL({ host: `https://cluster1-bookinfo.example.com`, path: '/productpage', retCode: 200 }));
+
+  it('should reject traffic to bookinfo-backends details', () => {
+    return helpers.checkBody({
+      host: `https://cluster1-bookinfo.example.com`,
+      path: '/productpage',
+      retCode: 200,
+      body: 'Error fetching product details!',
+      match: true
+    })
+  });
+
+  it('should reject traffic to bookinfo-backends reviews', () => {
+    return helpers.checkBody({
+      host: `https://cluster1-bookinfo.example.com`,
+      path: '/productpage',
+      retCode: 200,
+      body: 'Error fetching product reviews!',
+      match: true
+    })
+  });
+})
+EOF
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/authorization-policies/tests/bookinfo-backend-services-unavailable.liquid"
+tempfile=$(mktemp)
+echo "saving errors in ${tempfile}"
+timeout --signal=INT 3m mocha ./test.js --timeout 60000 --retries=60 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
+-->
+
+### Deploying a Waypoint
+
+To make our Layer 7 policy work, we need to deploy a Waypoint in the namespace and configure the namespace to use it:
+
+```bash
+kubectl --context ${CLUSTER1} apply -f - <<EOF
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: waypoint
+  namespace: bookinfo-backends
+spec:
+  gatewayClassName: istio-waypoint
+  listeners:
+  - name: mesh
+    allowedRoutes:
+      namespaces:
+        from: Same
+    port: 15008
+    protocol: HBONE
+EOF
+
+kubectl --context ${CLUSTER1} -n bookinfo-backends label ns bookinfo-backends istio.io/use-waypoint=waypoint
+```
+
+Now that we have a Waypoint, we need to update our authorization policy to target it:
+
+```bash
+kubectl --context ${CLUSTER1} apply -f - <<EOF
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: policy
+  namespace: bookinfo-backends
+spec:
+  targetRefs:
+  - kind: Gateway
+    group: gateway.networking.k8s.io
+    name: waypoint
+  action: ALLOW
+  rules:
+  - from:
+    - source:
+        principals:
+        - "cluster1/ns/bookinfo-frontends/sa/bookinfo-productpage"
+        - "cluster1/ns/bookinfo-backends/sa/*"
+    to:
+    - operation:
+        methods: ["GET"]
+EOF
+```
+
+In this updated policy, we've added a 'targetRefs' field that points to our new Waypoint. This tells Istio to apply this policy at the Waypoint level.
+After applying this policy, the product page is accessible again, and only GET requests will be allowed to the `bookinfo-backend` services.
+
+<!--bash
+cat <<'EOF' > ./test.js
+const helpers = require('./tests/chai-http');
+
+afterEach(function (done) {
+  if (this.currentTest.currentRetry() > 0) {
+    process.stdout.write(".");
+    setTimeout(done, 4000);
+  } else {
+    done();
+  }
+});
+
+describe("Productpage is available (HTTPS)", () => {
+  it('/productpage is available in cluster1', () => helpers.checkURL({ host: `https://cluster1-bookinfo.example.com`, path: '/productpage', retCode: 200 }));
+
+  it('should admit traffic to bookinfo-backends details', () => {
+    return helpers.checkBody({
+      host: `https://cluster1-bookinfo.example.com`,
+      path: '/productpage',
+      retCode: 200,
+      body: 'Book Details',
+      match: true
+    })
+  });
+
+  it('should admit traffic to bookinfo-backends reviews', () => {
+    return helpers.checkBody({
+      host: `https://cluster1-bookinfo.example.com`,
+      path: '/productpage',
+      retCode: 200,
+      body: 'Book Reviews',
+      match: true
+    })
+  });
+})
+EOF
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/authorization-policies/tests/bookinfo-backend-services-available.liquid"
+tempfile=$(mktemp)
+echo "saving errors in ${tempfile}"
+timeout --signal=INT 3m mocha ./test.js --timeout 60000 --retries=60 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
+-->
+
+This lab demonstrates how Istio's Ambient Mesh allows you to create sophisticated authorization policies. Keep in mind, that Layer 4 policies are fast, but when required you can create more complex Layer 7 policies that operate at the application layer.
+
+
+
+
+## Lab 9 - Ambient L7 observability <a name="lab-9---ambient-l7-observability-"></a>
 
 Istio's ztunnel gives you layer 4 metrics without any extra configuration. Additionally, in Gloo Mesh Core you get layer 7 metrics that are inferred from the l4 traffic passing through ztunnel.
 
@@ -1923,7 +2239,7 @@ Here is the expected output:
 
 
 
-## Lab 9 - Introduction to Insights <a name="lab-9---introduction-to-insights-"></a>
+## Lab 10 - Introduction to Insights <a name="lab-10---introduction-to-insights-"></a>
 
 
 
@@ -2227,7 +2543,7 @@ The UI shouldn't display this insight anymore.
 
 
 
-## Lab 10 - Insights related to configuration errors <a name="lab-10---insights-related-to-configuration-errors-"></a>
+## Lab 11 - Insights related to configuration errors <a name="lab-11---insights-related-to-configuration-errors-"></a>
 
 In this lab, we're going to focus on insights related to configuration errors.
 
@@ -2363,7 +2679,7 @@ kubectl --context ${CLUSTER1} -n bookinfo-backends delete destinationrule review
 
 
 
-## Lab 11 - Insights related to security issues <a name="lab-11---insights-related-to-security-issues-"></a>
+## Lab 12 - Insights related to security issues <a name="lab-12---insights-related-to-security-issues-"></a>
 
 In this lab, we're going to focus on insights related to security issues.
 
@@ -2518,156 +2834,10 @@ kubectl --context ${CLUSTER1} -n istio-system delete peerauthentication default
 
 
 
-## Lab 12 - Insights related to health issues <a name="lab-12---insights-related-to-health-issues-"></a>
+## Lab 13 - Insights related to health issues <a name="lab-13---insights-related-to-health-issues-"></a>
 
 }
 This step shows Gloo Mesh Core insights about Cilium. Hence, it is skipped when Cilium is not installed.
-
-
-
-## Lab 13 - Ambient Egress Traffic with Waypoint <a name="lab-13---ambient-egress-traffic-with-waypoint-"></a>
-
-In a typical service mesh, controlling egress traffic—traffic leaving the mesh to external services—is required for security and compliance. Istio's Waypoints can centralize the control of egress traffic by creating a single Waypoint that can be used to enforce egress policies for multiple services across different namespaces.
-
-### Shared Waypoint for Egress Traffic
-
-First, we will create a dedicated namespace called `egress` and deploy our Shared Waypoint for Egress traffic.
-This Waypoint will be shared across various namespaces, allowing us to apply consistent egress rules.
-
-```bash
-kubectl --context ${CLUSTER1} apply -f - <<EOF
-apiVersion: v1
-kind: Namespace
-metadata:
-  labels:
-    istio.io/dataplane-mode: ambient
-    istio.io/use-waypoint: waypoint
-  name: egress
----
-apiVersion: gateway.networking.k8s.io/v1
-kind: Gateway
-metadata:
-  name: waypoint
-  namespace: egress
-spec:
-  gatewayClassName: istio-waypoint
-  listeners:
-  - name: mesh
-    port: 15008
-    protocol: HBONE
-    allowedRoutes:
-      namespaces:
-        from: All
-EOF
-```
-
-Wait for the deployment to be ready:
-
-```bash
-kubectl --context ${CLUSTER1} -n egress rollout status deployment/waypoint
-```
-Next, create a Service Entry to represent the external service 'httpbin.org' and by setting the labels `istio.io/use-waypoint` and `istio.io/use-waypoint-namespace` we configure traffic targeted at this service entry to be routed to the specified Waypoint.
-
-```bash
-kubectl --context ${CLUSTER1} apply -f - <<EOF
-apiVersion: networking.istio.io/v1
-kind: ServiceEntry
-metadata:
-  annotations:
-  labels:
-    istio.io/use-waypoint: waypoint
-    istio.io/use-waypoint-namespace: egress
-  name: httpbin.org
-  namespace: clients
-spec:
-  hosts:
-  - httpbin.org
-  ports:
-  - name: http
-    number: 80
-    protocol: HTTP
-  resolution: DNS
-EOF
-```
-
-Now that we've set up our Waypoint and Service Entry, let's verify that traffic to our external service is indeed flowing through the Waypoint by sending a request to 'httpbin.org' and checking for Envoy-specific headers in the response.
-
-```shell
-kubectl -n clients exec deploy/in-ambient -- curl -I httpbin.org/get | grep envoy
-
-server: istio-envoy
-x-envoy-upstream-service-time: 255
-x-envoy-decorator-operation: :80/*
-```
-
-The presence of Envoy headers in the response confirms that our traffic is being routed through the Waypoint as intended.
-
-### Traffic Management to Egress Traffic
-
-To showcase traffic management capabilities, we'll apply a Virtual Service to the waypoint to add a header to the request, just as we did in the labs before.
-
-```bash
-kubectl --context ${CLUSTER1} apply -f - <<EOF
-apiVersion: networking.istio.io/v1
-kind: VirtualService
-metadata:
-  name: httpbin
-  namespace: egress
-spec:
-  hosts:
-  - httpbin.org
-  http:
-  - route:
-    - destination:
-        host: httpbin.org
-    headers:
-      request:
-        add:
-          my-added-header: added-value
-EOF
-```
-
-Make another request and validate that the header is added to the request:
-```shell
-kubectl -n clients exec deploy/in-ambient -- curl -s httpbin.org/get | grep -i my-added-header
-
-    "My-Added-Header": "added-value",
-```
-
-By setting up a Waypoint in the egress namespace, we have effectively centralized the management of egress traffic across multiple namespaces. This approach not only simplifies the configuration but also ensures consistent egress policies, improving the security and compliance posture of your service mesh.
-
-<!--bash
-cat <<'EOF' > ./test.js
-const chaiExec = require("@jsdevtools/chai-exec");
-var chai = require('chai');
-var expect = chai.expect;
-chai.use(chaiExec);
-
-afterEach(function (done) {
-  if (this.currentTest.currentRetry() > 0) {
-    process.stdout.write(".");
-    setTimeout(done, 1000);
-  } else {
-    done();
-  }
-});
-
-describe("egress traffic", function() {
-  const cluster = process.env.CLUSTER1
-
-  it(`virtual service should add customer header`, function() {
-    let command = `kubectl --context ${cluster} -n clients exec deploy/in-ambient -- curl -s httpbin.org/get`;
-    let cli = chaiExec(command);
-    expect(cli.output.toLowerCase()).to.contain('my-added-header');
-  });
-});
-
-EOF
-echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/waypoint-egress/tests/validate-egress-traffic.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 3m mocha ./test.js --timeout 20000 --retries=20 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
--->
 
 
 
@@ -2692,7 +2862,7 @@ spec:
       istioOperatorSpec:
         profile: ambient
         hub: us-docker.pkg.dev/gloo-mesh/istio-<enterprise_istio_repo>
-        tag: 1.23.0-solo
+        tag: 1.23.0-patch0-solo
         namespace: istio-system
         values:
           cni:
@@ -2737,7 +2907,7 @@ spec:
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-<enterprise_istio_repo>
-        tag: 1.23.0-solo
+        tag: 1.23.0-patch0-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -2765,7 +2935,7 @@ spec:
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-<enterprise_istio_repo>
-        tag: 1.23.0-solo
+        tag: 1.23.0-patch0-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -2800,7 +2970,7 @@ spec:
       istioOperatorSpec:
         profile: ambient
         hub: us-docker.pkg.dev/gloo-mesh/istio-<enterprise_istio_repo>
-        tag: 1.23.0-solo
+        tag: 1.23.0-patch0-solo
         namespace: istio-system
         values:
           cni:
@@ -2846,7 +3016,7 @@ spec:
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-<enterprise_istio_repo>
-        tag: 1.23.0-solo
+        tag: 1.23.0-patch0-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -2874,7 +3044,7 @@ spec:
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-<enterprise_istio_repo>
-        tag: 1.23.0-solo
+        tag: 1.23.0-patch0-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -2964,6 +3134,625 @@ tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
 -->
+
+
+
+
+## Lab 15 - Ambient Egress Traffic with Waypoint <a name="lab-15---ambient-egress-traffic-with-waypoint-"></a>
+
+In this lab, we'll explore how to control and secure outbound traffic from your Ambient Mesh using Waypoints. We'll start by restricting all outgoing traffic from a specific namespace, then set up a shared Waypoint to manage egress traffic centrally. This approach allows for consistent policy enforcement across multiple services and namespaces.
+
+### Restricting Egress Traffic
+
+We'll begin by implementing a NetworkPolicy to prohibit all outgoing traffic from the `clients` namespace. This step simulates a secure environment where external access is tightly controlled.
+
+```bash
+kubectl --context ${CLUSTER1} apply -f - <<EOF
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: restricted-namespace-policy
+  namespace: clients
+spec:
+  podSelector: {}  # This applies to all pods in the namespace
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  - {}  # Allow all ingress traffic
+  egress:
+  - to:
+    - namespaceSelector: {}  # Allow egress to all namespaces
+    - podSelector: {}  # Allow egress to all pods within the cluster
+EOF
+```
+
+After applying this policy, verify that outbound traffic is indeed restricted by attempting to access an external service. You should observe that the connection fails.
+```shell
+kubectl --context ${CLUSTER1} -n clients exec deploy/in-ambient -- curl -I httpbin.org/get
+```
+
+### Establishing a Shared Waypoint for Egress
+
+Next, we'll create a dedicated `egress` namespace and deploy a shared Waypoint. This Waypoint will serve as a centralized control point for outbound traffic from various namespaces.
+
+```bash
+kubectl --context ${CLUSTER1} apply -f - <<EOF
+apiVersion: v1
+kind: Namespace
+metadata:
+  labels:
+    istio.io/dataplane-mode: ambient
+    istio.io/use-waypoint: waypoint
+  name: egress
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: waypoint
+  namespace: egress
+spec:
+  gatewayClassName: istio-waypoint
+  listeners:
+  - name: mesh
+    port: 15008
+    protocol: HBONE
+    allowedRoutes:
+      namespaces:
+        from: All
+EOF
+```
+
+Wait for the Waypoint deployment to be fully operational before proceeding.
+
+```bash
+kubectl --context ${CLUSTER1} -n egress rollout status deployment/waypoint
+```
+
+### Configuring External Service Access
+
+Next, create a Service Entry to represent the external service 'httpbin.org' and by setting the labels `istio.io/use-waypoint` and `istio.io/use-waypoint-namespace` we configure traffic targeted at this service entry to be routed through the shared egress waypoint.
+
+```bash
+kubectl --context ${CLUSTER1} apply -f - <<EOF
+apiVersion: networking.istio.io/v1
+kind: ServiceEntry
+metadata:
+  annotations:
+  labels:
+    istio.io/use-waypoint: waypoint
+  name: httpbin.org
+  namespace: egress
+spec:
+  hosts:
+  - httpbin.org
+  ports:
+  - name: http
+    number: 80
+    protocol: HTTP
+  resolution: DNS
+EOF
+```
+
+To confirm that traffic is correctly flowing through the Waypoint, send a request to the external service and look for Envoy-specific headers in the response. These headers indicate that the traffic has been processed by the Waypoint.
+
+```shell
+kubectl --context ${CLUSTER1} -n clients exec deploy/in-ambient -- curl -I httpbin.org/get | grep envoy
+
+server: istio-envoy
+x-envoy-upstream-service-time: 255
+x-envoy-decorator-operation: :80/*
+```
+
+The presence of Envoy headers in the response confirms that our traffic is being routed through the Waypoint as intended.
+
+### Transforming Traffic in Egress Waypoint
+
+To demonstrate the traffic management capabilities of our Waypoint, we'll apply a VirtualService that adds a custom header to outbound requests. This illustrates how you can modify and control egress traffic at the Waypoint level.
+
+```bash
+kubectl --context ${CLUSTER1} apply -f - <<EOF
+apiVersion: networking.istio.io/v1
+kind: VirtualService
+metadata:
+  name: httpbin
+  namespace: egress
+spec:
+  hosts:
+  - httpbin.org
+  http:
+  - route:
+    - destination:
+        host: httpbin.org
+    headers:
+      request:
+        add:
+          my-added-header: added-value
+EOF
+```
+
+Verify that the new header is present in your requests to the external service.
+
+```shell
+kubectl  --context ${CLUSTER1} -n clients exec deploy/in-ambient -- curl -s httpbin.org/get | grep -i my-added-header
+
+    "My-Added-Header": "added-value",
+```
+
+### Securing Egress Traffic with Encryption
+
+To enhance security, we'll now configure TLS encryption for our egress traffic. This involves updating the ServiceEntry to redirect traffic to a secure port and creating a DestinationRule to enable TLS.
+
+```bash
+kubectl --context ${CLUSTER1} apply -f - <<EOF
+apiVersion: networking.istio.io/v1
+kind: ServiceEntry
+metadata:
+  annotations:
+  labels:
+    istio.io/use-waypoint: waypoint
+  name: httpbin.org
+  namespace: egress
+spec:
+  hosts:
+  - httpbin.org
+  ports:
+  - number: 80
+    name: http
+    protocol: HTTP
+    targetPort: 443 # New: send traffic originally for port 80 to port 443
+  resolution: DNS
+---
+apiVersion: networking.istio.io/v1
+kind: DestinationRule
+metadata:
+  name: httpbin.org-tls
+  namespace: egress
+spec:
+  host: httpbin.org
+  trafficPolicy:
+    tls:
+      mode: SIMPLE
+EOF
+```
+
+Confirm that your traffic is now encrypted by checking the URL scheme in the response.
+
+```shell
+kubectl --context ${CLUSTER1} -n clients exec deploy/in-ambient -- curl -s httpbin.org/get | jq .url
+
+"https://httpbin.org/get"
+```
+
+### Implementing Egress Authorization Policies
+
+Finally, we'll apply an authorization policy to our Waypoint. This policy will allow only specific types of requests (in this case, GET requests to a particular path) and block all others, providing fine-grained control over outbound traffic.
+
+```bash
+kubectl --context ${CLUSTER1} apply -f - <<EOF
+apiVersion: security.istio.io/v1
+kind: AuthorizationPolicy
+metadata:
+  name: httpbin
+  namespace: egress
+spec:
+  targetRefs:
+  - kind: Gateway
+    name: waypoint
+    group: gateway.networking.k8s.io
+  action: ALLOW
+  rules:
+  - to:
+    - operation:
+        hosts: ["httpbin.org"]
+        methods: ["GET"]
+        paths: ["/get"]
+EOF
+```
+
+> Note: [PR #3271](https://github.com/istio/api/pull/3271) when released (potentially 1.23.1) enables us to use the ServiceEntry as the target reference in the `AuthorizationPolicy`. Thus the policy applies only to the ServiceEntry and not the entire `Gateway`.
+
+Confirm that the authorization policy is correctly enforced by attempting to access a different path on the external service. You should observe that the request is blocked.
+
+```shell
+kubectl --context ${CLUSTER1} -n clients exec deploy/in-ambient -- curl -s -I httpbin.org/post
+
+HTTP/1.1 403 Forbidden
+content-length: 19
+content-type: text/plain
+date: Sat, 24 Aug 2024 15:38:38 GMT
+server: istio-envoy
+x-envoy-decorator-operation: httpbin.org:80/
+```
+
+By setting up a Waypoint in the egress namespace and restricting direct outbound traffic, we've created a centralized point of control for all egress traffic. This setup allows for consistent policy enforcement, traffic management, and security measures across your entire mesh. Such an approach is crucial for maintaining compliance and security in enterprise environments.
+
+<!--bash
+cat <<'EOF' > ./test.js
+const chaiExec = require("@jsdevtools/chai-exec");
+var chai = require('chai');
+var expect = chai.expect;
+chai.use(chaiExec);
+
+afterEach(function (done) {
+  if (this.currentTest.currentRetry() > 0) {
+    process.stdout.write(".");
+    setTimeout(done, 1000);
+  } else {
+    done();
+  }
+});
+
+describe("egress traffic", function() {
+  const cluster = process.env.CLUSTER1
+
+  it(`virtual service should add customer header`, function() {
+    let command = `kubectl --context ${cluster} -n clients exec deploy/in-ambient -- curl -s httpbin.org/get`;
+    let cli = chaiExec(command);
+    expect(cli.output.toLowerCase()).to.contain('my-added-header');
+  });
+
+  it(`destination rule should route to https`, function() {
+    let command = `kubectl --context ${cluster} -n clients exec deploy/in-ambient -- curl -s httpbin.org/get`;
+    let cli = chaiExec(command);
+    expect(cli.output.toLowerCase()).to.contain('https://httpbin.org/get');
+  });
+
+  it(`other types of traffic (HTTP methods) should be rejected`, function() {
+    let command = `kubectl --context ${cluster} -n clients exec deploy/in-ambient -- curl -s -I httpbin.org/get`;
+    let cli = chaiExec(command);
+    expect(cli.output).to.contain('403 Forbidden');
+  });
+});
+
+EOF
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/waypoint-egress/tests/validate-egress-traffic.test.js.liquid"
+tempfile=$(mktemp)
+echo "saving errors in ${tempfile}"
+timeout --signal=INT 3m mocha ./test.js --timeout 20000 --retries=60 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
+-->
+
+Let's cleanup the resources:
+```bash
+kubectl --context ${CLUSTER1} delete authorizationpolicy httpbin -n egress
+```
+
+
+
+
+## Lab 16 - Waypoint Deployment Options <a name="lab-16---waypoint-deployment-options-"></a>
+
+This lab explores different ways to deploy Waypoints in Istio's Ambient Mesh. We'll learn about deploying Waypoints for services and for workloads.
+
+![Ways to target a destination](images/targetting-destination.png)
+
+First, let's understand what we mean by targeting a destination:
+
+When we want to reach a service in Kubernetes, we have two options in Kubernetes:
+
+1. Use a service name (which gives us a fully qualified domain name or FQDN)
+2. Use the direct IP addresses of the Pods
+
+Because pods are ephemeral and their IPs are recycled, it's recommended to use the service name when targeting services in Kubernetes. But when dealing with virtual machines or external services that have static IP addresses we have to address them by IP addresses.
+
+This distinction whether you are targeting a service (using its fqdn) or a workload (using its IP address) is important because it determines how the Waypoint is deployed:
+
+- Waypoint for Services: When we target a service, we deploy a Waypoint specifically for services. This Waypoint will handle traffic going to service names.
+
+```shell
+$ istioctl waypoint generate -n ns --name waypoint --for service
+
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  labels:
+    istio.io/waypoint-for: service
+  name: waypoint
+  namespace: ns
+spec:
+  gatewayClassName: istio-waypoint
+  listeners:
+  - name: mesh
+    port: 15008
+    protocol: HBONE
+```
+
+- Waypoint for Workload: When we target a workload (using its IP), we deploy a Waypoint for workloads. This Waypoint will handle traffic going directly to IP addresses.
+
+```shell
+$ istioctl waypoint generate -n ns --name waypoint --for workload
+
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  labels:
+    istio.io/waypoint-for: workload
+  name: waypoint
+  namespace: ns
+spec:
+  gatewayClassName: istio-waypoint
+  listeners:
+  - name: mesh
+    port: 15008
+    protocol: HBONE
+```
+
+Alternatively, the waypoint can be deployed to support both services and workloads with value `all` such as in `istio.io/waypoint-for: all` aplied the Gateway resource.
+
+### Deploying a Waypoint for all services
+
+Deploy a Waypoint for services in the `bookinfo-backends` namespace:
+
+```bash
+kubectl --context ${CLUSTER1} apply -f - <<EOF
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  labels:
+    istio.io/waypoint-for: service
+  name: waypoint
+  namespace: bookinfo-backends
+spec:
+  gatewayClassName: istio-waypoint
+  listeners:
+  - name: mesh
+    port: 15008
+    protocol: HBONE
+EOF
+```
+
+After creating the Waypoint, we have two options:
+a) Label the entire namespace to route all service traffic through the Waypoint
+b) Label specific services to use the Waypoint
+
+Let's try option a) and label the whole namespace:
+
+```bash
+kubectl --context ${CLUSTER1} label ns bookinfo-backends istio.io/use-waypoint=waypoint
+```
+
+Now, when we send traffic to any service in this namespace, it should go through the Waypoint. We can check this by looking for a special header (`server: istio-envoy`) in the response.
+
+```shell
+kubectl --context ${CLUSTER1} -n clients exec deploy/in-ambient -- curl -v "http://ratings.bookinfo-backends:9080/ratings/0"
+```
+
+The same headers should be present when sending traffic to the `reviews` service:
+```shell
+kubectl --context ${CLUSTER1} -n clients exec deploy/in-ambient -- curl -v "http://reviews.bookinfo-backends:9080/reviews/0"
+```
+
+Meaning, that the traffic of all services within the namespace is routed through the waypoint.
+
+<!--bash
+cat <<'EOF' > ./test.js
+const chaiExec = require("@jsdevtools/chai-exec");
+var chai = require('chai');
+var expect = chai.expect;
+chai.use(chaiExec);
+
+afterEach(function (done) {
+  if (this.currentTest.currentRetry() > 0) {
+    process.stdout.write(".");
+    setTimeout(done, 1000);
+  } else {
+    done();
+  }
+});
+
+describe("waypoint for service when ns is labeled", function() {
+  const cluster = process.env.CLUSTER1
+
+  it(`should redirect traffic for all services to the waypoint`, () => {
+    let command = `kubectl --context ${cluster} -n clients exec deploy/in-ambient -- curl -v "http://ratings.bookinfo-backends:9080/ratings/0"`;
+    let cli = chaiExec(command);
+    expect(cli).to.exit.with.code(0);
+    expect(cli).output.to.contain('istio-envoy');
+
+    command = `kubectl --context ${cluster} -n clients exec deploy/in-ambient -- curl -v "http://reviews.bookinfo-backends:9080/reviews/0"`;
+    cli = chaiExec(command);
+    expect(cli).to.exit.with.code(0);
+    expect(cli).output.to.contain('istio-envoy');
+  });
+});
+EOF
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/waypoint-deployment-options/tests/validate-waypoint-for-service-ns.test.js.liquid"
+tempfile=$(mktemp)
+echo "saving errors in ${tempfile}"
+timeout --signal=INT 3m mocha ./test.js --timeout 20000 --retries=10 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
+-->
+
+### Deploying a Waypoint for specific services
+
+Now, let's be more specific and only route traffic for the `ratings` service through a specific Waypoint, additionally, we'll add a policy to reject all traffic reaching the waypoint from the `clients` namespace.
+
+```bash
+kubectl --context ${CLUSTER1} apply -f - <<EOF
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  labels:
+    istio.io/waypoint-for: service
+  name: ratings-waypoint
+  namespace: bookinfo-backends
+spec:
+  gatewayClassName: istio-waypoint
+  listeners:
+  - name: mesh
+    port: 15008
+    protocol: HBONE
+---
+apiVersion: security.istio.io/v1
+kind: AuthorizationPolicy
+metadata:
+  name: deny-traffic-from-clients-ns
+  namespace: bookinfo-backends
+spec:
+  targetRefs:
+  - kind: Gateway
+    name: ratings-waypoint
+    group: gateway.networking.k8s.io
+  action: DENY
+  rules:
+  - from:
+    - source:
+        namespaces: ["clients"]
+    to:
+    - operation:
+        methods: ["GET"]
+EOF
+```
+
+Next, we'll label the `ratings` service, which will take precedence over the waypoint specified in the namespace label:
+
+```bash
+kubectl --context ${CLUSTER1} label svc ratings -n bookinfo-backends istio.io/use-waypoint=ratings-waypoint
+```
+
+Validate that traffic to the `ratings` service is rejected by the policy applied to the specific gateway when it comes from the `clients` namespace, but it succeeds from other namespaces.
+
+```shell
+# rejected because the traffic originates from the clients namespace
+kubectl --context ${CLUSTER1} -n clients exec deploy/in-ambient -- curl -v "http://ratings.bookinfo-backends:9080/ratings/0"
+
+# admitted
+kubectl --context ${CLUSTER1} debug --v=0 -n httpbin $(kubectl --context ${CLUSTER1} get pods -n httpbin -l app=in-ambient -o name) -it --image=curlimages/curl  -- curl -v "http://ratings.bookinfo-backends:9080/ratings/0"
+```
+
+Meanwhile, the traffic destined to other services goes through the waypoint configured by the namespace that doesn't reject traffic from the `clients` namespace:
+
+```shell
+kubectl --context ${CLUSTER1} -n clients exec deploy/in-ambient -- curl -v "http://reviews.bookinfo-backends:9080/reviews/0"
+```
+
+<!--bash
+cat <<'EOF' > ./test.js
+const chaiExec = require("@jsdevtools/chai-exec");
+var chai = require('chai');
+var expect = chai.expect;
+chai.use(chaiExec);
+
+afterEach(function (done) {
+  if (this.currentTest.currentRetry() > 0) {
+    process.stdout.write(".");
+    setTimeout(done, 1000);
+  } else {
+    done();
+  }
+});
+
+describe("service labeling to use a waypoint takes precedence over namespace labeling", function() {
+  const cluster = process.env.CLUSTER1
+
+  it(`should redirect traffic of labeled service through the waypoint and enforce the policy`, () => {
+    let command = `kubectl --context ${cluster} -n clients exec deploy/in-ambient -- curl -v "http://ratings.bookinfo-backends:9080/ratings/0"`;
+    let cli = chaiExec(command);
+    expect(cli).to.exit.with.code(0);
+    expect(cli).output.to.contain('Forbidden');
+  });
+
+  it(`should NOT redirect traffic of NON labeled services, which are redirected to the waypoint the namespace is configured for`, () => {
+    let command = `kubectl --context ${cluster} -n clients exec deploy/in-ambient -- curl -v "http://reviews.bookinfo-backends:9080/reviews/0"`;
+    let cli = chaiExec(command);
+    expect(cli).to.exit.with.code(0);
+    expect(cli).output.to.contain('istio-envoy');
+  });
+});
+
+EOF
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/waypoint-deployment-options/tests/validate-waypoint-for-specific-service.test.js.liquid"
+tempfile=$(mktemp)
+echo "saving errors in ${tempfile}"
+timeout --signal=INT 3m mocha ./test.js --timeout 20000 --retries=10 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
+-->
+
+### Deploying a Waypoint for Workloads
+
+Finally, let's set up a Waypoint for workloads. In a real scenario, you will use this for static IPs, but for convenience in this example, we'll use the IP of the `ratings` service.
+
+First, create the Waypoint for workloads:
+
+```bash
+kubectl --context ${CLUSTER1} apply -f - <<EOF
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  labels:
+    istio.io/waypoint-for: workload
+  name: ratings-workload-waypoint
+  namespace: bookinfo-backends
+spec:
+  gatewayClassName: istio-waypoint
+  listeners:
+  - name: mesh
+    port: 15008
+    protocol: HBONE
+EOF
+```
+
+Then, we label the `ratings` pods to use this Waypoint:
+
+```bash
+kubectl --context ${CLUSTER1} -n bookinfo-backends label pod -l app=ratings istio.io/use-waypoint=ratings-workload-waypoint
+```
+
+Now, when we send traffic directly to the IP of a `ratings` pod, it should go through the workload waypoint:
+
+```shell
+POD_IP=$(kubectl --context ${CLUSTER1} -n bookinfo-backends get pod -l app=ratings -o jsonpath='{.items[0].status.podIP}')
+kubectl --context ${CLUSTER1} -n clients exec deploy/in-ambient -- curl -v "http://${POD_IP}:9080/ratings/0"
+```
+
+> NOTE: Even though a service name is resolved into the same destination IP address, it won't go through the workload specific waypoint, it will still go through the waypoint deployed for the service. Keep in mind that traffic destined __only__ to an IP address is routed through a workload waypoint. And that traffic for services are routed through service waypoints.
+
+<!--bash
+cat <<'EOF' > ./test.js
+const chaiExec = require("@jsdevtools/chai-exec");
+var chai = require('chai');
+var expect = chai.expect;
+chai.use(chaiExec);
+
+afterEach(function (done) {
+  if (this.currentTest.currentRetry() > 0) {
+    process.stdout.write(".");
+    setTimeout(done, 1000);
+  } else {
+    done();
+  }
+});
+
+describe("waypoint for workloads when pod is labeled", function() {
+  const cluster = process.env.CLUSTER1
+
+  it(`should redirect traffic to waypoint`, () => {
+    let commandGetIP = `kubectl --context ${cluster} -n bookinfo-backends get pod -l app=ratings -o jsonpath='{.items[0].status.podIP}'`;
+    let cli = chaiExec(commandGetIP);
+    let podIP = cli.output.replace(/'/g, '');
+
+    let command = `kubectl --context ${cluster} -n clients exec deploy/in-ambient -- curl -v "http://${podIP}:9080/ratings/0"`;
+    cli = chaiExec(command);
+
+    expect(cli).to.exit.with.code(0);
+    expect(cli).output.to.contain('istio-envoy');
+  });
+});
+EOF
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/waypoint-deployment-options/tests/validate-waypoint-for-workload.test.js.liquid"
+tempfile=$(mktemp)
+echo "saving errors in ${tempfile}"
+timeout --signal=INT 3m mocha ./test.js --timeout 20000 --retries=10 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
+-->
+
+This lab shows you different ways to set up Waypoints in Istio's Ambient Mesh. You can route traffic for all services in a namespace, for specific services, or even for individual workloads. This flexibility allows you to fine-tune your traffic management based on your specific needs.
+
+Lets cleanup the resources:
+
+```bash
+kubectl --context ${CLUSTER1} -n bookinfo-backends label pod -l app=ratings istio.io/use-waypoint-
+kubectl --context ${CLUSTER1} -n bookinfo-backends label svc ratings istio.io/use-waypoint=ratings-waypoint
+kubectl --context ${CLUSTER1} -n bookinfo-backends delete authorizationpolicy deny-traffic-from-clients-ns
+kubectl --context ${CLUSTER1} -n bookinfo-backends delete gateway waypoint ratings-waypoint ratings-workload-waypoint
+```
 
 
 
