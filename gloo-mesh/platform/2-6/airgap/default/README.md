@@ -223,14 +223,14 @@ ghcr.io/spiffe/spire-server:1.8.6
 jimmidyson/configmap-reload:v0.8.0
 quay.io/keycloak/keycloak:25.0.1
 quay.io/prometheus/prometheus:v2.41.0
-us-docker.pkg.dev/gloo-mesh/istio-workshops/install-cni:1.21.2-solo
-us-docker.pkg.dev/gloo-mesh/istio-workshops/install-cni:1.22.1-solo
-us-docker.pkg.dev/gloo-mesh/istio-workshops/operator:1.21.2-solo
-us-docker.pkg.dev/gloo-mesh/istio-workshops/operator:1.22.1-solo
-us-docker.pkg.dev/gloo-mesh/istio-workshops/pilot:1.21.2-solo
-us-docker.pkg.dev/gloo-mesh/istio-workshops/pilot:1.22.1-solo
-us-docker.pkg.dev/gloo-mesh/istio-workshops/proxyv2:1.21.2-solo
-us-docker.pkg.dev/gloo-mesh/istio-workshops/proxyv2:1.22.1-solo
+us-docker.pkg.dev/gloo-mesh/istio-workshops/install-cni:1.22.3-solo
+us-docker.pkg.dev/gloo-mesh/istio-workshops/install-cni:1.23.0-patch0-solo
+us-docker.pkg.dev/gloo-mesh/istio-workshops/operator:1.22.3-solo
+us-docker.pkg.dev/gloo-mesh/istio-workshops/operator:1.23.0-patch0-solo
+us-docker.pkg.dev/gloo-mesh/istio-workshops/pilot:1.22.3-solo
+us-docker.pkg.dev/gloo-mesh/istio-workshops/pilot:1.23.0-patch0-solo
+us-docker.pkg.dev/gloo-mesh/istio-workshops/proxyv2:1.22.3-solo
+us-docker.pkg.dev/gloo-mesh/istio-workshops/proxyv2:1.23.0-patch0-solo
 EOF
 
 cat images.txt | while read image; do
@@ -668,7 +668,7 @@ spec:
   selector:
     app: istio-ingressgateway
     istio: ingressgateway
-    revision: 1-21
+    revision: 1-22
   type: LoadBalancer
 EOF
 
@@ -723,7 +723,7 @@ spec:
   selector:
     app: istio-ingressgateway
     istio: eastwestgateway
-    revision: 1-21
+    revision: 1-22
     topology.istio.io/network: cluster1
   type: LoadBalancer
 EOF
@@ -751,7 +751,7 @@ spec:
   selector:
     app: istio-ingressgateway
     istio: ingressgateway
-    revision: 1-21
+    revision: 1-22
   type: LoadBalancer
 EOF
 
@@ -806,7 +806,7 @@ spec:
   selector:
     app: istio-ingressgateway
     istio: eastwestgateway
-    revision: 1-21
+    revision: 1-22
     topology.istio.io/network: cluster2
   type: LoadBalancer
 EOF
@@ -828,11 +828,11 @@ spec:
     - clusters:
       - name: cluster1
         defaultRevision: true
-      revision: 1-21
+      revision: 1-22
       istioOperatorSpec:
         profile: minimal
         hub: ${registry}/istio-workshops
-        tag: 1.21.2-solo
+        tag: 1.22.3-solo
         namespace: istio-system
         values:
           global:
@@ -879,11 +879,11 @@ spec:
     - clusters:
       - name: cluster1
         activeGateway: false
-      gatewayRevision: 1-21
+      gatewayRevision: 1-22
       istioOperatorSpec:
         profile: empty
         hub: ${registry}/istio-workshops
-        tag: 1.21.2-solo
+        tag: 1.22.3-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -906,11 +906,11 @@ spec:
     - clusters:
       - name: cluster1
         activeGateway: false
-      gatewayRevision: 1-21
+      gatewayRevision: 1-22
       istioOperatorSpec:
         profile: empty
         hub: ${registry}/istio-workshops
-        tag: 1.21.2-solo
+        tag: 1.22.3-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -942,11 +942,11 @@ spec:
     - clusters:
       - name: cluster2
         defaultRevision: true
-      revision: 1-21
+      revision: 1-22
       istioOperatorSpec:
         profile: minimal
         hub: ${registry}/istio-workshops
-        tag: 1.21.2-solo
+        tag: 1.22.3-solo
         namespace: istio-system
         values:
           global:
@@ -993,11 +993,11 @@ spec:
     - clusters:
       - name: cluster2
         activeGateway: false
-      gatewayRevision: 1-21
+      gatewayRevision: 1-22
       istioOperatorSpec:
         profile: empty
         hub: ${registry}/istio-workshops
-        tag: 1.21.2-solo
+        tag: 1.22.3-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -1020,11 +1020,11 @@ spec:
     - clusters:
       - name: cluster2
         activeGateway: false
-      gatewayRevision: 1-21
+      gatewayRevision: 1-22
       istioOperatorSpec:
         profile: empty
         hub: ${registry}/istio-workshops
-        tag: 1.21.2-solo
+        tag: 1.22.3-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -1427,7 +1427,7 @@ spec:
       labels:
         app: in-mesh
         version: v1
-        istio.io/rev: 1-21
+        istio.io/rev: 1-22
     spec:
       serviceAccountName: in-mesh
       containers:
@@ -1503,9 +1503,9 @@ First, you need to create a namespace for the addons, with Istio injection enabl
 
 ```bash
 kubectl --context ${CLUSTER1} create namespace gloo-mesh-addons
-kubectl --context ${CLUSTER1} label namespace gloo-mesh-addons istio.io/rev=1-21 --overwrite
+kubectl --context ${CLUSTER1} label namespace gloo-mesh-addons istio.io/rev=1-22 --overwrite
 kubectl --context ${CLUSTER2} create namespace gloo-mesh-addons
-kubectl --context ${CLUSTER2} label namespace gloo-mesh-addons istio.io/rev=1-21 --overwrite
+kubectl --context ${CLUSTER2} label namespace gloo-mesh-addons istio.io/rev=1-22 --overwrite
 ```
 
 Then, you can deploy the addons on the cluster(s) using Helm:
@@ -3670,8 +3670,8 @@ Adding services to the mesh requires that the client-side proxies be associated 
 1. To enable the automatic sidecar injection, use the command below to add the necessary labels to the `bookinfo-frontends` namespace:
 
 ```bash
-kubectl --context ${CLUSTER1} label namespace bookinfo-frontends istio.io/rev=1-21
-kubectl --context ${CLUSTER2} label namespace bookinfo-frontends istio.io/rev=1-21
+kubectl --context ${CLUSTER1} label namespace bookinfo-frontends istio.io/rev=1-22
+kubectl --context ${CLUSTER2} label namespace bookinfo-frontends istio.io/rev=1-22
 ```
 
 2. Validate the namespace is annotated with the necessary labels:
@@ -3725,8 +3725,8 @@ Now that you have added the `productpage` service to the mesh, you can add the o
 1. First, you need to annotate the `bookinfo-backends` namespace to enable automatic sidecar injection:
 
 ```bash
-kubectl --context ${CLUSTER1} label namespace bookinfo-backends istio.io/rev=1-21
-kubectl --context ${CLUSTER2} label namespace bookinfo-backends istio.io/rev=1-21
+kubectl --context ${CLUSTER1} label namespace bookinfo-backends istio.io/rev=1-22
+kubectl --context ${CLUSTER2} label namespace bookinfo-backends istio.io/rev=1-22
 ```
 
 2. Next, you can add the `istio-proxy` sidecar to the other services in the `bookinfo-backends` namespace
@@ -4572,10 +4572,10 @@ spec:
     authz:
       allowedClients:
       - serviceAccountSelector:
-          name: istio-ingressgateway-1-21-service-account
+          name: istio-ingressgateway-1-22-service-account
           namespace: istio-gateways
       - serviceAccountSelector:
-          name: istio-eastwestgateway-1-21-service-account
+          name: istio-eastwestgateway-1-22-service-account
           namespace: istio-gateways
 EOF
 ```
@@ -5022,16 +5022,16 @@ echo
 
 ```bash
 export GLOO_AGENT_URL=https://storage.googleapis.com/gloo-platform/vm/v2.5.0/gloo-workload-agent.deb
-export ISTIO_URL=https://storage.googleapis.com/solo-workshops/istio-binaries/1.21.2/istio-sidecar.deb
+export ISTIO_URL=https://storage.googleapis.com/solo-workshops/istio-binaries/1.22.3/istio-sidecar.deb
 
 docker exec vm1 meshctl ew onboard --install \
   --attestor token \
   --join-token ${JOIN_TOKEN} \
   --cluster ${CLUSTER1} \
   --gateway-addr ${EW_GW_ADDR} \
-  --gateway istio-gateways/istio-eastwestgateway-1-21 \
+  --gateway istio-gateways/istio-eastwestgateway-1-22 \
   --trust-domain ${CLUSTER1} \
-  --istio-rev 1-21 \
+  --istio-rev 1-22 \
   --network vm-network \
   --gloo ${GLOO_AGENT_URL} \
   --istio ${ISTIO_URL} \
@@ -5249,8 +5249,8 @@ docker rm -f vm1
 Set the variables corresponding to the old and new revision tags:
 
 ```bash
-export OLD_REVISION=1-21
-export NEW_REVISION=1-22
+export OLD_REVISION=1-22
+export NEW_REVISION=1-23
 ```
 
 We are going to upgrade Istio using Gloo Mesh Lifecycle Manager.
@@ -5267,11 +5267,11 @@ spec:
     - clusters:
       - name: cluster1
         defaultRevision: true
-      revision: 1-21
+      revision: 1-22
       istioOperatorSpec:
         profile: minimal
         hub: ${registry}/istio-workshops
-        tag: 1.21.2-solo
+        tag: 1.22.3-solo
         namespace: istio-system
         values:
           global:
@@ -5308,11 +5308,11 @@ spec:
     - clusters:
       - name: cluster1
         defaultRevision: false
-      revision: 1-22
+      revision: 1-23
       istioOperatorSpec:
         profile: minimal
         hub: ${registry}/istio-workshops
-        tag: 1.22.1-solo
+        tag: 1.23.0-patch0-solo
         namespace: istio-system
         values:
           global:
@@ -5359,11 +5359,11 @@ spec:
     - clusters:
       - name: cluster1
         activeGateway: false
-      gatewayRevision: 1-21
+      gatewayRevision: 1-22
       istioOperatorSpec:
         profile: empty
         hub: ${registry}/istio-workshops
-        tag: 1.21.2-solo
+        tag: 1.22.3-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -5378,11 +5378,11 @@ spec:
     - clusters:
       - name: cluster1
         activeGateway: false
-      gatewayRevision: 1-22
+      gatewayRevision: 1-23
       istioOperatorSpec:
         profile: empty
         hub: ${registry}/istio-workshops
-        tag: 1.22.1-solo
+        tag: 1.23.0-patch0-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -5405,11 +5405,11 @@ spec:
     - clusters:
       - name: cluster1
         activeGateway: false
-      gatewayRevision: 1-21
+      gatewayRevision: 1-22
       istioOperatorSpec:
         profile: empty
         hub: ${registry}/istio-workshops
-        tag: 1.21.2-solo
+        tag: 1.22.3-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -5431,11 +5431,11 @@ spec:
     - clusters:
       - name: cluster1
         activeGateway: false
-      gatewayRevision: 1-22
+      gatewayRevision: 1-23
       istioOperatorSpec:
         profile: empty
         hub: ${registry}/istio-workshops
-        tag: 1.22.1-solo
+        tag: 1.23.0-patch0-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -5467,11 +5467,11 @@ spec:
     - clusters:
       - name: cluster2
         defaultRevision: true
-      revision: 1-21
+      revision: 1-22
       istioOperatorSpec:
         profile: minimal
         hub: ${registry}/istio-workshops
-        tag: 1.21.2-solo
+        tag: 1.22.3-solo
         namespace: istio-system
         values:
           global:
@@ -5508,11 +5508,11 @@ spec:
     - clusters:
       - name: cluster2
         defaultRevision: false
-      revision: 1-22
+      revision: 1-23
       istioOperatorSpec:
         profile: minimal
         hub: ${registry}/istio-workshops
-        tag: 1.22.1-solo
+        tag: 1.23.0-patch0-solo
         namespace: istio-system
         values:
           global:
@@ -5559,11 +5559,11 @@ spec:
     - clusters:
       - name: cluster2
         activeGateway: false
-      gatewayRevision: 1-21
+      gatewayRevision: 1-22
       istioOperatorSpec:
         profile: empty
         hub: ${registry}/istio-workshops
-        tag: 1.21.2-solo
+        tag: 1.22.3-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -5578,11 +5578,11 @@ spec:
     - clusters:
       - name: cluster2
         activeGateway: false
-      gatewayRevision: 1-22
+      gatewayRevision: 1-23
       istioOperatorSpec:
         profile: empty
         hub: ${registry}/istio-workshops
-        tag: 1.22.1-solo
+        tag: 1.23.0-patch0-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -5605,11 +5605,11 @@ spec:
     - clusters:
       - name: cluster2
         activeGateway: false
-      gatewayRevision: 1-21
+      gatewayRevision: 1-22
       istioOperatorSpec:
         profile: empty
         hub: ${registry}/istio-workshops
-        tag: 1.21.2-solo
+        tag: 1.22.3-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -5631,11 +5631,11 @@ spec:
     - clusters:
       - name: cluster2
         activeGateway: false
-      gatewayRevision: 1-22
+      gatewayRevision: 1-23
       istioOperatorSpec:
         profile: empty
         hub: ${registry}/istio-workshops
-        tag: 1.22.1-solo
+        tag: 1.23.0-patch0-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -5804,11 +5804,11 @@ spec:
     - clusters:
       - name: cluster1
         activeGateway: true
-      gatewayRevision: 1-22
+      gatewayRevision: 1-23
       istioOperatorSpec:
         profile: empty
         hub: ${registry}/istio-workshops
-        tag: 1.22.1-solo
+        tag: 1.23.0-patch0-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -5831,11 +5831,11 @@ spec:
     - clusters:
       - name: cluster1
         activeGateway: false
-      gatewayRevision: 1-22
+      gatewayRevision: 1-23
       istioOperatorSpec:
         profile: empty
         hub: ${registry}/istio-workshops
-        tag: 1.22.1-solo
+        tag: 1.23.0-patch0-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -5867,11 +5867,11 @@ spec:
     - clusters:
       - name: cluster2
         activeGateway: true
-      gatewayRevision: 1-22
+      gatewayRevision: 1-23
       istioOperatorSpec:
         profile: empty
         hub: ${registry}/istio-workshops
-        tag: 1.22.1-solo
+        tag: 1.23.0-patch0-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -5894,11 +5894,11 @@ spec:
     - clusters:
       - name: cluster2
         activeGateway: false
-      gatewayRevision: 1-22
+      gatewayRevision: 1-23
       istioOperatorSpec:
         profile: empty
         hub: ${registry}/istio-workshops
-        tag: 1.22.1-solo
+        tag: 1.23.0-patch0-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -5957,11 +5957,11 @@ spec:
     - clusters:
       - name: cluster1
         defaultRevision: true
-      revision: 1-22
+      revision: 1-23
       istioOperatorSpec:
         profile: minimal
         hub: ${registry}/istio-workshops
-        tag: 1.22.1-solo
+        tag: 1.23.0-patch0-solo
         namespace: istio-system
         values:
           global:
@@ -6008,11 +6008,11 @@ spec:
     - clusters:
       - name: cluster2
         defaultRevision: true
-      revision: 1-22
+      revision: 1-23
       istioOperatorSpec:
         profile: minimal
         hub: ${registry}/istio-workshops
-        tag: 1.22.1-solo
+        tag: 1.23.0-patch0-solo
         namespace: istio-system
         values:
           global:
@@ -6074,10 +6074,10 @@ You should get the following output:
 
 ```
 NAME                           READY   STATUS    RESTARTS   AGE
-istiod-1-21-796fffbdf5-n6xc9   1/1     Running   0          25m
+istiod-1-22-796fffbdf5-n6xc9   1/1     Running   0          25m
 NAME                                          READY   STATUS    RESTARTS   AGE
-istio-eastwestgateway-1-21-546446c77b-zg5hd   1/1     Running   0          25m
-istio-ingressgateway-1-21-784f69b4bb-lcfk9    1/1     Running   0          25m
+istio-eastwestgateway-1-22-546446c77b-zg5hd   1/1     Running   0          25m
+istio-ingressgateway-1-22-784f69b4bb-lcfk9    1/1     Running   0          25m
 ```
 
 It confirms that only the new version is running.
@@ -6699,11 +6699,11 @@ spec:
     - clusters:
         - name: cluster1
           activeGateway: false
-      gatewayRevision: 1-22
+      gatewayRevision: 1-23
       istioOperatorSpec:
         profile: empty
         hub: ${registry}/istio-workshops
-        tag: 1.22.1-solo
+        tag: 1.23.0-patch0-solo
         components:
           egressGateways:
             - enabled: true
