@@ -7,7 +7,7 @@ source ./scripts/assert.sh
 
 <center><img src="images/gloo-mesh.png" alt="Gloo Mesh Enterprise" style="width:70%;max-width:800px" /></center>
 
-# <center>Gloo Mesh Core (2.6.0)</center>
+# <center>Gloo Mesh Core (2.6.2)</center>
 
 
 
@@ -142,7 +142,7 @@ timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> 
 Before we get started, let's install the `meshctl` CLI:
 
 ```bash
-export GLOO_MESH_VERSION=v2.6.0
+export GLOO_MESH_VERSION=v2.6.2
 curl -sL https://run.solo.io/meshctl/install | sh -
 export PATH=$HOME/.gloo-mesh/bin:$PATH
 ```
@@ -186,13 +186,13 @@ helm upgrade --install gloo-platform-crds gloo-platform-crds \
   --namespace gloo-mesh \
   --kube-context ${MGMT} \
   --set featureGates.insightsConfiguration=true \
-  --version 2.6.0
+  --version 2.6.2
 
 helm upgrade --install gloo-platform-mgmt gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${MGMT} \
-  --version 2.6.0 \
+  --version 2.6.2 \
   -f -<<EOF
 licensing:
   glooTrialLicenseKey: ${GLOO_MESH_LICENSE_KEY}
@@ -306,13 +306,15 @@ metadata:
   name: cluster1-installation
   namespace: gloo-mesh
 spec:
+  helmGlobal:
+    repo: oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>
   installations:
     - clusters:
       - name: cluster1
       istioOperatorSpec:
         profile: ambient
-        hub: docker.io/istio
-        tag: 1.22.3
+        hub: us-docker.pkg.dev/gloo-mesh/istio-<enterprise_istio_repo>
+        tag: 1.23.0-patch0-solo
         namespace: istio-system
         values:
           cni:
@@ -356,14 +358,16 @@ metadata:
   name: cluster1-ingress
   namespace: gloo-mesh
 spec:
+  helmGlobal:
+    repo: oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>
   installations:
     - clusters:
       - name: cluster1
         activeGateway: false
       istioOperatorSpec:
         profile: empty
-        hub: docker.io/istio
-        tag: 1.22.3
+        hub: us-docker.pkg.dev/gloo-mesh/istio-<enterprise_istio_repo>
+        tag: 1.23.0-patch0-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -737,7 +741,7 @@ kubectl --context ${CLUSTER1} -n clients get pods
 
 ```,nocopy
 NAME                           READY   STATUS    RESTARTS   AGE
-in-ambient-5c64bb49cd-m9kwm    2/2     Running   0          4s
+in-ambient-5c64bb49cd-w3dmw    1/1     Running   0          4s
 in-mesh-5d9d9549b5-qrdgd       2/2     Running   0          11s
 not-in-mesh-5c64bb49cd-m9kwm   1/1     Running   0          11s
 ```
@@ -916,7 +920,7 @@ Now, you should see that requests from `in-mesh-with-sidecar` and `in-ambient` w
 
 ### Migrate `bookinfo-backends` to Ambient
 
-Now that we've explored L4 interoperability, let's migrate the `bookinfo-backends` services to the Ambient mesh. This will demonstrate how we can transition seamlessly without imacpting traffic while maintaining our existing L4 policies.
+Now that we've explored L4 interoperability, let's migrate the `bookinfo-backends` services to the Ambient mesh. This will demonstrate how we can transition seamlessly without impacting traffic while maintaining our existing L4 policies.
 
 First, let's move the `bookinfo-backends` namespace to the Ambient mesh:
 
@@ -1092,7 +1096,7 @@ afterEach(function (done) {
 
 describe("l7 interoperability", function() {
   const cluster = process.env.CLUSTER1
-  const workloads = ['in-ambient'];
+  const workloads = ['in-mesh-with-sidecar', 'in-ambient'];
 
   describe("traffic is authorized", function() {
     for (const workload of workloads) {
@@ -1215,7 +1219,7 @@ afterEach(function (done) {
 
 describe("l7 interoperability", function() {
   const cluster = process.env.CLUSTER1
-  const workloads = ['in-ambient'];
+  const workloads = ['in-mesh-with-sidecar', 'in-ambient'];
 
   describe("traffic is authorized", function() {
     for (const workload of workloads) {
@@ -1284,7 +1288,7 @@ afterEach(function (done) {
 
 describe("l7 interoperability", function() {
   const cluster = process.env.CLUSTER1
-  const workloads = ['in-ambient'];
+  const workloads = ['in-mesh-with-sidecar', 'in-ambient'];
 
   describe("traffic is authorized", function() {
     for (const workload of workloads) {
@@ -1344,7 +1348,7 @@ afterEach(function (done) {
 
 describe("l7 interoperability", function() {
   const cluster = process.env.CLUSTER1
-  const workloads = ['in-ambient'];
+  const workloads = ['in-mesh-with-sidecar', 'in-ambient'];
 
   describe("traffic is authorized", function() {
     for (const workload of workloads) {
