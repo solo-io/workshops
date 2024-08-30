@@ -7,7 +7,7 @@ source ./scripts/assert.sh
 
 <center><img src="images/gloo-mesh.png" alt="Gloo Mesh Enterprise" style="width:70%;max-width:800px" /></center>
 
-# <center>Gloo Mesh Enterprise (2.6.0)</center>
+# <center>Gloo Mesh Enterprise (2.6.2)</center>
 
 
 
@@ -24,7 +24,8 @@ source ./scripts/assert.sh
 * [Lab 9 - Traffic policies](#lab-9---traffic-policies-)
 * [Lab 10 - Create the Root Trust Policy](#lab-10---create-the-root-trust-policy-)
 * [Lab 11 - Leverage Virtual Destinations](#lab-11---leverage-virtual-destinations-)
-* [Lab 12 - Leverage Virtual Destinations for east west communications](#lab-12---leverage-virtual-destinations-for-east-west-communications-)
+* [Lab 12 - Leverage Virtual Destinations](#lab-12---leverage-virtual-destinations-)
+* [Lab 13 - Leverage Virtual Destinations for east west communications](#lab-13---leverage-virtual-destinations-for-east-west-communications-)
 
 
 
@@ -154,7 +155,7 @@ timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> 
 Before we get started, let's install the `meshctl` CLI:
 
 ```bash
-export GLOO_MESH_VERSION=v2.6.0
+export GLOO_MESH_VERSION=v2.6.2
 curl -sL https://run.solo.io/meshctl/install | sh -
 export PATH=$HOME/.gloo-mesh/bin:$PATH
 ```
@@ -198,13 +199,13 @@ helm upgrade --install gloo-platform-crds gloo-platform-crds \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${MGMT} \
-  --version 2.6.0
+  --version 2.6.2
 
 helm upgrade --install gloo-platform gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${MGMT} \
-  --version 2.6.0 \
+  --version 2.6.2 \
   -f -<<EOF
 licensing:
   glooTrialLicenseKey: ${GLOO_MESH_LICENSE_KEY}
@@ -355,13 +356,13 @@ helm upgrade --install gloo-platform-crds gloo-platform-crds \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${CLUSTER1} \
-  --version 2.6.0
+  --version 2.6.2
 
 helm upgrade --install gloo-platform gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${CLUSTER1} \
-  --version 2.6.0 \
+  --version 2.6.2 \
   -f -<<EOF
 common:
   cluster: cluster1
@@ -408,13 +409,13 @@ helm upgrade --install gloo-platform-crds gloo-platform-crds \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${CLUSTER2} \
-  --version 2.6.0
+  --version 2.6.2
 
 helm upgrade --install gloo-platform gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${CLUSTER2} \
-  --version 2.6.0 \
+  --version 2.6.2 \
   -f -<<EOF
 common:
   cluster: cluster2
@@ -524,7 +525,7 @@ spec:
   selector:
     app: istio-ingressgateway
     istio: ingressgateway
-    revision: 1-22
+    revision: 1-23
   type: LoadBalancer
 EOF
 
@@ -579,7 +580,7 @@ spec:
   selector:
     app: istio-ingressgateway
     istio: eastwestgateway
-    revision: 1-22
+    revision: 1-23
     topology.istio.io/network: cluster1
   type: LoadBalancer
 EOF
@@ -607,7 +608,7 @@ spec:
   selector:
     app: istio-ingressgateway
     istio: ingressgateway
-    revision: 1-22
+    revision: 1-23
   type: LoadBalancer
 EOF
 
@@ -662,7 +663,7 @@ spec:
   selector:
     app: istio-ingressgateway
     istio: eastwestgateway
-    revision: 1-22
+    revision: 1-23
     topology.istio.io/network: cluster2
   type: LoadBalancer
 EOF
@@ -684,11 +685,11 @@ spec:
     - clusters:
       - name: cluster1
         defaultRevision: true
-      revision: 1-22
+      revision: 1-23
       istioOperatorSpec:
         profile: minimal
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.22.3-solo
+        tag: 1.23.0-patch0-solo
         namespace: istio-system
         values:
           global:
@@ -734,11 +735,11 @@ spec:
     - clusters:
       - name: cluster1
         activeGateway: false
-      gatewayRevision: 1-22
+      gatewayRevision: 1-23
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.22.3-solo
+        tag: 1.23.0-patch0-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -761,11 +762,11 @@ spec:
     - clusters:
       - name: cluster1
         activeGateway: false
-      gatewayRevision: 1-22
+      gatewayRevision: 1-23
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.22.3-solo
+        tag: 1.23.0-patch0-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -797,11 +798,11 @@ spec:
     - clusters:
       - name: cluster2
         defaultRevision: true
-      revision: 1-22
+      revision: 1-23
       istioOperatorSpec:
         profile: minimal
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.22.3-solo
+        tag: 1.23.0-patch0-solo
         namespace: istio-system
         values:
           global:
@@ -847,11 +848,11 @@ spec:
     - clusters:
       - name: cluster2
         activeGateway: false
-      gatewayRevision: 1-22
+      gatewayRevision: 1-23
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.22.3-solo
+        tag: 1.23.0-patch0-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -874,11 +875,11 @@ spec:
     - clusters:
       - name: cluster2
         activeGateway: false
-      gatewayRevision: 1-22
+      gatewayRevision: 1-23
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.22.3-solo
+        tag: 1.23.0-patch0-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -1049,8 +1050,8 @@ Run the following commands to deploy the bookinfo application on `cluster1`:
 ```bash
 kubectl --context ${CLUSTER1} create ns bookinfo-frontends
 kubectl --context ${CLUSTER1} create ns bookinfo-backends
-kubectl --context ${CLUSTER1} label namespace bookinfo-frontends istio.io/rev=1-22 --overwrite
-kubectl --context ${CLUSTER1} label namespace bookinfo-backends istio.io/rev=1-22 --overwrite
+kubectl --context ${CLUSTER1} label namespace bookinfo-frontends istio.io/rev=1-23 --overwrite
+kubectl --context ${CLUSTER1} label namespace bookinfo-backends istio.io/rev=1-23 --overwrite
 
 # Deploy the frontend bookinfo service in the bookinfo-frontends namespace
 kubectl --context ${CLUSTER1} -n bookinfo-frontends apply -f data/steps/deploy-bookinfo/productpage-v1.yaml
@@ -1093,8 +1094,8 @@ Now, run the following commands to deploy the bookinfo application on `cluster2`
 ```bash
 kubectl --context ${CLUSTER2} create ns bookinfo-frontends
 kubectl --context ${CLUSTER2} create ns bookinfo-backends
-kubectl --context ${CLUSTER2} label namespace bookinfo-frontends istio.io/rev=1-22 --overwrite
-kubectl --context ${CLUSTER2} label namespace bookinfo-backends istio.io/rev=1-22 --overwrite
+kubectl --context ${CLUSTER2} label namespace bookinfo-frontends istio.io/rev=1-23 --overwrite
+kubectl --context ${CLUSTER2} label namespace bookinfo-backends istio.io/rev=1-23 --overwrite
 
 # Deploy the frontend bookinfo service in the bookinfo-frontends namespace
 kubectl --context ${CLUSTER2} -n bookinfo-frontends apply -f data/steps/deploy-bookinfo/productpage-v1.yaml
@@ -1173,9 +1174,9 @@ First, you need to create a namespace for the addons, with Istio injection enabl
 
 ```bash
 kubectl --context ${CLUSTER1} create namespace gloo-mesh-addons
-kubectl --context ${CLUSTER1} label namespace gloo-mesh-addons istio.io/rev=1-22 --overwrite
+kubectl --context ${CLUSTER1} label namespace gloo-mesh-addons istio.io/rev=1-23 --overwrite
 kubectl --context ${CLUSTER2} create namespace gloo-mesh-addons
-kubectl --context ${CLUSTER2} label namespace gloo-mesh-addons istio.io/rev=1-22 --overwrite
+kubectl --context ${CLUSTER2} label namespace gloo-mesh-addons istio.io/rev=1-23 --overwrite
 ```
 
 Then, you can deploy the addons on the cluster(s) using Helm:
@@ -1185,7 +1186,7 @@ helm upgrade --install gloo-platform gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh-addons \
   --kube-context ${CLUSTER1} \
-  --version 2.6.0 \
+  --version 2.6.2 \
   -f -<<EOF
 common:
   cluster: cluster1
@@ -1209,7 +1210,7 @@ helm upgrade --install gloo-platform gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh-addons \
   --kube-context ${CLUSTER2} \
-  --version 2.6.0 \
+  --version 2.6.2 \
   -f -<<EOF
 common:
   cluster: cluster2
@@ -2508,7 +2509,7 @@ kubectl --context ${CLUSTER1} -n bookinfo-frontends delete virtualdestination pr
 kubectl --context ${CLUSTER1} -n bookinfo-frontends delete failoverpolicy failover
 kubectl --context ${CLUSTER1} -n bookinfo-frontends delete outlierdetectionpolicy outlier-detection
 
-kubectl --context ${CLUSTER2} label ns bookinfo-frontends istio.io/rev=1-22 --overwrite
+kubectl --context ${CLUSTER2} label ns bookinfo-frontends istio.io/rev=1-23 --overwrite
 ```
 ```bash
 kubectl --context ${CLUSTER2} -n bookinfo-frontends rollout restart deploy/productpage-v1
@@ -2525,7 +2526,484 @@ done"
 
 
 
-## Lab 12 - Leverage Virtual Destinations for east west communications <a name="lab-12---leverage-virtual-destinations-for-east-west-communications-"></a>
+## Lab 12 - Leverage Virtual Destinations <a name="lab-12---leverage-virtual-destinations-"></a>
+[<img src="https://img.youtube.com/vi/KikFWYxQodk/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/KikFWYxQodk "Video Link")
+
+Right now, we've only exposed the `productpage` service on the first cluster.
+
+In this lab, we're going to make it available on both clusters.
+
+Let's update the VirtualGateway to expose it on both clusters.
+
+```bash
+kubectl apply --context ${CLUSTER1} -f - <<EOF
+apiVersion: networking.gloo.solo.io/v2
+kind: VirtualGateway
+metadata:
+  name: north-south-gw
+  namespace: istio-gateways
+spec:
+  workloads:
+    - selector:
+        labels:
+          istio: ingressgateway
+  listeners:
+    - http: {}
+      port:
+        number: 80
+      httpsRedirect: true
+    - http: {}
+      port:
+        number: 443
+      tls:
+        mode: SIMPLE
+        secretName: tls-secret
+      allowedRouteTables:
+        - host: '*'
+EOF
+```
+
+Then, we can configure the `RouteTable` to send the traffic to a Virtual Destination which will be composed of the `productpage` services running in both clusters.
+
+Let's create this Virtual Destination.
+
+```bash
+kubectl apply --context ${CLUSTER1} -f - <<EOF
+apiVersion: networking.gloo.solo.io/v2
+kind: VirtualDestination
+metadata:
+  name: productpage
+  namespace: bookinfo-frontends
+  labels:
+    expose: "true"
+spec:
+  hosts:
+  - productpage.global
+  services:
+  - namespace: bookinfo-frontends
+    labels:
+      app: productpage
+  ports:
+    - number: 9080
+      protocol: HTTP
+EOF
+```
+
+Note that we have added the label `expose` with the value `true` to make sure it will be exported to the Gateway `Workspace`.
+
+After that, we need to update the `RouteTable` to use it.
+
+```bash
+kubectl apply --context ${CLUSTER1} -f - <<EOF
+apiVersion: networking.gloo.solo.io/v2
+kind: RouteTable
+metadata:
+  name: productpage
+  namespace: bookinfo-frontends
+  labels:
+    expose: "true"
+spec:
+  http:
+    - name: productpage
+      matchers:
+      - uri:
+          exact: /productpage
+      - uri:
+          prefix: /static
+      - uri:
+          prefix: /api/v1/products
+      forwardTo:
+        destinations:
+          - ref:
+              name: productpage
+              namespace: bookinfo-frontends
+            kind: VIRTUAL_DESTINATION
+            port:
+              number: 9080
+EOF
+```
+
+
+You can access the `productpage` service from the second cluster using this URL: [https://cluster2-bookinfo.example.com/productpage](https://cluster2-bookinfo.example.com/productpage).
+
+<!--bash
+for i in {1..60}; do
+  nc -z $HOST_GW_CLUSTER1 443 && break
+  sleep 1
+done
+-->
+
+<!--bash
+cat <<'EOF' > ./test.js
+const helpers = require('./tests/chai-http');
+
+describe("Productpage is available (SSL)", () => {
+  it('/productpage is available in cluster1', () => helpers.checkURL({ host: `https://cluster1-bookinfo.example.com`, path: '/productpage', retCode: 200 }));
+  it('/productpage is available in cluster2', () => helpers.checkURL({ host: `https://cluster2-bookinfo.example.com`, path: '/productpage', retCode: 200 }));
+})
+
+EOF
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/apps/bookinfo/virtual-destination/tests/productpage-available-secure.test.js.liquid"
+tempfile=$(mktemp)
+echo "saving errors in ${tempfile}"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
+-->
+
+Now, if you try to access it from the first cluster, you can see that you now get the `v3` version of the `reviews` service (red stars).
+
+This diagram shows the flow of the request (through both Istio ingress gateways):
+
+![Gloo Mesh Virtual Destination Both](images/steps/virtual-destination/gloo-mesh-virtual-destination-both.svg)
+
+It's nice, but you generally want to direct the traffic to the local services if they're available and failover to the remote cluster only when they're not.
+
+In order to do that we need to create 2 other policies.
+We will configure the policies in the client-side ("istio-gateways") and those will apply to the VirtualDestination as it is imported by the clients workspace.
+
+The first one is a `FailoverPolicy`:
+
+```bash
+kubectl apply --context ${CLUSTER1} -f - <<EOF
+apiVersion: resilience.policy.gloo.solo.io/v2
+kind: FailoverPolicy
+metadata:
+  name: failover
+  namespace: istio-gateways
+spec:
+  applyToDestinations:
+  - kind: VIRTUAL_DESTINATION
+    selector:
+      labels:
+        failover: "true"
+  config:
+    localityMappings: []
+EOF
+```
+
+It will update the Istio `DestinationRule` to enable failover.
+
+Note that failover is enabled by default, so creating this `FailoverPolicy` is optional. By default, it will try to failover to the same zone, then same region and finally anywhere. A `FailoverPolicy` is generally used when you want to change this default behavior. For example, if you have many regions, you may want to failover only to a specific region.
+
+The second one is an `OutlierDetectionPolicy`:
+
+```bash
+kubectl apply --context ${CLUSTER1} -f - <<EOF
+apiVersion: resilience.policy.gloo.solo.io/v2
+kind: OutlierDetectionPolicy
+metadata:
+  name: outlier-detection
+  namespace: istio-gateways
+spec:
+  applyToDestinations:
+  - kind: VIRTUAL_DESTINATION
+    selector:
+      labels:
+        failover: "true"
+  config:
+    consecutiveErrors: 2
+    interval: 5s
+    baseEjectionTime: 30s
+    maxEjectionPercent: 100
+EOF
+```
+
+It will update the Istio `DestinationRule` to specify how/when we want the failover to happen.
+
+As you can see, both policies will be applied to `VirtualDestination` objects that have the label `failover` set to `"true"`.
+
+So we need to update the `VirtualDestination`:
+
+```bash
+kubectl apply --context ${CLUSTER1} -f - <<EOF
+apiVersion: networking.gloo.solo.io/v2
+kind: VirtualDestination
+metadata:
+  name: productpage
+  namespace: bookinfo-frontends
+  labels:
+    expose: "true"
+    failover: "true"
+spec:
+  hosts:
+  - productpage.global
+  services:
+  - namespace: bookinfo-frontends
+    labels:
+      app: productpage
+  ports:
+    - number: 9080
+      protocol: HTTP
+EOF
+```
+
+<!--bash
+cat <<'EOF' > ./test.js
+const helpers = require('./tests/chai-http');
+
+describe("Productpage is available (SSL)", () => {
+  it('/productpage is available in cluster1', () => helpers.checkURL({ host: `https://cluster1-bookinfo.example.com`, path: '/productpage', retCode: 200 }));
+  it('/productpage is available in cluster2', () => helpers.checkURL({ host: `https://cluster2-bookinfo.example.com`, path: '/productpage', retCode: 200 }));
+})
+
+EOF
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/apps/bookinfo/virtual-destination/tests/productpage-available-secure.test.js.liquid"
+tempfile=$(mktemp)
+echo "saving errors in ${tempfile}"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
+-->
+
+Now, if you try to access the productpage from the first cluster, you should only get the `v1` and `v2` versions (the local ones).
+
+This updated diagram shows the flow of the requests using the local services:
+
+![Gloo Mesh Virtual Destination](images/steps/virtual-destination/gloo-mesh-virtual-destination.svg)
+
+If the `productpage` service doesn't exist on the first cluster, the Istio Ingress Gateway of this cluster will automatically use the `productpage` service running on the other cluster.
+
+Let's try this:
+
+```bash
+kubectl --context ${CLUSTER1} -n bookinfo-frontends scale deploy/productpage-v1 --replicas=0
+kubectl --context ${CLUSTER1} -n bookinfo-frontends wait --for=jsonpath='{.spec.replicas}'=0 deploy/productpage-v1
+```
+
+<!--bash
+cat <<'EOF' > ./test.js
+const helpers = require('./tests/chai-http');
+
+describe("Productpage is available (SSL)", () => {
+  it('/productpage is available in cluster1', () => helpers.checkURL({ host: `https://cluster1-bookinfo.example.com`, path: '/productpage', retCode: 200 }));
+  it('/productpage is available in cluster2', () => helpers.checkURL({ host: `https://cluster2-bookinfo.example.com`, path: '/productpage', retCode: 200 }));
+})
+
+EOF
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/apps/bookinfo/virtual-destination/tests/productpage-available-secure.test.js.liquid"
+tempfile=$(mktemp)
+echo "saving errors in ${tempfile}"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
+-->
+
+You can still access the application on cluster1 even if the productpage isn't running there anymore. And you can see the `v3` version of the `reviews` service (red stars).
+
+This updated diagram shows the flow of the request now that the `productpage` service isn't running in the first cluster:
+
+![Gloo Mesh Virtual Destination Remote](images/steps/virtual-destination/gloo-mesh-virtual-destination-remote.svg)
+
+Let's restore the `productpage` service:
+
+```bash
+kubectl --context ${CLUSTER1} -n bookinfo-frontends scale deploy/productpage-v1 --replicas=1
+kubectl --context ${CLUSTER1} -n bookinfo-frontends wait --for=jsonpath='{.status.readyReplicas}'=1 deploy/productpage-v1
+```
+
+But what happens if the `productpage` service is running, but is unavailable ?
+
+Let's try!
+
+The following command will patch the deployment to run a new version which won't respond to the incoming requests.
+
+```bash
+kubectl --context ${CLUSTER1} -n bookinfo-frontends patch deploy productpage-v1 --patch '{"spec": {"template": {"spec": {"containers": [{"name": "productpage","command": ["sleep", "20h"]}]}}}}'
+kubectl --context ${CLUSTER1} -n bookinfo-frontends rollout status deploy/productpage-v1
+```
+
+<!--bash
+cat <<'EOF' > ./test.js
+const helpers = require('./tests/chai-http');
+
+describe("Productpage is available (SSL)", () => {
+  it('/productpage is available in cluster1', () => helpers.checkURL({ host: `https://cluster1-bookinfo.example.com`, path: '/productpage', retCode: 200 }));
+  it('/productpage is available in cluster2', () => helpers.checkURL({ host: `https://cluster2-bookinfo.example.com`, path: '/productpage', retCode: 200 }));
+})
+
+EOF
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/apps/bookinfo/virtual-destination/tests/productpage-available-secure.test.js.liquid"
+tempfile=$(mktemp)
+echo "saving errors in ${tempfile}"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
+-->
+
+You can still access the bookinfo application.
+
+This updated diagram shows the flow of the request now that the `productpage` service isn't available in the first cluster:
+
+![Gloo Mesh Virtual Destination Failover](images/steps/virtual-destination/gloo-mesh-virtual-destination-failover.svg)
+
+If the destination service is in the mesh, end-to-end mTLS will be used to secure the communication between the services.
+
+However, if the destination service is not in the mesh, the communication can be configured to be encrypted all the way up to the east-west gateway. Let's see how to do that.
+
+First, let's take `productpage` out of the mesh:
+```bash
+kubectl --context ${CLUSTER2} label ns bookinfo-frontends istio.io/rev-
+kubectl --context ${CLUSTER2} -n bookinfo-frontends rollout restart deploy/productpage-v1
+kubectl --context ${CLUSTER2} -n bookinfo-frontends rollout status deploy/productpage-v1
+```
+
+As end-to-end mTLS is not possible now, you will see the following error when trying to access the `productpage` service from the first cluster:
+```,nocopy
+upstream connect error or disconnect/reset before headers. retried and the latest reset reason: remote connection failure, transport failure reason: TLS_error:|33554536:system library:OPENSSL_internal:Connection reset by peer:TLS_error_end:TLS_error_end
+```
+
+The request from the second cluster will still work, as the `productpage` is local to it, so the east-west gateway is not used.
+
+<!--bash
+cat <<'EOF' > ./test.js
+const helpers = require('./tests/chai-http');
+
+describe("Productpage is partially available (SSL)", () => {
+  it('/productpage is NOT available in cluster1', () => helpers.checkURL({ host: `https://cluster1-bookinfo.example.com`, path: '/productpage', retCode: 503 }));
+  it('/productpage is available in cluster2', () => helpers.checkURL({ host: `https://cluster2-bookinfo.example.com`, path: '/productpage', retCode: 200 }));
+})
+
+EOF
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/apps/bookinfo/virtual-destination/tests/productpage-available-secure-only-cluster2.test.js.liquid"
+tempfile=$(mktemp)
+echo "saving errors in ${tempfile}"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
+-->
+
+To fix this, we need to configure the `VirtualDestination` to terminate the TLS connection at the east-west gateway:
+```bash
+kubectl apply --context ${CLUSTER1} -f - <<EOF
+apiVersion: networking.gloo.solo.io/v2
+kind: VirtualDestination
+metadata:
+  name: productpage
+  namespace: bookinfo-frontends
+  labels:
+    expose: "true"
+    failover: "true"
+spec:
+  hosts:
+  - productpage.global
+  services:
+  - namespace: bookinfo-frontends
+    labels:
+      app: productpage
+  ports:
+    - number: 9080
+      protocol: HTTP
+  clientMode:
+    tlsTermination: {}
+EOF
+```
+
+Now you should be able to access the `productpage` service from the first cluster again.
+
+<!--bash
+cat <<'EOF' > ./test.js
+const helpers = require('./tests/chai-http');
+
+describe("Productpage is available (SSL)", () => {
+  it('/productpage is available in cluster1', () => helpers.checkURL({ host: `https://cluster1-bookinfo.example.com`, path: '/productpage', retCode: 200 }));
+  it('/productpage is available in cluster2', () => helpers.checkURL({ host: `https://cluster2-bookinfo.example.com`, path: '/productpage', retCode: 200 }));
+})
+
+EOF
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/apps/bookinfo/virtual-destination/tests/productpage-available-secure.test.js.liquid"
+tempfile=$(mktemp)
+echo "saving errors in ${tempfile}"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
+-->
+
+Run the following command to make the `productpage` available again in the first cluster
+
+```bash
+kubectl --context ${CLUSTER1} -n bookinfo-frontends patch deployment productpage-v1  --type json   -p '[{"op": "remove", "path": "/spec/template/spec/containers/0/command"}]'
+kubectl --context ${CLUSTER1} -n bookinfo-frontends rollout status deploy/productpage-v1
+```
+
+Let's apply the original `RouteTable` and `VirtualGateway` yaml:
+
+```bash
+kubectl apply --context ${CLUSTER1} -f - <<EOF
+apiVersion: networking.gloo.solo.io/v2
+kind: RouteTable
+metadata:
+  name: productpage
+  namespace: bookinfo-frontends
+  labels:
+    expose: "true"
+spec:
+  http:
+    - name: productpage
+      matchers:
+      - uri:
+          exact: /productpage
+      - uri:
+          prefix: /static
+      - uri:
+          prefix: /api/v1/products
+      forwardTo:
+        destinations:
+          - ref:
+              name: productpage
+              namespace: bookinfo-frontends
+              cluster: cluster1
+            port:
+              number: 9080
+EOF
+
+kubectl apply --context ${CLUSTER1} -f - <<EOF
+apiVersion: networking.gloo.solo.io/v2
+kind: VirtualGateway
+metadata:
+  name: north-south-gw
+  namespace: istio-gateways
+spec:
+  workloads:
+    - selector:
+        labels:
+          istio: ingressgateway
+        cluster: cluster1
+  listeners: 
+    - http: {}
+      port:
+        number: 80
+# ---------------- Redirect to https --------------------
+      httpsRedirect: true
+# -------------------------------------------------------
+    - http: {}
+# ---------------- SSL config ---------------------------
+      port:
+        number: 443
+      tls:
+        parameters:
+          minimumProtocolVersion: TLSv1_3
+        mode: SIMPLE
+        secretName: tls-secret
+# -------------------------------------------------------
+      allowedRouteTables:
+        - host: '*'
+EOF
+```
+
+And also delete the different objects we've created:
+
+```bash
+kubectl --context ${CLUSTER1} -n bookinfo-frontends delete virtualdestination productpage
+kubectl --context ${CLUSTER1} -n bookinfo-frontends delete failoverpolicy failover
+kubectl --context ${CLUSTER1} -n bookinfo-frontends delete outlierdetectionpolicy outlier-detection
+
+kubectl --context ${CLUSTER2} label ns bookinfo-frontends istio.io/rev=1-23 --overwrite
+```
+```bash
+kubectl --context ${CLUSTER2} -n bookinfo-frontends rollout restart deploy/productpage-v1
+kubectl --context ${CLUSTER2} -n bookinfo-frontends rollout status deploy/productpage-v1
+```
+<!--bash
+echo -n Waiting for the productpage-v1 deployment to have only 1 pod running...
+timeout -v 1m bash -c "until [[ \$(kubectl --context ${CLUSTER1} -n bookinfo-frontends get pod -l app=productpage -oname| wc -l) -eq 1 ]]; do
+  sleep 1
+  echo -n .
+done"
+-->
+
+
+
+
+## Lab 13 - Leverage Virtual Destinations for east west communications <a name="lab-13---leverage-virtual-destinations-for-east-west-communications-"></a>
 
 We can create a Virtual Destination which will be composed of the `reviews` services running in both clusters.
 
