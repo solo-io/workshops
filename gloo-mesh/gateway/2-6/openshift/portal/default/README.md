@@ -7,7 +7,7 @@ source ./scripts/assert.sh
 
 <center><img src="images/gloo-gateway.png" alt="Gloo Mesh Gateway" style="width:70%;max-width:800px" /></center>
 
-# <center>Gloo Portal (2.6.0)</center>
+# <center>Gloo Portal (2.6.2)</center>
 
 
 
@@ -120,7 +120,7 @@ kubectl config use-context ${MGMT}
 Before we get started, let's install the `meshctl` CLI:
 
 ```bash
-export GLOO_MESH_VERSION=v2.6.0
+export GLOO_MESH_VERSION=v2.6.2
 curl -sL https://run.solo.io/meshctl/install | sh -
 export PATH=$HOME/.gloo-mesh/bin:$PATH
 ```
@@ -185,13 +185,13 @@ helm upgrade --install gloo-platform-crds gloo-platform-crds \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${MGMT} \
-  --version 2.6.0
+  --version 2.6.2
 
 helm upgrade --install gloo-platform-mgmt gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${MGMT} \
-  --version 2.6.0 \
+  --version 2.6.2 \
   -f -<<EOF
 licensing:
   glooTrialLicenseKey: ${GLOO_MESH_LICENSE_KEY}
@@ -326,7 +326,7 @@ spec:
   selector:
     app: istio-ingressgateway
     istio: ingressgateway
-    revision: 1-22
+    revision: 1-23
   type: LoadBalancer
 EOF
 ```
@@ -338,7 +338,7 @@ For Openshift clusters, you also need to run the following commands:
 ```bash
 oc --context ${CLUSTER1} adm policy add-scc-to-group anyuid system:serviceaccounts:istio-system
 oc --context ${CLUSTER1} adm policy add-scc-to-group anyuid system:serviceaccounts:istio-gateways
-oc --context ${CLUSTER1} adm policy add-scc-to-group anyuid system:serviceaccounts:gm-iop-1-22
+oc --context ${CLUSTER1} adm policy add-scc-to-group anyuid system:serviceaccounts:gm-iop-1-23
 
 cat <<EOF | oc --context ${CLUSTER1} -n istio-gateways create -f -
 apiVersion: "k8s.cni.cncf.io/v1"
@@ -361,11 +361,11 @@ spec:
     - clusters:
       - name: cluster1
         defaultRevision: true
-      revision: 1-22
+      revision: 1-23
       istioOperatorSpec:
         profile: minimal
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.22.3-solo
+        tag: 1.23.0-patch0-solo
         namespace: istio-system
         values:
           global:
@@ -425,11 +425,11 @@ spec:
     - clusters:
       - name: cluster1
         activeGateway: false
-      gatewayRevision: 1-22
+      gatewayRevision: 1-23
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.22.3-solo
+        tag: 1.23.0-patch0-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -565,8 +565,8 @@ metadata:
   name: istio-cni
 EOF
 
-kubectl --context ${CLUSTER1} label namespace bookinfo-frontends istio.io/rev=1-22 --overwrite
-kubectl --context ${CLUSTER1} label namespace bookinfo-backends istio.io/rev=1-22 --overwrite
+kubectl --context ${CLUSTER1} label namespace bookinfo-frontends istio.io/rev=1-23 --overwrite
+kubectl --context ${CLUSTER1} label namespace bookinfo-backends istio.io/rev=1-23 --overwrite
 
 # Deploy the frontend bookinfo service in the bookinfo-frontends namespace
 kubectl --context ${CLUSTER1} -n bookinfo-frontends apply -f data/steps/deploy-bookinfo/productpage-v1.yaml
@@ -750,7 +750,7 @@ spec:
       labels:
         app: in-mesh
         version: v1
-        istio.io/rev: 1-22
+        istio.io/rev: 1-23
     spec:
       serviceAccountName: in-mesh
       containers:
@@ -826,7 +826,7 @@ First, you need to create a namespace for the addons, with Istio injection enabl
 
 ```bash
 kubectl --context ${CLUSTER1} create namespace gloo-mesh-addons
-kubectl --context ${CLUSTER1} label namespace gloo-mesh-addons istio.io/rev=1-22 --overwrite
+kubectl --context ${CLUSTER1} label namespace gloo-mesh-addons istio.io/rev=1-23 --overwrite
 oc --context ${CLUSTER1} adm policy add-scc-to-group anyuid system:serviceaccounts:gloo-mesh-addons
 
 cat <<EOF | oc --context ${CLUSTER1} -n gloo-mesh-addons create -f -
@@ -844,7 +844,7 @@ helm upgrade --install gloo-platform gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh-addons \
   --kube-context ${CLUSTER1} \
-  --version 2.6.0 \
+  --version 2.6.2 \
   -f -<<EOF
 common:
   cluster: cluster1
@@ -3331,7 +3331,7 @@ metadata:
   labels:
     host: gloo-mesh-portal-server
 spec:
-  address: istio-ingressgateway-1-22.istio-gateways.svc.cluster.local
+  address: istio-ingressgateway-1-23.istio-gateways.svc.cluster.local
   ports:
   - name: https
     number: 443
