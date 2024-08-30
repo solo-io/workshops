@@ -7,7 +7,7 @@ source ./scripts/assert.sh
 
 <center><img src="images/gloo-gateway.png" alt="Gloo Mesh Gateway" style="width:70%;max-width:800px" /></center>
 
-# <center>Gloo Mesh Gateway (2.6.0)</center>
+# <center>Gloo Mesh Gateway (2.6.2)</center>
 
 
 
@@ -167,22 +167,22 @@ docker.io/istio/examples-bookinfo-reviews-v3:1.18.0
 docker.io/kennethreitz/httpbin
 docker.io/nginx:1.25.3
 docker.io/openpolicyagent/opa:0.57.1-debug
-gcr.io/gloo-mesh/ext-auth-service:0.58.2
-gcr.io/gloo-mesh/gloo-mesh-agent:2.6.0
-gcr.io/gloo-mesh/gloo-mesh-apiserver:2.6.0
-gcr.io/gloo-mesh/gloo-mesh-envoy:2.6.0
-gcr.io/gloo-mesh/gloo-mesh-mgmt-server:2.6.0
-gcr.io/gloo-mesh/gloo-mesh-ui:2.6.0
-gcr.io/gloo-mesh/gloo-otel-collector:2.6.0
+gcr.io/gloo-mesh/ext-auth-service:0.58.3
+gcr.io/gloo-mesh/gloo-mesh-agent:2.6.2
+gcr.io/gloo-mesh/gloo-mesh-apiserver:2.6.2
+gcr.io/gloo-mesh/gloo-mesh-envoy:2.6.2
+gcr.io/gloo-mesh/gloo-mesh-mgmt-server:2.6.2
+gcr.io/gloo-mesh/gloo-mesh-ui:2.6.2
+gcr.io/gloo-mesh/gloo-otel-collector:2.6.2
 gcr.io/gloo-mesh/kubectl:1.16.4
 gcr.io/gloo-mesh/prometheus:v2.53.0
 gcr.io/gloo-mesh/rate-limiter:0.12.2
 gcr.io/gloo-mesh/redis:7.2.4-alpine
 quay.io/keycloak/keycloak:25.0.1
 quay.io/prometheus-operator/prometheus-config-reloader:v0.74.0
-us-docker.pkg.dev/gloo-mesh/istio-workshops/operator:1.22.3-solo
-us-docker.pkg.dev/gloo-mesh/istio-workshops/pilot:1.22.3-solo
-us-docker.pkg.dev/gloo-mesh/istio-workshops/proxyv2:1.22.3-solo
+us-docker.pkg.dev/gloo-mesh/istio-workshops/operator:1.23.0-patch0-solo
+us-docker.pkg.dev/gloo-mesh/istio-workshops/pilot:1.23.0-patch0-solo
+us-docker.pkg.dev/gloo-mesh/istio-workshops/proxyv2:1.23.0-patch0-solo
 EOF
 
 cat images.txt | while read image; do
@@ -213,7 +213,7 @@ done
 Before we get started, let's install the `meshctl` CLI:
 
 ```bash
-export GLOO_MESH_VERSION=v2.6.0
+export GLOO_MESH_VERSION=v2.6.2
 curl -sL https://run.solo.io/meshctl/install | sh -
 export PATH=$HOME/.gloo-mesh/bin:$PATH
 ```
@@ -256,13 +256,13 @@ helm upgrade --install gloo-platform-crds gloo-platform-crds \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${MGMT} \
-  --version 2.6.0
+  --version 2.6.2
 
 helm upgrade --install gloo-platform-mgmt gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${MGMT} \
-  --version 2.6.0 \
+  --version 2.6.2 \
   -f -<<EOF
 licensing:
   glooTrialLicenseKey: ${GLOO_MESH_LICENSE_KEY}
@@ -386,7 +386,7 @@ spec:
   selector:
     app: istio-ingressgateway
     istio: ingressgateway
-    revision: 1-22
+    revision: 1-23
   type: LoadBalancer
 EOF
 ```
@@ -407,11 +407,11 @@ spec:
     - clusters:
       - name: cluster1
         defaultRevision: true
-      revision: 1-22
+      revision: 1-23
       istioOperatorSpec:
         profile: minimal
         hub: ${registry}/istio-workshops
-        tag: 1.22.3-solo
+        tag: 1.23.0-patch0-solo
         namespace: istio-system
         values:
           global:
@@ -449,11 +449,11 @@ spec:
     - clusters:
       - name: cluster1
         activeGateway: false
-      gatewayRevision: 1-22
+      gatewayRevision: 1-23
       istioOperatorSpec:
         profile: empty
         hub: ${registry}/istio-workshops
-        tag: 1.22.3-solo
+        tag: 1.23.0-patch0-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -581,8 +581,8 @@ Run the following commands to deploy the bookinfo application on `cluster1`:
 ```bash
 kubectl --context ${CLUSTER1} create ns bookinfo-frontends
 kubectl --context ${CLUSTER1} create ns bookinfo-backends
-kubectl --context ${CLUSTER1} label namespace bookinfo-frontends istio.io/rev=1-22 --overwrite
-kubectl --context ${CLUSTER1} label namespace bookinfo-backends istio.io/rev=1-22 --overwrite
+kubectl --context ${CLUSTER1} label namespace bookinfo-frontends istio.io/rev=1-23 --overwrite
+kubectl --context ${CLUSTER1} label namespace bookinfo-backends istio.io/rev=1-23 --overwrite
 
 # Deploy the frontend bookinfo service in the bookinfo-frontends namespace
 kubectl --context ${CLUSTER1} -n bookinfo-frontends apply -f data/steps/deploy-bookinfo/productpage-v1.yaml
@@ -757,7 +757,7 @@ spec:
       labels:
         app: in-mesh
         version: v1
-        istio.io/rev: 1-22
+        istio.io/rev: 1-23
     spec:
       serviceAccountName: in-mesh
       containers:
@@ -833,7 +833,7 @@ First, you need to create a namespace for the addons, with Istio injection enabl
 
 ```bash
 kubectl --context ${CLUSTER1} create namespace gloo-mesh-addons
-kubectl --context ${CLUSTER1} label namespace gloo-mesh-addons istio.io/rev=1-22 --overwrite
+kubectl --context ${CLUSTER1} label namespace gloo-mesh-addons istio.io/rev=1-23 --overwrite
 ```
 
 Then, you can deploy the addons on the cluster(s) using Helm:
@@ -843,7 +843,7 @@ helm upgrade --install gloo-platform gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh-addons \
   --kube-context ${CLUSTER1} \
-  --version 2.6.0 \
+  --version 2.6.2 \
   -f -<<EOF
 common:
   cluster: cluster1

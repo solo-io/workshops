@@ -7909,7 +7909,7 @@ config:
               target_label: kube_namespace
             - source_labels: [__meta_kubernetes_pod_name]
               action: replace
-	      target_label: pod
+              target_label: pod
     prometheus/gloo-controlplane:
       config:
         scrape_configs:
