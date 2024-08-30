@@ -7,7 +7,7 @@ source ./scripts/assert.sh
 
 <center><img src="images/gloo-gateway.png" alt="Gloo Mesh Gateway" style="width:70%;max-width:800px" /></center>
 
-# <center>Gloo Mesh Gateway (2.5.9)</center>
+# <center>Gloo Mesh Gateway (2.5.10)</center>
 
 
 
@@ -169,12 +169,12 @@ docker.io/nginx:1.25.3
 docker.io/openpolicyagent/opa:0.57.1-debug
 docker.io/redis:7.2.4-alpine
 gcr.io/gloo-mesh/ext-auth-service:0.56.8
-gcr.io/gloo-mesh/gloo-mesh-agent:2.5.9
-gcr.io/gloo-mesh/gloo-mesh-apiserver:2.5.9
-gcr.io/gloo-mesh/gloo-mesh-envoy:2.5.9
-gcr.io/gloo-mesh/gloo-mesh-mgmt-server:2.5.9
-gcr.io/gloo-mesh/gloo-mesh-ui:2.5.9
-gcr.io/gloo-mesh/gloo-otel-collector:2.5.9
+gcr.io/gloo-mesh/gloo-mesh-agent:2.5.10
+gcr.io/gloo-mesh/gloo-mesh-apiserver:2.5.10
+gcr.io/gloo-mesh/gloo-mesh-envoy:2.5.10
+gcr.io/gloo-mesh/gloo-mesh-mgmt-server:2.5.10
+gcr.io/gloo-mesh/gloo-mesh-ui:2.5.10
+gcr.io/gloo-mesh/gloo-otel-collector:2.5.10
 gcr.io/gloo-mesh/rate-limiter:0.11.11
 quay.io/keycloak/keycloak:25.0.1
 quay.io/prometheus-operator/prometheus-config-reloader:v0.71.2
@@ -213,7 +213,7 @@ done
 Before we get started, let's install the `meshctl` CLI:
 
 ```bash
-export GLOO_MESH_VERSION=v2.5.9
+export GLOO_MESH_VERSION=v2.5.10
 curl -sL https://run.solo.io/meshctl/install | sh -
 export PATH=$HOME/.gloo-mesh/bin:$PATH
 ```
@@ -256,13 +256,13 @@ helm upgrade --install gloo-platform-crds gloo-platform-crds \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${MGMT} \
-  --version 2.5.9
+  --version 2.5.10
 
 helm upgrade --install gloo-platform-mgmt gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${MGMT} \
-  --version 2.5.9 \
+  --version 2.5.10 \
   -f -<<EOF
 licensing:
   glooTrialLicenseKey: ${GLOO_MESH_LICENSE_KEY}
@@ -843,7 +843,7 @@ helm upgrade --install gloo-platform gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh-addons \
   --kube-context ${CLUSTER1} \
-  --version 2.5.9 \
+  --version 2.5.10 \
   -f -<<EOF
 common:
   cluster: cluster1
