@@ -105,6 +105,8 @@ To create a local Kubernetes cluster execute the script below:
 ./scripts/deploy.sh 1 gloo-edge
 ```
 
+> Note: If you are running this workshop on a Mac with AirPlay Receiver enabled, you may encounter a port conflict for port 5000. Disable AirPlay Receiver in your settings and run the command again.
+
 Then verify that your Kubernetes cluster is ready: 
 
 ```bash
