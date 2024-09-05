@@ -163,11 +163,11 @@ pull requests in.
 Run the following commands to create a Gitea Git hosting service in your environment:
 
 ```bash
-helm repo add gitea-charts https://dl.gitea.com/charts/
-helm repo update
+export GITEA_HTTP=http://git.example.com:3180
 
-helm upgrade --install gitea gitea-charts/gitea \
-  --version 10.1.0 \
+helm upgrade --install gitea gitea \
+  --repo https://dl.gitea.com/charts/ \
+  --version 10.4.0 \
   --kube-context ${MGMT} \
   --namespace gitea \
   --create-namespace \
@@ -197,17 +197,56 @@ gitea:
     queue:
       TYPE: level
     server:
+      ROOT_URL: ${GITEA_HTTP}
       OFFLINE_MODE: true
+    webhook:
+      ALLOWED_HOST_LIST: private
 EOF
 
 kubectl --context ${MGMT} -n gitea wait svc gitea-http --for=jsonpath='{.status.loadBalancer.ingress[0].*}' --timeout=300s
 ```
 
+Configure your hosts file to resolve git.example.com with the IP address of Gitea by executing the following command:
+
+```bash
+GITEA_IP=$(kubectl --context ${MGMT} -n gitea get svc gitea-http -o jsonpath='{.status.loadBalancer.ingress[0].*}')
+./scripts/register-domain.sh git.example.com ${GITEA_IP}
+```
+
+<!--bash
+cat <<'EOF' > ./test.js
+const chaiExec = require("@jsdevtools/chai-exec");
+var chai = require('chai');
+var expect = chai.expect;
+chai.use(chaiExec);
+
+afterEach(function (done) {
+  if (this.currentTest.currentRetry() > 0) {
+    process.stdout.write(".");
+    setTimeout(done, 1000);
+  } else {
+    done();
+  }
+});
+
+describe("Gitea load balancer IP address", () => {
+  it("is assigned", () => {
+    let cli = chaiExec("kubectl --context " + process.env.MGMT + " -n gitea get svc gitea-http -o jsonpath='{.status.loadBalancer}'");
+    expect(cli).to.exit.with.code(0);
+    expect(cli).output.to.contain('"ingress"');
+  });
+});
+
+EOF
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/deploy-hosted-git/tests/get-gitea-http-ip.test.js.liquid"
+tempfile=$(mktemp)
+echo "saving errors in ${tempfile}"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
+-->
+
 Let's create a user that can create a new repo, push changes, and work with pull requests:
 
 ```bash
-export GITEA_HTTP=http://$(kubectl --context ${MGMT} -n gitea get svc gitea-http -o jsonpath='{.status.loadBalancer.ingress[0].*}'):3180
-
 GITEA_ADMIN_TOKEN=$(curl -Ss ${GITEA_HTTP}/api/v1/users/gitea_admin/tokens \
   -H "Content-Type: application/json" \
   -d '{"name": "workshop", "scopes": ["write:admin", "write:repository"]}' \
@@ -251,11 +290,11 @@ deploy and synchronise applications and configuration from a state stored in a G
 Run the following commands to install Argo CD in your environment:
 
 ```bash
-helm repo add argo https://argoproj.github.io/argo-helm
-helm repo update
+ARGOCD_WEBHOOK_SECRET=$(shuf -ern32 {A..Z} {a..z} {0..9} | paste -sd "\0" -)
 
-helm upgrade --install argo-cd argo/argo-cd \
-  --version 5.53.6 \
+helm upgrade --install argo-cd argo-cd \
+  --repo https://argoproj.github.io/argo-helm \
+  --version 7.5.2 \
   --kube-context ${MGMT} \
   --namespace argocd \
   --create-namespace \
@@ -270,8 +309,16 @@ configs:
   params:
     server.insecure: true
     server.disable.auth: true
+  secret:
+    gogsSecret: ${ARGOCD_WEBHOOK_SECRET}
   cm:
     timeout.reconciliation: 10s
+  clusterCredentials:
+    ${MGMT}:
+      server: https://kubernetes.default.svc
+      config:
+        tlsClientConfig:
+          insecure: false
 EOF
 
 kubectl --context ${MGMT} -n argocd wait svc argo-cd-argocd-server --for=jsonpath='{.status.loadBalancer.ingress[0].*}' --timeout=300s
@@ -286,16 +333,13 @@ chmod +x ${HOME}/bin/argocd
 export PATH=$HOME/bin:$PATH
 ```
 
-Next, log in to the Argo CD server and rename the default cluster (which is where Argo CD
-is running) to match our environment:
+Next, log in to the Argo CD server so that we can work with its clusters and applications:
 
 ```bash
 ARGOCD_HTTP_IP=$(kubectl --context ${MGMT} -n argocd get svc argo-cd-argocd-server -o jsonpath='{.status.loadBalancer.ingress[0].*}')
 ARGOCD_ADMIN_SECRET=$(kubectl --context ${MGMT} -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d)
 
 argocd --kube-context ${MGMT} login ${ARGOCD_HTTP_IP}:3280 --username admin --password ${ARGOCD_ADMIN_SECRET} --plaintext
-
-argocd cluster set in-cluster --name ${MGMT}
 ```
 Finally, let's tell Argo CD about our other clusters so that we can deploy apps to those too:
 
@@ -341,12 +385,6 @@ Instantiate the shared GitOps directory as a Git repo:
 git -C ${GITOPS_REPO_LOCAL} init -b main
 git -C ${GITOPS_REPO_LOCAL} config user.email "gloo-gitops@solo.io"
 git -C ${GITOPS_REPO_LOCAL} config user.name "Solo.io GitOps User"
-```
-
-We'll need the URL of our Git server. Save that in an environment variable:
-
-```bash
-GITEA_HTTP=http://$(kubectl --context ${MGMT} -n gitea get svc gitea-http -o jsonpath='{.status.loadBalancer.ingress[0].*}'):3180
 ```
 
 Commit and push our repo to the Git server:
@@ -422,6 +460,7 @@ git -C ${GITOPS_REPO_LOCAL} push
 
 Now, check the Argo CD UI tab above. After a few seconds, you should see an application created
 for our Argo CD configuration, which is synchronised with the Git repo that we just created.
+
 <!--bash
 cat <<'EOF' > ./test.js
 const chaiExec = require("@jsdevtools/chai-exec");
@@ -443,7 +482,7 @@ describe("Argo CD config", () => {
     let cli = chaiExec(process.env.HOME + "/bin/argocd --kube-context " + process.env.MGMT + " app get argocd-" + process.env.MGMT);
     expect(cli).to.exit.with.code(0);
     expect(cli).to.have.output.that.matches(new RegExp("\\bServer:\\s+" + process.env.MGMT + "\\b"));
-    expect(cli).to.have.output.that.matches(new RegExp("\\bRepo:\\s+http://(?:[0-9]{1,3}\.){3}[0-9]{1,3}:3180/gloo-gitops/gitops-repo.git\\b"));
+    expect(cli).to.have.output.that.matches(new RegExp("\\bRepo:\\s+" + process.env.GITEA_HTTP + "/gloo-gitops/gitops-repo.git\\b"));
     expect(cli).to.have.output.that.matches(new RegExp("\\bPath:\\s+argo-cd\\b"));
     expect(cli).to.have.output.that.matches(new RegExp("\\bHealth Status:\\s+Healthy\\b"));
   });
@@ -455,6 +494,29 @@ tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
 -->
+
+Even though Argo CD syncs regularly with the remote Git repo, we can optionally minimise the time we spend waiting for synchronisation by using the Argo CD sync webhook.
+Configure the remote Git repo to call the Argo CD webhook on every push:
+
+```bash
+curl -i ${GITEA_HTTP}/api/v1/repos/gloo-gitops/gitops-repo/hooks \
+  -H "accept: application/json" -H "Content-Type: application/json" \
+  -H "Authorization: token ${GITEA_ADMIN_TOKEN}" \
+  -d '{
+    "active": true,
+    "type": "gitea",
+    "branch_filter": "*",
+    "config": {
+      "content_type": "json",
+      "url": "'http://${ARGOCD_HTTP_IP}:3280/api/webhook'",
+      "secret": "'${ARGOCD_WEBHOOK_SECRET}'"
+    },
+    "events": [
+      "push"
+    ]
+  }'
+```
+
 Finally, let's test that everything is working correctly. We'll define a pod manifest, commit
 it to our repo, push it to the remote, and check that Argo CD creates that pod in our cluster.
 
@@ -497,8 +559,8 @@ if [[ ! $(kubectl --context ${MGMT} -n default wait --for=condition=ready pod/ng
 fi
 -->
 
-Now, check the Argo CD UI tab again and click into the "argocd-[[ Instruqt-Var key="MGMT" hostname="" ]]"
-application. After a short period, you'll see an `nginx` pod appear linked to the application.
+Now, check the Argo CD UI tab again and click into the "argocd-mgmt" or "argocd-cluster1" application.
+After a short period, you'll see an `nginx` pod appear linked to the application.
 The status of this pod will be shown as a tag on the pod box in the UI.
 
 Let's make sure the pod got deployed by switching back to the terminal and running this command:
@@ -799,7 +861,7 @@ cat <<'EOF' > ./test.js
 const helpers = require('./tests/chai-exec');
 
 describe("MGMT server is healthy", () => {
-  let cluster = process.env.MGMT
+  let cluster = process.env.MGMT;
   let deployments = ["gloo-mesh-mgmt-server","gloo-mesh-redis","gloo-telemetry-gateway","prometheus-server"];
   deployments.forEach(deploy => {
     it(deploy + ' pods are ready in ' + cluster, () => helpers.checkDeployment({ context: cluster, namespace: "gloo-mesh", k8sObj: deploy }));
@@ -1148,6 +1210,24 @@ timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> 
 [<img src="https://img.youtube.com/vi/f76-KOEjqHs/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/f76-KOEjqHs "Video Link")
 
 We are going to deploy Istio using Gloo Mesh Lifecycle Manager.
+
+<details>
+  <summary>Install `istioctl`</summary>
+
+Install `istioctl` if not already installed as it will be useful in some of the labs that follow.
+
+```bash
+curl -L https://istio.io/downloadIstio | sh -
+
+if [ -d "istio-"* ]; then
+  cd istio-*/
+  export PATH=$PWD/bin:$PATH
+  cd ..
+fi
+```
+
+That's it!
+</details>
 
 In this GitOps workshop, we'll assume that the platform team and the gateways team are separate teams,
 so they will have separate subdirectories in the GitOps repo to work in. Let's create the directory for
@@ -4938,7 +5018,8 @@ done"
 echo
 -->
 <!--bash
-uuid_regex="^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+uuid_regex_partial="[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
+uuid_regex="^${uuid_regex_partial}$"
 start_time=$(date +%s) # Capture start time
 duration=120 # Set duration for 2 minutes (120 seconds)
 # Loop until JOIN_TOKEN matches the UUID format
@@ -4951,9 +5032,10 @@ while [[ ! "${JOIN_TOKEN}" =~ ${uuid_regex} ]]; do
     fi
 
     echo "Waiting for JOIN_TOKEN to have the correct format..."
-    export JOIN_TOKEN=$(meshctl external-workload gen-token --kubecontext ${CLUSTER1} --trust-domain ${CLUSTER1} --ttl 3600 --ext-workload virtualmachines/${VM_APP} --plain=true | grep -i 'token' | cut -d ':' -f2 | xargs)
+    export JOIN_TOKEN=$(meshctl external-workload gen-token --kubecontext ${CLUSTER1} --trust-domain ${CLUSTER1} --ttl 3600 --ext-workload virtualmachines/${VM_APP} --plain=true | grep -ioE "${uuid_regex_partial}")
     sleep 1 # Pause for 1 second
 done
+[[ "${JOIN_TOKEN}" =~ ${uuid_regex} ]] || (echo "JOIN_TOKEN does not match the UUID format." && exit 1)
 -->
 
 Get a Spire token to register the VM:
@@ -4964,7 +5046,7 @@ export JOIN_TOKEN=$(meshctl external-workload gen-token \
   --ext-workload virtualmachines/${VM_APP} \
   --trust-domain ${CLUSTER1} \
   --ttl 3600 \
-  --plain=true | grep -i 'token' | cut -d ':' -f2 | xargs)
+  --plain=true | grep -i 'token' | head -n 1 | cut -d ':' -f2 | xargs)
 ```
 
 Get the IP address of the E/W gateway the VM will use to register itself:
@@ -4985,10 +5067,9 @@ done"
 echo
 -->
 
-```bash
+```shell
 export GLOO_AGENT_URL=https://storage.googleapis.com/gloo-platform/vm/v2.5.10/gloo-workload-agent.deb
 export ISTIO_URL=https://storage.googleapis.com/solo-workshops/istio-binaries/1.20.2/istio-sidecar.deb
-
 docker exec vm1 meshctl ew onboard --install \
   --attestor token \
   --join-token ${JOIN_TOKEN} \
@@ -5002,6 +5083,38 @@ docker exec vm1 meshctl ew onboard --install \
   --istio ${ISTIO_URL} \
   --ext-workload virtualmachines/${VM_APP}
 ```
+<!--bash
+export GLOO_AGENT_URL=https://storage.googleapis.com/gloo-platform/vm/v2.5.10/gloo-workload-agent.deb
+export ISTIO_URL=https://storage.googleapis.com/solo-workshops/istio-binaries/1.20.2/istio-sidecar.deb
+echo -n Trying to onboard the VM...
+MAX_ATTEMPTS=10
+ATTEMPTS=0
+while [ $ATTEMPTS -lt $MAX_ATTEMPTS ]; do
+  timeout 1m docker exec vm1 meshctl ew onboard --install \
+  --attestor token \
+  --join-token ${JOIN_TOKEN} \
+  --cluster ${CLUSTER1} \
+  --gateway-addr ${EW_GW_ADDR} \
+  --gateway istio-gateways/istio-eastwestgateway-1-20 \
+  --trust-domain ${CLUSTER1} \
+  --istio-rev 1-20 \
+  --network vm-network \
+  --gloo ${GLOO_AGENT_URL} \
+  --istio ${ISTIO_URL} \
+  --ext-workload virtualmachines/${VM_APP} | tee output.log
+  cat output.log | grep "Onboarding complete!"
+  if [ $? -eq 0 ]; then
+    break
+  fi
+  ATTEMPTS=$((ATTEMPTS + 1))
+  echo "Onboarding failed, retrying... (${ATTEMPTS}/${MAX_ATTEMPTS})"
+  sleep 2
+done
+if [ $ATTEMPTS -eq $MAX_ATTEMPTS ]; then
+  echo "Onboarding failed after $MAX_ATTEMPTS attempts"
+  exit 1
+fi
+-->
 
 Take a look at the Envoy clusters:
 
@@ -5139,7 +5252,7 @@ cat <<'EOF' > ./test.js
 const helpers = require('./tests/chai-http');
 
 describe("The ratings service should use the database running on the VM", () => {
-  it('Got reviews v2 with ratings in cluster1', () => helpers.checkBody({ host: `https://cluster1-bookinfo.example.com`, path: '/productpage', body: 'color="black"', match: true }));
+  it('Got reviews v2 with ratings in cluster1', () => helpers.checkBody({ host: `https://cluster1-bookinfo.example.com`, path: '/productpage', body: 'text-black', match: true }));
 })
 
 EOF
