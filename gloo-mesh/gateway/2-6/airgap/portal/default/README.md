@@ -161,12 +161,12 @@ docker.io/curlimages/curl
 docker.io/bats/bats:v1.4.1
 docker.io/bitnami/clickhouse:23.11.1-debian-11-r1
 docker.io/grafana/grafana:10.0.3
-docker.io/istio/examples-bookinfo-details-v1:1.18.0
-docker.io/istio/examples-bookinfo-productpage-v1:1.18.0
-docker.io/istio/examples-bookinfo-ratings-v1:1.18.0
-docker.io/istio/examples-bookinfo-reviews-v1:1.18.0
-docker.io/istio/examples-bookinfo-reviews-v2:1.18.0
-docker.io/istio/examples-bookinfo-reviews-v3:1.18.0
+docker.io/istio/examples-bookinfo-details-v1:1.20.2
+docker.io/istio/examples-bookinfo-productpage-v1:1.20.2
+docker.io/istio/examples-bookinfo-ratings-v1:1.20.2
+docker.io/istio/examples-bookinfo-reviews-v1:1.20.2
+docker.io/istio/examples-bookinfo-reviews-v2:1.20.2
+docker.io/istio/examples-bookinfo-reviews-v3:1.20.2
 docker.io/kennethreitz/httpbin
 docker.io/nginx:1.25.3
 docker.io/openpolicyagent/opa:0.57.1-debug
@@ -406,6 +406,24 @@ timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> 
 [<img src="https://img.youtube.com/vi/f76-KOEjqHs/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/f76-KOEjqHs "Video Link")
 
 We are going to deploy Istio using Gloo Mesh Lifecycle Manager.
+
+<details>
+  <summary>Install `istioctl`</summary>
+
+Install `istioctl` if not already installed as it will be useful in some of the labs that follow.
+
+```bash
+curl -L https://istio.io/downloadIstio | sh -
+
+if [ -d "istio-"* ]; then
+  cd istio-*/
+  export PATH=$PWD/bin:$PATH
+  cd ..
+fi
+```
+
+That's it!
+</details>
 
 Let's create Kubernetes services for the gateways:
 
@@ -899,10 +917,10 @@ common:
 glooPortalServer:
   enabled: true
   apiKeyStorage:
+    secretKey: ThisIsSecret
     redis:
       enabled: true
       address: redis.gloo-mesh-addons:6379
-    secretKey: ThisIsSecret
   image:
     registry: ${registry}/gloo-mesh
 glooAgent:
@@ -3016,6 +3034,10 @@ until ([ ! -z "$USER1_COOKIE" ] && [[ $USER1_COOKIE != *"dummy"* ]]) || [ $ATTEM
 done
 echo "User1 token: $USER1_COOKIE"
 echo "User2 token: $USER2_COOKIE"
+if [ -z "$USER1_COOKIE" ] || [[ $USER1_COOKIE == *"dummy"* ]]; then
+  echo "Failed to get user1 token"
+  exit 1
+fi
 -->
 <!--bash
 cat <<'EOF' > ./test.js
@@ -3071,6 +3093,10 @@ while [[ $API_KEY_USER1 != *"apiKey"* ]] && [ $ATTEMPTS -lt 25 ]; do
   export API_KEY_USER1=$(curl -k -s -X POST -H 'Content-Type: application/json' -d '{"usagePlan": "gold", "apiKeyName": "key1"}' -H "Cookie: ${USER1_COOKIE}" "https://cluster1-portal.example.com/portal-server/v1/api-keys")
   echo API key: $API_KEY_USER1
 done
+if [ $ATTEMPTS -ge 25 ]; then
+  echo "Failed to get API key"
+  exit 1
+fi
 -->
 ```bash
 export API_KEY_USER1=$(curl -k -s -X POST -H 'Content-Type: application/json' -d '{"usagePlan": "gold", "apiKeyName": "key1"}' -H "Cookie: ${USER1_COOKIE}" "https://cluster1-portal.example.com/portal-server/v1/api-keys"  | jq -r '.apiKey')
