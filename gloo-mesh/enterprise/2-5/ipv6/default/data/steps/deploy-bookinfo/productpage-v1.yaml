@@ -62,7 +62,7 @@ spec:
       serviceAccountName: bookinfo-productpage
       containers:
       - name: productpage
-        image: docker.io/istio/examples-bookinfo-productpage-v1:1.18.0
+        image: docker.io/istio/examples-bookinfo-productpage-v1:1.20.2
         imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 9080
@@ -77,3 +77,4 @@ spec:
       volumes:
       - name: tmp
         emptyDir: {}
+---
