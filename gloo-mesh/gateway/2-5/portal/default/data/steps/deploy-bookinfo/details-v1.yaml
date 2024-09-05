@@ -24,8 +24,8 @@ metadata:
     service: details
 spec:
   ports:
-    - port: 9080
-      name: http
+  - port: 9080
+    name: http
   selector:
     app: details
 ---
@@ -58,7 +58,8 @@ spec:
       serviceAccountName: bookinfo-details
       containers:
       - name: details
-        image: docker.io/istio/examples-bookinfo-details-v1:1.18.0
+        image: docker.io/istio/examples-bookinfo-details-v1:1.20.2
         imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 9080
+---
