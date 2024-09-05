@@ -271,6 +271,24 @@ timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> 
 
 We are going to deploy Istio using Gloo Mesh Lifecycle Manager.
 
+<details>
+  <summary>Install `istioctl`</summary>
+
+Install `istioctl` if not already installed as it will be useful in some of the labs that follow.
+
+```bash
+curl -L https://istio.io/downloadIstio | sh -
+
+if [ -d "istio-"* ]; then
+  cd istio-*/
+  export PATH=$PWD/bin:$PATH
+  cd ..
+fi
+```
+
+That's it!
+</details>
+
 Let's create Kubernetes services for the gateways:
 
 ```bash
