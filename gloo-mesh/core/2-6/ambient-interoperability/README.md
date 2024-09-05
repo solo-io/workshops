@@ -7,7 +7,7 @@ source ./scripts/assert.sh
 
 <center><img src="images/gloo-mesh.png" alt="Gloo Mesh Enterprise" style="width:70%;max-width:800px" /></center>
 
-# <center>Gloo Mesh Core (2.6.2)</center>
+# <center>Gloo Mesh Core (2.6.2) Ambient Interoperability</center>
 
 
 
@@ -30,7 +30,7 @@ source ./scripts/assert.sh
 
 ## Introduction <a name="introduction"></a>
 
-[Gloo Mesh Core](https://www.solo.io/products/gloo-mesh/) is a management plane that makes it easy to operate [Istio](https://istio.io).
+[Gloo Mesh Core](https://www.solo.io/products/gloo-mesh/) is a management plane that makes it easy to operate [Istio](https://istio.io) and adds additional features to Ambient.
 
 Gloo Mesh Core works with community [Istio](https://istio.io/) out of the box.
 You get instant insights into your Istio environment through a custom dashboard.
@@ -42,7 +42,7 @@ You can also replace community Istio with Solo's hardened Istio images. These im
 Later, you might choose to upgrade seamlessly to Gloo Mesh Enterprise for a full-stack service mesh and API gateway solution.
 This approach lets you scale as you need more advanced routing and security features.
 
-### Istio support
+### Istio and Ambient support
 
 The Gloo Mesh Core subscription includes end-to-end Istio support:
 
@@ -52,6 +52,8 @@ The Gloo Mesh Core subscription includes end-to-end Istio support:
 * Long-term n-4 version support with Solo images
 * Special image builds for distroless and FIPS compliance
 * 24x7 production support and one-hour Severity 1 SLA
+* Ambient support for Istio
+* L7 Telemetry support in Ztunnel
 
 ### Gloo Mesh Core overview
 
@@ -262,6 +264,24 @@ timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> 
 [<img src="https://img.youtube.com/vi/f76-KOEjqHs/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/f76-KOEjqHs "Video Link")
 
 We are going to deploy Istio using Gloo Mesh Lifecycle Manager.
+
+<details>
+  <summary>Install `istioctl`</summary>
+
+Install `istioctl` if not already installed as it will be useful in some of the labs that follow.
+
+```bash
+curl -L https://istio.io/downloadIstio | sh -
+
+if [ -d "istio-"* ]; then
+  cd istio-*/
+  export PATH=$PWD/bin:$PATH
+  cd ..
+fi
+```
+
+That's it!
+</details>
 
 Let's create Kubernetes services for the gateways:
 
@@ -942,6 +962,8 @@ kubectl --context ${CLUSTER1} -n bookinfo-backends rollout restart deploy
 Confirm that the sidecar is no longer injected in the `bookinfo-backends` workloads by running:
 
 <!--bash
+# wait for all pods to be running
+
 timeout 2m bash -c "until [[ \$(kubectl --context ${CLUSTER1} get pods -n bookinfo-backends -o json  | jq -r '.items[] | select(.status.phase != \"Running\" or .metadata.deletionTimestamp != null) | .metadata.name' | wc -l) -eq 0 ]]; do sleep 1; done"
 -->
 
@@ -1020,8 +1042,11 @@ kubectl --context ${CLUSTER1} -n bookinfo-backends rollout restart deploy
 ```
 
 <!--bash
+# wait for all pods to be running
+
 timeout 2m bash -c "until [[ \$(kubectl --context ${CLUSTER1} get pods -n bookinfo-backends -o json  | jq -r '.items[] | select(.status.phase != \"Running\" or .metadata.deletionTimestamp != null) | .metadata.name' | wc -l) -eq 0 ]]; do sleep 1; done"
 -->
+
 
 
 
@@ -1328,6 +1353,8 @@ kubectl --context ${CLUSTER1} -n bookinfo-backends rollout restart deploy
 kubectl --context ${CLUSTER1} -n bookinfo-backends get pods
 ```
 <!--bash
+# wait for all pods to be ready
+
 timeout 2m bash -c "until [[ \$(kubectl --context ${CLUSTER1} get pods -n bookinfo-backends -o json  | jq -r '.items[] | select(.status.phase != \"Running\" or .metadata.deletionTimestamp != null) | .metadata.name' | wc -l) -eq 0 ]]; do sleep 1; done"
 -->
 <!--bash
@@ -1407,6 +1434,8 @@ kubectl --context ${CLUSTER1} delete peerauthentications -A --all
 ```
 
 <!--bash
+# wait for all pods to be running
+
 timeout 2m bash -c "until [[ \$(kubectl --context ${CLUSTER1} get pods -n bookinfo-backends -o json  | jq -r '.items[] | select(.status.phase != \"Running\" or .metadata.deletionTimestamp != null) | .metadata.name' | wc -l) -eq 0 ]]; do sleep 1; done"
 -->
 
@@ -1677,7 +1706,11 @@ Let's validate that the header is added when we make requests from different typ
 ```shell
 kubectl --context "${CLUSTER1}" -n clients exec deploy/in-mesh-with-sidecar -- curl -s -I "http://reviews.bookinfo-backends:9080/reviews/0" | grep my-added-header
 kubectl --context "${CLUSTER1}" -n clients exec deploy/in-ambient -- curl -s -I "http://reviews.bookinfo-backends:9080/reviews/0" | grep my-added-header
+```
 
+Expected output:
+
+```shell,nocopy
 my-added-header: added-value
 my-added-header: added-value
 ```
@@ -2005,7 +2038,6 @@ done
 ```
 
 You should now see far fewer failed requests, as the retry logic automatically attempts to recover from failures. This behavior should be consistent for both sidecar and Ambient mode clients.
-
 
 <!--bash
 cat <<'EOF' > ./test.js
