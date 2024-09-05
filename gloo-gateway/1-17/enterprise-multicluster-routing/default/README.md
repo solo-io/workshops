@@ -98,7 +98,7 @@ Then run the following commands to wait for all the Pods to be ready:
 
 Once the `check.sh` script completes, when you execute the `kubectl get pods -A` command, you should see the following:
 
-```
+```,nocopy
 NAMESPACE            NAME                                          READY   STATUS    RESTARTS   AGE
 kube-system          calico-kube-controllers-59d85c5c84-sbk4k      1/1     Running   0          4h26m
 kube-system          calico-node-przxs                             1/1     Running   0          4h26m
@@ -206,7 +206,6 @@ global:
       enabled: true
     extAuth:
       enabled: true
-
 EOF
 ```
 
@@ -222,7 +221,7 @@ kubectl --context $CLUSTER1 -n gloo-system get pods
 
 Here is the expected output:
 
-```
+```,nocopy
 NAME                                         READY   STATUS      RESTARTS   AGE
 extauth-58f68c5cd5-gxgxc                     1/1     Running     0          69s
 gateway-portal-web-server-5c5d58d8d5-7lzwg   1/1     Running     0          69s
@@ -262,9 +261,8 @@ You can find more information about this application [here](http://httpbin.org/)
 Run the following commands to deploy the httpbin app twice (`httpbin1` and `httpbin2`).
 
 ```bash
-kubectl --context $CLUSTER1 create ns httpbin
-
-kubectl apply --context $CLUSTER1 -f - <<EOF
+kubectl --context ${CLUSTER1} create ns httpbin
+kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: v1
 kind: ServiceAccount
 metadata:
@@ -347,7 +345,7 @@ spec:
               resource: limits.cpu
 EOF
 
-kubectl apply --context $CLUSTER1 -f - <<EOF
+kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: v1
 kind: ServiceAccount
 metadata:
@@ -435,10 +433,10 @@ You can follow the progress using the following command:
 
 <!--bash
 echo -n Waiting for httpbin pods to be ready...
-kubectl --context $CLUSTER1 -n httpbin rollout status deployment
+kubectl --context ${CLUSTER1} -n httpbin rollout status deployment
 -->
 ```shell
-kubectl --context $CLUSTER1 -n httpbin get pods
+kubectl --context ${CLUSTER1} -n httpbin get pods
 ```
 
 Here is the expected output when both Pods are ready:
@@ -1067,7 +1065,7 @@ echo "saving errors in ${tempfile}"
 timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
 -->
 
-The team in charge of the `HTTPRoute` application can also take advantage of the `parentRefs` option to indicate which parent `HTTPRoute` can delegate to its own `HTTPRoute`.
+The team in charge of the httpbin application can also take advantage of the `parentRefs` option to indicate which parent `HTTPRoute` can delegate to its own `HTTPRoute`.
 
 That's why you don't need to use `ReferenceGrant` objects when using delegation.
 
@@ -1315,7 +1313,7 @@ Then run the following commands to wait for all the Pods to be ready:
 
 Once the `check.sh` script completes, when you execute the `kubectl get pods -A` command, you should see the following:
 
-```
+```,nocopy
 NAMESPACE            NAME                                          READY   STATUS    RESTARTS   AGE
 kube-system          calico-kube-controllers-59d85c5c84-sbk4k      1/1     Running   0          4h26m
 kube-system          calico-node-przxs                             1/1     Running   0          4h26m
@@ -1423,7 +1421,6 @@ global:
       enabled: true
     extAuth:
       enabled: true
-
 EOF
 ```
 
@@ -1439,7 +1436,7 @@ kubectl --context $CLUSTER2 -n gloo-system get pods
 
 Here is the expected output:
 
-```
+```,nocopy
 NAME                                         READY   STATUS      RESTARTS   AGE
 extauth-58f68c5cd5-gxgxc                     1/1     Running     0          69s
 gateway-portal-web-server-5c5d58d8d5-7lzwg   1/1     Running     0          69s
@@ -1479,9 +1476,8 @@ You can find more information about this application [here](http://httpbin.org/)
 Run the following commands to deploy the httpbin app twice (`httpbin1` and `httpbin2`).
 
 ```bash
-kubectl --context $CLUSTER2 create ns httpbin
-
-kubectl apply --context $CLUSTER2 -f - <<EOF
+kubectl --context ${CLUSTER2} create ns httpbin
+kubectl apply --context ${CLUSTER2} -f - <<EOF
 apiVersion: v1
 kind: ServiceAccount
 metadata:
@@ -1564,7 +1560,7 @@ spec:
               resource: limits.cpu
 EOF
 
-kubectl apply --context $CLUSTER2 -f - <<EOF
+kubectl apply --context ${CLUSTER2} -f - <<EOF
 apiVersion: v1
 kind: ServiceAccount
 metadata:
@@ -1652,10 +1648,10 @@ You can follow the progress using the following command:
 
 <!--bash
 echo -n Waiting for httpbin pods to be ready...
-kubectl --context $CLUSTER2 -n httpbin rollout status deployment
+kubectl --context ${CLUSTER2} -n httpbin rollout status deployment
 -->
 ```shell
-kubectl --context $CLUSTER2 -n httpbin get pods
+kubectl --context ${CLUSTER2} -n httpbin get pods
 ```
 
 Here is the expected output when both Pods are ready:
