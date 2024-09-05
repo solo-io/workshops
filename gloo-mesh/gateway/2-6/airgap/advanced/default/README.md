@@ -156,12 +156,12 @@ Pull and push locally the Docker images needed:
 cat <<'EOF' > images.txt
 docker.io/curlimages/curl
 amazon/amazon-eks-pod-identity-webhook:v0.5.0
-docker.io/istio/examples-bookinfo-details-v1:1.18.0
-docker.io/istio/examples-bookinfo-productpage-v1:1.18.0
-docker.io/istio/examples-bookinfo-ratings-v1:1.18.0
-docker.io/istio/examples-bookinfo-reviews-v1:1.18.0
-docker.io/istio/examples-bookinfo-reviews-v2:1.18.0
-docker.io/istio/examples-bookinfo-reviews-v3:1.18.0
+docker.io/istio/examples-bookinfo-details-v1:1.20.2
+docker.io/istio/examples-bookinfo-productpage-v1:1.20.2
+docker.io/istio/examples-bookinfo-ratings-v1:1.20.2
+docker.io/istio/examples-bookinfo-reviews-v1:1.20.2
+docker.io/istio/examples-bookinfo-reviews-v2:1.20.2
+docker.io/istio/examples-bookinfo-reviews-v3:1.20.2
 docker.io/kennethreitz/httpbin
 docker.io/nginx:1.25.3
 docker.io/openpolicyagent/opa:0.57.1-debug
@@ -359,6 +359,24 @@ timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> 
 [<img src="https://img.youtube.com/vi/f76-KOEjqHs/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/f76-KOEjqHs "Video Link")
 
 We are going to deploy Istio using Gloo Mesh Lifecycle Manager.
+
+<details>
+  <summary>Install `istioctl`</summary>
+
+Install `istioctl` if not already installed as it will be useful in some of the labs that follow.
+
+```bash
+curl -L https://istio.io/downloadIstio | sh -
+
+if [ -d "istio-"* ]; then
+  cd istio-*/
+  export PATH=$PWD/bin:$PATH
+  cd ..
+fi
+```
+
+That's it!
+</details>
 
 Let's create Kubernetes services for the gateways:
 
