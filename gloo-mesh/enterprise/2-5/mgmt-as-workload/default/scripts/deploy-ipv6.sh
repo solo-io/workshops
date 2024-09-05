@@ -25,12 +25,8 @@ fi
 
 reg_name='kind-registry'
 reg_port='5000'
-running="$(docker inspect -f '{{.State.Running}}' "${reg_name}" 2>/dev/null || true)"
-if [ "${running}" != 'true' ]; then
-  docker run \
-    -d --restart=always -p "0.0.0.0:${reg_port}:5000" --name "${reg_name}" \
-    registry:2
-fi
+docker start "${reg_name}" 2>/dev/null || \
+docker run -d --restart=always -p "0.0.0.0:${reg_port}:5000" --name "${reg_name}" registry:2
 
 cache_port='5000'
 cat > registries <<EOF
@@ -42,9 +38,7 @@ gcr https://gcr.io
 EOF
 
 cat registries | while read cache_name cache_url; do
-running="$(docker inspect -f '{{.State.Running}}' "${cache_name}" 2>/dev/null || true)"
-if [ "${running}" != 'true' ]; then
-  cat > ${HOME}/.${cache_name}-config.yml <<EOF
+cat > ${HOME}/.${cache_name}-config.yml <<EOF
 version: 0.1
 proxy:
   remoteurl: ${cache_url}
@@ -67,10 +61,8 @@ health:
     threshold: 3
 EOF
 
-  docker run \
-    -d --restart=always -v ${HOME}/.${cache_name}-config.yml:/etc/docker/registry/config.yml --name "${cache_name}" \
-    registry:2
-fi
+docker start "${cache_name}" 2>/dev/null || \
+docker run -d --restart=always ${DEPLOY_EXTRA_PARAMS} -v ${HOME}/.${cache_name}-config.yml:/etc/docker/registry/config.yml --name "${cache_name}" registry:2
 done
 
 cat << EOF > kind${number}.yaml
@@ -120,14 +112,14 @@ docker network connect "kind" gcr || true
 
 # Preload images
 cat << EOF >> images.txt
-quay.io/metallb/controller:v0.13.12
-quay.io/metallb/speaker:v0.13.12
+quay.io/metallb/controller:v0.14.8
+quay.io/metallb/speaker:v0.14.8
 EOF
 cat images.txt | while read image; do
   docker pull $image || true
   kind load docker-image $image --name kind${number} || true
 done
-for i in 1 2 3 4 5; do kubectl --context=kind-kind${number} apply -f https://raw.githubusercontent.com/metallb/metallb/v0.13.12/config/manifests/metallb-native.yaml && break || sleep 15; done
+for i in 1 2 3 4 5; do kubectl --context=kind-kind${number} apply -f https://raw.githubusercontent.com/metallb/metallb/v0.14.8/config/manifests/metallb-native.yaml && break || sleep 15; done
 kubectl --context=kind-kind${number} create secret generic -n metallb-system memberlist --from-literal=secretkey="$(openssl rand -base64 128)"
 kubectl --context=kind-kind${number} -n metallb-system rollout status deploy controller || true
 
