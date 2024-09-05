@@ -157,12 +157,12 @@ Pull and push locally the Docker images needed:
 ```bash
 cat <<'EOF' > images.txt
 docker.io/curlimages/curl
-docker.io/istio/examples-bookinfo-details-v1:1.18.0
-docker.io/istio/examples-bookinfo-productpage-v1:1.18.0
-docker.io/istio/examples-bookinfo-ratings-v1:1.18.0
-docker.io/istio/examples-bookinfo-reviews-v1:1.18.0
-docker.io/istio/examples-bookinfo-reviews-v2:1.18.0
-docker.io/istio/examples-bookinfo-reviews-v3:1.18.0
+docker.io/istio/examples-bookinfo-details-v1:1.20.2
+docker.io/istio/examples-bookinfo-productpage-v1:1.20.2
+docker.io/istio/examples-bookinfo-ratings-v1:1.20.2
+docker.io/istio/examples-bookinfo-reviews-v1:1.20.2
+docker.io/istio/examples-bookinfo-reviews-v2:1.20.2
+docker.io/istio/examples-bookinfo-reviews-v3:1.20.2
 docker.io/kennethreitz/httpbin
 docker.io/nginx:1.25.3
 docker.io/openpolicyagent/opa:0.57.1-debug
