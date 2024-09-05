@@ -98,7 +98,7 @@ Then run the following commands to wait for all the Pods to be ready:
 
 Once the `check.sh` script completes, when you execute the `kubectl get pods -A` command, you should see the following:
 
-```
+```,nocopy
 NAMESPACE            NAME                                          READY   STATUS    RESTARTS   AGE
 kube-system          calico-kube-controllers-59d85c5c84-sbk4k      1/1     Running   0          4h26m
 kube-system          calico-node-przxs                             1/1     Running   0          4h26m
@@ -141,11 +141,10 @@ We're going to use the Helm option.
 Install the Kubernetes Gateway API CRDs as they do not come installed by default on most Kubernetes clusters.
 
 ```bash
-kubectl --context ${CLUSTER1} apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.1.0/standard-install.yaml
+kubectl --context $CLUSTER1 apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.1.0/standard-install.yaml
 ```
 
 Next, install Gloo Gateway. This command installs the Gloo Gateway control plane into the namespace `gloo-system`.
-
 
 ```bash
 helm repo add solo-public-helm https://storage.googleapis.com/solo-public-helm
@@ -156,7 +155,7 @@ helm upgrade -i -n gloo-system \
   gloo-gateway solo-public-helm/gloo \
   --create-namespace \
   --version 1.17.4 \
-  --kube-context ${CLUSTER1} \
+  --kube-context $CLUSTER1 \
   -f -<<EOF
 kubeGateway:
   enabled: true
@@ -183,13 +182,17 @@ EOF
 
 Run the following command to check that the Gloo Gateway pods are running:
 
+<!--bash
+echo -n Waiting for Gloo Gateway pods to be ready...
+kubectl --context $CLUSTER1 -n gloo-system rollout status deployment
+-->
 ```bash
-kubectl --context ${CLUSTER1} -n gloo-system get pods
+kubectl --context $CLUSTER1 -n gloo-system get pods
 ```
 
 Here is the expected output:
 
-```
+```,nocopy
 NAME                                         READY   STATUS      RESTARTS   AGE
 NAME                                READY   STATUS      RESTARTS   AGE
 gateway-certgen-h5z9t               0/1     Completed   0          52s
@@ -228,9 +231,8 @@ You can find more information about this application [here](http://httpbin.org/)
 Run the following commands to deploy the httpbin app twice (`httpbin1` and `httpbin2`).
 
 ```bash
-kubectl --context $CLUSTER1 create ns httpbin
-
-kubectl apply --context $CLUSTER1 -f - <<EOF
+kubectl --context ${CLUSTER1} create ns httpbin
+kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: v1
 kind: ServiceAccount
 metadata:
@@ -313,7 +315,7 @@ spec:
               resource: limits.cpu
 EOF
 
-kubectl apply --context $CLUSTER1 -f - <<EOF
+kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: v1
 kind: ServiceAccount
 metadata:
@@ -401,10 +403,10 @@ You can follow the progress using the following command:
 
 <!--bash
 echo -n Waiting for httpbin pods to be ready...
-kubectl --context $CLUSTER1 -n httpbin rollout status deployment
+kubectl --context ${CLUSTER1} -n httpbin rollout status deployment
 -->
 ```shell
-kubectl --context $CLUSTER1 -n httpbin get pods
+kubectl --context ${CLUSTER1} -n httpbin get pods
 ```
 
 Here is the expected output when both Pods are ready:
@@ -1033,7 +1035,7 @@ echo "saving errors in ${tempfile}"
 timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
 -->
 
-The team in charge of the `HTTPRoute` application can also take advantage of the `parentRefs` option to indicate which parent `HTTPRoute` can delegate to its own `HTTPRoute`.
+The team in charge of the httpbin application can also take advantage of the `parentRefs` option to indicate which parent `HTTPRoute` can delegate to its own `HTTPRoute`.
 
 That's why you don't need to use `ReferenceGrant` objects when using delegation.
 
@@ -1538,7 +1540,7 @@ For example, you may want to create a new header from a value of another header.
 
 Gloo Gateway provides some extensions to manipulate requests and responses in a more advanced way.
 
-Let's extract the product name from the `User-Agent` header (getting read of the product version and comments).
+Let's extract the product name from the `User-Agent` header (getting rid of the product version and comments).
 
 To do that we need to create a Gloo Gateway `RouteOption` object:
 
@@ -1748,8 +1750,6 @@ You can split traffic between different backends, with different weights.
 
 It's useful to slowly introduce a new version.
 
-Let's start with request headers.
-
 Update the `HTTPRoute` resource to do the following:
 - send 90% of the traffic to the `httpbin1` service
 - send 10% of the traffic to the `httpbin2` service
@@ -1838,7 +1838,7 @@ controller:
   trafficRouterPlugins:
     trafficRouterPlugins: |-
       - name: "argoproj-labs/gatewayAPI"
-        location: "https://github.com/argoproj-labs/rollouts-plugin-trafficrouter-gatewayapi/releases/download/v0.2.0/gateway-api-plugin-linux-amd64"
+        location: "https://github.com/argoproj-labs/rollouts-plugin-trafficrouter-gatewayapi/releases/download/v0.3.0/gateway-api-plugin-linux-amd64"
 EOF
 ```
 
