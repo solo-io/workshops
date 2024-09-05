@@ -7,7 +7,7 @@ source ./scripts/assert.sh
 
 <center><img src="images/gloo-mesh.png" alt="Gloo Mesh Enterprise" style="width:70%;max-width:800px" /></center>
 
-# <center>Gloo Mesh Core (2.6.2)</center>
+# <center>Gloo Mesh Core (2.6.2) Ambient</center>
 
 
 
@@ -34,7 +34,7 @@ source ./scripts/assert.sh
 
 ## Introduction <a name="introduction"></a>
 
-[Gloo Mesh Core](https://www.solo.io/products/gloo-mesh/) is a management plane that makes it easy to operate [Istio](https://istio.io).
+[Gloo Mesh Core](https://www.solo.io/products/gloo-mesh/) is a management plane that makes it easy to operate [Istio](https://istio.io) and adds additional features to Ambient.
 
 Gloo Mesh Core works with community [Istio](https://istio.io/) out of the box.
 You get instant insights into your Istio environment through a custom dashboard.
@@ -46,7 +46,7 @@ You can also replace community Istio with Solo's hardened Istio images. These im
 Later, you might choose to upgrade seamlessly to Gloo Mesh Enterprise for a full-stack service mesh and API gateway solution.
 This approach lets you scale as you need more advanced routing and security features.
 
-### Istio support
+### Istio and Ambient support
 
 The Gloo Mesh Core subscription includes end-to-end Istio support:
 
@@ -56,6 +56,8 @@ The Gloo Mesh Core subscription includes end-to-end Istio support:
 * Long-term n-4 version support with Solo images
 * Special image builds for distroless and FIPS compliance
 * 24x7 production support and one-hour Severity 1 SLA
+* Ambient support for Istio
+* L7 Telemetry support in Ztunnel
 
 ### Gloo Mesh Core overview
 
@@ -269,7 +271,7 @@ cat <<'EOF' > ./test.js
 const helpers = require('./tests/chai-exec');
 
 describe("MGMT server is healthy", () => {
-  let cluster = process.env.MGMT
+  let cluster = process.env.MGMT;
   let deployments = ["gloo-mesh-mgmt-server","gloo-mesh-redis","gloo-telemetry-gateway","prometheus-server"];
   deployments.forEach(deploy => {
     it(deploy + ' pods are ready in ' + cluster, () => helpers.checkDeployment({ context: cluster, namespace: "gloo-mesh", k8sObj: deploy }));
@@ -516,6 +518,24 @@ timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> 
 [<img src="https://img.youtube.com/vi/f76-KOEjqHs/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/f76-KOEjqHs "Video Link")
 
 We are going to deploy Istio using Gloo Mesh Lifecycle Manager.
+
+<details>
+  <summary>Install `istioctl`</summary>
+
+Install `istioctl` if not already installed as it will be useful in some of the labs that follow.
+
+```bash
+curl -L https://istio.io/downloadIstio | sh -
+
+if [ -d "istio-"* ]; then
+  cd istio-*/
+  export PATH=$PWD/bin:$PATH
+  cd ..
+fi
+```
+
+That's it!
+</details>
 
 Let's create Kubernetes services for the gateways:
 
@@ -2134,6 +2154,12 @@ timeout --signal=INT 3m mocha ./test.js --timeout 60000 --retries=60 --bail 2> $
 
 This lab demonstrates how Istio's Ambient Mesh allows you to create sophisticated authorization policies. Keep in mind, that Layer 4 policies are fast, but when required you can create more complex Layer 7 policies that operate at the application layer.
 
+Lets cleanup the resources:
+
+```bash
+kubectl --context ${CLUSTER1} -n bookinfo-backends delete authorizationpolicy policy
+```
+
 
 
 
@@ -2180,7 +2206,7 @@ istio_request_duration_milliseconds_bucket{le="1.0",response_code="200",reporter
 
 Gloo Mesh Core utilizes the metrics to build a service graph that shows the communication between services. Navigate to the Gloo Mesh UI under the Observaibility section to view the graph.
 
-![Traffic visualized in Gloo Mesh Core](images/gloo-mesh-core-graph.png)
+![Traffic visualized in Gloo Mesh Core](images/steps/l7-observability/gloo-mesh-core-graph.png)
 
 <!--bash
 cat <<'EOF' > ./test.js
@@ -2836,7 +2862,7 @@ kubectl --context ${CLUSTER1} -n istio-system delete peerauthentication default
 
 ## Lab 13 - Insights related to health issues <a name="lab-13---insights-related-to-health-issues-"></a>
 
-}
+
 This step shows Gloo Mesh Core insights about Cilium. Hence, it is skipped when Cilium is not installed.
 
 
@@ -3101,6 +3127,46 @@ kubectl --context ${CLUSTER1} -n istio-system rollout status deploy
 
 When the upgrade is completed, the state at the end of the objects will be `HEALTHY`.
 
+
+<details>
+  <summary>Waypoints are upgraded automatically</summary>
+The waypoints are upgraded by Istiod's Gateway Controller, so if you check the status you will see that it is on the newest "1.23.0-patch0" version:
+
+```shell,nocopy
+$ istioctl ps --context ${CLUSTER1} | grep waypoint
+
+waypoint-64748ccfcc-qf64c.bookinfo-backends   cluster1   SYNCED (74s)   SYNCED (74s)   SYNCED (92s)   IGNORED   IGNORED   istiod-7f6bcc79b4-7f6ft   1.23.0-patch0
+```
+</details>
+<!--bash
+cat <<'EOF' > ./test.js
+const chaiExec = require("@jsdevtools/chai-exec");
+const chai = require("chai");
+var expect = chai.expect;
+
+afterEach(function (done) {
+  if (this.currentTest.currentRetry() > 0) {
+    process.stdout.write(".");
+    setTimeout(done, 1000);
+  } else {
+    done();
+  }
+});
+
+describe("istio in place upgrades", function() {
+  const cluster1 = process.env.CLUSTER1;
+  it("should upgrade waypoints", () => {
+    let cli = chaiExec(`sh -c "istioctl --context ${cluster1} ps | grep waypoint"`);
+    expect(cli.stdout).to.contain("1.23.0-patch0");
+  });
+});
+EOF
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/istio-lifecycle-manager-in-place-upgrade/tests/waypoint-upgraded.test.js.liquid"
+tempfile=$(mktemp)
+echo "saving errors in ${tempfile}"
+timeout --signal=INT 1m mocha ./test.js --timeout 10000 --retries=60 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
+-->
+
 Test that you can still access the `productpage` service through the Istio Ingress Gateway corresponding to the old revision using the command below:
 
 ```bash
@@ -3275,7 +3341,11 @@ Verify that the new header is present in your requests to the external service.
 
 ```shell
 kubectl  --context ${CLUSTER1} -n clients exec deploy/in-ambient -- curl -s httpbin.org/get | grep -i my-added-header
+```
 
+Expected output:
+
+```log,nocopy
     "My-Added-Header": "added-value",
 ```
 
@@ -3320,7 +3390,11 @@ Confirm that your traffic is now encrypted by checking the URL scheme in the res
 
 ```shell
 kubectl --context ${CLUSTER1} -n clients exec deploy/in-ambient -- curl -s httpbin.org/get | jq .url
+```
 
+Expected output:
+
+```,nocopy
 "https://httpbin.org/get"
 ```
 
@@ -3356,7 +3430,10 @@ Confirm that the authorization policy is correctly enforced by attempting to acc
 
 ```shell
 kubectl --context ${CLUSTER1} -n clients exec deploy/in-ambient -- curl -s -I httpbin.org/post
+```
 
+Expected output:
+```log,nocopy
 HTTP/1.1 403 Forbidden
 content-length: 19
 content-type: text/plain
@@ -3424,7 +3501,7 @@ kubectl --context ${CLUSTER1} delete authorizationpolicy httpbin -n egress
 
 This lab explores different ways to deploy Waypoints in Istio's Ambient Mesh. We'll learn about deploying Waypoints for services and for workloads.
 
-![Ways to target a destination](images/targetting-destination.png)
+![Ways to target a destination](images/steps/waypoint-deployment-options/targetting-destination.png)
 
 First, let's understand what we mean by targeting a destination:
 
@@ -3439,7 +3516,7 @@ This distinction whether you are targeting a service (using its fqdn) or a workl
 
 - Waypoint for Services: When we target a service, we deploy a Waypoint specifically for services. This Waypoint will handle traffic going to service names.
 
-```shell
+```shell,nocopy
 $ istioctl waypoint generate -n ns --name waypoint --for service
 
 apiVersion: gateway.networking.k8s.io/v1
@@ -3459,7 +3536,7 @@ spec:
 
 - Waypoint for Workload: When we target a workload (using its IP), we deploy a Waypoint for workloads. This Waypoint will handle traffic going directly to IP addresses.
 
-```shell
+```shell,nocopy
 $ istioctl waypoint generate -n ns --name waypoint --for workload
 
 apiVersion: gateway.networking.k8s.io/v1
@@ -3508,7 +3585,7 @@ b) Label specific services to use the Waypoint
 Let's try option a) and label the whole namespace:
 
 ```bash
-kubectl --context ${CLUSTER1} label ns bookinfo-backends istio.io/use-waypoint=waypoint
+kubectl --context ${CLUSTER1} label ns bookinfo-backends istio.io/use-waypoint=waypoint --overwrite
 ```
 
 Now, when we send traffic to any service in this namespace, it should go through the Waypoint. We can check this by looking for a special header (`server: istio-envoy`) in the response.
