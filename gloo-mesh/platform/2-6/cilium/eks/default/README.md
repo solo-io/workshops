@@ -291,7 +291,7 @@ cat <<'EOF' > ./test.js
 const helpers = require('./tests/chai-exec');
 
 describe("MGMT server is healthy", () => {
-  let cluster = process.env.MGMT
+  let cluster = process.env.MGMT;
   let deployments = ["gloo-mesh-mgmt-server","gloo-mesh-redis","gloo-telemetry-gateway","prometheus-server"];
   deployments.forEach(deploy => {
     it(deploy + ' pods are ready in ' + cluster, () => helpers.checkDeployment({ context: cluster, namespace: "gloo-mesh", k8sObj: deploy }));
@@ -534,6 +534,24 @@ timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> 
 [<img src="https://img.youtube.com/vi/f76-KOEjqHs/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/f76-KOEjqHs "Video Link")
 
 We are going to deploy Istio using Gloo Mesh Lifecycle Manager.
+
+<details>
+  <summary>Install `istioctl`</summary>
+
+Install `istioctl` if not already installed as it will be useful in some of the labs that follow.
+
+```bash
+curl -L https://istio.io/downloadIstio | sh -
+
+if [ -d "istio-"* ]; then
+  cd istio-*/
+  export PATH=$PWD/bin:$PATH
+  cd ..
+fi
+```
+
+That's it!
+</details>
 
 Let's create Kubernetes services for the gateways:
 
@@ -4840,7 +4858,8 @@ EOF
 ```
 
 <!--bash
-uuid_regex="^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+uuid_regex_partial="[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
+uuid_regex="^${uuid_regex_partial}$"
 start_time=$(date +%s) # Capture start time
 duration=120 # Set duration for 2 minutes (120 seconds)
 # Loop until JOIN_TOKEN matches the UUID format
@@ -4853,9 +4872,10 @@ while [[ ! "${JOIN_TOKEN}" =~ ${uuid_regex} ]]; do
     fi
 
     echo "Waiting for JOIN_TOKEN to have the correct format..."
-    export JOIN_TOKEN=$(meshctl external-workload gen-token --kubecontext ${CLUSTER1} --trust-domain ${CLUSTER1} --ttl 3600 --ext-workload virtualmachines/${VM_APP} --plain=true | grep -i 'token' | cut -d ':' -f2 | xargs)
+    export JOIN_TOKEN=$(meshctl external-workload gen-token --kubecontext ${CLUSTER1} --trust-domain ${CLUSTER1} --ttl 3600 --ext-workload virtualmachines/${VM_APP} --plain=true | grep -ioE "${uuid_regex_partial}")
     sleep 1 # Pause for 1 second
 done
+[[ "${JOIN_TOKEN}" =~ ${uuid_regex} ]] || (echo "JOIN_TOKEN does not match the UUID format." && exit 1)
 -->
 
 Get a Spire token to register the VM:
@@ -4866,7 +4886,7 @@ export JOIN_TOKEN=$(meshctl external-workload gen-token \
   --ext-workload virtualmachines/${VM_APP} \
   --trust-domain ${CLUSTER1} \
   --ttl 3600 \
-  --plain=true | grep -i 'token' | cut -d ':' -f2 | xargs)
+  --plain=true | grep -i 'token' | head -n 1 | cut -d ':' -f2 | xargs)
 ```
 
 Get the IP address of the E/W gateway the VM will use to register itself:
@@ -4887,10 +4907,9 @@ done"
 echo
 -->
 
-```bash
+```shell
 export GLOO_AGENT_URL=https://storage.googleapis.com/gloo-platform/vm/v2.6.2/gloo-workload-agent.deb
 export ISTIO_URL=https://storage.googleapis.com/solo-workshops/istio-binaries/1.22.3/istio-sidecar.deb
-
 docker exec vm1 meshctl ew onboard --install \
   --attestor token \
   --join-token ${JOIN_TOKEN} \
@@ -4905,6 +4924,39 @@ docker exec vm1 meshctl ew onboard --install \
   --istio ${ISTIO_URL} \
   --ext-workload virtualmachines/${VM_APP}
 ```
+<!--bash
+export GLOO_AGENT_URL=https://storage.googleapis.com/gloo-platform/vm/v2.6.2/gloo-workload-agent.deb
+export ISTIO_URL=https://storage.googleapis.com/solo-workshops/istio-binaries/1.22.3/istio-sidecar.deb
+echo -n Trying to onboard the VM...
+MAX_ATTEMPTS=10
+ATTEMPTS=0
+while [ $ATTEMPTS -lt $MAX_ATTEMPTS ]; do
+  timeout 1m docker exec vm1 meshctl ew onboard --install \
+  --attestor token \
+  --join-token ${JOIN_TOKEN} \
+  --cluster ${CLUSTER1} \
+  --gateway-addr ${EW_GW_ADDR} \
+  --gateway-service-account $(kubectl --context ${CLUSTER1} -n istio-gateways get sa -l istio=eastwestgateway -o jsonpath='{.items[0].metadata.name}') \
+  --gateway istio-gateways/istio-eastwestgateway-1-22 \
+  --trust-domain ${CLUSTER1} \
+  --istio-rev 1-22 \
+  --network vm-network \
+  --gloo ${GLOO_AGENT_URL} \
+  --istio ${ISTIO_URL} \
+  --ext-workload virtualmachines/${VM_APP} | tee output.log
+  cat output.log | grep "Onboarding complete!"
+  if [ $? -eq 0 ]; then
+    break
+  fi
+  ATTEMPTS=$((ATTEMPTS + 1))
+  echo "Onboarding failed, retrying... (${ATTEMPTS}/${MAX_ATTEMPTS})"
+  sleep 2
+done
+if [ $ATTEMPTS -eq $MAX_ATTEMPTS ]; then
+  echo "Onboarding failed after $MAX_ATTEMPTS attempts"
+  exit 1
+fi
+-->
 
 Take a look at the Envoy clusters:
 
@@ -5031,7 +5083,7 @@ cat <<'EOF' > ./test.js
 const helpers = require('./tests/chai-http');
 
 describe("The ratings service should use the database running on the VM", () => {
-  it('Got reviews v2 with ratings in cluster1', () => helpers.checkBody({ host: `https://cluster1-bookinfo.example.com`, path: '/productpage', body: 'color="black"', match: true }));
+  it('Got reviews v2 with ratings in cluster1', () => helpers.checkBody({ host: `https://cluster1-bookinfo.example.com`, path: '/productpage', body: 'text-black', match: true }));
 })
 
 EOF
@@ -5576,7 +5628,6 @@ kubectl --context ${CLUSTER1} -n istio-system rollout status deploy
 When the upgrade is completed, the state at the end of the objects will be `HEALTHY`.
 Now, let's restart all the Istio Pods to use the new revision:
 
-
 ```bash
 kubectl --context ${CLUSTER1} get ns -l istio.io/rev=${OLD_REVISION} -o json | jq -r '.items[].metadata.name' | while read ns; do
   kubectl --context ${CLUSTER1} label ns ${ns} istio.io/rev=${NEW_REVISION} --overwrite
@@ -5591,6 +5642,8 @@ kubectl --context ${CLUSTER1} -n httpbin patch deploy in-mesh --patch "{\"spec\"
 <!--bash
 kubectl --context ${CLUSTER1} -n httpbin rollout status deploy in-mesh
 -->
+
+
 
 Test that you can still access the `productpage` service through the Istio Ingress Gateway corresponding to the old revision using the command below:
 
