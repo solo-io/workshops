@@ -35,16 +35,17 @@ source ./scripts/assert.sh
 * [Lab 20 - Apply rate limiting to the Gateway](#lab-20---apply-rate-limiting-to-the-gateway-)
 * [Lab 21 - Use the JWT filter to validate JWT and create headers from claims](#lab-21---use-the-jwt-filter-to-validate-jwt-and-create-headers-from-claims-)
 * [Lab 22 - Use the Web Application Firewall filter](#lab-22---use-the-web-application-firewall-filter-)
-* [Lab 23 - Deploy Argo Rollouts](#lab-23---deploy-argo-rollouts-)
-* [Lab 24 - Roll out a new app version using Argo Rollouts](#lab-24---roll-out-a-new-app-version-using-argo-rollouts-)
-* [Lab 25 - Deploy the Bookinfo sample application](#lab-25---deploy-the-bookinfo-sample-application-)
-* [Lab 26 - Expose the productpage API securely](#lab-26---expose-the-productpage-api-securely-)
-* [Lab 27 - Expose an external API and stitch it with the productpage API](#lab-27---expose-an-external-api-and-stitch-it-with-the-productpage-api-)
-* [Lab 28 - Expose the dev portal backend](#lab-28---expose-the-dev-portal-backend-)
-* [Lab 29 - Deploy and expose the dev portal frontend](#lab-29---deploy-and-expose-the-dev-portal-frontend-)
-* [Lab 30 - Dev portal monetization](#lab-30---dev-portal-monetization-)
-* [Lab 31 - Deploy Backstage with the backend plugin](#lab-31---deploy-backstage-with-the-backend-plugin-)
-* [Lab 32 - Deploy OpenTelemetry Collector](#lab-32---deploy-opentelemetry-collector-)
+* [Lab 23 - Validate and authorize client certificates](#lab-23---validate-and-authorize-client-certificates-)
+* [Lab 24 - Deploy Argo Rollouts](#lab-24---deploy-argo-rollouts-)
+* [Lab 25 - Roll out a new app version using Argo Rollouts](#lab-25---roll-out-a-new-app-version-using-argo-rollouts-)
+* [Lab 26 - Deploy the Bookinfo sample application](#lab-26---deploy-the-bookinfo-sample-application-)
+* [Lab 27 - Expose the productpage API securely](#lab-27---expose-the-productpage-api-securely-)
+* [Lab 28 - Expose an external API and stitch it with the productpage API](#lab-28---expose-an-external-api-and-stitch-it-with-the-productpage-api-)
+* [Lab 29 - Expose the dev portal backend](#lab-29---expose-the-dev-portal-backend-)
+* [Lab 30 - Deploy and expose the dev portal frontend](#lab-30---deploy-and-expose-the-dev-portal-frontend-)
+* [Lab 31 - Dev portal monetization](#lab-31---dev-portal-monetization-)
+* [Lab 32 - Deploy Backstage with the backend plugin](#lab-32---deploy-backstage-with-the-backend-plugin-)
+* [Lab 33 - Deploy OpenTelemetry Collector](#lab-33---deploy-opentelemetry-collector-)
 
 
 
@@ -121,7 +122,7 @@ Then run the following commands to wait for all the Pods to be ready:
 
 Once the `check.sh` script completes, when you execute the `kubectl get pods -A` command, you should see the following:
 
-```
+```,nocopy
 NAMESPACE            NAME                                          READY   STATUS    RESTARTS   AGE
 kube-system          calico-kube-controllers-59d85c5c84-sbk4k      1/1     Running   0          4h26m
 kube-system          calico-node-przxs                             1/1     Running   0          4h26m
@@ -805,7 +806,7 @@ OpenID Connect (OIDC) is an identity layer on top of the OAuth 2.0 protocol. In 
 
 The goal of OIDC is to address this ambiguity by additionally requiring Identity Providers to return a well-defined ID Token. OIDC ID tokens follow the JSON Web Token standard and contain specific fields that your applications can expect and handle. This standardization allows you to switch between Identity Providers – or support multiple ones at the same time – with minimal, if any, changes to your downstream services; it also allows you to consistently apply additional security measures like Role-Based Access Control (RBAC) based on the identity of your users, i.e. the contents of their ID token.
 
-In this lab, we're going to install Keycloak. It will allow us to setup OIDC workflows later.
+In this lab, we're going to install Keycloak. It will allow us to set up OIDC workflows later.
 
 First, we need to define an ID and secret for a "client", which will be the service that delegates to Keycloak for authorization:
 
@@ -2505,7 +2506,6 @@ global:
       enabled: true
     extAuth:
       enabled: true
-
 EOF
 ```
 
@@ -2521,7 +2521,7 @@ kubectl --context $CLUSTER1 -n gloo-system get pods
 
 Here is the expected output:
 
-```
+```,nocopy
 NAME                                         READY   STATUS      RESTARTS   AGE
 extauth-58f68c5cd5-gxgxc                     1/1     Running     0          69s
 gateway-portal-web-server-5c5d58d8d5-7lzwg   1/1     Running     0          69s
@@ -2561,9 +2561,8 @@ You can find more information about this application [here](http://httpbin.org/)
 Run the following commands to deploy the httpbin app twice (`httpbin1` and `httpbin2`).
 
 ```bash
-kubectl --context $CLUSTER1 create ns httpbin
-
-kubectl apply --context $CLUSTER1 -f - <<EOF
+kubectl --context ${CLUSTER1} create ns httpbin
+kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: v1
 kind: ServiceAccount
 metadata:
@@ -2646,7 +2645,7 @@ spec:
               resource: limits.cpu
 EOF
 
-kubectl apply --context $CLUSTER1 -f - <<EOF
+kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: v1
 kind: ServiceAccount
 metadata:
@@ -2734,10 +2733,10 @@ You can follow the progress using the following command:
 
 <!--bash
 echo -n Waiting for httpbin pods to be ready...
-kubectl --context $CLUSTER1 -n httpbin rollout status deployment
+kubectl --context ${CLUSTER1} -n httpbin rollout status deployment
 -->
 ```shell
-kubectl --context $CLUSTER1 -n httpbin get pods
+kubectl --context ${CLUSTER1} -n httpbin get pods
 ```
 
 Here is the expected output when both Pods are ready:
@@ -3366,7 +3365,7 @@ echo "saving errors in ${tempfile}"
 timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
 -->
 
-The team in charge of the `HTTPRoute` application can also take advantage of the `parentRefs` option to indicate which parent `HTTPRoute` can delegate to its own `HTTPRoute`.
+The team in charge of the httpbin application can also take advantage of the `parentRefs` option to indicate which parent `HTTPRoute` can delegate to its own `HTTPRoute`.
 
 That's why you don't need to use `ReferenceGrant` objects when using delegation.
 
@@ -3871,7 +3870,7 @@ For example, you may want to create a new header from a value of another header.
 
 Gloo Gateway provides some extensions to manipulate requests and responses in a more advanced way.
 
-Let's extract the product name from the `User-Agent` header (getting read of the product version and comments).
+Let's extract the product name from the `User-Agent` header (getting rid of the product version and comments).
 
 To do that we need to create a Gloo Gateway `RouteOption` object:
 
@@ -4081,8 +4080,6 @@ You can split traffic between different backends, with different weights.
 
 It's useful to slowly introduce a new version.
 
-Let's start with request headers.
-
 Update the `HTTPRoute` resource to do the following:
 - send 90% of the traffic to the `httpbin1` service
 - send 10% of the traffic to the `httpbin2` service
@@ -4160,7 +4157,7 @@ OpenID Connect (OIDC) is an identity layer on top of the OAuth 2.0 protocol. In 
 
 The goal of OIDC is to address this ambiguity by additionally requiring Identity Providers to return a well-defined ID Token. OIDC ID tokens follow the JSON Web Token standard and contain specific fields that your applications can expect and handle. This standardization allows you to switch between Identity Providers – or support multiple ones at the same time – with minimal, if any, changes to your downstream services; it also allows you to consistently apply additional security measures like Role-Based Access Control (RBAC) based on the identity of your users, i.e. the contents of their ID token.
 
-In this lab, we're going to install Keycloak. It will allow us to setup OIDC workflows later.
+In this lab, we're going to install Keycloak. It will allow us to set up OIDC workflows later.
 
 First, we need to define an ID and secret for a "client", which will be the service that delegates to Keycloak for authorization:
 
@@ -5021,7 +5018,7 @@ curl -k https://httpbin.example.com/get -H "jwt: ${USER1_COOKIE_JWT}"
 
 Here is the expected output:
 
-```
+```json,nocopy
 {
   "args": {},
   "headers": {
@@ -5259,7 +5256,425 @@ kubectl --context ${CLUSTER1} -n gloo-system delete routeoption waf
 
 
 
-## Lab 23 - Deploy Argo Rollouts <a name="lab-23---deploy-argo-rollouts-"></a>
+## Lab 23 - Validate and authorize client certificates <a name="lab-23---validate-and-authorize-client-certificates-"></a>
+
+In this step, we're going to secure the access to the httpbin service using mutual TLS (mTLS), and apply further authorization based on information in the client certificate.
+
+First, we need to make sure we have certificates for both the server (which is our `Gateway` in this case) and the client.
+We already have the serving certificate that we created when exposing the httpbin application using HTTPS, so next we need to create the certificate that our clients will use to access the httpbin application.
+
+Create a new certificate authority (CA) that will sign keys for our clients and be trusted by the gateway:
+
+```bash
+openssl req -x509 \
+  -nodes \
+  -days 365 \
+  -newkey rsa:4096 \
+  -keyout client-ca.key \
+  -out client-ca.crt \
+  -sha512 \
+  -subj "/CN=clientca"
+```
+
+We need the gateway to trust this CA, so we'll add it to the existing `tls-secret` that is used for TLS termination:
+
+```bash
+kubectl -n gloo-system create secret generic tls-secret \
+  --type=kubernetes.io/tls \
+  --from-file=tls.crt \
+  --from-file=tls.key \
+  --from-file=ca.crt=client-ca.crt \
+  --dry-run=client -o yaml \
+  | kubectl --context ${CLUSTER1} apply -f -
+```
+
+The gateway is already configured to use this secret in its TLS configuration, so this will now cause the gateway to require and validate client certificates on all requests.
+
+Create and sign a certificate for a client that is authorized to access the httpbin service:
+
+```bash
+openssl req -x509 \
+  -nodes \
+  -days 365 \
+  -newkey rsa:4096 \
+  -CA client-ca.crt \
+  -CAkey client-ca.key \
+  -keyout authorized-client.key \
+  -out authorized-client.crt \
+  -sha512 \
+  -subj "/C=US/ST=Massachusetts/L=Boston/O=Solo-io/OU=pki/CN=authorized-client" \
+  -addext "basicConstraints = CA:false" \
+  -addext "extendedKeyUsage = clientAuth"
+```
+
+Now we can test that the httpbin service is only accessible when the client provides its own valid certificate.
+
+Try to access httpbin without providing a client certificate:
+
+```shell
+curl -k https://httpbin.example.com/get
+```
+
+You should get an SSL error similar to this:
+
+```,nocopy
+curl: (56) OpenSSL SSL_read: OpenSSL/3.0.13: error:0A00045C:SSL routines::tlsv13 alert certificate required, errno 0
+```
+
+Now try to access the service using the client certificate that we generated and signed with the client CA:
+
+```shell
+curl -k https://httpbin.example.com/get --cert authorized-client.crt --key authorized-client.key
+```
+
+You should get the usual response from the httpbin application:
+
+```json,nocopy
+{
+  "args": {},
+  "headers": {
+    "Accept": [
+      "*/*"
+    ],
+    "Host": [
+      "httpbin.example.com"
+    ],
+    "User-Agent": [
+      "curl/8.5.0"
+    ],
+    "X-Forwarded-Proto": [
+      "https"
+    ],
+    "X-Request-Id": [
+      "da97c85e-b500-4f2a-81e7-bb4cda2605a7"
+    ]
+  },
+  "method": "GET",
+  "origin": "127.0.0.6:52655",
+  "url": "https://httpbin.example.com/get"
+}
+```
+
+<!--bash
+cat <<'EOF' > ./test.js
+const chai = require("chai");
+const helpersHttp = require('./tests/chai-http');
+const https = require("https");
+
+describe("Downstream mTLS", function(done) {
+  it("rejects requests without client certificate", (done) => {
+    const options = {
+      hostname: `httpbin.example.com`,
+      port: 443,
+      path: '/get',
+      method: 'GET',
+      rejectUnauthorized: false,
+    };
+
+    const req = https.request(options, (res) => {
+      done(new Error('Request should fail'));
+    });
+
+    req.on('error', (err) => {
+      chai.expect(err.message).to.include('tlsv13 alert certificate required');
+      done();
+    });
+
+    req.end();
+  });
+
+  it("allows requests with valid client certificate", () => helpersHttp.checkURL({ host: `https://httpbin.example.com`, path: '/get', certFile: 'authorized-client.crt', keyFile: 'authorized-client.key', retCode: 200 }));
+});
+
+EOF
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/downstream-mtls/tests/mtls.test.js.liquid"
+tempfile=$(mktemp)
+echo "saving errors in ${tempfile}"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
+-->
+
+We've now enforced mutual TLS at the gateway, such that all clients accessing the httpbin service must present a valid certificate signed by the client CA trusted by the gateway.
+
+Next, let's perform an authorization step on these requests so that we can control which clients (as given in their certificate's Common Name, or `CN`) can access the httpbin application.
+
+To do this, we need to make sure the gateway forwards details of the client certificate's Subject to the upstream httpbin service. We do this by creating an `HttpListenerOption` that provides additional configuration to the gateway:
+
+```bash
+kubectl apply --context ${CLUSTER1} -f - <<EOF
+apiVersion: gateway.solo.io/v1
+kind: HttpListenerOption
+metadata:
+  name: forward-client-cert
+  namespace: gloo-system
+spec:
+  targetRefs:
+  - group: gateway.networking.k8s.io
+    kind: Gateway
+    name: http
+    sectionName: https-httpbin
+  options:
+    httpConnectionManagerSettings:
+      forwardClientCertDetails: APPEND_FORWARD
+      setCurrentClientCertDetails:
+        subject: true
+EOF
+```
+
+Access the httpbin application again, and look for a new `X-Forwarded-Client-Cert` header in the response:
+
+```shell
+curl -k https://httpbin.example.com/get --cert authorized-client.crt --key authorized-client.key
+```
+
+```json,nocopy
+{
+  "args": {},
+  "headers": {
+    "Accept": [
+      "*/*"
+    ],
+    "Host": [
+      "httpbin.example.com"
+    ],
+    "User-Agent": [
+      "curl/8.5.0"
+    ],
+    "X-Forwarded-Proto": [
+      "https"
+    ],
+    "X-Request-Id": [
+      "8e61c480-6373-4c38-824b-2bfe89e79d0c"
+    ],
+    "X-Forwarded-Client-Cert": [
+      "Hash=672e1b132aed6505db21717c3510f1dd5d3149c0070f4ae5a562cef95444f543;Subject=\"CN=authorized-client,OU=pki,O=Solo-io,L=Boston,ST=Massachusetts,C=US\""
+    ]
+  },
+  "method": "GET",
+  "origin": "127.0.0.6:52655",
+  "url": "https://httpbin.example.com/get"
+}
+```
+
+<!--bash
+cat <<'EOF' > ./test.js
+const helpersHttp = require('./tests/chai-http');
+
+describe("Client certificate forwarding", () => {
+  it('adds \'X-Forwarded-Client-Cert\' header', () => helpersHttp.checkBody({ host: `https://httpbin.example.com`, path: '/get', certFile: 'authorized-client.crt', keyFile: 'authorized-client.key', body: 'X-Forwarded-Client-Cert', match: true }));
+})
+
+EOF
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/downstream-mtls/tests/x-forwarded-client-cert.test.js.liquid"
+tempfile=$(mktemp)
+echo "saving errors in ${tempfile}"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
+-->
+
+With the `Subject` of the client certificate now available in the `X-Forwarded-Client-Cert` header, the team in charge of the httpbin application can use an OPA rule to check that the Common Name (`CN`) in the `Subject` is in a list of permitted clients:
+
+```bash
+kubectl apply --context ${CLUSTER1} -f - <<EOF
+apiVersion: enterprise.gloo.solo.io/v1
+kind: AuthConfig
+metadata:
+  name: client-cert-cn
+  namespace: httpbin
+spec:
+  configs:
+    - opaAuth:
+        modules:
+        - name: allow-authorized-clients-by-common-name
+          namespace: httpbin
+        query: "data.test.allow == true"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: allow-authorized-clients-by-common-name
+  namespace: httpbin
+data:
+  policy.rego: |-
+    package test
+
+    import future.keywords.if
+    import future.keywords.in
+
+    default allow := false
+
+    allow if cn(input.http_request.headers["x-forwarded-client-cert"]) in ["authorized-client"]
+
+    cn(client_cert) := cn if {
+        # Split the client cert by semicolon and find the Subject
+        cert_parts := split(client_cert, ";")
+        some subject_string in cert_parts
+        startswith(subject_string, "Subject=")
+        subject := trim(trim_left(subject_string, "Subject="), "\\\\\"")
+
+        # Extract the CN from the Subject field
+        subject_parts := split(subject, ",")
+        some cn_string in subject_parts
+        startswith(cn_string, "CN=")
+        cn := trim_left(cn_string, "CN=")
+    }
+
+EOF
+```
+
+Reference this `AuthConfig` in a `RouteOption` resource that can be associated with the httpbin route:
+
+```bash
+kubectl apply --context ${CLUSTER1} -f - <<EOF
+apiVersion: gateway.solo.io/v1
+kind: RouteOption
+metadata:
+  name: routeoption
+  namespace: httpbin
+spec:
+  options:
+    extauth:
+      configRef:
+        name: client-cert-cn
+        namespace: httpbin
+EOF
+```
+
+Finally, apply this `RouteOption` to the httpbin route:
+
+```bash
+kubectl apply --context ${CLUSTER1} -f - <<EOF
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: httpbin
+  namespace: httpbin
+spec:
+  rules:
+    - matches:
+      - path:
+          type: PathPrefix
+          value: /
+      filters:
+        - type: ExtensionRef
+          extensionRef:
+            group: gateway.solo.io
+            kind: RouteOption
+            name: routeoption
+      backendRefs:
+        - name: httpbin1
+          port: 8000
+EOF
+```
+
+Let's test this using the client we worked with above, who is authorised to the httpbin service based on its Common Name:
+
+```shell
+curl -k https://httpbin.example.com/get --cert authorized-client.crt --key authorized-client.key
+```
+
+You should get the usual valid response back from httpbin. This client is permitted to access the service based on its subject including `CN=authorized-client` and the OPA rule we created above permitting this Common Name.
+
+Now, let's make sure that a new client that is not authorized to use the httpbin service _cannot_ access it.
+
+Create a new certificate signed by the same CA for a client that is _not_ authorized to access the httpbin service:
+
+```bash
+openssl req -x509 \
+  -nodes \
+  -days 365 \
+  -newkey rsa:4096 \
+  -CA client-ca.crt \
+  -CAkey client-ca.key \
+  -keyout unauthorized-client.key \
+  -out unauthorized-client.crt \
+  -sha512 \
+  -subj "/C=US/ST=Massachusetts/L=Boston/O=Solo-io/OU=pki/CN=unauthorized-client" \
+  -addext "basicConstraints = CA:false" \
+  -addext "extendedKeyUsage = clientAuth"
+```
+
+Note that we created this with a subject containing `CN=unauthorized-client`:
+
+```shell
+openssl x509 -in unauthorized-client.crt -noout -subject
+```
+
+Try to access the httpbin service with this client certificate:
+
+```shell
+curl -Ik https://httpbin.example.com/get --cert unauthorized-client.crt --key unauthorized-client.key
+```
+
+You should be denied:
+
+```http,nocopy
+HTTP/2 403
+content-length: 8
+content-type: text/plain
+date: Thu, 29 Aug 2024 16:58:39 GMT
+server: envoy
+```
+
+<!--bash
+cat <<'EOF' > ./test.js
+const helpersHttp = require('./tests/chai-http');
+
+describe("Authorization based on Common Name", () => {
+    it("allows requests to httpbin with authorized client certificate", () => helpersHttp.checkURL({ host: `https://httpbin.example.com`, path: '/get', certFile: 'authorized-client.crt', keyFile: 'authorized-client.key', retCode: 200 }));
+    it("denies requests to httpbin with unauthorized client certificate", () => helpersHttp.checkURL({ host: `https://httpbin.example.com`, path: '/get', certFile: 'unauthorized-client.crt', keyFile: 'unauthorized-client.key', retCode: 403 }));
+})
+
+EOF
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/downstream-mtls/tests/authorization.test.js.liquid"
+tempfile=$(mktemp)
+echo "saving errors in ${tempfile}"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && exit 1; }
+-->
+
+Now, the team in charge of the gateway has enforced mutual authentication that validates that client certificates were signed by a trusted CA, and the httpbin team has extended it with an authorization policy using OPA that checks the client certificate's Common Name and allows requests only if the Common Name is in a preconfigured list of clients.
+
+Set the secret containing the serving certificate back to its original content:
+
+```bash
+kubectl -n gloo-system create secret tls tls-secret \
+  --key tls.key \
+  --cert tls.crt \
+  --dry-run=client -o yaml \
+  | kubectl --context ${CLUSTER1} apply -f -
+```
+
+Reset the `HTTPRoute` back to its original state:
+
+```bash
+kubectl apply --context ${CLUSTER1} -f - <<EOF
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: httpbin
+  namespace: httpbin
+spec:
+  rules:
+    - matches:
+      - path:
+          type: PathPrefix
+          value: /
+      backendRefs:
+        - name: httpbin1
+          port: 8000
+EOF
+```
+
+And finally delete the resources we created to configure authorization:
+
+```bash
+kubectl --context ${CLUSTER1} -n gloo-system delete HttpListenerOption forward-client-cert
+kubectl --context ${CLUSTER1} -n httpbin delete AuthConfig client-cert-cn
+kubectl --context ${CLUSTER1} -n httpbin delete ConfigMap allow-authorized-clients-by-common-name
+kubectl --context ${CLUSTER1} -n httpbin delete RouteOption routeoption
+```
+
+
+
+## Lab 24 - Deploy Argo Rollouts <a name="lab-24---deploy-argo-rollouts-"></a>
 
 [Argo Rollouts](https://argoproj.github.io/rollouts/) is a declarative progressive delivery tool for Kubernetes that we can use to update applications gradually, using a blue/green or canary strategy to manage the rollout.
 
@@ -5278,7 +5693,7 @@ controller:
   trafficRouterPlugins:
     trafficRouterPlugins: |-
       - name: "argoproj-labs/gatewayAPI"
-        location: "https://github.com/argoproj-labs/rollouts-plugin-trafficrouter-gatewayapi/releases/download/v0.2.0/gateway-api-plugin-linux-amd64"
+        location: "https://github.com/argoproj-labs/rollouts-plugin-trafficrouter-gatewayapi/releases/download/v0.3.0/gateway-api-plugin-linux-amd64"
 EOF
 ```
 
@@ -5295,7 +5710,7 @@ Now we're ready to use Argo Rollouts to progressively update applications as par
 
 
 
-## Lab 24 - Roll out a new app version using Argo Rollouts <a name="lab-24---roll-out-a-new-app-version-using-argo-rollouts-"></a>
+## Lab 25 - Roll out a new app version using Argo Rollouts <a name="lab-25---roll-out-a-new-app-version-using-argo-rollouts-"></a>
 
 We're going to use Argo Rollouts to gradually deliver an upgraded version of our httpbin application.
 To do this, we'll define a resource that lets Argo Rollouts know how we want it to handle updates to our application,
@@ -6290,7 +6705,7 @@ EOF
 
 
 
-## Lab 25 - Deploy the Bookinfo sample application <a name="lab-25---deploy-the-bookinfo-sample-application-"></a>
+## Lab 26 - Deploy the Bookinfo sample application <a name="lab-26---deploy-the-bookinfo-sample-application-"></a>
 [<img src="https://img.youtube.com/vi/nzYcrjalY5A/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/nzYcrjalY5A "Video Link")
 
 We're going to deploy the Bookinfo sample application to demonstrate several features of Gloo Gateway.
@@ -6335,7 +6750,7 @@ Configure your hosts file to resolve bookinfo.example.com with the IP address of
 
 
 
-## Lab 26 - Expose the productpage API securely <a name="lab-26---expose-the-productpage-api-securely-"></a>
+## Lab 27 - Expose the productpage API securely <a name="lab-27---expose-the-productpage-api-securely-"></a>
 
 Gloo Gateway includes a developer portal, which provides a framework for managing API discovery, API client identity, and API policies.
 
@@ -6680,11 +7095,12 @@ kubectl --context ${CLUSTER1} -n bookinfo annotate service productpage gloo.solo
 ```
 
 <!--bash
-until kubectl --context ${CLUSTER1} -n bookinfo get apidoc productpage-service; do
+echo Waiting for APIDoc to be created...
+timeout -v 5m bash -c "until [[ \$(kubectl --context ${CLUSTER1} -n bookinfo get apidoc productpage-service) ]]; do
   kubectl --context ${CLUSTER1} -n bookinfo rollout restart deploy productpage-v1
   kubectl --context ${CLUSTER1} -n bookinfo rollout status deploy productpage-v1
   sleep 1
-done
+done"
 -->
 
 An `APIDoc` Kubernetes object, containing the schema of the API is automatically created:
@@ -6813,7 +7229,7 @@ As you can see, we can also define custom metadata at the Api product level. We 
 
 
 
-## Lab 27 - Expose an external API and stitch it with the productpage API <a name="lab-27---expose-an-external-api-and-stitch-it-with-the-productpage-api-"></a>
+## Lab 28 - Expose an external API and stitch it with the productpage API <a name="lab-28---expose-an-external-api-and-stitch-it-with-the-productpage-api-"></a>
 
 You can also use Gloo Gateway to expose an API that is outside of the cluster. In this section, we will expose `https://openlibrary.org/search.json`
 
@@ -7076,7 +7492,7 @@ EOF
 
 
 
-## Lab 28 - Expose the dev portal backend <a name="lab-28---expose-the-dev-portal-backend-"></a>
+## Lab 29 - Expose the dev portal backend <a name="lab-29---expose-the-dev-portal-backend-"></a>
 
 Now that your API has been exposed securely and our plans defined, lets advertise this API through a developer portal.
 
@@ -7084,7 +7500,7 @@ Two components are serving this purpose:
 - the Gloo Gateway portal backend which provides a portal API (that has information about the published API Products)
 - the Gloo Gateway portal frontend which consumes this portal API
 
-In this lab, we're going to setup the Gloo Gateway Portal backend.
+In this lab, we're going to set up the Gloo Gateway Portal backend.
 
 First, you need to create an `AuthConfig`:
 
@@ -7209,7 +7625,7 @@ Make sure the domain is in our `/etc/hosts` file:
 
 You should now be able to access the portal API through the gateway:
 
-```
+```shell
 curl -k "https://portal.example.com/v1/api-products"
 ```
 
@@ -7240,7 +7656,7 @@ We'll create it later.
 
 
 
-## Lab 29 - Deploy and expose the dev portal frontend <a name="lab-29---deploy-and-expose-the-dev-portal-frontend-"></a>
+## Lab 30 - Deploy and expose the dev portal frontend <a name="lab-30---deploy-and-expose-the-dev-portal-frontend-"></a>
 
 The developer frontend is provided as a fully functional template to allow you to customize it based on your own requirements.
 
@@ -7442,7 +7858,8 @@ timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> 
 You should now be able to access the portal frontend through the gateway.
 
 Get the URL to access the portal frontend using the following command:
-```
+
+```shell
 echo "https://portal.example.com"
 ```
 
@@ -7474,7 +7891,7 @@ Now, if you click on the `VIEW APIS` button, you should see the `Bookinfo REST A
 
 
 
-## Lab 30 - Dev portal monetization <a name="lab-30---dev-portal-monetization-"></a>
+## Lab 31 - Dev portal monetization <a name="lab-31---dev-portal-monetization-"></a>
 
 The `portalMetadata` section of the `ApiProduct` objects we've created previously is used to add some metadata in the access logs.
 
@@ -7604,9 +8021,9 @@ timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=150 --bail 2> 
 
 
 
-## Lab 31 - Deploy Backstage with the backend plugin <a name="lab-31---deploy-backstage-with-the-backend-plugin-"></a>
+## Lab 32 - Deploy Backstage with the backend plugin <a name="lab-32---deploy-backstage-with-the-backend-plugin-"></a>
 
-Let's deploy Postgres, before deploying Backstage:
+Let's deploy PostgreSQL, before deploying Backstage:
 
 ```bash
 kubectl apply --context ${CLUSTER1} -f - <<EOF
@@ -7785,8 +8202,12 @@ Let's add the domain to our `/etc/hosts` file:
 You can now access the `backstage` UI using this URL: [https://backstage.example.com](https://backstage.example.com).
 
 <!--bash
-echo -n Waiting 10s for backstage...
-sleep 10
+echo -n Waiting for Backstage to finish processing APIs...
+timeout -v 5m bash -c "until [[ \$(kubectl --context ${CLUSTER1} -n gloo-system logs -l app=backstage 2>/dev/null | grep \"Transformed APIs into new entities\") ]]; do
+  sleep 5
+  echo -n .
+done
+echo"
 -->
 <!--bash
 cat <<'EOF' > ./test.js
@@ -7836,7 +8257,7 @@ timeout --signal=INT 6m mocha ./test.js --timeout 10000 --retries=250 --bail 2> 
 
 
 
-## Lab 32 - Deploy OpenTelemetry Collector <a name="lab-32---deploy-opentelemetry-collector-"></a>
+## Lab 33 - Deploy OpenTelemetry Collector <a name="lab-33---deploy-opentelemetry-collector-"></a>
 
 Having metrics is essential for running applications reliably, and gateways are no exceptions.
 
