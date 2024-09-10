@@ -728,7 +728,7 @@ spec:
       istioOperatorSpec:
         profile: ambient
         hub: us-docker.pkg.dev/gloo-mesh/istio-<enterprise_istio_repo>
-        tag: 1.23.0-patch0-solo
+        tag: 1.23.0-patch1-solo
         namespace: istio-system
         values:
           cni:
@@ -774,7 +774,7 @@ spec:
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-<enterprise_istio_repo>
-        tag: 1.23.0-patch0-solo
+        tag: 1.23.0-patch1-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -802,7 +802,7 @@ spec:
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-<enterprise_istio_repo>
-        tag: 1.23.0-patch0-solo
+        tag: 1.23.0-patch1-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -837,7 +837,7 @@ spec:
       istioOperatorSpec:
         profile: ambient
         hub: us-docker.pkg.dev/gloo-mesh/istio-<enterprise_istio_repo>
-        tag: 1.23.0-patch0-solo
+        tag: 1.23.0-patch1-solo
         namespace: istio-system
         values:
           cni:
@@ -883,7 +883,7 @@ spec:
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-<enterprise_istio_repo>
-        tag: 1.23.0-patch0-solo
+        tag: 1.23.0-patch1-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -911,7 +911,7 @@ spec:
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-<enterprise_istio_repo>
-        tag: 1.23.0-patch0-solo
+        tag: 1.23.0-patch1-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -2888,7 +2888,7 @@ spec:
       istioOperatorSpec:
         profile: ambient
         hub: us-docker.pkg.dev/gloo-mesh/istio-<enterprise_istio_repo>
-        tag: 1.23.0-patch0-solo
+        tag: 1.23.0-patch1-solo
         namespace: istio-system
         values:
           cni:
@@ -2933,7 +2933,7 @@ spec:
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-<enterprise_istio_repo>
-        tag: 1.23.0-patch0-solo
+        tag: 1.23.0-patch1-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -2961,7 +2961,7 @@ spec:
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-<enterprise_istio_repo>
-        tag: 1.23.0-patch0-solo
+        tag: 1.23.0-patch1-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -2996,7 +2996,7 @@ spec:
       istioOperatorSpec:
         profile: ambient
         hub: us-docker.pkg.dev/gloo-mesh/istio-<enterprise_istio_repo>
-        tag: 1.23.0-patch0-solo
+        tag: 1.23.0-patch1-solo
         namespace: istio-system
         values:
           cni:
@@ -3042,7 +3042,7 @@ spec:
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-<enterprise_istio_repo>
-        tag: 1.23.0-patch0-solo
+        tag: 1.23.0-patch1-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -3070,7 +3070,7 @@ spec:
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-<enterprise_istio_repo>
-        tag: 1.23.0-patch0-solo
+        tag: 1.23.0-patch1-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -3130,12 +3130,12 @@ When the upgrade is completed, the state at the end of the objects will be `HEAL
 
 <details>
   <summary>Waypoints are upgraded automatically</summary>
-The waypoints are upgraded by Istiod's Gateway Controller, so if you check the status you will see that it is on the newest "1.23.0-patch0" version:
+The waypoints are upgraded by Istiod's Gateway Controller, so if you check the status you will see that it is on the newest "1.23.0-patch1" version:
 
 ```shell,nocopy
 $ istioctl ps --context ${CLUSTER1} | grep waypoint
 
-waypoint-64748ccfcc-qf64c.bookinfo-backends   cluster1   SYNCED (74s)   SYNCED (74s)   SYNCED (92s)   IGNORED   IGNORED   istiod-7f6bcc79b4-7f6ft   1.23.0-patch0
+waypoint-64748ccfcc-qf64c.bookinfo-backends   cluster1   SYNCED (74s)   SYNCED (74s)   SYNCED (92s)   IGNORED   IGNORED   istiod-7f6bcc79b4-7f6ft   1.23.0-patch1
 ```
 </details>
 <!--bash
@@ -3157,7 +3157,7 @@ describe("istio in place upgrades", function() {
   const cluster1 = process.env.CLUSTER1;
   it("should upgrade waypoints", () => {
     let cli = chaiExec(`sh -c "istioctl --context ${cluster1} ps | grep waypoint"`);
-    expect(cli.stdout).to.contain("1.23.0-patch0");
+    expect(cli.stdout).to.contain("1.23.0-patch1");
   });
 });
 EOF
