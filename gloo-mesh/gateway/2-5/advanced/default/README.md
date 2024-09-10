@@ -1366,7 +1366,7 @@ data:
       "http_status": 403,
     }
 
-    # Envoy works with filters. To pass data between fitlers, we use dynamic metadata.
+    # Envoy works with filters. To pass data between filters, we use dynamic metadata.
     # In this case, we could dynamically change rateLimit rules based on Authorization rules.
     dynamic_metadata := {
       "usagePlan": "silver",
@@ -1472,12 +1472,12 @@ As you can see, the request is allowed. This is because the rego rule we deploye
 
 You will also notice that the `api-key` header has been removed from the request.
 
-In the rego rule, you could also notice that there is a block decidated to metadata. This is because OPA can be used to dynamically change the rateLimit rules based on the Authorization rules.
+In the rego rule, you could also notice that there is a block dedicated to metadata. This is because OPA can be used to dynamically change the rateLimit rules based on the Authorization rules.
 
 This time, let's try to access the application failing the authorization:
 
 ```shell
-curl -s https://cluster1-httpbin.example.com/get -vvv -H 'api-key: 123'
+curl -s https://cluster1-httpbin.example.com/get -vvv -H 'api-key: wrong'
 ```
 
 As you can see, the request is denied. This is because the rego rule we deployed is denying the access.
