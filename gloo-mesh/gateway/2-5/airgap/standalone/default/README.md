@@ -157,6 +157,7 @@ Pull and push locally the Docker images needed:
 ```bash
 cat <<'EOF' > images.txt
 docker.io/curlimages/curl
+docker.io/alpine/openssl:3.3.1
 docker.io/istio/examples-bookinfo-details-v1:1.20.2
 docker.io/istio/examples-bookinfo-productpage-v1:1.20.2
 docker.io/istio/examples-bookinfo-ratings-v1:1.20.2
