@@ -273,7 +273,7 @@ istioInstallations:
     installations:
       - istioOperatorSpec:
           hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-          tag: 1.23.0-patch0-solo
+          tag: 1.23.0-patch1-solo
         revision: 1-23
   northSouthGateways:
     - enabled: true
@@ -285,7 +285,7 @@ istioInstallations:
           gatewayRevision: 1-23
           istioOperatorSpec:
             hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-            tag: 1.23.0-patch0-solo
+            tag: 1.23.0-patch1-solo
             profile: empty
             components:
               ingressGateways:
