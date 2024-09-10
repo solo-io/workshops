@@ -334,7 +334,7 @@ spec:
       istioOperatorSpec:
         profile: ambient
         hub: us-docker.pkg.dev/gloo-mesh/istio-<enterprise_istio_repo>
-        tag: 1.23.0-patch0-solo
+        tag: 1.23.0-patch1-solo
         namespace: istio-system
         values:
           cni:
@@ -387,7 +387,7 @@ spec:
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-<enterprise_istio_repo>
-        tag: 1.23.0-patch0-solo
+        tag: 1.23.0-patch1-solo
         values:
           gateways:
             istio-ingressgateway:
