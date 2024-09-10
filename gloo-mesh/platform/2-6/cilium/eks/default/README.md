@@ -3960,11 +3960,23 @@ afterEach(function (done) {
   }
 });
 
+const testerPodName = "tester-root-trust-policy";
+before(function (done) {
+  chaiExec(`kubectl --context ${process.env.CLUSTER1} -n gloo-mesh run --image=alpine/openssl:3.3.1 ${testerPodName} --command --wait=false -- sleep infinity`);
+  chaiExec(`kubectl --context ${process.env.CLUSTER2} -n gloo-mesh run --image=alpine/openssl:3.3.1 ${testerPodName} --command --wait=false -- sleep infinity`);
+  done();
+});
+after(function (done) {
+  chaiExec(`kubectl --context ${process.env.CLUSTER1} -n gloo-mesh delete pod ${testerPodName} --wait=false`);
+  chaiExec(`kubectl --context ${process.env.CLUSTER2} -n gloo-mesh delete pod ${testerPodName} --wait=false`);
+  done();
+});
+
 describe("Certificate issued by Gloo Mesh", () => {
-  var expectedOutput = "i:O = gloo-mesh";
+  var expectedOutput = "i:O=gloo-mesh";
 
   it('Gloo mesh is the organization for ' + process.env.CLUSTER1 + ' certificate', () => {
-    let cli = chaiExec("kubectl --context " + process.env.CLUSTER1 + " exec -t -n bookinfo-backends deploy/reviews-v1 -c istio-proxy -- openssl s_client -showcerts -connect ratings:9080 -alpn istio");
+    let cli = chaiExec(`kubectl --context ${process.env.CLUSTER1} exec -t -n gloo-mesh ${testerPodName} -- openssl s_client -showcerts -connect ratings.bookinfo-backends:9080 -alpn istio`);
 
     expect(cli).stdout.to.contain(expectedOutput);
     expect(cli).stderr.not.to.be.empty;
@@ -3972,7 +3984,7 @@ describe("Certificate issued by Gloo Mesh", () => {
 
 
   it('Gloo mesh is the organization for ' + process.env.CLUSTER2 + ' certificate', () => {
-    let cli = chaiExec("kubectl --context " + process.env.CLUSTER2 + " exec -t -n bookinfo-backends deploy/reviews-v1 -c istio-proxy -- openssl s_client -showcerts -connect ratings:9080 -alpn istio");
+    let cli = chaiExec(`kubectl --context ${process.env.CLUSTER2} exec -t -n gloo-mesh ${testerPodName} -- openssl s_client -showcerts -connect ratings.bookinfo-backends:9080 -alpn istio`);
 
     expect(cli).stdout.to.contain(expectedOutput);
     expect(cli).stderr.not.to.be.empty;
@@ -5231,7 +5243,7 @@ spec:
       istioOperatorSpec:
         profile: minimal
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.23.0-patch0-solo
+        tag: 1.23.0-patch1-solo
         namespace: istio-system
         values:
           global:
@@ -5306,7 +5318,7 @@ spec:
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.23.0-patch0-solo
+        tag: 1.23.0-patch1-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -5359,7 +5371,7 @@ spec:
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.23.0-patch0-solo
+        tag: 1.23.0-patch1-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -5441,7 +5453,7 @@ spec:
       istioOperatorSpec:
         profile: minimal
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.23.0-patch0-solo
+        tag: 1.23.0-patch1-solo
         namespace: istio-system
         values:
           global:
@@ -5516,7 +5528,7 @@ spec:
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.23.0-patch0-solo
+        tag: 1.23.0-patch1-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -5569,7 +5581,7 @@ spec:
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.23.0-patch0-solo
+        tag: 1.23.0-patch1-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -5743,7 +5755,7 @@ spec:
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.23.0-patch0-solo
+        tag: 1.23.0-patch1-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -5770,7 +5782,7 @@ spec:
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.23.0-patch0-solo
+        tag: 1.23.0-patch1-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -5806,7 +5818,7 @@ spec:
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.23.0-patch0-solo
+        tag: 1.23.0-patch1-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -5833,7 +5845,7 @@ spec:
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.23.0-patch0-solo
+        tag: 1.23.0-patch1-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -5896,7 +5908,7 @@ spec:
       istioOperatorSpec:
         profile: minimal
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.23.0-patch0-solo
+        tag: 1.23.0-patch1-solo
         namespace: istio-system
         values:
           global:
@@ -5952,7 +5964,7 @@ spec:
       istioOperatorSpec:
         profile: minimal
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.23.0-patch0-solo
+        tag: 1.23.0-patch1-solo
         namespace: istio-system
         values:
           global:
@@ -6612,7 +6624,7 @@ spec:
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.23.0-patch0-solo
+        tag: 1.23.0-patch1-solo
         components:
           egressGateways:
             - enabled: true
