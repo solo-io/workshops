@@ -158,6 +158,7 @@ Pull and push locally the Docker images needed:
 ```bash
 cat <<'EOF' > images.txt
 docker.io/curlimages/curl
+docker.io/alpine/openssl:3.3.1
 docker.io/bats/bats:v1.4.1
 docker.io/bitnami/clickhouse:23.11.1-debian-11-r1
 docker.io/grafana/grafana:10.0.3
@@ -185,9 +186,9 @@ gcr.io/gloo-mesh/redis:7.2.4-alpine
 gcr.io/solo-public/docs/portal-frontend:v0.0.25
 quay.io/keycloak/keycloak:25.0.1
 quay.io/prometheus-operator/prometheus-config-reloader:v0.74.0
-us-docker.pkg.dev/gloo-mesh/istio-workshops/operator:1.23.0-patch0-solo
-us-docker.pkg.dev/gloo-mesh/istio-workshops/pilot:1.23.0-patch0-solo
-us-docker.pkg.dev/gloo-mesh/istio-workshops/proxyv2:1.23.0-patch0-solo
+us-docker.pkg.dev/gloo-mesh/istio-workshops/operator:1.23.0-patch1-solo
+us-docker.pkg.dev/gloo-mesh/istio-workshops/pilot:1.23.0-patch1-solo
+us-docker.pkg.dev/gloo-mesh/istio-workshops/proxyv2:1.23.0-patch1-solo
 EOF
 
 cat images.txt | while read image; do
@@ -478,7 +479,7 @@ spec:
       istioOperatorSpec:
         profile: minimal
         hub: ${registry}/istio-workshops
-        tag: 1.23.0-patch0-solo
+        tag: 1.23.0-patch1-solo
         namespace: istio-system
         values:
           global:
@@ -520,7 +521,7 @@ spec:
       istioOperatorSpec:
         profile: empty
         hub: ${registry}/istio-workshops
-        tag: 1.23.0-patch0-solo
+        tag: 1.23.0-patch1-solo
         values:
           gateways:
             istio-ingressgateway:
