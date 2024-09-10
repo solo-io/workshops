@@ -164,6 +164,7 @@ Pull and push locally the Docker images needed:
 ```bash
 cat <<'EOF' > images.txt
 docker.io/curlimages/curl
+docker.io/alpine/openssl:3.3.1
 docker.io/bats/bats:v1.4.1
 docker.io/bitnami/postgresql:16.1.0-debian-11-r15
 docker.io/grafana/grafana:10.2.3
@@ -200,10 +201,10 @@ quay.io/prometheus/node-exporter:v1.7.0
 quay.io/prometheus/prometheus:v2.48.1
 registry.k8s.io/ingress-nginx/kube-webhook-certgen:v20221220-controller-v1.5.1-58-g787ea74b6
 registry.k8s.io/kube-state-metrics/kube-state-metrics:v2.10.1
-us-docker.pkg.dev/gloo-mesh/istio-workshops/install-cni:1.23.0-patch0-solo
-us-docker.pkg.dev/gloo-mesh/istio-workshops/operator:1.23.0-patch0-solo
-us-docker.pkg.dev/gloo-mesh/istio-workshops/pilot:1.23.0-patch0-solo
-us-docker.pkg.dev/gloo-mesh/istio-workshops/proxyv2:1.23.0-patch0-solo
+us-docker.pkg.dev/gloo-mesh/istio-workshops/install-cni:1.23.0-patch1-solo
+us-docker.pkg.dev/gloo-mesh/istio-workshops/operator:1.23.0-patch1-solo
+us-docker.pkg.dev/gloo-mesh/istio-workshops/pilot:1.23.0-patch1-solo
+us-docker.pkg.dev/gloo-mesh/istio-workshops/proxyv2:1.23.0-patch1-solo
 EOF
 
 cat images.txt | while read image; do
@@ -819,7 +820,7 @@ spec:
       istioOperatorSpec:
         profile: minimal
         hub: ${registry}/istio-workshops
-        tag: 1.23.0-patch0-solo
+        tag: 1.23.0-patch1-solo
         namespace: istio-system
         values:
           global:
@@ -870,7 +871,7 @@ spec:
       istioOperatorSpec:
         profile: empty
         hub: ${registry}/istio-workshops
-        tag: 1.23.0-patch0-solo
+        tag: 1.23.0-patch1-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -897,7 +898,7 @@ spec:
       istioOperatorSpec:
         profile: empty
         hub: ${registry}/istio-workshops
-        tag: 1.23.0-patch0-solo
+        tag: 1.23.0-patch1-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -933,7 +934,7 @@ spec:
       istioOperatorSpec:
         profile: minimal
         hub: ${registry}/istio-workshops
-        tag: 1.23.0-patch0-solo
+        tag: 1.23.0-patch1-solo
         namespace: istio-system
         values:
           global:
@@ -984,7 +985,7 @@ spec:
       istioOperatorSpec:
         profile: empty
         hub: ${registry}/istio-workshops
-        tag: 1.23.0-patch0-solo
+        tag: 1.23.0-patch1-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -1011,7 +1012,7 @@ spec:
       istioOperatorSpec:
         profile: empty
         hub: ${registry}/istio-workshops
-        tag: 1.23.0-patch0-solo
+        tag: 1.23.0-patch1-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -2360,11 +2361,23 @@ afterEach(function (done) {
   }
 });
 
+const testerPodName = "tester-root-trust-policy";
+before(function (done) {
+  chaiExec(`kubectl --context ${process.env.CLUSTER1} -n gloo-mesh run --image=${process.env.registry}/alpine/openssl:3.3.1 ${testerPodName} --command --wait=false -- sleep infinity`);
+  chaiExec(`kubectl --context ${process.env.CLUSTER2} -n gloo-mesh run --image=${process.env.registry}/alpine/openssl:3.3.1 ${testerPodName} --command --wait=false -- sleep infinity`);
+  done();
+});
+after(function (done) {
+  chaiExec(`kubectl --context ${process.env.CLUSTER1} -n gloo-mesh delete pod ${testerPodName} --wait=false`);
+  chaiExec(`kubectl --context ${process.env.CLUSTER2} -n gloo-mesh delete pod ${testerPodName} --wait=false`);
+  done();
+});
+
 describe("Certificate issued by Gloo Mesh", () => {
-  var expectedOutput = "i:O = gloo-mesh";
+  var expectedOutput = "i:O=gloo-mesh";
 
   it('Gloo mesh is the organization for ' + process.env.CLUSTER1 + ' certificate', () => {
-    let cli = chaiExec("kubectl --context " + process.env.CLUSTER1 + " exec -t -n bookinfo-backends deploy/reviews-v1 -c istio-proxy -- openssl s_client -showcerts -connect ratings:9080 -alpn istio");
+    let cli = chaiExec(`kubectl --context ${process.env.CLUSTER1} exec -t -n gloo-mesh ${testerPodName} -- openssl s_client -showcerts -connect ratings.bookinfo-backends:9080 -alpn istio`);
 
     expect(cli).stdout.to.contain(expectedOutput);
     expect(cli).stderr.not.to.be.empty;
@@ -2372,7 +2385,7 @@ describe("Certificate issued by Gloo Mesh", () => {
 
 
   it('Gloo mesh is the organization for ' + process.env.CLUSTER2 + ' certificate', () => {
-    let cli = chaiExec("kubectl --context " + process.env.CLUSTER2 + " exec -t -n bookinfo-backends deploy/reviews-v1 -c istio-proxy -- openssl s_client -showcerts -connect ratings:9080 -alpn istio");
+    let cli = chaiExec(`kubectl --context ${process.env.CLUSTER2} exec -t -n gloo-mesh ${testerPodName} -- openssl s_client -showcerts -connect ratings.bookinfo-backends:9080 -alpn istio`);
 
     expect(cli).stdout.to.contain(expectedOutput);
     expect(cli).stderr.not.to.be.empty;
@@ -3552,7 +3565,7 @@ echo
 
 ```shell
 export GLOO_AGENT_URL=https://storage.googleapis.com/gloo-platform/vm/v2.6.2/gloo-workload-agent.deb
-export ISTIO_URL=https://storage.googleapis.com/solo-workshops/istio-binaries/1.23.0-patch0/istio-sidecar.deb
+export ISTIO_URL=https://storage.googleapis.com/solo-workshops/istio-binaries/1.23.0-patch1/istio-sidecar.deb
 docker exec vm1 meshctl ew onboard --install \
   --attestor token \
   --join-token ${JOIN_TOKEN} \
@@ -3569,7 +3582,7 @@ docker exec vm1 meshctl ew onboard --install \
 ```
 <!--bash
 export GLOO_AGENT_URL=https://storage.googleapis.com/gloo-platform/vm/v2.6.2/gloo-workload-agent.deb
-export ISTIO_URL=https://storage.googleapis.com/solo-workshops/istio-binaries/1.23.0-patch0/istio-sidecar.deb
+export ISTIO_URL=https://storage.googleapis.com/solo-workshops/istio-binaries/1.23.0-patch1/istio-sidecar.deb
 echo -n Trying to onboard the VM...
 MAX_ATTEMPTS=10
 ATTEMPTS=0
@@ -3852,7 +3865,7 @@ spec:
       istioOperatorSpec:
         profile: empty
         hub: ${registry}/istio-workshops
-        tag: 1.23.0-patch0-solo
+        tag: 1.23.0-patch1-solo
         components:
           egressGateways:
             - enabled: true
