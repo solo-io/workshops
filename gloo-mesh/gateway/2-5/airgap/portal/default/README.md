@@ -158,6 +158,7 @@ Pull and push locally the Docker images needed:
 ```bash
 cat <<'EOF' > images.txt
 docker.io/curlimages/curl
+docker.io/alpine/openssl:3.3.1
 docker.io/bats/bats:v1.4.1
 docker.io/bitnami/clickhouse:23.11.1-debian-11-r1
 docker.io/grafana/grafana:10.0.3
