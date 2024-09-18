@@ -14,7 +14,7 @@ source ./scripts/assert.sh
 ## Table of Contents
 * [Introduction](#introduction)
 * [Lab 1 - Deploy a KinD cluster](#lab-1---deploy-a-kind-cluster-)
-* [Lab 2 - Deploy Istio in Sidecar mode](#lab-2---deploy-istio-in-sidecar-mode-)
+* [Lab 2 - Deploy Istio in Ambient mode](#lab-2---deploy-istio-in-ambient-mode-)
 * [Lab 3 - Deploy Gloo Gateway](#lab-3---deploy-gloo-gateway-)
 * [Lab 4 - Deploy Keycloak](#lab-4---deploy-keycloak-)
 * [Lab 5 - Deploy the httpbin demo app](#lab-5---deploy-the-httpbin-demo-app-)
@@ -101,7 +101,7 @@ export CLUSTER1=cluster1
 Run the following commands to deploy a Kubernetes cluster using [Kind](https://kind.sigs.k8s.io/):
 
 ```bash
-./scripts/deploy.sh 1 cluster1
+./scripts/deploy-multi.sh 1 cluster1
 ```
 
 Then run the following commands to wait for all the Pods to be ready:
@@ -148,7 +148,8 @@ timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> 
 
 
 
-## Lab 2 - Deploy Istio in Sidecar mode <a name="lab-2---deploy-istio-in-sidecar-mode-"></a>
+## Lab 2 - Deploy Istio in Ambient mode <a name="lab-2---deploy-istio-in-ambient-mode-"></a>
+
 
 Download the Istio release:
 
@@ -156,16 +157,52 @@ Download the Istio release:
 curl -L https://istio.io/downloadIstio | sh -
 
 if [ -d "istio-"*/ ]; then
-  cd istio-*/
-  export PATH=$PWD/bin:$PATH
-  cd ..
+    cd istio-*/
+    export PATH=$PWD/bin:$PATH
+    cd ..
 fi
 ```
 
-Install Istio in Sidecar mode:
+Install Istio in Ambient mode:
 
 ```bash
-istioctl --context ${CLUSTER1} install --set profile=default -y
+helm upgrade --install istio-base \
+  oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/base \
+  -n istio-system --create-namespace \
+  --version 1.23.0-solo \
+  --kube-context ${CLUSTER1} \
+  --wait
+
+helm upgrade --install istio-cni \
+  oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/cni \
+  -n istio-system \
+  --version 1.23.0-solo \
+  --set profile=ambient \
+  --set global.hub=us-docker.pkg.dev/gloo-mesh/istio-<enterprise_istio_repo> \
+  --set global.tag=1.23.0-solo \
+  --kube-context ${CLUSTER1} \
+  --wait
+
+helm upgrade --install istiod \
+  oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/istiod \
+  -n istio-system \
+  --version 1.23.0-solo \
+  --set profile=ambient \
+  --set global.hub=us-docker.pkg.dev/gloo-mesh/istio-<enterprise_istio_repo> \
+  --set global.tag=1.23.0-solo \
+  --kube-context ${CLUSTER1} \
+  --wait
+
+helm upgrade --install ztunnel \
+  oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/ztunnel \
+  -n istio-system \
+  --version 1.23.0-solo \
+  --set profile=ambient \
+  --set hub=us-docker.pkg.dev/gloo-mesh/istio-<enterprise_istio_repo> \
+  --set tag=1.23.0-solo \
+  --set env.L7_ENABLED="true" \
+  --kube-context ${CLUSTER1} \
+  --wait
 ```
 
 Run the following command to check the Istio Pods are running:
@@ -177,9 +214,10 @@ kubectl --context ${CLUSTER1} -n istio-system get pods
 Here is the expected output:
 
 ```,nocopy
-NAME                                    READY   STATUS    RESTARTS   AGE
-istio-ingressgateway-7ffb6cd88d-t7klt   1/1     Running   0          8s
-istiod-69d887df6d-gxf6w                 1/1     Running   0          14s
+NAME                      READY   STATUS    RESTARTS   AGE
+istio-cni-node-75ds2      1/1     Running   0          86s
+istiod-7758df6879-pcvjt   1/1     Running   0          45s
+ztunnel-zgf7b             1/1     Running   0          13s
 ```
 
 <!--bash
@@ -188,13 +226,17 @@ const helpers = require('./tests/chai-exec');
 
 describe("Istio", () => {
   let cluster = process.env.CLUSTER1
-  let deployments = ["istiod", "istio-ingressgateway"];
+  let deployments = ["istiod"];
   deployments.forEach(deploy => {
     it(deploy + ' pods are ready in ' + cluster, () => helpers.checkDeployment({ context: cluster, namespace: "istio-system", k8sObj: deploy }));
   });
+  let DaemonSets = ["istio-cni-node", "ztunnel"];
+  DaemonSets.forEach(DaemonSet => {
+    it(DaemonSet + ' pods are ready in ' + cluster, () => helpers.checkDaemonSet({ context: cluster, namespace: "istio-system", k8sObj: DaemonSet }));
+  });
 });
 EOF
-echo "executing test dist/gloo-gateway-workshop/build/templates/steps/deploy-istio-sidecar/tests/check-istio.test.js.liquid"
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/deploy-istio-ambient/tests/check-istio.test.js.liquid"
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
@@ -213,6 +255,12 @@ Install the Kubernetes Gateway API CRDs as they do not come installed by default
 ```bash
 kubectl --context $CLUSTER1 apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.1.0/standard-install.yaml
 ```
+Let's create the `gloo-system` namespace and label it to be part of the mesh:
+
+```bash
+kubectl --context $CLUSTER1 create namespace gloo-system
+kubectl --context $CLUSTER1 label namespace gloo-system istio.io/dataplane-mode=ambient
+```
 
 Next, install Gloo Gateway. This command installs the Gloo Gateway control plane into the namespace `gloo-system`.
 
@@ -224,7 +272,7 @@ helm repo update
 helm upgrade -i -n gloo-system \
   gloo-gateway gloo-ee-helm/gloo-ee \
   --create-namespace \
-  --version 1.17.2 \
+  --version 1.18.0-beta1 \
   --kube-context $CLUSTER1 \
   --set-string license_key=$LICENSE_KEY \
   -f -<<EOF
@@ -264,11 +312,6 @@ gateway-portal-web-server:
   enabled: true
 settings:
   disableKubernetesDestinations: true
-  istioSDS:
-    enabled: true
-  istioIntegration:
-    enabled: true
-    enableAutoMtls: true
 EOF
 ```
 
@@ -685,7 +728,8 @@ Run the following commands to deploy the httpbin app twice (`httpbin1` and `http
 
 ```bash
 kubectl --context ${CLUSTER1} create ns httpbin
-kubectl --context ${CLUSTER1} label namespace httpbin istio-injection=enabled
+kubectl --context ${CLUSTER1} label namespace httpbin istio.io/dataplane-mode=ambient
+kubectl --context ${CLUSTER1} label namespace httpbin istio-injection=disabled
 kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: v1
 kind: ServiceAccount
@@ -5996,237 +6040,6 @@ timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=150 --bail 2> 
 ## Lab 25 - Deploy Backstage with the backend plugin <a name="lab-25---deploy-backstage-with-the-backend-plugin-"></a>
 
 
-Let's deploy PostgreSQL, before deploying Backstage:
-
-```bash
-kubectl apply --context ${CLUSTER1} -f - <<EOF
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: postgres
-  namespace: gloo-system
----
-apiVersion: v1
-kind: Secret
-metadata:
-  name: postgres-secrets
-  namespace: gloo-system
-type: Opaque
-data:
-  POSTGRES_USER: YmFja3N0YWdl
-  POSTGRES_PASSWORD: aHVudGVyMg==
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: postgres
-  namespace: gloo-system
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: postgres
-  template:
-    metadata:
-      labels:
-        app: postgres
-    spec:
-      serviceAccountName: postgres
-      containers:
-        - name: postgres
-          image: postgres:13.2-alpine
-          imagePullPolicy: 'IfNotPresent'
-          ports:
-            - containerPort: 5432
-          envFrom:
-            - secretRef:
-                name: postgres-secrets
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: postgres
-  namespace: gloo-system
-spec:
-  selector:
-    app: postgres
-  ports:
-    - port: 5432
-EOF
-```
-
-Now we can deploy Backstage:
-
-```bash
-kubectl --context ${CLUSTER1} apply -f data/steps/dev-portal-backstage-backend/rbac.yaml
-
-kubectl apply --context ${CLUSTER1} -f - <<EOF
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: backstage
-  namespace: gloo-system
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: backstage
-  namespace: gloo-system
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: backstage
-  template:
-    metadata:
-      labels:
-        app: backstage
-    spec:
-      serviceAccountName: backstage
-      containers:
-        - name: backstage
-          image: gcr.io/solo-public/docs/portal-backstage-backend:v0.0.33
-          imagePullPolicy: IfNotPresent
-          ports:
-            - name: http
-              containerPort: 7007
-          envFrom:
-            - secretRef:
-                name: postgres-secrets
-          env:
-          - name: PORTAL_DEBUG_LOGGING
-            value: "true"
-          - name: PORTAL_SERVER_URL
-            value: "http://gateway-portal-web-server.gloo-system:8080/v1"
-          - name: CLIENT_ID
-            value: ${KEYCLOAK_CLIENT}
-          - name: CLIENT_SECRET
-            value: ${KEYCLOAK_SECRET}
-          - name: SA_CLIENT_ID
-            value: ${KEYCLOAK_CLIENT}
-          - name: SA_CLIENT_SECRET
-            value: ${KEYCLOAK_SECRET}
-          - name: APP_CONFIG_backend_baseUrl
-            value: https://backstage.example.com
-          - name: TOKEN_ENDPOINT
-            value: "${KEYCLOAK_URL}/realms/workshop/protocol/openid-connect/token"
-          - name: AUTH_ENDPOINT
-            value: "${KEYCLOAK_URL}/realms/workshop/protocol/openid-connect/auth"
-          - name: LOGOUT_ENDPOINT
-            value: "${KEYCLOAK_URL}/realms/workshop/protocol/openid-connect/logout"
-          - name: NODE_TLS_REJECT_UNAUTHORIZED
-            value: "0"
-          - name: POSTGRES_HOST
-            value: postgres
-          - name: POSTGRES_PORT
-            value: "5432"
-          - name: PORTAL_SYNC_FREQUENCY_SECONDS
-            value: "10"
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: backstage
-  namespace: gloo-system
-spec:
-  selector:
-    app: backstage
-  ports:
-    - name: http
-      port: 80
-      targetPort: http
-EOF
-
-kubectl --context ${CLUSTER1} -n gloo-system rollout status deploy backstage
-```
-
-After that, you can expose Backstage through Gloo Gateway using a `HTTPRoute`:
-
-```bash
-kubectl apply --context ${CLUSTER1} -f - <<EOF
-apiVersion: gateway.networking.k8s.io/v1
-kind: HTTPRoute
-metadata:
-  name: backstage
-  namespace: gloo-system
-spec:
-  parentRefs:
-    - name: http
-      namespace: gloo-system
-      sectionName: https
-  hostnames:
-    - "backstage.example.com"
-  rules:
-    - backendRefs:
-        - name: backstage
-          port: 80
-      matches:
-      - path:
-          type: PathPrefix
-          value: /
-EOF
-```
-Let's add the domain to our `/etc/hosts` file:
-
-```bash
-./scripts/register-domain.sh backstage.example.com ${PROXY_IP}
-```
-
-You can now access the `backstage` UI using this URL: [https://backstage.example.com](https://backstage.example.com).
-
-<!--bash
-echo -n Waiting for Backstage to finish processing APIs...
-timeout -v 5m bash -c "until [[ \$(kubectl --context ${CLUSTER1} -n gloo-system logs -l app=backstage 2>/dev/null | grep \"Transformed APIs into new entities\") ]]; do
-  sleep 5
-  echo -n .
-done
-echo"
--->
-<!--bash
-cat <<'EOF' > ./test.js
-const chaiExec = require("@jsdevtools/chai-exec");
-const helpersHttp = require('./tests/chai-http');
-const puppeteer = require('puppeteer');
-var chai = require('chai');
-var expect = chai.expect;
-
-describe("APIs displayed properly in backstage", function() {
-  let browser;
-  let html;
-
-  // Use Mocha's 'before' hook to set up Puppeteer
-  beforeEach(async function() {
-    browser = await puppeteer.launch({
-      headless: "new",
-      ignoreHTTPSErrors: true,
-      args: ['--no-sandbox', '--disable-setuid-sandbox'], // needed for instruqt
-    });
-    let page = await browser.newPage();
-    await page.goto(`https://backstage.example.com/api-docs`);
-    await page.waitForNetworkIdle({ options: { timeout: 1000 } });
-
-    await page.click('button');
-
-    await page.waitForNavigation({ waitUntil: 'networkidle0' });
-
-    html = await page.content();
-  });
-
-  // Use Mocha's 'after' hook to close Puppeteer
-  afterEach(async function() {
-    await browser.close();
-  });
-
-  it("The page contains bookinfo-v1", () => {
-    expect(html).to.contain("bookinfo-v1");
-  });
-});
-EOF
-echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/bookinfo/dev-portal-backstage-backend/tests/backstage-apis.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 6m mocha ./test.js --timeout 10000 --retries=250 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
--->
 
 
 
