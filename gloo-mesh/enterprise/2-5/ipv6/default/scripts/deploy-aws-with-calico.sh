@@ -179,14 +179,14 @@ curl -sL https://raw.githubusercontent.com/projectcalico/calico/v3.28.1/manifest
 
 # Preload images
 cat << EOF >> images.txt
-quay.io/metallb/controller:v0.14.8
-quay.io/metallb/speaker:v0.14.8
+quay.io/metallb/controller:v0.13.12
+quay.io/metallb/speaker:v0.13.12
 EOF
 cat images.txt | while read image; do
   docker pull $image || true
   kind load docker-image $image --name kind${number} || true
 done
-kubectl --context=kind-kind${number} apply -f https://raw.githubusercontent.com/metallb/metallb/v0.14.8/config/manifests/metallb-native.yaml
+kubectl --context=kind-kind${number} apply -f https://raw.githubusercontent.com/metallb/metallb/v0.13.12/config/manifests/metallb-native.yaml
 kubectl --context=kind-kind${number} create secret generic -n metallb-system memberlist --from-literal=secretkey="$(openssl rand -base64 128)"
 kubectl --context=kind-kind${number} -n metallb-system rollout status deploy controller || true
 
