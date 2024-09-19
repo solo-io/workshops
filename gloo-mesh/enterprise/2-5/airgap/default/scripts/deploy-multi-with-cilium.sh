@@ -120,8 +120,8 @@ kubectl config set-cluster kind-kind${number} --server=https://${myip}:70${twodi
 cat << EOF >> images.txt
 quay.io/cilium/cilium:v1.15.5
 quay.io/cilium/operator-generic:v1.15.5
-quay.io/metallb/controller:v0.14.8
-quay.io/metallb/speaker:v0.14.8
+quay.io/metallb/controller:v0.13.12
+quay.io/metallb/speaker:v0.13.12
 EOF
 cat images.txt | while read image; do
   docker pull $image || true
@@ -157,7 +157,7 @@ docker network connect "kind" us-central1-docker || true
 docker network connect "kind" quay || true
 docker network connect "kind" gcr || true
 
-for i in 1 2 3 4 5; do kubectl --context=kind-kind${number} apply -f https://raw.githubusercontent.com/metallb/metallb/v0.14.8/config/manifests/metallb-native.yaml && break || sleep 15; done
+for i in 1 2 3 4 5; do kubectl --context=kind-kind${number} apply -f https://raw.githubusercontent.com/metallb/metallb/v0.13.12/config/manifests/metallb-native.yaml && break || sleep 15; done
 kubectl --context=kind-kind${number} create secret generic -n metallb-system memberlist --from-literal=secretkey="$(openssl rand -base64 128)"
 kubectl --context=kind-kind${number} -n metallb-system rollout status deploy controller || true
 
