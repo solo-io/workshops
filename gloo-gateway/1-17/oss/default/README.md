@@ -164,8 +164,7 @@ gatewayProxies:
     disabled: true
 gateway:
     validation:
-      enabled: false
-      disableTransformationValidation: false
+      allowWarnings: true
       alwaysAcceptResources: false
 gloo:
   deployment:
@@ -1829,7 +1828,7 @@ Run the following commands to install Argo Rollouts in your environment:
 ```bash
 helm upgrade --install argo-rollouts argo-rollouts \
   --repo https://argoproj.github.io/argo-helm \
-  --version 2.35.3 \
+  --version 2.37.6 \
   --kube-context ${CLUSTER1} \
   --namespace argo-rollouts \
   --create-namespace \
@@ -2355,6 +2354,15 @@ echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpb
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
+-->
+
+<!--bash
+echo -n Waiting for rollout to be ready...
+timeout -v 5m bash -c "until [[ \$(kubectl --context ${CLUSTER1} -n httpbin get rollout httpbin1 -ojsonpath='{.status.currentStepIndex}' 2>/dev/null) -eq 5 ]]; do
+  sleep 1
+  echo -n .
+done"
+echo
 -->
 
 Let's get it to the next step by running this command:
