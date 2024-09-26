@@ -7,7 +7,7 @@ source ./scripts/assert.sh
 
 <center><img src="images/gloo-mesh.png" alt="Gloo Mesh Enterprise" style="width:70%;max-width:800px" /></center>
 
-# <center>Gloo Mesh Enterprise (2.6.3)</center>
+# <center>Gloo Mesh Enterprise (2.6.4)</center>
 
 
 
@@ -589,7 +589,7 @@ kubectl --context ${MGMT} -n default wait --for=delete pod/nginx --timeout=30s
 Before we get started, let's install the `meshctl` CLI:
 
 ```bash
-export GLOO_MESH_VERSION=v2.6.3
+export GLOO_MESH_VERSION=v2.6.4
 curl -sL https://run.solo.io/meshctl/install | sh -
 export PATH=$HOME/.gloo-mesh/bin:$PATH
 ```
@@ -744,7 +744,7 @@ spec:
   sources:
   - chart: gloo-platform-crds
     repoURL: https://storage.googleapis.com/gloo-platform/helm-charts
-    targetRevision: 2.6.3
+    targetRevision: 2.6.4
     helm:
       releaseName: gloo-platform-crds
       parameters:
@@ -752,7 +752,7 @@ spec:
         value: "true"
   - chart: gloo-platform
     repoURL: https://storage.googleapis.com/gloo-platform/helm-charts
-    targetRevision: 2.6.3
+    targetRevision: 2.6.4
     helm:
       releaseName: gloo-platform
       valueFiles:
@@ -1059,7 +1059,7 @@ spec:
       sources:
       - chart: gloo-platform-crds
         repoURL: https://storage.googleapis.com/gloo-platform/helm-charts
-        targetRevision: 2.6.3
+        targetRevision: 2.6.4
         helm:
           releaseName: gloo-platform-crds
           parameters:
@@ -1067,7 +1067,7 @@ spec:
             value: "true"
       - chart: gloo-platform
         repoURL: https://storage.googleapis.com/gloo-platform/helm-charts
-        targetRevision: 2.6.3
+        targetRevision: 2.6.4
         helm:
           releaseName: gloo-platform
           valueFiles:
@@ -2657,7 +2657,7 @@ spec:
       sources:
       - chart: gloo-platform
         repoURL: https://storage.googleapis.com/gloo-platform/helm-charts
-        targetRevision: 2.6.3
+        targetRevision: 2.6.4
         helm:
           releaseName: gloo-platform
           valueFiles:
@@ -3593,6 +3593,8 @@ This diagram shows where the timeout and delay have been applied:
 
 ![Gloo Mesh Traffic Policies](images/steps/traffic-policies/gloo-mesh-traffic-policies.svg)
 
+
+
 Let's delete the Gloo Mesh objects we've created:
 
 ```bash
@@ -4065,6 +4067,9 @@ kubectl --context ${CLUSTER1} -n bookinfo-backends rollout status deploy/reviews
 kubectl --context ${CLUSTER1} -n bookinfo-backends rollout status deploy/reviews-v2
 ```
 
+
+
+
 Let's revert the commits we made:
 
 ```bash
@@ -4236,6 +4241,8 @@ tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
 -->
+
+
 
 Run the following commands to initiate a communication from a service which is in the mesh to another service which is in the mesh:
 
@@ -4426,6 +4433,9 @@ tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
 -->
+
+
+
 
 Let's revert the commits we made:
 
@@ -5080,7 +5090,7 @@ echo
 -->
 
 ```shell
-export GLOO_AGENT_URL=https://storage.googleapis.com/gloo-platform/vm/v2.6.3/gloo-workload-agent.deb
+export GLOO_AGENT_URL=https://storage.googleapis.com/gloo-platform/vm/v2.6.4/gloo-workload-agent.deb
 export ISTIO_URL=https://storage.googleapis.com/solo-workshops/istio-binaries/1.23.1/istio-sidecar.deb
 docker exec vm1 meshctl ew onboard --install \
   --attestor token \
@@ -5097,7 +5107,7 @@ docker exec vm1 meshctl ew onboard --install \
   --ext-workload virtualmachines/${VM_APP}
 ```
 <!--bash
-export GLOO_AGENT_URL=https://storage.googleapis.com/gloo-platform/vm/v2.6.3/gloo-workload-agent.deb
+export GLOO_AGENT_URL=https://storage.googleapis.com/gloo-platform/vm/v2.6.4/gloo-workload-agent.deb
 export ISTIO_URL=https://storage.googleapis.com/solo-workshops/istio-binaries/1.23.1/istio-sidecar.deb
 echo -n Trying to onboard the VM...
 MAX_ATTEMPTS=10
