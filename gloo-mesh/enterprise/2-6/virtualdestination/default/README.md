@@ -7,7 +7,7 @@ source ./scripts/assert.sh
 
 <center><img src="images/gloo-mesh.png" alt="Gloo Mesh Enterprise" style="width:70%;max-width:800px" /></center>
 
-# <center>Gloo Mesh Enterprise (2.6.3)</center>
+# <center>Gloo Mesh Enterprise (2.6.4)</center>
 
 
 
@@ -155,7 +155,7 @@ timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> 
 Before we get started, let's install the `meshctl` CLI:
 
 ```bash
-export GLOO_MESH_VERSION=v2.6.3
+export GLOO_MESH_VERSION=v2.6.4
 curl -sL https://run.solo.io/meshctl/install | sh -
 export PATH=$HOME/.gloo-mesh/bin:$PATH
 ```
@@ -199,13 +199,13 @@ helm upgrade --install gloo-platform-crds gloo-platform-crds \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${MGMT} \
-  --version 2.6.3
+  --version 2.6.4
 
 helm upgrade --install gloo-platform gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${MGMT} \
-  --version 2.6.3 \
+  --version 2.6.4 \
   -f -<<EOF
 licensing:
   glooTrialLicenseKey: ${GLOO_MESH_LICENSE_KEY}
@@ -356,13 +356,13 @@ helm upgrade --install gloo-platform-crds gloo-platform-crds \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${CLUSTER1} \
-  --version 2.6.3
+  --version 2.6.4
 
 helm upgrade --install gloo-platform gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${CLUSTER1} \
-  --version 2.6.3 \
+  --version 2.6.4 \
   -f -<<EOF
 common:
   cluster: cluster1
@@ -409,13 +409,13 @@ helm upgrade --install gloo-platform-crds gloo-platform-crds \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${CLUSTER2} \
-  --version 2.6.3
+  --version 2.6.4
 
 helm upgrade --install gloo-platform gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${CLUSTER2} \
-  --version 2.6.3 \
+  --version 2.6.4 \
   -f -<<EOF
 common:
   cluster: cluster2
@@ -1204,7 +1204,7 @@ helm upgrade --install gloo-platform gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh-addons \
   --kube-context ${CLUSTER1} \
-  --version 2.6.3 \
+  --version 2.6.4 \
   -f -<<EOF
 common:
   cluster: cluster1
@@ -1228,7 +1228,7 @@ helm upgrade --install gloo-platform gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh-addons \
   --kube-context ${CLUSTER2} \
-  --version 2.6.3 \
+  --version 2.6.4 \
   -f -<<EOF
 common:
   cluster: cluster2
@@ -1928,6 +1928,8 @@ If you refresh the page several times, you'll see an error message telling that 
 This diagram shows where the timeout and delay have been applied:
 
 ![Gloo Mesh Traffic Policies](images/steps/traffic-policies/gloo-mesh-traffic-policies.svg)
+
+
 
 Let's delete the Gloo Mesh objects we've created:
 
@@ -3288,6 +3290,9 @@ kubectl --context ${CLUSTER1} -n bookinfo-backends patch deployment reviews-v2  
 kubectl --context ${CLUSTER1} -n bookinfo-backends rollout status deploy/reviews-v1
 kubectl --context ${CLUSTER1} -n bookinfo-backends rollout status deploy/reviews-v2
 ```
+
+
+
 
 Let's delete the different objects we've created:
 
