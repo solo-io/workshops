@@ -1929,6 +1929,8 @@ This diagram shows where the timeout and delay have been applied:
 
 ![Gloo Mesh Traffic Policies](images/steps/traffic-policies/gloo-mesh-traffic-policies.svg)
 
+
+
 Let's delete the Gloo Mesh objects we've created:
 
 ```bash
@@ -3288,6 +3290,9 @@ kubectl --context ${CLUSTER1} -n bookinfo-backends patch deployment reviews-v2  
 kubectl --context ${CLUSTER1} -n bookinfo-backends rollout status deploy/reviews-v1
 kubectl --context ${CLUSTER1} -n bookinfo-backends rollout status deploy/reviews-v2
 ```
+
+
+
 
 Let's delete the different objects we've created:
 
