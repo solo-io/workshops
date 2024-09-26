@@ -166,10 +166,10 @@ gloo:
       disabled: true
   gateway:
     validation:
-      enabled: false
-      disableTransformationValidation: false
+      allowWarnings: true
       alwaysAcceptResources: false
   gloo:
+    logLevel: info
     deployment:
       customEnv:
         - name: GG_PORTAL_PLUGIN
@@ -1373,10 +1373,10 @@ gloo:
       disabled: false
   gateway:
     validation:
-      enabled: false
-      disableTransformationValidation: false
+      allowWarnings: true
       alwaysAcceptResources: false
   gloo:
+    logLevel: info
     deployment:
       customEnv:
         - name: GG_PORTAL_PLUGIN
