@@ -7,7 +7,7 @@ source ./scripts/assert.sh
 
 <center><img src="images/gloo-mesh.png" alt="Gloo Mesh Enterprise" style="width:70%;max-width:800px" /></center>
 
-# <center>Gloo Mesh Core (2.6.3) Ambient</center>
+# <center>Gloo Mesh Core (2.6.4) Ambient</center>
 
 
 
@@ -167,7 +167,7 @@ timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> 
 Before we get started, let's install the `meshctl` CLI:
 
 ```bash
-export GLOO_MESH_VERSION=v2.6.3
+export GLOO_MESH_VERSION=v2.6.4
 curl -sL https://run.solo.io/meshctl/install | sh -
 export PATH=$HOME/.gloo-mesh/bin:$PATH
 ```
@@ -212,13 +212,13 @@ helm upgrade --install gloo-platform-crds gloo-platform-crds \
   --namespace gloo-mesh \
   --kube-context ${MGMT} \
   --set featureGates.insightsConfiguration=true \
-  --version 2.6.3
+  --version 2.6.4
 
 helm upgrade --install gloo-platform gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${MGMT} \
-  --version 2.6.3 \
+  --version 2.6.4 \
   -f -<<EOF
 licensing:
   glooTrialLicenseKey: ${GLOO_MESH_LICENSE_KEY}
@@ -373,13 +373,13 @@ helm upgrade --install gloo-platform-crds gloo-platform-crds \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${CLUSTER1} \
-  --version 2.6.3
+  --version 2.6.4
 
 helm upgrade --install gloo-platform gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${CLUSTER1} \
-  --version 2.6.3 \
+  --version 2.6.4 \
   -f -<<EOF
 common:
   cluster: cluster1
@@ -428,13 +428,13 @@ helm upgrade --install gloo-platform-crds gloo-platform-crds \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${CLUSTER2} \
-  --version 2.6.3
+  --version 2.6.4
 
 helm upgrade --install gloo-platform gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${CLUSTER2} \
-  --version 2.6.3 \
+  --version 2.6.4 \
   -f -<<EOF
 common:
   cluster: cluster2
@@ -1840,6 +1840,88 @@ tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=150 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
 -->
+<!--bash
+cat <<'EOF' > ./test.js
+const helpers = require('./tests/chai-http');
+const puppeteer = require('puppeteer');
+const chai = require('chai');
+const expect = chai.expect;
+const GraphPage = require('./tests/pages/graph-page');
+const { recognizeTextFromScreenshot } = require('./tests/utils/image-ocr-processor');
+const { enhanceBrowser } = require('./tests/utils/enhance-browser');
+
+afterEach(function (done) {
+  if (this.currentTest.currentRetry() > 0) {
+    process.stdout.write(".");
+    setTimeout(done, 4000);
+  } else {
+    done();
+  }
+});
+
+describe("graph page", function () {
+  let browser;
+  let page;
+  let graphPage;
+
+  beforeEach(async function () {
+    browser = await puppeteer.launch({
+      headless: "new",
+      ignoreHTTPSErrors: true,
+      args: ['--no-sandbox', '--disable-setuid-sandbox'],
+    });
+    browser = enhanceBrowser(browser, this.currentTest.title);
+    page = await browser.newPage();
+    graphPage = new GraphPage(page);
+    await Promise.all(Array.from({ length: 20 }, () =>
+      helpers.checkURL({ host: `https://cluster1-bookinfo.example.com`, path: '/productpage', retCode: 200 })));
+  });
+
+  afterEach(async function () {
+    await browser.close();
+  });
+
+  it("should show ingress gateway and product page", async function () {
+    await graphPage.navigateTo(`http://${process.env.ENDPOINT_GLOO_MESH_UI}/graph`);
+
+    // Select the clusters and namespaces so that the graph shows
+    await graphPage.selectClusters(['cluster1', 'cluster2']);
+    await graphPage.selectNamespaces(['istio-gateways', 'bookinfo-backends', 'bookinfo-frontends']);
+    // Disabling Cilium nodes due to this issue: https://github.com/solo-io/gloo-mesh-enterprise/issues/18623
+    await graphPage.toggleLayoutSettings();
+    await graphPage.disableCiliumNodes();
+    await graphPage.toggleLayoutSettings();
+
+    // Capture a screenshot of the canvas and run text recognition
+    await graphPage.fullscreenGraph();
+    await graphPage.centerGraph();
+    const screenshotPath = 'ui-test-data/canvas.png';
+    await graphPage.captureCanvasScreenshot(screenshotPath);
+
+    const recognizedTexts = await recognizeTextFromScreenshot(
+      screenshotPath,
+      ["istio-ingressgateway", "productpage-v1", "details-v1", "ratings-v1", "reviews-v1", "reviews-v2"]);
+
+    const flattenedRecognizedText = recognizedTexts.join(",").replace(/\n/g, '');
+    console.log("Flattened recognized text:", flattenedRecognizedText);
+
+    // Validate recognized texts
+    expect(flattenedRecognizedText).to.include("istio-ingressgateway");
+    expect(flattenedRecognizedText).to.include("productpage-v1");
+    expect(flattenedRecognizedText).to.include("details-v1");
+    expect(flattenedRecognizedText).to.include("ratings-v1");
+    expect(flattenedRecognizedText).to.include("reviews-v1");
+    expect(flattenedRecognizedText).to.include("reviews-v2");
+  });
+});
+
+EOF
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/apps/bookinfo/gateway-expose-istio/tests/graph-shows-traffic.test.js.liquid"
+tempfile=$(mktemp)
+echo "saving errors in ${tempfile}"
+timeout --signal=INT 5m mocha ./test.js --timeout 120000 --retries=20 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
+-->
+
 
 
 
@@ -2282,28 +2364,37 @@ If you think some insights aren't relevant or too noisy, you can suppress them.
 
 <!--bash
 cat <<'EOF' > ./test.js
-const chaiExec = require("@jsdevtools/chai-exec");
 const helpersHttp = require('./tests/chai-http');
+const InsightsPage = require('./tests/pages/insights-page');
+const constants = require('./tests/pages/constants');
 const puppeteer = require('puppeteer');
 var chai = require('chai');
 var expect = chai.expect;
+const { enhanceBrowser } = require('./tests/utils/enhance-browser');
 
-describe("Insight BP0001 displayed in the UI", function() {
+afterEach(function (done) {
+  if (this.currentTest.currentRetry() > 0) {
+    process.stdout.write(".");
+    setTimeout(done, 4000);
+  } else {
+    done();
+  }
+});
+
+describe("Insights UI", function() {
   let browser;
-  let html;
+  let insightsPage;
 
   // Use Mocha's 'before' hook to set up Puppeteer
   beforeEach(async function() {
     browser = await puppeteer.launch({
       headless: "new",
       ignoreHTTPSErrors: true,
-      args: ['--no-sandbox', '--disable-setuid-sandbox'], // needed for instruqt
+      args: ['--no-sandbox', '--disable-setuid-sandbox'],
     });
+    browser = enhanceBrowser(browser, this.currentTest.title);
     let page = await browser.newPage();
-    await page.goto(`http://${process.env.ENDPOINT_GLOO_MESH_UI}/insights`);
-    await page.waitForNetworkIdle({ options: { timeout: 1000 } });
-
-    html = await page.content();
+    insightsPage = new InsightsPage(page);
   });
 
   // Use Mocha's 'after' hook to close Puppeteer
@@ -2311,10 +2402,25 @@ describe("Insight BP0001 displayed in the UI", function() {
     await browser.close();
   });
 
-  it("The page contains 'Globally scoped routing'", () => {
-    expect(html).to.contain("Globally scoped routing");
+  it("should displays BP0001 warning with text 'Globally scoped routing'", async () => {
+    await insightsPage.navigateTo(`http://${process.env.ENDPOINT_GLOO_MESH_UI}/insights`);
+    await insightsPage.selectClusters(['cluster1', 'cluster2']);
+    await insightsPage.selectInsightTypes([constants.InsightType.BP]);
+    const data = await insightsPage.getTableDataRows()
+    expect(data.some(item => item.includes("Globally scoped routing"))).to.be.true;
+  });
+
+  it("should have quick resource state filters", async () => {
+    await insightsPage.navigateTo(`http://${process.env.ENDPOINT_GLOO_MESH_UI}/insights`);
+    const healthy = await insightsPage.getHealthyResourcesCount();
+    const warning = await insightsPage.getWarningResourcesCount();
+    const error = await insightsPage.getErrorResourcesCount();
+    expect(healthy).to.be.greaterThan(0);
+    expect(warning).to.be.greaterThan(0);
+    expect(error).to.be.a('number');
   });
 });
+
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/apps/bookinfo/insights-intro/tests/insight-ui-BP0001.test.js.liquid"
 tempfile=$(mktemp)
@@ -2381,28 +2487,38 @@ EOF
 
 <!--bash
 cat <<'EOF' > ./test.js
-const chaiExec = require("@jsdevtools/chai-exec");
 const helpersHttp = require('./tests/chai-http');
+const InsightsPage = require('./tests/pages/insights-page');
+const constants = require('./tests/pages/constants');
 const puppeteer = require('puppeteer');
+const { enhanceBrowser } = require('./tests/utils/enhance-browser');
 var chai = require('chai');
 var expect = chai.expect;
 
-describe("Insight BP0002 not displayed in the UI", function() {
+afterEach(function (done) {
+  if (this.currentTest.currentRetry() > 0) {
+    process.stdout.write(".");
+    setTimeout(done, 4000);
+  } else {
+    done();
+  }
+});
+
+describe("Insights UI", function() {
   let browser;
-  let html;
+  let insightsPage;
 
   // Use Mocha's 'before' hook to set up Puppeteer
   beforeEach(async function() {
     browser = await puppeteer.launch({
       headless: "new",
       ignoreHTTPSErrors: true,
-      args: ['--no-sandbox', '--disable-setuid-sandbox'], // needed for instruqt
+      args: ['--no-sandbox', '--disable-setuid-sandbox'],
     });
+    browser = enhanceBrowser(browser, this.currentTest.title);
     let page = await browser.newPage();
-    await page.goto(`http://${process.env.ENDPOINT_GLOO_MESH_UI}/insights`);
-    await page.waitForNetworkIdle({ options: { timeout: 1000 } });
-
-    html = await page.content();
+    await page.setViewport({ width: 1500, height: 1000 });
+    insightsPage = new InsightsPage(page);
   });
 
   // Use Mocha's 'after' hook to close Puppeteer
@@ -2410,8 +2526,12 @@ describe("Insight BP0002 not displayed in the UI", function() {
     await browser.close();
   });
 
-  it("The page doesn't contain 'is not namespaced'", () => {
-    expect(html).not.to.contain("is not namespaced");
+  it("should not display BP0002 in the UI", async () => {
+    await insightsPage.navigateTo(`http://${process.env.ENDPOINT_GLOO_MESH_UI}/insights`);
+    await insightsPage.selectClusters(['cluster1', 'cluster2']);
+    await insightsPage.selectInsightTypes([constants.InsightType.BP]);
+    const data = await insightsPage.getTableDataRows()
+    expect(data.some(item => item.includes("is not namespaced"))).to.be.false;
   });
 });
 EOF
@@ -2525,28 +2645,38 @@ EOF
 
 <!--bash
 cat <<'EOF' > ./test.js
-const chaiExec = require("@jsdevtools/chai-exec");
 const helpersHttp = require('./tests/chai-http');
+const InsightsPage = require('./tests/pages/insights-page');
+const constants = require('./tests/pages/constants');
 const puppeteer = require('puppeteer');
+const { enhanceBrowser } = require('./tests/utils/enhance-browser');
 var chai = require('chai');
 var expect = chai.expect;
 
-describe("Insight BP0001 is not displayed in the UI", function() {
+afterEach(function (done) {
+  if (this.currentTest.currentRetry() > 0) {
+    process.stdout.write(".");
+    setTimeout(done, 4000);
+  } else {
+    done();
+  }
+});
+
+describe("Insights UI", function() {
   let browser;
-  let html;
+  let insightsPage;
 
   // Use Mocha's 'before' hook to set up Puppeteer
   beforeEach(async function() {
     browser = await puppeteer.launch({
       headless: "new",
       ignoreHTTPSErrors: true,
-      args: ['--no-sandbox', '--disable-setuid-sandbox'], // needed for instruqt
+      args: ['--no-sandbox', '--disable-setuid-sandbox'],
     });
+    browser = enhanceBrowser(browser, this.currentTest.title);
     let page = await browser.newPage();
-    await page.goto(`http://${process.env.ENDPOINT_GLOO_MESH_UI}/insights`);
-    await page.waitForNetworkIdle({ options: { timeout: 1000 } });
-
-    html = await page.content();
+    await page.setViewport({ width: 1500, height: 1000 });
+    insightsPage = new InsightsPage(page);
   });
 
   // Use Mocha's 'after' hook to close Puppeteer
@@ -2554,8 +2684,12 @@ describe("Insight BP0001 is not displayed in the UI", function() {
     await browser.close();
   });
 
-  it("The page doesn't contain 'Globally scoped routing'", () => {
-    expect(html).not.to.contain("Globally scoped routing");
+  it("should not display BP0001 in the UI", async () => {
+    await insightsPage.navigateTo(`http://${process.env.ENDPOINT_GLOO_MESH_UI}/insights`);
+    await insightsPage.selectClusters(['cluster1', 'cluster2']);
+    await insightsPage.selectInsightTypes([constants.InsightType.BP]);
+    const data = await insightsPage.getTableDataRows()
+    expect(data.some(item => item.includes("is not namespaced"))).to.be.false;
   });
 });
 EOF
@@ -3169,7 +3303,7 @@ timeout --signal=INT 1m mocha ./test.js --timeout 10000 --retries=60 --bail 2> $
 
 Test that you can still access the `productpage` service through the Istio Ingress Gateway corresponding to the old revision using the command below:
 
-```bash
+```shell
 curl -k "https://cluster1-bookinfo.example.com/productpage" -I
 ```
 
