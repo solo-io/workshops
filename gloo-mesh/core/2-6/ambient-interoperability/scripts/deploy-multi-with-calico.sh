@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+set -o errexit
 
 number=$1
 name=$2
@@ -30,6 +31,7 @@ cache_port='5000'
 cat > registries <<EOF
 docker https://registry-1.docker.io
 us-docker https://us-docker.pkg.dev
+us-central1-docker https://us-central1-docker.pkg.dev
 quay https://quay.io
 gcr https://gcr.io
 EOF
@@ -99,6 +101,8 @@ containerdConfigPatches:
     endpoint = ["http://docker:${cache_port}"]
   [plugins."io.containerd.grpc.v1.cri".registry.mirrors."us-docker.pkg.dev"]
     endpoint = ["http://us-docker:${cache_port}"]
+  [plugins."io.containerd.grpc.v1.cri".registry.mirrors."us-central1-docker.pkg.dev"]
+    endpoint = ["http://us-central1-docker:${cache_port}"]
   [plugins."io.containerd.grpc.v1.cri".registry.mirrors."quay.io"]
     endpoint = ["http://quay:${cache_port}"]
   [plugins."io.containerd.grpc.v1.cri".registry.mirrors."gcr.io"]
@@ -118,6 +122,8 @@ docker network connect "kind" us-docker || true
 docker network connect "kind" us-central1-docker || true
 docker network connect "kind" quay || true
 docker network connect "kind" gcr || true
+
+curl -sL https://raw.githubusercontent.com/projectcalico/calico/v3.28.1/manifests/calico.yaml | sed 's/250m/50m/g' | kubectl --context kind-kind${number} apply -f -
 
 # Preload images
 cat << EOF >> images.txt

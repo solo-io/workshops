@@ -42,7 +42,7 @@ if grep -q "$hostname" "$hosts_file"; then
     # Update the existing entry with the new IP
     tempfile=$(mktemp)
     sed "s/^.*$hostname/$new_ip $hostname/" "$hosts_file" > "$tempfile"
-    sudo mv "$tempfile" "$hosts_file"
+    sudo cp "$tempfile" "$hosts_file"
     echo "Updated $hostname in $hosts_file with new IP: $new_ip"
 else
     # Add a new entry if it doesn't exist
