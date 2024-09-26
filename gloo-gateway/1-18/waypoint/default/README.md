@@ -245,12 +245,12 @@ kubectl --context $CLUSTER1 label namespace gloo-system istio.io/dataplane-mode=
 Next, install Gloo Gateway. This command installs the Gloo Gateway control plane into the namespace `gloo-system`.
 
 ```bash
-helm repo add gloo-ee-helm https://storage.googleapis.com/gloo-ee-helm
+helm repo add gloo-ee-test-helm https://storage.googleapis.com/gloo-ee-test-helm
 
 helm repo update
 
 helm upgrade -i -n gloo-system \
-  gloo-gateway gloo-ee-helm/gloo-ee \
+  gloo-gateway gloo-ee-test-helm/gloo-ee \
   --create-namespace \
   --version 1.18.0-beta1 \
   --kube-context $CLUSTER1 \
@@ -264,10 +264,10 @@ gloo:
       disabled: true
   gateway:
     validation:
-      enabled: false
-      disableTransformationValidation: false
+      allowWarnings: true
       alwaysAcceptResources: false
   gloo:
+    logLevel: info
     deployment:
       customEnv:
         - name: GG_PORTAL_PLUGIN
