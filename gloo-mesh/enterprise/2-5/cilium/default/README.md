@@ -2112,6 +2112,8 @@ This diagram shows where the timeout and delay have been applied:
 
 ![Gloo Mesh Traffic Policies](images/steps/traffic-policies/gloo-mesh-traffic-policies.svg)
 
+
+
 Let's delete the Gloo Mesh objects we've created:
 
 ```bash
@@ -2519,6 +2521,9 @@ kubectl --context ${CLUSTER1} -n bookinfo-backends rollout status deploy/reviews
 kubectl --context ${CLUSTER1} -n bookinfo-backends rollout status deploy/reviews-v2
 ```
 
+
+
+
 Let's delete the different objects we've created:
 
 ```bash
@@ -2678,6 +2683,8 @@ tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
 -->
+
+
 
 Run the following commands to initiate a communication from a service which is in the mesh to another service which is in the mesh:
 
@@ -2847,6 +2854,9 @@ tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
 -->
+
+
+
 
 Let's rollback the change we've made in the `WorkspaceSettings` object:
 
