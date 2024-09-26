@@ -2362,6 +2362,8 @@ This diagram shows the flow of the request (with the Istio ingress gateway lever
 
 ![Gloo Mesh Gateway Rate Limiting](images/steps/gateway-ratelimiting/gloo-mesh-gateway-rate-limiting.svg)
 
+
+
 Let's apply the original `RouteTable` yaml:
 ```bash
 kubectl apply --context ${CLUSTER1} -f - <<EOF
@@ -2511,6 +2513,8 @@ server: istio-envoy
 
 Log4Shell malicious payload
 ```
+
+
 
 Let's apply the original `RouteTable` yaml:
 
@@ -2746,6 +2750,8 @@ tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
 -->
+
+
 
 Let's apply the original `RouteTable` yaml:
 
