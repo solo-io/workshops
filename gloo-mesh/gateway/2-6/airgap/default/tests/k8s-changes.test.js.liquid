@@ -1,158 +1,17 @@
-const k8s = require('@kubernetes/client-node');
-const yaml = require('js-yaml');
 const assert = require('assert');
+const { watchCRs } = require('./tests/k8s-changes');
 
 describe('Kubernetes CR Watcher', function() {
-  let contextName = "{{ context }}";
-  let durationSeconds = {{ duration }};
-  let startTime;
+  let contextName = process.env.{{ context | default: "CLUSTER1" }};
+  let delaySeconds = {{ delay | default: 5 }};
+  let durationSeconds = {{ duration | default: 10 }};
   let changeCount = 0;
-  let isWatchSetupComplete = false;
 
   it(`No CR changed in context ${contextName} for ${durationSeconds} seconds`, async function() {
-    // Load the kubeconfig
-    const kc = new k8s.KubeConfig();
-    kc.loadFromDefault();
+    this.timeout((durationSeconds + delaySeconds + 10) * 1000);
 
-    // Find and set the context
-    const contexts = kc.getContexts();
-    const context = contexts.find(c => c.name === contextName);
+    changeCount = await watchCRs(contextName, delaySeconds, durationSeconds);
 
-    assert(context, `Context "${contextName}" not found in kubeconfig`);
-
-    kc.setCurrentContext(contextName);
-
-    // Create Kubernetes API clients
-    const k8sApi = kc.makeApiClient(k8s.CustomObjectsApi);
-    const apisApi = kc.makeApiClient(k8s.ApisApi);
-
-    // Function to get resources for a group/version
-    async function getResources(group, version) {
-      try {
-        const { body } = await k8sApi.listClusterCustomObject(group, version, '');
-        return body.resources || [];
-      } catch (error) {
-        console.error(`Error getting resources for ${group}/${version}: ${error}`);
-        return [];
-      }
-    }
-
-    // Function to extract change information from an event
-    function extractChangeInfo(type, apiObj) {
-      const name = apiObj.metadata.name;
-      const namespace = apiObj.metadata.namespace;
-      const resourceVersion = apiObj.metadata.resourceVersion;
-      const kind = apiObj.kind;
-      const apiVersion = apiObj.apiVersion;
-
-      let changeInfo = `${type}: ${kind} ${name}`;
-      if (namespace) {
-        changeInfo += ` in namespace ${namespace}`;
-      }
-      changeInfo += ` (${apiVersion}, resourceVersion: ${resourceVersion})`;
-
-      if (type === 'MODIFIED') {
-        const annotations = apiObj.metadata.annotations || {};
-        const managedFields = apiObj.metadata.managedFields || [];
-        
-        const lastUpdated = managedFields.reduce((latest, field) => {
-          const fieldTime = new Date(field.time);
-          return fieldTime > latest ? fieldTime : latest;
-        }, new Date(0));
-
-        changeInfo += `\n  Last updated: ${lastUpdated.toISOString()}`;
-
-        if (annotations['kubectl.kubernetes.io/last-applied-configuration']) {
-          changeInfo += '\n  Configuration was applied using kubectl';
-        }
-
-        // List fields that were updated
-        const updatedFields = managedFields
-          .filter(field => new Date(field.time).getTime() === lastUpdated.getTime())
-          .map(field => Object.keys(field.fieldsV1 || {}))
-          .flat();
-
-        if (updatedFields.length > 0) {
-          changeInfo += `\n  Updated fields: ${updatedFields.join(', ')}`;
-        }
-      }
-
-      return changeInfo;
-    }
-
-    // Function to watch a specific CR
-    async function watchCR(group, version, plural, abortController) {
-      const watch = new k8s.Watch(kc);
-      
-      try {
-        await watch.watch(`/apis/${group}/${version}/${plural}`, 
-          { 
-            abortController,
-            allowWatchBookmarks: true
-          },
-          (type, apiObj) => {
-            if (isWatchSetupComplete) {
-              const eventTime = new Date(apiObj.metadata.creationTimestamp);
-              if ((type !== 'ADDED') || (eventTime > startTime)) {
-                const changeInfo = extractChangeInfo(type, apiObj);
-                console.log(changeInfo);
-                console.log(yaml.dump(apiObj));
-                console.log('---');
-                changeCount++;
-              }
-            } 
-          },
-          (err) => {
-            if (err && err.message !== 'aborted') {
-              console.error(`Error watching ${group}/${version}/${plural}: ${err}`);
-            }
-          }
-        );
-      } catch (error) {
-        if (error.message !== 'aborted') {
-          console.error(`Error setting up watch for ${group}/${version}/${plural}: ${error}`);
-        }
-      }
-    }
-
-    console.log(`Using context: ${contextName}`);
-    console.log(`Watching for CR changes with apiVersion containing "istio" or "gloo" for ${durationSeconds} seconds...`);
-
-    const abortController = new AbortController();
-    const watchPromises = [];
-
-    const { body: apiGroups } = await apisApi.getAPIVersions();
-    
-    for (const group of apiGroups.groups) {
-      if (group.name.includes('istio') || group.name.includes('gloo')) {
-        const latestVersion = group.preferredVersion || group.versions[0];
-        const resources = await getResources(group.name, latestVersion.version);
-        
-        for (const resource of resources) {
-          if (resource.kind && resource.name && !resource.name.includes('/')) {
-            watchPromises.push(watchCR(group.name, latestVersion.version, resource.name, abortController));
-          }
-        }
-      }
-    }
-
-    console.log("Watch setup complete. Listening for changes...");
-    isWatchSetupComplete = true;
-    startTime = new Date();
-
-    // Use a promise to wait for the specified duration
-    await new Promise(resolve => setTimeout(resolve, durationSeconds * 1000));
-
-    // Abort the watch after the specified duration
-    abortController.abort();
-    console.log(`Watch completed after ${durationSeconds} seconds.`);
-    console.log(`Total changes detected: ${changeCount}`);
-
-    // Wait for all watch promises to settle
-    await Promise.allSettled(watchPromises);
-
-    // Assert that we've completed the watch successfully
-    //assert(true, 'Watch completed successfully');
     assert.strictEqual(changeCount, 0, `Test failed: ${changeCount} changes were detected`);
   });
 
