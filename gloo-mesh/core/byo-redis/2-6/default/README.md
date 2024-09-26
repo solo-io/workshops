@@ -7,7 +7,7 @@ source ./scripts/assert.sh
 
 <center><img src="images/gloo-mesh.png" alt="Gloo Mesh Enterprise" style="width:70%;max-width:800px" /></center>
 
-# <center>Gloo Mesh Core (2.6.3)</center>
+# <center>Gloo Mesh Core (2.6.4)</center>
 
 
 
@@ -17,18 +17,15 @@ source ./scripts/assert.sh
 * [Lab 2 - Deploy own redis](#lab-2---deploy-own-redis-)
 * [Lab 3 - Deploy own redis](#lab-3---deploy-own-redis-)
 * [Lab 4 - Deploy own redis](#lab-4---deploy-own-redis-)
-* [Lab 5 - Deploy own redis](#lab-5---deploy-own-redis-)
-* [Lab 6 - Deploy own redis](#lab-6---deploy-own-redis-)
-* [Lab 7 - Deploy own redis](#lab-7---deploy-own-redis-)
-* [Lab 8 - Deploy and register Gloo Mesh](#lab-8---deploy-and-register-gloo-mesh-)
-* [Lab 9 - Deploy Istio using Gloo Mesh Lifecycle Manager](#lab-9---deploy-istio-using-gloo-mesh-lifecycle-manager-)
-* [Lab 10 - Deploy the Bookinfo demo app](#lab-10---deploy-the-bookinfo-demo-app-)
-* [Lab 11 - Deploy the httpbin demo app](#lab-11---deploy-the-httpbin-demo-app-)
-* [Lab 12 - Expose the productpage service through a gateway using Istio resources](#lab-12---expose-the-productpage-service-through-a-gateway-using-istio-resources-)
-* [Lab 13 - Introduction to Insights](#lab-13---introduction-to-insights-)
-* [Lab 14 - Insights related to configuration errors](#lab-14---insights-related-to-configuration-errors-)
-* [Lab 15 - Insights related to security issues](#lab-15---insights-related-to-security-issues-)
-* [Lab 16 - Insights related to health issues](#lab-16---insights-related-to-health-issues-)
+* [Lab 5 - Deploy and register Gloo Mesh](#lab-5---deploy-and-register-gloo-mesh-)
+* [Lab 6 - Deploy Istio using Gloo Mesh Lifecycle Manager](#lab-6---deploy-istio-using-gloo-mesh-lifecycle-manager-)
+* [Lab 7 - Deploy the Bookinfo demo app](#lab-7---deploy-the-bookinfo-demo-app-)
+* [Lab 8 - Deploy the httpbin demo app](#lab-8---deploy-the-httpbin-demo-app-)
+* [Lab 9 - Expose the productpage service through a gateway using Istio resources](#lab-9---expose-the-productpage-service-through-a-gateway-using-istio-resources-)
+* [Lab 10 - Introduction to Insights](#lab-10---introduction-to-insights-)
+* [Lab 11 - Insights related to configuration errors](#lab-11---insights-related-to-configuration-errors-)
+* [Lab 12 - Insights related to security issues](#lab-12---insights-related-to-security-issues-)
+* [Lab 13 - Insights related to health issues](#lab-13---insights-related-to-health-issues-)
 
 
 
@@ -164,7 +161,7 @@ The goal of this step is to simulate your own external Redis in a cloud instance
 Let's install Redis on the cluster. We'll disable persistence and set the username and password for the Redis server to `{ vars.redis_user}` and `{ vars.redis_password}` respectively.
 
 ```bash
-kubectl apply --context ${CLUSTER2} -f - <<EOF
+kubectl apply --context ${MGMT} -f - <<EOF
 kind: Namespace
 apiVersion: v1
 metadata:
@@ -260,10 +257,10 @@ EOF
 ```
 Now we'll expose the Redis service only with TLS enabled:
 ```bash
-openssl genrsa -out ca${CLUSTER2}.key 2048
-openssl req -x509 -new -nodes -key ca${CLUSTER2}.key -days 1825 -out ca${CLUSTER2}.crt -subj "/CN=redis-ca"
-openssl genrsa -out redis${CLUSTER2}.key 2048
-openssl req -new -key redis${CLUSTER2}.key -out redis${CLUSTER2}.csr -config -<<EOF
+openssl genrsa -out ca${MGMT}.key 2048
+openssl req -x509 -new -nodes -key ca${MGMT}.key -days 1825 -out ca${MGMT}.crt -subj "/CN=redis-ca"
+openssl genrsa -out redis${MGMT}.key 2048
+openssl req -new -key redis${MGMT}.key -out redis${MGMT}.csr -config -<<EOF
 [ req ]
 default_bits       = 2048
 default_md         = sha256
@@ -274,7 +271,7 @@ prompt             = no
 CN = redis-ext
 
 EOF
-openssl x509 -req -in redis${CLUSTER2}.csr -CA ca${CLUSTER2}.crt -CAkey ca${CLUSTER2}.key -CAcreateserial -out redis${CLUSTER2}.crt -days 365 -sha256 -extensions v3_req -extfile -<<EOF
+openssl x509 -req -in redis${MGMT}.csr -CA ca${MGMT}.crt -CAkey ca${MGMT}.key -CAcreateserial -out redis${MGMT}.crt -days 365 -sha256 -extensions v3_req -extfile -<<EOF
 [ v3_req ]
 subjectAltName = @alt_names
 
@@ -282,10 +279,10 @@ subjectAltName = @alt_names
 DNS.1 = redis-ext.redis-ns
 DNS.2 = redis-ext.redis-ns.svc.cluster.local
 EOF
-kubectl create --context ${CLUSTER2} -n redis-ns secret generic redis-tls \
-  --from-file=redis.key=./redis${CLUSTER2}.key \
-  --from-file=redis.crt=./redis${CLUSTER2}.crt \
-  --from-file=ca.crt=./ca${CLUSTER2}.crt
+kubectl create --context ${MGMT} -n redis-ns secret generic redis-tls \
+  --from-file=redis.key=./redis${MGMT}.key \
+  --from-file=redis.crt=./redis${MGMT}.crt \
+  --from-file=ca.crt=./ca${MGMT}.crt
 ```
 
 <!--bash
@@ -293,8 +290,8 @@ cat <<'EOF' > ./test.js
 const helpers = require('./tests/chai-exec');
 
 describe("Redis is healthy", () => {
-    it(`Redis service is present`, () => helpers.k8sObjectIsPresent({ context: `${process.env.CLUSTER2}`, namespace: "redis-ns", k8sType: "service", k8sObj: "redis-ext" }));
-    it(`Redis pods are ready`, () => helpers.checkDeploymentsWithLabels({ context: `${process.env.CLUSTER2}`, namespace: "redis-ns", labels: "app=redis", instances: 1 }));
+    it(`Redis service is present`, () => helpers.k8sObjectIsPresent({ context: `${process.env.MGMT}`, namespace: "redis-ns", k8sType: "service", k8sObj: "redis-ext" }));
+    it(`Redis pods are ready`, () => helpers.checkDeploymentsWithLabels({ context: `${process.env.MGMT}`, namespace: "redis-ns", labels: "app=redis", instances: 1 }));
 });
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/deploy-redis/tests/redis-healthy.test.js.liquid"
@@ -460,7 +457,7 @@ The goal of this step is to simulate your own external Redis in a cloud instance
 Let's install Redis on the cluster. We'll disable persistence and set the username and password for the Redis server to `{ vars.redis_user}` and `{ vars.redis_password}` respectively.
 
 ```bash
-kubectl apply --context ${CLUSTER1} -f - <<EOF
+kubectl apply --context ${CLUSTER2} -f - <<EOF
 kind: Namespace
 apiVersion: v1
 metadata:
@@ -556,10 +553,10 @@ EOF
 ```
 Now we'll expose the Redis service only with TLS enabled:
 ```bash
-openssl genrsa -out ca${CLUSTER1}.key 2048
-openssl req -x509 -new -nodes -key ca${CLUSTER1}.key -days 1825 -out ca${CLUSTER1}.crt -subj "/CN=redis-ca"
-openssl genrsa -out redis${CLUSTER1}.key 2048
-openssl req -new -key redis${CLUSTER1}.key -out redis${CLUSTER1}.csr -config -<<EOF
+openssl genrsa -out ca${CLUSTER2}.key 2048
+openssl req -x509 -new -nodes -key ca${CLUSTER2}.key -days 1825 -out ca${CLUSTER2}.crt -subj "/CN=redis-ca"
+openssl genrsa -out redis${CLUSTER2}.key 2048
+openssl req -new -key redis${CLUSTER2}.key -out redis${CLUSTER2}.csr -config -<<EOF
 [ req ]
 default_bits       = 2048
 default_md         = sha256
@@ -570,7 +567,7 @@ prompt             = no
 CN = redis-ext
 
 EOF
-openssl x509 -req -in redis${CLUSTER1}.csr -CA ca${CLUSTER1}.crt -CAkey ca${CLUSTER1}.key -CAcreateserial -out redis${CLUSTER1}.crt -days 365 -sha256 -extensions v3_req -extfile -<<EOF
+openssl x509 -req -in redis${CLUSTER2}.csr -CA ca${CLUSTER2}.crt -CAkey ca${CLUSTER2}.key -CAcreateserial -out redis${CLUSTER2}.crt -days 365 -sha256 -extensions v3_req -extfile -<<EOF
 [ v3_req ]
 subjectAltName = @alt_names
 
@@ -578,10 +575,10 @@ subjectAltName = @alt_names
 DNS.1 = redis-ext.redis-ns
 DNS.2 = redis-ext.redis-ns.svc.cluster.local
 EOF
-kubectl create --context ${CLUSTER1} -n redis-ns secret generic redis-tls \
-  --from-file=redis.key=./redis${CLUSTER1}.key \
-  --from-file=redis.crt=./redis${CLUSTER1}.crt \
-  --from-file=ca.crt=./ca${CLUSTER1}.crt
+kubectl create --context ${CLUSTER2} -n redis-ns secret generic redis-tls \
+  --from-file=redis.key=./redis${CLUSTER2}.key \
+  --from-file=redis.crt=./redis${CLUSTER2}.crt \
+  --from-file=ca.crt=./ca${CLUSTER2}.crt
 ```
 
 <!--bash
@@ -589,8 +586,8 @@ cat <<'EOF' > ./test.js
 const helpers = require('./tests/chai-exec');
 
 describe("Redis is healthy", () => {
-    it(`Redis service is present`, () => helpers.k8sObjectIsPresent({ context: `${process.env.CLUSTER1}`, namespace: "redis-ns", k8sType: "service", k8sObj: "redis-ext" }));
-    it(`Redis pods are ready`, () => helpers.checkDeploymentsWithLabels({ context: `${process.env.CLUSTER1}`, namespace: "redis-ns", labels: "app=redis", instances: 1 }));
+    it(`Redis service is present`, () => helpers.k8sObjectIsPresent({ context: `${process.env.CLUSTER2}`, namespace: "redis-ns", k8sType: "service", k8sObj: "redis-ext" }));
+    it(`Redis pods are ready`, () => helpers.checkDeploymentsWithLabels({ context: `${process.env.CLUSTER2}`, namespace: "redis-ns", labels: "app=redis", instances: 1 }));
 });
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/deploy-redis/tests/redis-healthy.test.js.liquid"
@@ -602,458 +599,14 @@ timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=30 --bail 2> $
 
 
 
-## Lab 5 - Deploy own redis <a name="lab-5---deploy-own-redis-"></a>
-
-The goal of this step is to simulate your own external Redis in a cloud instance, such as AWS ElastiCache, Redis Cloud or Google Cloud Memorystore.
-Let's install Redis on the cluster. We'll disable persistence and set the username and password for the Redis server to `{ vars.redis_user}` and `{ vars.redis_password}` respectively.
-
-```bash
-kubectl apply --context ${CLUSTER1} -f - <<EOF
-kind: Namespace
-apiVersion: v1
-metadata:
-  name: redis-ns
----
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: redis-config
-  namespace: redis-ns
-data:
-  redis.conf: |
-    user default off nopass ~* +@all
-    user gloo on >passwordpassword ~* +@all
-    requirepass defaultuserpassword
-    save ""
-    appendonly no
-    maxmemory-policy noeviction
-    tls-port 6379
-    port 0
-    
-    tls-cert-file /etc/redis/tls/redis.crt
-    tls-key-file /etc/redis/tls/redis.key
-    tls-ca-cert-file /etc/redis/tls/ca.crt
-    
-    tls-auth-clients no
-    tls-replication yes
-    tls-cluster yes
----
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: redis
-  namespace: redis-ns
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: redis-ext
-  namespace: redis-ns
-  labels:
-    app: redis
-spec:
-  ports:
-  - name: tcp
-    port: 6379
-  selector:
-    app: redis
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: redis-ext
-  namespace: redis-ns
-  labels:
-    app: redis
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: redis
-      version: v1
-  template:
-    metadata:
-      labels:
-        app: redis
-        version: v1
-    spec:
-      serviceAccountName: redis
-      containers:
-      - image: redis:7.4.0
-        name: redis
-        ports:
-        - name: tcp
-          containerPort: 6379
-        volumeMounts:
-        - name: redis-config-volume
-          mountPath: /usr/local/etc/redis/redis.conf
-          subPath: redis.conf
-        - name: redis-tls
-          mountPath: /etc/redis/tls
-          readOnly: true
-        command: ["redis-server", "/usr/local/etc/redis/redis.conf"]
-      volumes:
-      - name: redis-config-volume
-        configMap:
-          name: redis-config
-      - name: redis-tls
-        secret:
-          secretName: redis-tls
-          optional: true
-EOF
-```
-Now we'll expose the Redis service only with TLS enabled:
-```bash
-openssl genrsa -out ca${CLUSTER1}.key 2048
-openssl req -x509 -new -nodes -key ca${CLUSTER1}.key -days 1825 -out ca${CLUSTER1}.crt -subj "/CN=redis-ca"
-openssl genrsa -out redis${CLUSTER1}.key 2048
-openssl req -new -key redis${CLUSTER1}.key -out redis${CLUSTER1}.csr -config -<<EOF
-[ req ]
-default_bits       = 2048
-default_md         = sha256
-distinguished_name = req_distinguished_name
-prompt             = no
-
-[ req_distinguished_name ]
-CN = redis-ext
-
-EOF
-openssl x509 -req -in redis${CLUSTER1}.csr -CA ca${CLUSTER1}.crt -CAkey ca${CLUSTER1}.key -CAcreateserial -out redis${CLUSTER1}.crt -days 365 -sha256 -extensions v3_req -extfile -<<EOF
-[ v3_req ]
-subjectAltName = @alt_names
-
-[ alt_names ]
-DNS.1 = redis-ext.redis-ns
-DNS.2 = redis-ext.redis-ns.svc.cluster.local
-EOF
-kubectl create --context ${CLUSTER1} -n redis-ns secret generic redis-tls \
-  --from-file=redis.key=./redis${CLUSTER1}.key \
-  --from-file=redis.crt=./redis${CLUSTER1}.crt \
-  --from-file=ca.crt=./ca${CLUSTER1}.crt
-```
-
-<!--bash
-cat <<'EOF' > ./test.js
-const helpers = require('./tests/chai-exec');
-
-describe("Redis is healthy", () => {
-    it(`Redis service is present`, () => helpers.k8sObjectIsPresent({ context: `${process.env.CLUSTER1}`, namespace: "redis-ns", k8sType: "service", k8sObj: "redis-ext" }));
-    it(`Redis pods are ready`, () => helpers.checkDeploymentsWithLabels({ context: `${process.env.CLUSTER1}`, namespace: "redis-ns", labels: "app=redis", instances: 1 }));
-});
-EOF
-echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/deploy-redis/tests/redis-healthy.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=30 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
--->
-
-
-
-
-## Lab 6 - Deploy own redis <a name="lab-6---deploy-own-redis-"></a>
-
-The goal of this step is to simulate your own external Redis in a cloud instance, such as AWS ElastiCache, Redis Cloud or Google Cloud Memorystore.
-Let's install Redis on the cluster. We'll disable persistence and set the username and password for the Redis server to `{ vars.redis_user}` and `{ vars.redis_password}` respectively.
-
-```bash
-kubectl apply --context ${MGMT} -f - <<EOF
-kind: Namespace
-apiVersion: v1
-metadata:
-  name: redis-ns
----
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: redis-config
-  namespace: redis-ns
-data:
-  redis.conf: |
-    user default off nopass ~* +@all
-    user gloo on >passwordpassword ~* +@all
-    requirepass defaultuserpassword
-    save ""
-    appendonly no
-    maxmemory-policy noeviction
-    tls-port 6379
-    port 0
-    
-    tls-cert-file /etc/redis/tls/redis.crt
-    tls-key-file /etc/redis/tls/redis.key
-    tls-ca-cert-file /etc/redis/tls/ca.crt
-    
-    tls-auth-clients no
-    tls-replication yes
-    tls-cluster yes
----
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: redis
-  namespace: redis-ns
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: redis-ext
-  namespace: redis-ns
-  labels:
-    app: redis
-spec:
-  ports:
-  - name: tcp
-    port: 6379
-  selector:
-    app: redis
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: redis-ext
-  namespace: redis-ns
-  labels:
-    app: redis
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: redis
-      version: v1
-  template:
-    metadata:
-      labels:
-        app: redis
-        version: v1
-    spec:
-      serviceAccountName: redis
-      containers:
-      - image: redis:7.4.0
-        name: redis
-        ports:
-        - name: tcp
-          containerPort: 6379
-        volumeMounts:
-        - name: redis-config-volume
-          mountPath: /usr/local/etc/redis/redis.conf
-          subPath: redis.conf
-        - name: redis-tls
-          mountPath: /etc/redis/tls
-          readOnly: true
-        command: ["redis-server", "/usr/local/etc/redis/redis.conf"]
-      volumes:
-      - name: redis-config-volume
-        configMap:
-          name: redis-config
-      - name: redis-tls
-        secret:
-          secretName: redis-tls
-          optional: true
-EOF
-```
-Now we'll expose the Redis service only with TLS enabled:
-```bash
-openssl genrsa -out ca${MGMT}.key 2048
-openssl req -x509 -new -nodes -key ca${MGMT}.key -days 1825 -out ca${MGMT}.crt -subj "/CN=redis-ca"
-openssl genrsa -out redis${MGMT}.key 2048
-openssl req -new -key redis${MGMT}.key -out redis${MGMT}.csr -config -<<EOF
-[ req ]
-default_bits       = 2048
-default_md         = sha256
-distinguished_name = req_distinguished_name
-prompt             = no
-
-[ req_distinguished_name ]
-CN = redis-ext
-
-EOF
-openssl x509 -req -in redis${MGMT}.csr -CA ca${MGMT}.crt -CAkey ca${MGMT}.key -CAcreateserial -out redis${MGMT}.crt -days 365 -sha256 -extensions v3_req -extfile -<<EOF
-[ v3_req ]
-subjectAltName = @alt_names
-
-[ alt_names ]
-DNS.1 = redis-ext.redis-ns
-DNS.2 = redis-ext.redis-ns.svc.cluster.local
-EOF
-kubectl create --context ${MGMT} -n redis-ns secret generic redis-tls \
-  --from-file=redis.key=./redis${MGMT}.key \
-  --from-file=redis.crt=./redis${MGMT}.crt \
-  --from-file=ca.crt=./ca${MGMT}.crt
-```
-
-<!--bash
-cat <<'EOF' > ./test.js
-const helpers = require('./tests/chai-exec');
-
-describe("Redis is healthy", () => {
-    it(`Redis service is present`, () => helpers.k8sObjectIsPresent({ context: `${process.env.MGMT}`, namespace: "redis-ns", k8sType: "service", k8sObj: "redis-ext" }));
-    it(`Redis pods are ready`, () => helpers.checkDeploymentsWithLabels({ context: `${process.env.MGMT}`, namespace: "redis-ns", labels: "app=redis", instances: 1 }));
-});
-EOF
-echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/deploy-redis/tests/redis-healthy.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=30 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
--->
-
-
-
-
-## Lab 7 - Deploy own redis <a name="lab-7---deploy-own-redis-"></a>
-
-The goal of this step is to simulate your own external Redis in a cloud instance, such as AWS ElastiCache, Redis Cloud or Google Cloud Memorystore.
-Let's install Redis on the cluster. We'll disable persistence and set the username and password for the Redis server to `{ vars.redis_user}` and `{ vars.redis_password}` respectively.
-
-```bash
-kubectl apply --context ${CLUSTER1} -f - <<EOF
-kind: Namespace
-apiVersion: v1
-metadata:
-  name: redis-ns
----
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: redis-config
-  namespace: redis-ns
-data:
-  redis.conf: |
-    user default off nopass ~* +@all
-    user gloo on >passwordpassword ~* +@all
-    requirepass defaultuserpassword
-    save ""
-    appendonly no
-    maxmemory-policy noeviction
-    tls-port 6379
-    port 0
-    
-    tls-cert-file /etc/redis/tls/redis.crt
-    tls-key-file /etc/redis/tls/redis.key
-    tls-ca-cert-file /etc/redis/tls/ca.crt
-    
-    tls-auth-clients no
-    tls-replication yes
-    tls-cluster yes
----
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: redis
-  namespace: redis-ns
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: redis-ext
-  namespace: redis-ns
-  labels:
-    app: redis
-spec:
-  ports:
-  - name: tcp
-    port: 6379
-  selector:
-    app: redis
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: redis-ext
-  namespace: redis-ns
-  labels:
-    app: redis
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: redis
-      version: v1
-  template:
-    metadata:
-      labels:
-        app: redis
-        version: v1
-    spec:
-      serviceAccountName: redis
-      containers:
-      - image: redis:7.4.0
-        name: redis
-        ports:
-        - name: tcp
-          containerPort: 6379
-        volumeMounts:
-        - name: redis-config-volume
-          mountPath: /usr/local/etc/redis/redis.conf
-          subPath: redis.conf
-        - name: redis-tls
-          mountPath: /etc/redis/tls
-          readOnly: true
-        command: ["redis-server", "/usr/local/etc/redis/redis.conf"]
-      volumes:
-      - name: redis-config-volume
-        configMap:
-          name: redis-config
-      - name: redis-tls
-        secret:
-          secretName: redis-tls
-          optional: true
-EOF
-```
-Now we'll expose the Redis service only with TLS enabled:
-```bash
-openssl genrsa -out ca${CLUSTER1}.key 2048
-openssl req -x509 -new -nodes -key ca${CLUSTER1}.key -days 1825 -out ca${CLUSTER1}.crt -subj "/CN=redis-ca"
-openssl genrsa -out redis${CLUSTER1}.key 2048
-openssl req -new -key redis${CLUSTER1}.key -out redis${CLUSTER1}.csr -config -<<EOF
-[ req ]
-default_bits       = 2048
-default_md         = sha256
-distinguished_name = req_distinguished_name
-prompt             = no
-
-[ req_distinguished_name ]
-CN = redis-ext
-
-EOF
-openssl x509 -req -in redis${CLUSTER1}.csr -CA ca${CLUSTER1}.crt -CAkey ca${CLUSTER1}.key -CAcreateserial -out redis${CLUSTER1}.crt -days 365 -sha256 -extensions v3_req -extfile -<<EOF
-[ v3_req ]
-subjectAltName = @alt_names
-
-[ alt_names ]
-DNS.1 = redis-ext.redis-ns
-DNS.2 = redis-ext.redis-ns.svc.cluster.local
-EOF
-kubectl create --context ${CLUSTER1} -n redis-ns secret generic redis-tls \
-  --from-file=redis.key=./redis${CLUSTER1}.key \
-  --from-file=redis.crt=./redis${CLUSTER1}.crt \
-  --from-file=ca.crt=./ca${CLUSTER1}.crt
-```
-
-<!--bash
-cat <<'EOF' > ./test.js
-const helpers = require('./tests/chai-exec');
-
-describe("Redis is healthy", () => {
-    it(`Redis service is present`, () => helpers.k8sObjectIsPresent({ context: `${process.env.CLUSTER1}`, namespace: "redis-ns", k8sType: "service", k8sObj: "redis-ext" }));
-    it(`Redis pods are ready`, () => helpers.checkDeploymentsWithLabels({ context: `${process.env.CLUSTER1}`, namespace: "redis-ns", labels: "app=redis", instances: 1 }));
-});
-EOF
-echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/deploy-redis/tests/redis-healthy.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=30 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
--->
-
-
-
-
-## Lab 8 - Deploy and register Gloo Mesh <a name="lab-8---deploy-and-register-gloo-mesh-"></a>
+## Lab 5 - Deploy and register Gloo Mesh <a name="lab-5---deploy-and-register-gloo-mesh-"></a>
 [<img src="https://img.youtube.com/vi/djfFiepK4GY/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/djfFiepK4GY "Video Link")
 
 
 Before we get started, let's install the `meshctl` CLI:
 
 ```bash
-export GLOO_MESH_VERSION=v2.6.3
+export GLOO_MESH_VERSION=v2.6.4
 curl -sL https://run.solo.io/meshctl/install | sh -
 export PATH=$HOME/.gloo-mesh/bin:$PATH
 ```
@@ -1144,13 +697,13 @@ helm upgrade --install gloo-platform-crds gloo-platform-crds \
   --namespace gloo-mesh \
   --kube-context ${MGMT} \
   --set featureGates.insightsConfiguration=true \
-  --version 2.6.3
+  --version 2.6.4
 
 helm upgrade --install gloo-platform gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${MGMT} \
-  --version 2.6.3 \
+  --version 2.6.4 \
   -f -<<EOF
 licensing:
   glooTrialLicenseKey: ${GLOO_MESH_LICENSE_KEY}
@@ -1362,13 +915,13 @@ helm upgrade --install gloo-platform-crds gloo-platform-crds \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${CLUSTER1} \
-  --version 2.6.3
+  --version 2.6.4
 
 helm upgrade --install gloo-platform gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${CLUSTER1} \
-  --version 2.6.3 \
+  --version 2.6.4 \
   -f -<<EOF
 common:
   cluster: cluster1
@@ -1437,13 +990,13 @@ helm upgrade --install gloo-platform-crds gloo-platform-crds \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${CLUSTER2} \
-  --version 2.6.3
+  --version 2.6.4
 
 helm upgrade --install gloo-platform gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${CLUSTER2} \
-  --version 2.6.3 \
+  --version 2.6.4 \
   -f -<<EOF
 common:
   cluster: cluster2
@@ -1543,7 +1096,7 @@ timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> 
 
 
 
-## Lab 9 - Deploy Istio using Gloo Mesh Lifecycle Manager <a name="lab-9---deploy-istio-using-gloo-mesh-lifecycle-manager-"></a>
+## Lab 6 - Deploy Istio using Gloo Mesh Lifecycle Manager <a name="lab-6---deploy-istio-using-gloo-mesh-lifecycle-manager-"></a>
 [<img src="https://img.youtube.com/vi/f76-KOEjqHs/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/f76-KOEjqHs "Video Link")
 
 We are going to deploy Istio using Gloo Mesh Lifecycle Manager.
@@ -2090,7 +1643,7 @@ timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> 
 
 
 
-## Lab 10 - Deploy the Bookinfo demo app <a name="lab-10---deploy-the-bookinfo-demo-app-"></a>
+## Lab 7 - Deploy the Bookinfo demo app <a name="lab-7---deploy-the-bookinfo-demo-app-"></a>
 [<img src="https://img.youtube.com/vi/nzYcrjalY5A/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/nzYcrjalY5A "Video Link")
 
 We're going to deploy the bookinfo application to demonstrate several features of Gloo Mesh.
@@ -2217,7 +1770,7 @@ timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> 
 
 
 
-## Lab 11 - Deploy the httpbin demo app <a name="lab-11---deploy-the-httpbin-demo-app-"></a>
+## Lab 8 - Deploy the httpbin demo app <a name="lab-8---deploy-the-httpbin-demo-app-"></a>
 [<img src="https://img.youtube.com/vi/w1xB-o_gHs0/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/w1xB-o_gHs0 "Video Link")
 
 We're going to deploy the httpbin application to demonstrate several features of Gloo Mesh.
@@ -2397,7 +1950,7 @@ timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> 
 
 
 
-## Lab 12 - Expose the productpage service through a gateway using Istio resources <a name="lab-12---expose-the-productpage-service-through-a-gateway-using-istio-resources-"></a>
+## Lab 9 - Expose the productpage service through a gateway using Istio resources <a name="lab-9---expose-the-productpage-service-through-a-gateway-using-istio-resources-"></a>
 
 In this step, we're going to expose the `productpage` service through the Ingress Gateway using Istio resources.
 
@@ -2568,10 +2121,92 @@ tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=150 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
 -->
+<!--bash
+cat <<'EOF' > ./test.js
+const helpers = require('./tests/chai-http');
+const puppeteer = require('puppeteer');
+const chai = require('chai');
+const expect = chai.expect;
+const GraphPage = require('./tests/pages/graph-page');
+const { recognizeTextFromScreenshot } = require('./tests/utils/image-ocr-processor');
+const { enhanceBrowser } = require('./tests/utils/enhance-browser');
+
+afterEach(function (done) {
+  if (this.currentTest.currentRetry() > 0) {
+    process.stdout.write(".");
+    setTimeout(done, 4000);
+  } else {
+    done();
+  }
+});
+
+describe("graph page", function () {
+  let browser;
+  let page;
+  let graphPage;
+
+  beforeEach(async function () {
+    browser = await puppeteer.launch({
+      headless: "new",
+      ignoreHTTPSErrors: true,
+      args: ['--no-sandbox', '--disable-setuid-sandbox'],
+    });
+    browser = enhanceBrowser(browser, this.currentTest.title);
+    page = await browser.newPage();
+    graphPage = new GraphPage(page);
+    await Promise.all(Array.from({ length: 20 }, () =>
+      helpers.checkURL({ host: `https://cluster1-bookinfo.example.com`, path: '/productpage', retCode: 200 })));
+  });
+
+  afterEach(async function () {
+    await browser.close();
+  });
+
+  it("should show ingress gateway and product page", async function () {
+    await graphPage.navigateTo(`http://${process.env.ENDPOINT_GLOO_MESH_UI}/graph`);
+
+    // Select the clusters and namespaces so that the graph shows
+    await graphPage.selectClusters(['cluster1', 'cluster2']);
+    await graphPage.selectNamespaces(['istio-gateways', 'bookinfo-backends', 'bookinfo-frontends']);
+    // Disabling Cilium nodes due to this issue: https://github.com/solo-io/gloo-mesh-enterprise/issues/18623
+    await graphPage.toggleLayoutSettings();
+    await graphPage.disableCiliumNodes();
+    await graphPage.toggleLayoutSettings();
+
+    // Capture a screenshot of the canvas and run text recognition
+    await graphPage.fullscreenGraph();
+    await graphPage.centerGraph();
+    const screenshotPath = 'ui-test-data/canvas.png';
+    await graphPage.captureCanvasScreenshot(screenshotPath);
+
+    const recognizedTexts = await recognizeTextFromScreenshot(
+      screenshotPath,
+      ["istio-ingressgateway", "productpage-v1", "details-v1", "ratings-v1", "reviews-v1", "reviews-v2"]);
+
+    const flattenedRecognizedText = recognizedTexts.join(",").replace(/\n/g, '');
+    console.log("Flattened recognized text:", flattenedRecognizedText);
+
+    // Validate recognized texts
+    expect(flattenedRecognizedText).to.include("istio-ingressgateway");
+    expect(flattenedRecognizedText).to.include("productpage-v1");
+    expect(flattenedRecognizedText).to.include("details-v1");
+    expect(flattenedRecognizedText).to.include("ratings-v1");
+    expect(flattenedRecognizedText).to.include("reviews-v1");
+    expect(flattenedRecognizedText).to.include("reviews-v2");
+  });
+});
+
+EOF
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/apps/bookinfo/gateway-expose-istio/tests/graph-shows-traffic.test.js.liquid"
+tempfile=$(mktemp)
+echo "saving errors in ${tempfile}"
+timeout --signal=INT 5m mocha ./test.js --timeout 120000 --retries=20 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
+-->
 
 
 
-## Lab 13 - Introduction to Insights <a name="lab-13---introduction-to-insights-"></a>
+
+## Lab 10 - Introduction to Insights <a name="lab-10---introduction-to-insights-"></a>
 
 
 
@@ -2588,28 +2223,37 @@ If you think some insights aren't relevant or too noisy, you can suppress them.
 
 <!--bash
 cat <<'EOF' > ./test.js
-const chaiExec = require("@jsdevtools/chai-exec");
 const helpersHttp = require('./tests/chai-http');
+const InsightsPage = require('./tests/pages/insights-page');
+const constants = require('./tests/pages/constants');
 const puppeteer = require('puppeteer');
 var chai = require('chai');
 var expect = chai.expect;
+const { enhanceBrowser } = require('./tests/utils/enhance-browser');
 
-describe("Insight BP0001 displayed in the UI", function() {
+afterEach(function (done) {
+  if (this.currentTest.currentRetry() > 0) {
+    process.stdout.write(".");
+    setTimeout(done, 4000);
+  } else {
+    done();
+  }
+});
+
+describe("Insights UI", function() {
   let browser;
-  let html;
+  let insightsPage;
 
   // Use Mocha's 'before' hook to set up Puppeteer
   beforeEach(async function() {
     browser = await puppeteer.launch({
       headless: "new",
       ignoreHTTPSErrors: true,
-      args: ['--no-sandbox', '--disable-setuid-sandbox'], // needed for instruqt
+      args: ['--no-sandbox', '--disable-setuid-sandbox'],
     });
+    browser = enhanceBrowser(browser, this.currentTest.title);
     let page = await browser.newPage();
-    await page.goto(`http://${process.env.ENDPOINT_GLOO_MESH_UI}/insights`);
-    await page.waitForNetworkIdle({ options: { timeout: 1000 } });
-
-    html = await page.content();
+    insightsPage = new InsightsPage(page);
   });
 
   // Use Mocha's 'after' hook to close Puppeteer
@@ -2617,10 +2261,25 @@ describe("Insight BP0001 displayed in the UI", function() {
     await browser.close();
   });
 
-  it("The page contains 'Globally scoped routing'", () => {
-    expect(html).to.contain("Globally scoped routing");
+  it("should displays BP0001 warning with text 'Globally scoped routing'", async () => {
+    await insightsPage.navigateTo(`http://${process.env.ENDPOINT_GLOO_MESH_UI}/insights`);
+    await insightsPage.selectClusters(['cluster1', 'cluster2']);
+    await insightsPage.selectInsightTypes([constants.InsightType.BP]);
+    const data = await insightsPage.getTableDataRows()
+    expect(data.some(item => item.includes("Globally scoped routing"))).to.be.true;
+  });
+
+  it("should have quick resource state filters", async () => {
+    await insightsPage.navigateTo(`http://${process.env.ENDPOINT_GLOO_MESH_UI}/insights`);
+    const healthy = await insightsPage.getHealthyResourcesCount();
+    const warning = await insightsPage.getWarningResourcesCount();
+    const error = await insightsPage.getErrorResourcesCount();
+    expect(healthy).to.be.greaterThan(0);
+    expect(warning).to.be.greaterThan(0);
+    expect(error).to.be.a('number');
   });
 });
+
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/apps/bookinfo/insights-intro/tests/insight-ui-BP0001.test.js.liquid"
 tempfile=$(mktemp)
@@ -2687,28 +2346,38 @@ EOF
 
 <!--bash
 cat <<'EOF' > ./test.js
-const chaiExec = require("@jsdevtools/chai-exec");
 const helpersHttp = require('./tests/chai-http');
+const InsightsPage = require('./tests/pages/insights-page');
+const constants = require('./tests/pages/constants');
 const puppeteer = require('puppeteer');
+const { enhanceBrowser } = require('./tests/utils/enhance-browser');
 var chai = require('chai');
 var expect = chai.expect;
 
-describe("Insight BP0002 not displayed in the UI", function() {
+afterEach(function (done) {
+  if (this.currentTest.currentRetry() > 0) {
+    process.stdout.write(".");
+    setTimeout(done, 4000);
+  } else {
+    done();
+  }
+});
+
+describe("Insights UI", function() {
   let browser;
-  let html;
+  let insightsPage;
 
   // Use Mocha's 'before' hook to set up Puppeteer
   beforeEach(async function() {
     browser = await puppeteer.launch({
       headless: "new",
       ignoreHTTPSErrors: true,
-      args: ['--no-sandbox', '--disable-setuid-sandbox'], // needed for instruqt
+      args: ['--no-sandbox', '--disable-setuid-sandbox'],
     });
+    browser = enhanceBrowser(browser, this.currentTest.title);
     let page = await browser.newPage();
-    await page.goto(`http://${process.env.ENDPOINT_GLOO_MESH_UI}/insights`);
-    await page.waitForNetworkIdle({ options: { timeout: 1000 } });
-
-    html = await page.content();
+    await page.setViewport({ width: 1500, height: 1000 });
+    insightsPage = new InsightsPage(page);
   });
 
   // Use Mocha's 'after' hook to close Puppeteer
@@ -2716,8 +2385,12 @@ describe("Insight BP0002 not displayed in the UI", function() {
     await browser.close();
   });
 
-  it("The page doesn't contain 'is not namespaced'", () => {
-    expect(html).not.to.contain("is not namespaced");
+  it("should not display BP0002 in the UI", async () => {
+    await insightsPage.navigateTo(`http://${process.env.ENDPOINT_GLOO_MESH_UI}/insights`);
+    await insightsPage.selectClusters(['cluster1', 'cluster2']);
+    await insightsPage.selectInsightTypes([constants.InsightType.BP]);
+    const data = await insightsPage.getTableDataRows()
+    expect(data.some(item => item.includes("is not namespaced"))).to.be.false;
   });
 });
 EOF
@@ -2831,28 +2504,38 @@ EOF
 
 <!--bash
 cat <<'EOF' > ./test.js
-const chaiExec = require("@jsdevtools/chai-exec");
 const helpersHttp = require('./tests/chai-http');
+const InsightsPage = require('./tests/pages/insights-page');
+const constants = require('./tests/pages/constants');
 const puppeteer = require('puppeteer');
+const { enhanceBrowser } = require('./tests/utils/enhance-browser');
 var chai = require('chai');
 var expect = chai.expect;
 
-describe("Insight BP0001 is not displayed in the UI", function() {
+afterEach(function (done) {
+  if (this.currentTest.currentRetry() > 0) {
+    process.stdout.write(".");
+    setTimeout(done, 4000);
+  } else {
+    done();
+  }
+});
+
+describe("Insights UI", function() {
   let browser;
-  let html;
+  let insightsPage;
 
   // Use Mocha's 'before' hook to set up Puppeteer
   beforeEach(async function() {
     browser = await puppeteer.launch({
       headless: "new",
       ignoreHTTPSErrors: true,
-      args: ['--no-sandbox', '--disable-setuid-sandbox'], // needed for instruqt
+      args: ['--no-sandbox', '--disable-setuid-sandbox'],
     });
+    browser = enhanceBrowser(browser, this.currentTest.title);
     let page = await browser.newPage();
-    await page.goto(`http://${process.env.ENDPOINT_GLOO_MESH_UI}/insights`);
-    await page.waitForNetworkIdle({ options: { timeout: 1000 } });
-
-    html = await page.content();
+    await page.setViewport({ width: 1500, height: 1000 });
+    insightsPage = new InsightsPage(page);
   });
 
   // Use Mocha's 'after' hook to close Puppeteer
@@ -2860,8 +2543,12 @@ describe("Insight BP0001 is not displayed in the UI", function() {
     await browser.close();
   });
 
-  it("The page doesn't contain 'Globally scoped routing'", () => {
-    expect(html).not.to.contain("Globally scoped routing");
+  it("should not display BP0001 in the UI", async () => {
+    await insightsPage.navigateTo(`http://${process.env.ENDPOINT_GLOO_MESH_UI}/insights`);
+    await insightsPage.selectClusters(['cluster1', 'cluster2']);
+    await insightsPage.selectInsightTypes([constants.InsightType.BP]);
+    const data = await insightsPage.getTableDataRows()
+    expect(data.some(item => item.includes("is not namespaced"))).to.be.false;
   });
 });
 EOF
@@ -2875,7 +2562,7 @@ The UI shouldn't display this insight anymore.
 
 
 
-## Lab 14 - Insights related to configuration errors <a name="lab-14---insights-related-to-configuration-errors-"></a>
+## Lab 11 - Insights related to configuration errors <a name="lab-11---insights-related-to-configuration-errors-"></a>
 
 In this lab, we're going to focus on insights related to configuration errors.
 
@@ -3011,7 +2698,7 @@ kubectl --context ${CLUSTER1} -n bookinfo-backends delete destinationrule review
 
 
 
-## Lab 15 - Insights related to security issues <a name="lab-15---insights-related-to-security-issues-"></a>
+## Lab 12 - Insights related to security issues <a name="lab-12---insights-related-to-security-issues-"></a>
 
 In this lab, we're going to focus on insights related to security issues.
 
@@ -3166,7 +2853,7 @@ kubectl --context ${CLUSTER1} -n istio-system delete peerauthentication default
 
 
 
-## Lab 16 - Insights related to health issues <a name="lab-16---insights-related-to-health-issues-"></a>
+## Lab 13 - Insights related to health issues <a name="lab-13---insights-related-to-health-issues-"></a>
 
 
 
