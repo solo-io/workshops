@@ -7,7 +7,7 @@ source ./scripts/assert.sh
 
 <center><img src="images/gloo-mesh.png" alt="Gloo Mesh Enterprise" style="width:70%;max-width:800px" /></center>
 
-# <center>Gloo Mesh Enterprise (2.6.3)</center>
+# <center>Gloo Mesh Enterprise (2.6.4)</center>
 
 
 
@@ -17,24 +17,21 @@ source ./scripts/assert.sh
 * [Lab 2 - Deploy own redis](#lab-2---deploy-own-redis-)
 * [Lab 3 - Deploy own redis](#lab-3---deploy-own-redis-)
 * [Lab 4 - Deploy own redis](#lab-4---deploy-own-redis-)
-* [Lab 5 - Deploy own redis](#lab-5---deploy-own-redis-)
-* [Lab 6 - Deploy own redis](#lab-6---deploy-own-redis-)
-* [Lab 7 - Deploy own redis](#lab-7---deploy-own-redis-)
-* [Lab 8 - Deploy and register Gloo Mesh](#lab-8---deploy-and-register-gloo-mesh-)
-* [Lab 9 - Deploy Istio using Gloo Mesh Lifecycle Manager](#lab-9---deploy-istio-using-gloo-mesh-lifecycle-manager-)
-* [Lab 10 - Deploy the Bookinfo demo app](#lab-10---deploy-the-bookinfo-demo-app-)
-* [Lab 11 - Deploy the httpbin demo app](#lab-11---deploy-the-httpbin-demo-app-)
-* [Lab 12 - Deploy Gloo Mesh Addons](#lab-12---deploy-gloo-mesh-addons-)
-* [Lab 13 - Create the gateways workspace](#lab-13---create-the-gateways-workspace-)
-* [Lab 14 - Create the bookinfo workspace](#lab-14---create-the-bookinfo-workspace-)
-* [Lab 15 - Expose the productpage through a gateway](#lab-15---expose-the-productpage-through-a-gateway-)
-* [Lab 16 - Traffic policies](#lab-16---traffic-policies-)
-* [Lab 17 - Create the Root Trust Policy](#lab-17---create-the-root-trust-policy-)
-* [Lab 18 - Leverage Virtual Destinations for east west communications](#lab-18---leverage-virtual-destinations-for-east-west-communications-)
-* [Lab 19 - Zero trust](#lab-19---zero-trust-)
-* [Lab 20 - See how Gloo Platform can help with observability](#lab-20---see-how-gloo-platform-can-help-with-observability-)
-* [Lab 21 - VM integration with Spire](#lab-21---vm-integration-with-spire-)
-* [Lab 22 - Securing the egress traffic](#lab-22---securing-the-egress-traffic-)
+* [Lab 5 - Deploy and register Gloo Mesh](#lab-5---deploy-and-register-gloo-mesh-)
+* [Lab 6 - Deploy Istio using Gloo Mesh Lifecycle Manager](#lab-6---deploy-istio-using-gloo-mesh-lifecycle-manager-)
+* [Lab 7 - Deploy the Bookinfo demo app](#lab-7---deploy-the-bookinfo-demo-app-)
+* [Lab 8 - Deploy the httpbin demo app](#lab-8---deploy-the-httpbin-demo-app-)
+* [Lab 9 - Deploy Gloo Mesh Addons](#lab-9---deploy-gloo-mesh-addons-)
+* [Lab 10 - Create the gateways workspace](#lab-10---create-the-gateways-workspace-)
+* [Lab 11 - Create the bookinfo workspace](#lab-11---create-the-bookinfo-workspace-)
+* [Lab 12 - Expose the productpage through a gateway](#lab-12---expose-the-productpage-through-a-gateway-)
+* [Lab 13 - Traffic policies](#lab-13---traffic-policies-)
+* [Lab 14 - Create the Root Trust Policy](#lab-14---create-the-root-trust-policy-)
+* [Lab 15 - Leverage Virtual Destinations for east west communications](#lab-15---leverage-virtual-destinations-for-east-west-communications-)
+* [Lab 16 - Zero trust](#lab-16---zero-trust-)
+* [Lab 17 - See how Gloo Platform can help with observability](#lab-17---see-how-gloo-platform-can-help-with-observability-)
+* [Lab 18 - VM integration with Spire](#lab-18---vm-integration-with-spire-)
+* [Lab 19 - Securing the egress traffic](#lab-19---securing-the-egress-traffic-)
 
 
 
@@ -163,7 +160,7 @@ The goal of this step is to simulate your own external Redis in a cloud instance
 Let's install Redis on the cluster. We'll disable persistence and set the username and password for the Redis server to `{ vars.redis_user}` and `{ vars.redis_password}` respectively.
 
 ```bash
-kubectl apply --context ${CLUSTER2} -f - <<EOF
+kubectl apply --context ${MGMT} -f - <<EOF
 kind: Namespace
 apiVersion: v1
 metadata:
@@ -259,10 +256,10 @@ EOF
 ```
 Now we'll expose the Redis service only with TLS enabled:
 ```bash
-openssl genrsa -out ca${CLUSTER2}.key 2048
-openssl req -x509 -new -nodes -key ca${CLUSTER2}.key -days 1825 -out ca${CLUSTER2}.crt -subj "/CN=redis-ca"
-openssl genrsa -out redis${CLUSTER2}.key 2048
-openssl req -new -key redis${CLUSTER2}.key -out redis${CLUSTER2}.csr -config -<<EOF
+openssl genrsa -out ca${MGMT}.key 2048
+openssl req -x509 -new -nodes -key ca${MGMT}.key -days 1825 -out ca${MGMT}.crt -subj "/CN=redis-ca"
+openssl genrsa -out redis${MGMT}.key 2048
+openssl req -new -key redis${MGMT}.key -out redis${MGMT}.csr -config -<<EOF
 [ req ]
 default_bits       = 2048
 default_md         = sha256
@@ -273,7 +270,7 @@ prompt             = no
 CN = redis-ext
 
 EOF
-openssl x509 -req -in redis${CLUSTER2}.csr -CA ca${CLUSTER2}.crt -CAkey ca${CLUSTER2}.key -CAcreateserial -out redis${CLUSTER2}.crt -days 365 -sha256 -extensions v3_req -extfile -<<EOF
+openssl x509 -req -in redis${MGMT}.csr -CA ca${MGMT}.crt -CAkey ca${MGMT}.key -CAcreateserial -out redis${MGMT}.crt -days 365 -sha256 -extensions v3_req -extfile -<<EOF
 [ v3_req ]
 subjectAltName = @alt_names
 
@@ -281,10 +278,10 @@ subjectAltName = @alt_names
 DNS.1 = redis-ext.redis-ns
 DNS.2 = redis-ext.redis-ns.svc.cluster.local
 EOF
-kubectl create --context ${CLUSTER2} -n redis-ns secret generic redis-tls \
-  --from-file=redis.key=./redis${CLUSTER2}.key \
-  --from-file=redis.crt=./redis${CLUSTER2}.crt \
-  --from-file=ca.crt=./ca${CLUSTER2}.crt
+kubectl create --context ${MGMT} -n redis-ns secret generic redis-tls \
+  --from-file=redis.key=./redis${MGMT}.key \
+  --from-file=redis.crt=./redis${MGMT}.crt \
+  --from-file=ca.crt=./ca${MGMT}.crt
 ```
 
 <!--bash
@@ -292,8 +289,8 @@ cat <<'EOF' > ./test.js
 const helpers = require('./tests/chai-exec');
 
 describe("Redis is healthy", () => {
-    it(`Redis service is present`, () => helpers.k8sObjectIsPresent({ context: `${process.env.CLUSTER2}`, namespace: "redis-ns", k8sType: "service", k8sObj: "redis-ext" }));
-    it(`Redis pods are ready`, () => helpers.checkDeploymentsWithLabels({ context: `${process.env.CLUSTER2}`, namespace: "redis-ns", labels: "app=redis", instances: 1 }));
+    it(`Redis service is present`, () => helpers.k8sObjectIsPresent({ context: `${process.env.MGMT}`, namespace: "redis-ns", k8sType: "service", k8sObj: "redis-ext" }));
+    it(`Redis pods are ready`, () => helpers.checkDeploymentsWithLabels({ context: `${process.env.MGMT}`, namespace: "redis-ns", labels: "app=redis", instances: 1 }));
 });
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/deploy-redis/tests/redis-healthy.test.js.liquid"
@@ -459,7 +456,7 @@ The goal of this step is to simulate your own external Redis in a cloud instance
 Let's install Redis on the cluster. We'll disable persistence and set the username and password for the Redis server to `{ vars.redis_user}` and `{ vars.redis_password}` respectively.
 
 ```bash
-kubectl apply --context ${CLUSTER1} -f - <<EOF
+kubectl apply --context ${CLUSTER2} -f - <<EOF
 kind: Namespace
 apiVersion: v1
 metadata:
@@ -555,10 +552,10 @@ EOF
 ```
 Now we'll expose the Redis service only with TLS enabled:
 ```bash
-openssl genrsa -out ca${CLUSTER1}.key 2048
-openssl req -x509 -new -nodes -key ca${CLUSTER1}.key -days 1825 -out ca${CLUSTER1}.crt -subj "/CN=redis-ca"
-openssl genrsa -out redis${CLUSTER1}.key 2048
-openssl req -new -key redis${CLUSTER1}.key -out redis${CLUSTER1}.csr -config -<<EOF
+openssl genrsa -out ca${CLUSTER2}.key 2048
+openssl req -x509 -new -nodes -key ca${CLUSTER2}.key -days 1825 -out ca${CLUSTER2}.crt -subj "/CN=redis-ca"
+openssl genrsa -out redis${CLUSTER2}.key 2048
+openssl req -new -key redis${CLUSTER2}.key -out redis${CLUSTER2}.csr -config -<<EOF
 [ req ]
 default_bits       = 2048
 default_md         = sha256
@@ -569,7 +566,7 @@ prompt             = no
 CN = redis-ext
 
 EOF
-openssl x509 -req -in redis${CLUSTER1}.csr -CA ca${CLUSTER1}.crt -CAkey ca${CLUSTER1}.key -CAcreateserial -out redis${CLUSTER1}.crt -days 365 -sha256 -extensions v3_req -extfile -<<EOF
+openssl x509 -req -in redis${CLUSTER2}.csr -CA ca${CLUSTER2}.crt -CAkey ca${CLUSTER2}.key -CAcreateserial -out redis${CLUSTER2}.crt -days 365 -sha256 -extensions v3_req -extfile -<<EOF
 [ v3_req ]
 subjectAltName = @alt_names
 
@@ -577,10 +574,10 @@ subjectAltName = @alt_names
 DNS.1 = redis-ext.redis-ns
 DNS.2 = redis-ext.redis-ns.svc.cluster.local
 EOF
-kubectl create --context ${CLUSTER1} -n redis-ns secret generic redis-tls \
-  --from-file=redis.key=./redis${CLUSTER1}.key \
-  --from-file=redis.crt=./redis${CLUSTER1}.crt \
-  --from-file=ca.crt=./ca${CLUSTER1}.crt
+kubectl create --context ${CLUSTER2} -n redis-ns secret generic redis-tls \
+  --from-file=redis.key=./redis${CLUSTER2}.key \
+  --from-file=redis.crt=./redis${CLUSTER2}.crt \
+  --from-file=ca.crt=./ca${CLUSTER2}.crt
 ```
 
 <!--bash
@@ -588,8 +585,8 @@ cat <<'EOF' > ./test.js
 const helpers = require('./tests/chai-exec');
 
 describe("Redis is healthy", () => {
-    it(`Redis service is present`, () => helpers.k8sObjectIsPresent({ context: `${process.env.CLUSTER1}`, namespace: "redis-ns", k8sType: "service", k8sObj: "redis-ext" }));
-    it(`Redis pods are ready`, () => helpers.checkDeploymentsWithLabels({ context: `${process.env.CLUSTER1}`, namespace: "redis-ns", labels: "app=redis", instances: 1 }));
+    it(`Redis service is present`, () => helpers.k8sObjectIsPresent({ context: `${process.env.CLUSTER2}`, namespace: "redis-ns", k8sType: "service", k8sObj: "redis-ext" }));
+    it(`Redis pods are ready`, () => helpers.checkDeploymentsWithLabels({ context: `${process.env.CLUSTER2}`, namespace: "redis-ns", labels: "app=redis", instances: 1 }));
 });
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/deploy-redis/tests/redis-healthy.test.js.liquid"
@@ -601,458 +598,14 @@ timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=30 --bail 2> $
 
 
 
-## Lab 5 - Deploy own redis <a name="lab-5---deploy-own-redis-"></a>
-
-The goal of this step is to simulate your own external Redis in a cloud instance, such as AWS ElastiCache, Redis Cloud or Google Cloud Memorystore.
-Let's install Redis on the cluster. We'll disable persistence and set the username and password for the Redis server to `{ vars.redis_user}` and `{ vars.redis_password}` respectively.
-
-```bash
-kubectl apply --context ${CLUSTER1} -f - <<EOF
-kind: Namespace
-apiVersion: v1
-metadata:
-  name: redis-ns
----
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: redis-config
-  namespace: redis-ns
-data:
-  redis.conf: |
-    user default off nopass ~* +@all
-    user gloo on >passwordpassword ~* +@all
-    requirepass defaultuserpassword
-    save ""
-    appendonly no
-    maxmemory-policy noeviction
-    tls-port 6379
-    port 0
-    
-    tls-cert-file /etc/redis/tls/redis.crt
-    tls-key-file /etc/redis/tls/redis.key
-    tls-ca-cert-file /etc/redis/tls/ca.crt
-    
-    tls-auth-clients no
-    tls-replication yes
-    tls-cluster yes
----
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: redis
-  namespace: redis-ns
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: redis-ext
-  namespace: redis-ns
-  labels:
-    app: redis
-spec:
-  ports:
-  - name: tcp
-    port: 6379
-  selector:
-    app: redis
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: redis-ext
-  namespace: redis-ns
-  labels:
-    app: redis
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: redis
-      version: v1
-  template:
-    metadata:
-      labels:
-        app: redis
-        version: v1
-    spec:
-      serviceAccountName: redis
-      containers:
-      - image: redis:7.4.0
-        name: redis
-        ports:
-        - name: tcp
-          containerPort: 6379
-        volumeMounts:
-        - name: redis-config-volume
-          mountPath: /usr/local/etc/redis/redis.conf
-          subPath: redis.conf
-        - name: redis-tls
-          mountPath: /etc/redis/tls
-          readOnly: true
-        command: ["redis-server", "/usr/local/etc/redis/redis.conf"]
-      volumes:
-      - name: redis-config-volume
-        configMap:
-          name: redis-config
-      - name: redis-tls
-        secret:
-          secretName: redis-tls
-          optional: true
-EOF
-```
-Now we'll expose the Redis service only with TLS enabled:
-```bash
-openssl genrsa -out ca${CLUSTER1}.key 2048
-openssl req -x509 -new -nodes -key ca${CLUSTER1}.key -days 1825 -out ca${CLUSTER1}.crt -subj "/CN=redis-ca"
-openssl genrsa -out redis${CLUSTER1}.key 2048
-openssl req -new -key redis${CLUSTER1}.key -out redis${CLUSTER1}.csr -config -<<EOF
-[ req ]
-default_bits       = 2048
-default_md         = sha256
-distinguished_name = req_distinguished_name
-prompt             = no
-
-[ req_distinguished_name ]
-CN = redis-ext
-
-EOF
-openssl x509 -req -in redis${CLUSTER1}.csr -CA ca${CLUSTER1}.crt -CAkey ca${CLUSTER1}.key -CAcreateserial -out redis${CLUSTER1}.crt -days 365 -sha256 -extensions v3_req -extfile -<<EOF
-[ v3_req ]
-subjectAltName = @alt_names
-
-[ alt_names ]
-DNS.1 = redis-ext.redis-ns
-DNS.2 = redis-ext.redis-ns.svc.cluster.local
-EOF
-kubectl create --context ${CLUSTER1} -n redis-ns secret generic redis-tls \
-  --from-file=redis.key=./redis${CLUSTER1}.key \
-  --from-file=redis.crt=./redis${CLUSTER1}.crt \
-  --from-file=ca.crt=./ca${CLUSTER1}.crt
-```
-
-<!--bash
-cat <<'EOF' > ./test.js
-const helpers = require('./tests/chai-exec');
-
-describe("Redis is healthy", () => {
-    it(`Redis service is present`, () => helpers.k8sObjectIsPresent({ context: `${process.env.CLUSTER1}`, namespace: "redis-ns", k8sType: "service", k8sObj: "redis-ext" }));
-    it(`Redis pods are ready`, () => helpers.checkDeploymentsWithLabels({ context: `${process.env.CLUSTER1}`, namespace: "redis-ns", labels: "app=redis", instances: 1 }));
-});
-EOF
-echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/deploy-redis/tests/redis-healthy.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=30 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
--->
-
-
-
-
-## Lab 6 - Deploy own redis <a name="lab-6---deploy-own-redis-"></a>
-
-The goal of this step is to simulate your own external Redis in a cloud instance, such as AWS ElastiCache, Redis Cloud or Google Cloud Memorystore.
-Let's install Redis on the cluster. We'll disable persistence and set the username and password for the Redis server to `{ vars.redis_user}` and `{ vars.redis_password}` respectively.
-
-```bash
-kubectl apply --context ${MGMT} -f - <<EOF
-kind: Namespace
-apiVersion: v1
-metadata:
-  name: redis-ns
----
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: redis-config
-  namespace: redis-ns
-data:
-  redis.conf: |
-    user default off nopass ~* +@all
-    user gloo on >passwordpassword ~* +@all
-    requirepass defaultuserpassword
-    save ""
-    appendonly no
-    maxmemory-policy noeviction
-    tls-port 6379
-    port 0
-    
-    tls-cert-file /etc/redis/tls/redis.crt
-    tls-key-file /etc/redis/tls/redis.key
-    tls-ca-cert-file /etc/redis/tls/ca.crt
-    
-    tls-auth-clients no
-    tls-replication yes
-    tls-cluster yes
----
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: redis
-  namespace: redis-ns
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: redis-ext
-  namespace: redis-ns
-  labels:
-    app: redis
-spec:
-  ports:
-  - name: tcp
-    port: 6379
-  selector:
-    app: redis
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: redis-ext
-  namespace: redis-ns
-  labels:
-    app: redis
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: redis
-      version: v1
-  template:
-    metadata:
-      labels:
-        app: redis
-        version: v1
-    spec:
-      serviceAccountName: redis
-      containers:
-      - image: redis:7.4.0
-        name: redis
-        ports:
-        - name: tcp
-          containerPort: 6379
-        volumeMounts:
-        - name: redis-config-volume
-          mountPath: /usr/local/etc/redis/redis.conf
-          subPath: redis.conf
-        - name: redis-tls
-          mountPath: /etc/redis/tls
-          readOnly: true
-        command: ["redis-server", "/usr/local/etc/redis/redis.conf"]
-      volumes:
-      - name: redis-config-volume
-        configMap:
-          name: redis-config
-      - name: redis-tls
-        secret:
-          secretName: redis-tls
-          optional: true
-EOF
-```
-Now we'll expose the Redis service only with TLS enabled:
-```bash
-openssl genrsa -out ca${MGMT}.key 2048
-openssl req -x509 -new -nodes -key ca${MGMT}.key -days 1825 -out ca${MGMT}.crt -subj "/CN=redis-ca"
-openssl genrsa -out redis${MGMT}.key 2048
-openssl req -new -key redis${MGMT}.key -out redis${MGMT}.csr -config -<<EOF
-[ req ]
-default_bits       = 2048
-default_md         = sha256
-distinguished_name = req_distinguished_name
-prompt             = no
-
-[ req_distinguished_name ]
-CN = redis-ext
-
-EOF
-openssl x509 -req -in redis${MGMT}.csr -CA ca${MGMT}.crt -CAkey ca${MGMT}.key -CAcreateserial -out redis${MGMT}.crt -days 365 -sha256 -extensions v3_req -extfile -<<EOF
-[ v3_req ]
-subjectAltName = @alt_names
-
-[ alt_names ]
-DNS.1 = redis-ext.redis-ns
-DNS.2 = redis-ext.redis-ns.svc.cluster.local
-EOF
-kubectl create --context ${MGMT} -n redis-ns secret generic redis-tls \
-  --from-file=redis.key=./redis${MGMT}.key \
-  --from-file=redis.crt=./redis${MGMT}.crt \
-  --from-file=ca.crt=./ca${MGMT}.crt
-```
-
-<!--bash
-cat <<'EOF' > ./test.js
-const helpers = require('./tests/chai-exec');
-
-describe("Redis is healthy", () => {
-    it(`Redis service is present`, () => helpers.k8sObjectIsPresent({ context: `${process.env.MGMT}`, namespace: "redis-ns", k8sType: "service", k8sObj: "redis-ext" }));
-    it(`Redis pods are ready`, () => helpers.checkDeploymentsWithLabels({ context: `${process.env.MGMT}`, namespace: "redis-ns", labels: "app=redis", instances: 1 }));
-});
-EOF
-echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/deploy-redis/tests/redis-healthy.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=30 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
--->
-
-
-
-
-## Lab 7 - Deploy own redis <a name="lab-7---deploy-own-redis-"></a>
-
-The goal of this step is to simulate your own external Redis in a cloud instance, such as AWS ElastiCache, Redis Cloud or Google Cloud Memorystore.
-Let's install Redis on the cluster. We'll disable persistence and set the username and password for the Redis server to `{ vars.redis_user}` and `{ vars.redis_password}` respectively.
-
-```bash
-kubectl apply --context ${CLUSTER1} -f - <<EOF
-kind: Namespace
-apiVersion: v1
-metadata:
-  name: redis-ns
----
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: redis-config
-  namespace: redis-ns
-data:
-  redis.conf: |
-    user default off nopass ~* +@all
-    user gloo on >passwordpassword ~* +@all
-    requirepass defaultuserpassword
-    save ""
-    appendonly no
-    maxmemory-policy noeviction
-    tls-port 6379
-    port 0
-    
-    tls-cert-file /etc/redis/tls/redis.crt
-    tls-key-file /etc/redis/tls/redis.key
-    tls-ca-cert-file /etc/redis/tls/ca.crt
-    
-    tls-auth-clients no
-    tls-replication yes
-    tls-cluster yes
----
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: redis
-  namespace: redis-ns
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: redis-ext
-  namespace: redis-ns
-  labels:
-    app: redis
-spec:
-  ports:
-  - name: tcp
-    port: 6379
-  selector:
-    app: redis
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: redis-ext
-  namespace: redis-ns
-  labels:
-    app: redis
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: redis
-      version: v1
-  template:
-    metadata:
-      labels:
-        app: redis
-        version: v1
-    spec:
-      serviceAccountName: redis
-      containers:
-      - image: redis:7.4.0
-        name: redis
-        ports:
-        - name: tcp
-          containerPort: 6379
-        volumeMounts:
-        - name: redis-config-volume
-          mountPath: /usr/local/etc/redis/redis.conf
-          subPath: redis.conf
-        - name: redis-tls
-          mountPath: /etc/redis/tls
-          readOnly: true
-        command: ["redis-server", "/usr/local/etc/redis/redis.conf"]
-      volumes:
-      - name: redis-config-volume
-        configMap:
-          name: redis-config
-      - name: redis-tls
-        secret:
-          secretName: redis-tls
-          optional: true
-EOF
-```
-Now we'll expose the Redis service only with TLS enabled:
-```bash
-openssl genrsa -out ca${CLUSTER1}.key 2048
-openssl req -x509 -new -nodes -key ca${CLUSTER1}.key -days 1825 -out ca${CLUSTER1}.crt -subj "/CN=redis-ca"
-openssl genrsa -out redis${CLUSTER1}.key 2048
-openssl req -new -key redis${CLUSTER1}.key -out redis${CLUSTER1}.csr -config -<<EOF
-[ req ]
-default_bits       = 2048
-default_md         = sha256
-distinguished_name = req_distinguished_name
-prompt             = no
-
-[ req_distinguished_name ]
-CN = redis-ext
-
-EOF
-openssl x509 -req -in redis${CLUSTER1}.csr -CA ca${CLUSTER1}.crt -CAkey ca${CLUSTER1}.key -CAcreateserial -out redis${CLUSTER1}.crt -days 365 -sha256 -extensions v3_req -extfile -<<EOF
-[ v3_req ]
-subjectAltName = @alt_names
-
-[ alt_names ]
-DNS.1 = redis-ext.redis-ns
-DNS.2 = redis-ext.redis-ns.svc.cluster.local
-EOF
-kubectl create --context ${CLUSTER1} -n redis-ns secret generic redis-tls \
-  --from-file=redis.key=./redis${CLUSTER1}.key \
-  --from-file=redis.crt=./redis${CLUSTER1}.crt \
-  --from-file=ca.crt=./ca${CLUSTER1}.crt
-```
-
-<!--bash
-cat <<'EOF' > ./test.js
-const helpers = require('./tests/chai-exec');
-
-describe("Redis is healthy", () => {
-    it(`Redis service is present`, () => helpers.k8sObjectIsPresent({ context: `${process.env.CLUSTER1}`, namespace: "redis-ns", k8sType: "service", k8sObj: "redis-ext" }));
-    it(`Redis pods are ready`, () => helpers.checkDeploymentsWithLabels({ context: `${process.env.CLUSTER1}`, namespace: "redis-ns", labels: "app=redis", instances: 1 }));
-});
-EOF
-echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/deploy-redis/tests/redis-healthy.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=30 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
--->
-
-
-
-
-## Lab 8 - Deploy and register Gloo Mesh <a name="lab-8---deploy-and-register-gloo-mesh-"></a>
+## Lab 5 - Deploy and register Gloo Mesh <a name="lab-5---deploy-and-register-gloo-mesh-"></a>
 [<img src="https://img.youtube.com/vi/djfFiepK4GY/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/djfFiepK4GY "Video Link")
 
 
 Before we get started, let's install the `meshctl` CLI:
 
 ```bash
-export GLOO_MESH_VERSION=v2.6.3
+export GLOO_MESH_VERSION=v2.6.4
 curl -sL https://run.solo.io/meshctl/install | sh -
 export PATH=$HOME/.gloo-mesh/bin:$PATH
 ```
@@ -1142,13 +695,13 @@ helm upgrade --install gloo-platform-crds gloo-platform-crds \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${MGMT} \
-  --version 2.6.3
+  --version 2.6.4
 
 helm upgrade --install gloo-platform gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${MGMT} \
-  --version 2.6.3 \
+  --version 2.6.4 \
   -f -<<EOF
 licensing:
   glooTrialLicenseKey: ${GLOO_MESH_LICENSE_KEY}
@@ -1350,13 +903,13 @@ helm upgrade --install gloo-platform-crds gloo-platform-crds \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${CLUSTER1} \
-  --version 2.6.3
+  --version 2.6.4
 
 helm upgrade --install gloo-platform gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${CLUSTER1} \
-  --version 2.6.3 \
+  --version 2.6.4 \
   -f -<<EOF
 common:
   cluster: cluster1
@@ -1423,13 +976,13 @@ helm upgrade --install gloo-platform-crds gloo-platform-crds \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${CLUSTER2} \
-  --version 2.6.3
+  --version 2.6.4
 
 helm upgrade --install gloo-platform gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${CLUSTER2} \
-  --version 2.6.3 \
+  --version 2.6.4 \
   -f -<<EOF
 common:
   cluster: cluster2
@@ -1527,7 +1080,7 @@ timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> 
 
 
 
-## Lab 9 - Deploy Istio using Gloo Mesh Lifecycle Manager <a name="lab-9---deploy-istio-using-gloo-mesh-lifecycle-manager-"></a>
+## Lab 6 - Deploy Istio using Gloo Mesh Lifecycle Manager <a name="lab-6---deploy-istio-using-gloo-mesh-lifecycle-manager-"></a>
 [<img src="https://img.youtube.com/vi/f76-KOEjqHs/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/f76-KOEjqHs "Video Link")
 
 We are going to deploy Istio using Gloo Mesh Lifecycle Manager.
@@ -2090,7 +1643,7 @@ timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> 
 
 
 
-## Lab 10 - Deploy the Bookinfo demo app <a name="lab-10---deploy-the-bookinfo-demo-app-"></a>
+## Lab 7 - Deploy the Bookinfo demo app <a name="lab-7---deploy-the-bookinfo-demo-app-"></a>
 [<img src="https://img.youtube.com/vi/nzYcrjalY5A/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/nzYcrjalY5A "Video Link")
 
 We're going to deploy the bookinfo application to demonstrate several features of Gloo Mesh.
@@ -2217,7 +1770,7 @@ timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> 
 
 
 
-## Lab 11 - Deploy the httpbin demo app <a name="lab-11---deploy-the-httpbin-demo-app-"></a>
+## Lab 8 - Deploy the httpbin demo app <a name="lab-8---deploy-the-httpbin-demo-app-"></a>
 [<img src="https://img.youtube.com/vi/w1xB-o_gHs0/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/w1xB-o_gHs0 "Video Link")
 
 We're going to deploy the httpbin application to demonstrate several features of Gloo Mesh.
@@ -2397,7 +1950,7 @@ timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> 
 
 
 
-## Lab 12 - Deploy Gloo Mesh Addons <a name="lab-12---deploy-gloo-mesh-addons-"></a>
+## Lab 9 - Deploy Gloo Mesh Addons <a name="lab-9---deploy-gloo-mesh-addons-"></a>
 [<img src="https://img.youtube.com/vi/_rorug_2bk8/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/_rorug_2bk8 "Video Link")
 
 To use the Gloo Mesh Gateway advanced features (external authentication, rate limiting, ...), you need to install the Gloo Mesh addons.
@@ -2444,7 +1997,7 @@ helm upgrade --install gloo-platform gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh-addons \
   --kube-context ${CLUSTER1} \
-  --version 2.6.3 \
+  --version 2.6.4 \
   -f -<<EOF
 common:
   cluster: cluster1
@@ -2512,7 +2065,7 @@ helm upgrade --install gloo-platform gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh-addons \
   --kube-context ${CLUSTER2} \
-  --version 2.6.3 \
+  --version 2.6.4 \
   -f -<<EOF
 common:
   cluster: cluster2
@@ -2651,7 +2204,7 @@ This is what the environment looks like now:
 
 
 
-## Lab 13 - Create the gateways workspace <a name="lab-13---create-the-gateways-workspace-"></a>
+## Lab 10 - Create the gateways workspace <a name="lab-10---create-the-gateways-workspace-"></a>
 [<img src="https://img.youtube.com/vi/QeVBH0eswWw/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/QeVBH0eswWw "Video Link")
 
 We're going to create a workspace for the team in charge of the Gateways.
@@ -2714,7 +2267,7 @@ The Gateway team has decided to import the following from the workspaces that ha
 
 
 
-## Lab 14 - Create the bookinfo workspace <a name="lab-14---create-the-bookinfo-workspace-"></a>
+## Lab 11 - Create the bookinfo workspace <a name="lab-11---create-the-bookinfo-workspace-"></a>
 
 We're going to create a workspace for the team in charge of the Bookinfo application.
 
@@ -2789,7 +2342,7 @@ This is how the environment looks like with the workspaces:
 
 
 
-## Lab 15 - Expose the productpage through a gateway <a name="lab-15---expose-the-productpage-through-a-gateway-"></a>
+## Lab 12 - Expose the productpage through a gateway <a name="lab-12---expose-the-productpage-through-a-gateway-"></a>
 [<img src="https://img.youtube.com/vi/emyIu99AOOA/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/emyIu99AOOA "Video Link")
 
 In this step, we're going to expose the `productpage` service through the Ingress Gateway using Gloo Mesh.
@@ -3064,7 +2617,7 @@ This diagram shows the flow of the request (through the Istio Ingress Gateway):
 
 
 
-## Lab 16 - Traffic policies <a name="lab-16---traffic-policies-"></a>
+## Lab 13 - Traffic policies <a name="lab-13---traffic-policies-"></a>
 [<img src="https://img.youtube.com/vi/ZBdt8WA0U64/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/ZBdt8WA0U64 "Video Link")
 
 We're going to use Gloo Mesh policies to inject faults and configure timeouts.
@@ -3231,6 +2784,8 @@ This diagram shows where the timeout and delay have been applied:
 
 ![Gloo Mesh Traffic Policies](images/steps/traffic-policies/gloo-mesh-traffic-policies.svg)
 
+
+
 Let's delete the Gloo Mesh objects we've created:
 
 ```bash
@@ -3242,7 +2797,7 @@ kubectl --context ${CLUSTER1} -n bookinfo-frontends delete routetable reviews
 
 
 
-## Lab 17 - Create the Root Trust Policy <a name="lab-17---create-the-root-trust-policy-"></a>
+## Lab 14 - Create the Root Trust Policy <a name="lab-14---create-the-root-trust-policy-"></a>
 [<img src="https://img.youtube.com/vi/-A2U2fYYgrU/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/-A2U2fYYgrU "Video Link")
 
 To allow secured (end-to-end mTLS) cross cluster communications, we need to make sure the certificates issued by the Istio control plane on each cluster are signed with intermediate certificates which have a common root CA.
@@ -3382,7 +2937,7 @@ timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> 
 
 
 
-## Lab 18 - Leverage Virtual Destinations for east west communications <a name="lab-18---leverage-virtual-destinations-for-east-west-communications-"></a>
+## Lab 15 - Leverage Virtual Destinations for east west communications <a name="lab-15---leverage-virtual-destinations-for-east-west-communications-"></a>
 
 We can create a Virtual Destination which will be composed of the `reviews` services running in both clusters.
 
@@ -3638,6 +3193,9 @@ kubectl --context ${CLUSTER1} -n bookinfo-backends rollout status deploy/reviews
 kubectl --context ${CLUSTER1} -n bookinfo-backends rollout status deploy/reviews-v2
 ```
 
+
+
+
 Let's delete the different objects we've created:
 
 ```bash
@@ -3648,7 +3206,7 @@ kubectl --context ${CLUSTER1} -n bookinfo-backends delete outlierdetectionpolicy
 
 
 
-## Lab 19 - Zero trust <a name="lab-19---zero-trust-"></a>
+## Lab 16 - Zero trust <a name="lab-16---zero-trust-"></a>
 [<img src="https://img.youtube.com/vi/BiaBlUaplEs/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/BiaBlUaplEs "Video Link")
 
 In the previous step, we federated multiple meshes and established a shared root CA for a shared identity domain.
@@ -3797,6 +3355,8 @@ tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
 -->
+
+
 
 Run the following commands to initiate a communication from a service which is in the mesh to another service which is in the mesh:
 
@@ -3967,6 +3527,9 @@ echo "saving errors in ${tempfile}"
 timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
 -->
 
+
+
+
 Let's rollback the change we've made in the `WorkspaceSettings` object:
 
 ```bash
@@ -4009,7 +3572,7 @@ kubectl --context ${CLUSTER1} delete accesspolicies -n bookinfo-frontends --all
 
 
 
-## Lab 20 - See how Gloo Platform can help with observability <a name="lab-20---see-how-gloo-platform-can-help-with-observability-"></a>
+## Lab 17 - See how Gloo Platform can help with observability <a name="lab-17---see-how-gloo-platform-can-help-with-observability-"></a>
 [<img src="https://img.youtube.com/vi/UhWsk4YnOy0/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/UhWsk4YnOy0 "Video Link")
 
 # Observability with Gloo Platform
@@ -4102,7 +3665,7 @@ helm upgrade --install gloo-platform gloo-platform \
   --namespace gloo-mesh \
   --kube-context ${CLUSTER1} \
   --reuse-values \
-  --version 2.6.3 \
+  --version 2.6.4 \
   --values - <<EOF
 telemetryCollectorCustomization:
   extraProcessors:
@@ -4185,7 +3748,7 @@ helm upgrade --install gloo-platform gloo-platform \
   --namespace gloo-mesh \
   --kube-context ${CLUSTER1} \
   --reuse-values \
-  --version 2.6.3 \
+  --version 2.6.4 \
   --values - <<EOF
 telemetryCollectorCustomization:
   extraProcessors:
@@ -4243,7 +3806,7 @@ kubectl --context ${MGMT} label -n monitoring cm istio-control-plane-dashboard g
 
 
 
-## Lab 21 - VM integration with Spire <a name="lab-21---vm-integration-with-spire-"></a>
+## Lab 18 - VM integration with Spire <a name="lab-18---vm-integration-with-spire-"></a>
 
 
 Let's see how we can configure a VM to be part of the Mesh.
@@ -4258,7 +3821,7 @@ helm upgrade --install gloo-platform-crds gloo-platform-crds \
   --namespace gloo-mesh \
   --kube-context ${MGMT} \
   --set featureGates.ExternalWorkloads=true \
-  --version 2.6.3 \
+  --version 2.6.4 \
   --reuse-values \
   -f -<<EOF
 featureGates:
@@ -4269,7 +3832,7 @@ helm upgrade gloo-platform gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${MGMT} \
-  --version 2.6.3 \
+  --version 2.6.4 \
   --reuse-values \
   -f -<<EOF
 featureGates:
@@ -4282,7 +3845,7 @@ helm upgrade --install gloo-platform-crds gloo-platform-crds \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${CLUSTER1} \
-  --version 2.6.3 \
+  --version 2.6.4 \
   --reuse-values \
   -f -<<EOF
 featureGates:
@@ -4293,7 +3856,7 @@ helm upgrade gloo-platform gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${CLUSTER1} \
-  --version 2.6.3 \
+  --version 2.6.4 \
   --reuse-values \
   -f -<<EOF
 glooSpireServer:
@@ -4532,7 +4095,7 @@ echo
 -->
 
 ```shell
-export GLOO_AGENT_URL=https://storage.googleapis.com/gloo-platform/vm/v2.6.3/gloo-workload-agent.deb
+export GLOO_AGENT_URL=https://storage.googleapis.com/gloo-platform/vm/v2.6.4/gloo-workload-agent.deb
 export ISTIO_URL=https://storage.googleapis.com/solo-workshops/istio-binaries/1.23.1/istio-sidecar.deb
 docker exec vm1 meshctl ew onboard --install \
   --attestor token \
@@ -4549,7 +4112,7 @@ docker exec vm1 meshctl ew onboard --install \
   --ext-workload virtualmachines/${VM_APP}
 ```
 <!--bash
-export GLOO_AGENT_URL=https://storage.googleapis.com/gloo-platform/vm/v2.6.3/gloo-workload-agent.deb
+export GLOO_AGENT_URL=https://storage.googleapis.com/gloo-platform/vm/v2.6.4/gloo-workload-agent.deb
 export ISTIO_URL=https://storage.googleapis.com/solo-workshops/istio-binaries/1.23.1/istio-sidecar.deb
 echo -n Trying to onboard the VM...
 MAX_ATTEMPTS=10
@@ -4781,7 +4344,7 @@ docker rm -f vm1
 
 
 
-## Lab 22 - Securing the egress traffic <a name="lab-22---securing-the-egress-traffic-"></a>
+## Lab 19 - Securing the egress traffic <a name="lab-19---securing-the-egress-traffic-"></a>
 [<img src="https://img.youtube.com/vi/tQermml1Ryo/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/tQermml1Ryo "Video Link")
 
 
