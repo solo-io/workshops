@@ -1727,7 +1727,7 @@ docker run -d \
   -e KEYCLOAK_ADMIN=admin \
   -e KEYCLOAK_ADMIN_PASSWORD=admin \
   -v ./data/steps/deploy-keycloak-docker:/opt/keycloak/data/import \
-  quay.io/keycloak/keycloak:25.0.1 \
+  quay.io/keycloak/keycloak:25.0.5 \
   start-dev --import-realm
 ```
 
