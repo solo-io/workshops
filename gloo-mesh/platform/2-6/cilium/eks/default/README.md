@@ -7,7 +7,7 @@ source ./scripts/assert.sh
 
 <center><img src="images/gloo-mesh.png" alt="Gloo Mesh Enterprise" style="width:70%;max-width:800px" /></center>
 
-# <center>Gloo Mesh Platform (2.6.3)</center>
+# <center>Gloo Mesh Platform (2.6.4)</center>
 
 
 
@@ -192,7 +192,7 @@ timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> 
 Before we get started, let's install the `meshctl` CLI:
 
 ```bash
-export GLOO_MESH_VERSION=v2.6.3
+export GLOO_MESH_VERSION=v2.6.4
 curl -sL https://run.solo.io/meshctl/install | sh -
 export PATH=$HOME/.gloo-mesh/bin:$PATH
 ```
@@ -236,13 +236,13 @@ helm upgrade --install gloo-platform-crds gloo-platform-crds \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${MGMT} \
-  --version 2.6.3
+  --version 2.6.4
 
 helm upgrade --install gloo-platform gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${MGMT} \
-  --version 2.6.3 \
+  --version 2.6.4 \
   -f -<<EOF
 licensing:
   glooTrialLicenseKey: ${GLOO_MESH_LICENSE_KEY}
@@ -393,13 +393,13 @@ helm upgrade --install gloo-platform-crds gloo-platform-crds \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${CLUSTER1} \
-  --version 2.6.3
+  --version 2.6.4
 
 helm upgrade --install gloo-platform gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${CLUSTER1} \
-  --version 2.6.3 \
+  --version 2.6.4 \
   -f -<<EOF
 common:
   cluster: cluster1
@@ -446,13 +446,13 @@ helm upgrade --install gloo-platform-crds gloo-platform-crds \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${CLUSTER2} \
-  --version 2.6.3
+  --version 2.6.4
 
 helm upgrade --install gloo-platform gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${CLUSTER2} \
-  --version 2.6.3 \
+  --version 2.6.4 \
   -f -<<EOF
 common:
   cluster: cluster2
@@ -1427,7 +1427,7 @@ helm upgrade --install gloo-platform gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh-addons \
   --kube-context ${CLUSTER1} \
-  --version 2.6.3 \
+  --version 2.6.4 \
   -f -<<EOF
 common:
   cluster: cluster1
@@ -1451,7 +1451,7 @@ helm upgrade --install gloo-platform gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh-addons \
   --kube-context ${CLUSTER2} \
-  --version 2.6.3 \
+  --version 2.6.4 \
   -f -<<EOF
 common:
   cluster: cluster2
@@ -3091,6 +3091,8 @@ This diagram shows the flow of the request (with the Istio ingress gateway lever
 
 ![Gloo Mesh Gateway Rate Limiting](images/steps/gateway-ratelimiting/gloo-mesh-gateway-rate-limiting.svg)
 
+
+
 Let's apply the original `RouteTable` yaml:
 ```bash
 kubectl apply --context ${CLUSTER1} -f - <<EOF
@@ -3240,6 +3242,8 @@ server: istio-envoy
 
 Log4Shell malicious payload
 ```
+
+
 
 Let's apply the original `RouteTable` yaml:
 
@@ -3475,6 +3479,8 @@ tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
 -->
+
+
 
 Let's apply the original `RouteTable` yaml:
 
@@ -3852,6 +3858,8 @@ If you refresh the page several times, you'll see an error message telling that 
 This diagram shows where the timeout and delay have been applied:
 
 ![Gloo Mesh Traffic Policies](images/steps/traffic-policies/gloo-mesh-traffic-policies.svg)
+
+
 
 Let's delete the Gloo Mesh objects we've created:
 
@@ -4260,6 +4268,9 @@ kubectl --context ${CLUSTER1} -n bookinfo-backends rollout status deploy/reviews
 kubectl --context ${CLUSTER1} -n bookinfo-backends rollout status deploy/reviews-v2
 ```
 
+
+
+
 Let's delete the different objects we've created:
 
 ```bash
@@ -4419,6 +4430,8 @@ tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
 -->
+
+
 
 Run the following commands to initiate a communication from a service which is in the mesh to another service which is in the mesh:
 
@@ -4589,6 +4602,9 @@ echo "saving errors in ${tempfile}"
 timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
 -->
 
+
+
+
 Let's rollback the change we've made in the `WorkspaceSettings` object:
 
 ```bash
@@ -4646,7 +4662,7 @@ helm upgrade --install gloo-platform-crds gloo-platform-crds \
   --namespace gloo-mesh \
   --kube-context ${MGMT} \
   --set featureGates.ExternalWorkloads=true \
-  --version 2.6.3 \
+  --version 2.6.4 \
   --reuse-values \
   -f -<<EOF
 featureGates:
@@ -4657,7 +4673,7 @@ helm upgrade gloo-platform gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${MGMT} \
-  --version 2.6.3 \
+  --version 2.6.4 \
   --reuse-values \
   -f -<<EOF
 featureGates:
@@ -4670,7 +4686,7 @@ helm upgrade --install gloo-platform-crds gloo-platform-crds \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${CLUSTER1} \
-  --version 2.6.3 \
+  --version 2.6.4 \
   --reuse-values \
   -f -<<EOF
 featureGates:
@@ -4681,7 +4697,7 @@ helm upgrade gloo-platform gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${CLUSTER1} \
-  --version 2.6.3 \
+  --version 2.6.4 \
   --reuse-values \
   -f -<<EOF
 glooSpireServer:
@@ -4920,7 +4936,7 @@ echo
 -->
 
 ```shell
-export GLOO_AGENT_URL=https://storage.googleapis.com/gloo-platform/vm/v2.6.3/gloo-workload-agent.deb
+export GLOO_AGENT_URL=https://storage.googleapis.com/gloo-platform/vm/v2.6.4/gloo-workload-agent.deb
 export ISTIO_URL=https://storage.googleapis.com/solo-workshops/istio-binaries/1.22.3/istio-sidecar.deb
 docker exec vm1 meshctl ew onboard --install \
   --attestor token \
@@ -4937,7 +4953,7 @@ docker exec vm1 meshctl ew onboard --install \
   --ext-workload virtualmachines/${VM_APP}
 ```
 <!--bash
-export GLOO_AGENT_URL=https://storage.googleapis.com/gloo-platform/vm/v2.6.3/gloo-workload-agent.deb
+export GLOO_AGENT_URL=https://storage.googleapis.com/gloo-platform/vm/v2.6.4/gloo-workload-agent.deb
 export ISTIO_URL=https://storage.googleapis.com/solo-workshops/istio-binaries/1.22.3/istio-sidecar.deb
 echo -n Trying to onboard the VM...
 MAX_ATTEMPTS=10
@@ -5735,6 +5751,7 @@ echo "saving errors in ${tempfile}"
 timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
 -->
 
+
 Everything is working well with the new version, we can uninstall the previous version.
 
 Let's start with the gateways
@@ -6039,47 +6056,6 @@ istio-ingressgateway-1-22-784f69b4bb-lcfk9    1/1     Running   0          25m
 
 It confirms that only the new version is running.
 
-Finally, you can update the service to point only to the new revision.
-
-```bash
-kubectl --context ${CLUSTER1} -n istio-gateways patch svc istio-ingressgateway --patch "{\"spec\": {\"selector\": {\"revision\": \"${NEW_REVISION}\" }}}"
-kubectl --context ${CLUSTER1} -n istio-gateways patch svc istio-eastwestgateway --patch "{\"spec\": {\"selector\": {\"revision\": \"${NEW_REVISION}\" }}}"
-kubectl --context ${CLUSTER2} -n istio-gateways patch svc istio-ingressgateway --patch "{\"spec\": {\"selector\": {\"revision\": \"${NEW_REVISION}\" }}}"
-kubectl --context ${CLUSTER2} -n istio-gateways patch svc istio-eastwestgateway --patch "{\"spec\": {\"selector\": {\"revision\": \"${NEW_REVISION}\" }}}"
-```
-
-Test that you can still access the `productpage` service:
-
-```bash
-curl -k "https://cluster1-bookinfo.example.com/productpage" -I
-```
-
-You should get a response similar to the following one:
-
-```
-HTTP/2 200
-server: istio-envoy
-date: Wed, 24 Aug 2022 14:58:22 GMT
-content-type: application/json
-content-length: 670
-access-control-allow-origin: *
-access-control-allow-credentials: true
-```
-
-<!--bash
-cat <<'EOF' > ./test.js
-const helpers = require('./tests/chai-http');
-
-describe("productpage is accessible", () => {
-  it('/productpage is available in cluster1', () => helpers.checkURL({ host: `https://cluster1-bookinfo.example.com`, path: '/productpage', retCode: 200 }));
-})
-
-EOF
-echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/istio-lifecycle-manager-upgrade/tests/productpage-available.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
--->
 <!--bash
 cat <<'EOF' > ./test.js
 const chaiExec = require("@jsdevtools/chai-exec");
@@ -6123,6 +6099,50 @@ tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
 -->
+
+
+Finally, you can update the service to point only to the new revision.
+
+```bash
+kubectl --context ${CLUSTER1} -n istio-gateways patch svc istio-ingressgateway --patch "{\"spec\": {\"selector\": {\"revision\": \"${NEW_REVISION}\" }}}"
+kubectl --context ${CLUSTER1} -n istio-gateways patch svc istio-eastwestgateway --patch "{\"spec\": {\"selector\": {\"revision\": \"${NEW_REVISION}\" }}}"
+kubectl --context ${CLUSTER2} -n istio-gateways patch svc istio-ingressgateway --patch "{\"spec\": {\"selector\": {\"revision\": \"${NEW_REVISION}\" }}}"
+kubectl --context ${CLUSTER2} -n istio-gateways patch svc istio-eastwestgateway --patch "{\"spec\": {\"selector\": {\"revision\": \"${NEW_REVISION}\" }}}"
+```
+
+Test that you can still access the `productpage` service:
+
+```
+curl -k "https://cluster1-bookinfo.example.com/productpage" -I
+```
+
+You should get a response similar to the following one:
+
+```
+HTTP/2 200
+server: istio-envoy
+date: Wed, 24 Aug 2022 14:58:22 GMT
+content-type: application/json
+content-length: 670
+access-control-allow-origin: *
+access-control-allow-credentials: true
+```
+
+<!--bash
+cat <<'EOF' > ./test.js
+const helpers = require('./tests/chai-http');
+
+describe("productpage is accessible", () => {
+  it('/productpage is available in cluster1', () => helpers.checkURL({ host: `https://cluster1-bookinfo.example.com`, path: '/productpage', retCode: 200 }));
+})
+
+EOF
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/istio-lifecycle-manager-upgrade/tests/productpage-available.test.js.liquid"
+tempfile=$(mktemp)
+echo "saving errors in ${tempfile}"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
+-->
+
 
 
 
@@ -6199,13 +6219,13 @@ helm upgrade --install gloo-platform-crds gloo-platform-crds \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${MGMT2} \
-  --version 2.6.3
+  --version 2.6.4
 
 helm upgrade --install gloo-platform gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${MGMT2} \
-  --version 2.6.3 \
+  --version 2.6.4 \
   -f -<<EOF
 licensing:
   glooTrialLicenseKey: ${GLOO_MESH_LICENSE_KEY}
@@ -6403,13 +6423,13 @@ helm upgrade --install gloo-platform-crds gloo-platform-crds \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${CLUSTER1} \
-  --version 2.6.3
+  --version 2.6.4
 
 helm upgrade --install gloo-platform gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${CLUSTER1} \
-  --version 2.6.3 \
+  --version 2.6.4 \
   -f -<<EOF
 common:
   cluster: cluster1
@@ -6450,13 +6470,13 @@ helm upgrade --install gloo-platform-crds gloo-platform-crds \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${CLUSTER2} \
-  --version 2.6.3
+  --version 2.6.4
 
 helm upgrade --install gloo-platform gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${CLUSTER2} \
-  --version 2.6.3 \
+  --version 2.6.4 \
   -f -<<EOF
 common:
   cluster: cluster2
