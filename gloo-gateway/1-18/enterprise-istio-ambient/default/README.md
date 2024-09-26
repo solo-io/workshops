@@ -169,37 +169,37 @@ Install Istio in Ambient mode:
 helm upgrade --install istio-base \
   oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/base \
   -n istio-system --create-namespace \
-  --version 1.23.0-solo \
+  --version 1.23.1-solo \
   --kube-context ${CLUSTER1} \
   --wait
 
 helm upgrade --install istio-cni \
   oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/cni \
   -n istio-system \
-  --version 1.23.0-solo \
+  --version 1.23.1-solo \
   --set profile=ambient \
   --set global.hub=us-docker.pkg.dev/gloo-mesh/istio-<enterprise_istio_repo> \
-  --set global.tag=1.23.0-solo \
+  --set global.tag=1.23.1-solo \
   --kube-context ${CLUSTER1} \
   --wait
 
 helm upgrade --install istiod \
   oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/istiod \
   -n istio-system \
-  --version 1.23.0-solo \
+  --version 1.23.1-solo \
   --set profile=ambient \
   --set global.hub=us-docker.pkg.dev/gloo-mesh/istio-<enterprise_istio_repo> \
-  --set global.tag=1.23.0-solo \
+  --set global.tag=1.23.1-solo \
   --kube-context ${CLUSTER1} \
   --wait
 
 helm upgrade --install ztunnel \
   oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/ztunnel \
   -n istio-system \
-  --version 1.23.0-solo \
+  --version 1.23.1-solo \
   --set profile=ambient \
   --set hub=us-docker.pkg.dev/gloo-mesh/istio-<enterprise_istio_repo> \
-  --set tag=1.23.0-solo \
+  --set tag=1.23.1-solo \
   --set env.L7_ENABLED="true" \
   --kube-context ${CLUSTER1} \
   --wait
@@ -284,10 +284,10 @@ gloo:
       disabled: true
   gateway:
     validation:
-      enabled: false
-      disableTransformationValidation: false
+      allowWarnings: true
       alwaysAcceptResources: false
   gloo:
+    logLevel: info
     deployment:
       customEnv:
         - name: GG_PORTAL_PLUGIN
@@ -600,7 +600,7 @@ spec:
     spec:
       containers:
       - name: keycloak
-        image: quay.io/keycloak/keycloak:25.0.1
+        image: quay.io/keycloak/keycloak:25.0.5
         args: ["start-dev", "--import-realm"]
         env:
         - name: KEYCLOAK_ADMIN
@@ -3175,7 +3175,7 @@ const chai = require("chai");
 const helpersHttp = require('./tests/chai-http');
 const https = require("https");
 
-describe("Downstream mTLS", function(done) {
+describe("Downstream mTLS", () => {
   it("rejects requests without client certificate", (done) => {
     const options = {
       hostname: `httpbin.example.com`,
@@ -3497,7 +3497,7 @@ Run the following commands to install Argo Rollouts in your environment:
 ```bash
 helm upgrade --install argo-rollouts argo-rollouts \
   --repo https://argoproj.github.io/argo-helm \
-  --version 2.35.3 \
+  --version 2.37.6 \
   --kube-context ${CLUSTER1} \
   --namespace argo-rollouts \
   --create-namespace \
@@ -4023,6 +4023,15 @@ echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpb
 tempfile=$(mktemp)
 echo "saving errors in ${tempfile}"
 timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
+-->
+
+<!--bash
+echo -n Waiting for rollout to be ready...
+timeout -v 5m bash -c "until [[ \$(kubectl --context ${CLUSTER1} -n httpbin get rollout httpbin1 -ojsonpath='{.status.currentStepIndex}' 2>/dev/null) -eq 5 ]]; do
+  sleep 1
+  echo -n .
+done"
+echo
 -->
 
 Let's get it to the next step by running this command:
@@ -5716,7 +5725,7 @@ spec:
     spec:
       serviceAccountName: portal-frontend
       containers:
-      - image: gcr.io/solo-public/docs/portal-frontend:v0.0.33
+      - image: gcr.io/solo-public/docs/portal-frontend:v0.0.35
         args: ["--host", "0.0.0.0"]
         imagePullPolicy: Always
         name: portal-frontend
@@ -5904,6 +5913,76 @@ timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> 
 If you click on the `LOGIN` button on the top right corner, you'll be redirected to keycloak and should be able to auth with the user `user1` and the password `password`.
 
 Now, if you click on the `VIEW APIS` button, you should see the `Bookinfo REST API`.
+
+<!--bash
+cat <<'EOF' > ./test.js
+const helpersHttp = require('./tests/chai-http');
+const DeveloperPortalHomePage = require('./tests/pages/developer-portal-home-page');
+const DeveloperPortalAPIPage = require('./tests/pages/developer-portal-api-page');
+const KeycloakSignInPage = require('./tests/pages/keycloak-sign-in-page');
+const constants = require('./tests/pages/constants');
+const puppeteer = require('puppeteer');
+const { enhanceBrowser } = require('./tests/utils/enhance-browser');
+var chai = require('chai');
+var expect = chai.expect;
+
+afterEach(function (done) {
+  if (this.currentTest.currentRetry() > 0) {
+    process.stdout.write(".");
+    setTimeout(done, 4000);
+  } else {
+    done();
+  }
+});
+
+describe("Insights UI", function () {
+  let browser;
+  let devPortalHomePage;
+  let devPortalAPIPage;
+  let keycloakSignInPage;
+
+  // Use Mocha's 'before' hook to set up Puppeteer
+  beforeEach(async function () {
+    browser = await puppeteer.launch({
+      headless: "new",
+      ignoreHTTPSErrors: true,
+      args: ['--no-sandbox', '--disable-setuid-sandbox'],
+    });
+    browser = enhanceBrowser(browser, this.currentTest.title);
+    let page = await browser.newPage();
+    await page.setViewport({ width: 1500, height: 1000 });
+    devPortalHomePage = new DeveloperPortalHomePage(page);
+    devPortalAPIPage = new DeveloperPortalAPIPage(page);
+    keycloakSignInPage = new KeycloakSignInPage(page);
+  });
+
+  // Use Mocha's 'after' hook to close Puppeteer
+  afterEach(async function () {
+    await browser.close();
+  });
+
+  it("should authenticate with keycloak", async () => {
+    await devPortalHomePage.navigateTo('https://portal.example.com');
+    await devPortalHomePage.clickLogin();
+    await keycloakSignInPage.signIn("user1", "password");
+    let username = await devPortalHomePage.getLoggedInUserName();
+    expect(username).to.equal("user1");
+  });
+
+  it("should see API Products", async () => {
+    await devPortalAPIPage.navigateTo('https://portal.example.com/apis');
+    const apiProducts = await devPortalAPIPage.getAPIProducts();
+    expect(apiProducts.some(item => item.includes("BookInfo"))).to.be.true;
+  });
+});
+
+EOF
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/bookinfo/dev-portal-frontend/tests/dev-portal-ui-tests.test.js.liquid"
+tempfile=$(mktemp)
+echo "saving errors in ${tempfile}"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=150 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
+-->
+
 
 
 
