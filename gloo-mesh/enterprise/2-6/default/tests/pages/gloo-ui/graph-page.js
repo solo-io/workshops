@@ -1,6 +1,8 @@
-class GraphPage {
+const BasePage = require("../base");
+
+class GraphPage extends BasePage {
   constructor(page) {
-    this.page = page;
+    super(page)
 
     // Selectors
     this.clusterDropdownButton = '[data-testid="cluster-dropdown"] button';
@@ -14,10 +16,6 @@ class GraphPage {
     this.disableCiliumNodesButton = '[data-testid="graph-cilium-toggle"][aria-checked="true"]';
     this.enableCiliumNodesButton = '[data-testid="graph-cilium-toggle"][aria-checked="false"]';
 
-  }
-
-  async navigateTo(url) {
-    await this.page.goto(url, { waitUntil: 'networkidle2' });
   }
 
   async selectClusters(clusters) {
