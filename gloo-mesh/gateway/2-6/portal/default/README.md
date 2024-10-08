@@ -7,7 +7,7 @@ source ./scripts/assert.sh
 
 <center><img src="images/gloo-gateway.png" alt="Gloo Mesh Gateway" style="width:70%;max-width:800px" /></center>
 
-# <center>Gloo Portal (2.6.4)</center>
+# <center>Gloo Portal (2.6.5)</center>
 
 
 
@@ -137,9 +137,7 @@ describe("Clusters are healthy", () => {
 });
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/deploy-kind-cluster/tests/cluster-healthy.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
 -->
 
 
@@ -152,7 +150,7 @@ timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> 
 Before we get started, let's install the `meshctl` CLI:
 
 ```bash
-export GLOO_MESH_VERSION=v2.6.4
+export GLOO_MESH_VERSION=v2.6.5
 curl -sL https://run.solo.io/meshctl/install | sh -
 export PATH=$HOME/.gloo-mesh/bin:$PATH
 ```
@@ -182,9 +180,7 @@ describe("Required environment variables should contain value", () => {
 });
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/deploy-and-register-gloo-mesh/tests/environment-variables.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
 -->
 First, create a secret with the password to use to store access logs in Clickhouse:
 
@@ -215,13 +211,13 @@ helm upgrade --install gloo-platform-crds gloo-platform-crds \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${MGMT} \
-  --version 2.6.4
+  --version 2.6.5
 
 helm upgrade --install gloo-platform-mgmt gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${MGMT} \
-  --version 2.6.4 \
+  --version 2.6.5 \
   -f -<<EOF
 licensing:
   glooTrialLicenseKey: ${GLOO_MESH_LICENSE_KEY}
@@ -301,9 +297,7 @@ describe("Cluster registration", () => {
 });
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/deploy-and-register-gloo-mesh/tests/cluster-registration.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
 -->
 
 
@@ -314,7 +308,7 @@ timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> 
 We are going to deploy Istio using Gloo Mesh Lifecycle Manager.
 
 <details>
-  <summary>Install `istioctl`</summary>
+  <summary>Install <code>istioctl</code></summary>
 
 Install `istioctl` if not already installed as it will be useful in some of the labs that follow.
 
@@ -330,6 +324,25 @@ fi
 
 That's it!
 </details>
+<!--bash
+cat <<'EOF' > ./test.js
+const chaiExec = require("@jsdevtools/chai-exec");
+var chai = require('chai');
+var expect = chai.expect;
+chai.use(chaiExec);
+
+afterEach(function (done) {
+  if (this.currentTest.currentRetry() > 0) {
+    process.stdout.write(".");
+    setTimeout(done, 1000);
+  } else {
+    done();
+  }
+});
+EOF
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/istio-lifecycle-manager-install/tests/istio-version.test.js.liquid"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
+-->
 
 Let's create Kubernetes services for the gateways:
 
@@ -489,9 +502,7 @@ describe("Checking Istio installation", function() {
 
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/istio-lifecycle-manager-install/tests/istio-ready.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
 -->
 <!--bash
 timeout 2m bash -c "until [[ \$(kubectl --context ${CLUSTER1} -n istio-gateways get svc -l istio=ingressgateway -o json | jq '.items[0].status.loadBalancer | length') -gt 0 ]]; do
@@ -524,9 +535,7 @@ describe("Address '" + process.env.HOST_GW_CLUSTER1 + "' can be resolved in DNS"
 });
 EOF
 echo "executing test ./gloo-mesh-2-0/tests/can-resolve.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
 -->
 
 
@@ -574,7 +583,7 @@ echo
 
 You can check that the app is running using the following command:
 
-```
+```shell
 kubectl --context ${CLUSTER1} -n bookinfo-frontends get pods && kubectl --context ${CLUSTER1} -n bookinfo-backends get pods
 ```
 
@@ -599,9 +608,7 @@ describe("Bookinfo app", () => {
 });
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/apps/bookinfo/deploy-bookinfo/tests/check-bookinfo.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
 -->
 
 
@@ -779,9 +786,7 @@ describe("httpbin app", () => {
 });
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/apps/httpbin/deploy-httpbin/tests/check-httpbin.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
 -->
 
 
@@ -805,7 +810,7 @@ helm upgrade --install gloo-platform gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh-addons \
   --kube-context ${CLUSTER1} \
-  --version 2.6.4 \
+  --version 2.6.5 \
   -f -<<EOF
 common:
   cluster: cluster1
@@ -891,9 +896,7 @@ describe("Gloo Platform add-ons cluster1 deployment", () => {
 
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/deploy-gloo-mesh-addons/tests/check-addons-deployments.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
 -->
 <!--bash
 cat <<'EOF' > ./test.js
@@ -909,9 +912,7 @@ describe("Gloo Platform add-ons cluster1 service", () => {
 
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/deploy-gloo-mesh-addons/tests/check-addons-services.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
 -->
 This is what the environment looks like now:
 
@@ -1193,9 +1194,7 @@ describe("Productpage is available (HTTP)", () => {
 })
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/apps/bookinfo/gateway-expose/tests/productpage-available.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
 -->
 
 Gloo Mesh translates the `VirtualGateway` and `RouteTable` into the corresponding Istio objects (`Gateway` and `VirtualService`).
@@ -1286,9 +1285,7 @@ describe("Productpage is available (HTTPS)", () => {
 })
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/apps/bookinfo/gateway-expose/tests/productpage-available-secure.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
 -->
 <!--bash
 cat <<'EOF' > ./test.js
@@ -1307,9 +1304,7 @@ describe("Otel metrics", () => {
 
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/apps/bookinfo/gateway-expose/tests/otel-metrics.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=150 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=150 --bail || exit 1
 -->
 
 This diagram shows the flow of the request (through the Istio Ingress Gateway):
@@ -1622,9 +1617,7 @@ describe("Keycloak", () => {
 });
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/deploy-keycloak/tests/pods-available.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
 -->
 <!--bash
 cat <<'EOF' > ./test.js
@@ -1651,9 +1644,7 @@ describe("Retrieve enterprise-networking ip", () => {
 });
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/deploy-keycloak/tests/keycloak-ip-is-attached.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
 -->
 <!--bash
 timeout 2m bash -c "until [[ \$(kubectl --context ${MGMT} -n keycloak get svc keycloak -o json | jq '.status.loadBalancer | length') -gt 0 ]]; do
@@ -1691,9 +1682,7 @@ describe("Address '" + process.env.HOST_KEYCLOAK + "' can be resolved in DNS", (
 });
 EOF
 echo "executing test ./gloo-mesh-2-0/tests/can-resolve.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
 -->
 <!--bash
 echo "Waiting for Keycloak to be ready at $KEYCLOAK_URL/realms/workshop/protocol/openid-connect/token"
@@ -1742,9 +1731,7 @@ describe("APIDoc has been created", () => {
 });
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/apps/bookinfo/dev-portal-api/tests/apidoc-created.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 5m mocha ./test.js --timeout 10000 --retries=300 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
+timeout --signal=INT 5m mocha ./test.js --timeout 10000 --retries=300 --bail || exit 1
 -->
 
 You should get something like this:
@@ -1884,9 +1871,7 @@ describe("Access the API without authentication", () => {
 })
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/apps/bookinfo/dev-portal-api/tests/access-api-no-auth.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
 -->
 
 Here is the expected output:
@@ -1947,9 +1932,7 @@ describe("Access to API unauthorized", () => {
 })
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/apps/bookinfo/dev-portal-api/tests/access-api-unauthorized.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
 -->
 
 The access is refused (401 response):
@@ -1997,9 +1980,7 @@ describe("Access to API authorized", () => {
 })
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/apps/bookinfo/dev-portal-api/tests/access-api-authorized.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
 -->
 
 We'll see later that the API keys can be created on demand by the end user through the developer portal (and stored on Redis for better scalability).
@@ -2199,9 +2180,7 @@ describe("APIDoc has been created", () => {
 });
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/apps/bookinfo/dev-portal-stitching/tests/apidoc-created.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 5m mocha ./test.js --timeout 10000 --retries=300 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
+timeout --signal=INT 5m mocha ./test.js --timeout 10000 --retries=300 --bail || exit 1
 -->
 
 Finally, you can create a new `RouteTable` to stitch together the `/search.json` path with the existing Bookinfo API:
@@ -2301,9 +2280,7 @@ describe("Access the openlibrary API", () => {
 })
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/apps/bookinfo/dev-portal-stitching/tests/access-openlibrary-api.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
 -->
 
 You should get something like that:
@@ -2472,9 +2449,7 @@ describe("Access the portal API without authentication", () => {
 })
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/apps/bookinfo/dev-portal-backend/tests/access-portal-api-no-auth-no-config.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
 -->
 
 Here is the expected output:
@@ -2620,9 +2595,7 @@ describe("Access the portal frontend without authentication", () => {
 })
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/apps/bookinfo/dev-portal-frontend/tests/access-portal-frontend-no-auth.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=300 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=300 --bail || exit 1
 -->
 
 We need to secure the access to the portal frontend.
@@ -2852,9 +2825,7 @@ describe("Access the portal API without authentication", () => {
 })
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/apps/bookinfo/dev-portal-self-service/tests/access-portal-api-no-auth-empty.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
 -->
 
 Users will authenticate on the frontends using OIDC and get access to specific APIs and plans based on the claims they'll have in the returned JWT token.
@@ -2941,9 +2912,7 @@ describe("Authentication is working properly", function() {
 });
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/apps/bookinfo/dev-portal-self-service/tests/access-portal-frontend-authenticated.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
 -->
 
 If you click on the `LOGIN` button on the top right corner, you'll be redirected to keycloak and should be able to auth with the user `user1` and the password `password`.
@@ -2997,9 +2966,7 @@ describe("API key creation working properly", function() {
 });
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/apps/bookinfo/dev-portal-self-service/tests/api-key.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=150 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=150 --bail || exit 1
 -->
 
 
@@ -3241,9 +3208,7 @@ describe("Monetization is working", () => {
 });
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/apps/bookinfo/dev-portal-monetization/tests/monetization.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=150 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=150 --bail || exit 1
 -->
 <!--bash
 cat <<'EOF' > ./test.js
@@ -3258,9 +3223,7 @@ describe("Ensure Grafana app is running", () => {
 });
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/apps/bookinfo/dev-portal-monetization/tests/check-grafana.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=50 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=50 --bail || exit 1
 -->
 
 
