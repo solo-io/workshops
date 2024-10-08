@@ -6,6 +6,7 @@ const utils = require('./utils');
 const fs = require("fs");
 
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+process.env.NODE_NO_WARNINGS = 1;
 chai.config.truncateThreshold = 4000; // length threshold for actual and expected values in assertion errors
 
 global = {

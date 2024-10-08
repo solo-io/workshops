@@ -80,9 +80,9 @@ You can find more information about Gloo Gateway in the official documentation: 
 Download Gloo Gateway packages:
 
 ```bash
-gsutil cp gs://gloo-ee-vm/1.17.2/gloo-control.deb .
-gsutil cp gs://gloo-ee-vm/1.17.2/gloo-gateway.deb .
-gsutil cp gs://gloo-ee-vm/1.17.2/gloo-extensions.deb .
+gsutil cp gs://gloo-ee-vm/1.17.3/gloo-control.deb .
+gsutil cp gs://gloo-ee-vm/1.17.3/gloo-gateway.deb .
+gsutil cp gs://gloo-ee-vm/1.17.3/gloo-extensions.deb .
 ```
 
 Deploy Redis on Docker:
@@ -179,9 +179,7 @@ describe("httpbin containers are ready", () => {
 })
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/deploy-httpbin-vm/tests/check-httpbin.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
 -->
 
 We'll also create `Upstream` objects corresponding to these services:
@@ -397,9 +395,7 @@ describe("httpbin through HTTP", () => {
 })
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/expose-httpbin/tests/http.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
 -->
 
 Now, let's secure the access through TLS.
@@ -549,9 +545,7 @@ describe("httpbin through HTTPS", () => {
 })
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/expose-httpbin/tests/https.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
 -->
 
 The team in charge of the gateway can create an `HTTPRoute` to automatically redirect HTTP to HTTPS:
@@ -623,9 +617,7 @@ describe("location header correctly set", () => {
 })
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/expose-httpbin/tests/redirect-http-to-https.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
 -->
 
 
@@ -728,9 +720,7 @@ describe("httpbin through HTTPS", () => {
 })
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/delegation/tests/https.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
 -->
 
 In the previous example, we've used a simple `/` prefix matcher for both the parent and the child `HTTPRoute`.
@@ -812,9 +802,7 @@ describe("httpbin through HTTPS", () => {
 })
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/delegation/tests/status-200.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
 -->
 
 In the child `HTTPRoute` we've indicated the absolute path (which includes the parent path), but instead we can inherite the parent matcher and use a relative path:
@@ -863,9 +851,7 @@ describe("httpbin through HTTPS", () => {
 })
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/delegation/tests/status-200.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
 -->
 
 The team in charge of the httpbin application can also take advantage of the `parentRefs` option to indicate which parent `HTTPRoute` can delegate to its own `HTTPRoute`.
@@ -921,9 +907,7 @@ describe("httpbin through HTTPS", () => {
 })
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/delegation/tests/status-200.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
 -->
 
 Delegation offers another very nice feature. It automatically reorders all the matchers to avoid any short-circuiting.
@@ -986,9 +970,7 @@ describe("httpbin through HTTPS", () => {
 })
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/delegation/tests/status-200.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
 -->
 
 Check you can now also access the status `/status/201` path:
@@ -1024,9 +1006,7 @@ describe("httpbin through HTTPS", () => {
 })
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/delegation/tests/status-201.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
 -->
 
 Let's delete the latest `HTTPRoute` and apply the original ones:
@@ -1088,9 +1068,7 @@ describe("httpbin through HTTPS", () => {
 })
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/delegation/tests/https.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
 -->
 
 
@@ -1188,9 +1166,7 @@ describe("request transformations applied", () => {
 })
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/transformations/tests/request-headers.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
 -->
 
 Another typical use case is to rewrite the hostname or the path before sending the request to the backend.
@@ -1275,9 +1251,7 @@ describe("request rewrite applied", () => {
 })
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/transformations/tests/request-rewrite.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
 -->
 
 
@@ -1353,9 +1327,7 @@ describe("response transformations applied", () => {
 })
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/transformations/tests/response-headers.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
 -->
 
 Let's apply the original `HTTPRoute` yaml:
@@ -1469,9 +1441,7 @@ describe("request transformation applied", () => {
 })
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/transformations/tests/x-client-request-header.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
 -->
 
 As you can see, we've created a new header called `X-Client` by extracting some data from the `User-Agent` header using a regular expression.
@@ -1560,9 +1530,7 @@ describe("response transformation applied", () => {
 })
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/transformations/tests/x-request-id-response-header.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
 -->
 
 Let's apply the original `HTTPRoute` yaml:
@@ -1666,9 +1634,7 @@ describe("traffic split applied", () => {
 })
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/traffic-split/tests/traffic-split.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
 -->
 
 
@@ -1877,9 +1843,7 @@ describe("Authentication is working properly", function () {
 
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/extauth-oauth/tests/authentication.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
 -->
 <!--bash
 cat <<'EOF' > ./test.js
@@ -1892,9 +1856,7 @@ describe("Claim to header is working properly", function() {
 
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/extauth-oauth/tests/header-added.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
 -->
 
 If you refresh the web browser, you will be redirected to the authentication page.
@@ -1988,9 +1950,7 @@ describe("Authentication is working properly", function () {
 
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/extauth-oauth/tests/authorization.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
 -->
 If you open the browser in incognito and login using the username `user2` and the password `password`, you will now be able to access it since the user's email ends with `@solo.io`.
 
@@ -2046,9 +2006,7 @@ describe("Transformation is working properly", function() {
 
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/advanced-transformations/tests/header-added.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
 -->
 
 
@@ -2131,9 +2089,7 @@ describe("Rate limiting is working properly", function() {
 
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/ratelimiting/tests/rate-limited.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
 -->
 
 You should get a `200` response code the first 3 times and a `429` response code after.
@@ -2223,9 +2179,7 @@ describe("WAF is working properly", function() {
 });
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/waf/tests/waf.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
 -->
 
 Run the following command to simulate an attack:
