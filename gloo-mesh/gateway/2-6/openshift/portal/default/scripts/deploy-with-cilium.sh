@@ -22,6 +22,24 @@ else
   myip=$(ipconfig getifaddr en0)
 fi
 
+# Function to determine the next available cluster number
+get_next_cluster_number() {
+    if ! kind get clusters 2>&1 | grep "^kind" > /dev/null; then
+        echo 1
+    else
+        highest_num=$(kind get clusters | grep "^kind" | tail -1 | cut -c 5-)
+        echo $((highest_num + 1))
+    fi
+}
+
+if [ -f /.dockerenv ]; then
+myip=$HOST_IP
+container=$(docker inspect $(docker ps -q) | jq -r ".[] | select(.Config.Hostname == \"$HOSTNAME\") | .Name" | cut -d/ -f2)
+docker network connect "kind" $container || true
+number=$(get_next_cluster_number)
+twodigits=$(printf "%02d\n" $number)
+fi
+
 reg_name='kind-registry'
 reg_port='5000'
 docker start "${reg_name}" 2>/dev/null || \
