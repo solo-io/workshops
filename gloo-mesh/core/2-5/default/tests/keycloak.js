@@ -6,7 +6,7 @@ global = {
         const browser = await puppeteer.launch({
             headless: "new",
             ignoreHTTPSErrors: true,
-            args: ['--no-sandbox', '--disable-setuid-sandbox', '--incognito', '--disable-site-isolation-trials', '--renderer-process-limit=4', '--enable-low-end-device-mode'], // needed for instruqt
+            args: ['--no-sandbox', '--disable-setuid-sandbox'], // needed for instruqt
         });
         // Create a new browser context
         const context = await browser.createBrowserContext();
