@@ -7,7 +7,7 @@ source ./scripts/assert.sh
 
 <center><img src="images/gloo-mesh.png" alt="Gloo Mesh Enterprise" style="width:70%;max-width:800px" /></center>
 
-# <center>Gloo Mesh Core (2.6.4) Ambient</center>
+# <center>Gloo Mesh Core (2.6.5) Ambient</center>
 
 
 
@@ -152,9 +152,7 @@ describe("Clusters are healthy", () => {
 });
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/deploy-kind-clusters/tests/cluster-healthy.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
 -->
 
 
@@ -167,7 +165,7 @@ timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> 
 Before we get started, let's install the `meshctl` CLI:
 
 ```bash
-export GLOO_MESH_VERSION=v2.6.4
+export GLOO_MESH_VERSION=v2.6.5
 curl -sL https://run.solo.io/meshctl/install | sh -
 export PATH=$HOME/.gloo-mesh/bin:$PATH
 ```
@@ -198,9 +196,7 @@ describe("Required environment variables should contain value", () => {
 });
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/deploy-and-register-gloo-mesh/tests/environment-variables.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
 -->
 Run the following commands to deploy the Gloo Mesh management plane:
 
@@ -212,13 +208,13 @@ helm upgrade --install gloo-platform-crds gloo-platform-crds \
   --namespace gloo-mesh \
   --kube-context ${MGMT} \
   --set featureGates.insightsConfiguration=true \
-  --version 2.6.4
+  --version 2.6.5
 
 helm upgrade --install gloo-platform gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${MGMT} \
-  --version 2.6.4 \
+  --version 2.6.5 \
   -f -<<EOF
 licensing:
   glooTrialLicenseKey: ${GLOO_MESH_LICENSE_KEY}
@@ -279,9 +275,7 @@ describe("MGMT server is healthy", () => {
 });
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/deploy-and-register-gloo-mesh/tests/check-deployment.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
 -->
 <!--bash
 cat <<'EOF' > ./test.js
@@ -300,9 +294,7 @@ afterEach(function (done) {
 });
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/deploy-and-register-gloo-mesh/tests/get-gloo-mesh-mgmt-server-ip.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
 -->
 
 ```bash
@@ -339,9 +331,7 @@ describe("Address '" + process.env.HOST_GLOO_MESH + "' can be resolved in DNS", 
 });
 EOF
 echo "executing test ./gloo-mesh-2-0/tests/can-resolve.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
 -->
 Finally, you need to register the cluster(s).
 
@@ -373,13 +363,13 @@ helm upgrade --install gloo-platform-crds gloo-platform-crds \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${CLUSTER1} \
-  --version 2.6.4
+  --version 2.6.5
 
 helm upgrade --install gloo-platform gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${CLUSTER1} \
-  --version 2.6.4 \
+  --version 2.6.5 \
   -f -<<EOF
 common:
   cluster: cluster1
@@ -428,13 +418,13 @@ helm upgrade --install gloo-platform-crds gloo-platform-crds \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${CLUSTER2} \
-  --version 2.6.4
+  --version 2.6.5
 
 helm upgrade --install gloo-platform gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${CLUSTER2} \
-  --version 2.6.4 \
+  --version 2.6.5 \
   -f -<<EOF
 common:
   cluster: cluster2
@@ -507,9 +497,7 @@ describe("Cluster registration", () => {
 });
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/deploy-and-register-gloo-mesh/tests/cluster-registration.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
 -->
 
 
@@ -520,7 +508,7 @@ timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> 
 We are going to deploy Istio using Gloo Mesh Lifecycle Manager.
 
 <details>
-  <summary>Install `istioctl`</summary>
+  <summary>Install <code>istioctl</code></summary>
 
 Install `istioctl` if not already installed as it will be useful in some of the labs that follow.
 
@@ -536,6 +524,46 @@ fi
 
 That's it!
 </details>
+<!--bash
+cat <<'EOF' > ./test.js
+const chaiExec = require("@jsdevtools/chai-exec");
+var chai = require('chai');
+var expect = chai.expect;
+chai.use(chaiExec);
+
+afterEach(function (done) {
+  if (this.currentTest.currentRetry() > 0) {
+    process.stdout.write(".");
+    setTimeout(done, 1000);
+  } else {
+    done();
+  }
+});
+describe("istio_version is at least 1.23.0", () => {
+  it("version should be at least 1.23.0", () => {
+    // Compare the string istio_version to the number 1.23.0
+    // example 1.23.0-patch0 is valid, but 1.22.6 is not
+    let version = "1.23.1";
+    let versionParts = version.split('-')[0].split('.');
+    let major = parseInt(versionParts[0]);
+    let minor = parseInt(versionParts[1]);
+    let patch = parseInt(versionParts[2]);
+    let minMajor = 1;
+    let minMinor = 23;
+    let minPatch = 0;
+    expect(major).to.be.at.least(minMajor);
+    if (major === minMajor) {
+      expect(minor).to.be.at.least(minMinor);
+      if (minor === minMinor) {
+        expect(patch).to.be.at.least(minPatch);
+      }
+    }
+  });
+});
+EOF
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/istio-lifecycle-manager-install/tests/istio-version.test.js.liquid"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
+-->
 
 Let's create Kubernetes services for the gateways:
 
@@ -1001,9 +1029,7 @@ describe("Checking Istio installation", function() {
 
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/istio-lifecycle-manager-install/tests/istio-ready.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
 -->
 <!--bash
 timeout 2m bash -c "until [[ \$(kubectl --context ${CLUSTER1} -n istio-gateways get svc -l istio=ingressgateway -o json | jq '.items[0].status.loadBalancer | length') -gt 0 ]]; do
@@ -1037,9 +1063,7 @@ describe("Address '" + process.env.HOST_GW_CLUSTER1 + "' can be resolved in DNS"
 });
 EOF
 echo "executing test ./gloo-mesh-2-0/tests/can-resolve.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
 -->
 <!--bash
 cat <<'EOF' > ./test.js
@@ -1062,9 +1086,7 @@ describe("Address '" + process.env.HOST_GW_CLUSTER2 + "' can be resolved in DNS"
 });
 EOF
 echo "executing test ./gloo-mesh-2-0/tests/can-resolve.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
 -->
 The Gateway APIs do not come installed by default on most Kubernetes clusters. Install the Gateway API CRDs if they are not present:
 
@@ -1122,7 +1144,7 @@ echo
 
 You can check that the app is running using the following command:
 
-```
+```shell
 kubectl --context ${CLUSTER1} -n bookinfo-frontends get pods && kubectl --context ${CLUSTER1} -n bookinfo-backends get pods
 ```
 
@@ -1201,9 +1223,7 @@ describe("Bookinfo app", () => {
 });
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/apps/bookinfo/deploy-bookinfo/tests/check-bookinfo.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
 -->
 
 
@@ -1220,7 +1240,6 @@ Run the following commands to deploy the httpbin app on `cluster1`. The deployme
 ```bash
 kubectl --context ${CLUSTER1} create ns httpbin
 kubectl --context ${CLUSTER1} label namespace httpbin istio.io/dataplane-mode=ambient
-kubectl --context ${CLUSTER1} label namespace httpbin istio-injection=disabled
 kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: v1
 kind: ServiceAccount
@@ -1431,7 +1450,7 @@ kubectl --context ${CLUSTER1} -n httpbin get pods
 ```,nocopy
 NAME                           READY   STATUS    RESTARTS   AGE
 in-mesh-5d9d9549b5-qrdgd       2/2     Running   0          11s
-in-ambient-5c64bb49cd-m9kwm    2/2     Running   0          4s
+in-ambient-5c64bb49cd-m9kwm    1/1     Running   0          4s
 not-in-mesh-5c64bb49cd-m9kwm   1/1     Running   0          11s
 ```
 <!--bash
@@ -1449,9 +1468,7 @@ describe("httpbin app", () => {
 });
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/apps/httpbin/deploy-httpbin/tests/check-httpbin.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
 -->
 
 
@@ -1662,9 +1679,7 @@ describe("client apps", () => {
 });
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/apps/clients/deploy-clients/tests/check-clients.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
 -->
 
 
@@ -1747,9 +1762,7 @@ describe("productpage is available (HTTP)", () => {
 })
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/apps/bookinfo/gateway-expose-istio/tests/productpage-available.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
 -->
 
 Now, let's secure the access through TLS.
@@ -1815,9 +1828,7 @@ describe("productpage is available (HTTPS)", () => {
 })
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/apps/bookinfo/gateway-expose-istio/tests/productpage-available-secure.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
 -->
 <!--bash
 cat <<'EOF' > ./test.js
@@ -1836,9 +1847,7 @@ describe("Otel metrics", () => {
 
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/apps/bookinfo/gateway-expose-istio/tests/otel-metrics.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=150 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=150 --bail || exit 1
 -->
 <!--bash
 cat <<'EOF' > ./test.js
@@ -1846,7 +1855,7 @@ const helpers = require('./tests/chai-http');
 const puppeteer = require('puppeteer');
 const chai = require('chai');
 const expect = chai.expect;
-const GraphPage = require('./tests/pages/graph-page');
+const GraphPage = require('./tests/pages/gloo-ui/graph-page');
 const { recognizeTextFromScreenshot } = require('./tests/utils/image-ocr-processor');
 const { enhanceBrowser } = require('./tests/utils/enhance-browser');
 
@@ -1917,9 +1926,7 @@ describe("graph page", function () {
 
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/apps/bookinfo/gateway-expose-istio/tests/graph-shows-traffic.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 5m mocha ./test.js --timeout 120000 --retries=20 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
+timeout --signal=INT 5m mocha ./test.js --timeout 120000 --retries=20 --bail || exit 1
 -->
 
 
@@ -1973,7 +1980,7 @@ describe("Productpage is available (HTTPS)", () => {
       host: `https://cluster1-bookinfo.example.com`,
       path: '/productpage',
       retCode: 200,
-      body: 'Error fetching product details!',
+      body: 'Error fetching product details',
       match: true
     })
   });
@@ -1983,16 +1990,14 @@ describe("Productpage is available (HTTPS)", () => {
       host: `https://cluster1-bookinfo.example.com`,
       path: '/productpage',
       retCode: 200,
-      body: 'Error fetching product reviews!',
+      body: 'Error fetching product reviews',
       match: true
     })
   });
 })
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/authorization-policies/tests/bookinfo-backend-services-unavailable.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 3m mocha ./test.js --timeout 60000 --retries=60 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 60000 --retries=60 --bail || exit 1
 -->
 
 #### Allowing Access from Product Page
@@ -2058,9 +2063,7 @@ describe("Productpage is available (HTTPS)", () => {
 })
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/authorization-policies/tests/bookinfo-backend-services-available.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 3m mocha ./test.js --timeout 60000 --retries=60 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 60000 --retries=60 --bail || exit 1
 -->
 
 These two policies are enabled at layer 4 and thus they are handled by ztunnel, which is the layer 4 proxy. Next, we'll explore how to create a policy that operates at layer 7.
@@ -2091,7 +2094,9 @@ spec:
 EOF
 ```
 
-This policy looks at the HTTP method of the request, which is a Layer 7 property. However, after applying this policy, you'll notice that it doesn't work as expected. This is because Layer 7 policies require a Waypoint proxy to function, and when it is missing the traffic is rejected.
+This policy looks at the HTTP method of the request, which is a Layer 7 property.
+However, after applying this policy, you'll notice that it doesn't work as expected: the services in bookinfo-backends are unavailable again when you refresh the product page.
+This is because Layer 7 policies require a Waypoint proxy to function, and when it is missing the traffic is rejected.
 
 <!--bash
 cat <<'EOF' > ./test.js
@@ -2114,7 +2119,7 @@ describe("Productpage is available (HTTPS)", () => {
       host: `https://cluster1-bookinfo.example.com`,
       path: '/productpage',
       retCode: 200,
-      body: 'Error fetching product details!',
+      body: 'Error fetching product details',
       match: true
     })
   });
@@ -2124,16 +2129,14 @@ describe("Productpage is available (HTTPS)", () => {
       host: `https://cluster1-bookinfo.example.com`,
       path: '/productpage',
       retCode: 200,
-      body: 'Error fetching product reviews!',
+      body: 'Error fetching product reviews',
       match: true
     })
   });
 })
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/authorization-policies/tests/bookinfo-backend-services-unavailable.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 3m mocha ./test.js --timeout 60000 --retries=60 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 60000 --retries=60 --bail || exit 1
 -->
 
 ### Deploying a Waypoint
@@ -2229,9 +2232,7 @@ describe("Productpage is available (HTTPS)", () => {
 })
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/authorization-policies/tests/bookinfo-backend-services-available.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 3m mocha ./test.js --timeout 60000 --retries=60 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 60000 --retries=60 --bail || exit 1
 -->
 
 This lab demonstrates how Istio's Ambient Mesh allows you to create sophisticated authorization policies. Keep in mind, that Layer 4 policies are fast, but when required you can create more complex Layer 7 policies that operate at the application layer.
@@ -2325,9 +2326,7 @@ describe("L4 metrics available", function() {
 });
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/l7-observability/tests/l4-l7-metrics-available.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
 -->
 
 Similarly, you get access logs for all traffic passing through ztunnel:
@@ -2423,9 +2422,7 @@ describe("Insights UI", function() {
 
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/apps/bookinfo/insights-intro/tests/insight-ui-BP0001.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
 -->
 
 <!--bash
@@ -2459,9 +2456,7 @@ describe("Insight generation", () => {
 });
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/apps/bookinfo/insights-intro/tests/insight-metrics.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
 -->
 
 For example, right now we have the following insight:
@@ -2536,9 +2531,7 @@ describe("Insights UI", function() {
 });
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/apps/bookinfo/insights-intro/tests/insight-not-ui-BP0002.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
 -->
 
 The corresponding insight isn't displayed anymore in the UI.
@@ -2609,9 +2602,7 @@ Let's have a look at another insight.
 
 The resolution step is telling us the following:
 
-```,nocopy
-In the spec.exportTo field of your VirtualService Istio resource, list namespaces to export the VirtualService to. When you export a VirtualService, only sidecars and gateways that exist in the namespaces that you specify can use it. Note that the value "." makes the VirtualService available only in the same namespace that the VirtualService is defined in, and "*" exports the VirtualService to all namespaces.
-```
+> _In the spec.exportTo field of your VirtualService Istio resource, list namespaces to export the VirtualService to. When you export a VirtualService, only sidecars and gateways that exist in the namespaces that you specify can use it. Note that the value "." makes the VirtualService available only in the same namespace that the VirtualService is defined in, and "*" exports the VirtualService to all namespaces._
 
 You can update the `VirtualService` to add the `exportTo` field as suggested:
 
@@ -2694,9 +2685,7 @@ describe("Insights UI", function() {
 });
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/apps/bookinfo/insights-intro/tests/insight-not-ui-BP0001.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
 -->
 
 The UI shouldn't display this insight anymore.
@@ -2761,9 +2750,7 @@ describe("Insight generation", () => {
 });
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/apps/bookinfo/insights-config/../insights-intro/tests/insight-metrics.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
 -->
 
 If you refresh the `productpage` tab, you'll see the error `Sorry, product reviews are currently unavailable for this book.`.
@@ -2825,9 +2812,7 @@ describe("Insight generation", () => {
 });
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/apps/bookinfo/insights-config/../insights-intro/tests/insight-metrics.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
 -->
 
 Let's delete the objects we've created:
@@ -2873,7 +2858,7 @@ kubectl --context ${CLUSTER1} -n httpbin debug -q -i ${pod} --image=curlimages/c
 
 The access should be denied:
 
-```
+```,nocopy
 RBAC: access denied
 ```
 
@@ -2886,7 +2871,7 @@ kubectl --context ${CLUSTER1} -n httpbin debug -q -i ${pod} --image=curlimages/c
 
 This time it works:
 
-```
+```json,nocopy
 {"id": "0","podname": "reviews-v1-97798f498-mbkr9","clustername": "cluster1","reviews": [{  "reviewer": "Reviewer1",  "text": "An extremely entertaining play by Shakespeare. The slapstick humour is refreshing!"},{  "reviewer": "Reviewer2",  "text": "Absolutely fun and entertaining. The play lacks thematic depth when compared to other plays by Shakespeare."}]}
 ```
 
@@ -2927,9 +2912,7 @@ describe("Insight generation", () => {
 });
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/apps/bookinfo/insights-security/../insights-intro/tests/insight-metrics.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
 -->
 
 You can fix the issue by creating a `PeerAuthentication` object to enforce mTLS globally:
@@ -2980,9 +2963,7 @@ describe("Insight generation", () => {
 });
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/apps/bookinfo/insights-security/../insights-intro/tests/insight-metrics.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
 -->
 
 Let's delete the objects we've created:
@@ -3238,14 +3219,12 @@ describe("Checking Istio installation", function() {
 
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/istio-lifecycle-manager-in-place-upgrade/tests/istio-ready.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=150 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=150 --bail || exit 1
 -->
 
 Run the following command to check the status of the upgrade(s):
 
-```sh
+```shell
 kubectl --context ${MGMT} -n gloo-mesh get istiolifecyclemanager.admin.gloo.solo.io -ojsonpath='{.items[*].status.clusters.*.installations.*}'|jq -r '[.observedOperator.components.ingressGateways[].label, .observedRevision, .state]'
 kubectl --context ${MGMT} -n gloo-mesh get gatewaylifecyclemanagers.admin.gloo.solo.io -ojsonpath='{.items[*].status.clusters.*.installations.*}'|jq -r '[.observedOperator.components.ingressGateways[].label, .observedRevision, .state]'
 ```
@@ -3266,12 +3245,15 @@ When the upgrade is completed, the state at the end of the objects will be `HEAL
   <summary>Waypoints are upgraded automatically</summary>
 The waypoints are upgraded by Istiod's Gateway Controller, so if you check the status you will see that it is on the newest "1.23.0-patch1" version:
 
-```shell,nocopy
-$ istioctl ps --context ${CLUSTER1} | grep waypoint
+```shell
+istioctl ps --context ${CLUSTER1} | grep waypoint
+```
 
+```,nocopy
 waypoint-64748ccfcc-qf64c.bookinfo-backends   cluster1   SYNCED (74s)   SYNCED (74s)   SYNCED (92s)   IGNORED   IGNORED   istiod-7f6bcc79b4-7f6ft   1.23.0-patch1
 ```
 </details>
+
 <!--bash
 cat <<'EOF' > ./test.js
 const chaiExec = require("@jsdevtools/chai-exec");
@@ -3296,9 +3278,7 @@ describe("istio in place upgrades", function() {
 });
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/istio-lifecycle-manager-in-place-upgrade/tests/waypoint-upgraded.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 1m mocha ./test.js --timeout 10000 --retries=60 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
+timeout --signal=INT 1m mocha ./test.js --timeout 10000 --retries=60 --bail || exit 1
 -->
 
 Test that you can still access the `productpage` service through the Istio Ingress Gateway corresponding to the old revision using the command below:
@@ -3309,7 +3289,7 @@ curl -k "https://cluster1-bookinfo.example.com/productpage" -I
 
 You should get a response similar to the following one:
 
-```
+```http,nocopy
 HTTP/2 200
 server: istio-envoy
 date: Wed, 24 Aug 2022 14:58:22 GMT
@@ -3330,9 +3310,7 @@ describe("productpage is accessible", () => {
 
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/istio-lifecycle-manager-in-place-upgrade/tests/productpage-available.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
 -->
 
 
@@ -3437,8 +3415,10 @@ EOF
 To confirm that traffic is correctly flowing through the Waypoint, send a request to the external service and look for Envoy-specific headers in the response. These headers indicate that the traffic has been processed by the Waypoint.
 
 ```shell
-kubectl --context ${CLUSTER1} -n clients exec deploy/in-ambient -- curl -I httpbin.org/get | grep envoy
+kubectl --context ${CLUSTER1} -n clients exec deploy/in-ambient -- curl -sI httpbin.org/get | grep envoy
+```
 
+```http,nocopy
 server: istio-envoy
 x-envoy-upstream-service-time: 255
 x-envoy-decorator-operation: :80/*
@@ -3479,7 +3459,7 @@ kubectl  --context ${CLUSTER1} -n clients exec deploy/in-ambient -- curl -s http
 
 Expected output:
 
-```log,nocopy
+```http,nocopy
     "My-Added-Header": "added-value",
 ```
 
@@ -3558,7 +3538,7 @@ spec:
 EOF
 ```
 
-> Note: [PR #3271](https://github.com/istio/api/pull/3271) when released (potentially 1.23.1) enables us to use the ServiceEntry as the target reference in the `AuthorizationPolicy`. Thus the policy applies only to the ServiceEntry and not the entire `Gateway`.
+> Note: [PR #3271](https://github.com/istio/api/pull/3271) when released (potentially 1.23.3) enables us to use the ServiceEntry as the target reference in the `AuthorizationPolicy`. Thus the policy applies only to the ServiceEntry and not the entire `Gateway`.
 
 Confirm that the authorization policy is correctly enforced by attempting to access a different path on the external service. You should observe that the request is blocked.
 
@@ -3567,7 +3547,7 @@ kubectl --context ${CLUSTER1} -n clients exec deploy/in-ambient -- curl -s -I ht
 ```
 
 Expected output:
-```log,nocopy
+```http,nocopy
 HTTP/1.1 403 Forbidden
 content-length: 19
 content-type: text/plain
@@ -3618,9 +3598,7 @@ describe("egress traffic", function() {
 
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/waypoint-egress/tests/validate-egress-traffic.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 3m mocha ./test.js --timeout 20000 --retries=60 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 20000 --retries=60 --bail || exit 1
 -->
 
 Let's cleanup the resources:
@@ -3650,7 +3628,7 @@ This distinction whether you are targeting a service (using its fqdn) or a workl
 
 - Waypoint for Services: When we target a service, we deploy a Waypoint specifically for services. This Waypoint will handle traffic going to service names.
 
-```shell,nocopy
+```yaml,nocopy
 $ istioctl waypoint generate -n ns --name waypoint --for service
 
 apiVersion: gateway.networking.k8s.io/v1
@@ -3670,7 +3648,7 @@ spec:
 
 - Waypoint for Workload: When we target a workload (using its IP), we deploy a Waypoint for workloads. This Waypoint will handle traffic going directly to IP addresses.
 
-```shell,nocopy
+```yaml,nocopy
 $ istioctl waypoint generate -n ns --name waypoint --for workload
 
 apiVersion: gateway.networking.k8s.io/v1
@@ -3768,9 +3746,7 @@ describe("waypoint for service when ns is labeled", function() {
 });
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/waypoint-deployment-options/tests/validate-waypoint-for-service-ns.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 3m mocha ./test.js --timeout 20000 --retries=10 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 20000 --retries=10 --bail || exit 1
 -->
 
 ### Deploying a Waypoint for specific services
@@ -3824,10 +3800,12 @@ Validate that traffic to the `ratings` service is rejected by the policy applied
 
 ```shell
 # rejected because the traffic originates from the clients namespace
-kubectl --context ${CLUSTER1} -n clients exec deploy/in-ambient -- curl -v "http://ratings.bookinfo-backends:9080/ratings/0"
+kubectl --context ${CLUSTER1} -n clients exec deploy/in-ambient -- curl "http://ratings.bookinfo-backends:9080/ratings/0"
+```
 
+```shell
 # admitted
-kubectl --context ${CLUSTER1} debug --v=0 -n httpbin $(kubectl --context ${CLUSTER1} get pods -n httpbin -l app=in-ambient -o name) -it --image=curlimages/curl  -- curl -v "http://ratings.bookinfo-backends:9080/ratings/0"
+kubectl --context ${CLUSTER1} debug --v=0 -n httpbin $(kubectl --context ${CLUSTER1} get pods -n httpbin -l app=in-ambient -o name) -it --image=curlimages/curl -- curl "http://ratings.bookinfo-backends:9080/ratings/0"
 ```
 
 Meanwhile, the traffic destined to other services goes through the waypoint configured by the namespace that doesn't reject traffic from the `clients` namespace:
@@ -3872,9 +3850,7 @@ describe("service labeling to use a waypoint takes precedence over namespace lab
 
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/waypoint-deployment-options/tests/validate-waypoint-for-specific-service.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 3m mocha ./test.js --timeout 20000 --retries=10 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 20000 --retries=10 --bail || exit 1
 -->
 
 ### Deploying a Waypoint for Workloads
@@ -3949,9 +3925,7 @@ describe("waypoint for workloads when pod is labeled", function() {
 });
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/waypoint-deployment-options/tests/validate-waypoint-for-workload.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 3m mocha ./test.js --timeout 20000 --retries=10 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 20000 --retries=10 --bail || exit 1
 -->
 
 This lab shows you different ways to set up Waypoints in Istio's Ambient Mesh. You can route traffic for all services in a namespace, for specific services, or even for individual workloads. This flexibility allows you to fine-tune your traffic management based on your specific needs.
