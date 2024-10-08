@@ -7,7 +7,7 @@ source ./scripts/assert.sh
 
 <center><img src="images/gloo-mesh.png" alt="Gloo Mesh Enterprise" style="width:70%;max-width:800px" /></center>
 
-# <center>Gloo Mesh Core (2.6.4) Ambient Interoperability</center>
+# <center>Gloo Mesh Core (2.6.5) Ambient Interoperability</center>
 
 
 
@@ -129,9 +129,7 @@ describe("Clusters are healthy", () => {
 });
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/deploy-kind-cluster/tests/cluster-healthy.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
 -->
 
 
@@ -144,7 +142,7 @@ timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> 
 Before we get started, let's install the `meshctl` CLI:
 
 ```bash
-export GLOO_MESH_VERSION=v2.6.4
+export GLOO_MESH_VERSION=v2.6.5
 curl -sL https://run.solo.io/meshctl/install | sh -
 export PATH=$HOME/.gloo-mesh/bin:$PATH
 ```
@@ -174,9 +172,7 @@ describe("Required environment variables should contain value", () => {
 });
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/deploy-and-register-gloo-mesh/tests/environment-variables.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
 -->
 Run the following commands to deploy the Gloo Mesh management plane:
 
@@ -188,13 +184,13 @@ helm upgrade --install gloo-platform-crds gloo-platform-crds \
   --namespace gloo-mesh \
   --kube-context ${MGMT} \
   --set featureGates.insightsConfiguration=true \
-  --version 2.6.4
+  --version 2.6.5
 
 helm upgrade --install gloo-platform-mgmt gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${MGMT} \
-  --version 2.6.4 \
+  --version 2.6.5 \
   -f -<<EOF
 licensing:
   glooTrialLicenseKey: ${GLOO_MESH_LICENSE_KEY}
@@ -253,9 +249,7 @@ describe("Cluster registration", () => {
 });
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/deploy-and-register-gloo-mesh/tests/cluster-registration.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
 -->
 
 
@@ -266,7 +260,7 @@ timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> 
 We are going to deploy Istio using Gloo Mesh Lifecycle Manager.
 
 <details>
-  <summary>Install `istioctl`</summary>
+  <summary>Install <code>istioctl</code></summary>
 
 Install `istioctl` if not already installed as it will be useful in some of the labs that follow.
 
@@ -282,6 +276,46 @@ fi
 
 That's it!
 </details>
+<!--bash
+cat <<'EOF' > ./test.js
+const chaiExec = require("@jsdevtools/chai-exec");
+var chai = require('chai');
+var expect = chai.expect;
+chai.use(chaiExec);
+
+afterEach(function (done) {
+  if (this.currentTest.currentRetry() > 0) {
+    process.stdout.write(".");
+    setTimeout(done, 1000);
+  } else {
+    done();
+  }
+});
+describe("istio_version is at least 1.23.0", () => {
+  it("version should be at least 1.23.0", () => {
+    // Compare the string istio_version to the number 1.23.0
+    // example 1.23.0-patch0 is valid, but 1.22.6 is not
+    let version = "1.23.1";
+    let versionParts = version.split('-')[0].split('.');
+    let major = parseInt(versionParts[0]);
+    let minor = parseInt(versionParts[1]);
+    let patch = parseInt(versionParts[2]);
+    let minMajor = 1;
+    let minMinor = 23;
+    let minPatch = 0;
+    expect(major).to.be.at.least(minMajor);
+    if (major === minMajor) {
+      expect(minor).to.be.at.least(minMinor);
+      if (minor === minMinor) {
+        expect(patch).to.be.at.least(minPatch);
+      }
+    }
+  });
+});
+EOF
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/istio-lifecycle-manager-install/tests/istio-version.test.js.liquid"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
+-->
 
 Let's create Kubernetes services for the gateways:
 
@@ -451,9 +485,7 @@ describe("Checking Istio installation", function() {
 
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/istio-lifecycle-manager-install/tests/istio-ready.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
 -->
 <!--bash
 timeout 2m bash -c "until [[ \$(kubectl --context ${CLUSTER1} -n istio-gateways get svc -l istio=ingressgateway -o json | jq '.items[0].status.loadBalancer | length') -gt 0 ]]; do
@@ -486,9 +518,7 @@ describe("Address '" + process.env.HOST_GW_CLUSTER1 + "' can be resolved in DNS"
 });
 EOF
 echo "executing test ./gloo-mesh-2-0/tests/can-resolve.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
 -->
 The Gateway APIs do not come installed by default on most Kubernetes clusters. Install the Gateway API CRDs if they are not present:
 
@@ -542,7 +572,7 @@ echo
 
 You can check that the app is running using the following command:
 
-```
+```shell
 kubectl --context ${CLUSTER1} -n bookinfo-frontends get pods && kubectl --context ${CLUSTER1} -n bookinfo-backends get pods
 ```
 
@@ -567,9 +597,7 @@ describe("Bookinfo app", () => {
 });
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/apps/bookinfo/deploy-bookinfo/tests/check-bookinfo.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
 -->
 
 
@@ -780,9 +808,7 @@ describe("client apps", () => {
 });
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/apps/clients/deploy-clients/tests/check-clients.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
 -->
 
 
@@ -931,9 +957,7 @@ describe("l4 interoperability", function() {
 
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/l4-authn-interoperability/tests/validate-interoperability.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 3m mocha ./test.js --timeout 60000 --retries=60 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 60000 --retries=60 --bail || exit 1
 -->
 
 Now, you should see that requests from `in-mesh-with-sidecar` and `in-ambient` workloads succeed with a `200` status code, while the `not-in-mesh` workload's request is still denied.
@@ -1020,9 +1044,7 @@ describe("l4 interoperability", function() {
 
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/l4-authn-interoperability/tests/validate-interoperability.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 3m mocha ./test.js --timeout 60000 --retries=60 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 60000 --retries=60 --bail || exit 1
 -->
 
 You should see that the requests from `in-mesh-with-sidecar` and `in-ambient` workloads still succeed with a 200 status code, while the `not-in-mesh` workload's request is still denied. This confirms that our L4 policies are still being enforced, even though the bookinfo-backends services are now in the Ambient mesh.
@@ -1099,9 +1121,7 @@ describe("gateway API", function() {
 });
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/l7-authz-interoperability/tests/is-waypoint-created.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 3m mocha ./test.js --timeout 1000 --retries=60 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 1000 --retries=60 --bail || exit 1
 -->
 <!--bash
 cat <<'EOF' > ./test.js
@@ -1137,9 +1157,7 @@ describe("l7 interoperability", function() {
 
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/l7-authz-interoperability/tests/validate-interoperability.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 3m mocha ./test.js --timeout 60000 --retries=60 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 60000 --retries=60 --bail || exit 1
 -->
 
 ### Step 2: Pre-configure policies for the waypoint
@@ -1269,9 +1287,7 @@ describe("l7 interoperability", function() {
 
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/l7-authz-interoperability/tests/validate-interoperability.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 3m mocha ./test.js --timeout 60000 --retries=60 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 60000 --retries=60 --bail || exit 1
 -->
 
 
@@ -1338,9 +1354,7 @@ describe("l7 interoperability", function() {
 
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/l7-authz-interoperability/tests/validate-interoperability.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 3m mocha ./test.js --timeout 60000 --retries=60 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 60000 --retries=60 --bail || exit 1
 -->
 
 
@@ -1400,9 +1414,7 @@ describe("l7 interoperability", function() {
 
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/l7-authz-interoperability/tests/validate-interoperability.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 3m mocha ./test.js --timeout 60000 --retries=60 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 60000 --retries=60 --bail || exit 1
 -->
 
 
@@ -1646,9 +1658,7 @@ describe("virtual service and destination rules configure routing", function() {
 });
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/l7-routing-interoperability/tests/validate-routing-interoperability.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
 -->
 
 
@@ -1748,9 +1758,7 @@ describe("virtual service", function() {
 });
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/l7-transforming-traffic-interoperability/tests/validate-traffic-transformation-interoperability.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 3m mocha ./test.js --timeout 20000 --retries=10 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 20000 --retries=10 --bail || exit 1
 -->
 
 
@@ -1864,9 +1872,7 @@ describe("virtual service and destination rules", function() {
 });
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/l7-traffic-shifting-interoperability/tests/validate-traffic-shifting-interoperability.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 3m mocha ./test.js --timeout 20000 --retries=10 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 20000 --retries=10 --bail || exit 1
 -->
 
 
@@ -2084,9 +2090,7 @@ describe("virtual service retry failed requests", function() {
 });
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/l7-traffic-resiliency-interoperability/tests/validate-resiliency-interoperability.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 3m mocha ./test.js --timeout 20000 --retries=10 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 20000 --retries=10 --bail || exit 1
 -->
 
 
