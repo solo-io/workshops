@@ -324,6 +324,7 @@ fi
 
 That's it!
 </details>
+
 <!--bash
 cat <<'EOF' > ./test.js
 const chaiExec = require("@jsdevtools/chai-exec");
