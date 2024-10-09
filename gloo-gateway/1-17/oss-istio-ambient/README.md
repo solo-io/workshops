@@ -88,7 +88,7 @@ export CLUSTER1=cluster1
 Run the following commands to deploy a Kubernetes cluster using [Kind](https://kind.sigs.k8s.io/):
 
 ```bash
-./scripts/deploy-multi.sh 1 cluster1
+./scripts/deploy.sh 1 cluster1
 ```
 
 Then run the following commands to wait for all the Pods to be ready:
@@ -127,10 +127,8 @@ describe("Clusters are healthy", () => {
     });
 });
 EOF
-echo "executing test procs/gg-istio-ambient-oss/build/templates/steps/deploy-kind-cluster/tests/cluster-healthy.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/deploy-kind-cluster/tests/cluster-healthy.test.js.liquid"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
 -->
 
 
@@ -143,7 +141,7 @@ Download the Istio release:
 ```bash
 curl -L https://istio.io/downloadIstio | sh -
 
-if [ -d "istio-"* ]; then
+if [ -d "istio-"*/ ]; then
     cd istio-*/
     export PATH=$PWD/bin:$PATH
     cd ..
@@ -156,14 +154,14 @@ Install Istio in Ambient mode:
 helm upgrade --install istio-base \
   --repo https://istio-release.storage.googleapis.com/charts base \
   -n istio-system --create-namespace \
-  --version 1.23.0 \
+  --version 1.23.1 \
   --kube-context ${CLUSTER1} \
   --wait
 
 helm upgrade --install istio-cni \
   --repo https://istio-release.storage.googleapis.com/charts cni \
   -n istio-system \
-  --version 1.23.0 \
+  --version 1.23.1 \
   --set profile=ambient \
   --kube-context ${CLUSTER1} \
   --wait
@@ -171,7 +169,7 @@ helm upgrade --install istio-cni \
 helm upgrade --install istiod \
   --repo https://istio-release.storage.googleapis.com/charts istiod \
   -n istio-system \
-  --version 1.23.0 \
+  --version 1.23.1 \
   --set profile=ambient \
   --kube-context ${CLUSTER1} \
   --wait
@@ -179,7 +177,7 @@ helm upgrade --install istiod \
 helm upgrade --install ztunnel \
   --repo https://istio-release.storage.googleapis.com/charts ztunnel \
   -n istio-system \
-  --version 1.23.0 \
+  --version 1.23.1 \
   --set profile=ambient \
   --set env.L7_ENABLED="true" \
   --kube-context ${CLUSTER1} \
@@ -217,10 +215,8 @@ describe("Istio", () => {
   });
 });
 EOF
-echo "executing test procs/gg-istio-ambient-oss/build/templates/steps/deploy-istio-ambient/tests/check-istio.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/deploy-istio-ambient/tests/check-istio.test.js.liquid"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
 -->
 
 
@@ -247,7 +243,7 @@ helm repo update
 helm upgrade -i -n gloo-system \
   gloo-gateway solo-public-helm/gloo \
   --create-namespace \
-  --version 1.17.8 \
+  --version 1.17.14 \
   --kube-context $CLUSTER1 \
   -f -<<EOF
 kubeGateway:
@@ -256,14 +252,11 @@ gatewayProxies:
   gatewayProxy:
     disabled: true
 gateway:
-  persistProxySpec: true
-  logLevel: info
-  validation:
-    alwaysAcceptResources: false
+    validation:
+      allowWarnings: true
+      alwaysAcceptResources: false
 gloo:
-  logLevel: info
   deployment:
-    replicas: 1
     livenessProbeEnabled: true
 discovery:
   enabled: false
@@ -293,11 +286,6 @@ gloo-6b5575f9fc-8f2zs               1/1     Running     0          47s
 gloo-resource-rollout-check-4bt5g   0/1     Completed   0          47s
 gloo-resource-rollout-h5jf4         0/1     Completed   0          47s
 ```
-Let's add the `gloo-system` namespace in the mesh:
-
-```bash
-kubectl --context ${CLUSTER1} label namespace gloo-system istio.io/dataplane-mode=ambient
-```
 
 <!--bash
 cat <<'EOF' > ./test.js
@@ -311,10 +299,8 @@ describe("Gloo Gateway", () => {
   });
 });
 EOF
-echo "executing test procs/gg-istio-ambient-oss/build/templates/steps/deploy-gloo-gateway/tests/check-gloo.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/deploy-gloo-gateway/tests/check-gloo.test.js.liquid"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
 -->
 
 
@@ -329,8 +315,6 @@ Run the following commands to deploy the httpbin app twice (`httpbin1` and `http
 
 ```bash
 kubectl --context ${CLUSTER1} create ns httpbin
-kubectl --context ${CLUSTER1} label namespace httpbin istio.io/dataplane-mode=ambient
-kubectl --context ${CLUSTER1} label namespace httpbin istio-injection=disabled
 kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: v1
 kind: ServiceAccount
@@ -528,10 +512,8 @@ describe("httpbin app", () => {
   });
 });
 EOF
-echo "executing test procs/gg-istio-ambient-oss/build/templates/steps/apps/httpbin/deploy-httpbin/tests/check-httpbin.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/deploy-httpbin/tests/check-httpbin.test.js.liquid"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
 -->
 
 
@@ -675,10 +657,8 @@ describe("httpbin through HTTP", () => {
   it('Checking text \'headers\'', () => helpersHttp.checkBody({ host: `http://httpbin.example.com`, path: '/get', body: 'headers', match: true }));
 })
 EOF
-echo "executing test procs/gg-istio-ambient-oss/build/templates/steps/apps/httpbin/expose-httpbin/tests/http.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/expose-httpbin/tests/http.test.js.liquid"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
 -->
 
 Now, let's secure the access through TLS.
@@ -824,10 +804,8 @@ describe("httpbin through HTTPS", () => {
   it('Checking text \'headers\'', () => helpersHttp.checkBody({ host: `https://httpbin.example.com`, path: '/get', body: 'headers', match: true }));
 })
 EOF
-echo "executing test procs/gg-istio-ambient-oss/build/templates/steps/apps/httpbin/expose-httpbin/tests/https.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/expose-httpbin/tests/https.test.js.liquid"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
 -->
 
 The team in charge of the gateway can create an `HTTPRoute` to automatically redirect HTTP to HTTPS:
@@ -898,10 +876,8 @@ describe("location header correctly set", () => {
   it('Checking text \'location\'', () => helpersHttp.checkHeaders({ host: `http://httpbin.example.com`, path: '/get', expectedHeaders: [{'key': 'location', 'value': `https://httpbin.example.com/get`}]}));
 })
 EOF
-echo "executing test procs/gg-istio-ambient-oss/build/templates/steps/apps/httpbin/expose-httpbin/tests/redirect-http-to-https.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/expose-httpbin/tests/redirect-http-to-https.test.js.liquid"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
 -->
 
 
@@ -1001,10 +977,8 @@ describe("httpbin through HTTPS", () => {
   it('Checking text \'headers\'', () => helpersHttp.checkBody({ host: `https://httpbin.example.com`, path: '/get', body: 'headers', match: true }));
 })
 EOF
-echo "executing test procs/gg-istio-ambient-oss/build/templates/steps/apps/httpbin/delegation/tests/https.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/delegation/tests/https.test.js.liquid"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
 -->
 
 In the previous example, we've used a simple `/` prefix matcher for both the parent and the child `HTTPRoute`.
@@ -1083,10 +1057,8 @@ describe("httpbin through HTTPS", () => {
   it('Checking \'200\' status code', () => helpersHttp.checkURL({ host: `https://httpbin.example.com`, path: '/status/200', retCode: 200 }));
 })
 EOF
-echo "executing test procs/gg-istio-ambient-oss/build/templates/steps/apps/httpbin/delegation/tests/status-200.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/delegation/tests/status-200.test.js.liquid"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
 -->
 
 In the child `HTTPRoute` we've indicated the absolute path (which includes the parent path), but instead we can inherite the parent matcher and use a relative path:
@@ -1132,10 +1104,8 @@ describe("httpbin through HTTPS", () => {
   it('Checking \'200\' status code', () => helpersHttp.checkURL({ host: `https://httpbin.example.com`, path: '/status/200', retCode: 200 }));
 })
 EOF
-echo "executing test procs/gg-istio-ambient-oss/build/templates/steps/apps/httpbin/delegation/tests/status-200.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/delegation/tests/status-200.test.js.liquid"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
 -->
 
 The team in charge of the httpbin application can also take advantage of the `parentRefs` option to indicate which parent `HTTPRoute` can delegate to its own `HTTPRoute`.
@@ -1188,10 +1158,8 @@ describe("httpbin through HTTPS", () => {
   it('Checking \'200\' status code', () => helpersHttp.checkURL({ host: `https://httpbin.example.com`, path: '/status/200', retCode: 200 }));
 })
 EOF
-echo "executing test procs/gg-istio-ambient-oss/build/templates/steps/apps/httpbin/delegation/tests/status-200.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/delegation/tests/status-200.test.js.liquid"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
 -->
 
 Delegation offers another very nice feature. It automatically reorders all the matchers to avoid any short-circuiting.
@@ -1251,10 +1219,8 @@ describe("httpbin through HTTPS", () => {
   it('Checking \'200\' status code', () => helpersHttp.checkURL({ host: `https://httpbin.example.com`, path: '/status/200', retCode: 200 }));
 })
 EOF
-echo "executing test procs/gg-istio-ambient-oss/build/templates/steps/apps/httpbin/delegation/tests/status-200.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/delegation/tests/status-200.test.js.liquid"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
 -->
 
 Check you can now also access the status `/status/201` path:
@@ -1289,10 +1255,8 @@ describe("httpbin through HTTPS", () => {
   it('Checking \'201\' status code', () => helpersHttp.checkURL({ host: `https://httpbin.example.com`, path: '/status/201', retCode: 201 }));
 })
 EOF
-echo "executing test procs/gg-istio-ambient-oss/build/templates/steps/apps/httpbin/delegation/tests/status-201.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/delegation/tests/status-201.test.js.liquid"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
 -->
 
 Let's delete the latest `HTTPRoute` and apply the original ones:
@@ -1351,10 +1315,8 @@ describe("httpbin through HTTPS", () => {
   it('Checking text \'headers\'', () => helpersHttp.checkBody({ host: `https://httpbin.example.com`, path: '/get', body: 'headers', match: true }));
 })
 EOF
-echo "executing test procs/gg-istio-ambient-oss/build/templates/steps/apps/httpbin/delegation/tests/https.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/delegation/tests/https.test.js.liquid"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
 -->
 
 
@@ -1449,10 +1411,8 @@ describe("request transformations applied", () => {
   it('Checking text \'To-Remove\'', () => helpersHttp.checkBody({ host: `https://httpbin.example.com`, path: '/get', body: 'To-Remove', match: false }));
 })
 EOF
-echo "executing test procs/gg-istio-ambient-oss/build/templates/steps/apps/httpbin/transformations/tests/request-headers.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/transformations/tests/request-headers.test.js.liquid"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
 -->
 
 Another typical use case is to rewrite the hostname or the path before sending the request to the backend.
@@ -1534,10 +1494,8 @@ describe("request rewrite applied", () => {
   it('Checking text \'httpbin1.com/get\'', () => helpersHttp.checkBody({ host: `https://httpbin.example.com`, path: '/publicget', body: 'httpbin1.com/get', match: true }));
 })
 EOF
-echo "executing test procs/gg-istio-ambient-oss/build/templates/steps/apps/httpbin/transformations/tests/request-rewrite.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/transformations/tests/request-rewrite.test.js.liquid"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
 -->
 
 
@@ -1610,10 +1568,8 @@ describe("response transformations applied", () => {
   it('Checking text \'To-Remove\'', () => helpersHttp.checkBody({ host: `https://httpbin.example.com`, path: '/response-headers?to-remove=whatever&to-modify=oldvalue', body: 'To-Remove', match: false }));
 })
 EOF
-echo "executing test procs/gg-istio-ambient-oss/build/templates/steps/apps/httpbin/transformations/tests/response-headers.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/transformations/tests/response-headers.test.js.liquid"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
 -->
 
 Let's apply the original `HTTPRoute` yaml:
@@ -1724,10 +1680,8 @@ describe("request transformation applied", () => {
   it('Checking text \'X-Client\'', () => helpersHttp.checkBody({ host: `https://httpbin.example.com`, path: '/get', headers: [{key: 'User-agent', value: 'curl/8.5.0'}], body: 'X-Client', match: true }));
 })
 EOF
-echo "executing test procs/gg-istio-ambient-oss/build/templates/steps/apps/httpbin/transformations/tests/x-client-request-header.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/transformations/tests/x-client-request-header.test.js.liquid"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
 -->
 
 As you can see, we've created a new header called `X-Client` by extracting some data from the `User-Agent` header using a regular expression.
@@ -1813,10 +1767,8 @@ describe("response transformation applied", () => {
   it('Checking \'X-Request-Id\' header', () => helpersHttp.checkHeaders({ host: `https://httpbin.example.com`, path: '/get', expectedHeaders: [{'key': 'x-request-id', 'value': '*'}]}));
 })
 EOF
-echo "executing test procs/gg-istio-ambient-oss/build/templates/steps/apps/httpbin/transformations/tests/x-request-id-response-header.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/transformations/tests/x-request-id-response-header.js.liquid"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
 -->
 
 Let's apply the original `HTTPRoute` yaml:
@@ -1913,10 +1865,8 @@ describe("traffic split applied", () => {
   it('Checking text \'httpbin2\'', () => helpersHttp.checkBody({ host: `https://httpbin.example.com`, path: '/hostname', body: 'httpbin2', match: true }));
 })
 EOF
-echo "executing test procs/gg-istio-ambient-oss/build/templates/steps/apps/httpbin/traffic-split/tests/traffic-split.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/traffic-split/tests/traffic-split.test.js.liquid"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
 -->
 
 
@@ -1931,7 +1881,7 @@ Run the following commands to install Argo Rollouts in your environment:
 ```bash
 helm upgrade --install argo-rollouts argo-rollouts \
   --repo https://argoproj.github.io/argo-helm \
-  --version 2.35.3 \
+  --version 2.37.6 \
   --kube-context ${CLUSTER1} \
   --namespace argo-rollouts \
   --create-namespace \
@@ -2292,10 +2242,8 @@ describe("httpbin rollout", () => {
 });
 
 EOF
-echo "executing test procs/gg-istio-ambient-oss/build/templates/steps/apps/httpbin/canary-rollout/tests/rollout.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/canary-rollout/tests/rollout.test.js.liquid"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
 -->
 <!--bash
 cat <<'EOF' > ./test.js
@@ -2331,10 +2279,8 @@ describe("httproute weights for rollout canary weight 0", () => {
 });
 
 EOF
-echo "executing test procs/gg-istio-ambient-oss/build/templates/steps/apps/httpbin/canary-rollout/tests/route-weights.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/canary-rollout/tests/route-weights.test.js.liquid"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
 -->
 
 Now, let's trigger the rollout by updating the image of the `httpbin` container to the latest version:
@@ -2414,10 +2360,8 @@ describe("httpbin rollout", () => {
 });
 
 EOF
-echo "executing test procs/gg-istio-ambient-oss/build/templates/steps/apps/httpbin/canary-rollout/tests/rollout.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/canary-rollout/tests/rollout.test.js.liquid"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
 -->
 <!--bash
 cat <<'EOF' > ./test.js
@@ -2453,10 +2397,8 @@ describe("httproute weights for rollout canary weight 0", () => {
 });
 
 EOF
-echo "executing test procs/gg-istio-ambient-oss/build/templates/steps/apps/httpbin/canary-rollout/tests/route-weights.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/canary-rollout/tests/route-weights.test.js.liquid"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
 -->
 
 Let's get it to the next step by running this command:
@@ -2581,10 +2523,8 @@ describe("httpbin rollout", () => {
 });
 
 EOF
-echo "executing test procs/gg-istio-ambient-oss/build/templates/steps/apps/httpbin/canary-rollout/tests/rollout.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/canary-rollout/tests/rollout.test.js.liquid"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
 -->
 <!--bash
 cat <<'EOF' > ./test.js
@@ -2620,10 +2560,8 @@ describe("httproute weights for rollout canary weight 50", () => {
 });
 
 EOF
-echo "executing test procs/gg-istio-ambient-oss/build/templates/steps/apps/httpbin/canary-rollout/tests/route-weights.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/canary-rollout/tests/route-weights.test.js.liquid"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
 -->
 
 Let's proceed to the last step of the rollout by promoting the rollout in the dashboard or running this command:
@@ -2692,10 +2630,8 @@ describe("httpbin rollout", () => {
 });
 
 EOF
-echo "executing test procs/gg-istio-ambient-oss/build/templates/steps/apps/httpbin/canary-rollout/tests/rollout.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/canary-rollout/tests/rollout.test.js.liquid"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
 -->
 <!--bash
 cat <<'EOF' > ./test.js
@@ -2731,10 +2667,8 @@ describe("httproute weights for rollout canary weight 100", () => {
 });
 
 EOF
-echo "executing test procs/gg-istio-ambient-oss/build/templates/steps/apps/httpbin/canary-rollout/tests/route-weights.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/canary-rollout/tests/route-weights.test.js.liquid"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
 -->
 
 One final promotion of the rollout will get us back to the completed state, where we have a single pod running the new image; all traffic is being routed to it through the stable service; and both the stable and canary services will be selecting the new pod.
@@ -2820,10 +2754,8 @@ describe("httpbin rollout", () => {
 });
 
 EOF
-echo "executing test procs/gg-istio-ambient-oss/build/templates/steps/apps/httpbin/canary-rollout/tests/rollout-final.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/canary-rollout/tests/rollout-final.test.js.liquid"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
 -->
 <!--bash
 cat <<'EOF' > ./test.js
@@ -2859,10 +2791,8 @@ describe("httproute weights for rollout canary weight 0", () => {
 });
 
 EOF
-echo "executing test procs/gg-istio-ambient-oss/build/templates/steps/apps/httpbin/canary-rollout/tests/route-weights.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/canary-rollout/tests/route-weights.test.js.liquid"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
 -->
 You can clean up by deleting the `Rollout` and canary service:
 
@@ -3192,10 +3122,8 @@ describe("Kiali", () => {
   });
 });
 EOF
-echo "executing test procs/gg-istio-ambient-oss/build/templates/steps/deploy-kiali/tests/check-kiali.test.js.liquid"
-tempfile=$(mktemp)
-echo "saving errors in ${tempfile}"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail 2> ${tempfile} || { cat ${tempfile} && echo "" && cat ./test.js && exit 1; }
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/deploy-kiali/tests/check-kiali.test.js.liquid"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
 -->
 
 

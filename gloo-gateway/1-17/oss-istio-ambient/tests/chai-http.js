@@ -6,6 +6,7 @@ const utils = require('./utils');
 const fs = require("fs");
 
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+process.env.NODE_NO_WARNINGS = 1;
 chai.config.truncateThreshold = 4000; // length threshold for actual and expected values in assertion errors
 
 global = {
@@ -20,13 +21,24 @@ global = {
         expect(res).to.have.status(retCode);
       });
   },
-  checkBody: ({ host, path = "", headers = [], body = '', certFile = '', keyFile = '', match = true }) => {
+  checkBody: ({ host, path = "", headers = [], body = '', certFile = '', keyFile = '', method = "get", data = "", match = true }) => {
     let cert = certFile ? fs.readFileSync(certFile) : '';
     let key = keyFile ? fs.readFileSync(keyFile) : '';
-    let request = chai.request(host).get(path).redirects(0).cert(cert).key(key);
+    let request = chai.request(host);
+    if (method === "get") {
+      request = request.get(path).redirects(0).cert(cert).key(key);
+    } else if (method === "post") {
+      request = request.post(path).redirects(0);
+    } else if (method === "put") {
+      request = request.put(path).redirects(0);
+    } else if (method === "head") {
+      request = request.head(path).redirects(0);
+    } else {
+      throw 'The requested method is not implemented.'
+    }
     headers.forEach(header => request.set(header.key, header.value));
     return request
-      .send()
+      .send(data)
       .then(async function (res) {
         if (match) {
           expect(res.text).to.contain(body);
