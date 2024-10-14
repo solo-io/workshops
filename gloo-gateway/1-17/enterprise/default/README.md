@@ -3018,6 +3018,7 @@ describe("Downstream mTLS", () => {
       path: '/get',
       method: 'GET',
       rejectUnauthorized: false,
+      agent: false, // Disable the agent to avoid keeping sockets open for reuse, which leads to the test not exiting in some cases
     };
 
     const req = https.request(options, (res) => {
@@ -3032,7 +3033,13 @@ describe("Downstream mTLS", () => {
     req.end();
   });
 
-  it("allows requests with valid client certificate", () => helpersHttp.checkURL({ host: `https://httpbin.example.com`, path: '/get', certFile: 'authorized-client.crt', keyFile: 'authorized-client.key', retCode: 200 }));
+  it("allows requests with valid client certificate", async () => await helpersHttp.checkURL({
+      host: `https://httpbin.example.com`,
+      path: '/get',
+      certFile: 'authorized-client.crt',
+      keyFile: 'authorized-client.key',
+      retCode: 200
+    }));
 });
 
 EOF
@@ -4844,7 +4851,9 @@ As you can see, we can also define custom metadata at the Api product level. We 
 
 You can also use Gloo Gateway to expose an API that is outside of the cluster. In this section, we will expose `https://openlibrary.org/search.json`
 
-Let's create an `Upstream` object to define how to access the host [openlibrary.org](https://openlibrary.org/):
+In our case, we're simulating the real API using `https://static.is.solo.io` (due to recent outages they had).
+
+Let's create an `Upstream` object to define how to access the host [static.is.solo.io](https://static.is.solo.io/):
 
 ```bash
 kubectl apply --context ${CLUSTER1} -f - <<EOF
@@ -4856,7 +4865,7 @@ metadata:
 spec:
   static:
     hosts:
-      - addr: openlibrary.org
+      - addr: static.is.solo.io
         port: 443
   sslConfig: {}
 EOF
@@ -4875,7 +4884,7 @@ spec:
   # Fetch the OpenAPI schema from the Open Library API
   openapi:
     fetchEndpoint:
-      url: "https://openlibrary.org/static/openapi.json"
+      url: "https://raw.githubusercontent.com/internetarchive/openlibrary/refs/heads/master/static/openapi.json"
   servedBy:
   - targetRef:
       kind: UPSTREAM
@@ -4921,7 +4930,7 @@ spec:
       filters:
         - type: URLRewrite
           urlRewrite:
-            hostname: openlibrary.org
+            hostname: static.is.solo.io
             path:
               type: ReplacePrefixMatch
               replacePrefixMatch: /search.json
@@ -4939,7 +4948,7 @@ spec:
       filters:
         - type: URLRewrite
           urlRewrite:
-            hostname: openlibrary.org
+            hostname: static.is.solo.io
         - type: ExtensionRef
           extensionRef:
             group: gateway.solo.io
@@ -4986,7 +4995,7 @@ spec:
 EOF
 ```
 
-You can check the first path (/v2/search.json going to openlibrary.org/search.json) is available:
+You can check the first path (/v2/search.json going to static.is.solo.io/search.json) is available:
 
 ```shell
 curl -k -H "Authorization: Bearer ${USER1_TOKEN}" "https://bookinfo.example.com/api/bookinfo/v2/search.json?title=The%20Comedy%20of%20Errors&fields=language&limit=1"
