@@ -2212,9 +2212,11 @@ server: istio-envoy
 [<img src="https://img.youtube.com/vi/_GsECm06AgQ/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/_GsECm06AgQ "Video Link")
 
 
-You can also expose external APIs.
+You can also expose external APIs. In this section, we will expose `https://openlibrary.org/search.json`
 
-Let's create an external service to define how to access the host [openlibrary.org](https://openlibrary.org/):
+In our case, we're simulating the real API using `https://static.is.solo.io` (due to recent outages they had).
+
+Let's create an external service to define how to access the host [static.is.solo.io](https://static.is.solo.io/):
 
 ```bash
 kubectl apply --context ${CLUSTER1} -f - <<EOF
@@ -2227,7 +2229,7 @@ metadata:
     expose: "true"
 spec:
   hosts:
-  - openlibrary.org
+  - static.is.solo.io
   ports:
   - name: http
     number: 80
@@ -2251,7 +2253,7 @@ metadata:
 spec:
   openapi:
     fetchEndpoint:
-      url: "https://openlibrary.org/static/openapi.json"
+      url: "https://raw.githubusercontent.com/internetarchive/openlibrary/refs/heads/master/static/openapi.json"
   servedBy:
   - destinationSelector:
       kind: EXTERNAL_SERVICE
@@ -2314,7 +2316,7 @@ spec:
         api: "productpage"
       forwardTo:
         pathRewrite: /search.json
-        hostRewrite: openlibrary.org
+        hostRewrite: static.is.solo.io
         destinations:
           - kind: EXTERNAL_SERVICE 
             ref:
@@ -2331,7 +2333,7 @@ spec:
         ratelimited: "true"
         api: "productpage"
       forwardTo:
-        hostRewrite: openlibrary.org
+        hostRewrite: static.is.solo.io
         regexRewrite:
           pattern:
             regex: /api/bookinfo/v2/authors/([^.]+).json
