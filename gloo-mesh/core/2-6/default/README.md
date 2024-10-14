@@ -22,7 +22,6 @@ source ./scripts/assert.sh
 * [Lab 7 - Introduction to Insights](#lab-7---introduction-to-insights-)
 * [Lab 8 - Insights related to configuration errors](#lab-8---insights-related-to-configuration-errors-)
 * [Lab 9 - Insights related to security issues](#lab-9---insights-related-to-security-issues-)
-* [Lab 10 - Insights related to health issues](#lab-10---insights-related-to-health-issues-)
 
 
 
@@ -2228,13 +2227,6 @@ Let's delete the objects we've created:
 kubectl --context ${CLUSTER1} -n bookinfo-backends delete authorizationpolicy reviews
 kubectl --context ${CLUSTER1} -n istio-system delete peerauthentication default
 ```
-
-
-
-## Lab 10 - Insights related to health issues <a name="lab-10---insights-related-to-health-issues-"></a>
-
-
-This step shows Gloo Mesh Core insights about Cilium. Hence, it is skipped when Cilium is not installed.
 
 
 
