@@ -23,8 +23,7 @@ source ./scripts/assert.sh
 * [Lab 8 - Ambient L7 Routing interoperability](#lab-8---ambient-l7-routing-interoperability-)
 * [Lab 9 - Ambient L7 Transforming traffic interoperability](#lab-9---ambient-l7-transforming-traffic-interoperability-)
 * [Lab 10 - Ambient L7 Traffic shifting interoperability](#lab-10---ambient-l7-traffic-shifting-interoperability-)
-* [Lab 11 - Ambient L7 Traffic mirroring interoperability](#lab-11---ambient-l7-traffic-mirroring-interoperability-)
-* [Lab 12 - Ambient L7 Traffic resiliency interoperability](#lab-12---ambient-l7-traffic-resiliency-interoperability-)
+* [Lab 11 - Ambient L7 Traffic resiliency interoperability](#lab-11---ambient-l7-traffic-resiliency-interoperability-)
 
 
 
@@ -1828,59 +1827,13 @@ done
 
 You should see that requests are distributed between v1 and v2 according to the specified weights, regardless of whether the client is using a sidecar or is in Ambient mode.
 
-<!--bash
-cat <<'EOF' > ./test.js
-const chaiExec = require("@jsdevtools/chai-exec");
-var chai = require('chai');
-var expect = chai.expect;
-chai.use(chaiExec);
-
-afterEach(function (done) {
-  if (this.currentTest.currentRetry() > 0) {
-    process.stdout.write(".");
-    setTimeout(done, 1000);
-  } else {
-    done();
-  }
-});
-
-describe("virtual service and destination rules", function() {
-  const cluster = process.env.CLUSTER1
-  const workloads = ['in-mesh-with-sidecar', 'in-ambient'];
-  const repetitions = 50;
-
-  for (const workload of workloads) {
-    it(`traffic shifting 70/30 to v1/v2 respectively for ${workload}`, function() {
-      let countV1 = 0;
-      let countV2 = 0;
-      for (let i = 0; i < repetitions; i++) {
-        let command = `kubectl --context ${cluster} -n clients exec deploy/${workload} -- bash -c "curl -s 'http://reviews.bookinfo-backends:9080/reviews/0' | jq .podname"`;
-        let cli = chaiExec(command);
-        expect(cli).to.exit.with.code(0);
-        if (cli.output.includes('-v1')) {
-          countV1++;
-        } else if (cli.output.includes('-v2')) {
-          countV2++;
-        } else {
-          expect.fail('Unexpected version')
-        }
-      }
-
-      expect(countV1).to.be.at.least(35);
-      expect(countV2).to.be.lessThanOrEqual(15);
-    });
-  }
-});
-EOF
-echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/l7-traffic-shifting-interoperability/tests/validate-traffic-shifting-interoperability.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 20000 --retries=10 --bail || exit 1
--->
 
 
 
-## Lab 11 - Ambient L7 Traffic mirroring interoperability <a name="lab-11---ambient-l7-traffic-mirroring-interoperability-"></a>
 
-Traffic mirroring allows you to send a copy of live traffic to another service for testing or monitoring purposes. Let's set up mirroring to an echo service:
+## Lab 11 - Ambient L7 Traffic resiliency interoperability <a name="lab-11---ambient-l7-traffic-resiliency-interoperability-"></a>
+
+Let's deploy the echo service so that we can simulate failures and test retry logic in Ambient. First, create the echo service:
 
 ```bash
 kubectl --context ${CLUSTER1} -n bookinfo-backends create deployment echo-service --image=ealen/echo-server
@@ -1888,65 +1841,7 @@ kubectl --context ${CLUSTER1} -n bookinfo-backends expose deployment echo-servic
 kubectl --context ${CLUSTER1} -n bookinfo-backends rollout status deployment/echo-service
 ```
 
-Now, let's configure our `VirtualService` to mirror traffic:
-
-```bash
-kubectl --context ${CLUSTER1} apply -f - <<EOF
-apiVersion: networking.istio.io/v1
-kind: VirtualService
-metadata:
-  name: reviews
-  namespace: clients
-spec:
-  hosts:
-  - reviews.bookinfo-backends.svc.cluster.local
-  http:
-  - route:
-    - destination:
-        host: reviews.bookinfo-backends.svc.cluster.local
-    mirror:
-      host: echo-service.bookinfo-backends.svc.cluster.local
----
-apiVersion: networking.istio.io/v1
-kind: VirtualService
-metadata:
-  name: reviews
-  namespace: bookinfo-backends
-spec:
-  hosts:
-  - reviews.bookinfo-backends.svc.cluster.local
-  http:
-  - route:
-    - destination:
-        host: reviews.bookinfo-backends.svc.cluster.local
-    mirror:
-      host: echo-service.bookinfo-backends.svc.cluster.local
-EOF
-```
-
-Send the two requests below once from each workload:
-
-```shell
-kubectl --context ${CLUSTER1} -n clients exec deploy/in-mesh-with-sidecar -- curl -s -I "http://reviews.bookinfo-backends:9080/reviews/0"
-kubectl --context ${CLUSTER1} -n clients exec deploy/in-ambient -- curl -s -I "http://reviews.bookinfo-backends:9080/reviews/0"
-```
-
-Check the logs in the echo service to see the mirrored traffic was received. You'll find out that the traffic from ambient was not mirrored and that is because **mirroring is not working with Ambient mode** as of now (see the issue [52713](https://github.com/istio/istio/issues/52713)).
-
-```shell
-kubectl --context ${CLUSTER1} -n bookinfo-backends logs -l app=echo-service | grep "in-mesh-with-sidecar"
-kubectl --context ${CLUSTER1} -n bookinfo-backends logs -l app=echo-service | grep "in-ambient"
-```
-
-This lab demonstrates the setup and limitations of traffic mirroring in Ambient mode, highlighting areas where support needs to be enhanced.
-
-
-
-
-
-## Lab 12 - Ambient L7 Traffic resiliency interoperability <a name="lab-12---ambient-l7-traffic-resiliency-interoperability-"></a>
-
-Finally, let's explore how to implement retry logic in both sidecar and Ambient modes. We'll use our echo service to simulate failures, let's create the virtual services for it:
+Next create the virtual services for it:
 
 ```bash
 kubectl --context ${CLUSTER1} apply -f - <<EOF
