@@ -6460,7 +6460,7 @@ until [[ $(jq -r '.items|length' cluster2_final) -ge 1 ]] || [ $ATTEMPTS -gt 12 
   kubectl --context ${CLUSTER2} get istio-io -A -o json > cluster2_final
 done
 
-npm install -g json-diff
+npm install -g json-diff || sudo npm install -g json-diff
 json-diff -x metadata cluster1_original cluster1_final
 json-diff -x metadata cluster2_original cluster2_final
 
