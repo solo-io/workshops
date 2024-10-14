@@ -25,10 +25,9 @@ source ./scripts/assert.sh
 * [Lab 10 - Introduction to Insights](#lab-10---introduction-to-insights-)
 * [Lab 11 - Insights related to configuration errors](#lab-11---insights-related-to-configuration-errors-)
 * [Lab 12 - Insights related to security issues](#lab-12---insights-related-to-security-issues-)
-* [Lab 13 - Insights related to health issues](#lab-13---insights-related-to-health-issues-)
-* [Lab 14 - Upgrade Istio using Gloo Mesh Lifecycle Manager to perform an in place upgrade](#lab-14---upgrade-istio-using-gloo-mesh-lifecycle-manager-to-perform-an-in-place-upgrade-)
-* [Lab 15 - Ambient Egress Traffic with Waypoint](#lab-15---ambient-egress-traffic-with-waypoint-)
-* [Lab 16 - Waypoint Deployment Options](#lab-16---waypoint-deployment-options-)
+* [Lab 13 - Upgrade Istio using Gloo Mesh Lifecycle Manager to perform an in place upgrade](#lab-13---upgrade-istio-using-gloo-mesh-lifecycle-manager-to-perform-an-in-place-upgrade-)
+* [Lab 14 - Ambient Egress Traffic with Waypoint](#lab-14---ambient-egress-traffic-with-waypoint-)
+* [Lab 15 - Waypoint Deployment Options](#lab-15---waypoint-deployment-options-)
 
 
 
@@ -2976,14 +2975,7 @@ kubectl --context ${CLUSTER1} -n istio-system delete peerauthentication default
 
 
 
-## Lab 13 - Insights related to health issues <a name="lab-13---insights-related-to-health-issues-"></a>
-
-
-This step shows Gloo Mesh Core insights about Cilium. Hence, it is skipped when Cilium is not installed.
-
-
-
-## Lab 14 - Upgrade Istio using Gloo Mesh Lifecycle Manager to perform an in place upgrade <a name="lab-14---upgrade-istio-using-gloo-mesh-lifecycle-manager-to-perform-an-in-place-upgrade-"></a>
+## Lab 13 - Upgrade Istio using Gloo Mesh Lifecycle Manager to perform an in place upgrade <a name="lab-13---upgrade-istio-using-gloo-mesh-lifecycle-manager-to-perform-an-in-place-upgrade-"></a>
 [<img src="https://img.youtube.com/vi/6DtGVkecArs/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/6DtGVkecArs "Video Link")
 
 We are going to upgrade Istio using Gloo Mesh Lifecycle Manager.
@@ -3317,7 +3309,7 @@ timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || 
 
 
 
-## Lab 15 - Ambient Egress Traffic with Waypoint <a name="lab-15---ambient-egress-traffic-with-waypoint-"></a>
+## Lab 14 - Ambient Egress Traffic with Waypoint <a name="lab-14---ambient-egress-traffic-with-waypoint-"></a>
 
 In this lab, we'll explore how to control and secure outbound traffic from your Ambient Mesh using Waypoints. We'll start by restricting all outgoing traffic from a specific namespace, then set up a shared Waypoint to manage egress traffic centrally. This approach allows for consistent policy enforcement across multiple services and namespaces.
 
@@ -3610,7 +3602,7 @@ kubectl --context ${CLUSTER1} delete authorizationpolicy httpbin -n egress
 
 
 
-## Lab 16 - Waypoint Deployment Options <a name="lab-16---waypoint-deployment-options-"></a>
+## Lab 15 - Waypoint Deployment Options <a name="lab-15---waypoint-deployment-options-"></a>
 
 This lab explores different ways to deploy Waypoints in Istio's Ambient Mesh. We'll learn about deploying Waypoints for services and for workloads.
 
