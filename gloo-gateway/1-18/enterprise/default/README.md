@@ -3018,6 +3018,7 @@ describe("Downstream mTLS", () => {
       path: '/get',
       method: 'GET',
       rejectUnauthorized: false,
+      agent: false, // Disable the agent to avoid keeping sockets open for reuse, which leads to the test not exiting in some cases
     };
 
     const req = https.request(options, (res) => {
