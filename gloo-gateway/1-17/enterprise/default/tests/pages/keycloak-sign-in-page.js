@@ -1,6 +1,8 @@
-class KeycloakSignInPage {
+const BasePage = require("./base");
+
+class KeycloakSignInPage extends BasePage {
   constructor(page) {
-    this.page = page;
+    super(page)
 
     // Selectors
     this.usernameInput = '#username';
