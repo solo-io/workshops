@@ -1,6 +1,8 @@
-class InsightsPage {
+const BasePage = require("./base");
+
+class InsightsPage extends BasePage {
   constructor(page) {
-    this.page = page;
+    super(page);
 
     // Selectors
     this.insightTypeQuickFilters = {
@@ -8,17 +10,17 @@ class InsightsPage {
       warning: '[data-testid="health-count-box-warning"]',
       error: '[data-testid="health-count-box-error"]'
     };
-    this.clusterDropdownButton = '[data-testid="search by cluster...-dropdown"] button';
+    this.clusterDropdownButtonSelectors = [
+      '[data-testid="filter by cluster...-dropdown"] button',
+      '[data-testid="search by cluster...-dropdown"] button'
+    ];
+
     this.filterByTypeDropdown = '[data-testid="filter by type...-dropdown"] button';
     this.clearAllButton = '[data-testid="solo-tag"]:first-child';
     this.tableHeaders = '.ant-table-thead th';
     this.tableRows = '.ant-table-tbody tr';
     this.paginationTotalText = '.ant-pagination-total-text';
     this.selectCheckbox = (name) => `input[type="checkbox"][value="${name}"]`;
-  }
-
-  async navigateTo(url) {
-    await this.page.goto(url, { waitUntil: 'networkidle2' });
   }
 
   async getHealthyResourcesCount() {
@@ -40,8 +42,9 @@ class InsightsPage {
   }
 
   async openSearchByClusterDropdown() {
-    await this.page.waitForSelector(this.clusterDropdownButton, { visible: true });
-    await this.page.click(this.clusterDropdownButton);
+    const clusterDropdownButton = await this.findVisibleSelector(this.clusterDropdownButtonSelectors);
+    await this.page.waitForSelector(clusterDropdownButton, { visible: true });
+    await this.page.click(clusterDropdownButton);
   }
 
   async clearAllFilters() {
