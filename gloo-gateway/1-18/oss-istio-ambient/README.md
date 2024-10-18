@@ -128,7 +128,7 @@ describe("Clusters are healthy", () => {
 });
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/deploy-kind-cluster/tests/cluster-healthy.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
 -->
 
 
@@ -216,7 +216,7 @@ describe("Istio", () => {
 });
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/deploy-istio-ambient/tests/check-istio.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
 -->
 
 
@@ -300,7 +300,7 @@ describe("Gloo Gateway", () => {
 });
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/deploy-gloo-gateway/tests/check-gloo.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
 -->
 
 
@@ -513,7 +513,7 @@ describe("httpbin app", () => {
 });
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/deploy-httpbin/tests/check-httpbin.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
 -->
 
 
@@ -658,7 +658,7 @@ describe("httpbin through HTTP", () => {
 })
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/expose-httpbin/tests/http.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
 -->
 
 Now, let's secure the access through TLS.
@@ -755,9 +755,12 @@ RETRY_COUNT=0
 MAX_RETRIES=30
 while [[ $RETRY_COUNT -lt $MAX_RETRIES ]]; do
   echo "Attempt $((RETRY_COUNT + 1))/$MAX_RETRIES"
-  curl -k https://httpbin.example.com/get
-  if [[ $? -eq 0 ]]; then
+  ret=`curl -k -s -o /dev/null -w %{http_code} https://httpbin.example.com/get`
+  if [ "$ret" == "200" ]; then
     break
+  else
+    echo "Response was: $ret"
+    echo "Retrying in 4 seconds..."
   fi
   RETRY_COUNT=$((RETRY_COUNT + 1))
   sleep 4
@@ -805,7 +808,7 @@ describe("httpbin through HTTPS", () => {
 })
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/expose-httpbin/tests/https.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
 -->
 
 The team in charge of the gateway can create an `HTTPRoute` to automatically redirect HTTP to HTTPS:
@@ -877,7 +880,7 @@ describe("location header correctly set", () => {
 })
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/expose-httpbin/tests/redirect-http-to-https.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
 -->
 
 
@@ -978,7 +981,7 @@ describe("httpbin through HTTPS", () => {
 })
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/delegation/tests/https.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
 -->
 
 In the previous example, we've used a simple `/` prefix matcher for both the parent and the child `HTTPRoute`.
@@ -1058,7 +1061,7 @@ describe("httpbin through HTTPS", () => {
 })
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/delegation/tests/status-200.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
 -->
 
 In the child `HTTPRoute` we've indicated the absolute path (which includes the parent path), but instead we can inherite the parent matcher and use a relative path:
@@ -1105,7 +1108,7 @@ describe("httpbin through HTTPS", () => {
 })
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/delegation/tests/status-200.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
 -->
 
 The team in charge of the httpbin application can also take advantage of the `parentRefs` option to indicate which parent `HTTPRoute` can delegate to its own `HTTPRoute`.
@@ -1159,7 +1162,7 @@ describe("httpbin through HTTPS", () => {
 })
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/delegation/tests/status-200.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
 -->
 
 Delegation offers another very nice feature. It automatically reorders all the matchers to avoid any short-circuiting.
@@ -1220,7 +1223,7 @@ describe("httpbin through HTTPS", () => {
 })
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/delegation/tests/status-200.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
 -->
 
 Check you can now also access the status `/status/201` path:
@@ -1256,7 +1259,7 @@ describe("httpbin through HTTPS", () => {
 })
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/delegation/tests/status-201.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
 -->
 
 Let's delete the latest `HTTPRoute` and apply the original ones:
@@ -1316,7 +1319,7 @@ describe("httpbin through HTTPS", () => {
 })
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/delegation/tests/https.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
 -->
 
 
@@ -1412,7 +1415,7 @@ describe("request transformations applied", () => {
 })
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/transformations/tests/request-headers.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
 -->
 
 Another typical use case is to rewrite the hostname or the path before sending the request to the backend.
@@ -1495,7 +1498,7 @@ describe("request rewrite applied", () => {
 })
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/transformations/tests/request-rewrite.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
 -->
 
 
@@ -1569,7 +1572,7 @@ describe("response transformations applied", () => {
 })
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/transformations/tests/response-headers.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
 -->
 
 Let's apply the original `HTTPRoute` yaml:
@@ -1681,7 +1684,7 @@ describe("request transformation applied", () => {
 })
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/transformations/tests/x-client-request-header.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
 -->
 
 As you can see, we've created a new header called `X-Client` by extracting some data from the `User-Agent` header using a regular expression.
@@ -1768,7 +1771,7 @@ describe("response transformation applied", () => {
 })
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/transformations/tests/x-request-id-response-header.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
 -->
 
 Let's apply the original `HTTPRoute` yaml:
@@ -1866,7 +1869,7 @@ describe("traffic split applied", () => {
 })
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/traffic-split/tests/traffic-split.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
 -->
 
 
@@ -2243,7 +2246,7 @@ describe("httpbin rollout", () => {
 
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/canary-rollout/tests/rollout.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
 -->
 <!--bash
 cat <<'EOF' > ./test.js
@@ -2280,7 +2283,7 @@ describe("httproute weights for rollout canary weight 0", () => {
 
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/canary-rollout/tests/route-weights.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
 -->
 
 Now, let's trigger the rollout by updating the image of the `httpbin` container to the latest version:
@@ -2361,7 +2364,7 @@ describe("httpbin rollout", () => {
 
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/canary-rollout/tests/rollout.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
 -->
 <!--bash
 cat <<'EOF' > ./test.js
@@ -2398,7 +2401,7 @@ describe("httproute weights for rollout canary weight 0", () => {
 
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/canary-rollout/tests/route-weights.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
 -->
 
 Let's get it to the next step by running this command:
@@ -2524,7 +2527,7 @@ describe("httpbin rollout", () => {
 
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/canary-rollout/tests/rollout.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
 -->
 <!--bash
 cat <<'EOF' > ./test.js
@@ -2561,7 +2564,7 @@ describe("httproute weights for rollout canary weight 50", () => {
 
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/canary-rollout/tests/route-weights.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
 -->
 
 Let's proceed to the last step of the rollout by promoting the rollout in the dashboard or running this command:
@@ -2631,7 +2634,7 @@ describe("httpbin rollout", () => {
 
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/canary-rollout/tests/rollout.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
 -->
 <!--bash
 cat <<'EOF' > ./test.js
@@ -2668,7 +2671,7 @@ describe("httproute weights for rollout canary weight 100", () => {
 
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/canary-rollout/tests/route-weights.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
 -->
 
 One final promotion of the rollout will get us back to the completed state, where we have a single pod running the new image; all traffic is being routed to it through the stable service; and both the stable and canary services will be selecting the new pod.
@@ -2680,9 +2683,10 @@ kubectl argo rollouts --context ${CLUSTER1} -n httpbin promote httpbin1
 
 <!--bash
 echo -n Waiting for rollout to be ready...
-timeout -v 5m bash -c "until [[ \$(kubectl argo rollouts --context ${CLUSTER1} -n httpbin status httpbin1 -t 1s 2>/dev/null) ]]; do
+timeout -v 5m bash -c "until [[ \$(kubectl -n httpbin get rollout httpbin1 -ojsonpath='{.status.currentStepIndex}' 2>/dev/null) -eq 5 ]]; do
   sleep 1
   echo -n .
+  kubectl argo rollouts --context ${CLUSTER1} -n httpbin promote httpbin1
 done"
 echo
 -->
@@ -2755,7 +2759,7 @@ describe("httpbin rollout", () => {
 
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/canary-rollout/tests/rollout-final.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
 -->
 <!--bash
 cat <<'EOF' > ./test.js
@@ -2792,7 +2796,7 @@ describe("httproute weights for rollout canary weight 0", () => {
 
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/canary-rollout/tests/route-weights.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
 -->
 You can clean up by deleting the `Rollout` and canary service:
 
@@ -3123,7 +3127,7 @@ describe("Kiali", () => {
 });
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/deploy-kiali/tests/check-kiali.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
 -->
 
 

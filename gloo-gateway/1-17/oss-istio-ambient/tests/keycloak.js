@@ -5,6 +5,7 @@ global = {
     getKeyCloakCookie: async (url, user) => {
         const browser = await puppeteer.launch({
             headless: "new",
+            slowMo: 40,
             ignoreHTTPSErrors: true,
             args: ['--no-sandbox', '--disable-setuid-sandbox'], // needed for instruqt
         });

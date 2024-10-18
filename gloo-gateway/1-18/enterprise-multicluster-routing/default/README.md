@@ -125,7 +125,7 @@ describe("Clusters are healthy", () => {
 });
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/deploy-kind-cluster/tests/cluster-healthy.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
 -->
 
 
@@ -142,17 +142,19 @@ Install the Kubernetes Gateway API CRDs as they do not come installed by default
 kubectl --context $CLUSTER1 apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.1.0/standard-install.yaml
 ```
 
+
+
 Next, install Gloo Gateway. This command installs the Gloo Gateway control plane into the namespace `gloo-system`.
 
 ```bash
-helm repo add gloo-ee-helm https://storage.googleapis.com/gloo-ee-helm
+helm repo add gloo-ee-test-helm https://storage.googleapis.com/gloo-ee-test-helm
 
 helm repo update
 
 helm upgrade -i -n gloo-system \
-  gloo-gateway gloo-ee-helm/gloo-ee \
+  gloo-gateway gloo-ee-test-helm/gloo-ee \
   --create-namespace \
-  --version 1.18.0-beta1 \
+  --version 1.18.0-beta2-bmain-b9dc82b \
   --kube-context $CLUSTER1 \
   --set-string license_key=$LICENSE_KEY \
   -f -<<EOF
@@ -231,7 +233,7 @@ describe("Gloo Gateway", () => {
 });
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/deploy-gloo-gateway-enterprise/tests/check-gloo.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
 -->
 
 
@@ -444,7 +446,7 @@ describe("httpbin app", () => {
 });
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/deploy-httpbin/tests/check-httpbin.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
 -->
 
 
@@ -589,7 +591,7 @@ describe("httpbin through HTTP", () => {
 })
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/expose-httpbin/tests/http.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
 -->
 
 Now, let's secure the access through TLS.
@@ -686,9 +688,12 @@ RETRY_COUNT=0
 MAX_RETRIES=30
 while [[ $RETRY_COUNT -lt $MAX_RETRIES ]]; do
   echo "Attempt $((RETRY_COUNT + 1))/$MAX_RETRIES"
-  curl -k https://httpbin.example.com/get
-  if [[ $? -eq 0 ]]; then
+  ret=`curl -k -s -o /dev/null -w %{http_code} https://httpbin.example.com/get`
+  if [ "$ret" == "200" ]; then
     break
+  else
+    echo "Response was: $ret"
+    echo "Retrying in 4 seconds..."
   fi
   RETRY_COUNT=$((RETRY_COUNT + 1))
   sleep 4
@@ -736,7 +741,7 @@ describe("httpbin through HTTPS", () => {
 })
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/expose-httpbin/tests/https.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
 -->
 
 The team in charge of the gateway can create an `HTTPRoute` to automatically redirect HTTP to HTTPS:
@@ -808,7 +813,7 @@ describe("location header correctly set", () => {
 })
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/expose-httpbin/tests/redirect-http-to-https.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
 -->
 
 
@@ -909,7 +914,7 @@ describe("httpbin through HTTPS", () => {
 })
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/delegation/tests/https.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
 -->
 
 In the previous example, we've used a simple `/` prefix matcher for both the parent and the child `HTTPRoute`.
@@ -989,7 +994,7 @@ describe("httpbin through HTTPS", () => {
 })
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/delegation/tests/status-200.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
 -->
 
 In the child `HTTPRoute` we've indicated the absolute path (which includes the parent path), but instead we can inherite the parent matcher and use a relative path:
@@ -1036,7 +1041,7 @@ describe("httpbin through HTTPS", () => {
 })
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/delegation/tests/status-200.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
 -->
 
 The team in charge of the httpbin application can also take advantage of the `parentRefs` option to indicate which parent `HTTPRoute` can delegate to its own `HTTPRoute`.
@@ -1090,7 +1095,7 @@ describe("httpbin through HTTPS", () => {
 })
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/delegation/tests/status-200.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
 -->
 
 Delegation offers another very nice feature. It automatically reorders all the matchers to avoid any short-circuiting.
@@ -1151,7 +1156,7 @@ describe("httpbin through HTTPS", () => {
 })
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/delegation/tests/status-200.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
 -->
 
 Check you can now also access the status `/status/201` path:
@@ -1187,7 +1192,7 @@ describe("httpbin through HTTPS", () => {
 })
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/delegation/tests/status-201.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
 -->
 
 Let's delete the latest `HTTPRoute` and apply the original ones:
@@ -1247,7 +1252,7 @@ describe("httpbin through HTTPS", () => {
 })
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/delegation/tests/https.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
 -->
 
 
@@ -1306,7 +1311,7 @@ describe("Clusters are healthy", () => {
 });
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/deploy-kind-cluster/tests/cluster-healthy.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
 -->
 
 
@@ -1323,17 +1328,19 @@ Install the Kubernetes Gateway API CRDs as they do not come installed by default
 kubectl --context $CLUSTER2 apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.1.0/standard-install.yaml
 ```
 
+
+
 Next, install Gloo Gateway. This command installs the Gloo Gateway control plane into the namespace `gloo-system`.
 
 ```bash
-helm repo add gloo-ee-helm https://storage.googleapis.com/gloo-ee-helm
+helm repo add gloo-ee-test-helm https://storage.googleapis.com/gloo-ee-test-helm
 
 helm repo update
 
 helm upgrade -i -n gloo-system \
-  gloo-gateway gloo-ee-helm/gloo-ee \
+  gloo-gateway gloo-ee-test-helm/gloo-ee \
   --create-namespace \
-  --version 1.18.0-beta1 \
+  --version 1.18.0-beta2-bmain-b9dc82b \
   --kube-context $CLUSTER2 \
   --set-string license_key=$LICENSE_KEY \
   -f -<<EOF
@@ -1412,7 +1419,7 @@ describe("Gloo Gateway", () => {
 });
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/deploy-gloo-gateway-enterprise/tests/check-gloo.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
 -->
 
 
@@ -1625,7 +1632,7 @@ describe("httpbin app", () => {
 });
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/deploy-httpbin/tests/check-httpbin.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
 -->
 
 
@@ -1847,7 +1854,7 @@ describe("httpbin through HTTPS", () => {
 })
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/multicluster-routing/tests/check-httpbin-local.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
 -->
 
 You should still be able to access the `httpbin1` service which is running locally:
@@ -1877,7 +1884,7 @@ describe("httpbin through HTTPS", () => {
 })
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/multicluster-routing/tests/check-httpbin-remote.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
 -->
 
 Let's make the local service available again.
@@ -1965,7 +1972,7 @@ describe("httpbin through HTTPS", () => {
 })
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/multicluster-routing/tests/check-httpbin-remote.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
 -->
 
 

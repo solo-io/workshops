@@ -128,7 +128,7 @@ metallb-system       speaker-d7jkp                                 1/1     Runni
 You can see that your currently connected to this cluster by executing the `kubectl config get-contexts` command:
 
 ```
-CURRENT   NAME         CLUSTER         AUTHINFO   NAMESPACE  
+CURRENT   NAME         CLUSTER         AUTHINFO   NAMESPACE
           cluster1     kind-cluster1   cluster1
 *         cluster2     kind-cluster2   cluster2
           mgmt         kind-mgmt       kind-mgmt
@@ -151,9 +151,8 @@ describe("Clusters are healthy", () => {
 });
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/deploy-kind-clusters/tests/cluster-healthy.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
 -->
-
 
 
 
@@ -195,7 +194,7 @@ describe("Required environment variables should contain value", () => {
 });
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/deploy-and-register-gloo-mesh/tests/environment-variables.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
 -->
 Run the following commands to deploy the Gloo Mesh management plane:
 
@@ -274,7 +273,7 @@ describe("MGMT server is healthy", () => {
 });
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/deploy-and-register-gloo-mesh/tests/check-deployment.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
 -->
 <!--bash
 cat <<'EOF' > ./test.js
@@ -293,7 +292,7 @@ afterEach(function (done) {
 });
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/deploy-and-register-gloo-mesh/tests/get-gloo-mesh-mgmt-server-ip.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
 -->
 
 ```bash
@@ -330,7 +329,7 @@ describe("Address '" + process.env.HOST_GLOO_MESH + "' can be resolved in DNS", 
 });
 EOF
 echo "executing test ./gloo-mesh-2-0/tests/can-resolve.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
 -->
 Finally, you need to register the cluster(s).
 
@@ -496,7 +495,7 @@ describe("Cluster registration", () => {
 });
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/deploy-and-register-gloo-mesh/tests/cluster-registration.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
 -->
 
 
@@ -562,7 +561,7 @@ describe("istio_version is at least 1.23.0", () => {
 });
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/istio-lifecycle-manager-install/tests/istio-version.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
 -->
 
 Let's create Kubernetes services for the gateways:
@@ -1029,7 +1028,7 @@ describe("Checking Istio installation", function() {
 
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/istio-lifecycle-manager-install/tests/istio-ready.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
 -->
 <!--bash
 timeout 2m bash -c "until [[ \$(kubectl --context ${CLUSTER1} -n istio-gateways get svc -l istio=ingressgateway -o json | jq '.items[0].status.loadBalancer | length') -gt 0 ]]; do
@@ -1063,7 +1062,7 @@ describe("Address '" + process.env.HOST_GW_CLUSTER1 + "' can be resolved in DNS"
 });
 EOF
 echo "executing test ./gloo-mesh-2-0/tests/can-resolve.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
 -->
 <!--bash
 cat <<'EOF' > ./test.js
@@ -1086,7 +1085,7 @@ describe("Address '" + process.env.HOST_GW_CLUSTER2 + "' can be resolved in DNS"
 });
 EOF
 echo "executing test ./gloo-mesh-2-0/tests/can-resolve.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
 -->
 The Gateway APIs do not come installed by default on most Kubernetes clusters. Install the Gateway API CRDs if they are not present:
 
@@ -1223,7 +1222,7 @@ describe("Bookinfo app", () => {
 });
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/apps/bookinfo/deploy-bookinfo/tests/check-bookinfo.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
 -->
 
 
@@ -1468,7 +1467,7 @@ describe("httpbin app", () => {
 });
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/apps/httpbin/deploy-httpbin/tests/check-httpbin.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
 -->
 
 
@@ -1679,7 +1678,7 @@ describe("client apps", () => {
 });
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/apps/clients/deploy-clients/tests/check-clients.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
 -->
 
 
@@ -1762,7 +1761,7 @@ describe("productpage is available (HTTP)", () => {
 })
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/apps/bookinfo/gateway-expose-istio/tests/productpage-available.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
 -->
 
 Now, let's secure the access through TLS.
@@ -1828,7 +1827,7 @@ describe("productpage is available (HTTPS)", () => {
 })
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/apps/bookinfo/gateway-expose-istio/tests/productpage-available-secure.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
 -->
 <!--bash
 cat <<'EOF' > ./test.js
@@ -1847,7 +1846,7 @@ describe("Otel metrics", () => {
 
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/apps/bookinfo/gateway-expose-istio/tests/otel-metrics.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=150 --bail || exit 1
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=150 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
 -->
 <!--bash
 cat <<'EOF' > ./test.js
@@ -1876,6 +1875,7 @@ describe("graph page", function () {
   beforeEach(async function () {
     browser = await puppeteer.launch({
       headless: "new",
+      slowMo: 40,
       ignoreHTTPSErrors: true,
       args: ['--no-sandbox', '--disable-setuid-sandbox'],
     });
@@ -1926,7 +1926,7 @@ describe("graph page", function () {
 
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/apps/bookinfo/gateway-expose-istio/tests/graph-shows-traffic.test.js.liquid"
-timeout --signal=INT 5m mocha ./test.js --timeout 120000 --retries=20 --bail || exit 1
+timeout --signal=INT 5m mocha ./test.js --timeout 120000 --retries=20 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
 -->
 
 
@@ -1997,7 +1997,7 @@ describe("Productpage is available (HTTPS)", () => {
 })
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/authorization-policies/tests/bookinfo-backend-services-unavailable.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 60000 --retries=60 --bail || exit 1
+timeout --signal=INT 3m mocha ./test.js --timeout 60000 --retries=60 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
 -->
 
 #### Allowing Access from Product Page
@@ -2063,7 +2063,7 @@ describe("Productpage is available (HTTPS)", () => {
 })
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/authorization-policies/tests/bookinfo-backend-services-available.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 60000 --retries=60 --bail || exit 1
+timeout --signal=INT 3m mocha ./test.js --timeout 60000 --retries=60 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
 -->
 
 These two policies are enabled at layer 4 and thus they are handled by ztunnel, which is the layer 4 proxy. Next, we'll explore how to create a policy that operates at layer 7.
@@ -2136,7 +2136,7 @@ describe("Productpage is available (HTTPS)", () => {
 })
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/authorization-policies/tests/bookinfo-backend-services-unavailable.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 60000 --retries=60 --bail || exit 1
+timeout --signal=INT 3m mocha ./test.js --timeout 60000 --retries=60 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
 -->
 
 ### Deploying a Waypoint
@@ -2232,7 +2232,7 @@ describe("Productpage is available (HTTPS)", () => {
 })
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/authorization-policies/tests/bookinfo-backend-services-available.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 60000 --retries=60 --bail || exit 1
+timeout --signal=INT 3m mocha ./test.js --timeout 60000 --retries=60 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
 -->
 
 This lab demonstrates how Istio's Ambient Mesh allows you to create sophisticated authorization policies. Keep in mind, that Layer 4 policies are fast, but when required you can create more complex Layer 7 policies that operate at the application layer.
@@ -2326,7 +2326,7 @@ describe("L4 metrics available", function() {
 });
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/l7-observability/tests/l4-l7-metrics-available.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
 -->
 
 Similarly, you get access logs for all traffic passing through ztunnel:
@@ -2388,6 +2388,7 @@ describe("Insights UI", function() {
   beforeEach(async function() {
     browser = await puppeteer.launch({
       headless: "new",
+      slowMo: 40,
       ignoreHTTPSErrors: true,
       args: ['--no-sandbox', '--disable-setuid-sandbox'],
     });
@@ -2422,7 +2423,7 @@ describe("Insights UI", function() {
 
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/apps/bookinfo/insights-intro/tests/insight-ui-BP0001.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
+timeout --signal=INT 5m mocha ./test.js --timeout 120000 --retries=20 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
 -->
 
 <!--bash
@@ -2456,9 +2457,8 @@ describe("Insight generation", () => {
 });
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/apps/bookinfo/insights-intro/tests/insight-metrics.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
+timeout --signal=INT 5m mocha ./test.js --timeout 120000 --retries=20 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
 -->
-
 For example, right now we have the following insight:
 
 ![BP0002 insight](images/steps/insights-intro/bp0002.png)
@@ -2507,6 +2507,7 @@ describe("Insights UI", function() {
   beforeEach(async function() {
     browser = await puppeteer.launch({
       headless: "new",
+      slowMo: 40,
       ignoreHTTPSErrors: true,
       args: ['--no-sandbox', '--disable-setuid-sandbox'],
     });
@@ -2531,7 +2532,7 @@ describe("Insights UI", function() {
 });
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/apps/bookinfo/insights-intro/tests/insight-not-ui-BP0002.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
+timeout --signal=INT 5m mocha ./test.js --timeout 120000 --retries=20 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
 -->
 
 The corresponding insight isn't displayed anymore in the UI.
@@ -2661,6 +2662,7 @@ describe("Insights UI", function() {
   beforeEach(async function() {
     browser = await puppeteer.launch({
       headless: "new",
+      slowMo: 40,
       ignoreHTTPSErrors: true,
       args: ['--no-sandbox', '--disable-setuid-sandbox'],
     });
@@ -2685,7 +2687,7 @@ describe("Insights UI", function() {
 });
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/apps/bookinfo/insights-intro/tests/insight-not-ui-BP0001.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
+timeout --signal=INT 5m mocha ./test.js --timeout 120000 --retries=20 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
 -->
 
 The UI shouldn't display this insight anymore.
@@ -2750,7 +2752,7 @@ describe("Insight generation", () => {
 });
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/apps/bookinfo/insights-config/../insights-intro/tests/insight-metrics.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
 -->
 
 If you refresh the `productpage` tab, you'll see the error `Sorry, product reviews are currently unavailable for this book.`.
@@ -2812,7 +2814,7 @@ describe("Insight generation", () => {
 });
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/apps/bookinfo/insights-config/../insights-intro/tests/insight-metrics.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
 -->
 
 Let's delete the objects we've created:
@@ -2912,7 +2914,7 @@ describe("Insight generation", () => {
 });
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/apps/bookinfo/insights-security/../insights-intro/tests/insight-metrics.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
 -->
 
 You can fix the issue by creating a `PeerAuthentication` object to enforce mTLS globally:
@@ -2963,7 +2965,7 @@ describe("Insight generation", () => {
 });
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/apps/bookinfo/insights-security/../insights-intro/tests/insight-metrics.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
 -->
 
 Let's delete the objects we've created:
@@ -3212,7 +3214,7 @@ describe("Checking Istio installation", function() {
 
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/istio-lifecycle-manager-in-place-upgrade/tests/istio-ready.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=150 --bail || exit 1
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=150 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
 -->
 
 Run the following command to check the status of the upgrade(s):
@@ -3271,7 +3273,7 @@ describe("istio in place upgrades", function() {
 });
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/istio-lifecycle-manager-in-place-upgrade/tests/waypoint-upgraded.test.js.liquid"
-timeout --signal=INT 1m mocha ./test.js --timeout 10000 --retries=60 --bail || exit 1
+timeout --signal=INT 1m mocha ./test.js --timeout 10000 --retries=60 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
 -->
 
 Test that you can still access the `productpage` service through the Istio Ingress Gateway corresponding to the old revision using the command below:
@@ -3303,7 +3305,7 @@ describe("productpage is accessible", () => {
 
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/istio-lifecycle-manager-in-place-upgrade/tests/productpage-available.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
 -->
 
 
@@ -3591,7 +3593,7 @@ describe("egress traffic", function() {
 
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/waypoint-egress/tests/validate-egress-traffic.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 20000 --retries=60 --bail || exit 1
+timeout --signal=INT 3m mocha ./test.js --timeout 20000 --retries=60 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
 -->
 
 Let's cleanup the resources:
@@ -3739,7 +3741,7 @@ describe("waypoint for service when ns is labeled", function() {
 });
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/waypoint-deployment-options/tests/validate-waypoint-for-service-ns.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 20000 --retries=10 --bail || exit 1
+timeout --signal=INT 3m mocha ./test.js --timeout 20000 --retries=10 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
 -->
 
 ### Deploying a Waypoint for specific services
@@ -3843,7 +3845,7 @@ describe("service labeling to use a waypoint takes precedence over namespace lab
 
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/waypoint-deployment-options/tests/validate-waypoint-for-specific-service.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 20000 --retries=10 --bail || exit 1
+timeout --signal=INT 3m mocha ./test.js --timeout 20000 --retries=10 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
 -->
 
 ### Deploying a Waypoint for Workloads
@@ -3918,7 +3920,7 @@ describe("waypoint for workloads when pod is labeled", function() {
 });
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/waypoint-deployment-options/tests/validate-waypoint-for-workload.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 20000 --retries=10 --bail || exit 1
+timeout --signal=INT 3m mocha ./test.js --timeout 20000 --retries=10 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
 -->
 
 This lab shows you different ways to set up Waypoints in Istio's Ambient Mesh. You can route traffic for all services in a namespace, for specific services, or even for individual workloads. This flexibility allows you to fine-tune your traffic management based on your specific needs.

@@ -14,8 +14,8 @@ source ./scripts/assert.sh
 ## Table of Contents
 * [Introduction](#introduction)
 * [Lab 1 - Deploy a KinD cluster](#lab-1---deploy-a-kind-cluster-)
-* [Lab 2 - Deploy Gloo Gateway](#lab-2---deploy-gloo-gateway-)
-* [Lab 3 - Deploy Keycloak](#lab-3---deploy-keycloak-)
+* [Lab 2 - Deploy Keycloak](#lab-2---deploy-keycloak-)
+* [Lab 3 - Deploy Gloo Gateway](#lab-3---deploy-gloo-gateway-)
 * [Lab 4 - Deploy the httpbin demo app](#lab-4---deploy-the-httpbin-demo-app-)
 * [Lab 5 - Expose the httpbin application through the gateway](#lab-5---expose-the-httpbin-application-through-the-gateway-)
 * [Lab 6 - Delegate with control](#lab-6---delegate-with-control-)
@@ -140,118 +140,12 @@ describe("Clusters are healthy", () => {
 });
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/deploy-kind-cluster/tests/cluster-healthy.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
 -->
 
 
 
-## Lab 2 - Deploy Gloo Gateway <a name="lab-2---deploy-gloo-gateway-"></a>
-
-You can deploy Gloo Gateway with the `glooctl` CLI or declaratively using Helm.
-
-We're going to use the Helm option.
-
-Install the Kubernetes Gateway API CRDs as they do not come installed by default on most Kubernetes clusters.
-
-```bash
-kubectl --context $CLUSTER1 apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.1.0/standard-install.yaml
-```
-
-Next, install Gloo Gateway. This command installs the Gloo Gateway control plane into the namespace `gloo-system`.
-
-```bash
-helm repo add gloo-ee-helm https://storage.googleapis.com/gloo-ee-helm
-
-helm repo update
-
-helm upgrade -i -n gloo-system \
-  gloo-gateway gloo-ee-helm/gloo-ee \
-  --create-namespace \
-  --version 1.17.3 \
-  --kube-context $CLUSTER1 \
-  --set-string license_key=$LICENSE_KEY \
-  -f -<<EOF
-gloo:
-  kubeGateway:
-    enabled: true
-  gatewayProxies:
-    gatewayProxy:
-      disabled: true
-  gateway:
-    validation:
-      allowWarnings: true
-      alwaysAcceptResources: false
-  gloo:
-    logLevel: info
-    deployment:
-      customEnv:
-        - name: GG_PORTAL_PLUGIN
-          value: "true"
-      livenessProbeEnabled: true
-  discovery:
-    enabled: false
-  rbac:
-    namespaced: true
-    nameSuffix: gg-demo
-observability:
-  enabled: false
-prometheus:
-  enabled: false
-grafana:
-  defaultInstallationEnabled: false
-gloo-fed:
-  enabled: false
-  glooFedApiserver:
-    enable: false
-gateway-portal-web-server:
-  enabled: true
-settings:
-  disableKubernetesDestinations: true
-EOF
-```
-
-Run the following command to check that the Gloo Gateway pods are running:
-
-<!--bash
-echo -n Waiting for Gloo Gateway pods to be ready...
-kubectl --context $CLUSTER1 -n gloo-system rollout status deployment
--->
-```bash
-kubectl --context $CLUSTER1 -n gloo-system get pods
-```
-
-Here is the expected output:
-
-```,nocopy
-NAME                                         READY   STATUS      RESTARTS   AGE
-extauth-58f68c5cd5-gxgxc                     1/1     Running     0          69s
-gateway-portal-web-server-5c5d58d8d5-7lzwg   1/1     Running     0          69s
-gloo-7d8994697-lfg5x                         1/1     Running     0          69s
-gloo-resource-rollout-check-x8b77            0/1     Completed   0          69s
-gloo-resource-rollout-cjtgh                  0/1     Completed   0          69s
-rate-limit-6db9c67794-vf7h2                  1/1     Running     0          69s
-redis-6c7c489d8c-g2dhc                       1/1     Running     0          69s
-```
-
-<!--bash
-cat <<'EOF' > ./test.js
-const helpers = require('./tests/chai-exec');
-
-describe("Gloo Gateway", () => {
-  let cluster = process.env.CLUSTER1
-  let deployments = ["gloo", "extauth", "rate-limit", "redis"];
-  deployments.forEach(deploy => {
-    it(deploy + ' pods are ready in ' + cluster, () => helpers.checkDeployment({ context: cluster, namespace: "gloo-system", k8sObj: deploy }));
-  });
-});
-EOF
-echo "executing test dist/gloo-gateway-workshop/build/templates/steps/deploy-gloo-gateway-enterprise/tests/check-gloo.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
--->
-
-
-
-## Lab 3 - Deploy Keycloak <a name="lab-3---deploy-keycloak-"></a>
+## Lab 2 - Deploy Keycloak <a name="lab-2---deploy-keycloak-"></a>
 
 In many use cases, you need to restrict the access to your applications to authenticated users.
 
@@ -260,6 +154,115 @@ OpenID Connect (OIDC) is an identity layer on top of the OAuth 2.0 protocol. In 
 The goal of OIDC is to address this ambiguity by additionally requiring Identity Providers to return a well-defined ID Token. OIDC ID tokens follow the JSON Web Token standard and contain specific fields that your applications can expect and handle. This standardization allows you to switch between Identity Providers – or support multiple ones at the same time – with minimal, if any, changes to your downstream services; it also allows you to consistently apply additional security measures like Role-Based Access Control (RBAC) based on the identity of your users, i.e. the contents of their ID token.
 
 In this lab, we're going to install Keycloak. It will allow us to set up OIDC workflows later.
+
+But, first of all, we're going to deploy Keycloak to persist the data if Keycloak restarts.
+
+```bash
+kubectl --context ${CLUSTER1} create namespace gloo-system
+kubectl apply --context ${CLUSTER1} -f - <<EOF
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: postgres
+  namespace: gloo-system
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: postgres-secrets
+  namespace: gloo-system
+type: Opaque
+data:
+  POSTGRES_DB: ZGI=
+  POSTGRES_USER: YWRtaW4=
+  POSTGRES_PASSWORD: YWRtaW4=
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-pvc
+  namespace: gloo-system
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres
+  namespace: gloo-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+    spec:
+      serviceAccountName: postgres
+      volumes:
+        - name: postgres-storage
+          persistentVolumeClaim:
+            claimName: postgres-pvc
+      containers:
+        - name: postgres
+          image: postgres:13.2-alpine
+          imagePullPolicy: 'IfNotPresent'
+          ports:
+            - containerPort: 5432
+          envFrom:
+            - secretRef:
+                name: postgres-secrets
+          volumeMounts:
+            - name: postgres-storage
+              mountPath: /var/lib/postgresql/data
+              subPath: postgres
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  namespace: gloo-system
+spec:
+  selector:
+    app: postgres
+  ports:
+    - port: 5432
+EOF
+```
+
+Wait while Postgres finishes rolling out:
+
+```bash
+kubectl --context ${CLUSTER1} -n gloo-system rollout status deploy/postgres
+
+sleep 5
+```
+
+Create the database and user for Keycloak:
+
+```bash
+kubectl --context ${CLUSTER1} -n gloo-system exec deploy/postgres -- psql -U admin -d db -c "CREATE DATABASE keycloak;"
+kubectl --context ${CLUSTER1} -n gloo-system exec deploy/postgres -- psql -U admin -d db -c "CREATE USER keycloak WITH PASSWORD 'password';"
+kubectl --context ${CLUSTER1} -n gloo-system exec deploy/postgres -- psql -U admin -d db -c "GRANT ALL PRIVILEGES ON DATABASE keycloak TO keycloak;"
+```
+
+<!--bash
+cat <<'EOF' > ./test.js
+const helpers = require('./tests/chai-exec');
+
+describe("Postgres", () => {
+  it('postgres pods are ready in cluster1', () => helpers.checkDeployment({ context: process.env.CLUSTER1, namespace: "gloo-system", k8sObj: "postgres" }));
+});
+EOF
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/deploy-keycloak/tests/postgres-available.test.js.liquid"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
+-->
 
 First, we need to define an ID and secret for a "client", which will be the service that delegates to Keycloak for authorization:
 
@@ -300,10 +303,6 @@ kubectl --context ${CLUSTER1} create namespace keycloak
 
 kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: realms
-  namespace: keycloak
 data:
   workshop-realm.json: |-
     {
@@ -451,6 +450,132 @@ data:
         ]
       }
     }
+  portal-realm.json: |
+    {
+      "realm": "portal-mgmt",
+      "enabled": true,
+      "roles": {
+        "client": {
+          "gloo-portal-idp": [
+            {
+              "name": "uma_protection",
+              "composite": false,
+              "clientRole": true,
+              "attributes": {}
+            }
+          ]
+        },
+        "realm": [
+          {
+            "name": "default-roles-portal-mgmt",
+            "description": "${role_default-roles}",
+            "composite": true,
+            "composites": {
+              "realm": [
+                "offline_access",
+                "uma_authorization"
+              ],
+              "client": {
+                "account": [
+                  "manage-account",
+                  "view-profile"
+                ]
+              }
+            },
+            "clientRole": false,
+            "attributes": {}
+          },
+          {
+            "name": "uma_authorization",
+            "description": "${role_uma_authorization}",
+            "composite": false,
+            "clientRole": false
+          }
+        ]
+      },
+      "users": [
+        {
+          "username": "service-account-gloo-portal-idp",
+          "createdTimestamp": 1727724261768,
+          "emailVerified": false,
+          "enabled": true,
+          "totp": false,
+          "serviceAccountClientId": "gloo-portal-idp",
+          "disableableCredentialTypes": [],
+          "requiredActions": [],
+          "realmRoles": [
+            "default-roles-portal-mgmt"
+          ],
+          "clientRoles": {
+            "realm-management": [
+              "manage-clients"
+            ],
+            "gloo-portal-idp": [
+              "uma_protection"
+            ]
+          },
+          "notBefore": 0,
+          "groups": []
+        }
+      ],
+      "clients": [
+        {
+          "clientId": "gloo-portal-idp",
+          "enabled": true,
+          "name": "Solo.io Gloo Portal Resource Server",
+          "clientAuthenticatorType": "client-secret",
+          "secret": "gloo-portal-idp-secret",
+          "serviceAccountsEnabled": true,
+          "authorizationServicesEnabled": true,
+          "authorizationSettings": {
+            "allowRemoteResourceManagement": true,
+            "policyEnforcementMode": "ENFORCING",
+            "resources": [
+              {
+                "name": "Default Resource",
+                "type": "urn:gloo-portal-idp:resources:default",
+                "ownerManagedAccess": false,
+                "attributes": {},
+                "uris": [
+                  "/*"
+                ]
+              }
+            ],
+            "policies": [
+              {
+                "name": "Default Policy",
+                "description": "A policy that grants access only for users within this realm",
+                "type": "regex",
+                "logic": "POSITIVE",
+                "decisionStrategy": "AFFIRMATIVE",
+                "config": {
+                  "targetContextAttributes" : "false",
+                  "pattern" : ".*",
+                  "targetClaim" : "sub"
+                }
+              },
+              {
+                "name": "Default Permission",
+                "description": "A permission that applies to the default resource type",
+                "type": "resource",
+                "logic": "POSITIVE",
+                "decisionStrategy": "UNANIMOUS",
+                "config": {
+                  "defaultResourceType": "urn:gloo-portal-idp:resources:default",
+                  "applyPolicies": "[\"Default Policy\"]"
+                }
+              }
+            ],
+            "scopes": [],
+            "decisionStrategy": "UNANIMOUS"
+          }
+        }
+      ]
+    }
+kind: ConfigMap
+metadata:
+  name: realms
+  namespace: keycloak
 EOF
 ```
 
@@ -494,12 +619,26 @@ spec:
       containers:
       - name: keycloak
         image: quay.io/keycloak/keycloak:25.0.5
-        args: ["start-dev", "--import-realm"]
+        args:
+        - start-dev
+        - --import-realm
+        - --proxy-headers=xforwarded
+        - --features=hostname:v1
+        - --hostname-strict=false
+        - --hostname-strict-https=false
         env:
         - name: KEYCLOAK_ADMIN
           value: admin
         - name: KEYCLOAK_ADMIN_PASSWORD
           value: admin
+        - name: KC_DB
+          value: postgres
+        - name: KC_DB_URL
+          value: jdbc:postgresql://postgres.gloo-system.svc.cluster.local:5432/keycloak
+        - name: KC_DB_USERNAME
+          value: keycloak
+        - name: KC_DB_PASSWORD
+          value: password
         ports:
         - name: http
           containerPort: 8080
@@ -531,7 +670,7 @@ describe("Keycloak", () => {
 });
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/deploy-keycloak/tests/pods-available.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
 -->
 <!--bash
 cat <<'EOF' > ./test.js
@@ -558,7 +697,7 @@ describe("Retrieve enterprise-networking ip", () => {
 });
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/deploy-keycloak/tests/keycloak-ip-is-attached.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
 -->
 <!--bash
 timeout 2m bash -c "until [[ \$(kubectl --context ${CLUSTER1} -n keycloak get svc keycloak -o json | jq '.status.loadBalancer | length') -gt 0 ]]; do
@@ -596,11 +735,119 @@ describe("Address '" + process.env.HOST_KEYCLOAK + "' can be resolved in DNS", (
 });
 EOF
 echo "executing test ./gloo-mesh-2-0/tests/can-resolve.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
 -->
 <!--bash
 echo "Waiting for Keycloak to be ready at $KEYCLOAK_URL/realms/workshop/protocol/openid-connect/token"
 timeout 300 bash -c 'while [[ "$(curl -m 2 -s -o /dev/null -w ''%{http_code}'' $KEYCLOAK_URL/realms/workshop/protocol/openid-connect/token)" != "405" ]]; do printf '.';sleep 1; done' || false
+-->
+
+
+
+## Lab 3 - Deploy Gloo Gateway <a name="lab-3---deploy-gloo-gateway-"></a>
+
+You can deploy Gloo Gateway with the `glooctl` CLI or declaratively using Helm.
+
+We're going to use the Helm option.
+
+Install the Kubernetes Gateway API CRDs as they do not come installed by default on most Kubernetes clusters.
+
+```bash
+kubectl --context $CLUSTER1 apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.1.0/standard-install.yaml
+```
+
+
+
+Next, install Gloo Gateway. This command installs the Gloo Gateway control plane into the namespace `gloo-system`.
+
+```bash
+helm repo add gloo-ee-helm https://storage.googleapis.com/gloo-ee-helm
+
+helm repo update
+
+helm upgrade -i -n gloo-system \
+  gloo-gateway gloo-ee-helm/gloo-ee \
+  --create-namespace \
+  --version 1.17.3 \
+  --kube-context $CLUSTER1 \
+  --set-string license_key=$LICENSE_KEY \
+  -f -<<EOF
+gloo:
+  kubeGateway:
+    enabled: true
+  gatewayProxies:
+    gatewayProxy:
+      disabled: true
+  gateway:
+    validation:
+      allowWarnings: true
+      alwaysAcceptResources: false
+  gloo:
+    logLevel: info
+    deployment:
+      customEnv:
+        - name: GG_PORTAL_PLUGIN
+          value: "true"
+      livenessProbeEnabled: true
+  discovery:
+    enabled: false
+  rbac:
+    namespaced: true
+    nameSuffix: gg-demo
+observability:
+  enabled: false
+prometheus:
+  enabled: false
+grafana:
+  defaultInstallationEnabled: false
+gloo-fed:
+  enabled: false
+  glooFedApiserver:
+    enable: false
+gateway-portal-web-server:
+  enabled: true
+settings:
+  disableKubernetesDestinations: true
+EOF
+```
+
+Run the following command to check that the Gloo Gateway pods are running:
+
+<!--bash
+echo -n Waiting for Gloo Gateway pods to be ready...
+kubectl --context $CLUSTER1 -n gloo-system rollout status deployment
+-->
+```bash
+kubectl --context $CLUSTER1 -n gloo-system get pods
+```
+
+Here is the expected output:
+
+```,nocopy
+NAME                                         READY   STATUS      RESTARTS   AGE
+extauth-58f68c5cd5-gxgxc                     1/1     Running     0          69s
+gateway-portal-web-server-5c5d58d8d5-7lzwg   1/1     Running     0          69s
+gloo-7d8994697-lfg5x                         1/1     Running     0          69s
+gloo-resource-rollout-check-x8b77            0/1     Completed   0          69s
+gloo-resource-rollout-cjtgh                  0/1     Completed   0          69s
+rate-limit-6db9c67794-vf7h2                  1/1     Running     0          69s
+redis-6c7c489d8c-g2dhc                       1/1     Running     0          69s
+```
+
+<!--bash
+cat <<'EOF' > ./test.js
+const helpers = require('./tests/chai-exec');
+
+describe("Gloo Gateway", () => {
+  let cluster = process.env.CLUSTER1
+  let deployments = ["gloo", "extauth", "rate-limit", "redis"];
+  deployments.forEach(deploy => {
+    it(deploy + ' pods are ready in ' + cluster, () => helpers.checkDeployment({ context: cluster, namespace: "gloo-system", k8sObj: deploy }));
+  });
+});
+EOF
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/deploy-gloo-gateway-enterprise/tests/check-gloo.test.js.liquid"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
 -->
 
 
@@ -813,7 +1060,7 @@ describe("httpbin app", () => {
 });
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/deploy-httpbin/tests/check-httpbin.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
 -->
 
 
@@ -958,7 +1205,7 @@ describe("httpbin through HTTP", () => {
 })
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/expose-httpbin/tests/http.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
 -->
 
 Now, let's secure the access through TLS.
@@ -1055,9 +1302,12 @@ RETRY_COUNT=0
 MAX_RETRIES=30
 while [[ $RETRY_COUNT -lt $MAX_RETRIES ]]; do
   echo "Attempt $((RETRY_COUNT + 1))/$MAX_RETRIES"
-  curl -k https://httpbin.example.com/get
-  if [[ $? -eq 0 ]]; then
+  ret=`curl -k -s -o /dev/null -w %{http_code} https://httpbin.example.com/get`
+  if [ "$ret" == "200" ]; then
     break
+  else
+    echo "Response was: $ret"
+    echo "Retrying in 4 seconds..."
   fi
   RETRY_COUNT=$((RETRY_COUNT + 1))
   sleep 4
@@ -1105,7 +1355,7 @@ describe("httpbin through HTTPS", () => {
 })
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/expose-httpbin/tests/https.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
 -->
 
 The team in charge of the gateway can create an `HTTPRoute` to automatically redirect HTTP to HTTPS:
@@ -1177,7 +1427,7 @@ describe("location header correctly set", () => {
 })
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/expose-httpbin/tests/redirect-http-to-https.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
 -->
 
 
@@ -1278,7 +1528,7 @@ describe("httpbin through HTTPS", () => {
 })
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/delegation/tests/https.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
 -->
 
 In the previous example, we've used a simple `/` prefix matcher for both the parent and the child `HTTPRoute`.
@@ -1358,7 +1608,7 @@ describe("httpbin through HTTPS", () => {
 })
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/delegation/tests/status-200.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
 -->
 
 In the child `HTTPRoute` we've indicated the absolute path (which includes the parent path), but instead we can inherite the parent matcher and use a relative path:
@@ -1405,7 +1655,7 @@ describe("httpbin through HTTPS", () => {
 })
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/delegation/tests/status-200.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
 -->
 
 The team in charge of the httpbin application can also take advantage of the `parentRefs` option to indicate which parent `HTTPRoute` can delegate to its own `HTTPRoute`.
@@ -1459,7 +1709,7 @@ describe("httpbin through HTTPS", () => {
 })
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/delegation/tests/status-200.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
 -->
 
 Delegation offers another very nice feature. It automatically reorders all the matchers to avoid any short-circuiting.
@@ -1520,7 +1770,7 @@ describe("httpbin through HTTPS", () => {
 })
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/delegation/tests/status-200.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
 -->
 
 Check you can now also access the status `/status/201` path:
@@ -1556,7 +1806,7 @@ describe("httpbin through HTTPS", () => {
 })
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/delegation/tests/status-201.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
 -->
 
 Let's delete the latest `HTTPRoute` and apply the original ones:
@@ -1616,7 +1866,7 @@ describe("httpbin through HTTPS", () => {
 })
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/delegation/tests/https.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
 -->
 
 
@@ -1712,7 +1962,7 @@ describe("request transformations applied", () => {
 })
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/transformations/tests/request-headers.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
 -->
 
 Another typical use case is to rewrite the hostname or the path before sending the request to the backend.
@@ -1795,7 +2045,7 @@ describe("request rewrite applied", () => {
 })
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/transformations/tests/request-rewrite.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
 -->
 
 
@@ -1869,7 +2119,7 @@ describe("response transformations applied", () => {
 })
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/transformations/tests/response-headers.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
 -->
 
 Let's apply the original `HTTPRoute` yaml:
@@ -1981,7 +2231,7 @@ describe("request transformation applied", () => {
 })
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/transformations/tests/x-client-request-header.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
 -->
 
 As you can see, we've created a new header called `X-Client` by extracting some data from the `User-Agent` header using a regular expression.
@@ -2068,7 +2318,7 @@ describe("response transformation applied", () => {
 })
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/transformations/tests/x-request-id-response-header.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
 -->
 
 Let's apply the original `HTTPRoute` yaml:
@@ -2166,7 +2416,7 @@ describe("traffic split applied", () => {
 })
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/traffic-split/tests/traffic-split.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
 -->
 
 
@@ -2303,7 +2553,7 @@ describe("Authentication is working properly", function () {
 
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/extauth-oauth/tests/authentication.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
 -->
 <!--bash
 cat <<'EOF' > ./test.js
@@ -2316,7 +2566,7 @@ describe("Claim to header is working properly", function() {
 
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/extauth-oauth/tests/header-added.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
 -->
 
 If you refresh the web browser, you will be redirected to the authentication page.
@@ -2410,7 +2660,7 @@ describe("Authentication is working properly", function () {
 
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/extauth-oauth/tests/authorization.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
 -->
 If you open the browser in incognito and login using the username `user2` and the password `password`, you will now be able to access it since the user's email ends with `@solo.io`.
 
@@ -2466,7 +2716,7 @@ describe("Transformation is working properly", function() {
 
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/advanced-transformations/tests/header-added.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
 -->
 
 
@@ -2549,7 +2799,7 @@ describe("Rate limiting is working properly", function() {
 
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/ratelimiting/tests/rate-limited.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
 -->
 
 You should get a `200` response code the first 3 times and a `429` response code after.
@@ -2719,7 +2969,7 @@ describe("Claim to header is working properly", function() {
 
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/jwt/tests/header-added.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
 -->
 
 We can also update the `VirtualHostOption` to add a RBAC rule to only allow a user with the email `user2@solo.io` to access the application.
@@ -2808,7 +3058,7 @@ describe("Only User2 can access httpbin", function() {
 
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/jwt/tests/only-user2-allowed.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
 -->
 
 Let's delete the `VirtualHostOption` we've created:
@@ -2875,7 +3125,7 @@ describe("WAF is working properly", function() {
 });
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/waf/tests/waf.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
 -->
 
 Run the following command to simulate an attack:
@@ -3044,7 +3294,7 @@ describe("Downstream mTLS", () => {
 
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/downstream-mtls/tests/mtls.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
 -->
 
 We've now enforced mutual TLS at the gateway, such that all clients accessing the httpbin service must present a valid certificate signed by the client CA trusted by the gateway.
@@ -3119,7 +3369,7 @@ describe("Client certificate forwarding", () => {
 
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/downstream-mtls/tests/x-forwarded-client-cert.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
 -->
 
 With the `Subject` of the client certificate now available in the `X-Forwarded-Client-Cert` header, the team in charge of the httpbin application can use an OPA rule to check that the Common Name (`CN`) in the `Subject` is in a list of permitted clients:
@@ -3277,7 +3527,7 @@ describe("Authorization based on Common Name", () => {
 
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/downstream-mtls/tests/authorization.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
 -->
 
 Now, the team in charge of the gateway has enforced mutual authentication that validates that client certificates were signed by a trusted CA, and the httpbin team has extended it with an authorization policy using OPA that checks the client certificate's Common Name and allows requests only if the Common Name is in a preconfigured list of clients.
@@ -3695,7 +3945,7 @@ describe("httpbin rollout", () => {
 
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/canary-rollout/tests/rollout.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
 -->
 <!--bash
 cat <<'EOF' > ./test.js
@@ -3732,7 +3982,7 @@ describe("httproute weights for rollout canary weight 0", () => {
 
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/canary-rollout/tests/route-weights.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
 -->
 
 Now, let's trigger the rollout by updating the image of the `httpbin` container to the latest version:
@@ -3813,7 +4063,7 @@ describe("httpbin rollout", () => {
 
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/canary-rollout/tests/rollout.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
 -->
 <!--bash
 cat <<'EOF' > ./test.js
@@ -3850,7 +4100,7 @@ describe("httproute weights for rollout canary weight 0", () => {
 
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/canary-rollout/tests/route-weights.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
 -->
 
 Let's get it to the next step by running this command:
@@ -3976,7 +4226,7 @@ describe("httpbin rollout", () => {
 
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/canary-rollout/tests/rollout.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
 -->
 <!--bash
 cat <<'EOF' > ./test.js
@@ -4013,7 +4263,7 @@ describe("httproute weights for rollout canary weight 50", () => {
 
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/canary-rollout/tests/route-weights.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
 -->
 
 Let's proceed to the last step of the rollout by promoting the rollout in the dashboard or running this command:
@@ -4083,7 +4333,7 @@ describe("httpbin rollout", () => {
 
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/canary-rollout/tests/rollout.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
 -->
 <!--bash
 cat <<'EOF' > ./test.js
@@ -4120,7 +4370,7 @@ describe("httproute weights for rollout canary weight 100", () => {
 
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/canary-rollout/tests/route-weights.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
 -->
 
 One final promotion of the rollout will get us back to the completed state, where we have a single pod running the new image; all traffic is being routed to it through the stable service; and both the stable and canary services will be selecting the new pod.
@@ -4132,9 +4382,10 @@ kubectl argo rollouts --context ${CLUSTER1} -n httpbin promote httpbin1
 
 <!--bash
 echo -n Waiting for rollout to be ready...
-timeout -v 5m bash -c "until [[ \$(kubectl argo rollouts --context ${CLUSTER1} -n httpbin status httpbin1 -t 1s 2>/dev/null) ]]; do
+timeout -v 5m bash -c "until [[ \$(kubectl -n httpbin get rollout httpbin1 -ojsonpath='{.status.currentStepIndex}' 2>/dev/null) -eq 5 ]]; do
   sleep 1
   echo -n .
+  kubectl argo rollouts --context ${CLUSTER1} -n httpbin promote httpbin1
 done"
 echo
 -->
@@ -4207,7 +4458,7 @@ describe("httpbin rollout", () => {
 
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/canary-rollout/tests/rollout-final.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
 -->
 <!--bash
 cat <<'EOF' > ./test.js
@@ -4244,7 +4495,7 @@ describe("httproute weights for rollout canary weight 0", () => {
 
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/canary-rollout/tests/route-weights.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
 -->
 You can clean up by deleting the `Rollout` and canary service:
 
@@ -4368,7 +4619,7 @@ describe("Bookinfo app", () => {
 });
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/bookinfo/deploy-bookinfo/tests/check-bookinfo.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
 -->
 Configure your hosts file to resolve bookinfo.example.com with the IP address of the proxy by executing the following command:
 
@@ -4466,7 +4717,7 @@ describe("Access the API without authentication", () => {
 })
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/bookinfo/dev-portal-api/tests/access-api-no-auth.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
 -->
 
 You generally want to secure the access. This is often the responsibility of the team in charge of the gateway to handle this part.
@@ -4480,7 +4731,7 @@ kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: enterprise.gloo.solo.io/v1
 kind: AuthConfig
 metadata:
-  name: oauth-apis
+  name: apis
   namespace: gloo-system
 spec:
   configs:
@@ -4510,7 +4761,7 @@ spec:
     # ExtAuth configuration
     extauth:
       configRef:
-        name: oauth-apis
+        name: apis
         namespace: gloo-system
     cors:
       allowCredentials: true
@@ -4549,7 +4800,7 @@ describe("Access to API unauthorized", () => {
 })
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/bookinfo/dev-portal-api/tests/access-api-unauthorized.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
 -->
 
 The access is refused (403 response):
@@ -4593,7 +4844,7 @@ describe("Access to API authorized", () => {
 })
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/bookinfo/dev-portal-api/tests/access-api-authorized.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
 -->
 
 So, we've secured the access to our API, but you generally want to also limit the usage of your API.
@@ -4649,7 +4900,7 @@ spec:
     # ExtAuth configuration
     extauth:
       configRef:
-        name: oauth-apis
+        name: apis
         namespace: gloo-system
     cors:
       allowCredentials: true
@@ -4666,8 +4917,6 @@ spec:
         namespace: gloo-system
 EOF
 ```
-
-This policy will be attached to our `RouteTable` due to the label `ratelimited: "true"` we set in its `route`.
 
 Try to access the API more than 5 times:
 
@@ -4702,7 +4951,7 @@ describe("Access to API rate limited", () => {
 })
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/bookinfo/dev-portal-api/tests/access-api-rate-limited.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
 -->
 
 Next, let's tell Gloo about this API. Annotate the Bookinfo's `productpage` Service with information about it's OpenAPI schema. This allows Gloo to discover this APIs schema:
@@ -4738,7 +4987,7 @@ describe("APIDoc has been created", () => {
 });
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/bookinfo/dev-portal-api/tests/apidoc-created.test.js.liquid"
-timeout --signal=INT 5m mocha ./test.js --timeout 10000 --retries=300 --bail || exit 1
+timeout --signal=INT 5m mocha ./test.js --timeout 10000 --retries=300 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
 -->
 
 You should get something like this:
@@ -4836,6 +5085,9 @@ spec:
         namespace: bookinfo
       openapiMetadata:
         title: BookInfo REST API v1
+        description: |
+          # Bookinfo REST API v1 Documentation
+          This is some extra information about the API
       customMetadata:
         lifecyclePhase: General Availability
 EOF
@@ -5010,7 +5262,7 @@ describe("Access the openlibrary API", () => {
 })
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/bookinfo/dev-portal-stitching/tests/access-openlibrary-api.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
 -->
 
 You should see something like this:
@@ -5065,7 +5317,7 @@ describe("Access the openlibrary API with regex", () => {
 })
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/bookinfo/dev-portal-stitching/tests/access-openlibrary-api-regex.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
 -->
 
 We also need to update the `ApiProduct` object to define a new version targetting the new HTTPRoute:
@@ -5091,6 +5343,9 @@ spec:
         namespace: bookinfo
       openapiMetadata:
         title: BookInfo REST API v1
+        description: |
+          # Bookinfo REST API v1 Documentation
+          This is some extra information about the API
       customMetadata:
         lifecyclePhase: Deprecated
     - apiVersion: v2
@@ -5101,6 +5356,9 @@ spec:
         namespace: bookinfo
       openapiMetadata:
         title: BookInfo REST API v2
+        description: |
+          # Bookinfo REST API v1 Documentation
+          You can find more information about the openlibrary API [here](https://openlibrary.org/developers/api)
       customMetadata:
         lifecyclePhase: General Availability
 EOF
@@ -5125,7 +5383,7 @@ kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: enterprise.gloo.solo.io/v1
 kind: AuthConfig
 metadata:
-  name: oauth
+  name: portal
   namespace: gloo-system
 spec:
   configs:
@@ -5165,7 +5423,7 @@ spec:
   options:
     extauth:
       configRef:
-        name: oauth
+        name: portal
         namespace: gloo-system
 EOF
 ```
@@ -5204,7 +5462,7 @@ spec:
           extensionRef:
             group: gateway.solo.io
             kind: RouteOption
-            name: routeoption-portal-api
+            name: routeoption-apis
     - backendRefs:
         - name: gateway-portal-web-server
           port: 8080
@@ -5254,7 +5512,7 @@ describe("Access the portal API without authentication", () => {
 })
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/bookinfo/dev-portal-backend/tests/access-portal-api-no-auth-no-config.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
 -->
 
 Here is the expected output:
@@ -5467,7 +5725,7 @@ describe("Access the portal frontend with authentication", () => {
 })
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/bookinfo/dev-portal-frontend/tests/access-portal-api-auth.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
 -->
 
 You should now be able to access the portal frontend through the gateway.
@@ -5495,7 +5753,7 @@ describe("Authentication is working properly", function() {
 });
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/bookinfo/dev-portal-frontend/tests/access-portal-frontend-authenticated.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || exit 1
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
 -->
 
 If you click on the `LOGIN` button on the top right corner, you'll be redirected to keycloak and should be able to auth with the user `user1` and the password `password`.
@@ -5523,7 +5781,7 @@ afterEach(function (done) {
   }
 });
 
-describe("Insights UI", function () {
+describe("Dev portal frontend UI", function () {
   let browser;
   let devPortalHomePage;
   let devPortalAPIPage;
@@ -5533,6 +5791,7 @@ describe("Insights UI", function () {
   beforeEach(async function () {
     browser = await puppeteer.launch({
       headless: "new",
+      slowMo: 40,
       ignoreHTTPSErrors: true,
       args: ['--no-sandbox', '--disable-setuid-sandbox'],
     });
@@ -5566,9 +5825,8 @@ describe("Insights UI", function () {
 
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/bookinfo/dev-portal-frontend/tests/dev-portal-ui-tests.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=150 --bail || exit 1
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=150 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
 -->
-
 
 
 
@@ -5619,7 +5877,7 @@ spec:
             "upstream_service_time": "%REQ(x-envoy-upstream-service-time)%"
             "upstream_transport_failure_reason": "%UPSTREAM_TRANSPORT_FAILURE_REASON%"
             "correlation_id": "%REQ(X-CORRELATION-ID)%"
-            "user_id": "%DYNAMIC_METADATA(envoy.filters.http.ext_authz:userId)%"
+            "extauth": "%DYNAMIC_METADATA(envoy.filters.http.ext_authz)%"
             "api_version": "%DYNAMIC_METADATA(io.solo.gloo.portal:api_version)%"
             "api_product_id": "%DYNAMIC_METADATA(io.solo.gloo.portal:api_product_id)%"
             "api_product_name": "%DYNAMIC_METADATA(io.solo.gloo.portal:api_product_name)%"
@@ -5666,7 +5924,9 @@ You should get an output similar to this:
   "upstream_local_address": "10.101.0.23:53740",
   "api_product_name": "BookInfo REST API",
   "request_id": "cc8ac010-2327-452a-a463-3928b7ecbcde",
-  "user_id": "d1d15ca3-cbd3-4060-a1f5-2d4e22ce8ec9",
+  "extauth": {
+    "user_id": "d1d15ca3-cbd3-4060-a1f5-2d4e22ce8ec9"
+  },
   "request_command": "GET",
   "route_name": "https~bookinfo_cluster1_o5eqmcfvebyt_instruqt_io-route-2-matcher-0",
   "request_uri": "/api/bookinfo/v1",
@@ -5695,74 +5955,14 @@ describe("Monetization is working", () => {
 });
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/bookinfo/dev-portal-monetization/tests/monetization.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=150 --bail || exit 1
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=150 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
 -->
 
 
 
 ## Lab 23 - Deploy Backstage with the backend plugin <a name="lab-23---deploy-backstage-with-the-backend-plugin-"></a>
 
-
-Let's deploy PostgreSQL, before deploying Backstage:
-
-```bash
-kubectl apply --context ${CLUSTER1} -f - <<EOF
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: postgres
-  namespace: gloo-system
----
-apiVersion: v1
-kind: Secret
-metadata:
-  name: postgres-secrets
-  namespace: gloo-system
-type: Opaque
-data:
-  POSTGRES_USER: YmFja3N0YWdl
-  POSTGRES_PASSWORD: aHVudGVyMg==
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: postgres
-  namespace: gloo-system
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: postgres
-  template:
-    metadata:
-      labels:
-        app: postgres
-    spec:
-      serviceAccountName: postgres
-      containers:
-        - name: postgres
-          image: postgres:13.2-alpine
-          imagePullPolicy: 'IfNotPresent'
-          ports:
-            - containerPort: 5432
-          envFrom:
-            - secretRef:
-                name: postgres-secrets
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: postgres
-  namespace: gloo-system
-spec:
-  selector:
-    app: postgres
-  ports:
-    - port: 5432
-EOF
-```
-
-Now we can deploy Backstage:
+Let's deploy Backstage:
 
 ```bash
 kubectl --context ${CLUSTER1} apply -f data/steps/dev-portal-backstage-backend/rbac.yaml
@@ -5905,6 +6105,7 @@ describe("APIs displayed properly in backstage", function() {
   beforeEach(async function() {
     browser = await puppeteer.launch({
       headless: "new",
+      slowMo: 40,
       ignoreHTTPSErrors: true,
       args: ['--no-sandbox', '--disable-setuid-sandbox'], // needed for instruqt
     });
@@ -5930,7 +6131,7 @@ describe("APIs displayed properly in backstage", function() {
 });
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/bookinfo/dev-portal-backstage-backend/tests/backstage-apis.test.js.liquid"
-timeout --signal=INT 6m mocha ./test.js --timeout 10000 --retries=250 --bail || exit 1
+timeout --signal=INT 6m mocha ./test.js --timeout 10000 --retries=250 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
 -->
 
 

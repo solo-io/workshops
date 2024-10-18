@@ -1,14 +1,12 @@
-class DeveloperPortalHomePage {
+const BasePage = require("./base");
+
+class DeveloperPortalHomePage extends BasePage {
   constructor(page) {
-    this.page = page;
+    super(page)
 
     // Selectors
     this.loginLink = 'a[href="/v1/login"]';
-    this.userHolder = '[class="userHolder"]';
-  }
-
-  async navigateTo(url) {
-    await this.page.goto(url, { waitUntil: 'networkidle2' });
+    this.userHolder = '.userHolder';
   }
 
   async clickLogin() {

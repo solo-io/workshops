@@ -2,7 +2,7 @@ const Tesseract = require('tesseract.js');
 const sharp = require('sharp');
 const fs = require('fs');
 const path = require('path');
-const { logDebug } = require('../utils/logging');
+const { debugLog } = require('../utils/logging');
 
 const OUTPUT_DIR = 'extracted_text_boxes';
 
@@ -119,7 +119,7 @@ async function extractTextBoxes(inputImagePath, targetColor) {
 
   const { data } = await image.raw().toBuffer({ resolveWithObject: true });
   const boundingBoxes = await getTextBoxBoundingBoxes(data, width, height, channels, targetColor);
-  logDebug(`Found ${boundingBoxes.length} text box(es).`);
+  debugLog(`Found ${boundingBoxes.length} text box(es).`);
 
   if (!fs.existsSync(OUTPUT_DIR)) {
     fs.mkdirSync(OUTPUT_DIR);

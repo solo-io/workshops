@@ -1,6 +1,6 @@
 const fs = require('fs');
 const path = require('path');
-const { logDebug } = require('./logging');
+const { debugLog } = require('./logging');
 
 function enhanceBrowser(browser, testId = 'test', shouldRecord = true) {
   let recorder;
@@ -19,6 +19,32 @@ function enhanceBrowser(browser, testId = 'test', shouldRecord = true) {
     return result;
   }
 
+  function enhancePage(page) {
+    const methodsToWrap = ['waitForSelector', 'click', 'goto', 'type'];
+    return new Proxy(page, {
+      get(target, prop) {
+        const originalMethod = target[prop];
+        if (typeof originalMethod === 'function' && methodsToWrap.includes(prop)) {
+          return async function (...args) {
+            try {
+              return await originalMethod.apply(target, args);
+            } catch (error) {
+              const pageContent = await target.content();
+              console.error(`Error in page method '${prop}':`, error);
+              console.error('Page content at the time of error:');
+              console.error(pageContent);
+              throw error;
+            }
+          };
+        } else if (typeof originalMethod === 'function') {
+          return originalMethod.bind(target);
+        } else {
+          return originalMethod;
+        }
+      },
+    });
+  }
+
   const enhancedBrowser = new Proxy(browser, {
     get(target, prop) {
       if (prop === 'newPage') {
@@ -28,25 +54,29 @@ function enhanceBrowser(browser, testId = 'test', shouldRecord = true) {
           if (shouldRecord) {
             recorder = await page.screencast({ path: `./ui-test-data/${sanitizedTestId}-recording.webm` });
           }
+
+          // Enhance the page here
+          page = enhancePage(page);
+
           return page;
         };
       } else if (prop === 'close') {
         return async function (...args) {
           if (page) {
             if (shouldRecord && recorder) {
-              logDebug('Stopping recorder...');
+              debugLog('Stopping recorder...');
               try {
                 await withTimeout(recorder.stop(), 10000, 'Recorder stop timed out');
-                logDebug('Recorder stopped.');
+                debugLog('Recorder stopped.');
               } catch (e) {
-                logDebug('Failed to stop recorder:', e);
+                debugLog('Failed to stop recorder:', e);
               }
             }
             try {
-              logDebug('Checking if page has __DUMP_SWR_CACHE__');
+              debugLog('Checking if page has __DUMP_SWR_CACHE__');
               const hasDumpSWRCache = await page.evaluate(() => !!window.__DUMP_SWR_CACHE__);
               if (hasDumpSWRCache) {
-                logDebug('Dumping SWR cache...');
+                debugLog('Dumping SWR cache...');
                 const client = await page.target().createCDPSession();
                 const fileName = `${sanitizedTestId}-dump-swr-cache.txt`;
                 const fullDownloadPath = path.join(downloadPath, fileName);
@@ -62,12 +92,12 @@ function enhanceBrowser(browser, testId = 'test', shouldRecord = true) {
                 // waiting for the file to be saved
                 await new Promise((resolve) => setTimeout(resolve, 5000));
                 fs.renameSync(path.join(downloadPath, "dump-swr-cache.txt"), fullDownloadPath);
-                logDebug('UI dump of SWR cache:', fullDownloadPath);
+                debugLog('UI dump of SWR cache:', fullDownloadPath);
               } else {
-                logDebug('__DUMP_SWR_CACHE__ not found on window object.');
+                debugLog('__DUMP_SWR_CACHE__ not found on window object.');
               }
             } catch (e) {
-              logDebug('Failed to dump SWR cache:', e);
+              debugLog('Failed to dump SWR cache:', e);
             }
           }
           await new Promise((resolve) => setTimeout(resolve, 2000));

@@ -1,4 +1,4 @@
-const { logDebug } = require('../utils/logging');
+const { debugLog } = require('../utils/logging');
 
 class BasePage {
   constructor(page) {
@@ -6,9 +6,22 @@ class BasePage {
   }
 
   async navigateTo(url) {
-    logDebug(`Navigating to ${url}`);
+    debugLog(`Navigating to ${url}`);
     await this.page.goto(url, { waitUntil: 'networkidle2' });
-    logDebug('Navigation complete');
+    debugLog('Navigation complete');
+  }
+
+  async findVisibleSelector(selectors) {
+    for (const selector of selectors) {
+      const element = await this.page.$(selector);
+      if (element) {
+        const visible = await this.page.evaluate(el => !!(el.offsetWidth || el.offsetHeight || el.getClientRects().length), element);
+        if (visible) {
+          return selector;
+        }
+      }
+    }
+    throw new Error('No visible selector found for the provided options.');
   }
 }
 
