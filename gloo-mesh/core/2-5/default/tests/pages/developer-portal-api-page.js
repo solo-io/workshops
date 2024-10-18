@@ -1,13 +1,11 @@
-class DeveloperPortalAPIPage {
+const BasePage = require("./base");
+
+class DeveloperPortalAPIPage extends BasePage {
   constructor(page) {
-    this.page = page;
+    super(page)
 
     // Selectors
     this.apiBlocksSelector = 'a[href^="/apis/"]';
-  }
-
-  async navigateTo(url) {
-    await this.page.goto(url, { waitUntil: 'networkidle2' });
   }
 
   async getAPIProducts() {
