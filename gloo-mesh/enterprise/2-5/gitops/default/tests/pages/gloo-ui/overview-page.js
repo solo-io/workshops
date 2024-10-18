@@ -6,7 +6,10 @@ class OverviewPage extends BasePage {
 
     // Selectors
     this.listedWorkspacesLinks = 'div[data-testid="overview-area"] div[data-testid="solo-link"] a';
-    this.licensesButton = 'button[data-testid="topbar-licenses-toggle"]';
+    this.licensesButtons = [
+      'button[data-testid="topbar-licenses-toggle"]',
+      'div[data-testid="topbar-licenses-toggle"] button'
+    ];
   }
 
   async getListedWorkspaces() {
@@ -22,7 +25,8 @@ class OverviewPage extends BasePage {
   }
 
   async hasPageLoaded() {
-    await this.page.waitForSelector(this.licensesButton, { visible: true, timeout: 5000 });
+    const licenseButton = await this.findVisibleSelector(this.licensesButtons);
+    await this.page.waitForSelector(licenseButton, { visible: true, timeout: 1000 });
     return true;
   }
 }
