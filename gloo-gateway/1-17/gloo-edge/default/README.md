@@ -35,16 +35,17 @@ source ./scripts/assert.sh
 * [Lab 20 - Use the JWT filter to validate JWT and create headers from claims](#lab-20---use-the-jwt-filter-to-validate-jwt-and-create-headers-from-claims-)
 * [Lab 21 - Use the Web Application Firewall filter](#lab-21---use-the-web-application-firewall-filter-)
 * [Lab 22 - Validate and authorize client certificates](#lab-22---validate-and-authorize-client-certificates-)
-* [Lab 23 - Deploy Argo Rollouts](#lab-23---deploy-argo-rollouts-)
-* [Lab 24 - Roll out a new app version using Argo Rollouts](#lab-24---roll-out-a-new-app-version-using-argo-rollouts-)
-* [Lab 25 - Deploy the Bookinfo sample application](#lab-25---deploy-the-bookinfo-sample-application-)
-* [Lab 26 - Expose the productpage API securely](#lab-26---expose-the-productpage-api-securely-)
-* [Lab 27 - Expose an external API and stitch it with the productpage API](#lab-27---expose-an-external-api-and-stitch-it-with-the-productpage-api-)
-* [Lab 28 - Expose the dev portal backend](#lab-28---expose-the-dev-portal-backend-)
-* [Lab 29 - Deploy and expose the dev portal frontend](#lab-29---deploy-and-expose-the-dev-portal-frontend-)
-* [Lab 30 - Dev portal monetization](#lab-30---dev-portal-monetization-)
-* [Lab 31 - Deploy Backstage with the backend plugin](#lab-31---deploy-backstage-with-the-backend-plugin-)
-* [Lab 32 - Deploy OpenTelemetry Collector](#lab-32---deploy-opentelemetry-collector-)
+* [Lab 23 - Use the `cache-control` response header to cache responses](#lab-23---use-the-`cache-control`-response-header-to-cache-responses-)
+* [Lab 24 - Deploy Argo Rollouts](#lab-24---deploy-argo-rollouts-)
+* [Lab 25 - Roll out a new app version using Argo Rollouts](#lab-25---roll-out-a-new-app-version-using-argo-rollouts-)
+* [Lab 26 - Deploy the Bookinfo sample application](#lab-26---deploy-the-bookinfo-sample-application-)
+* [Lab 27 - Expose the productpage API securely](#lab-27---expose-the-productpage-api-securely-)
+* [Lab 28 - Expose an external API and stitch it with the productpage API](#lab-28---expose-an-external-api-and-stitch-it-with-the-productpage-api-)
+* [Lab 29 - Expose the dev portal backend](#lab-29---expose-the-dev-portal-backend-)
+* [Lab 30 - Deploy and expose the dev portal frontend](#lab-30---deploy-and-expose-the-dev-portal-frontend-)
+* [Lab 31 - Dev portal monetization](#lab-31---dev-portal-monetization-)
+* [Lab 32 - Deploy Backstage with the backend plugin](#lab-32---deploy-backstage-with-the-backend-plugin-)
+* [Lab 33 - Deploy OpenTelemetry Collector](#lab-33---deploy-opentelemetry-collector-)
 
 
 
@@ -1074,6 +1075,7 @@ data:
     {
       "realm": "portal-mgmt",
       "enabled": true,
+      "sslRequired": "none",
       "roles": {
         "client": {
           "gloo-portal-idp": [
@@ -2690,6 +2692,10 @@ gateway-portal-web-server:
   enabled: true
 settings:
   disableKubernetesDestinations: true
+global:
+  extensions:
+    caching:
+      enabled: true
 EOF
 ```
 
@@ -2707,6 +2713,7 @@ Here is the expected output:
 
 ```,nocopy
 NAME                                         READY   STATUS      RESTARTS   AGE
+caching-service-79cf55ccbb-dcvgp             1/1     Running     0          69s
 extauth-58f68c5cd5-gxgxc                     1/1     Running     0          69s
 gateway-portal-web-server-5c5d58d8d5-7lzwg   1/1     Running     0          69s
 gloo-7d8994697-lfg5x                         1/1     Running     0          69s
@@ -3185,7 +3192,7 @@ MAX_RETRIES=30
 while [[ $RETRY_COUNT -lt $MAX_RETRIES ]]; do
   echo "Attempt $((RETRY_COUNT + 1))/$MAX_RETRIES"
   ret=`curl -k -s -o /dev/null -w %{http_code} https://httpbin.example.com/get`
-  if [ "$ret" == "200" ]; then
+  if [ "$ret" -eq "200" ]; then
     break
   else
     echo "Response was: $ret"
@@ -5456,7 +5463,274 @@ kubectl --context ${CLUSTER1} -n httpbin delete RouteOption routeoption
 
 
 
-## Lab 23 - Deploy Argo Rollouts <a name="lab-23---deploy-argo-rollouts-"></a>
+## Lab 23 - Use the `cache-control` response header to cache responses <a name="lab-23---use-the-`cache-control`-response-header-to-cache-responses-"></a>
+
+An HTTP or HTTPS listener on your gateway can be configured to cache responses for upstream services.
+When the listener routes a request to an upstream service, the response from the upstream is automatically cached by the caching server if it contains a `cache-control` response header.
+All subsequent requests receive the cached response until the cache entry expires.
+
+Check that we have a caching service running in the Gloo Gateway installation:
+
+```shell
+kubectl --context ${CLUSTER1} -n gloo-system get deploy caching-service
+```
+
+You should see a healthy deployment of the caching service:
+
+```,nocopy
+NAME              READY   UP-TO-DATE   AVAILABLE   AGE
+caching-service   1/1     1            1           166m
+```
+
+This service is responsible for creating the cached responses in the backing Redis datastore when an eligible response is being processed.
+
+
+To work around bug #6709, we need to remove some global caching configuration from Gloo Gateway's default settings:
+
+```bash
+kubectl --context ${CLUSTER1} patch settings default -n gloo-system --type json \
+  -p '[{ "op": "remove", "path": "/spec/cachingServer" }]'
+
+sleep 5
+```
+
+The **httpbin** application has some utility endpoints we can use to test that caching is applied.
+First of all, let's make sure that caching is *not* being applied by making a request to the `/cache` endpoint, passing a cache time-to-live (TTL) value of 10 seconds that we want the service to use in the response `cache-control` header:
+
+```shell
+curl -ksSD - -o /dev/null https://httpbin.example.com/cache/10
+```
+
+We'll get a response like this back, which includes the `cache-control` header set by the application with a value `max-age=10`:
+
+```http,nocopy
+HTTP/2 200 
+access-control-allow-credentials: true
+access-control-allow-origin: *
+cache-control: public, max-age=10
+content-type: application/json; charset=utf-8
+date: Mon, 29 Jul 2024 14:10:48 GMT
+content-length: 513
+x-envoy-upstream-service-time: 0
+server: envoy
+```
+
+Send a second request within that cache TTL of 10 seconds and look at the response:
+
+```shell
+curl -ksSD - -o /dev/null https://httpbin.example.com/cache/10
+```
+
+```http,nocopy
+HTTP/2 200 
+access-control-allow-credentials: true
+access-control-allow-origin: *
+cache-control: public, max-age=10
+content-type: application/json; charset=utf-8
+date: Mon, 29 Jul 2024 14:10:53 GMT
+content-length: 513
+x-envoy-upstream-service-time: 0
+server: envoy
+```
+
+See that the timestamp in the `date` headers of the two responses are different, meaning that we got a fresh response back from the **httpbin** application each time.
+
+<!--bash
+cat <<'EOF' > ./test.js
+const chaiHttp = require("chai-http");
+const chai = require("chai");
+const crypto = require("crypto")
+const expect = chai.expect;
+
+chai.use(chaiHttp);
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+
+const httpbin = `https://httpbin.example.com`;
+const cachepath = '/cache/1';
+var path_key;
+
+describe("response caching", function() {
+
+  // Make the first request whose response would be cached if enabled
+  beforeEach(function(done) {
+    path_key = crypto.randomUUID();
+    chai.request(httpbin).get(cachepath).query({key: path_key}).end((err, response) => {
+      if (err) return done(err);
+      done();
+    });
+  });
+
+  it('returns a fresh response within cache TTL', function(done) {
+    setTimeout(() => {
+      chai.request(httpbin).get(cachepath).query({key: path_key}).end((err, response) => {
+        if (err) return done(err);
+        try {
+          expect(response).to.have.status(200);
+          expect(response).to.not.have.header('age');
+          done();
+        } catch (e) {
+          done(e);
+        }
+      });
+    }, 100);
+  });
+
+})
+
+EOF
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/caching/tests/caching-doesnt-apply.test.js.liquid"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=10 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
+-->
+
+In this example we'll configure caching on all routes processed by the `Gateway` that we have already set up.
+We do this by defining a `HttpListenerOption` resource that includes a reference to the caching server:
+
+```bash
+kubectl apply --context ${CLUSTER1} -f - <<EOF
+apiVersion: gateway.solo.io/v1
+kind: HttpListenerOption
+metadata:
+  name: cache
+  namespace: gloo-system
+spec:
+  targetRefs:
+  - group: gateway.networking.k8s.io
+    kind: Gateway
+    name: http
+  options:
+    caching:
+      cachingServiceRef:
+        name: caching-service
+        namespace: gloo-system
+EOF
+```
+
+Note that this refers to the `Gateway` resource as a whole, so it will apply to all listeners on that gateway.
+We can also restrict it to a particular listener by including a value for `sectionName` corresponding to the `name` of a given listener.
+
+Let's test this configuration by making three requests to the `/cache` endpoint with a 10s cache TTL value, waiting 6 seconds between requests:
+
+```shell
+curl -ksSD - -o /dev/null https://httpbin.example.com/cache/10
+sleep 6
+curl -ksSD - -o /dev/null https://httpbin.example.com/cache/10
+sleep 6
+curl -ksSD - -o /dev/null https://httpbin.example.com/cache/10
+```
+
+Check the responses:
+
+```http,nocopy
+HTTP/2 200 
+access-control-allow-credentials: true
+access-control-allow-origin: *
+cache-control: public, max-age=10
+content-type: application/json; charset=utf-8
+date: Mon, 29 Jul 2024 14:25:05 GMT
+content-length: 513
+x-envoy-upstream-service-time: 0
+server: envoy
+
+HTTP/2 200 
+access-control-allow-credentials: true
+cache-control: public, max-age=10
+x-envoy-upstream-service-time: 0
+access-control-allow-origin: *
+date: Mon, 29 Jul 2024 14:25:05 GMT
+content-type: application/json; charset=utf-8
+content-length: 513
+age: 6
+server: envoy
+
+HTTP/2 200 
+access-control-allow-credentials: true
+access-control-allow-origin: *
+cache-control: public, max-age=10
+content-type: application/json; charset=utf-8
+date: Mon, 29 Jul 2024 14:25:17 GMT
+content-length: 513
+x-envoy-upstream-service-time: 0
+server: envoy
+```
+
+<!--bash
+cat <<'EOF' > ./test.js
+const chaiHttp = require("chai-http");
+const chai = require("chai");
+const crypto = require("crypto")
+const expect = chai.expect;
+
+chai.use(chaiHttp);
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+
+const httpbin = `https://httpbin.example.com`;
+const cachepath = '/cache/1';
+var path_key;
+
+describe("response caching", function() {
+  this.timeout(3000); // The test needs more than default (2secs)
+
+  // Make the first request whose response will be cached
+  beforeEach(function(done) {
+    path_key = crypto.randomUUID();
+    chai.request(httpbin).get(cachepath).query({key: path_key}).end((err, response) => {
+      if (err) return done(err);
+      done();
+    });
+  });
+
+  it('returns a cached response within cache TTL', function(done) {
+    setTimeout(() => {
+      chai.request(httpbin).get(cachepath).query({key: path_key}).end((err, response) => {
+        if (err) return done(err);
+        try {
+          expect(response).to.have.status(200);
+          expect(response).to.have.header('age');
+          done();
+        } catch (e) {
+          done(e);
+        }
+      });
+    }, 100);
+  });
+
+  it('returns a fresh response beyond cache TTL', function(done) {
+    setTimeout(() => {
+      chai.request(httpbin).get(cachepath).query({key: path_key}).end((err, response) => {
+        if (err) return done(err);
+        try {
+          expect(response).to.have.status(200);
+          expect(response).to.not.have.header('age');
+          done();
+        } catch (e) {
+          done(e);
+        }
+      });
+    }, 2000);
+  });
+
+})
+
+EOF
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/caching/tests/caching-applies.test.js.liquid"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
+-->
+
+Notice that the first two responses have the same `date` header showing that the response for the first request was also returned as the response for the second request.
+The second response also has a new `age` header, corresponding to how long the response has been cached for.
+
+The third response has a different `date` timestamp and no `age` header:
+this request was made 12 seconds after the first, but the cache entry had expired 10 seconds after the original request, so the third request did not receive a cached response.
+
+Let's delete the `HttpListenerOption` we created:
+
+```bash
+kubectl --context ${CLUSTER1} -n gloo-system delete httplisteneroption cache
+```
+
+
+
+## Lab 24 - Deploy Argo Rollouts <a name="lab-24---deploy-argo-rollouts-"></a>
 
 [Argo Rollouts](https://argoproj.github.io/rollouts/) is a declarative progressive delivery tool for Kubernetes that we can use to update applications gradually, using a blue/green or canary strategy to manage the rollout.
 
@@ -5492,7 +5766,7 @@ Now we're ready to use Argo Rollouts to progressively update applications as par
 
 
 
-## Lab 24 - Roll out a new app version using Argo Rollouts <a name="lab-24---roll-out-a-new-app-version-using-argo-rollouts-"></a>
+## Lab 25 - Roll out a new app version using Argo Rollouts <a name="lab-25---roll-out-a-new-app-version-using-argo-rollouts-"></a>
 
 We're going to use Argo Rollouts to gradually deliver an upgraded version of our httpbin application.
 To do this, we'll define a resource that lets Argo Rollouts know how we want it to handle updates to our application,
@@ -6468,7 +6742,7 @@ EOF
 
 
 
-## Lab 25 - Deploy the Bookinfo sample application <a name="lab-25---deploy-the-bookinfo-sample-application-"></a>
+## Lab 26 - Deploy the Bookinfo sample application <a name="lab-26---deploy-the-bookinfo-sample-application-"></a>
 [<img src="https://img.youtube.com/vi/nzYcrjalY5A/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/nzYcrjalY5A "Video Link")
 
 We're going to deploy the Bookinfo sample application to demonstrate several features of Gloo Gateway.
@@ -6511,7 +6785,7 @@ Configure your hosts file to resolve bookinfo.example.com with the IP address of
 
 
 
-## Lab 26 - Expose the productpage API securely <a name="lab-26---expose-the-productpage-api-securely-"></a>
+## Lab 27 - Expose the productpage API securely <a name="lab-27---expose-the-productpage-api-securely-"></a>
 
 Gloo Gateway includes a developer portal, which provides a framework for managing API discovery, API client identity, and API policies.
 
@@ -6981,7 +7255,7 @@ As you can see, we can also define custom metadata at the Api product level. We 
 
 
 
-## Lab 27 - Expose an external API and stitch it with the productpage API <a name="lab-27---expose-an-external-api-and-stitch-it-with-the-productpage-api-"></a>
+## Lab 28 - Expose an external API and stitch it with the productpage API <a name="lab-28---expose-an-external-api-and-stitch-it-with-the-productpage-api-"></a>
 
 You can also use Gloo Gateway to expose an API that is outside of the cluster. In this section, we will expose `https://openlibrary.org/search.json`
 
@@ -7248,7 +7522,7 @@ EOF
 
 
 
-## Lab 28 - Expose the dev portal backend <a name="lab-28---expose-the-dev-portal-backend-"></a>
+## Lab 29 - Expose the dev portal backend <a name="lab-29---expose-the-dev-portal-backend-"></a>
 
 Now that your API has been exposed securely and our plans defined, lets advertise this API through a developer portal.
 
@@ -7410,7 +7684,7 @@ We'll create it later.
 
 
 
-## Lab 29 - Deploy and expose the dev portal frontend <a name="lab-29---deploy-and-expose-the-dev-portal-frontend-"></a>
+## Lab 30 - Deploy and expose the dev portal frontend <a name="lab-30---deploy-and-expose-the-dev-portal-frontend-"></a>
 
 The developer frontend is provided as a fully functional template to allow you to customize it based on your own requirements.
 
@@ -7664,6 +7938,11 @@ afterEach(function (done) {
 });
 
 describe("Dev portal frontend UI", function () {
+  // UI tests often require a longer timeout.
+  // So here we force it to a minimum of 30 seconds.
+  const currentTimeout = this.timeout();
+  this.timeout(Math.max(currentTimeout, 30000));
+
   let browser;
   let devPortalHomePage;
   let devPortalAPIPage;
@@ -7712,7 +7991,7 @@ timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=150 --bail || 
 
 
 
-## Lab 30 - Dev portal monetization <a name="lab-30---dev-portal-monetization-"></a>
+## Lab 31 - Dev portal monetization <a name="lab-31---dev-portal-monetization-"></a>
 
 The `portalMetadata` section of the `ApiProduct` objects we've created previously is used to add some metadata in the access logs.
 
@@ -7842,7 +8121,7 @@ timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=150 --bail || 
 
 
 
-## Lab 31 - Deploy Backstage with the backend plugin <a name="lab-31---deploy-backstage-with-the-backend-plugin-"></a>
+## Lab 32 - Deploy Backstage with the backend plugin <a name="lab-32---deploy-backstage-with-the-backend-plugin-"></a>
 
 Let's deploy Backstage:
 
@@ -8018,7 +8297,7 @@ timeout --signal=INT 6m mocha ./test.js --timeout 10000 --retries=250 --bail || 
 
 
 
-## Lab 32 - Deploy OpenTelemetry Collector <a name="lab-32---deploy-opentelemetry-collector-"></a>
+## Lab 33 - Deploy OpenTelemetry Collector <a name="lab-33---deploy-opentelemetry-collector-"></a>
 
 Having metrics is essential for running applications reliably, and gateways are no exceptions.
 
