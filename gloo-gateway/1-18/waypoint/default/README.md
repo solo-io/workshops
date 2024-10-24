@@ -147,37 +147,37 @@ Install Istio in Ambient mode:
 helm upgrade --install istio-base \
   oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/base \
   -n istio-system --create-namespace \
-  --version 1.23.1-solo \
+  --version 1.23.2-solo \
   --kube-context ${CLUSTER1} \
   --wait
 
 helm upgrade --install istio-cni \
   oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/cni \
   -n istio-system \
-  --version 1.23.1-solo \
+  --version 1.23.2-solo \
   --set profile=ambient \
   --set global.hub=us-docker.pkg.dev/gloo-mesh/istio-<enterprise_istio_repo> \
-  --set global.tag=1.23.1-solo \
+  --set global.tag=1.23.2-solo \
   --kube-context ${CLUSTER1} \
   --wait
 
 helm upgrade --install istiod \
   oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/istiod \
   -n istio-system \
-  --version 1.23.1-solo \
+  --version 1.23.2-solo \
   --set profile=ambient \
   --set global.hub=us-docker.pkg.dev/gloo-mesh/istio-<enterprise_istio_repo> \
-  --set global.tag=1.23.1-solo \
+  --set global.tag=1.23.2-solo \
   --kube-context ${CLUSTER1} \
   --wait
 
 helm upgrade --install ztunnel \
   oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/ztunnel \
   -n istio-system \
-  --version 1.23.1-solo \
+  --version 1.23.2-solo \
   --set profile=ambient \
   --set hub=us-docker.pkg.dev/gloo-mesh/istio-<enterprise_istio_repo> \
-  --set tag=1.23.1-solo \
+  --set tag=1.23.2-solo \
   --set env.L7_ENABLED="true" \
   --kube-context ${CLUSTER1} \
   --wait
@@ -250,7 +250,7 @@ helm repo update
 helm upgrade -i -n gloo-system \
   gloo-gateway gloo-ee-test-helm/gloo-ee \
   --create-namespace \
-  --version 1.18.0-beta2-bmain-b9dc82b \
+  --version 1.18.0-beta2-bmain-1203aed \
   --kube-context $CLUSTER1 \
   --set-string license_key=$LICENSE_KEY \
   -f -<<EOF
@@ -312,6 +312,7 @@ Here is the expected output:
 
 ```,nocopy
 NAME                                         READY   STATUS      RESTARTS   AGE
+caching-service-79cf55ccbb-dcvgp             1/1     Running     0          69s
 extauth-58f68c5cd5-gxgxc                     1/1     Running     0          69s
 gateway-portal-web-server-5c5d58d8d5-7lzwg   1/1     Running     0          69s
 gloo-7d8994697-lfg5x                         1/1     Running     0          69s
