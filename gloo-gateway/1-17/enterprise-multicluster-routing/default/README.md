@@ -211,6 +211,7 @@ Here is the expected output:
 
 ```,nocopy
 NAME                                         READY   STATUS      RESTARTS   AGE
+caching-service-79cf55ccbb-dcvgp             1/1     Running     0          69s
 extauth-58f68c5cd5-gxgxc                     1/1     Running     0          69s
 gateway-portal-web-server-5c5d58d8d5-7lzwg   1/1     Running     0          69s
 gloo-7d8994697-lfg5x                         1/1     Running     0          69s
@@ -689,7 +690,7 @@ MAX_RETRIES=30
 while [[ $RETRY_COUNT -lt $MAX_RETRIES ]]; do
   echo "Attempt $((RETRY_COUNT + 1))/$MAX_RETRIES"
   ret=`curl -k -s -o /dev/null -w %{http_code} https://httpbin.example.com/get`
-  if [ "$ret" == "200" ]; then
+  if [ "$ret" -eq "200" ]; then
     break
   else
     echo "Response was: $ret"
@@ -1397,6 +1398,7 @@ Here is the expected output:
 
 ```,nocopy
 NAME                                         READY   STATUS      RESTARTS   AGE
+caching-service-79cf55ccbb-dcvgp             1/1     Running     0          69s
 extauth-58f68c5cd5-gxgxc                     1/1     Running     0          69s
 gateway-portal-web-server-5c5d58d8d5-7lzwg   1/1     Running     0          69s
 gloo-7d8994697-lfg5x                         1/1     Running     0          69s

