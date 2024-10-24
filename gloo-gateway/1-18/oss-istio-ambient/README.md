@@ -154,14 +154,14 @@ Install Istio in Ambient mode:
 helm upgrade --install istio-base \
   --repo https://istio-release.storage.googleapis.com/charts base \
   -n istio-system --create-namespace \
-  --version 1.23.1 \
+  --version 1.23.2 \
   --kube-context ${CLUSTER1} \
   --wait
 
 helm upgrade --install istio-cni \
   --repo https://istio-release.storage.googleapis.com/charts cni \
   -n istio-system \
-  --version 1.23.1 \
+  --version 1.23.2 \
   --set profile=ambient \
   --kube-context ${CLUSTER1} \
   --wait
@@ -169,7 +169,7 @@ helm upgrade --install istio-cni \
 helm upgrade --install istiod \
   --repo https://istio-release.storage.googleapis.com/charts istiod \
   -n istio-system \
-  --version 1.23.1 \
+  --version 1.23.2 \
   --set profile=ambient \
   --kube-context ${CLUSTER1} \
   --wait
@@ -177,7 +177,7 @@ helm upgrade --install istiod \
 helm upgrade --install ztunnel \
   --repo https://istio-release.storage.googleapis.com/charts ztunnel \
   -n istio-system \
-  --version 1.23.1 \
+  --version 1.23.2 \
   --set profile=ambient \
   --set env.L7_ENABLED="true" \
   --kube-context ${CLUSTER1} \
@@ -756,7 +756,7 @@ MAX_RETRIES=30
 while [[ $RETRY_COUNT -lt $MAX_RETRIES ]]; do
   echo "Attempt $((RETRY_COUNT + 1))/$MAX_RETRIES"
   ret=`curl -k -s -o /dev/null -w %{http_code} https://httpbin.example.com/get`
-  if [ "$ret" == "200" ]; then
+  if [ "$ret" -eq "200" ]; then
     break
   else
     echo "Response was: $ret"
