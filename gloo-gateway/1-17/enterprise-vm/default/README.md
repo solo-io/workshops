@@ -496,7 +496,7 @@ while [[ $RETRY_COUNT -lt $MAX_RETRIES ]]; do
   sudo systemctl restart gloo-gateway.service
   echo "Attempt $((RETRY_COUNT + 1))/$MAX_RETRIES"
   ret=`curl -k -s -o /dev/null -w %{http_code} https://httpbin.example.com/get`
-  if [ "$ret" == "200" ]; then
+  if [ "$ret" -eq "200" ]; then
     break
   else
     echo "Response was: $ret"
