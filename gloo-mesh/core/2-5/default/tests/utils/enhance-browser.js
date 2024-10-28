@@ -66,7 +66,7 @@ function enhanceBrowser(browser, testId = 'test', shouldRecord = true) {
             if (shouldRecord && recorder) {
               debugLog('Stopping recorder...');
               try {
-                await withTimeout(recorder.stop(), 10000, 'Recorder stop timed out');
+                await withTimeout(recorder.stop(), 1000, 'Recorder stop timed out');
                 debugLog('Recorder stopped.');
               } catch (e) {
                 debugLog('Failed to stop recorder:', e);
