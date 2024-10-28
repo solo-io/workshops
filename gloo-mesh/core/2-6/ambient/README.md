@@ -1868,6 +1868,11 @@ afterEach(function (done) {
 });
 
 describe("graph page", function () {
+  // UI tests often require a longer timeout.
+  // So here we force it to a minimum of 30 seconds.
+  const currentTimeout = this.timeout();
+  this.timeout(Math.max(currentTimeout, 30000));
+
   let browser;
   let page;
   let graphPage;
@@ -2381,6 +2386,11 @@ afterEach(function (done) {
 });
 
 describe("Insights UI", function() {
+  // UI tests often require a longer timeout.
+  // So here we force it to a minimum of 30 seconds.
+  const currentTimeout = this.timeout();
+  this.timeout(Math.max(currentTimeout, 30000));
+
   let browser;
   let insightsPage;
 
@@ -2500,6 +2510,11 @@ afterEach(function (done) {
 });
 
 describe("Insights UI", function() {
+  // UI tests often require a longer timeout.
+  // So here we force it to a minimum of 30 seconds.
+  const currentTimeout = this.timeout();
+  this.timeout(Math.max(currentTimeout, 30000));
+
   let browser;
   let insightsPage;
 
@@ -2655,6 +2670,11 @@ afterEach(function (done) {
 });
 
 describe("Insights UI", function() {
+  // UI tests often require a longer timeout.
+  // So here we force it to a minimum of 30 seconds.
+  const currentTimeout = this.timeout();
+  this.timeout(Math.max(currentTimeout, 30000));
+
   let browser;
   let insightsPage;
 
