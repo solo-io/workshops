@@ -1,196 +1,131 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <title>Gloo Workshops</title>
-  <style>
-    table {
-        border-collapse: collapse;
-        margin: 25px;
-        font-size: 0.9em;
-        font-family: sans-serif;
-        min-width: 400px;
-        box-shadow: 0 0 20px rgba(0, 0, 0, 0.15);
-    }
-
-    thead tr {
-        background-color: #048ced;
-        color: #ffffff;
-        text-align: center;
-    }
-
-    table td, th {
-        padding: 15px 50px;
-    }
-
-    table tbody tr {
-        border-bottom: 1px solid #dddddd;
-    }
-
-    table tbody tr:nth-of-type(even) {
-        background-color: #f3f3f3;
-    }
-
-    table tbody tr:last-of-type {
-        border-bottom: 2px solid #048ced;
-    }
-  </style>
-</head>
-<body>
-
-<h1>Gloo Workshops in Markdown Format</h1>
-<div id="table1"></div>
-
-<h1>Gloo Workshops in Instruqt</h1>
-<div id="table2"></div>
-
-<script>
-// JSON data for "Gloo Workshops in Markdown Format"
-const jsonTable1 = {
-  "headers": ["Workshop", "default", "airgap", "gitops", "openshift", "ambient"],
-  "rows": [
-    {
-      "Workshop": "Gloo Mesh Core",
-      "default": [
-        { "text": "2.5", "url": "https://github.com/solo-io/workshops/tree/master/gloo-mesh/core/2-5/default" },
-        { "text": "2.6", "url": "https://github.com/solo-io/workshops/tree/master/gloo-mesh/core/2-6/default" }
-      ],
-      "ambient": [
-        { "text": "2.6", "url": "https://github.com/solo-io/workshops/tree/master/gloo-mesh/core/2-6/ambient" }
-      ]
-    },
-    {
-      "Workshop": "Gloo Mesh Enterprise",
-      "default": [
-        { "text": "2.5", "url": "https://github.com/solo-io/workshops/tree/master/gloo-mesh/enterprise/2-5/default" },
-        { "text": "2.6", "url": "https://github.com/solo-io/workshops/tree/master/gloo-mesh/enterprise/2-6/default" }
-      ],
-      "airgap": [
-        { "text": "2.5", "url": "https://github.com/solo-io/workshops/tree/master/gloo-mesh/enterprise/2-5/airgap/default" },
-        { "text": "2.6", "url": "https://github.com/solo-io/workshops/tree/master/gloo-mesh/enterprise/2-6/airgap/default" }
-      ],
-      "gitops": [
-        { "text": "2.5", "url": "https://github.com/solo-io/workshops/tree/master/gloo-mesh/enterprise/2-5/gitops/default" },
-        { "text": "2.6", "url": "https://github.com/solo-io/workshops/tree/master/gloo-mesh/enterprise/2-6/gitops/default" }
-      ],
-      "openshift": [
-        { "text": "2.5", "url": "https://github.com/solo-io/workshops/tree/master/gloo-mesh/enterprise/2-5/openshift/default" },
-        { "text": "2.6", "url": "https://github.com/solo-io/workshops/tree/master/gloo-mesh/enterprise/2-6/openshift/default" }
-      ],
-    },
-    {
-      "Workshop": "Gloo Edge",
-      "default": [
-        { "text": "1.16", "url": "https://github.com/solo-io/workshops/tree/master/gloo-edge" }
-      ],
-    },
-    {
-      "Workshop": "Gloo Gateway Open Source",
-      "default": [
-        { "text": "1.17", "url": "https://github.com/solo-io/workshops/tree/master/gloo-gateway/1-17/oss/default" },
-        { "text": "1.18", "url": "https://github.com/solo-io/workshops/tree/master/gloo-gateway/1-18/oss/default" }
-      ],
-    },
-    {
-      "Workshop": "Gloo Gateway Enterprise",
-      "default": [
-        { "text": "1.17", "url": "https://github.com/solo-io/workshops/tree/master/gloo-gateway/1-17/enterprise/default" },
-        { "text": "1.18", "url": "https://github.com/solo-io/workshops/tree/master/gloo-gateway/1-18/enterprise/default" }
-      ],
-    }
-  ]
-};
-
-// JSON data for "Gloo Workshops in Instruqt"
-const jsonTable2 = {
-  "headers": ["Workshop", "default", "ambient"],
-  "rows": [
-    {
-      "Workshop": "Gloo Mesh Core",
-      "default": [
-        { "text": "2.5", "url": "https://play.instruqt.com/manage/soloio/tracks/core-2-5-default" },
-        { "text": "2.6", "url": "https://play.instruqt.com/manage/soloio/tracks/core-2-6-default" }
-      ],
-      "ambient": [
-        { "text": "2.6", "url": "https://play.instruqt.com/manage/soloio/tracks/core-2-6-ambient" }
-      ]
-    },
-    {
-      "Workshop": "Gloo Mesh Enterprise",
-      "default": [
-        { "text": "2.5", "url": "https://play.instruqt.com/manage/soloio/tracks/enterprise-2-5-default" },
-        { "text": "2.6", "url": "https://play.instruqt.com/manage/soloio/tracks/enterprise-2-6-default" }
-      ],
-    },
-    {
-      "Workshop": "Gloo Edge",
-      "default": [
-        { "text": "1.16", "url": "https://play.instruqt.com/manage/soloio/tracks/gloo-edge" }
-      ],
-    },
-    {
-      "Workshop": "Gloo Gateway Open Source",
-      "default": [
-        { "text": "1.17", "url": "https://play.instruqt.com/manage/soloio/tracks/1-17-oss-default" },
-        { "text": "1.18", "url": "https://play.instruqt.com/manage/soloio/tracks/1-18-oss-default" }
-      ],
-    },
-    {
-      "Workshop": "Gloo Gateway Enterprise",
-      "default": [
-        { "text": "1.17", "url": "https://play.instruqt.com/manage/soloio/tracks/1-17-enterprise-default" },
-        { "text": "1.18", "url": "https://play.instruqt.com/manage/soloio/tracks/1-18-enterprise-default" }
-      ],
-    }
-  ]
-};
-
-/**
- * Function to convert link objects to HTML anchor tags.
- * @param {Array} links - Array of link objects with text and url.
- * @returns {string} - HTML string with anchor tags.
- */
-function convertLinksToHtml(links) {
-  if (!links || links.length === 0) return '';
-  return links.map(link => `<a href="${link.url}" target="_blank">${link.text}</a>`).join(' / ');
+  <head>
+    <style>
+table {
+    border-collapse: collapse;
+    margin: 25px;
+    font-size: 0.9em;
+    font-family: sans-serif;
+    min-width: 400px;
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.15);
 }
 
-/**
- * Function to generate HTML table from JSON data.
- * @param {Object} tableData - JSON object containing headers and rows.
- * @returns {string} - HTML string for the table.
- */
-function generateHtmlTable(tableData) {
-  const { headers, rows } = tableData;
-  let html = '<table>\n<thead>\n<tr>';
-
-  // Generate table headers
-  headers.forEach(header => {
-    html += `<th>${header}</th>`;
-  });
-  html += '</tr>\n</thead>\n<tbody>\n';
-
-  // Generate table rows
-  rows.forEach(row => {
-    html += '<tr>';
-    headers.forEach(header => {
-      if (header === "Workshop") {
-        html += `<td>${row[header]}</td>`;
-      } else {
-        html += `<td>${convertLinksToHtml(row[header])}</td>`;
-      }
-    });
-    html += '</tr>\n';
-  });
-
-  html += '</tbody>\n</table>';
-  return html;
+thead tr {
+    background-color: #048ced;
+    color: #ffffff;
+    text-align: center;
 }
 
-// Insert tables into the DOM
-document.getElementById('table1').innerHTML = generateHtmlTable(jsonTable1);
-document.getElementById('table2').innerHTML = generateHtmlTable(jsonTable2);
-</script>
+table td,th {
+    padding: 15px 50px;
+}
 
-</body>
+table tbody tr {
+    border-bottom: 1px solid #dddddd;
+}
+
+table tbody tr:nth-of-type(even) {
+    background-color: #f3f3f3;
+}
+
+table tbody tr:last-of-type {
+    border-bottom: 2px solid #048ced;
+}
+    </style>
+  </head>
+  <body>
+<h1>Gloo workshops in markdown format</h1>
+<table>
+  <thead>
+    <tr>
+      <th>Workshop</th>
+      <th>default</th>
+      <th>airgap</th>
+      <th>gitops</th>
+      <th>openshift</th>
+      <th>ambient</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Gloo Mesh Core</td>
+      <td><a href="https://github.com/solo-io/workshops/tree/master/gloo-mesh/core/2-5/default" target=”_blank”>2.5</a> / <a href="https://github.com/solo-io/workshops/tree/master/gloo-mesh/core/2-6/default" target=”_blank”>2.6</a></td>
+      <td></td>
+      <td></td>
+      <td></td>
+      <td><a href="https://github.com/solo-io/workshops/tree/master/gloo-mesh/core/2-6/ambient" target=”_blank”>2.6</a></td>
+    </tr>
+    <tr>
+      <td>Gloo Mesh Enterprise</td>
+      <td><a href="https://github.com/solo-io/workshops/tree/master/gloo-mesh/enterprise/2-5/default" target=”_blank”>2.5</a> / <a href="https://github.com/solo-io/workshops/tree/master/gloo-mesh/enterprise/2-6/default" target=”_blank”>2.6</a></td>
+      <td><a href="https://github.com/solo-io/workshops/tree/master/gloo-mesh/enterprise/2-5/airgap/default" target=”_blank”>2.5</a> / <a href="https://github.com/solo-io/workshops/tree/master/gloo-mesh/enterprise/2-6/airgap/default" target=”_blank”>2.6</a></td>
+      <td><a href="https://github.com/solo-io/workshops/tree/master/gloo-mesh/enterprise/2-5/gitops/default" target=”_blank”>2.5</a> / <a href="https://github.com/solo-io/workshops/tree/master/gloo-mesh/enterprise/2-6/gitops/default" target=”_blank”>2.6</a></td>
+      <td><a href="https://github.com/solo-io/workshops/tree/master/gloo-mesh/enterprise/2-5/openshift/default" target=”_blank”>2.5</a> / <a href="https://github.com/solo-io/workshops/tree/master/gloo-mesh/enterprise/2-6/openshift/default" target=”_blank”>2.6</a></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>Gloo Edge</td>
+      <td><a href="https://github.com/solo-io/workshops/tree/master/gloo-edge" target=”_blank”>1.16</a></td>
+      <td></td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>Gloo Gateway Open Source</td>
+      <td><a href="https://github.com/solo-io/workshops/tree/master/gloo-gateway/1-17/oss/default" target=”_blank”>1.17</a> / <a href="https://github.com/solo-io/workshops/tree/master/gloo-gateway/1-18/oss/default" target=”_blank”>1.18</a></td>
+      <td></td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+      <tr>
+      <td>Gloo Gateway Enterprise</td>
+      <td><a href="https://github.com/solo-io/workshops/tree/master/gloo-gateway/1-17/enterprise/default" target=”_blank”>1.17</a> / <a href="https://github.com/solo-io/workshops/tree/master/gloo-gateway/1-18/enterprise/default" target=”_blank”>1.18</a></td>
+      <td></td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+  </tbody>
+</table>
+<h1>Gloo workshops in Instruqt</h1>
+<table>
+  <thead>
+    <tr>
+      <th>Workshop</th>
+      <th>default</th>
+      <th>ambient</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Gloo Mesh Core</td>
+      <td><a href="https://play.instruqt.com/manage/soloio/tracks/core-2-5-default" target=”_blank”>2.5</a> / <a href="https://play.instruqt.com/manage/soloio/tracks/core-2-6-default" target=”_blank”>2.6</a></td>
+      <td><a href="https://play.instruqt.com/manage/soloio/tracks/core-2-6-ambient" target=”_blank”>2.6</a></td>
+    </tr>
+    <tr>
+      <td>Gloo Mesh Enterprise</td>
+      <td><a href="https://play.instruqt.com/manage/soloio/tracks/enterprise-2-5-default" target=”_blank”>2.5</a> / <a href="https://play.instruqt.com/manage/soloio/tracks/enterprise-2-6-default" target=”_blank”>2.6</a></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>Gloo Edge</td>
+      <td><a href="https://play.instruqt.com/manage/soloio/tracks/gloo-edge" target=”_blank”>1.16</a></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>Gloo Gateway Open Source</td>
+      <td><a href="https://play.instruqt.com/manage/soloio/tracks/1-17-oss-default" target=”_blank”>1.17</a> / <a href="https://play.instruqt.com/manage/soloio/tracks/1-18-oss-default" target=”_blank”>1.18</a></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>Gloo Gateway Enterprise</td>
+      <td><a href="https://play.instruqt.com/manage/soloio/tracks/1-17-enterprise-default" target=”_blank”>1.17</a> / <a href="https://play.instruqt.com/manage/soloio/tracks/1-18-enterprise-default" target=”_blank”>1.18</a></td>
+      <td></td>
+    </tr>
+  </tbody>
+</table>
+  </body>
 </html>
