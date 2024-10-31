@@ -1021,6 +1021,8 @@ global:
   extensions:
     caching:
       enabled: true
+      deployment:
+        floatingUserId: true
   istioSDS:
     enabled: true
   istioIntegration:
@@ -1028,6 +1030,14 @@ global:
     enableAutoMtls: true
 EOF
 ```
+
+
+Let's completly disable Redis persistence to avoid providing more permissions on Openshift
+
+```bash
+kubectl --context $CLUSTER1 patch deployment redis -n gloo-system --type=json -p='[{"op": "add", "path": "/spec/template/spec/containers/0/args/-", "value": "--save \"\""}]'
+```
+
 
 Run the following command to check that the Gloo Gateway pods are running:
 
