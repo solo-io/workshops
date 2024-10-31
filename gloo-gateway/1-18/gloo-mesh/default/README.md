@@ -3453,7 +3453,7 @@ helm repo update
 helm upgrade -i -n gloo-system \
   gloo-gateway gloo-ee-test-helm/gloo-ee \
   --create-namespace \
-  --version 1.18.0-beta2-bmain-1203aed \
+  --version 1.18.0-beta2-bmain-bc445a4 \
   --kube-context $CLUSTER1 \
   --set-string license_key=$LICENSE_KEY \
   -f -<<EOF
@@ -3514,6 +3514,8 @@ global:
     enableAutoMtls: true
 EOF
 ```
+
+
 
 Run the following command to check that the Gloo Gateway pods are running:
 
@@ -9027,6 +9029,7 @@ export API_KEY=<the value displayed in the UI>
 ```
 </details>
 
+
 <details>
   <summary>Using curl</summary>
 Create the user:
@@ -9279,6 +9282,7 @@ You should get the following response:
 ```
 </details>
 
+
 Try to access the API without authentication:
 
 ```shell
@@ -9451,7 +9455,7 @@ We can now configure the Gloo Gateway portal backend to use it:
 helm upgrade -i -n gloo-system \
   gloo-gateway gloo-ee-test-helm/gloo-ee \
   --create-namespace \
-  --version 1.18.0-beta2-bmain-1203aed \
+  --version 1.18.0-beta2-bmain-bc445a4 \
   --kube-context ${CLUSTER1} \
   --reuse-values \
   -f -<<EOF
@@ -9491,10 +9495,6 @@ spec:
 EOF
 ```
 
-<!--bash
-sleep 5
--->
-
 <details open>
   <summary>Using the portal frontend UI</summary>
 
@@ -9511,16 +9511,48 @@ export CLIENT_SECRET=<the value displayed in the UI>
 
 </details>
 
+
 <details>
   <summary>Using curl</summary>
 You can now get your oauth client id and secret:
 
 ```bash
+export USER1_COOKIE=$(node tests/keycloak-token.js "https://portal.example.com/v1/login" user1)
 read -r CLIENT_ID CLIENT_SECRET <<<$(curl -k -H "Cookie: ${USER1_COOKIE}" -X POST "https://portal.example.com/v1/apps/${APP_ID}/oauth-credentials" | jq -r '.idpClientId + " "+ .idpClientSecret')
 echo export CLIENT_ID=$CLIENT_ID
 echo export CLIENT_SECRET=$CLIENT_SECRET
 ```
+
+<!--bash
+if [ -n "$CLIENT_ID" ] && [ -n "$CLIENT_SECRET" ]; then
+    echo "Variables are already set"
+else
+    attempt=1
+    max_attempts=10
+
+    while [ $attempt -le $max_attempts ]; do
+        export USER1_COOKIE=$(node tests/keycloak-token.js "https://portal.example.com/v1/login" user1)
+        read -r CLIENT_ID CLIENT_SECRET <<<$(curl -k -H "Cookie: ${USER1_COOKIE}" -X POST "https://portal.example.com/v1/apps/${APP_ID}/oauth-credentials" | jq -r '.idpClientId + " "+ .idpClientSecret')
+        
+        if [ -n "$CLIENT_ID" ] && [ -n "$CLIENT_SECRET" ]; then
+            echo "export CLIENT_ID=$CLIENT_ID"
+            echo "export CLIENT_SECRET=$CLIENT_SECRET"
+            break
+        fi
+        
+        echo "Attempt $attempt of $max_attempts: Variables empty, retrying in 5 seconds..."
+        sleep 5
+        ((attempt++))
+    done
+
+    if [ $attempt -gt $max_attempts ]; then
+        echo "Failed to get non-empty variables after $max_attempts attempts"
+        exit 1
+    fi
+fi
+-->
 </details>
+
 
 Generate an access token using your client id and secret:
 
