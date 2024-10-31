@@ -154,7 +154,7 @@ helm repo update
 helm upgrade -i -n gloo-system \
   gloo-gateway gloo-ee-test-helm/gloo-ee \
   --create-namespace \
-  --version 1.18.0-beta2-bmain-1203aed \
+  --version 1.18.0-beta2-bmain-bc445a4 \
   --kube-context $CLUSTER1 \
   --set-string license_key=$LICENSE_KEY \
   -f -<<EOF
@@ -196,6 +196,8 @@ settings:
   disableKubernetesDestinations: true
 EOF
 ```
+
+
 
 Run the following command to check that the Gloo Gateway pods are running:
 
@@ -1341,7 +1343,7 @@ helm repo update
 helm upgrade -i -n gloo-system \
   gloo-gateway gloo-ee-test-helm/gloo-ee \
   --create-namespace \
-  --version 1.18.0-beta2-bmain-1203aed \
+  --version 1.18.0-beta2-bmain-bc445a4 \
   --kube-context $CLUSTER2 \
   --set-string license_key=$LICENSE_KEY \
   -f -<<EOF
@@ -1383,6 +1385,8 @@ settings:
   disableKubernetesDestinations: true
 EOF
 ```
+
+
 
 Run the following command to check that the Gloo Gateway pods are running:
 
