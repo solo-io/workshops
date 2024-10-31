@@ -197,6 +197,8 @@ settings:
 EOF
 ```
 
+
+
 Run the following command to check that the Gloo Gateway pods are running:
 
 <!--bash
@@ -1383,6 +1385,8 @@ settings:
   disableKubernetesDestinations: true
 EOF
 ```
+
+
 
 Run the following command to check that the Gloo Gateway pods are running:
 
