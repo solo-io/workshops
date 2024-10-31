@@ -2699,6 +2699,8 @@ global:
 EOF
 ```
 
+
+
 Run the following command to check that the Gloo Gateway pods are running:
 
 <!--bash
