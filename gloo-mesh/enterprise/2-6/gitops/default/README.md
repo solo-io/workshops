@@ -7,7 +7,7 @@ source ./scripts/assert.sh
 
 <center><img src="images/gloo-mesh.png" alt="Gloo Mesh Enterprise" style="width:70%;max-width:800px" /></center>
 
-# <center>Gloo Mesh Enterprise (2.6.5)</center>
+# <center>Gloo Mesh Enterprise (2.6.6)</center>
 
 
 
@@ -323,7 +323,7 @@ Download and install the `argocd` CLI tool that we'll use to manage the Argo CD 
 
 ```bash
 mkdir -p ${HOME}/bin
-curl -Lo ${HOME}/bin/argocd https://github.com/argoproj/argo-cd/releases/latest/download/argocd-$(uname | tr '[:upper:]' '[:lower:]')-$(uname -m | sed 's/aarch/arm/' | sed 's/x86_/amd/')
+curl -Lo ${HOME}/bin/argocd https://github.com/argoproj/argo-cd/releases/download/v2.12.3/argocd-$(uname | tr '[:upper:]' '[:lower:]')-$(uname -m | sed 's/aarch/arm/' | sed 's/x86_/amd/')
 chmod +x ${HOME}/bin/argocd
 export PATH=$HOME/bin:$PATH
 ```
@@ -582,7 +582,7 @@ kubectl --context ${MGMT} -n default wait --for=delete pod/nginx --timeout=30s
 Before we get started, let's install the `meshctl` CLI:
 
 ```bash
-export GLOO_MESH_VERSION=v2.6.5
+export GLOO_MESH_VERSION=v2.6.6
 curl -sL https://run.solo.io/meshctl/install | sh -
 export PATH=$HOME/.gloo-mesh/bin:$PATH
 ```
@@ -735,7 +735,7 @@ spec:
   sources:
   - chart: gloo-platform-crds
     repoURL: https://storage.googleapis.com/gloo-platform/helm-charts
-    targetRevision: 2.6.5
+    targetRevision: 2.6.6
     helm:
       releaseName: gloo-platform-crds
       parameters:
@@ -743,7 +743,7 @@ spec:
         value: "true"
   - chart: gloo-platform
     repoURL: https://storage.googleapis.com/gloo-platform/helm-charts
-    targetRevision: 2.6.5
+    targetRevision: 2.6.6
     helm:
       releaseName: gloo-platform
       valueFiles:
@@ -1044,7 +1044,7 @@ spec:
       sources:
       - chart: gloo-platform-crds
         repoURL: https://storage.googleapis.com/gloo-platform/helm-charts
-        targetRevision: 2.6.5
+        targetRevision: 2.6.6
         helm:
           releaseName: gloo-platform-crds
           parameters:
@@ -1052,7 +1052,7 @@ spec:
             value: "true"
       - chart: gloo-platform
         repoURL: https://storage.googleapis.com/gloo-platform/helm-charts
-        targetRevision: 2.6.5
+        targetRevision: 2.6.6
         helm:
           releaseName: gloo-platform
           valueFiles:
@@ -2310,7 +2310,8 @@ timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || 
 ## Lab 7 - Deploy the httpbin demo app <a name="lab-7---deploy-the-httpbin-demo-app-"></a>
 [<img src="https://img.youtube.com/vi/w1xB-o_gHs0/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/w1xB-o_gHs0 "Video Link")
 
-We're going to deploy the httpbin application to demonstrate several features of Gloo Mesh.
+
+We're going to deploy the httpbin application to demonstrate several features of Gloo Mesh on cluster CLUSTER1.
 
 You can find more information about this application [here](http://httpbin.org/).
 
@@ -2391,6 +2392,7 @@ metadata:
 EOF
 
 cat <<EOF > ${GITOPS_HTTPBIN}/base/not-in-mesh.yaml
+
 apiVersion: v1
 kind: ServiceAccount
 metadata:
@@ -2454,6 +2456,7 @@ Then, we deploy a second version, which will be called `in-mesh` and will have t
 
 ```bash
 cat <<EOF > ${GITOPS_HTTPBIN}/base/in-mesh.yaml
+
 apiVersion: v1
 kind: ServiceAccount
 metadata:
@@ -2650,7 +2653,7 @@ spec:
       sources:
       - chart: gloo-platform
         repoURL: https://storage.googleapis.com/gloo-platform/helm-charts
-        targetRevision: 2.6.5
+        targetRevision: 2.6.6
         helm:
           releaseName: gloo-platform
           valueFiles:
@@ -5045,7 +5048,7 @@ echo
 -->
 
 ```shell
-export GLOO_AGENT_URL=https://storage.googleapis.com/gloo-platform/vm/v2.6.5/gloo-workload-agent.deb
+export GLOO_AGENT_URL=https://storage.googleapis.com/gloo-platform/vm/v2.6.6/gloo-workload-agent.deb
 export ISTIO_URL=https://storage.googleapis.com/solo-workshops/istio-binaries/1.23.1/istio-sidecar.deb
 docker exec vm1 meshctl ew onboard --install \
   --attestor token \
@@ -5062,7 +5065,7 @@ docker exec vm1 meshctl ew onboard --install \
   --ext-workload virtualmachines/${VM_APP}
 ```
 <!--bash
-export GLOO_AGENT_URL=https://storage.googleapis.com/gloo-platform/vm/v2.6.5/gloo-workload-agent.deb
+export GLOO_AGENT_URL=https://storage.googleapis.com/gloo-platform/vm/v2.6.6/gloo-workload-agent.deb
 export ISTIO_URL=https://storage.googleapis.com/solo-workshops/istio-binaries/1.23.1/istio-sidecar.deb
 echo -n Trying to onboard the VM...
 MAX_ATTEMPTS=10
