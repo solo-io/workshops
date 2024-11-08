@@ -7,7 +7,7 @@ source ./scripts/assert.sh
 
 <center><img src="images/gloo-mesh.png" alt="Gloo Mesh Enterprise" style="width:70%;max-width:800px" /></center>
 
-# <center>Gloo Mesh Enterprise (2.6.5)</center>
+# <center>Gloo Mesh Enterprise (2.6.6)</center>
 
 
 
@@ -151,7 +151,7 @@ timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || 
 Before we get started, let's install the `meshctl` CLI:
 
 ```bash
-export GLOO_MESH_VERSION=v2.6.5
+export GLOO_MESH_VERSION=v2.6.6
 curl -sL https://run.solo.io/meshctl/install | sh -
 export PATH=$HOME/.gloo-mesh/bin:$PATH
 ```
@@ -193,13 +193,13 @@ helm upgrade --install gloo-platform-crds gloo-platform-crds \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${MGMT} \
-  --version 2.6.5
+  --version 2.6.6
 
 helm upgrade --install gloo-platform-mgmt gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${MGMT} \
-  --version 2.6.5 \
+  --version 2.6.6 \
   -f -<<EOF
 licensing:
   glooTrialLicenseKey: ${GLOO_MESH_LICENSE_KEY}
@@ -350,13 +350,13 @@ helm upgrade --install gloo-platform-crds gloo-platform-crds \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${CLUSTER2} \
-  --version 2.6.5
+  --version 2.6.6
 
 helm upgrade --install gloo-platform-agent gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${CLUSTER2} \
-  --version 2.6.5 \
+  --version 2.6.6 \
   -f -<<EOF
 common:
   cluster: cluster2
@@ -1137,7 +1137,8 @@ timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || 
 ## Lab 5 - Deploy the httpbin demo app <a name="lab-5---deploy-the-httpbin-demo-app-"></a>
 [<img src="https://img.youtube.com/vi/w1xB-o_gHs0/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/w1xB-o_gHs0 "Video Link")
 
-We're going to deploy the httpbin application to demonstrate several features of Gloo Mesh.
+
+We're going to deploy the httpbin application to demonstrate several features of Gloo Mesh on cluster CLUSTER1.
 
 You can find more information about this application [here](http://httpbin.org/).
 
@@ -1146,6 +1147,7 @@ Run the following commands to deploy the httpbin app on `cluster1`. The deployme
 ```bash
 kubectl --context ${CLUSTER1} create ns httpbin
 kubectl apply --context ${CLUSTER1} -f - <<EOF
+
 apiVersion: v1
 kind: ServiceAccount
 metadata:
@@ -1209,6 +1211,7 @@ Then, we deploy a second version, which will be called `in-mesh` and will have t
 
 ```bash
 kubectl apply --context ${CLUSTER1} -f - <<EOF
+
 apiVersion: v1
 kind: ServiceAccount
 metadata:
@@ -1333,7 +1336,7 @@ helm upgrade --install gloo-platform gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh-addons \
   --kube-context ${CLUSTER1} \
-  --version 2.6.5 \
+  --version 2.6.6 \
   -f -<<EOF
 common:
   cluster: cluster1
@@ -1357,7 +1360,7 @@ helm upgrade --install gloo-platform gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh-addons \
   --kube-context ${CLUSTER2} \
-  --version 2.6.5 \
+  --version 2.6.6 \
   -f -<<EOF
 common:
   cluster: cluster2
@@ -2901,7 +2904,7 @@ helm upgrade --install gloo-platform-agent gloo-platform \
   --namespace gloo-mesh \
   --kube-context ${CLUSTER1} \
   --reuse-values \
-  --version 2.6.5 \
+  --version 2.6.6 \
   --values - <<EOF
 telemetryCollectorCustomization:
   extraProcessors:
@@ -2984,7 +2987,7 @@ helm upgrade --install gloo-platform-agent gloo-platform \
   --namespace gloo-mesh \
   --kube-context ${CLUSTER1} \
   --reuse-values \
-  --version 2.6.5 \
+  --version 2.6.6 \
   --values - <<EOF
 telemetryCollectorCustomization:
   extraProcessors:
