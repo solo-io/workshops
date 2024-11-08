@@ -323,7 +323,7 @@ Download and install the `argocd` CLI tool that we'll use to manage the Argo CD 
 
 ```bash
 mkdir -p ${HOME}/bin
-curl -Lo ${HOME}/bin/argocd https://github.com/argoproj/argo-cd/releases/latest/download/argocd-$(uname | tr '[:upper:]' '[:lower:]')-$(uname -m | sed 's/aarch/arm/' | sed 's/x86_/amd/')
+curl -Lo ${HOME}/bin/argocd https://github.com/argoproj/argo-cd/releases/download/v2.12.3/argocd-$(uname | tr '[:upper:]' '[:lower:]')-$(uname -m | sed 's/aarch/arm/' | sed 's/x86_/amd/')
 chmod +x ${HOME}/bin/argocd
 export PATH=$HOME/bin:$PATH
 ```
@@ -2310,7 +2310,8 @@ timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || 
 ## Lab 7 - Deploy the httpbin demo app <a name="lab-7---deploy-the-httpbin-demo-app-"></a>
 [<img src="https://img.youtube.com/vi/w1xB-o_gHs0/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/w1xB-o_gHs0 "Video Link")
 
-We're going to deploy the httpbin application to demonstrate several features of Gloo Mesh.
+
+We're going to deploy the httpbin application to demonstrate several features of Gloo Mesh on cluster CLUSTER1.
 
 You can find more information about this application [here](http://httpbin.org/).
 
@@ -2391,6 +2392,7 @@ metadata:
 EOF
 
 cat <<EOF > ${GITOPS_HTTPBIN}/base/not-in-mesh.yaml
+
 apiVersion: v1
 kind: ServiceAccount
 metadata:
@@ -2454,6 +2456,7 @@ Then, we deploy a second version, which will be called `in-mesh` and will have t
 
 ```bash
 cat <<EOF > ${GITOPS_HTTPBIN}/base/in-mesh.yaml
+
 apiVersion: v1
 kind: ServiceAccount
 metadata:
