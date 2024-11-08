@@ -7,7 +7,7 @@ source ./scripts/assert.sh
 
 <center><img src="images/gloo-mesh.png" alt="Gloo Mesh Enterprise" style="width:70%;max-width:800px" /></center>
 
-# <center>Gloo Mesh Core (2.6.5) Ambient Interoperability</center>
+# <center>Gloo Mesh Core (2.6.6) Ambient Interoperability</center>
 
 
 
@@ -15,7 +15,7 @@ source ./scripts/assert.sh
 * [Introduction](#introduction)
 * [Lab 1 - Deploy a KinD cluster](#lab-1---deploy-a-kind-cluster-)
 * [Lab 2 - Deploy and register Gloo Mesh](#lab-2---deploy-and-register-gloo-mesh-)
-* [Lab 3 - Deploy Istio using Gloo Mesh Lifecycle Manager](#lab-3---deploy-istio-using-gloo-mesh-lifecycle-manager-)
+* [Lab 3 - Deploy Istio using Helm](#lab-3---deploy-istio-using-helm-)
 * [Lab 4 - Deploy the Bookinfo demo app](#lab-4---deploy-the-bookinfo-demo-app-)
 * [Lab 5 - Deploy the clients to make requests to other services](#lab-5---deploy-the-clients-to-make-requests-to-other-services-)
 * [Lab 6 - Ambient L4 interoperability](#lab-6---ambient-l4-interoperability-)
@@ -141,7 +141,7 @@ timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || 
 Before we get started, let's install the `meshctl` CLI:
 
 ```bash
-export GLOO_MESH_VERSION=v2.6.5
+export GLOO_MESH_VERSION=v2.6.6
 curl -sL https://run.solo.io/meshctl/install | sh -
 export PATH=$HOME/.gloo-mesh/bin:$PATH
 ```
@@ -183,13 +183,13 @@ helm upgrade --install gloo-platform-crds gloo-platform-crds \
   --namespace gloo-mesh \
   --kube-context ${MGMT} \
   --set featureGates.insightsConfiguration=true \
-  --version 2.6.5
+  --version 2.6.6
 
 helm upgrade --install gloo-platform-mgmt gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${MGMT} \
-  --version 2.6.5 \
+  --version 2.6.6 \
   -f -<<EOF
 licensing:
   glooTrialLicenseKey: ${GLOO_MESH_LICENSE_KEY}
@@ -253,10 +253,10 @@ timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || 
 
 
 
-## Lab 3 - Deploy Istio using Gloo Mesh Lifecycle Manager <a name="lab-3---deploy-istio-using-gloo-mesh-lifecycle-manager-"></a>
-[<img src="https://img.youtube.com/vi/f76-KOEjqHs/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/f76-KOEjqHs "Video Link")
+## Lab 3 - Deploy Istio using Helm <a name="lab-3---deploy-istio-using-helm-"></a>
 
-We are going to deploy Istio using Gloo Mesh Lifecycle Manager.
+
+It is convenient to have the `istioctl` command line tool installed on your local machine. If you don't have it installed, you can install it by following the instructions below.
 
 <details>
   <summary>Install <code>istioctl</code></summary>
@@ -313,7 +313,7 @@ describe("istio_version is at least 1.23.0", () => {
   });
 });
 EOF
-echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/istio-lifecycle-manager-install/tests/istio-version.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/deploy-istio-helm/tests/istio-version.test.js.liquid"
 timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
 -->
 
@@ -348,107 +348,128 @@ spec:
 EOF
 ```
 
-It allows us to have full control on which Istio revision we want to use.
 
-Then, we can tell Gloo Mesh to deploy the Istio control planes and the gateways in the cluster(s).
+  
+
+
+Let's deploy Istio using Helm in cluster1. We'll install the base Istio components, the Istiod control plane, the Istio CNI, the ztunnel, and the ingress/eastwest gateways.
+
 
 ```bash
-kubectl apply --context ${MGMT} -f - <<EOF
-apiVersion: admin.gloo.solo.io/v2
-kind: IstioLifecycleManager
-metadata:
-  name: cluster1-installation
-  namespace: gloo-mesh
-spec:
-  helmGlobal:
-    repo: oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>
-  installations:
-    - clusters:
-      - name: cluster1
-      istioOperatorSpec:
-        profile: ambient
-        hub: us-docker.pkg.dev/gloo-mesh/istio-<enterprise_istio_repo>
-        tag: 1.23.1-solo
-        namespace: istio-system
-        values:
-          cni:
-            ambient:
-              dnsCapture: true
-            excludeNamespaces:
-            - istio-system
-            - kube-system
-            logLevel: info
-          ztunnel:
-            terminationGracePeriodSeconds: 29
-            variant: distroless
-            env:
-              L7_ENABLED: "true"
-        meshConfig:
-          accessLogFile: /dev/stdout
-          defaultConfig:
-            proxyMetadata:
-              ISTIO_META_DNS_CAPTURE: "true"
-              ISTIO_META_DNS_AUTO_ALLOCATE: "true"
-        components:
-          pilot:
-            k8s:
-              env:
-                - name: PILOT_ENABLE_K8S_SELECT_WORKLOAD_ENTRIES
-                  value: "false"
-                - name: PILOT_ENABLE_IP_AUTOALLOCATE
-                  value: "true"
-          cni:
-            enabled: true
-            namespace: kube-system
-          ingressGateways:
-          - name: istio-ingressgateway
-            enabled: false
+helm upgrade --install istio-base oci://us-docker.pkg.dev/gloo-mesh/istio-helm-/base \
+--namespace istio-system \
+--kube-context=${CLUSTER1} \
+--version 1.23.1-solo \
+--create-namespace \
+-f - <<EOF
+profile: ambient
+defaultRevision: ""
 EOF
 
-kubectl apply --context ${MGMT} -f - <<EOF
-apiVersion: admin.gloo.solo.io/v2
-kind: GatewayLifecycleManager
-metadata:
-  name: cluster1-ingress
-  namespace: gloo-mesh
-spec:
-  helmGlobal:
-    repo: oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>
-  installations:
-    - clusters:
-      - name: cluster1
-        activeGateway: false
-      istioOperatorSpec:
-        profile: empty
-        hub: us-docker.pkg.dev/gloo-mesh/istio-<enterprise_istio_repo>
-        tag: 1.23.1-solo
-        values:
-          gateways:
-            istio-ingressgateway:
-              customService: true
-        components:
-          ingressGateways:
-            - name: istio-ingressgateway
-              namespace: istio-gateways
-              enabled: true
-              label:
-                istio: ingressgateway
+helm upgrade --install istiod oci://us-docker.pkg.dev/gloo-mesh/istio-helm-/istiod \
+--namespace istio-system \
+--kube-context=${CLUSTER1} \
+--version 1.23.1-solo \
+--create-namespace \
+-f - <<EOF
+profile: ambient
+global:
+  hub: us-docker.pkg.dev/gloo-mesh/istio-<enterprise_istio_repo>
+  proxy:
+    clusterDomain: cluster.local
+  tag: 1.23.1-solo
+  multiCluster:
+    clusterName: cluster1
+istio_cni:
+  enabled: true
+meshConfig:
+  accessLogFile: /dev/stdout
+  defaultConfig:
+    proxyMetadata:
+      ISTIO_META_DNS_AUTO_ALLOCATE: "true"
+      ISTIO_META_DNS_CAPTURE: "true"
+  trustDomain: cluster1
+pilot:
+  enabled: true
+  env:
+    PILOT_ENABLE_IP_AUTOALLOCATE: "true"
+    PILOT_ENABLE_K8S_SELECT_WORKLOAD_ENTRIES: "false"
+    PILOT_SKIP_VALIDATE_TRUST_DOMAIN: "true"
+  podLabels:
+    hack: eastwest
+  platforms:
+    peering:
+      enabled: true
+
 EOF
+
+
+helm upgrade --install istio-cni oci://us-docker.pkg.dev/gloo-mesh/istio-helm-/cni \
+--namespace kube-system \
+--kube-context=${CLUSTER1} \
+--version 1.23.1-solo \
+--create-namespace \
+-f - <<EOF
+profile: ambient
+global:
+  hub: us-docker.pkg.dev/gloo-mesh/istio-<enterprise_istio_repo>
+  proxy: 1.23.1-solo
+cni:
+  ambient:
+    dnsCapture: true
+EOF
+
+
+helm upgrade --install ztunnel oci://us-docker.pkg.dev/gloo-mesh/istio-helm-/ztunnel \
+--namespace istio-system \
+--kube-context=${CLUSTER1} \
+--version 1.23.1-solo \
+--create-namespace \
+-f - <<EOF
+configValidation: true
+enabled: true
+env:
+  L7_ENABLED: "true"
+  NETWORK: cluster1
+hub: us-docker.pkg.dev/gloo-mesh/istio-<enterprise_istio_repo>
+istioNamespace: istio-system
+multiCluster:
+  clusterName: cluster1
+namespace: istio-system
+profile: ambient
+proxy:
+  clusterDomain: cluster.local
+tag: 1.23.1-solo
+terminationGracePeriodSeconds: 29
+variant: distroless
+EOF
+
+helm upgrade --install istio-ingressgateway oci://us-docker.pkg.dev/gloo-mesh/istio-helm-/gateway \
+--namespace istio-gateways \
+--kube-context=${CLUSTER1} \
+--version 1.23.1-solo \
+--create-namespace \
+-f - <<EOF
+imagePullPolicy: IfNotPresent
+autoscaling:
+  enabled: false
+labels:
+  app: istio-ingressgateway
+  istio: ingressgateway
+    revision: 1-23
+name: istio-ingressgateway
+service:
+  type: None
+EOF
+
 
 ```
-
-<!--bash
-until kubectl --context ${MGMT} -n gloo-mesh wait --timeout=180s --for=jsonpath='{.status.clusters.cluster1.installations.*.state}'=HEALTHY istiolifecyclemanagers/cluster1-installation; do
-  echo "Waiting for the Istio installation to complete"
-  sleep 1
-done
-timeout 2m bash -c "until [[ \$(kubectl --context ${CLUSTER1} -n istio-system get deploy -o json | jq '[.items[].status.readyReplicas] | add') -ge 1 ]]; do
-  sleep 1
-done"
-timeout 2m bash -c "until [[ \$(kubectl --context ${CLUSTER1} -n istio-gateways get deploy -o json | jq '[.items[].status.readyReplicas] | add') -eq 1 ]]; do
-  sleep 1
-done"
--->
+The Gateway APIs do not come installed by default on most Kubernetes clusters. Install the Gateway API CRDs if they are not present:
+```bash
+kubectl --context ${CLUSTER1} get crd gateways.gateway.networking.k8s.io &> /dev/null || \
+  { kubectl kustomize "github.com/kubernetes-sigs/gateway-api/config/crd?ref=v1.1.0" | kubectl --context ${CLUSTER1} apply -f -; }
+```
+  
 
 <!--bash
 cat <<'EOF' > ./test.js
@@ -484,7 +505,7 @@ describe("Checking Istio installation", function() {
 });
 
 EOF
-echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/istio-lifecycle-manager-install/tests/istio-ready.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/deploy-istio-helm/tests/istio-ready.test.js.liquid"
 timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
 -->
 <!--bash
@@ -517,15 +538,12 @@ describe("Address '" + process.env.HOST_GW_CLUSTER1 + "' can be resolved in DNS"
     });
 });
 EOF
-echo "executing test ./gloo-mesh-2-0/tests/can-resolve.test.js.liquid"
+echo "executing test ./default/tests/can-resolve.test.js.liquid"
 timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
 -->
-The Gateway APIs do not come installed by default on most Kubernetes clusters. Install the Gateway API CRDs if they are not present:
 
-```bash
-kubectl --context ${CLUSTER1} get crd gateways.gateway.networking.k8s.io &> /dev/null || \
-  { kubectl kustomize "github.com/kubernetes-sigs/gateway-api/config/crd?ref=v1.1.0" | kubectl --context ${CLUSTER1} apply -f -; }
-```
+
+
 
 
 
