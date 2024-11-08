@@ -599,7 +599,8 @@ timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || 
 ## Lab 5 - Deploy the httpbin demo app <a name="lab-5---deploy-the-httpbin-demo-app-"></a>
 [<img src="https://img.youtube.com/vi/w1xB-o_gHs0/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/w1xB-o_gHs0 "Video Link")
 
-We're going to deploy the httpbin application to demonstrate several features of Gloo Mesh.
+
+We're going to deploy the httpbin application to demonstrate several features of Gloo Mesh on cluster CLUSTER1.
 
 You can find more information about this application [here](http://httpbin.org/).
 
@@ -608,6 +609,7 @@ Run the following commands to deploy the httpbin app on `cluster1`. The deployme
 ```bash
 kubectl --context ${CLUSTER1} create ns httpbin
 kubectl apply --context ${CLUSTER1} -f - <<EOF
+
 apiVersion: v1
 kind: ServiceAccount
 metadata:
@@ -671,6 +673,7 @@ Then, we deploy a second version, which will be called `in-mesh` and will have t
 
 ```bash
 kubectl apply --context ${CLUSTER1} -f - <<EOF
+
 apiVersion: v1
 kind: ServiceAccount
 metadata:
@@ -1637,6 +1640,9 @@ data:
             "group": [
               "users"
             ],
+            "list": [
+              "a", "b", "c"
+            ],
             "show_personal_data": [
               "false"
             ]
@@ -1673,6 +1679,19 @@ data:
                 "user.attribute": "group",
                 "access.token.claim": "true",
                 "id.token.claim": "true"
+              }
+            },
+            {
+              "name": "list",
+              "protocol": "openid-connect",
+              "protocolMapper": "oidc-usermodel-attribute-mapper",
+              "config": {
+                "claim.name": "list",
+                "user.attribute": "list",
+                "access.token.claim": "true",
+                "id.token.claim": "true",
+                "jsonType.label": "String",
+                "multivalued": "true"
               }
             },
             {
@@ -2115,6 +2134,7 @@ If you open the browser in incognito and login using the username `user2` and th
 This diagram shows the flow of the request (with the Istio ingress gateway leveraging the `extauth` Pod to authorize the request):
 
 ![Gloo Mesh Gateway Extauth](images/steps/gloo-mesh-2-0/gateway-extauth-oauth/gloo-mesh-gateway-extauth.svg)
+
 
 
 
