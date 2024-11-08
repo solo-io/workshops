@@ -113,6 +113,7 @@ containerdConfigPatches:
     endpoint = ["http://quay:${cache_port}"]
   [plugins."io.containerd.grpc.v1.cri".registry.mirrors."gcr.io"]
     endpoint = ["http://gcr:${cache_port}"]
+${KIND_ADDL_FEATURES}
 EOF
 
 kind create cluster --name kind${number} --config kind${number}.yaml
