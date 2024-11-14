@@ -7,7 +7,7 @@ source ./scripts/assert.sh
 
 <center><img src="images/gloo-mesh.png" alt="Gloo Mesh Enterprise" style="width:70%;max-width:800px" /></center>
 
-# <center>Gloo Mesh Enterprise (2.5.11)</center>
+# <center>Gloo Mesh Enterprise (2.5.12)</center>
 
 
 
@@ -192,7 +192,7 @@ timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || 
 Before we get started, let's install the `meshctl` CLI:
 
 ```bash
-export GLOO_MESH_VERSION=v2.5.11
+export GLOO_MESH_VERSION=v2.5.12
 curl -sL https://run.solo.io/meshctl/install | sh -
 export PATH=$HOME/.gloo-mesh/bin:$PATH
 ```
@@ -236,13 +236,13 @@ helm upgrade --install gloo-platform-crds gloo-platform-crds \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${MGMT} \
-  --version 2.5.11
+  --version 2.5.12
 
 helm upgrade --install gloo-platform gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${MGMT} \
-  --version 2.5.11 \
+  --version 2.5.12 \
   -f -<<EOF
 licensing:
   glooTrialLicenseKey: ${GLOO_MESH_LICENSE_KEY}
@@ -397,13 +397,13 @@ helm upgrade --install gloo-platform-crds gloo-platform-crds \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${CLUSTER1} \
-  --version 2.5.11
+  --version 2.5.12
 
 helm upgrade --install gloo-platform gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${CLUSTER1} \
-  --version 2.5.11 \
+  --version 2.5.12 \
   -f -<<EOF
 common:
   cluster: cluster1
@@ -451,13 +451,13 @@ helm upgrade --install gloo-platform-crds gloo-platform-crds \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${CLUSTER2} \
-  --version 2.5.11
+  --version 2.5.12
 
 helm upgrade --install gloo-platform gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${CLUSTER2} \
-  --version 2.5.11 \
+  --version 2.5.12 \
   -f -<<EOF
 common:
   cluster: cluster2
@@ -1328,8 +1328,7 @@ timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || 
 ## Lab 6 - Deploy the httpbin demo app <a name="lab-6---deploy-the-httpbin-demo-app-"></a>
 [<img src="https://img.youtube.com/vi/w1xB-o_gHs0/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/w1xB-o_gHs0 "Video Link")
 
-
-We're going to deploy the httpbin application to demonstrate several features of Gloo Mesh on cluster CLUSTER1.
+We're going to deploy the httpbin application to demonstrate several features of Gloo Mesh.
 
 You can find more information about this application [here](http://httpbin.org/).
 Note that the few Openshift specific commands used in this lab are documented on the Istio website [here](https://istio.io/latest/docs/setup/platform-setup/openshift/).
@@ -1347,7 +1346,6 @@ metadata:
   name: istio-cni
 EOF
 kubectl apply --context ${CLUSTER1} -f - <<EOF
-
 apiVersion: v1
 kind: ServiceAccount
 metadata:
@@ -1411,7 +1409,6 @@ Then, we deploy a second version, which will be called `in-mesh` and will have t
 
 ```bash
 kubectl apply --context ${CLUSTER1} -f - <<EOF
-
 apiVersion: v1
 kind: ServiceAccount
 metadata:
@@ -1552,7 +1549,7 @@ helm upgrade --install gloo-platform gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh-addons \
   --kube-context ${CLUSTER1} \
-  --version 2.5.11 \
+  --version 2.5.12 \
   -f -<<EOF
 common:
   cluster: cluster1
@@ -1577,7 +1574,7 @@ helm upgrade --install gloo-platform gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh-addons \
   --kube-context ${CLUSTER2} \
-  --version 2.5.11 \
+  --version 2.5.12 \
   -f -<<EOF
 common:
   cluster: cluster2
@@ -3122,7 +3119,7 @@ helm upgrade --install gloo-platform gloo-platform \
   --namespace gloo-mesh \
   --kube-context ${CLUSTER1} \
   --reuse-values \
-  --version 2.5.11 \
+  --version 2.5.12 \
   --values - <<EOF
 telemetryCollectorCustomization:
   extraProcessors:
@@ -3205,7 +3202,7 @@ helm upgrade --install gloo-platform gloo-platform \
   --namespace gloo-mesh \
   --kube-context ${CLUSTER1} \
   --reuse-values \
-  --version 2.5.11 \
+  --version 2.5.12 \
   --values - <<EOF
 telemetryCollectorCustomization:
   extraProcessors:
@@ -3278,7 +3275,7 @@ helm upgrade --install gloo-platform-crds gloo-platform-crds \
   --namespace gloo-mesh \
   --kube-context ${MGMT} \
   --set featureGates.ExternalWorkloads=true \
-  --version 2.5.11 \
+  --version 2.5.12 \
   --reuse-values \
   -f -<<EOF
 featureGates:
@@ -3289,7 +3286,7 @@ helm upgrade gloo-platform gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${MGMT} \
-  --version 2.5.11 \
+  --version 2.5.12 \
   --reuse-values \
   -f -<<EOF
 featureGates:
@@ -3302,7 +3299,7 @@ helm upgrade --install gloo-platform-crds gloo-platform-crds \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${CLUSTER1} \
-  --version 2.5.11 \
+  --version 2.5.12 \
   --reuse-values \
   -f -<<EOF
 featureGates:
@@ -3313,7 +3310,7 @@ helm upgrade gloo-platform gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${CLUSTER1} \
-  --version 2.5.11 \
+  --version 2.5.12 \
   --reuse-values \
   -f -<<EOF
 glooSpireServer:
@@ -3552,7 +3549,7 @@ echo
 -->
 
 ```shell
-export GLOO_AGENT_URL=https://storage.googleapis.com/gloo-platform/vm/v2.5.11/gloo-workload-agent.deb
+export GLOO_AGENT_URL=https://storage.googleapis.com/gloo-platform/vm/v2.5.12/gloo-workload-agent.deb
 export ISTIO_URL=https://storage.googleapis.com/solo-workshops/istio-binaries/1.20.2/istio-sidecar.deb
 docker exec vm1 meshctl ew onboard --install \
   --attestor token \
@@ -3568,7 +3565,7 @@ docker exec vm1 meshctl ew onboard --install \
   --ext-workload virtualmachines/${VM_APP}
 ```
 <!--bash
-export GLOO_AGENT_URL=https://storage.googleapis.com/gloo-platform/vm/v2.5.11/gloo-workload-agent.deb
+export GLOO_AGENT_URL=https://storage.googleapis.com/gloo-platform/vm/v2.5.12/gloo-workload-agent.deb
 export ISTIO_URL=https://storage.googleapis.com/solo-workshops/istio-binaries/1.20.2/istio-sidecar.deb
 echo -n Trying to onboard the VM...
 MAX_ATTEMPTS=10
@@ -3798,7 +3795,6 @@ docker rm -f vm1
 
 ## Lab 17 - Securing the egress traffic <a name="lab-17---securing-the-egress-traffic-"></a>
 [<img src="https://img.youtube.com/vi/tQermml1Ryo/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/tQermml1Ryo "Video Link")
-
 
 In this step, we're going to secure the egress traffic.
 
