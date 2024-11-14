@@ -1328,8 +1328,7 @@ timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || 
 ## Lab 6 - Deploy the httpbin demo app <a name="lab-6---deploy-the-httpbin-demo-app-"></a>
 [<img src="https://img.youtube.com/vi/w1xB-o_gHs0/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/w1xB-o_gHs0 "Video Link")
 
-
-We're going to deploy the httpbin application to demonstrate several features of Gloo Mesh on cluster CLUSTER1.
+We're going to deploy the httpbin application to demonstrate several features of Gloo Mesh.
 
 You can find more information about this application [here](http://httpbin.org/).
 Note that the few Openshift specific commands used in this lab are documented on the Istio website [here](https://istio.io/latest/docs/setup/platform-setup/openshift/).
@@ -1347,7 +1346,6 @@ metadata:
   name: istio-cni
 EOF
 kubectl apply --context ${CLUSTER1} -f - <<EOF
-
 apiVersion: v1
 kind: ServiceAccount
 metadata:
@@ -1411,7 +1409,6 @@ Then, we deploy a second version, which will be called `in-mesh` and will have t
 
 ```bash
 kubectl apply --context ${CLUSTER1} -f - <<EOF
-
 apiVersion: v1
 kind: ServiceAccount
 metadata:
@@ -3800,7 +3797,6 @@ docker rm -f vm1
 
 ## Lab 17 - Securing the egress traffic <a name="lab-17---securing-the-egress-traffic-"></a>
 [<img src="https://img.youtube.com/vi/tQermml1Ryo/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/tQermml1Ryo "Video Link")
-
 
 In this step, we're going to secure the egress traffic.
 
