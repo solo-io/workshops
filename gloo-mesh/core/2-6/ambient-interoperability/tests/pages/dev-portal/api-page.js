@@ -1,4 +1,4 @@
-const BasePage = require("./base");
+const BasePage = require("../base");
 
 class DeveloperPortalAPIPage extends BasePage {
   constructor(page) {
@@ -9,8 +9,6 @@ class DeveloperPortalAPIPage extends BasePage {
   }
 
   async getAPIProducts() {
-    await this.page.waitForSelector(this.apiBlocksSelector, { visible: true });
-
     const apiBlocks = await this.page.evaluate((selector) => {
       const blocks = document.querySelectorAll(selector);
 
