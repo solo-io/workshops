@@ -5,7 +5,22 @@ source ./scripts/assert.sh
 
 
 
-<center><img src="images/gloo-gateway.png" alt="Gloo Gateway" style="width:70%;max-width:800px" /></center>
+<center>
+<svg id="gloo-product-logo" viewBox="265 150 2520 480" fill="none" xmlns="http://www.w3.org/2000/svg" alt="Gloo AI Gateway" style="max-height:100px">
+    <style>#gloo-product-logo path{fill:currentColor}</style>
+    <path fill-rule="evenodd" clip-rule="evenodd" d="M305.531 447.396C332.704 474.569 369.546 489.855 407.975 489.899C446.416 489.84 483.263 474.531 510.428 447.332C537.592 420.133 552.856 383.267 552.867 344.826V315.504H407.905V374.148H489.085C483.039 390.83 472.005 405.248 457.482 415.442C442.959 425.637 425.649 431.114 407.905 431.13C385.024 431.104 363.087 422.003 346.908 405.824C330.728 389.644 321.627 367.707 321.601 344.826C321.588 333.456 323.839 322.197 328.224 311.707C332.608 301.216 339.039 291.704 347.139 283.725C355.171 275.677 364.725 269.309 375.245 264.994C385.764 260.679 397.038 258.503 408.408 258.592C429.637 258.708 450.075 266.664 465.795 280.932L505.142 237.452C478.735 213.531 444.429 200.197 408.799 200.004C389.692 199.857 370.747 203.519 353.071 210.776C335.396 218.033 319.343 228.739 305.851 242.27C292.255 255.686 281.466 271.675 274.114 289.304C266.761 306.934 262.993 325.851 263.028 344.952C263.072 383.381 278.357 420.223 305.531 447.396ZM719.079 446.974C746.148 474.043 782.848 489.27 821.129 489.314C859.424 489.292 896.146 474.075 923.233 447.004C950.319 419.933 965.557 383.22 965.602 344.925C965.557 306.63 950.319 269.917 923.233 242.846C896.146 215.775 859.424 200.558 821.129 200.536C782.848 200.58 746.148 215.807 719.079 242.875C692.011 269.944 676.784 306.644 676.74 344.925C676.784 383.206 692.011 419.906 719.079 446.974ZM760.522 284.313C776.597 268.235 798.393 259.191 821.129 259.165V259.179C843.876 259.187 865.69 268.22 881.782 284.297C897.874 300.373 906.929 322.178 906.958 344.925C906.932 367.672 897.878 389.48 881.786 405.557C865.693 421.634 843.877 430.667 821.129 430.67C798.396 430.644 776.601 421.602 760.526 405.527C744.452 389.453 735.409 367.658 735.384 344.925C735.406 322.189 744.446 300.391 760.522 284.313ZM1029.38 446.979C1056.45 474.048 1093.15 489.273 1131.43 489.314C1169.71 489.27 1206.41 474.045 1233.48 446.979C1260.55 419.914 1275.78 383.217 1275.82 344.939C1275.78 306.656 1260.56 269.952 1233.49 242.88C1206.42 215.809 1169.72 200.58 1131.43 200.536C1093.15 200.576 1056.45 215.801 1029.38 242.87C1002.3 269.939 987.076 306.642 987.031 344.925C987.076 383.208 1002.3 419.91 1029.38 446.979ZM1070.82 284.312C1086.9 268.235 1108.7 259.191 1131.43 259.165V259.179C1154.17 259.205 1175.96 268.247 1192.04 284.322C1208.11 300.397 1217.15 322.192 1217.18 344.925C1217.15 367.658 1208.11 389.453 1192.04 405.527C1175.96 421.602 1154.17 430.644 1131.43 430.67C1108.7 430.648 1086.9 421.607 1070.82 405.532C1054.74 389.457 1045.7 367.66 1045.67 344.925C1045.7 322.188 1054.74 300.39 1070.82 284.312ZM693.337 472.692C676.514 455.941 663.167 436.031 654.061 414.106C644.956 392.181 640.272 368.673 640.279 344.933V206.283H582.18V344.933C582.16 376.299 588.336 407.36 600.355 436.332C612.375 465.304 629.999 491.616 652.217 513.757L693.337 472.692Z"/>
+    <path d="M2737.63 355.935L2720.2 349.277L2764.65 275.844H2786.97L2737.63 355.935ZM2718.63 412.919V347.123H2738.02V412.919H2718.63ZM2719.02 355.935L2669.68 275.844H2691.8L2736.25 349.277L2719.02 355.935Z"/>
+    <path d="M2629.54 412.919L2575.3 275.844H2594.88L2650.11 412.919H2629.54ZM2519.1 412.919L2574.32 275.844H2593.91L2539.66 412.919H2519.1ZM2545.15 376.3V359.068H2624.06V376.3H2545.15Z"/>
+    <path d="M2443.16 412.919L2484.68 275.844H2504.06L2461.96 412.919H2443.16ZM2359.94 412.919L2318.42 275.844H2338.01L2378.74 412.919H2359.94ZM2362.09 412.919L2401.65 275.844H2419.86L2380.5 412.919H2362.09ZM2441.4 412.919L2402.82 275.844H2421.03L2460.39 412.919H2441.4Z"/>
+    <path d="M2198.81 412.919V275.844H2281.25V293.468H2218V334.199H2274.99V351.431H2218V395.295H2281.64V412.919H2198.81Z"/>
+    <path d="M2097.27 412.919V293.468H2054.38V275.844H2159.54V293.468H2116.66V412.919H2097.27Z"/>
+    <path d="M2014.62 412.919L1960.38 275.844H1979.96L2035.18 412.919H2014.62ZM1904.18 412.919L1959.4 275.844H1978.98L1924.74 412.919H1904.18ZM1930.22 376.3V359.068H2009.14V376.3H1930.22Z"/>
+    <path d="M1816.82 415.269C1802.98 415.269 1790.64 412.266 1779.81 406.261C1769.1 400.125 1760.68 391.77 1754.54 381.196C1748.54 370.491 1745.54 358.285 1745.54 344.577C1745.54 330.609 1748.54 318.338 1754.54 307.763C1760.68 297.058 1769.1 288.703 1779.81 282.698C1790.64 276.562 1802.98 273.495 1816.82 273.495C1824.39 273.495 1831.63 274.735 1838.55 277.215C1845.6 279.565 1851.93 282.894 1857.55 287.202C1863.29 291.38 1867.92 296.21 1871.45 301.693L1855.98 311.875C1853.37 307.828 1849.97 304.238 1845.8 301.105C1841.62 297.972 1836.99 295.557 1831.89 293.86C1826.93 292.032 1821.91 291.118 1816.82 291.118C1806.76 291.118 1797.82 293.403 1789.99 297.972C1782.29 302.541 1776.22 308.808 1771.78 316.771C1767.34 324.734 1765.12 334.003 1765.12 344.577C1765.12 354.891 1767.27 364.029 1771.58 371.992C1776.02 379.956 1782.16 386.222 1789.99 390.791C1797.95 395.36 1807.02 397.645 1817.21 397.645C1825.43 397.645 1832.74 395.948 1839.14 392.553C1845.67 389.159 1850.76 384.394 1854.41 378.259C1858.2 372.123 1860.09 365.008 1860.09 356.914L1878.7 355.152C1878.7 367.293 1876.02 377.867 1870.67 386.875C1865.44 395.882 1858.2 402.867 1848.93 407.827C1839.66 412.788 1828.96 415.269 1816.82 415.269ZM1826.8 358.089V342.032H1878.7V356.131L1868.9 358.089H1826.8Z"/>
+    <path d="M1613.46 412.919V275.844H1632.65V412.919H1613.46Z"/>
+    <path d="M1554.21 412.919L1499.97 275.844H1519.55L1574.78 412.919H1554.21ZM1443.77 412.919L1498.99 275.844H1518.57L1464.33 412.919H1443.77ZM1469.82 376.3V359.068H1548.73V376.3H1469.82Z"/>
+    <path fill-rule="evenodd" clip-rule="evenodd" d="M1358.92 488.104L1358.92 201.133L1361.42 201.133L1361.42 488.104L1358.92 488.104Z"/>
+</svg>
+</center>
 
 # <center>Gloo AI Gateway Workshop</center>
 
@@ -29,7 +44,7 @@ source ./scripts/assert.sh
 
 ## Introduction <a name="introduction"></a>
 
-[Gloo Gateway](https://www.solo.io/products/gloo-gateway/) is a feature-rich, fast, and flexible Kubernetes-native ingress controller and next-generation API gateway that is built on top of [Envoy proxy](https://www.envoyproxy.io/) and the [Kubernetes Gateway API](https://gateway-api.sigs.k8s.io/).
+<a href="https://www.solo.io/products/gloo-gateway/">Gloo Gateway</a> is a feature-rich, fast, and flexible Kubernetes-native ingress controller and next-generation API gateway that is built on top of <a href="https://www.envoyproxy.io/">Envoy proxy</a> and the <a href="https://gateway-api.sigs.k8s.io/">Kubernetes Gateway API</a>).
 
 Gloo Gateway is fully conformant with the Kubernetes Gateway API and extends its functionality with Solo’s custom Gateway APIs, such as `RouteOption`, `VirtualHostOption`, `Upstream`s, `RateLimitConfig`, or `AuthConfig`.
 These resources help to centrally configure routing, security, and resiliency rules for a specific component, such as a host, route, or gateway listener.
@@ -127,7 +142,7 @@ describe("Clusters are healthy", () => {
 });
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/deploy-kind-cluster/tests/cluster-healthy.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; exit 1; }
 -->
 
 
@@ -141,7 +156,7 @@ We're going to use the Helm option.
 Install the Kubernetes Gateway API CRDs as they do not come installed by default on most Kubernetes clusters.
 
 ```bash
-kubectl --context $CLUSTER1 apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.1.0/standard-install.yaml
+kubectl --context $CLUSTER1 apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.2.0/experimental-install.yaml
 ```
 
 
@@ -149,20 +164,23 @@ kubectl --context $CLUSTER1 apply -f https://github.com/kubernetes-sigs/gateway-
 Next, install Gloo Gateway. This command installs the Gloo Gateway control plane into the namespace `gloo-system`.
 
 ```bash
-helm repo add gloo-ee-test-helm https://storage.googleapis.com/gloo-ee-test-helm
+helm repo add gloo-ee-helm https://storage.googleapis.com/gloo-ee-helm
 
 helm repo update
 
 helm upgrade -i -n gloo-system \
-  gloo-gateway gloo-ee-test-helm/gloo-ee \
+  gloo-gateway gloo-ee-helm/gloo-ee \
   --create-namespace \
-  --version 1.18.0-beta2-bmain-5c852bc \
+  --version 1.18.0-rc3 \
   --kube-context $CLUSTER1 \
   --set-string license_key=$LICENSE_KEY \
   -f -<<EOF
+
 gloo:
   kubeGateway:
     enabled: true
+    portal:
+      enabled: true
   gatewayProxies:
     gatewayProxy:
       disabled: true
@@ -173,9 +191,6 @@ gloo:
   gloo:
     logLevel: info
     deployment:
-      customEnv:
-        - name: GG_PORTAL_PLUGIN
-          value: "true"
       livenessProbeEnabled: true
   discovery:
     enabled: false
@@ -220,8 +235,6 @@ gloo-fed:
   enabled: false
   glooFedApiserver:
     enable: false
-gateway-portal-web-server:
-  enabled: true
 settings:
   disableKubernetesDestinations: true
 global:
@@ -278,7 +291,7 @@ describe("Gloo Gateway", () => {
 });
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/deploy-gloo-gateway-enterprise/tests/check-gloo.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; exit 1; }
 -->
 
 
@@ -346,7 +359,7 @@ describe("Gloo AI Gateway", () => {
 });
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/ai-gateway/deploy-ai-gateway/tests/check-ai-gateway.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; exit 1; }
 -->
 
 
@@ -371,7 +384,7 @@ kubectl --context $CLUSTER1 create secret generic openai-secret -n gloo-system \
 ```
 
 ```bash
-kubectl --context $CLUSTER1 create secret generic mistralai-secret -n gloo-system \
+kubectl --context $CLUSTER1 create secret generic mistral-secret -n gloo-system \
     --from-literal="Authorization=Bearer $MISTRAL_API_KEY" \
     --dry-run=client -oyaml | kubectl --context $CLUSTER1 apply -f -
 ```
@@ -387,14 +400,14 @@ kind: Upstream
 metadata:
   labels:
     app: gloo
-  name: mistralai
+  name: mistral
   namespace: gloo-system
 spec:
   ai:
     mistral:
       authToken:
         secretRef:
-          name: mistralai-secret
+          name: mistral-secret
           namespace: gloo-system
 ---
 apiVersion: gloo.solo.io/v1
@@ -447,7 +460,7 @@ spec:
 apiVersion: gateway.networking.k8s.io/v1beta1
 kind: HTTPRoute
 metadata:
-  name: mistralai
+  name: mistral
   namespace: gloo-system
 spec:
   parentRefs:
@@ -457,7 +470,7 @@ spec:
   - matches:
     - path:
         type: PathPrefix
-        value: /mistralai
+        value: /mistral
     filters:
       - type: URLRewrite
         urlRewrite:
@@ -465,7 +478,7 @@ spec:
             type: ReplaceFullPath
             replaceFullPath: /v1/chat/completions
     backendRefs:
-    - name: mistralai
+    - name: mistral
       namespace: gloo-system
       group: gloo.solo.io
       kind: Upstream
@@ -527,7 +540,7 @@ curl -v "$GLOO_AI_GATEWAY:8080/openai" -H content-type:application/json   -d '{
 Similarly, we can send a prompt to the Mistral AI API:
 
 ```shell
-curl --location "$GLOO_AI_GATEWAY:8080/mistralai" -H content-type:application/json \
+curl --location "$GLOO_AI_GATEWAY:8080/mistral" -H content-type:application/json \
      --data '{
     "model": "open-mistral-nemo",
     "max_tokens": 128,
@@ -545,7 +558,7 @@ Note that we didn't have to include the API keys in the request. The Gloo AI Gat
 We can also enable streaming responses by setting the `stream` field to `true` in the request. You can press <kbd>CTRL+C</kbd> to stop the streaming:
 
 ```shell
-curl --location "$GLOO_AI_GATEWAY:8080/mistralai" -H content-type:application/json \
+curl --location "$GLOO_AI_GATEWAY:8080/mistral" -H content-type:application/json \
      --data '{
     "model": "open-mistral-nemo",
     "max_tokens": 128,
@@ -625,7 +638,7 @@ curl -v "${glooAIGatewayIP}:8080/openai" -H content-type:application/json -d '{
 
   it('should route traffic to Mistral AI API', () => {
     let curlCommand = `
-curl -v "${glooAIGatewayIP}:8080/mistralai" -H content-type:application/json -d '{
+curl -v "${glooAIGatewayIP}:8080/mistral" -H content-type:application/json -d '{
   "model": "open-mistral-nemo",
   "max_tokens": 128,
   "messages": [
@@ -643,7 +656,7 @@ curl -v "${glooAIGatewayIP}:8080/mistralai" -H content-type:application/json -d 
 
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/ai-gateway/ai-credential-management/tests/check-configured-llms.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; exit 1; }
 -->
 
 
@@ -725,7 +738,7 @@ chmod +x ./scripts/create-jwt.sh
 export ALICE_TOKEN=$(./scripts/create-jwt.sh ./data/steps/ai-access-control/private-key.pem alice dev openai gpt-4o-mini)
 
 # Bob works in the "ops" team and we're going to give him access to the Mistral AI API (specifically the open-mistral-nemo model)
-export BOB_TOKEN=$(./scripts/create-jwt.sh ./data/steps/ai-access-control/private-key.pem bob ops mistralai open-mistral-nemo)
+export BOB_TOKEN=$(./scripts/create-jwt.sh ./data/steps/ai-access-control/private-key.pem bob ops mistral open-mistral-nemo)
 ```
 
 Now that we have a valid JWT for Alice and Bob, we can send the request to the Gloo AI Gateway with the JWT in the `Authorization` header:
@@ -783,13 +796,13 @@ kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: gateway.solo.io/v1
 kind: RouteOption
 metadata:
-  name: mistralai-opt
+  name: mistral-opt
   namespace: gloo-system
 spec:
   targetRefs:
   - group: gateway.networking.k8s.io
     kind: HTTPRoute
-    name: mistralai
+    name: mistral
   options:
     rbac:
       policies:
@@ -798,7 +811,7 @@ spec:
           principals:
           - jwtPrincipal:
               claims:
-                llms.mistralai: open-mistral-nemo
+                llms.mistral: open-mistral-nemo
               matcher: LIST_CONTAINS
 EOF
 ```
@@ -808,7 +821,7 @@ The part we added to the RouteOption is the `rbac` section in the options. In th
 Now, let's send a request to the Gloo AI Gateway with Bob's JWT (remember, Bob has access to the `open-mistral-nemo` model):
 
 ```shell
-curl "$GLOO_AI_GATEWAY:8080/mistralai" --header "Authorization: Bearer $BOB_TOKEN" -H content-type:application/json -d '{
+curl "$GLOO_AI_GATEWAY:8080/mistral" --header "Authorization: Bearer $BOB_TOKEN" -H content-type:application/json -d '{
     "model": "open-mistral-nemo",
     "max_tokens": 128,
     "messages": [
@@ -829,7 +842,7 @@ As expected, we get a response from the Mistral AI API because Bob has access to
 If we try the same request with Alice's JWT, we'll get an HTTP 403 Forbidden response because Alice doesn't have access to the `open-mistral-nemo` model:
 
 ```shell
-curl -v "$GLOO_AI_GATEWAY:8080/mistralai"  -H "Authorization: Bearer $ALICE_TOKEN" -H content-type:application/json -d '{
+curl -v "$GLOO_AI_GATEWAY:8080/mistral"  -H "Authorization: Bearer $ALICE_TOKEN" -H content-type:application/json -d '{
     "model": "open-mistral-nemo",
     "max_tokens": 128,
     "messages": [
@@ -886,7 +899,7 @@ describe("Managing access to the LLMs based on credentials", () => {
 
   it('should admit traffic for JWTs with the specified model as a claim', () => {
     let curlCommand = `
-curl "${glooAIGatewayIP}:8080/mistralai" --header "Authorization: Bearer ${bobToken}" -H content-type:application/json -d '{
+curl "${glooAIGatewayIP}:8080/mistral" --header "Authorization: Bearer ${bobToken}" -H content-type:application/json -d '{
   "model": "open-mistral-nemo",
   "max_tokens": 128,
   "messages": [
@@ -907,7 +920,7 @@ curl "${glooAIGatewayIP}:8080/mistralai" --header "Authorization: Bearer ${bobTo
 
   it('should reject traffic for JWTs lacking the specified model as a claim', () => {
     let curlCommand = `
-curl "${glooAIGatewayIP}:8080/mistralai" --header "Authorization: Bearer ${aliceToken}" -H content-type:application/json -d '{
+curl "${glooAIGatewayIP}:8080/mistral" --header "Authorization: Bearer ${aliceToken}" -H content-type:application/json -d '{
   "model": "open-mistral-nemo",
   "max_tokens": 128,
   "messages": [
@@ -928,7 +941,7 @@ curl "${glooAIGatewayIP}:8080/mistralai" --header "Authorization: Bearer ${alice
 
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/ai-gateway/ai-access-control/tests/check-llm-access.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; exit 1; }
 -->
 Next, cleanup the route options to not impact the next lab:
 ```bash
@@ -1101,7 +1114,7 @@ describe("rate limiting based on token usage", () => {
 
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/ai-gateway/ai-rate-limiting/tests/check-rate-limited.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; exit 1; }
 -->
 
 ### Viewing Usage Metrics
@@ -1202,7 +1215,30 @@ spec:
 EOF
 ```
 
-Gloo Gateway by default retries 3 times each pool in order they are listed.
+We also need to explicitly set the retry strategy:
+
+```bash
+kubectl apply --context ${CLUSTER1} -f - <<EOF
+apiVersion: gateway.solo.io/v1
+kind: RouteOption
+metadata:
+  name: openai
+  namespace: gloo-system
+spec:
+  targetRefs:
+  - group: gateway.networking.k8s.io
+    kind: HTTPRoute
+    name: openai
+  options:
+    retries:
+      retryOn: 'retriable-status-codes'
+      retriableStatusCodes:
+      - 429
+      numRetries: 3
+      previousPriorities:
+        updateFrequency: 1
+EOF
+```
 
 <!--bash
 sleep 20s
@@ -1273,7 +1309,7 @@ it('should have failed over to other configured models', () => {
 });
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/ai-gateway/ai-model-failover/tests/check-failover.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; exit 1; }
 -->
 Next, revert the upstream configuration to use the actual OpenAI API and Mistral AI API:
 
@@ -1294,6 +1330,12 @@ spec:
           name: openai-secret
           namespace: gloo-system
 EOF
+```
+
+And delete the `RouteOption`:
+
+```bash
+kubectl --context ${CLUSTER1} -n gloo-system delete routeoption openai
 ```
 
 
@@ -1468,7 +1510,7 @@ curl "${glooAIGatewayIP}:8080/openai" -H content-type:application/json -d '{
 
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/ai-gateway/ai-prompt-management/tests/check-csv-output.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; exit 1; }
 -->
 Next, cleanup the resource:
 ```bash
@@ -1486,7 +1528,7 @@ LLM provider APIs, given their ability to process and generate human-like text, 
 We'll start with an example prompt that asks for examples of credit card numbers:
 
 ```shell
-curl --location "$GLOO_AI_GATEWAY:8080/mistralai" -H content-type:application/json \
+curl --location "$GLOO_AI_GATEWAY:8080/mistral" -H content-type:application/json \
      --data '{
     "model": "open-mistral-nemo",
     "messages": [
@@ -1519,7 +1561,7 @@ spec:
   targetRefs:
   - group: gateway.networking.k8s.io
     kind: HTTPRoute
-    name: mistralai
+    name: mistral
   options:
     ai:
       promptGuard:
@@ -1536,7 +1578,7 @@ EOF
 If you repeat the previous request, you'll notice that it gets blocked right away:
 
 ```shell
-curl -v "$GLOO_AI_GATEWAY:8080/mistralai" -H content-type:application/json \
+curl -v "$GLOO_AI_GATEWAY:8080/mistral" -H content-type:application/json \
      --data '{
     "model": "open-mistral-nemo",
     "messages": [
@@ -1555,7 +1597,7 @@ Rejected by guardrails regex
 The request was blocked because it contained the string "credit card". But what happens if we try to send a request without the string "credit card" to circumvent prompt guard?
 
 ```shell
-curl -v "$GLOO_AI_GATEWAY:8080/mistralai" -H content-type:application/json \
+curl -v "$GLOO_AI_GATEWAY:8080/mistral" -H content-type:application/json \
      --data '{
     "model": "open-mistral-nemo",
     "messages": [
@@ -1580,7 +1622,7 @@ spec:
   targetRefs:
   - group: gateway.networking.k8s.io
     kind: HTTPRoute
-    name: mistralai
+    name: mistral
   options:
     ai:
       promptGuard:
@@ -1603,7 +1645,7 @@ Let's try sending a request with a credit card number:
 
 
 ```shell
-curl -v "$GLOO_AI_GATEWAY:8080/mistralai" -H content-type:application/json \
+curl -v "$GLOO_AI_GATEWAY:8080/mistral" -H content-type:application/json \
      --data '{
     "model": "open-mistral-nemo",
     "messages": [
@@ -1657,7 +1699,7 @@ describe("prompt guard", () => {
 
   it('should mask credit card numbers in the response', () => {
     let curlCommand = `
-curl "${glooAIGatewayIP}:8080/mistralai" -H content-type:application/json \
+curl "${glooAIGatewayIP}:8080/mistral" -H content-type:application/json \
   --data '{
     "model": "open-mistral-nemo",
     "messages": [
@@ -1675,7 +1717,7 @@ curl "${glooAIGatewayIP}:8080/mistralai" -H content-type:application/json \
 
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/ai-gateway/ai-prompt-guard/tests/check-prompt-guard.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; exit 1; }
 -->
 Next, cleanup the resources:
 ```bash
@@ -1834,7 +1876,7 @@ curl "${glooAIGatewayIP}:8080/openai" -H content-type:application/json \
 
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/ai-gateway/ai-rag/tests/check-rag.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; exit 1; }
 -->
 Next, cleanup the resources:
 ```
@@ -1996,7 +2038,7 @@ curl -v "${glooAIGatewayIP}:8080/openai" -H content-type:application/json \
 
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/ai-gateway/ai-semantic-caching/tests/check-semantic-caching.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; exit 1; }
 -->
 Next, cleanup the resources:
 ```bash
