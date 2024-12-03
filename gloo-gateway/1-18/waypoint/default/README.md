@@ -5,7 +5,20 @@ source ./scripts/assert.sh
 
 
 
-<center><img src="images/gloo-gateway.png" alt="Gloo Gateway" style="width:70%;max-width:800px" /></center>
+<center>
+<svg id="gloo-product-logo" viewBox="250 150 2210 480" fill="none" xmlns="http://www.w3.org/2000/svg" alt="Gloo Gateway" style="max-height:100px">
+    <style>#gloo-product-logo path{fill:#151927}@media(prefers-color-scheme:dark){#gloo-product-logo path{fill:white}}</style>
+    <path fill-rule="evenodd" clip-rule="evenodd" d="M292.084 447.396C319.258 474.569 356.1 489.855 394.529 489.899C432.97 489.84 469.817 474.531 496.981 447.332C524.146 420.133 539.409 383.267 539.42 344.826V315.504H394.459V374.148H475.638C469.593 390.83 458.559 405.248 444.036 415.442C429.512 425.637 412.203 431.114 394.459 431.13C371.578 431.104 349.641 422.003 333.462 405.824C317.282 389.644 308.181 367.707 308.155 344.826C308.142 333.456 310.393 322.197 314.777 311.707C319.162 301.216 325.592 291.704 333.693 283.725C341.725 275.677 351.279 269.309 361.799 264.994C372.318 260.679 383.592 258.503 394.961 258.592C416.191 258.708 436.629 266.664 452.349 280.932L491.696 237.452C465.289 213.531 430.983 200.197 395.352 200.004C376.246 199.857 357.301 203.519 339.625 210.776C321.949 218.033 305.897 228.739 292.405 242.27C278.809 255.686 268.02 271.675 260.667 289.304C253.315 306.934 249.546 325.851 249.581 344.952C249.626 383.381 264.911 420.223 292.084 447.396ZM705.633 446.974C732.702 474.043 769.402 489.27 807.683 489.314C845.978 489.292 882.7 474.075 909.786 447.004C936.873 419.933 952.111 383.22 952.155 344.925C952.111 306.63 936.873 269.917 909.786 242.846C882.7 215.775 845.978 200.558 807.683 200.536C769.402 200.58 732.702 215.807 705.633 242.875C678.565 269.944 663.338 306.644 663.294 344.925C663.338 383.206 678.565 419.906 705.633 446.974ZM747.075 284.313C763.15 268.235 784.947 259.191 807.683 259.165V259.179C830.429 259.187 852.243 268.22 868.335 284.297C884.427 300.373 893.482 322.178 893.512 344.925C893.486 367.672 884.432 389.48 868.339 405.557C852.246 421.634 830.43 430.667 807.683 430.67C784.95 430.644 763.155 421.602 747.08 405.527C731.005 389.453 721.963 367.658 721.937 344.925C721.959 322.189 731 300.391 747.075 284.313ZM1015.93 446.979C1043 474.048 1079.7 489.273 1117.99 489.314C1156.27 489.27 1192.96 474.045 1220.03 446.979C1247.1 419.914 1262.33 383.217 1262.38 344.939C1262.34 306.656 1247.11 269.952 1220.04 242.88C1192.97 215.809 1156.27 200.58 1117.99 200.536C1079.7 200.576 1043 215.801 1015.93 242.87C988.858 269.939 973.629 306.642 973.585 344.925C973.629 383.208 988.858 419.91 1015.93 446.979ZM1057.38 284.312C1073.45 268.235 1095.25 259.191 1117.99 259.165V259.179C1140.72 259.205 1162.52 268.247 1178.59 284.322C1194.67 300.397 1203.71 322.192 1203.73 344.925C1203.71 367.658 1194.67 389.453 1178.59 405.527C1162.52 421.602 1140.72 430.644 1117.99 430.67C1095.25 430.648 1073.45 421.607 1057.38 405.532C1041.3 389.457 1032.25 367.66 1032.23 344.925C1032.25 322.188 1041.3 300.39 1057.38 284.312ZM679.891 472.692C663.068 455.941 649.72 436.031 640.615 414.106C631.509 392.181 626.826 368.673 626.833 344.933V206.283H568.734V344.933C568.713 376.299 574.89 407.36 586.909 436.332C598.928 465.304 616.553 491.616 638.771 513.757L679.891 472.692Z"/>
+    <path d="M2409.07 355.935L2391.64 349.277L2436.1 275.844H2458.42L2409.07 355.935ZM2390.08 412.919V347.123H2409.46V412.919H2390.08ZM2390.47 355.935L2341.12 275.844H2363.25L2407.7 349.277L2390.47 355.935Z"/>
+    <path d="M2320.99 412.919L2266.75 275.844H2286.33L2341.55 412.919H2320.99ZM2210.55 412.919L2265.77 275.844H2285.35L2231.11 412.919H2210.55ZM2236.59 376.3V359.068H2315.51V376.3H2236.59Z"/>
+    <path d="M2134.61 412.919L2176.12 275.844H2195.51L2153.41 412.919H2134.61ZM2051.38 412.919L2009.87 275.844H2029.45L2070.18 412.919H2051.38ZM2053.54 412.919L2093.09 275.844H2111.31L2071.95 412.919H2053.54ZM2132.85 412.919L2094.27 275.844H2112.48L2151.84 412.919H2132.85Z"/>
+    <path d="M1890.26 412.919V275.844H1972.7V293.468H1909.45V334.199H1966.43V351.431H1909.45V395.295H1973.09V412.919H1890.26Z"/>
+    <path d="M1788.72 412.919V293.468H1745.83V275.844H1850.99V293.468H1808.1V412.919H1788.72Z"/>
+    <path d="M1706.07 412.919L1651.83 275.844H1671.41L1726.63 412.919H1706.07ZM1595.62 412.919L1650.85 275.844H1670.43L1616.19 412.919H1595.62ZM1621.67 376.3V359.068H1700.58V376.3H1621.67Z"/>
+    <path d="M1508.26 415.269C1494.42 415.269 1482.09 412.266 1471.25 406.261C1460.55 400.125 1452.13 391.77 1445.99 381.196C1439.99 370.491 1436.98 358.285 1436.98 344.577C1436.98 330.609 1439.99 318.338 1445.99 307.763C1452.13 297.058 1460.55 288.703 1471.25 282.698C1482.09 276.562 1494.42 273.495 1508.26 273.495C1515.83 273.495 1523.08 274.735 1530 277.215C1537.05 279.565 1543.38 282.894 1548.99 287.202C1554.74 291.38 1559.37 296.21 1562.9 301.693L1547.43 311.875C1544.82 307.828 1541.42 304.238 1537.24 301.105C1533.07 297.972 1528.43 295.557 1523.34 293.86C1518.38 292.032 1513.35 291.118 1508.26 291.118C1498.21 291.118 1489.27 293.403 1481.43 297.972C1473.73 302.541 1467.66 308.808 1463.22 316.771C1458.78 324.734 1456.57 334.003 1456.57 344.577C1456.57 354.891 1458.72 364.029 1463.03 371.992C1467.47 379.956 1473.6 386.222 1481.43 390.791C1489.4 395.36 1498.47 397.645 1508.65 397.645C1516.88 397.645 1524.19 395.948 1530.59 392.553C1537.11 389.159 1542.2 384.394 1545.86 378.259C1549.65 372.123 1551.54 365.008 1551.54 356.914L1570.14 355.152C1570.14 367.293 1567.47 377.867 1562.11 386.875C1556.89 395.882 1549.65 402.867 1540.38 407.827C1531.11 412.788 1520.4 415.269 1508.26 415.269ZM1518.25 358.089V342.032H1570.14V356.131L1560.35 358.089H1518.25Z"/>
+    <path fill-rule="evenodd" clip-rule="evenodd" d="M1345.47 488.104L1345.47 201.133L1347.97 201.133L1347.97 488.104L1345.47 488.104Z"/>
+</svg>
+</center>
 
 # <center>Gloo Gateway Workshop</center>
 
@@ -34,7 +47,7 @@ source ./scripts/assert.sh
 
 ## Introduction <a name="introduction"></a>
 
-[Gloo Gateway](https://www.solo.io/products/gloo-gateway/) is a feature-rich, fast, and flexible Kubernetes-native ingress controller and next-generation API gateway that is built on top of [Envoy proxy](https://www.envoyproxy.io/) and the [Kubernetes Gateway API](https://gateway-api.sigs.k8s.io/).
+<a href="https://www.solo.io/products/gloo-gateway/">Gloo Gateway</a> is a feature-rich, fast, and flexible Kubernetes-native ingress controller and next-generation API gateway that is built on top of <a href="https://www.envoyproxy.io/">Envoy proxy</a> and the <a href="https://gateway-api.sigs.k8s.io/">Kubernetes Gateway API</a>).
 
 Gloo Gateway is fully conformant with the Kubernetes Gateway API and extends its functionality with Solo’s custom Gateway APIs, such as `RouteOption`, `VirtualHostOption`, `Upstream`s, `RateLimitConfig`, or `AuthConfig`.
 These resources help to centrally configure routing, security, and resiliency rules for a specific component, such as a host, route, or gateway listener.
@@ -132,7 +145,7 @@ describe("Clusters are healthy", () => {
 });
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/deploy-kind-cluster/tests/cluster-healthy.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; exit 1; }
 -->
 
 
@@ -226,7 +239,7 @@ describe("Istio", () => {
 });
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/deploy-istio-ambient/tests/check-istio.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; exit 1; }
 -->
 
 
@@ -354,7 +367,7 @@ describe("Postgres", () => {
 });
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/deploy-keycloak/tests/postgres-available.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; exit 1; }
 -->
 
 First, we need to define an ID and secret for a "client", which will be the service that delegates to Keycloak for authorization:
@@ -764,7 +777,7 @@ describe("Keycloak", () => {
 });
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/deploy-keycloak/tests/pods-available.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; exit 1; }
 -->
 <!--bash
 cat <<'EOF' > ./test.js
@@ -791,7 +804,7 @@ describe("Retrieve enterprise-networking ip", () => {
 });
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/deploy-keycloak/tests/keycloak-ip-is-attached.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; exit 1; }
 -->
 <!--bash
 timeout 2m bash -c "until [[ \$(kubectl --context ${CLUSTER1} -n keycloak get svc keycloak -o json | jq '.status.loadBalancer | length') -gt 0 ]]; do
@@ -829,7 +842,7 @@ describe("Address '" + process.env.HOST_KEYCLOAK + "' can be resolved in DNS", (
 });
 EOF
 echo "executing test ./gloo-mesh-2-0/tests/can-resolve.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; exit 1; }
 -->
 <!--bash
 echo "Waiting for Keycloak to be ready at $KEYCLOAK_URL/realms/workshop/protocol/openid-connect/token"
@@ -847,7 +860,7 @@ We're going to use the Helm option.
 Install the Kubernetes Gateway API CRDs as they do not come installed by default on most Kubernetes clusters.
 
 ```bash
-kubectl --context $CLUSTER1 apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.1.0/standard-install.yaml
+kubectl --context $CLUSTER1 apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.2.0/experimental-install.yaml
 ```
 Let's create the `gloo-system` namespace and label it to be part of the mesh:
 
@@ -861,20 +874,23 @@ kubectl --context $CLUSTER1 label namespace gloo-system istio.io/dataplane-mode=
 Next, install Gloo Gateway. This command installs the Gloo Gateway control plane into the namespace `gloo-system`.
 
 ```bash
-helm repo add gloo-ee-test-helm https://storage.googleapis.com/gloo-ee-test-helm
+helm repo add gloo-ee-helm https://storage.googleapis.com/gloo-ee-helm
 
 helm repo update
 
 helm upgrade -i -n gloo-system \
-  gloo-gateway gloo-ee-test-helm/gloo-ee \
+  gloo-gateway gloo-ee-helm/gloo-ee \
   --create-namespace \
-  --version 1.18.0-beta2-bmain-bc445a4 \
+  --version 1.18.0-rc3 \
   --kube-context $CLUSTER1 \
   --set-string license_key=$LICENSE_KEY \
   -f -<<EOF
+
 gloo:
   kubeGateway:
     enabled: true
+    portal:
+      enabled: true
   gatewayProxies:
     gatewayProxy:
       disabled: true
@@ -886,8 +902,6 @@ gloo:
     logLevel: info
     deployment:
       customEnv:
-        - name: GG_PORTAL_PLUGIN
-          value: "true"
         - name: ENABLE_WAYPOINTS
           value: "true"
       livenessProbeEnabled: true
@@ -906,8 +920,6 @@ gloo-fed:
   enabled: false
   glooFedApiserver:
     enable: false
-gateway-portal-web-server:
-  enabled: true
 settings:
   disableKubernetesDestinations: true
 global:
@@ -918,6 +930,9 @@ ambient:
   waypoint:
     enabled: true
 EOF
+
+kubectl --context ${CLUSTER1} patch settings default -n gloo-system --type json \
+  -p '[{ "op": "remove", "path": "/spec/cachingServer" }]'
 ```
 
 
@@ -959,7 +974,7 @@ describe("Gloo Gateway", () => {
 });
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/deploy-gloo-gateway-enterprise/tests/check-gloo.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; exit 1; }
 -->
 
 
@@ -1174,7 +1189,7 @@ describe("httpbin app", () => {
 });
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/deploy-httpbin/tests/check-httpbin.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; exit 1; }
 -->
 
 
@@ -1319,7 +1334,7 @@ describe("httpbin through HTTP", () => {
 })
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/expose-httpbin/tests/http.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; exit 1; }
 -->
 
 Now, let's secure the access through TLS.
@@ -1469,7 +1484,7 @@ describe("httpbin through HTTPS", () => {
 })
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/expose-httpbin/tests/https.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; exit 1; }
 -->
 
 The team in charge of the gateway can create an `HTTPRoute` to automatically redirect HTTP to HTTPS:
@@ -1541,7 +1556,7 @@ describe("location header correctly set", () => {
 })
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/expose-httpbin/tests/redirect-http-to-https.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; exit 1; }
 -->
 
 
@@ -1642,7 +1657,7 @@ describe("httpbin through HTTPS", () => {
 })
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/delegation/tests/https.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; exit 1; }
 -->
 
 In the previous example, we've used a simple `/` prefix matcher for both the parent and the child `HTTPRoute`.
@@ -1722,7 +1737,7 @@ describe("httpbin through HTTPS", () => {
 })
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/delegation/tests/status-200.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; exit 1; }
 -->
 
 In the child `HTTPRoute` we've indicated the absolute path (which includes the parent path), but instead we can inherite the parent matcher and use a relative path:
@@ -1769,7 +1784,7 @@ describe("httpbin through HTTPS", () => {
 })
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/delegation/tests/status-200.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; exit 1; }
 -->
 
 The team in charge of the httpbin application can also take advantage of the `parentRefs` option to indicate which parent `HTTPRoute` can delegate to its own `HTTPRoute`.
@@ -1823,7 +1838,7 @@ describe("httpbin through HTTPS", () => {
 })
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/delegation/tests/status-200.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; exit 1; }
 -->
 
 Delegation offers another very nice feature. It automatically reorders all the matchers to avoid any short-circuiting.
@@ -1884,7 +1899,7 @@ describe("httpbin through HTTPS", () => {
 })
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/delegation/tests/status-200.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; exit 1; }
 -->
 
 Check you can now also access the status `/status/201` path:
@@ -1920,7 +1935,7 @@ describe("httpbin through HTTPS", () => {
 })
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/delegation/tests/status-201.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; exit 1; }
 -->
 
 Let's delete the latest `HTTPRoute` and apply the original ones:
@@ -1980,7 +1995,7 @@ describe("httpbin through HTTPS", () => {
 })
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/delegation/tests/https.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; exit 1; }
 -->
 
 
@@ -2076,7 +2091,7 @@ describe("request transformations applied", () => {
 })
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/transformations/tests/request-headers.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; exit 1; }
 -->
 
 Another typical use case is to rewrite the hostname or the path before sending the request to the backend.
@@ -2159,7 +2174,7 @@ describe("request rewrite applied", () => {
 })
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/transformations/tests/request-rewrite.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; exit 1; }
 -->
 
 
@@ -2233,7 +2248,7 @@ describe("response transformations applied", () => {
 })
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/transformations/tests/response-headers.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; exit 1; }
 -->
 
 Let's apply the original `HTTPRoute` yaml:
@@ -2345,7 +2360,7 @@ describe("request transformation applied", () => {
 })
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/transformations/tests/x-client-request-header.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; exit 1; }
 -->
 
 As you can see, we've created a new header called `X-Client` by extracting some data from the `User-Agent` header using a regular expression.
@@ -2432,7 +2447,7 @@ describe("response transformation applied", () => {
 })
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/transformations/tests/x-request-id-response-header.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; exit 1; }
 -->
 
 Let's apply the original `HTTPRoute` yaml:
@@ -2530,7 +2545,7 @@ describe("traffic split applied", () => {
 })
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/traffic-split/tests/traffic-split.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; exit 1; }
 -->
 
 
@@ -2667,7 +2682,7 @@ describe("Authentication is working properly", function () {
 
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/extauth-oauth/tests/authentication.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; exit 1; }
 -->
 <!--bash
 cat <<'EOF' > ./test.js
@@ -2680,7 +2695,7 @@ describe("Claim to header is working properly", function() {
 
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/extauth-oauth/tests/header-added.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; exit 1; }
 -->
 
 If you refresh the web browser, you will be redirected to the authentication page.
@@ -2774,7 +2789,7 @@ describe("Authentication is working properly", function () {
 
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/extauth-oauth/tests/authorization.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; exit 1; }
 -->
 If you open the browser in incognito and login using the username `user2` and the password `password`, you will now be able to access it since the user's email ends with `@solo.io`.
 
@@ -2830,7 +2845,7 @@ describe("Transformation is working properly", function() {
 
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/advanced-transformations/tests/header-added.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; exit 1; }
 -->
 
 
@@ -2913,7 +2928,7 @@ describe("Rate limiting is working properly", function() {
 
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/ratelimiting/tests/rate-limited.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; exit 1; }
 -->
 
 You should get a `200` response code the first 3 times and a `429` response code after.
@@ -3083,7 +3098,7 @@ describe("Claim to header is working properly", function() {
 
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/jwt/tests/header-added.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; exit 1; }
 -->
 
 We can also update the `VirtualHostOption` to add a RBAC rule to only allow a user with the email `user2@solo.io` to access the application.
@@ -3172,7 +3187,7 @@ describe("Only User2 can access httpbin", function() {
 
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/jwt/tests/only-user2-allowed.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; exit 1; }
 -->
 
 Let's delete the `VirtualHostOption` we've created:
@@ -3239,7 +3254,7 @@ describe("WAF is working properly", function() {
 });
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/waf/tests/waf.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; exit 1; }
 -->
 
 Run the following command to simulate an attack:
@@ -3289,40 +3304,6 @@ caching-service   1/1     1            1           166m
 ```
 
 This service is responsible for creating the cached responses in the backing Redis datastore when an eligible response is being processed.
-
-<!--bash
-LAST_LDS_UPDATE_COUNT=$(kubectl --context ${CLUSTER1} -n gloo-system debug \
-  $(kubectl --context ${CLUSTER1} -n gloo-system get po -l gateway.networking.k8s.io/gateway-name=http -oname) \
-  -qi --image=curlimages/curl \
-  -- curl -sS 'http://localhost:19000/stats?format=json&filter=listener_manager.lds.update_success' | \
-  jq '.stats[].value')
--->
-
-To work around bug #6709, we need to remove some global caching configuration from Gloo Gateway's default settings:
-
-```bash
-kubectl --context ${CLUSTER1} patch settings default -n gloo-system --type json \
-  -p '[{ "op": "remove", "path": "/spec/cachingServer" }]'
-
-sleep 5
-```
-<!--bash
-kubectl --context ${CLUSTER1} -n gloo-system rollout status deploy gloo
-
-echo -n Waiting for LDS sync...
-timeout -v 5m bash -c "while true; do
-  sleep 1
-  echo -n .
-  if [[ \$(kubectl --context ${CLUSTER1} -n gloo-system debug \
-      $(kubectl --context ${CLUSTER1} -n gloo-system get po -l gateway.networking.k8s.io/gateway-name=http -oname) \
-      -qi --image=curlimages/curl \
-      -- curl -sS 'http://localhost:19000/stats?format=json&filter=listener_manager.lds.update_success' | \
-      jq '.stats[].value') -gt ${LAST_LDS_UPDATE_COUNT} ]]; then
-    echo
-    break
-  fi
-done"
--->
 
 The **httpbin** application has some utility endpoints we can use to test that caching is applied.
 First of all, let's make sure that caching is *not* being applied by making a request to the `/cache` endpoint, passing a cache time-to-live (TTL) value of 10 seconds that we want the service to use in the response `cache-control` header:
@@ -3409,7 +3390,7 @@ describe("response caching", function() {
 
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/caching/tests/caching-doesnt-apply.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=10 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=10 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; exit 1; }
 -->
 
 In this example we'll configure caching on all routes processed by the `Gateway` that we have already set up.
@@ -3543,7 +3524,7 @@ describe("response caching", function() {
 
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/caching/tests/caching-applies.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=200 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; exit 1; }
 -->
 
 Notice that the first two responses have the same `date` header showing that the response for the first request was also returned as the response for the second request.
@@ -3743,7 +3724,7 @@ describe("AuthorizationPolicy is working properly", function() {
 
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/waypoint/tests/authorization.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; exit 1; }
 -->
 
 Let's delete the policy:
@@ -3871,7 +3852,7 @@ describe("request transformations applied", function() {
 
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/waypoint/tests/request-headers.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; exit 1; }
 -->
 
 Gloo Gateway provides some extensions to manipulate requests and responses in a more advanced way.
@@ -3976,7 +3957,7 @@ describe("request transformations applied", function() {
 
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/waypoint/tests/x-client-request-header.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; exit 1; }
 -->
 
 As you can see, we've created a new header called `X-Client` by extracting some data from the `User-Agent` header using a regular expression.
@@ -4073,7 +4054,7 @@ describe("Authentication with apikeys is working properly", function() {
 
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/waypoint/tests/authentication.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; exit 1; }
 -->
 
 After you've completed these steps, you should be able to access the `httpbin2` service using the api key. You can test this by running the following command:
@@ -4175,7 +4156,7 @@ describe("Rate limiting is working properly", function() {
 
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/waypoint/tests/rate-limited.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; exit 1; }
 -->
 
 Let's delete the `RouteOption`:
@@ -4279,7 +4260,7 @@ describe("Caching", function() {
 
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/waypoint/tests/caching-applies.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 80000; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; exit 1; }
 -->
 
 Notice that the first two responses have the same `date` header showing that the response for the first request was also returned as the response for the second request.
