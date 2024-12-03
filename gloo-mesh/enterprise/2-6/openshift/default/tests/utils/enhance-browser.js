@@ -66,7 +66,7 @@ function enhanceBrowser(browser, testId = 'test', shouldRecord = true) {
             if (shouldRecord && recorder) {
               debugLog('Stopping recorder...');
               try {
-                await withTimeout(recorder.stop(), 1000, 'Recorder stop timed out');
+                await withTimeout(recorder.stop(), 2000, 'Recorder stop timed out');
                 debugLog('Recorder stopped.');
               } catch (e) {
                 debugLog('Failed to stop recorder:', e);
@@ -100,8 +100,12 @@ function enhanceBrowser(browser, testId = 'test', shouldRecord = true) {
               debugLog('Failed to dump SWR cache:', e);
             }
           }
-          await new Promise((resolve) => setTimeout(resolve, 2000));
-          await target.close(...args);
+          try {
+            await new Promise((resolve) => setTimeout(resolve, 7100));
+            await target.close(...args);
+          } catch (error) {
+            console.error('Error closing browser:', error);
+          }
         };
       } else {
         const value = target[prop];
