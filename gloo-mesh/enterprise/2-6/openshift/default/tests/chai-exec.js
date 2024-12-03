@@ -183,6 +183,16 @@ global = {
     debugLog(`Curl command output (stdout): ${cli.stdout}`);
     return cli.stdout;
   },
+  curlInDeployment: async ({ curlCommand, deploymentName, namespace, context }) => {
+    debugLog(`Executing curl command: ${curlCommand} on deployment: ${deploymentName} in namespace: ${namespace} and context: ${context}`);
+    let getPodCommand = `kubectl --context ${context} -n ${namespace} get pods -l app=${deploymentName} -o jsonpath='{.items[0].metadata.name}'`;
+    let podName = chaiExec(getPodCommand).stdout.trim();
+    debugLog(`Pod selected for curl command: ${podName}`);
+    let execCommand = `kubectl --context ${context} -n ${namespace} exec ${podName} -- ${curlCommand}`;
+    const cli = chaiExec(execCommand);
+    debugLog(`Curl command output (stdout): ${cli.stdout}`);
+    return cli.stdout;
+  },
 };
 
 module.exports = global;
