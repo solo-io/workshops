@@ -1,0 +1,58 @@
+{%- assign fqdn_httpbin = vars.httpbin_fqdn | default: "httpbin.example.com" %}
+{%- assign fqdn_bookinfo = vars.bookinfo_fqdn | default: "bookinfo.example.com" %}
+{%- assign fqdn_portal = vars.portal_fqdn | default: "portal.example.com" %}
+{%- assign fqdn_grpcbin = vars.grpcbin_fqdn | default: "grpcbin.example.com" %}
+{%- assign fqdn_backstage = vars.backstage_fqdn | default: "backstage.example.com" %}
+{%- assign fqdn_cluster1_httpbin = "cluster1-" | append: fqdn_httpbin %}
+{%- assign fqdn_cluster2_httpbin = "cluster2-" | append: fqdn_httpbin %}
+{%- assign fqdn_cluster1_bookinfo = "cluster1-" | append: fqdn_bookinfo %}
+{%- assign fqdn_cluster2_bookinfo = "cluster2-" | append: fqdn_bookinfo %}
+{%- assign fqdn_cluster1_portal = "cluster1-" | append: fqdn_portal %}
+{%- assign fqdn_cluster2_portal = "cluster2-" | append: fqdn_portal %}
+{%- assign fqdn_cluster1_grpcbin = "cluster1-" | append: fqdn_grpcbin %}
+{%- assign fqdn_cluster2_grpcbin = "cluster2-" | append: fqdn_grpcbin %}
+{%- assign fqdn_cluster1_backstage = "cluster1-" | append: fqdn_backstage %}
+{%- assign fqdn_cluster2_backstage = "cluster2-" | append: fqdn_backstage %}
+{%- if vars.node_port or vars.cluster1.node_port %}
+{%- assign endpoint_http_gw_cluster1_httpbin = fqdn_cluster1_httpbin | append: ":${NODEPORT_CLUSTER1_HTTP}" %}
+{%- assign endpoint_https_gw_cluster1_httpbin = fqdn_cluster1_httpbin | append: ":${NODEPORT_CLUSTER1_HTTPS}" %}
+{%- assign endpoint_http_gw_cluster1_bookinfo = fqdn_cluster1_bookinfo | append: ":${NODEPORT_CLUSTER1_HTTP}" %}
+{%- assign endpoint_https_gw_cluster1_bookinfo = fqdn_cluster1_bookinfo | append: ":${NODEPORT_CLUSTER1_HTTPS}" %}
+{%- assign endpoint_http_gw_cluster1_portal = fqdn_cluster1_portal | append: ":${NODEPORT_CLUSTER1_HTTP}" %}
+{%- assign endpoint_https_gw_cluster1_portal = fqdn_cluster1_portal | append: ":${NODEPORT_CLUSTER1_HTTPS}" %}
+{%- assign endpoint_http_gw_cluster1_grpcbin = fqdn_cluster1_grpcbin | append: ":${NODEPORT_CLUSTER1_HTTP}" %}
+{%- assign endpoint_https_gw_cluster1_grpcbin = fqdn_cluster1_grpcbin | append: ":${NODEPORT_CLUSTER1_HTTPS}" %}
+{%- assign endpoint_http_gw_cluster1_backstage = fqdn_cluster1_backstage | append: ":${NODEPORT_CLUSTER1_HTTP}" %}
+{%- assign endpoint_https_gw_cluster1_backstage = fqdn_cluster1_backstage | append: ":${NODEPORT_CLUSTER1_HTTPS}" %}
+{%- if vars.node_port or vars.cluster2.node_port %}
+{%- assign endpoint_http_gw_cluster2_httpbin = fqdn_cluster2_httpbin | append: ":${NODEPORT_CLUSTER2_HTTP}" %}
+{%- assign endpoint_https_gw_cluster2_httpbin = fqdn_cluster2_httpbin | append: ":${NODEPORT_CLUSTER2_HTTPS}" %}
+{%- assign endpoint_http_gw_cluster2_bookinfo = fqdn_cluster2_bookinfo | append: ":${NODEPORT_CLUSTER2_HTTP}')" %}
+{%- assign endpoint_https_gw_cluster2_bookinfo = fqdn_cluster2_bookinfo | append: ":${NODEPORT_CLUSTER2_HTTPS}" %}
+{%- assign endpoint_http_gw_cluster2_portal = fqdn_cluster2_portal | append: ":${NODEPORT_CLUSTER2_HTTP}')" %}
+{%- assign endpoint_https_gw_cluster2_portal = fqdn_cluster2_portal | append: ":${NODEPORT_CLUSTER2_HTTPS}" %}
+{%- assign endpoint_http_gw_cluster2_grpcbin = fqdn_cluster2_grpcbin | append: ":${NODEPORT_CLUSTER1_HTTP}" %}
+{%- assign endpoint_https_gw_cluster2_grpcbin = fqdn_cluster2_grpcbin | append: ":${NODEPORT_CLUSTER1_HTTPS}" %}
+{%- assign endpoint_http_gw_cluster2_backstage = fqdn_cluster2_backstage | append: ":${NODEPORT_CLUSTER2_HTTP}')" %}
+{%- assign endpoint_https_gw_cluster2_backstage = fqdn_cluster2_backstage | append: ":${NODEPORT_CLUSTER2_HTTPS}" %}
+{%- endif %}{% comment %}cluster2 nodeport{% endcomment %}
+{%- else %}
+{%- assign endpoint_http_gw_cluster1_httpbin = fqdn_cluster1_httpbin %}
+{%- assign endpoint_https_gw_cluster1_httpbin = fqdn_cluster1_httpbin %}
+{%- assign endpoint_http_gw_cluster1_bookinfo = fqdn_cluster1_bookinfo %}
+{%- assign endpoint_https_gw_cluster1_bookinfo = fqdn_cluster1_bookinfo %}
+{%- assign endpoint_http_gw_cluster1_portal = fqdn_cluster1_portal %}
+{%- assign endpoint_https_gw_cluster1_portal = fqdn_cluster1_portal %}
+{%- assign endpoint_http_gw_cluster1_backstage = fqdn_cluster1_backstage %}
+{%- assign endpoint_https_gw_cluster1_backstage = fqdn_cluster1_backstage %}
+{%- assign endpoint_http_gw_cluster2_httpbin = fqdn_cluster2_httpbin %}
+{%- assign endpoint_https_gw_cluster2_httpbin = fqdn_cluster2_httpbin %}
+{%- assign endpoint_http_gw_cluster2_bookinfo = fqdn_cluster2_bookinfo %}
+{%- assign endpoint_https_gw_cluster2_bookinfo = fqdn_cluster2_bookinfo %}
+{%- assign endpoint_http_gw_cluster2_portal = fqdn_cluster2_portal %}
+{%- assign endpoint_https_gw_cluster2_portal = fqdn_cluster2_portal %}
+{%- assign endpoint_http_gw_cluster2_grpcbin = fqdn_cluster2_grpcbin %}
+{%- assign endpoint_https_gw_cluster2_grpcbin = fqdn_cluster2_grpcbin %}
+{%- assign endpoint_http_gw_cluster2_backstage = fqdn_cluster2_backstage %}
+{%- assign endpoint_https_gw_cluster2_backstage = fqdn_cluster2_backstage %}
+{%- endif %}
