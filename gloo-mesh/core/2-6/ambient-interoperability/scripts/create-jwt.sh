@@ -17,8 +17,8 @@ if [ -z "$PRIVATE_KEY_PATH" ] || [ -z "$SUBJECT" ] || [ -z "$TEAM" ] || [ -z "$L
 fi
 
 
-if [[ "$LLM" != "openai" && "$LLM" != "mistralai" ]]; then
-    echo "LLM must be either 'openai' or 'mistralai'."
+if [[ "$LLM" != "openai" && "$LLM" != "mistral" ]]; then
+    echo "LLM must be either 'openai' or 'mistral'."
     exit 1
 fi
 
