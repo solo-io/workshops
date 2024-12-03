@@ -1,12 +1,13 @@
-const BasePage = require("./base");
+const BasePage = require("../base");
 
 class DeveloperPortalHomePage extends BasePage {
   constructor(page) {
     super(page)
-
+    
     // Selectors
     this.loginLink = 'a[href="/v1/login"]';
     this.userHolder = '.userHolder';
+    this.logoutLink = 'a[href="/v1/logout"]';
   }
 
   async clickLogin() {
@@ -16,13 +17,13 @@ class DeveloperPortalHomePage extends BasePage {
 
   async getLoggedInUserName() {
     await this.page.waitForSelector(this.userHolder, { visible: true });
-
+    
     const username = await this.page.evaluate(() => {
       const userHolderDiv = document.querySelector('.userHolder');
       const text = userHolderDiv ? userHolderDiv.textContent.trim() : '';
       return text.replace(/<svg[^>]*>([\s\S]*?)<\/svg>/g, '').trim();
     });
-
+    
     return username;
   }
 }
