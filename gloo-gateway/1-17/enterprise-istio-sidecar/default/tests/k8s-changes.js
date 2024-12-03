@@ -209,7 +209,7 @@ async function watchCRs(contextName, delaySeconds, durationSeconds) {
   }
 
   console.log(`Using context: ${contextName}`);
-  console.log(`Watching for CR changes with apiVersion containing "istio" or "gloo" for ${durationSeconds} seconds...`);
+  console.log(`Watching for CR changes with apiVersion containing "istio", "gloo", "solo" or "gateway.networking.k8s.io" for ${durationSeconds} seconds...`);
 
   const abortController = new AbortController();
   const watchPromises = [];
@@ -217,7 +217,7 @@ async function watchCRs(contextName, delaySeconds, durationSeconds) {
   const { body: apiGroups } = await apisApi.getAPIVersions();
 
   for (const group of apiGroups.groups) {
-    if (group.name.includes('istio') || group.name.includes('gloo')) {
+    if (group.name.includes('istio') || group.name.includes('gloo') || group.name.includes('solo') || group.name.includes('gateway.networking.k8s.io')) {
       const latestVersion = group.preferredVersion || group.versions[0];
       const resources = await getResources(group.name, latestVersion.version);
 
