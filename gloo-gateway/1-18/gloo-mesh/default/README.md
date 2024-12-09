@@ -15,7 +15,7 @@ source ./scripts/assert.sh
 
 ## Table of Contents
 * [Introduction](#introduction)
-* [Lab 1 - Deploy a KinD cluster](#lab-1---deploy-a-kind-cluster-)
+* [Lab 1 - Deploy KinD Cluster(s)](#lab-1---deploy-kind-cluster(s)-)
 * [Lab 2 - Deploy and register Gloo Mesh](#lab-2---deploy-and-register-gloo-mesh-)
 * [Lab 3 - Deploy Istio using Gloo Mesh Lifecycle Manager](#lab-3---deploy-istio-using-gloo-mesh-lifecycle-manager-)
 * [Lab 4 - Deploy the Bookinfo demo app](#lab-4---deploy-the-bookinfo-demo-app-)
@@ -106,7 +106,7 @@ You can find more information about Gloo Gateway in the official documentation: 
 
 
 
-## Lab 1 - Deploy a KinD cluster <a name="lab-1---deploy-a-kind-cluster-"></a>
+## Lab 1 - Deploy KinD Cluster(s) <a name="lab-1---deploy-kind-cluster(s)-"></a>
 
 
 Clone this repository and go to the directory where this `README.md` file is.
@@ -118,12 +118,10 @@ export MGMT=cluster1
 export CLUSTER1=cluster1
 ```
 
-Run the following commands to deploy a Kubernetes cluster using [Kind](https://kind.sigs.k8s.io/):
-
+Deploy the KinD clusters:
 ```bash
-./scripts/deploy.sh 1 cluster1 us-west us-west-1
+bash ./data/steps/deploy-kind-clusters/deploy-cluster1.sh
 ```
-
 Then run the following commands to wait for all the Pods to be ready:
 
 ```bash
@@ -132,38 +130,20 @@ Then run the following commands to wait for all the Pods to be ready:
 
 **Note:** If you run the `check.sh` script immediately after the `deploy.sh` script, you may see a jsonpath error. If that happens, simply wait a few seconds and try again.
 
-Once the `check.sh` script completes, when you execute the `kubectl get pods -A` command, you should see the following:
-
-```
-NAMESPACE            NAME                                          READY   STATUS    RESTARTS   AGE
-kube-system          calico-kube-controllers-59d85c5c84-sbk4k      1/1     Running   0          4h26m
-kube-system          calico-node-przxs                             1/1     Running   0          4h26m
-kube-system          coredns-6955765f44-ln8f5                      1/1     Running   0          4h26m
-kube-system          coredns-6955765f44-s7xxx                      1/1     Running   0          4h26m
-kube-system          etcd-cluster1-control-plane                   1/1     Running   0          4h27m
-kube-system          kube-apiserver-cluster1-control-plane         1/1     Running   0          4h27m
-kube-system          kube-controller-manager-cluster1-control-plane1/1     Running   0          4h27m
-kube-system          kube-proxy-ksvzw                              1/1     Running   0          4h26m
-kube-system          kube-scheduler-cluster1-control-plane         1/1     Running   0          4h27m
-local-path-storage   local-path-provisioner-58f6947c7-lfmdx        1/1     Running   0          4h26m
-metallb-system       controller-5c9894b5cd-cn9x2                   1/1     Running   0          4h26m
-metallb-system       speaker-d7jkp                                 1/1     Running   0          4h26m
-```
-
-**Note:** The CNI pods might be different, depending on which CNI you have deployed.
-
+Once the `check.sh` script completes, execute the `kubectl get pods -A` command, and verify that all pods are in a running state.
 <!--bash
 cat <<'EOF' > ./test.js
 const helpers = require('./tests/chai-exec');
 
 describe("Clusters are healthy", () => {
-    const clusters = [process.env.MGMT, process.env.CLUSTER1];
+    const clusters = ["cluster1"];
+
     clusters.forEach(cluster => {
         it(`Cluster ${cluster} is healthy`, () => helpers.k8sObjectIsPresent({ context: cluster, namespace: "default", k8sType: "service", k8sObj: "kubernetes" }));
     });
 });
 EOF
-echo "executing test dist/gloo-gateway-workshop/build/imported/gloo-mesh-2-0/templates/steps/deploy-kind-cluster/tests/cluster-healthy.test.js.liquid"
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/deploy-kind-clusters/tests/cluster-healthy.test.js.liquid"
 timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; exit 1; }
 -->
 
@@ -3476,7 +3456,7 @@ helm repo update
 helm upgrade -i -n gloo-system \
   gloo-gateway gloo-ee-helm/gloo-ee \
   --create-namespace \
-  --version 1.18.0-rc3 \
+  --version 1.18.0-rc4 \
   --kube-context $CLUSTER1 \
   --set-string license_key=$LICENSE_KEY \
   -f -<<EOF
@@ -3802,6 +3782,7 @@ timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || 
 
 
 ## Lab 22 - Expose the httpbin application through the gateway <a name="lab-22---expose-the-httpbin-application-through-the-gateway-"></a>
+
 
 
 
@@ -6585,7 +6566,7 @@ controller:
   trafficRouterPlugins:
     trafficRouterPlugins: |-
       - name: "argoproj-labs/gatewayAPI"
-        location: "https://github.com/argoproj-labs/rollouts-plugin-trafficrouter-gatewayapi/releases/download/v0.3.0/gateway-api-plugin-linux-amd64"
+        location: "https://github.com/argoproj-labs/rollouts-plugin-trafficrouter-gatewayapi/releases/download/v0.4.0/gatewayapi-plugin-linux-$(dpkg --print-architecture)"
 EOF
 ```
 
@@ -8588,7 +8569,7 @@ timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || 
 Here is the expected output:
 
 ```json,nocopy
-{"message":"portal config not found"}
+[{"apiProductMetadata":{"imageURL":"https://raw.githubusercontent.com/solo-io/workshops/master/images/bookinfo.jpg"},"description":"# Bookinfo REST API v1 Documentation\nThis is some extra information about the API\n","id":"bookinfo","name":"BookInfo REST API","versionsCount":2}]
 ```
 
 You can see that no portal configuration has been found.
@@ -8645,7 +8626,7 @@ spec:
     spec:
       serviceAccountName: portal-frontend
       containers:
-      - image: gcr.io/solo-public/docs/portal-frontend:gg-teams-apps-demo-v2.2
+      - image: gcr.io/product-excellence-424719/portal-frontend:gg-teams-apps-demo-v2.3
         args: ["--host", "0.0.0.0"]
         imagePullPolicy: Always
         name: portal-frontend
@@ -9421,7 +9402,7 @@ We can now configure the Gloo Gateway portal backend to use it:
 helm upgrade -i -n gloo-system \
   gloo-gateway gloo-ee-helm/gloo-ee \
   --create-namespace \
-  --version 1.18.0-rc3 \
+  --version 1.18.0-rc4 \
   --kube-context ${CLUSTER1} \
   --reuse-values \
   -f -<<EOF
@@ -9792,7 +9773,7 @@ spec:
       serviceAccountName: backstage
       containers:
         - name: backstage
-          image: gcr.io/solo-public/docs/portal-backstage-backend:v0.0.33
+          image: gcr.io/product-excellence-424719/portal-backstage-backend:v0.0.35
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
