@@ -15,7 +15,7 @@ source ./scripts/assert.sh
 
 ## Table of Contents
 * [Introduction](#introduction)
-* [Lab 1 - Deploy a KinD cluster](#lab-1---deploy-a-kind-cluster-)
+* [Lab 1 - Deploy KinD Cluster(s)](#lab-1---deploy-kind-cluster(s)-)
 * [Lab 2 - Deploy Keycloak](#lab-2---deploy-keycloak-)
 * [Lab 3 - Deploy Gloo Gateway](#lab-3---deploy-gloo-gateway-)
 * [Lab 4 - Deploy the httpbin demo app](#lab-4---deploy-the-httpbin-demo-app-)
@@ -32,15 +32,16 @@ source ./scripts/assert.sh
 * [Lab 15 - Use the `cache-control` response header to cache responses](#lab-15---use-the-`cache-control`-response-header-to-cache-responses-)
 * [Lab 16 - Deploy Argo Rollouts](#lab-16---deploy-argo-rollouts-)
 * [Lab 17 - Roll out a new app version using Argo Rollouts](#lab-17---roll-out-a-new-app-version-using-argo-rollouts-)
-* [Lab 18 - Deploy the Bookinfo sample application](#lab-18---deploy-the-bookinfo-sample-application-)
-* [Lab 19 - Expose the productpage API securely](#lab-19---expose-the-productpage-api-securely-)
-* [Lab 20 - Expose an external API and stitch it with the productpage API](#lab-20---expose-an-external-api-and-stitch-it-with-the-productpage-api-)
-* [Lab 21 - Expose the dev portal backend](#lab-21---expose-the-dev-portal-backend-)
-* [Lab 22 - Deploy and expose the dev portal frontend](#lab-22---deploy-and-expose-the-dev-portal-frontend-)
-* [Lab 23 - Demonstrate the self service capabilities](#lab-23---demonstrate-the-self-service-capabilities-)
-* [Lab 24 - Dev portal monetization](#lab-24---dev-portal-monetization-)
-* [Lab 25 - Deploy Backstage with the backend plugin](#lab-25---deploy-backstage-with-the-backend-plugin-)
-* [Lab 26 - Deploy OpenTelemetry Collector](#lab-26---deploy-opentelemetry-collector-)
+* [Lab 18 - Expose a service through TCP](#lab-18---expose-a-service-through-tcp-)
+* [Lab 19 - Deploy the Bookinfo sample application](#lab-19---deploy-the-bookinfo-sample-application-)
+* [Lab 20 - Expose the productpage API securely](#lab-20---expose-the-productpage-api-securely-)
+* [Lab 21 - Expose an external API and stitch it with the productpage API](#lab-21---expose-an-external-api-and-stitch-it-with-the-productpage-api-)
+* [Lab 22 - Expose the dev portal backend](#lab-22---expose-the-dev-portal-backend-)
+* [Lab 23 - Deploy and expose the dev portal frontend](#lab-23---deploy-and-expose-the-dev-portal-frontend-)
+* [Lab 24 - Demonstrate the self service capabilities](#lab-24---demonstrate-the-self-service-capabilities-)
+* [Lab 25 - Dev portal monetization](#lab-25---dev-portal-monetization-)
+* [Lab 26 - Deploy Backstage with the backend plugin](#lab-26---deploy-backstage-with-the-backend-plugin-)
+* [Lab 27 - Deploy OpenTelemetry Collector](#lab-27---deploy-opentelemetry-collector-)
 
 
 
@@ -90,23 +91,21 @@ You can find more information about Gloo Gateway in the official documentation: 
 
 
 
-## Lab 1 - Deploy a KinD cluster <a name="lab-1---deploy-a-kind-cluster-"></a>
+## Lab 1 - Deploy KinD Cluster(s) <a name="lab-1---deploy-kind-cluster(s)-"></a>
 
 
 Clone this repository and go to the directory where this `README.md` file is.
 
-Set the context environment variable:
+Set the context environment variables:
 
 ```bash
 export CLUSTER1=cluster1
 ```
 
-Run the following commands to deploy a Kubernetes cluster using [Kind](https://kind.sigs.k8s.io/):
-
+Deploy the KinD clusters:
 ```bash
-./scripts/deploy.sh 1 cluster1
+bash ./data/steps/deploy-kind-clusters/deploy-cluster1.sh
 ```
-
 Then run the following commands to wait for all the Pods to be ready:
 
 ```bash
@@ -115,37 +114,23 @@ Then run the following commands to wait for all the Pods to be ready:
 
 **Note:** If you run the `check.sh` script immediately after the `deploy.sh` script, you may see a jsonpath error. If that happens, simply wait a few seconds and try again.
 
-Once the `check.sh` script completes, when you execute the `kubectl get pods -A` command, you should see the following:
-
-```,nocopy
-NAMESPACE            NAME                                          READY   STATUS    RESTARTS   AGE
-kube-system          calico-kube-controllers-59d85c5c84-sbk4k      1/1     Running   0          4h26m
-kube-system          calico-node-przxs                             1/1     Running   0          4h26m
-kube-system          coredns-6955765f44-ln8f5                      1/1     Running   0          4h26m
-kube-system          coredns-6955765f44-s7xxx                      1/1     Running   0          4h26m
-kube-system          etcd-cluster1-control-plane                   1/1     Running   0          4h27m
-kube-system          kube-apiserver-cluster1-control-plane         1/1     Running   0          4h27m
-kube-system          kube-controller-manager-cluster1-control-plane1/1     Running   0          4h27m
-kube-system          kube-proxy-ksvzw                              1/1     Running   0          4h26m
-kube-system          kube-scheduler-cluster1-control-plane         1/1     Running   0          4h27m
-local-path-storage   local-path-provisioner-58f6947c7-lfmdx        1/1     Running   0          4h26m
-metallb-system       controller-5c9894b5cd-cn9x2                   1/1     Running   0          4h26m
-metallb-system       speaker-d7jkp                                 1/1     Running   0          4h26m
-```
+Once the `check.sh` script completes, execute the `kubectl get pods -A` command, and verify that all pods are in a running state.
 <!--bash
 cat <<'EOF' > ./test.js
 const helpers = require('./tests/chai-exec');
 
 describe("Clusters are healthy", () => {
     const clusters = ["cluster1"];
+
     clusters.forEach(cluster => {
         it(`Cluster ${cluster} is healthy`, () => helpers.k8sObjectIsPresent({ context: cluster, namespace: "default", k8sType: "service", k8sObj: "kubernetes" }));
     });
 });
 EOF
-echo "executing test dist/gloo-gateway-workshop/build/templates/steps/deploy-kind-cluster/tests/cluster-healthy.test.js.liquid"
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/deploy-kind-clusters/tests/cluster-healthy.test.js.liquid"
 timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; exit 1; }
 -->
+
 
 
 
@@ -789,7 +774,7 @@ helm repo update
 helm upgrade -i -n gloo-system \
   gloo-gateway gloo-ee-helm/gloo-ee \
   --create-namespace \
-  --version 1.18.0-rc3 \
+  --version 1.18.0-rc4 \
   --kube-context $CLUSTER1 \
   --set-string license_key=$LICENSE_KEY \
   -f -<<EOF
@@ -1101,6 +1086,7 @@ timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || 
 
 
 ## Lab 5 - Expose the httpbin application through the gateway <a name="lab-5---expose-the-httpbin-application-through-the-gateway-"></a>
+
 
 
 
@@ -3884,7 +3870,7 @@ controller:
   trafficRouterPlugins:
     trafficRouterPlugins: |-
       - name: "argoproj-labs/gatewayAPI"
-        location: "https://github.com/argoproj-labs/rollouts-plugin-trafficrouter-gatewayapi/releases/download/v0.3.0/gateway-api-plugin-linux-amd64"
+        location: "https://github.com/argoproj-labs/rollouts-plugin-trafficrouter-gatewayapi/releases/download/v0.4.0/gatewayapi-plugin-linux-$(dpkg --print-architecture)"
 EOF
 ```
 
@@ -4877,7 +4863,95 @@ EOF
 
 
 
-## Lab 18 - Deploy the Bookinfo sample application <a name="lab-18---deploy-the-bookinfo-sample-application-"></a>
+## Lab 18 - Expose a service through TCP <a name="lab-18---expose-a-service-through-tcp-"></a>
+
+Gloo Gateway allows you to expose TCP services using `TCPRoutes`.
+
+Let's create a `Gateway` object to create a proxy which is going to listen to incoming requests on port 8080:
+
+```bash
+kubectl apply --context ${CLUSTER1} -f - <<EOF
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: tcp
+  namespace: gloo-system
+spec:
+  gatewayClassName: gloo-gateway
+  listeners:
+  - name: httpbin
+    protocol: TCP
+    port: 8080
+    allowedRoutes:
+      kinds:
+      - kind: TCPRoute
+EOF
+```
+
+Then, you can create a `TCPRoute` to expose the `httpbin1` service through the gateway.
+
+```bash
+kubectl apply --context ${CLUSTER1} -f - <<EOF
+apiVersion: gateway.networking.k8s.io/v1alpha2
+kind: TCPRoute
+metadata:
+  name: tcp-httpbin
+  namespace: gloo-system
+spec:
+  parentRefs:
+  - name: tcp
+    sectionName: httpbin
+  rules:
+  - backendRefs:
+    - name: httpbin1
+      namespace: httpbin
+      port: 8000
+EOF
+```
+
+Note that `httpbin1` is an HTTP service, so it would normally be exposed through an `HTTPRoute` and someone would normally use `TCPRoutes` to expose services like databases.
+
+Finally, you need to create a `ReferenceGrant` to allow the gateway in the `gloo-system` namespace to send traffic to the `httpbin1` service in the `httpbin` namespace.
+
+```bash
+kubectl apply --context ${CLUSTER1} -f - <<EOF
+apiVersion: gateway.networking.k8s.io/v1beta1
+kind: ReferenceGrant
+metadata:
+  name: httpbin
+  namespace: httpbin
+spec:
+  from:
+  - group: gateway.networking.k8s.io
+    kind: TCPRoute
+    namespace: gloo-system
+  to:
+  - group: ""
+    kind: Service
+EOF
+```
+
+Set the environment variable for the service corresponding to the gateway:
+
+```bash
+export TCP_PROXY_IP=$(kubectl --context ${CLUSTER1} -n gloo-system get svc gloo-proxy-tcp -o jsonpath='{.status.loadBalancer.ingress[0].*}')
+```
+
+<!--bash
+cat <<'EOF' > ./test.js
+const helpersHttp = require('./tests/chai-http');
+
+describe("httpbin through TCP", () => {
+  it('Checking text \'headers\'', () => helpersHttp.checkBody({ host: `http://${process.env.TCP_PROXY_IP}:8080`, path: '/get', body: 'headers', match: true }));
+})
+EOF
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/tcp-route/tests/tcp.test.js.liquid"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; exit 1; }
+-->
+
+
+
+## Lab 19 - Deploy the Bookinfo sample application <a name="lab-19---deploy-the-bookinfo-sample-application-"></a>
 [<img src="https://img.youtube.com/vi/nzYcrjalY5A/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/nzYcrjalY5A "Video Link")
 
 We're going to deploy the Bookinfo sample application to demonstrate several features of Gloo Gateway.
@@ -4920,7 +4994,7 @@ Configure your hosts file to resolve bookinfo.example.com with the IP address of
 
 
 
-## Lab 19 - Expose the productpage API securely <a name="lab-19---expose-the-productpage-api-securely-"></a>
+## Lab 20 - Expose the productpage API securely <a name="lab-20---expose-the-productpage-api-securely-"></a>
 
 Gloo Gateway includes a developer portal, which provides a framework for managing API discovery, API client identity, and API policies.
 
@@ -5468,7 +5542,7 @@ EOF
 
 
 
-## Lab 20 - Expose an external API and stitch it with the productpage API <a name="lab-20---expose-an-external-api-and-stitch-it-with-the-productpage-api-"></a>
+## Lab 21 - Expose an external API and stitch it with the productpage API <a name="lab-21---expose-an-external-api-and-stitch-it-with-the-productpage-api-"></a>
 
 You can also use Gloo Gateway to expose an API that is outside of the cluster. In this section, we will expose `https://openlibrary.org/search.json`
 
@@ -5735,7 +5809,7 @@ EOF
 
 
 
-## Lab 21 - Expose the dev portal backend <a name="lab-21---expose-the-dev-portal-backend-"></a>
+## Lab 22 - Expose the dev portal backend <a name="lab-22---expose-the-dev-portal-backend-"></a>
 
 Now that your API has been exposed securely and our plans defined, lets advertise this API through a developer portal.
 
@@ -5887,7 +5961,7 @@ timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || 
 Here is the expected output:
 
 ```json,nocopy
-{"message":"portal config not found"}
+[{"apiProductMetadata":{"imageURL":"https://raw.githubusercontent.com/solo-io/workshops/master/images/bookinfo.jpg"},"description":"# Bookinfo REST API v1 Documentation\nThis is some extra information about the API\n","id":"bookinfo","name":"BookInfo REST API","versionsCount":2}]
 ```
 
 You can see that no portal configuration has been found.
@@ -5897,7 +5971,7 @@ We'll create it later.
 
 
 
-## Lab 22 - Deploy and expose the dev portal frontend <a name="lab-22---deploy-and-expose-the-dev-portal-frontend-"></a>
+## Lab 23 - Deploy and expose the dev portal frontend <a name="lab-23---deploy-and-expose-the-dev-portal-frontend-"></a>
 
 The developer frontend is provided as a fully functional template to allow you to customize it based on your own requirements.
 
@@ -5944,7 +6018,7 @@ spec:
     spec:
       serviceAccountName: portal-frontend
       containers:
-      - image: gcr.io/solo-public/docs/portal-frontend:gg-teams-apps-demo-v2.2
+      - image: gcr.io/product-excellence-424719/portal-frontend:gg-teams-apps-demo-v2.3
         args: ["--host", "0.0.0.0"]
         imagePullPolicy: Always
         name: portal-frontend
@@ -6298,7 +6372,7 @@ kubectl --context ${CLUSTER1} -n gloo-system delete portalgroups.portal.gloo.sol
 
 
 
-## Lab 23 - Demonstrate the self service capabilities <a name="lab-23---demonstrate-the-self-service-capabilities-"></a>
+## Lab 24 - Demonstrate the self service capabilities <a name="lab-24---demonstrate-the-self-service-capabilities-"></a>
 
 
 We're going to demonstrate how to allow users to create their own teams and applications, subscribe to API Products and get credentials.
@@ -6720,7 +6794,7 @@ We can now configure the Gloo Gateway portal backend to use it:
 helm upgrade -i -n gloo-system \
   gloo-gateway gloo-ee-helm/gloo-ee \
   --create-namespace \
-  --version 1.18.0-rc3 \
+  --version 1.18.0-rc4 \
   --kube-context ${CLUSTER1} \
   --reuse-values \
   -f -<<EOF
@@ -6929,7 +7003,7 @@ You should get a `200` response code the first 5 time and a `429` response code 
 
 
 
-## Lab 24 - Dev portal monetization <a name="lab-24---dev-portal-monetization-"></a>
+## Lab 25 - Dev portal monetization <a name="lab-25---dev-portal-monetization-"></a>
 
 The `portalMetadata` section of the `ApiProduct` objects we've created previously is used to add some metadata in the access logs.
 
@@ -7059,7 +7133,7 @@ timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=150 --bail || 
 
 
 
-## Lab 25 - Deploy Backstage with the backend plugin <a name="lab-25---deploy-backstage-with-the-backend-plugin-"></a>
+## Lab 26 - Deploy Backstage with the backend plugin <a name="lab-26---deploy-backstage-with-the-backend-plugin-"></a>
 
 Let's deploy Backstage:
 
@@ -7091,7 +7165,7 @@ spec:
       serviceAccountName: backstage
       containers:
         - name: backstage
-          image: gcr.io/solo-public/docs/portal-backstage-backend:v0.0.33
+          image: gcr.io/product-excellence-424719/portal-backstage-backend:v0.0.35
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
@@ -7235,7 +7309,7 @@ timeout --signal=INT 6m mocha ./test.js --timeout 10000 --retries=250 --bail || 
 
 
 
-## Lab 26 - Deploy OpenTelemetry Collector <a name="lab-26---deploy-opentelemetry-collector-"></a>
+## Lab 27 - Deploy OpenTelemetry Collector <a name="lab-27---deploy-opentelemetry-collector-"></a>
 
 Having metrics is essential for running applications reliably, and gateways are no exceptions.
 
