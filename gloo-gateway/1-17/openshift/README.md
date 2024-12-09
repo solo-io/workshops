@@ -1313,6 +1313,7 @@ timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || 
 
 
 
+
 The team in charge of the gateway can create a `Gateway` resource and configure an HTTP listener.
 
 
@@ -3845,7 +3846,7 @@ controller:
   trafficRouterPlugins:
     trafficRouterPlugins: |-
       - name: "argoproj-labs/gatewayAPI"
-        location: "https://github.com/argoproj-labs/rollouts-plugin-trafficrouter-gatewayapi/releases/download/v0.3.0/gateway-api-plugin-linux-amd64"
+        location: "https://github.com/argoproj-labs/rollouts-plugin-trafficrouter-gatewayapi/releases/download/v0.4.0/gatewayapi-plugin-linux-$(dpkg --print-architecture)"
 EOF
 ```
 
@@ -5848,7 +5849,7 @@ timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || 
 Here is the expected output:
 
 ```json,nocopy
-{"message":"portal config not found"}
+[{"apiProductMetadata":{"imageURL":"https://raw.githubusercontent.com/solo-io/workshops/master/images/bookinfo.jpg"},"description":"# Bookinfo REST API v1 Documentation\nThis is some extra information about the API\n","id":"bookinfo","name":"BookInfo REST API","versionsCount":2}]
 ```
 
 You can see that no portal configuration has been found.
@@ -5911,7 +5912,7 @@ spec:
     spec:
       serviceAccountName: portal-frontend
       containers:
-      - image: gcr.io/solo-public/docs/portal-frontend:v0.0.35
+      - image: gcr.io/product-excellence-424719/portal-frontend:v0.0.35
         args: ["--host", "0.0.0.0"]
         imagePullPolicy: Always
         name: portal-frontend
@@ -6303,7 +6304,7 @@ spec:
       serviceAccountName: backstage
       containers:
         - name: backstage
-          image: gcr.io/solo-public/docs/portal-backstage-backend:v0.0.33
+          image: gcr.io/product-excellence-424719/portal-backstage-backend:v0.0.35
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
