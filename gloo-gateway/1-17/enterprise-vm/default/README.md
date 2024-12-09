@@ -220,6 +220,7 @@ EOF
 
 
 
+
 The team in charge of the gateway can create a `Gateway` resource and configure an HTTP listener.
 
 
