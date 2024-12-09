@@ -15,7 +15,7 @@ source ./scripts/assert.sh
 
 ## Table of Contents
 * [Introduction](#introduction)
-* [Lab 1 - Deploy a KinD cluster](#lab-1---deploy-a-kind-cluster-)
+* [Lab 1 - Deploy KinD Cluster(s)](#lab-1---deploy-kind-cluster(s)-)
 * [Lab 2 - Deploy Istio in Ambient mode](#lab-2---deploy-istio-in-ambient-mode-)
 * [Lab 3 - Deploy Gloo Gateway](#lab-3---deploy-gloo-gateway-)
 * [Lab 4 - Deploy the httpbin demo app](#lab-4---deploy-the-httpbin-demo-app-)
@@ -76,23 +76,21 @@ You can find more information about Gloo Gateway in the official documentation: 
 
 
 
-## Lab 1 - Deploy a KinD cluster <a name="lab-1---deploy-a-kind-cluster-"></a>
+## Lab 1 - Deploy KinD Cluster(s) <a name="lab-1---deploy-kind-cluster(s)-"></a>
 
 
 Clone this repository and go to the directory where this `README.md` file is.
 
-Set the context environment variable:
+Set the context environment variables:
 
 ```bash
 export CLUSTER1=cluster1
 ```
 
-Run the following commands to deploy a Kubernetes cluster using [Kind](https://kind.sigs.k8s.io/):
-
+Deploy the KinD clusters:
 ```bash
-./scripts/deploy.sh 1 cluster1
+bash ./data/steps/deploy-kind-clusters/deploy-cluster1.sh
 ```
-
 Then run the following commands to wait for all the Pods to be ready:
 
 ```bash
@@ -101,37 +99,23 @@ Then run the following commands to wait for all the Pods to be ready:
 
 **Note:** If you run the `check.sh` script immediately after the `deploy.sh` script, you may see a jsonpath error. If that happens, simply wait a few seconds and try again.
 
-Once the `check.sh` script completes, when you execute the `kubectl get pods -A` command, you should see the following:
-
-```,nocopy
-NAMESPACE            NAME                                          READY   STATUS    RESTARTS   AGE
-kube-system          calico-kube-controllers-59d85c5c84-sbk4k      1/1     Running   0          4h26m
-kube-system          calico-node-przxs                             1/1     Running   0          4h26m
-kube-system          coredns-6955765f44-ln8f5                      1/1     Running   0          4h26m
-kube-system          coredns-6955765f44-s7xxx                      1/1     Running   0          4h26m
-kube-system          etcd-cluster1-control-plane                   1/1     Running   0          4h27m
-kube-system          kube-apiserver-cluster1-control-plane         1/1     Running   0          4h27m
-kube-system          kube-controller-manager-cluster1-control-plane1/1     Running   0          4h27m
-kube-system          kube-proxy-ksvzw                              1/1     Running   0          4h26m
-kube-system          kube-scheduler-cluster1-control-plane         1/1     Running   0          4h27m
-local-path-storage   local-path-provisioner-58f6947c7-lfmdx        1/1     Running   0          4h26m
-metallb-system       controller-5c9894b5cd-cn9x2                   1/1     Running   0          4h26m
-metallb-system       speaker-d7jkp                                 1/1     Running   0          4h26m
-```
+Once the `check.sh` script completes, execute the `kubectl get pods -A` command, and verify that all pods are in a running state.
 <!--bash
 cat <<'EOF' > ./test.js
 const helpers = require('./tests/chai-exec');
 
 describe("Clusters are healthy", () => {
     const clusters = ["cluster1"];
+
     clusters.forEach(cluster => {
         it(`Cluster ${cluster} is healthy`, () => helpers.k8sObjectIsPresent({ context: cluster, namespace: "default", k8sType: "service", k8sObj: "kubernetes" }));
     });
 });
 EOF
-echo "executing test dist/gloo-gateway-workshop/build/templates/steps/deploy-kind-cluster/tests/cluster-healthy.test.js.liquid"
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/deploy-kind-clusters/tests/cluster-healthy.test.js.liquid"
 timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; exit 1; }
 -->
+
 
 
 
@@ -522,6 +506,7 @@ timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || 
 
 
 ## Lab 5 - Expose the httpbin application through the gateway <a name="lab-5---expose-the-httpbin-application-through-the-gateway-"></a>
+
 
 
 
@@ -1896,7 +1881,7 @@ controller:
   trafficRouterPlugins:
     trafficRouterPlugins: |-
       - name: "argoproj-labs/gatewayAPI"
-        location: "https://github.com/argoproj-labs/rollouts-plugin-trafficrouter-gatewayapi/releases/download/v0.3.0/gateway-api-plugin-linux-amd64"
+        location: "https://github.com/argoproj-labs/rollouts-plugin-trafficrouter-gatewayapi/releases/download/v0.4.0/gatewayapi-plugin-linux-$(dpkg --print-architecture)"
 EOF
 ```
 
