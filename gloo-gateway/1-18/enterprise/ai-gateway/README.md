@@ -15,7 +15,7 @@ source ./scripts/assert.sh
 
 ## Table of Contents
 * [Introduction](#introduction)
-* [Lab 1 - Deploy a KinD cluster](#lab-1---deploy-a-kind-cluster-)
+* [Lab 1 - Deploy KinD Cluster(s)](#lab-1---deploy-kind-cluster(s)-)
 * [Lab 2 - Deploy Gloo Gateway](#lab-2---deploy-gloo-gateway-)
 * [Lab 3 - Deploy Gloo AI Gateway](#lab-3---deploy-gloo-ai-gateway-)
 * [Lab 4 - Managing LLM provider credentials with Gloo AI Gateway](#lab-4---managing-llm-provider-credentials-with-gloo-ai-gateway-)
@@ -75,23 +75,21 @@ You can find more information about Gloo Gateway in the official documentation: 
 
 
 
-## Lab 1 - Deploy a KinD cluster <a name="lab-1---deploy-a-kind-cluster-"></a>
+## Lab 1 - Deploy KinD Cluster(s) <a name="lab-1---deploy-kind-cluster(s)-"></a>
 
 
 Clone this repository and go to the directory where this `README.md` file is.
 
-Set the context environment variable:
+Set the context environment variables:
 
 ```bash
 export CLUSTER1=cluster1
 ```
 
-Run the following commands to deploy a Kubernetes cluster using [Kind](https://kind.sigs.k8s.io/):
-
+Deploy the KinD clusters:
 ```bash
-./scripts/deploy.sh 1 cluster1
+bash ./data/steps/deploy-kind-clusters/deploy-cluster1.sh
 ```
-
 Then run the following commands to wait for all the Pods to be ready:
 
 ```bash
@@ -100,37 +98,23 @@ Then run the following commands to wait for all the Pods to be ready:
 
 **Note:** If you run the `check.sh` script immediately after the `deploy.sh` script, you may see a jsonpath error. If that happens, simply wait a few seconds and try again.
 
-Once the `check.sh` script completes, when you execute the `kubectl get pods -A` command, you should see the following:
-
-```,nocopy
-NAMESPACE            NAME                                          READY   STATUS    RESTARTS   AGE
-kube-system          calico-kube-controllers-59d85c5c84-sbk4k      1/1     Running   0          4h26m
-kube-system          calico-node-przxs                             1/1     Running   0          4h26m
-kube-system          coredns-6955765f44-ln8f5                      1/1     Running   0          4h26m
-kube-system          coredns-6955765f44-s7xxx                      1/1     Running   0          4h26m
-kube-system          etcd-cluster1-control-plane                   1/1     Running   0          4h27m
-kube-system          kube-apiserver-cluster1-control-plane         1/1     Running   0          4h27m
-kube-system          kube-controller-manager-cluster1-control-plane1/1     Running   0          4h27m
-kube-system          kube-proxy-ksvzw                              1/1     Running   0          4h26m
-kube-system          kube-scheduler-cluster1-control-plane         1/1     Running   0          4h27m
-local-path-storage   local-path-provisioner-58f6947c7-lfmdx        1/1     Running   0          4h26m
-metallb-system       controller-5c9894b5cd-cn9x2                   1/1     Running   0          4h26m
-metallb-system       speaker-d7jkp                                 1/1     Running   0          4h26m
-```
+Once the `check.sh` script completes, execute the `kubectl get pods -A` command, and verify that all pods are in a running state.
 <!--bash
 cat <<'EOF' > ./test.js
 const helpers = require('./tests/chai-exec');
 
 describe("Clusters are healthy", () => {
     const clusters = ["cluster1"];
+
     clusters.forEach(cluster => {
         it(`Cluster ${cluster} is healthy`, () => helpers.k8sObjectIsPresent({ context: cluster, namespace: "default", k8sType: "service", k8sObj: "kubernetes" }));
     });
 });
 EOF
-echo "executing test dist/gloo-gateway-workshop/build/templates/steps/deploy-kind-cluster/tests/cluster-healthy.test.js.liquid"
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/deploy-kind-clusters/tests/cluster-healthy.test.js.liquid"
 timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; exit 1; }
 -->
+
 
 
 
@@ -158,7 +142,7 @@ helm repo update
 helm upgrade -i -n gloo-system \
   gloo-gateway gloo-ee-helm/gloo-ee \
   --create-namespace \
-  --version 1.18.0-rc3 \
+  --version 1.18.0-rc4 \
   --kube-context $CLUSTER1 \
   --set-string license_key=$LICENSE_KEY \
   -f -<<EOF
@@ -1137,7 +1121,6 @@ kubectl --context $CLUSTER1 delete ratelimitconfigs per-user-counter -n gloo-sys
 
 
 
-
 ## Lab 7 - Model failover <a name="lab-7---model-failover-"></a>
 
 Failover is a mechanism that ensures continuous service by automatically switching to a redundant or standby system upon the failure or unavailability of the primary system.
@@ -1713,7 +1696,6 @@ kubectl --context $CLUSTER1 delete routeoptions mistral-ai-opt -n gloo-system
 
 
 
-
 ## Lab 10 - Retrieval Augmented Generation (RAG) <a name="lab-10---retrieval-augmented-generation-(rag)-"></a>
 
 Retrieval augmented generation or RAG is a technique of providing relevant context by retrieving relevant data from one or more datasets and augmenting the prompt with the retrieved information. This approach helps LLMs to generate more accurate and relevant responses and to a certain point prevent hallucinations.
@@ -1963,7 +1945,7 @@ If you modify the prompt so it's still semantically similar but not exactly the 
 ```shell
 curl -v "$GLOO_AI_GATEWAY:8080/openai" -H content-type:application/json \
     --data '{
-    "model": "gpt-4o",
+    "model": "gpt-4o-mini",
     "messages": [
      {
         "role": "user",
@@ -2031,7 +2013,6 @@ Next, cleanup the resources:
 ```bash
 kubectl --context $CLUSTER1 delete routeoptions openai-opt -n gloo-system
 ```
-
 
 
 
