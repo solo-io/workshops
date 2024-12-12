@@ -21,27 +21,28 @@ source ./scripts/assert.sh
 * [Lab 4 - Deploy the httpbin demo app](#lab-4---deploy-the-httpbin-demo-app-)
 * [Lab 5 - Expose the httpbin application through the gateway](#lab-5---expose-the-httpbin-application-through-the-gateway-)
 * [Lab 6 - Delegate with control](#lab-6---delegate-with-control-)
-* [Lab 7 - Modify the requests and responses](#lab-7---modify-the-requests-and-responses-)
-* [Lab 8 - Split traffic between 2 backend services](#lab-8---split-traffic-between-2-backend-services-)
-* [Lab 9 - Securing the access with OAuth](#lab-9---securing-the-access-with-oauth-)
-* [Lab 10 - Use the transformation filter to manipulate headers](#lab-10---use-the-transformation-filter-to-manipulate-headers-)
-* [Lab 11 - Apply rate limiting to the Gateway](#lab-11---apply-rate-limiting-to-the-gateway-)
-* [Lab 12 - Use the JWT filter to validate JWT and create headers from claims](#lab-12---use-the-jwt-filter-to-validate-jwt-and-create-headers-from-claims-)
-* [Lab 13 - Use the Web Application Firewall filter](#lab-13---use-the-web-application-firewall-filter-)
-* [Lab 14 - Validate and authorize client certificates](#lab-14---validate-and-authorize-client-certificates-)
-* [Lab 15 - Use the `cache-control` response header to cache responses](#lab-15---use-the-`cache-control`-response-header-to-cache-responses-)
-* [Lab 16 - Deploy Argo Rollouts](#lab-16---deploy-argo-rollouts-)
-* [Lab 17 - Roll out a new app version using Argo Rollouts](#lab-17---roll-out-a-new-app-version-using-argo-rollouts-)
-* [Lab 18 - Expose a service through TCP](#lab-18---expose-a-service-through-tcp-)
-* [Lab 19 - Deploy the Bookinfo sample application](#lab-19---deploy-the-bookinfo-sample-application-)
-* [Lab 20 - Expose the productpage API securely](#lab-20---expose-the-productpage-api-securely-)
-* [Lab 21 - Expose an external API and stitch it with the productpage API](#lab-21---expose-an-external-api-and-stitch-it-with-the-productpage-api-)
-* [Lab 22 - Expose the dev portal backend](#lab-22---expose-the-dev-portal-backend-)
-* [Lab 23 - Deploy and expose the dev portal frontend](#lab-23---deploy-and-expose-the-dev-portal-frontend-)
-* [Lab 24 - Demonstrate the self service capabilities](#lab-24---demonstrate-the-self-service-capabilities-)
-* [Lab 25 - Dev portal monetization](#lab-25---dev-portal-monetization-)
-* [Lab 26 - Deploy Backstage with the backend plugin](#lab-26---deploy-backstage-with-the-backend-plugin-)
-* [Lab 27 - Deploy OpenTelemetry Collector](#lab-27---deploy-opentelemetry-collector-)
+* [Lab 7 - Direct response](#lab-7---direct-response-)
+* [Lab 8 - Modify the requests and responses](#lab-8---modify-the-requests-and-responses-)
+* [Lab 9 - Split traffic between 2 backend services](#lab-9---split-traffic-between-2-backend-services-)
+* [Lab 10 - Securing the access with OAuth](#lab-10---securing-the-access-with-oauth-)
+* [Lab 11 - Use the transformation filter to manipulate headers](#lab-11---use-the-transformation-filter-to-manipulate-headers-)
+* [Lab 12 - Apply rate limiting to the Gateway](#lab-12---apply-rate-limiting-to-the-gateway-)
+* [Lab 13 - Use the JWT filter to validate JWT and create headers from claims](#lab-13---use-the-jwt-filter-to-validate-jwt-and-create-headers-from-claims-)
+* [Lab 14 - Use the Web Application Firewall filter](#lab-14---use-the-web-application-firewall-filter-)
+* [Lab 15 - Validate and authorize client certificates](#lab-15---validate-and-authorize-client-certificates-)
+* [Lab 16 - Use the `cache-control` response header to cache responses](#lab-16---use-the-`cache-control`-response-header-to-cache-responses-)
+* [Lab 17 - Deploy Argo Rollouts](#lab-17---deploy-argo-rollouts-)
+* [Lab 18 - Roll out a new app version using Argo Rollouts](#lab-18---roll-out-a-new-app-version-using-argo-rollouts-)
+* [Lab 19 - Expose a service through TCP](#lab-19---expose-a-service-through-tcp-)
+* [Lab 20 - Deploy the Bookinfo sample application](#lab-20---deploy-the-bookinfo-sample-application-)
+* [Lab 21 - Expose the productpage API securely](#lab-21---expose-the-productpage-api-securely-)
+* [Lab 22 - Expose an external API and stitch it with the productpage API](#lab-22---expose-an-external-api-and-stitch-it-with-the-productpage-api-)
+* [Lab 23 - Expose the dev portal backend](#lab-23---expose-the-dev-portal-backend-)
+* [Lab 24 - Deploy and expose the dev portal frontend](#lab-24---deploy-and-expose-the-dev-portal-frontend-)
+* [Lab 25 - Demonstrate the self service capabilities](#lab-25---demonstrate-the-self-service-capabilities-)
+* [Lab 26 - Dev portal monetization](#lab-26---dev-portal-monetization-)
+* [Lab 27 - Deploy Backstage with the backend plugin](#lab-27---deploy-backstage-with-the-backend-plugin-)
+* [Lab 28 - Deploy OpenTelemetry Collector](#lab-28---deploy-opentelemetry-collector-)
 
 
 
@@ -774,7 +775,7 @@ helm repo update
 helm upgrade -i -n gloo-system \
   gloo-gateway gloo-ee-helm/gloo-ee \
   --create-namespace \
-  --version 1.18.0-rc4 \
+  --version 1.18.0-rc6 \
   --kube-context $CLUSTER1 \
   --set-string license_key=$LICENSE_KEY \
   -f -<<EOF
@@ -873,6 +874,7 @@ timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || 
 
 ## Lab 4 - Deploy the httpbin demo app <a name="lab-4---deploy-the-httpbin-demo-app-"></a>
 
+
 We're going to deploy the httpbin application to demonstrate several features of Gloo Gateway.
 
 You can find more information about this application [here](http://httpbin.org/).
@@ -944,13 +946,6 @@ spec:
           httpGet:
             path: /status/200
             port: http
-        resources:
-          limits:
-            cpu: 1
-            memory: 512Mi
-          requests:
-            cpu: 100m
-            memory: 256Mi
         env:
         - name: K8S_MEM_LIMIT
           valueFrom:
@@ -1027,13 +1022,6 @@ spec:
           httpGet:
             path: /status/200
             port: http
-        resources:
-          limits:
-            cpu: 1
-            memory: 512Mi
-          requests:
-            cpu: 100m
-            memory: 256Mi
         env:
         - name: K8S_MEM_LIMIT
           valueFrom:
@@ -1891,7 +1879,76 @@ timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || 
 
 
 
-## Lab 7 - Modify the requests and responses <a name="lab-7---modify-the-requests-and-responses-"></a>
+## Lab 7 - Direct response <a name="lab-7---direct-response-"></a>
+
+The Kubernetes Gateway API doesn't provide the ability to configure direct responses (yet), so we've added this capability with a custom filter.
+
+You need to create a `DirectResponse` object (in this example, to provide a health check endpoint).
+
+```bash
+kubectl apply --context ${CLUSTER1} -f - <<EOF
+apiVersion: gateway.gloo.solo.io/v1alpha1
+kind: DirectResponse
+metadata:
+  name: health
+  namespace: httpbin
+spec:
+  status: 200
+  body: "The service is available"
+EOF
+```
+
+Then, you can update the `HTTPRoute` to leverage it.
+
+```bash
+kubectl apply --context ${CLUSTER1} -f - <<EOF
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: httpbin
+  namespace: httpbin
+spec:
+  rules:
+    - matches:
+      - path:
+          type: PathPrefix
+          value: /health
+      filters:
+      - type: ExtensionRef
+        extensionRef:
+          name: health
+          group: gateway.gloo.solo.io
+          kind: DirectResponse
+EOF
+```
+
+Check you can access the `/health` path and get a `200` response code:
+
+```shell
+curl -k https://httpbin.example.com/health -w "%{http_code}"
+```
+
+Here is the expected output:
+
+```,nocopy
+200
+```
+
+<!--bash
+cat <<'EOF' > ./test.js
+const helpersHttp = require('./tests/chai-http');
+
+describe("Direct response returns 200", () => {
+  it('Checking \'200\' status code', () => helpersHttp.checkURL({ host: `https://httpbin.example.com`, path: '/health', retCode: 200 }));
+})
+EOF
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/direct-response/tests/direct-response.test.js.liquid"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; exit 1; }
+-->
+
+
+
+## Lab 8 - Modify the requests and responses <a name="lab-8---modify-the-requests-and-responses-"></a>
 
 The Kubernetes Gateway API provides different options to add/update/remove request and response headers.
 
@@ -2369,7 +2426,7 @@ kubectl delete --context ${CLUSTER1} -n httpbin routeoption routeoption
 
 
 
-## Lab 8 - Split traffic between 2 backend services <a name="lab-8---split-traffic-between-2-backend-services-"></a>
+## Lab 9 - Split traffic between 2 backend services <a name="lab-9---split-traffic-between-2-backend-services-"></a>
 
 You can split traffic between different backends, with different weights.
 
@@ -2442,7 +2499,7 @@ timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || 
 
 
 
-## Lab 9 - Securing the access with OAuth <a name="lab-9---securing-the-access-with-oauth-"></a>
+## Lab 10 - Securing the access with OAuth <a name="lab-10---securing-the-access-with-oauth-"></a>
 
 In this step, we're going to secure the access to the `httpbin` service using OAuth.
 
@@ -2687,7 +2744,7 @@ If you open the browser in incognito and login using the username `user2` and th
 
 
 
-## Lab 10 - Use the transformation filter to manipulate headers <a name="lab-10---use-the-transformation-filter-to-manipulate-headers-"></a>
+## Lab 11 - Use the transformation filter to manipulate headers <a name="lab-11---use-the-transformation-filter-to-manipulate-headers-"></a>
 
 
 In this step, we're going to use a regular expression to extract a part of an existing header and to create a new one:
@@ -2741,7 +2798,7 @@ timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || 
 
 
 
-## Lab 11 - Apply rate limiting to the Gateway <a name="lab-11---apply-rate-limiting-to-the-gateway-"></a>
+## Lab 12 - Apply rate limiting to the Gateway <a name="lab-12---apply-rate-limiting-to-the-gateway-"></a>
 
 In this step, we're going to apply rate limiting to the Gateway to only allow 3 requests per minute for the users of the `solo.io` organization.
 
@@ -2852,7 +2909,7 @@ kubectl delete --context ${CLUSTER1} -n httpbin routeoption routeoption
 
 
 
-## Lab 12 - Use the JWT filter to validate JWT and create headers from claims <a name="lab-12---use-the-jwt-filter-to-validate-jwt-and-create-headers-from-claims-"></a>
+## Lab 13 - Use the JWT filter to validate JWT and create headers from claims <a name="lab-13---use-the-jwt-filter-to-validate-jwt-and-create-headers-from-claims-"></a>
 
 In this step, we're going to validate the JWT token and to create a new header from the `email` claim.
 
@@ -3090,7 +3147,7 @@ kubectl --context ${CLUSTER1} -n gloo-system delete virtualhostoption jwt
 
 
 
-## Lab 13 - Use the Web Application Firewall filter <a name="lab-13---use-the-web-application-firewall-filter-"></a>
+## Lab 14 - Use the Web Application Firewall filter <a name="lab-14---use-the-web-application-firewall-filter-"></a>
 
 A web application firewall (WAF) protects web applications by monitoring, filtering, and blocking potentially harmful traffic and attacks that can overtake or exploit them.
 
@@ -3175,7 +3232,7 @@ kubectl delete --context ${CLUSTER1} -n gloo-system routeoption waf
 
 
 
-## Lab 14 - Validate and authorize client certificates <a name="lab-14---validate-and-authorize-client-certificates-"></a>
+## Lab 15 - Validate and authorize client certificates <a name="lab-15---validate-and-authorize-client-certificates-"></a>
 
 In this step, we're going to secure the access to the httpbin service using mutual TLS (mTLS), and apply further authorization based on information in the client certificate.
 
@@ -3594,7 +3651,7 @@ kubectl --context ${CLUSTER1} -n httpbin delete RouteOption routeoption
 
 
 
-## Lab 15 - Use the `cache-control` response header to cache responses <a name="lab-15---use-the-`cache-control`-response-header-to-cache-responses-"></a>
+## Lab 16 - Use the `cache-control` response header to cache responses <a name="lab-16---use-the-`cache-control`-response-header-to-cache-responses-"></a>
 
 An HTTP or HTTPS listener on your gateway can be configured to cache responses for upstream services.
 When the listener routes a request to an upstream service, the response from the upstream is automatically cached by the caching server if it contains a `cache-control` response header.
@@ -3851,7 +3908,7 @@ kubectl --context ${CLUSTER1} -n gloo-system delete httplisteneroption cache
 
 
 
-## Lab 16 - Deploy Argo Rollouts <a name="lab-16---deploy-argo-rollouts-"></a>
+## Lab 17 - Deploy Argo Rollouts <a name="lab-17---deploy-argo-rollouts-"></a>
 
 [Argo Rollouts](https://argoproj.github.io/rollouts/) is a declarative progressive delivery tool for Kubernetes that we can use to update applications gradually, using a blue/green or canary strategy to manage the rollout.
 
@@ -3887,7 +3944,7 @@ Now we're ready to use Argo Rollouts to progressively update applications as par
 
 
 
-## Lab 17 - Roll out a new app version using Argo Rollouts <a name="lab-17---roll-out-a-new-app-version-using-argo-rollouts-"></a>
+## Lab 18 - Roll out a new app version using Argo Rollouts <a name="lab-18---roll-out-a-new-app-version-using-argo-rollouts-"></a>
 
 We're going to use Argo Rollouts to gradually deliver an upgraded version of our httpbin application.
 To do this, we'll define a resource that lets Argo Rollouts know how we want it to handle updates to our application,
@@ -4823,13 +4880,6 @@ spec:
           httpGet:
             path: /status/200
             port: http
-        resources:
-          limits:
-            cpu: 1
-            memory: 512Mi
-          requests:
-            cpu: 100m
-            memory: 256Mi
         env:
         - name: K8S_MEM_LIMIT
           valueFrom:
@@ -4863,7 +4913,7 @@ EOF
 
 
 
-## Lab 18 - Expose a service through TCP <a name="lab-18---expose-a-service-through-tcp-"></a>
+## Lab 19 - Expose a service through TCP <a name="lab-19---expose-a-service-through-tcp-"></a>
 
 Gloo Gateway allows you to expose TCP services using `TCPRoutes`.
 
@@ -4951,7 +5001,7 @@ timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || 
 
 
 
-## Lab 19 - Deploy the Bookinfo sample application <a name="lab-19---deploy-the-bookinfo-sample-application-"></a>
+## Lab 20 - Deploy the Bookinfo sample application <a name="lab-20---deploy-the-bookinfo-sample-application-"></a>
 [<img src="https://img.youtube.com/vi/nzYcrjalY5A/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/nzYcrjalY5A "Video Link")
 
 We're going to deploy the Bookinfo sample application to demonstrate several features of Gloo Gateway.
@@ -4994,7 +5044,7 @@ Configure your hosts file to resolve bookinfo.example.com with the IP address of
 
 
 
-## Lab 20 - Expose the productpage API securely <a name="lab-20---expose-the-productpage-api-securely-"></a>
+## Lab 21 - Expose the productpage API securely <a name="lab-21---expose-the-productpage-api-securely-"></a>
 
 Gloo Gateway includes a developer portal, which provides a framework for managing API discovery, API client identity, and API policies.
 
@@ -5542,7 +5592,7 @@ EOF
 
 
 
-## Lab 21 - Expose an external API and stitch it with the productpage API <a name="lab-21---expose-an-external-api-and-stitch-it-with-the-productpage-api-"></a>
+## Lab 22 - Expose an external API and stitch it with the productpage API <a name="lab-22---expose-an-external-api-and-stitch-it-with-the-productpage-api-"></a>
 
 You can also use Gloo Gateway to expose an API that is outside of the cluster. In this section, we will expose `https://openlibrary.org/search.json`
 
@@ -5809,7 +5859,7 @@ EOF
 
 
 
-## Lab 22 - Expose the dev portal backend <a name="lab-22---expose-the-dev-portal-backend-"></a>
+## Lab 23 - Expose the dev portal backend <a name="lab-23---expose-the-dev-portal-backend-"></a>
 
 Now that your API has been exposed securely and our plans defined, lets advertise this API through a developer portal.
 
@@ -5971,7 +6021,7 @@ We'll create it later.
 
 
 
-## Lab 23 - Deploy and expose the dev portal frontend <a name="lab-23---deploy-and-expose-the-dev-portal-frontend-"></a>
+## Lab 24 - Deploy and expose the dev portal frontend <a name="lab-24---deploy-and-expose-the-dev-portal-frontend-"></a>
 
 The developer frontend is provided as a fully functional template to allow you to customize it based on your own requirements.
 
@@ -6372,7 +6422,7 @@ kubectl --context ${CLUSTER1} -n gloo-system delete portalgroups.portal.gloo.sol
 
 
 
-## Lab 24 - Demonstrate the self service capabilities <a name="lab-24---demonstrate-the-self-service-capabilities-"></a>
+## Lab 25 - Demonstrate the self service capabilities <a name="lab-25---demonstrate-the-self-service-capabilities-"></a>
 
 
 We're going to demonstrate how to allow users to create their own teams and applications, subscribe to API Products and get credentials.
@@ -6794,7 +6844,7 @@ We can now configure the Gloo Gateway portal backend to use it:
 helm upgrade -i -n gloo-system \
   gloo-gateway gloo-ee-helm/gloo-ee \
   --create-namespace \
-  --version 1.18.0-rc4 \
+  --version 1.18.0-rc6 \
   --kube-context ${CLUSTER1} \
   --reuse-values \
   -f -<<EOF
@@ -7003,7 +7053,7 @@ You should get a `200` response code the first 5 time and a `429` response code 
 
 
 
-## Lab 25 - Dev portal monetization <a name="lab-25---dev-portal-monetization-"></a>
+## Lab 26 - Dev portal monetization <a name="lab-26---dev-portal-monetization-"></a>
 
 The `portalMetadata` section of the `ApiProduct` objects we've created previously is used to add some metadata in the access logs.
 
@@ -7133,7 +7183,7 @@ timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=150 --bail || 
 
 
 
-## Lab 26 - Deploy Backstage with the backend plugin <a name="lab-26---deploy-backstage-with-the-backend-plugin-"></a>
+## Lab 27 - Deploy Backstage with the backend plugin <a name="lab-27---deploy-backstage-with-the-backend-plugin-"></a>
 
 Let's deploy Backstage:
 
@@ -7309,7 +7359,7 @@ timeout --signal=INT 6m mocha ./test.js --timeout 10000 --retries=250 --bail || 
 
 
 
-## Lab 27 - Deploy OpenTelemetry Collector <a name="lab-27---deploy-opentelemetry-collector-"></a>
+## Lab 28 - Deploy OpenTelemetry Collector <a name="lab-28---deploy-opentelemetry-collector-"></a>
 
 Having metrics is essential for running applications reliably, and gateways are no exceptions.
 
