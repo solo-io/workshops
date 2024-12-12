@@ -293,6 +293,7 @@ timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || 
 
 ## Lab 4 - Deploy the httpbin demo app <a name="lab-4---deploy-the-httpbin-demo-app-"></a>
 
+
 We're going to deploy the httpbin application to demonstrate several features of Gloo Gateway.
 
 You can find more information about this application [here](http://httpbin.org/).
@@ -364,13 +365,6 @@ spec:
           httpGet:
             path: /status/200
             port: http
-        resources:
-          limits:
-            cpu: 1
-            memory: 512Mi
-          requests:
-            cpu: 100m
-            memory: 256Mi
         env:
         - name: K8S_MEM_LIMIT
           valueFrom:
@@ -447,13 +441,6 @@ spec:
           httpGet:
             path: /status/200
             port: http
-        resources:
-          limits:
-            cpu: 1
-            memory: 512Mi
-          requests:
-            cpu: 100m
-            memory: 256Mi
         env:
         - name: K8S_MEM_LIMIT
           valueFrom:
@@ -2834,13 +2821,6 @@ spec:
           httpGet:
             path: /status/200
             port: http
-        resources:
-          limits:
-            cpu: 1
-            memory: 512Mi
-          requests:
-            cpu: 100m
-            memory: 256Mi
         env:
         - name: K8S_MEM_LIMIT
           valueFrom:
