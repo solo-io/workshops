@@ -2663,7 +2663,7 @@ helm repo update
 helm upgrade -i -n gloo-system \
   gloo-gateway gloo-ee-helm/gloo-ee \
   --create-namespace \
-  --version 1.18.0-rc6 \
+  --version 1.18.0 \
   --kube-context $CLUSTER1 \
   --set-string license_key=$LICENSE_KEY \
   -f -<<EOF
@@ -4604,7 +4604,7 @@ Configure your hosts file to resolve bookinfo.example.com with the IP address of
 
 You can access it using the following command:
 
-```
+```bash
 curl -k https://bookinfo.example.com/api/v1/products/0/reviews
 ```
 
@@ -4639,7 +4639,7 @@ kubectl --context ${CLUSTER1} -n bookinfo-frontends wait --for=jsonpath='{.spec.
 
 Try accessing the application again:
 
-```
+```bash
 curl -k https://bookinfo.example.com/api/v1/products/0/reviews
 ```
 
@@ -4683,7 +4683,7 @@ kubectl --context ${CLUSTER1} -n bookinfo-frontends rollout status deploy/produc
 
 Try accessing the application again:
 
-```
+```bash
 curl -k https://bookinfo.example.com/api/v1/products/0/reviews
 ```
 
