@@ -176,7 +176,7 @@ helm repo add gloo-ee-helm https://storage.googleapis.com/gloo-ee-helm
 helm repo add glooe https://storage.googleapis.com/gloo-ee-helm
 helm repo update
 helm upgrade --install gloo-gateway gloo-ee-helm/gloo-ee --namespace gloo-system \
-  --create-namespace --version 1.18.0-rc6 --set-string license_key=$LICENSE_KEY --devel
+  --create-namespace --version 1.18.0 --set-string license_key=$LICENSE_KEY --devel
 ```
 
 Use the following commands to wait for the Gloo Edge components to be deployed:
@@ -2655,7 +2655,7 @@ helm repo update
 helm upgrade -i -n gloo-system \
   gloo-gateway gloo-ee-helm/gloo-ee \
   --create-namespace \
-  --version 1.18.0-rc6 \
+  --version 1.18.0 \
   --kube-context $CLUSTER1 \
   --set-string license_key=$LICENSE_KEY \
   -f -<<EOF
@@ -8567,7 +8567,7 @@ We can now configure the Gloo Gateway portal backend to use it:
 helm upgrade -i -n gloo-system \
   gloo-gateway gloo-ee-helm/gloo-ee \
   --create-namespace \
-  --version 1.18.0-rc6 \
+  --version 1.18.0 \
   --kube-context ${CLUSTER1} \
   --reuse-values \
   -f -<<EOF
