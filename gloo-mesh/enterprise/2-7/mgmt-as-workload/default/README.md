@@ -15,7 +15,7 @@ source ./scripts/assert.sh
 
 ## Table of Contents
 * [Introduction](#introduction)
-* [Lab 1 - Deploy KinD clusters](#lab-1---deploy-kind-clusters-)
+* [Lab 1 - Deploy KinD Cluster(s)](#lab-1---deploy-kind-cluster(s)-)
 * [Lab 2 - Deploy and register Gloo Mesh](#lab-2---deploy-and-register-gloo-mesh-)
 * [Lab 3 - Deploy Istio using Gloo Mesh Lifecycle Manager](#lab-3---deploy-istio-using-gloo-mesh-lifecycle-manager-)
 * [Lab 4 - Deploy the Bookinfo demo app](#lab-4---deploy-the-bookinfo-demo-app-)
@@ -67,7 +67,7 @@ You can find more information about Gloo Mesh Enterprise in the official documen
 
 
 
-## Lab 1 - Deploy KinD clusters <a name="lab-1---deploy-kind-clusters-"></a>
+## Lab 1 - Deploy KinD Cluster(s) <a name="lab-1---deploy-kind-cluster(s)-"></a>
 
 
 Clone this repository and go to the directory where this `README.md` file is.
@@ -80,13 +80,12 @@ export CLUSTER1=cluster1
 export CLUSTER2=cluster2
 ```
 
-Run the following commands to deploy two Kubernetes clusters using [Kind](https://kind.sigs.k8s.io/):
+Deploy the KinD clusters:
 
 ```bash
-./scripts/deploy-aws-with-calico.sh 1 cluster1 us-west us-west-1
-./scripts/deploy-aws-with-calico.sh 2 cluster2 us-west us-west-2
+bash ./data/steps/deploy-kind-clusters/deploy-cluster1.sh
+bash ./data/steps/deploy-kind-clusters/deploy-cluster2.sh
 ```
-
 Then run the following commands to wait for all the Pods to be ready:
 
 ```bash
@@ -96,45 +95,14 @@ Then run the following commands to wait for all the Pods to be ready:
 
 **Note:** If you run the `check.sh` script immediately after the `deploy.sh` script, you may see a jsonpath error. If that happens, simply wait a few seconds and try again.
 
-Once the `check.sh` script completes, when you execute the `kubectl get pods -A` command, you should see the following:
-
-```
-NAMESPACE            NAME                                          READY   STATUS    RESTARTS   AGE
-kube-system          calico-kube-controllers-59d85c5c84-sbk4k      1/1     Running   0          4h26m
-kube-system          calico-node-przxs                             1/1     Running   0          4h26m
-kube-system          coredns-6955765f44-ln8f5                      1/1     Running   0          4h26m
-kube-system          coredns-6955765f44-s7xxx                      1/1     Running   0          4h26m
-kube-system          etcd-cluster1-control-plane                   1/1     Running   0          4h27m
-kube-system          kube-apiserver-cluster1-control-plane         1/1     Running   0          4h27m
-kube-system          kube-controller-manager-cluster1-control-plane1/1     Running   0          4h27m
-kube-system          kube-proxy-ksvzw                              1/1     Running   0          4h26m
-kube-system          kube-scheduler-cluster1-control-plane         1/1     Running   0          4h27m
-local-path-storage   local-path-provisioner-58f6947c7-lfmdx        1/1     Running   0          4h26m
-metallb-system       controller-5c9894b5cd-cn9x2                   1/1     Running   0          4h26m
-metallb-system       speaker-d7jkp                                 1/1     Running   0          4h26m
-```
-
-**Note:** The CNI pods might be different, depending on which CNI you have deployed.
-
-You can see that your currently connected to this cluster by executing the `kubectl config get-contexts` command:
-
-```
-CURRENT   NAME         CLUSTER         AUTHINFO   NAMESPACE
-          cluster1     kind-cluster1   cluster1
-*         cluster2     kind-cluster2   cluster2
-```
-
-Run the following command to make `cluster1` the current cluster.
-
-```bash
-kubectl config use-context ${MGMT}
-```
+Once the `check.sh` script completes, execute the `kubectl get pods -A` command, and verify that all pods are in a running state.
 <!--bash
 cat <<'EOF' > ./test.js
 const helpers = require('./tests/chai-exec');
 
 describe("Clusters are healthy", () => {
-    const clusters = [process.env.MGMT, process.env.CLUSTER1, process.env.CLUSTER2];
+    const clusters = ["cluster1", "cluster2"];
+
     clusters.forEach(cluster => {
         it(`Cluster ${cluster} is healthy`, () => helpers.k8sObjectIsPresent({ context: cluster, namespace: "default", k8sType: "service", k8sObj: "kubernetes" }));
     });
@@ -143,6 +111,7 @@ EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/deploy-kind-clusters/tests/cluster-healthy.test.js.liquid"
 timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; exit 1; }
 -->
+
 
 
 
@@ -186,6 +155,7 @@ EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/deploy-and-register-gloo-mesh/tests/environment-variables.test.js.liquid"
 timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; exit 1; }
 -->
+
 Run the following commands to deploy the Gloo Mesh management plane:
 
 ```bash
@@ -434,6 +404,7 @@ timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || 
 
 
 
+
 ## Lab 3 - Deploy Istio using Gloo Mesh Lifecycle Manager <a name="lab-3---deploy-istio-using-gloo-mesh-lifecycle-manager-"></a>
 [<img src="https://img.youtube.com/vi/f76-KOEjqHs/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/f76-KOEjqHs "Video Link")
 
@@ -668,7 +639,7 @@ spec:
       istioOperatorSpec:
         profile: minimal
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.23.1-solo
+        tag: 1.24.1-patch1-solo-distroless
         namespace: istio-system
         values:
           global:
@@ -718,7 +689,7 @@ spec:
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.23.1-solo
+        tag: 1.24.1-patch1-solo-distroless
         values:
           gateways:
             istio-ingressgateway:
@@ -745,7 +716,7 @@ spec:
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.23.1-solo
+        tag: 1.24.1-patch1-solo-distroless
         values:
           gateways:
             istio-ingressgateway:
@@ -781,7 +752,7 @@ spec:
       istioOperatorSpec:
         profile: minimal
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.23.1-solo
+        tag: 1.24.1-patch1-solo-distroless
         namespace: istio-system
         values:
           global:
@@ -831,7 +802,7 @@ spec:
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.23.1-solo
+        tag: 1.24.1-patch1-solo-distroless
         values:
           gateways:
             istio-ingressgateway:
@@ -858,7 +829,7 @@ spec:
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.23.1-solo
+        tag: 1.24.1-patch1-solo-distroless
         values:
           gateways:
             istio-ingressgateway:
@@ -3090,7 +3061,7 @@ spec:
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.23.1-solo
+        tag: 1.24.1-patch1-solo-distroless
         components:
           egressGateways:
             - enabled: true
