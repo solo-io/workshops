@@ -1,0 +1,58 @@
+{%- assign version_1_18_or_after = "1.18.0" | minimumGlooGatewayVersion %}
+const { execSync } = require('child_process');
+const { expect } = require('chai');
+const { diff } = require('jest-diff');
+
+function delay(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+describe('Gloo snapshot stability test', function() {
+  let contextName = process.env.{{ context | default: "CLUSTER1" }};
+  let delaySeconds = {{ delay | default: 5 }};
+
+  let firstSnapshot;
+
+  it('should retrieve initial snapshot', function() {
+    const output = execSync(
+      `kubectl --context ${contextName} -n gloo-system exec deploy/gloo -- wget -O - localhost:{% if version_1_18_or_after %}9095{% else %}9091{% endif %}/snapshots/proxies -q`,
+      { encoding: 'utf8' }
+    );
+
+    try {
+      firstSnapshot = JSON.parse(output);
+    } catch (err) {
+      throw new Error('Failed to parse JSON output from initial snapshot: ' + err.message);
+    }
+    expect(firstSnapshot).to.be.an('object');
+  });
+
+  it('should not change after the given delay', async function() {
+    await delay(delaySeconds * 1000);
+
+    let secondSnapshot;
+    try {
+      const output2 = execSync(
+        `kubectl --context ${contextName} -n gloo-system exec deploy/gloo -- wget -O - localhost:{% if version_1_18_or_after %}9095{% else %}9091{% endif %}/snapshots/proxies -q`,
+        { encoding: 'utf8' }
+      );
+      secondSnapshot = JSON.parse(output2);
+    } catch (err) {
+      throw new Error('Failed to retrieve or parse the second snapshot: ' + err.message);
+    }
+
+    const firstJson = JSON.stringify(firstSnapshot, null, 2);
+    const secondJson = JSON.stringify(secondSnapshot, null, 2);
+
+    // Show only 2 lines of context around each change
+    const diffOutput = diff(firstJson, secondJson, { contextLines: 2, expand: false });
+
+    if (! diffOutput.includes("Compared values have no visual difference.")) {
+      console.error('Differences found between snapshots:\n' + diffOutput);
+      throw new Error('Snapshots differ after the delay.');
+    } else {
+      console.log('No differences found. The snapshots are stable.');
+    }
+  });
+});
+
