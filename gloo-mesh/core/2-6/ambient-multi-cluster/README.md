@@ -15,7 +15,7 @@ source ./scripts/assert.sh
 
 ## Table of Contents
 * [Introduction](#introduction)
-* [Lab 1 - Deploy KinD clusters](#lab-1---deploy-kind-clusters-)
+* [Lab 1 - Deploy KinD Cluster(s)](#lab-1---deploy-kind-cluster(s)-)
 * [Lab 2 - Deploy and register Gloo Mesh](#lab-2---deploy-and-register-gloo-mesh-)
 * [Lab 3 - Configure common trust certificates in both clusters](#lab-3---configure-common-trust-certificates-in-both-clusters-)
 * [Lab 4 - Deploy Istio using Helm](#lab-4---deploy-istio-using-helm-)
@@ -69,7 +69,7 @@ You can find more information about Gloo Mesh Core in the official documentation
 
 
 
-## Lab 1 - Deploy KinD clusters <a name="lab-1---deploy-kind-clusters-"></a>
+## Lab 1 - Deploy KinD Cluster(s) <a name="lab-1---deploy-kind-cluster(s)-"></a>
 
 
 Clone this repository and go to the directory where this `README.md` file is.
@@ -82,13 +82,12 @@ export CLUSTER1=cluster1
 export CLUSTER2=cluster2
 ```
 
-Run the following commands to deploy two Kubernetes clusters using [Kind](https://kind.sigs.k8s.io/):
+Deploy the KinD clusters:
 
 ```bash
-./scripts/deploy-aws-with-calico.sh 1 cluster1 us-west us-west-1
-./scripts/deploy-aws-with-calico.sh 2 cluster2 us-west us-west-2
+bash ./data/steps/deploy-kind-clusters/deploy-cluster1.sh
+bash ./data/steps/deploy-kind-clusters/deploy-cluster2.sh
 ```
-
 Then run the following commands to wait for all the Pods to be ready:
 
 ```bash
@@ -98,45 +97,14 @@ Then run the following commands to wait for all the Pods to be ready:
 
 **Note:** If you run the `check.sh` script immediately after the `deploy.sh` script, you may see a jsonpath error. If that happens, simply wait a few seconds and try again.
 
-Once the `check.sh` script completes, when you execute the `kubectl get pods -A` command, you should see the following:
-
-```
-NAMESPACE            NAME                                          READY   STATUS    RESTARTS   AGE
-kube-system          calico-kube-controllers-59d85c5c84-sbk4k      1/1     Running   0          4h26m
-kube-system          calico-node-przxs                             1/1     Running   0          4h26m
-kube-system          coredns-6955765f44-ln8f5                      1/1     Running   0          4h26m
-kube-system          coredns-6955765f44-s7xxx                      1/1     Running   0          4h26m
-kube-system          etcd-cluster1-control-plane                   1/1     Running   0          4h27m
-kube-system          kube-apiserver-cluster1-control-plane         1/1     Running   0          4h27m
-kube-system          kube-controller-manager-cluster1-control-plane1/1     Running   0          4h27m
-kube-system          kube-proxy-ksvzw                              1/1     Running   0          4h26m
-kube-system          kube-scheduler-cluster1-control-plane         1/1     Running   0          4h27m
-local-path-storage   local-path-provisioner-58f6947c7-lfmdx        1/1     Running   0          4h26m
-metallb-system       controller-5c9894b5cd-cn9x2                   1/1     Running   0          4h26m
-metallb-system       speaker-d7jkp                                 1/1     Running   0          4h26m
-```
-
-**Note:** The CNI pods might be different, depending on which CNI you have deployed.
-
-You can see that your currently connected to this cluster by executing the `kubectl config get-contexts` command:
-
-```
-CURRENT   NAME         CLUSTER         AUTHINFO   NAMESPACE
-          cluster1     kind-cluster1   cluster1
-*         cluster2     kind-cluster2   cluster2
-```
-
-Run the following command to make `cluster1` the current cluster.
-
-```bash
-kubectl config use-context ${MGMT}
-```
+Once the `check.sh` script completes, execute the `kubectl get pods -A` command, and verify that all pods are in a running state.
 <!--bash
 cat <<'EOF' > ./test.js
 const helpers = require('./tests/chai-exec');
 
 describe("Clusters are healthy", () => {
-    const clusters = [process.env.MGMT, process.env.CLUSTER1, process.env.CLUSTER2];
+    const clusters = ["cluster1", "cluster2"];
+
     clusters.forEach(cluster => {
         it(`Cluster ${cluster} is healthy`, () => helpers.k8sObjectIsPresent({ context: cluster, namespace: "default", k8sType: "service", k8sObj: "kubernetes" }));
     });
@@ -145,6 +113,7 @@ EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/deploy-kind-clusters/tests/cluster-healthy.test.js.liquid"
 timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; exit 1; }
 -->
+
 
 
 
@@ -188,6 +157,7 @@ EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/deploy-and-register-gloo-mesh/tests/environment-variables.test.js.liquid"
 timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; exit 1; }
 -->
+
 Run the following commands to deploy the Gloo Mesh management plane:
 
 ```bash
@@ -443,6 +413,7 @@ timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || 
 
 
 
+
 ## Lab 3 - Configure common trust certificates in both clusters <a name="lab-3---configure-common-trust-certificates-in-both-clusters-"></a>
 
 Create intermediate CAs in both clusters and the Root CA.
@@ -551,7 +522,7 @@ describe("istio_version is at least 1.23.0", () => {
   it("version should be at least 1.23.0", () => {
     // Compare the string istio_version to the number 1.23.0
     // example 1.23.0-patch0 is valid, but 1.22.6 is not
-    let version = "1.24-alpha.a2295ca05a358e7c8e9edbbd3f500c8b4eb11864";
+    let version = "1.23.1";
     let versionParts = version.split('-')[0].split('.');
     let major = parseInt(versionParts[0]);
     let minor = parseInt(versionParts[1]);
@@ -745,42 +716,30 @@ EOF
 ```
 
 Let's deploy Istio using Helm in cluster1. We'll install the base Istio components, the Istiod control plane, the Istio CNI, the ztunnel, and the ingress/eastwest gateways.
-For private registries, let's first load the images into kind:
-```bash
-KIND_NAME=$(kubectl config get-contexts ${CLUSTER1} | grep ${CLUSTER1} | awk '{printf $3}' | cut -d'-' -f2)
-
-for image in pilot install-cni ztunnel proxyv2; do
-  docker pull "us-docker.pkg.dev/istio-enterprise-private/internal-istio-builds/${image}:1.24-alpha.a2295ca05a358e7c8e9edbbd3f500c8b4eb11864"
-  docker pull "us-docker.pkg.dev/istio-enterprise-private/internal-istio-builds/${image}:1.24-alpha.a2295ca05a358e7c8e9edbbd3f500c8b4eb11864-distroless"
-  kind load docker-image --name "$KIND_NAME" "us-docker.pkg.dev/istio-enterprise-private/internal-istio-builds/${image}:1.24-alpha.a2295ca05a358e7c8e9edbbd3f500c8b4eb11864"
-  kind load docker-image --name "$KIND_NAME" "us-docker.pkg.dev/istio-enterprise-private/internal-istio-builds/${image}:1.24-alpha.a2295ca05a358e7c8e9edbbd3f500c8b4eb11864-distroless"
-done
-```
-
 
 
 ```bash
-helm upgrade --install istio-base oci://us-docker.pkg.dev/istio-enterprise-private/internal-istio-helm/base \
+helm upgrade --install istio-base oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/base \
 --namespace istio-system \
 --kube-context=${CLUSTER1} \
---version 1.24-alpha.a2295ca05a358e7c8e9edbbd3f500c8b4eb11864 \
+--version 1.23.1-solo \
 --create-namespace \
 -f - <<EOF
 defaultRevision: ""
 profile: ambient
 EOF
 
-helm upgrade --install istiod- oci://us-docker.pkg.dev/istio-enterprise-private/internal-istio-helm/istiod \
+helm upgrade --install istiod-1-23 oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/istiod \
 --namespace istio-system \
 --kube-context=${CLUSTER1} \
---version 1.24-alpha.a2295ca05a358e7c8e9edbbd3f500c8b4eb11864 \
+--version 1.23.1-solo \
 --create-namespace \
 -f - <<EOF
 global:
-  hub: us-docker.pkg.dev/istio-enterprise-private/internal-istio-builds
+  hub: us-docker.pkg.dev/gloo-mesh/istio-<enterprise_istio_repo>
   proxy:
     clusterDomain: cluster.local
-  tag: 1.24-alpha.a2295ca05a358e7c8e9edbbd3f500c8b4eb11864
+  tag: 1.23.1-solo
   multiCluster:
     clusterName: cluster1
 profile: ambient
@@ -806,15 +765,15 @@ pilot:
       enabled: true
 EOF
 
-helm upgrade --install istio-cni oci://us-docker.pkg.dev/istio-enterprise-private/internal-istio-helm/cni \
+helm upgrade --install istio-cni oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/cni \
 --namespace kube-system \
 --kube-context=${CLUSTER1} \
---version 1.24-alpha.a2295ca05a358e7c8e9edbbd3f500c8b4eb11864 \
+--version 1.23.1-solo \
 --create-namespace \
 -f - <<EOF
 global:
-  hub: us-docker.pkg.dev/istio-enterprise-private/internal-istio-builds
-  proxy: 1.24-alpha.a2295ca05a358e7c8e9edbbd3f500c8b4eb11864
+  hub: us-docker.pkg.dev/gloo-mesh/istio-<enterprise_istio_repo>
+  proxy: 1.23.1-solo
 profile: ambient
 cni:
   ambient:
@@ -824,10 +783,10 @@ cni:
   - kube-system
 EOF
 
-helm upgrade --install ztunnel oci://us-docker.pkg.dev/istio-enterprise-private/internal-istio-helm/ztunnel \
+helm upgrade --install ztunnel oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/ztunnel \
 --namespace istio-system \
 --kube-context=${CLUSTER1} \
---version 1.24-alpha.a2295ca05a358e7c8e9edbbd3f500c8b4eb11864 \
+--version 1.23.1-solo \
 --create-namespace \
 -f - <<EOF
 configValidation: true
@@ -835,7 +794,7 @@ enabled: true
 env:
   L7_ENABLED: "true"
   NETWORK: cluster1
-hub: us-docker.pkg.dev/istio-enterprise-private/internal-istio-builds
+hub: us-docker.pkg.dev/gloo-mesh/istio-<enterprise_istio_repo>
 istioNamespace: istio-system
 multiCluster:
   clusterName: cluster1
@@ -843,15 +802,15 @@ namespace: istio-system
 profile: ambient
 proxy:
   clusterDomain: cluster.local
-tag: 1.24-alpha.a2295ca05a358e7c8e9edbbd3f500c8b4eb11864
+tag: 1.23.1-solo
 terminationGracePeriodSeconds: 29
 variant: distroless
 EOF
 
-helm upgrade --install istio-ingressgateway- oci://us-docker.pkg.dev/istio-enterprise-private/internal-istio-helm/gateway \
+helm upgrade --install istio-ingressgateway-1-23 oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/gateway \
 --namespace istio-gateways \
 --kube-context=${CLUSTER1} \
---version 1.24-alpha.a2295ca05a358e7c8e9edbbd3f500c8b4eb11864 \
+--version 1.23.1-solo \
 --create-namespace \
 -f - <<EOF
 autoscaling:
@@ -865,10 +824,10 @@ service:
   type: None
 EOF
 
-helm upgrade --install istio-eastwestgateway- oci://us-docker.pkg.dev/istio-enterprise-private/internal-istio-helm/gateway \
+helm upgrade --install istio-eastwestgateway-1-23 oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/gateway \
 --namespace istio-gateways \
 --kube-context=${CLUSTER1} \
---version 1.24-alpha.a2295ca05a358e7c8e9edbbd3f500c8b4eb11864 \
+--version 1.23.1-solo \
 --create-namespace \
 -f - <<EOF
 autoscaling:
@@ -895,42 +854,30 @@ kubectl --context ${CLUSTER2} get crd gateways.gateway.networking.k8s.io &> /dev
 ```
   
 Let's deploy Istio using Helm in cluster2. We'll install the base Istio components, the Istiod control plane, the Istio CNI, the ztunnel, and the ingress/eastwest gateways.
-For private registries, let's first load the images into kind:
-```bash
-KIND_NAME=$(kubectl config get-contexts ${CLUSTER2} | grep ${CLUSTER2} | awk '{printf $3}' | cut -d'-' -f2)
-
-for image in pilot install-cni ztunnel proxyv2; do
-  docker pull "us-docker.pkg.dev/istio-enterprise-private/internal-istio-builds/${image}:1.24-alpha.a2295ca05a358e7c8e9edbbd3f500c8b4eb11864"
-  docker pull "us-docker.pkg.dev/istio-enterprise-private/internal-istio-builds/${image}:1.24-alpha.a2295ca05a358e7c8e9edbbd3f500c8b4eb11864-distroless"
-  kind load docker-image --name "$KIND_NAME" "us-docker.pkg.dev/istio-enterprise-private/internal-istio-builds/${image}:1.24-alpha.a2295ca05a358e7c8e9edbbd3f500c8b4eb11864"
-  kind load docker-image --name "$KIND_NAME" "us-docker.pkg.dev/istio-enterprise-private/internal-istio-builds/${image}:1.24-alpha.a2295ca05a358e7c8e9edbbd3f500c8b4eb11864-distroless"
-done
-```
-
 
 
 ```bash
-helm upgrade --install istio-base oci://us-docker.pkg.dev/istio-enterprise-private/internal-istio-helm/base \
+helm upgrade --install istio-base oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/base \
 --namespace istio-system \
 --kube-context=${CLUSTER2} \
---version 1.24-alpha.a2295ca05a358e7c8e9edbbd3f500c8b4eb11864 \
+--version 1.23.1-solo \
 --create-namespace \
 -f - <<EOF
 defaultRevision: ""
 profile: ambient
 EOF
 
-helm upgrade --install istiod- oci://us-docker.pkg.dev/istio-enterprise-private/internal-istio-helm/istiod \
+helm upgrade --install istiod-1-23 oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/istiod \
 --namespace istio-system \
 --kube-context=${CLUSTER2} \
---version 1.24-alpha.a2295ca05a358e7c8e9edbbd3f500c8b4eb11864 \
+--version 1.23.1-solo \
 --create-namespace \
 -f - <<EOF
 global:
-  hub: us-docker.pkg.dev/istio-enterprise-private/internal-istio-builds
+  hub: us-docker.pkg.dev/gloo-mesh/istio-<enterprise_istio_repo>
   proxy:
     clusterDomain: cluster.local
-  tag: 1.24-alpha.a2295ca05a358e7c8e9edbbd3f500c8b4eb11864
+  tag: 1.23.1-solo
   multiCluster:
     clusterName: cluster2
 profile: ambient
@@ -956,15 +903,15 @@ pilot:
       enabled: true
 EOF
 
-helm upgrade --install istio-cni oci://us-docker.pkg.dev/istio-enterprise-private/internal-istio-helm/cni \
+helm upgrade --install istio-cni oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/cni \
 --namespace kube-system \
 --kube-context=${CLUSTER2} \
---version 1.24-alpha.a2295ca05a358e7c8e9edbbd3f500c8b4eb11864 \
+--version 1.23.1-solo \
 --create-namespace \
 -f - <<EOF
 global:
-  hub: us-docker.pkg.dev/istio-enterprise-private/internal-istio-builds
-  proxy: 1.24-alpha.a2295ca05a358e7c8e9edbbd3f500c8b4eb11864
+  hub: us-docker.pkg.dev/gloo-mesh/istio-<enterprise_istio_repo>
+  proxy: 1.23.1-solo
 profile: ambient
 cni:
   ambient:
@@ -974,10 +921,10 @@ cni:
   - kube-system
 EOF
 
-helm upgrade --install ztunnel oci://us-docker.pkg.dev/istio-enterprise-private/internal-istio-helm/ztunnel \
+helm upgrade --install ztunnel oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/ztunnel \
 --namespace istio-system \
 --kube-context=${CLUSTER2} \
---version 1.24-alpha.a2295ca05a358e7c8e9edbbd3f500c8b4eb11864 \
+--version 1.23.1-solo \
 --create-namespace \
 -f - <<EOF
 configValidation: true
@@ -985,7 +932,7 @@ enabled: true
 env:
   L7_ENABLED: "true"
   NETWORK: cluster2
-hub: us-docker.pkg.dev/istio-enterprise-private/internal-istio-builds
+hub: us-docker.pkg.dev/gloo-mesh/istio-<enterprise_istio_repo>
 istioNamespace: istio-system
 multiCluster:
   clusterName: cluster2
@@ -993,15 +940,15 @@ namespace: istio-system
 profile: ambient
 proxy:
   clusterDomain: cluster.local
-tag: 1.24-alpha.a2295ca05a358e7c8e9edbbd3f500c8b4eb11864
+tag: 1.23.1-solo
 terminationGracePeriodSeconds: 29
 variant: distroless
 EOF
 
-helm upgrade --install istio-ingressgateway- oci://us-docker.pkg.dev/istio-enterprise-private/internal-istio-helm/gateway \
+helm upgrade --install istio-ingressgateway-1-23 oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/gateway \
 --namespace istio-gateways \
 --kube-context=${CLUSTER2} \
---version 1.24-alpha.a2295ca05a358e7c8e9edbbd3f500c8b4eb11864 \
+--version 1.23.1-solo \
 --create-namespace \
 -f - <<EOF
 autoscaling:
@@ -1015,10 +962,10 @@ service:
   type: None
 EOF
 
-helm upgrade --install istio-eastwestgateway- oci://us-docker.pkg.dev/istio-enterprise-private/internal-istio-helm/gateway \
+helm upgrade --install istio-eastwestgateway-1-23 oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/gateway \
 --namespace istio-gateways \
 --kube-context=${CLUSTER2} \
---version 1.24-alpha.a2295ca05a358e7c8e9edbbd3f500c8b4eb11864 \
+--version 1.23.1-solo \
 --create-namespace \
 -f - <<EOF
 autoscaling:
@@ -1153,8 +1100,6 @@ timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || 
 
 
 
-
-
 ## Lab 5 - Deploy the httpbin demo app <a name="lab-5---deploy-the-httpbin-demo-app-"></a>
 [<img src="https://img.youtube.com/vi/w1xB-o_gHs0/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/w1xB-o_gHs0 "Video Link")
 
@@ -1170,6 +1115,12 @@ kubectl --context ${CLUSTER1} create ns httpbin
 kubectl --context ${CLUSTER1} label namespace httpbin istio.io/dataplane-mode=ambient
 kubectl apply --context ${CLUSTER1} -f - <<EOF
 
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: not-in-mesh
+  namespace: httpbin
+---
 apiVersion: v1
 kind: Service
 metadata:
@@ -1205,6 +1156,7 @@ spec:
         istio.io/dataplane-mode: none
         sidecar.istio.io/inject: "false"
     spec:
+      serviceAccountName: not-in-mesh
       containers:
       - image: docker.io/kennethreitz/httpbin
         imagePullPolicy: IfNotPresent
@@ -1229,6 +1181,12 @@ Then, we deploy a second version, which will be called `in-mesh` and will be par
 ```bash
 kubectl apply --context ${CLUSTER1} -f - <<EOF
 
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: in-mesh
+  namespace: httpbin
+---
 apiVersion: v1
 kind: Service
 metadata:
@@ -1263,6 +1221,7 @@ spec:
         version: v1
         sidecar.istio.io/inject: "true"
     spec:
+      serviceAccountName: in-mesh
       containers:
       - image: docker.io/kennethreitz/httpbin
         imagePullPolicy: IfNotPresent
@@ -1297,6 +1256,12 @@ Add another HTTPBin service which is deployed in Ambient.
 ```bash
 kubectl apply --context ${CLUSTER1} -f - <<EOF
 
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: in-ambient
+  namespace: httpbin
+---
 apiVersion: v1
 kind: Service
 metadata:
@@ -1333,6 +1298,7 @@ spec:
         sidecar.istio.io/inject: "false"
         istio-injection: disabled
     spec:
+      serviceAccountName: in-ambient
       containers:
       - image: docker.io/kennethreitz/httpbin
         imagePullPolicy: IfNotPresent
@@ -1399,6 +1365,12 @@ kubectl --context ${CLUSTER2} label namespace httpbin istio.io/dataplane-mode=am
 kubectl apply --context ${CLUSTER2} -f - <<EOF
 
 apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: not-in-mesh
+  namespace: httpbin
+---
+apiVersion: v1
 kind: Service
 metadata:
   name: not-in-mesh
@@ -1433,6 +1405,7 @@ spec:
         istio.io/dataplane-mode: none
         sidecar.istio.io/inject: "false"
     spec:
+      serviceAccountName: not-in-mesh
       containers:
       - image: docker.io/kennethreitz/httpbin
         imagePullPolicy: IfNotPresent
@@ -1457,6 +1430,12 @@ Then, we deploy a second version, which will be called `in-mesh` and will be par
 ```bash
 kubectl apply --context ${CLUSTER2} -f - <<EOF
 
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: in-mesh
+  namespace: httpbin
+---
 apiVersion: v1
 kind: Service
 metadata:
@@ -1491,6 +1470,7 @@ spec:
         version: v1
         sidecar.istio.io/inject: "true"
     spec:
+      serviceAccountName: in-mesh
       containers:
       - image: docker.io/kennethreitz/httpbin
         imagePullPolicy: IfNotPresent
@@ -1525,6 +1505,12 @@ Add another HTTPBin service which is deployed in Ambient.
 ```bash
 kubectl apply --context ${CLUSTER2} -f - <<EOF
 
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: in-ambient
+  namespace: httpbin
+---
 apiVersion: v1
 kind: Service
 metadata:
@@ -1561,6 +1547,7 @@ spec:
         sidecar.istio.io/inject: "false"
         istio-injection: disabled
     spec:
+      serviceAccountName: in-ambient
       containers:
       - image: docker.io/kennethreitz/httpbin
         imagePullPolicy: IfNotPresent
@@ -1918,15 +1905,15 @@ Link the second cluster to the first cluster:
 ```bash
 CLUSTER_GW_IP="$(kubectl --context $CLUSTER1 -n istio-system get service eastwest -o jsonpath='{.status.loadBalancer.ingress[0].*}')"
 
-cat << EOF | kubectl --context ${CLUSTER1} apply -f -
+cat << EOF | kubectl --context ${CLUSTER2} apply -f -
 apiVersion: gateway.networking.k8s.io/v1
 kind: Gateway
 metadata:
   annotations:
     gateway.istio.io/service-account: eastwest
   labels:
-    topology.istio.io/network: cluster2
-  name: remote-cluster2
+    topology.istio.io/network: cluster1
+  name: remote-cluster1
   namespace: istio-system
 spec:
   addresses:
@@ -1940,7 +1927,7 @@ spec:
 EOF
 ```
 
-Let's validate that cross cluster traffic works. Let's annotate services taht are globally accessible:
+Let's validate that cross cluster traffic works. Let's annotate services that are globally accessible:
 
 Next expose global service.
 
@@ -1957,9 +1944,8 @@ kubectl --context $CLUSTER2 -n httpbin get workloadentry
 ```
 
 > [!IMPORTANT]
-> Limitations:
+> Limitation:
 >
-> * Workloads have to use the default service account.
 > * Multi-Network traffic is currently not supported by Istio Gateways, Sidecars, and Waypoints.
 
 Next, let's send some traffic across the clusters:
