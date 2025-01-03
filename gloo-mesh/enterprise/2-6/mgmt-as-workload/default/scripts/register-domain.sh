@@ -14,7 +14,9 @@ hosts_file="/etc/hosts"
 # Function to check if the input is a valid IP address
 is_ip() {
     if [[ $1 =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-        return 0 # 0 = true
+        return 0 # 0 = true - valid IPv4 address
+    elif [[ $1 =~ ^[0-9a-f]+[:]+[0-9a-f]*[:]*[0-9a-f]*[:]*[0-9a-f]*[:]*[0-9a-f]*[:]*[0-9a-f]*[:]*[0-9]*$ ]]; then
+        return 0 # 0 = true - valid IPv6 address
     else
         return 1 # 1 = false
     fi
@@ -38,11 +40,12 @@ else
 fi
 
 # Check if the entry already exists
-if grep -q "$hostname" "$hosts_file"; then
+if grep -q "$hostname\$" "$hosts_file"; then
     # Update the existing entry with the new IP
     tempfile=$(mktemp)
-    sed "s/^.*$hostname/$new_ip $hostname/" "$hosts_file" > "$tempfile"
+    sed "s/^.*$hostname\$/$new_ip $hostname/" "$hosts_file" > "$tempfile"
     sudo cp "$tempfile" "$hosts_file"
+    rm "$tempfile"
     echo "Updated $hostname in $hosts_file with new IP: $new_ip"
 else
     # Add a new entry if it doesn't exist

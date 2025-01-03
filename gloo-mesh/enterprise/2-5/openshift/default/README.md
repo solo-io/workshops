@@ -16,22 +16,21 @@ source ./scripts/assert.sh
 ## Table of Contents
 * [Introduction](#introduction)
 * [Lab 1 - Deploy the Kubernetes clusters manually](#lab-1---deploy-the-kubernetes-clusters-manually-)
-* [Lab 2 - Deploy KinD clusters](#lab-2---deploy-kind-clusters-)
-* [Lab 3 - Deploy and register Gloo Mesh](#lab-3---deploy-and-register-gloo-mesh-)
-* [Lab 4 - Deploy Istio using Gloo Mesh Lifecycle Manager](#lab-4---deploy-istio-using-gloo-mesh-lifecycle-manager-)
-* [Lab 5 - Deploy the Bookinfo demo app](#lab-5---deploy-the-bookinfo-demo-app-)
-* [Lab 6 - Deploy the httpbin demo app](#lab-6---deploy-the-httpbin-demo-app-)
-* [Lab 7 - Deploy Gloo Mesh Addons](#lab-7---deploy-gloo-mesh-addons-)
-* [Lab 8 - Create the gateways workspace](#lab-8---create-the-gateways-workspace-)
-* [Lab 9 - Create the bookinfo workspace](#lab-9---create-the-bookinfo-workspace-)
-* [Lab 10 - Expose the productpage through a gateway](#lab-10---expose-the-productpage-through-a-gateway-)
-* [Lab 11 - Traffic policies](#lab-11---traffic-policies-)
-* [Lab 12 - Create the Root Trust Policy](#lab-12---create-the-root-trust-policy-)
-* [Lab 13 - Leverage Virtual Destinations for east west communications](#lab-13---leverage-virtual-destinations-for-east-west-communications-)
-* [Lab 14 - Zero trust](#lab-14---zero-trust-)
-* [Lab 15 - See how Gloo Platform can help with observability](#lab-15---see-how-gloo-platform-can-help-with-observability-)
-* [Lab 16 - VM integration with Spire](#lab-16---vm-integration-with-spire-)
-* [Lab 17 - Securing the egress traffic](#lab-17---securing-the-egress-traffic-)
+* [Lab 2 - Deploy and register Gloo Mesh](#lab-2---deploy-and-register-gloo-mesh-)
+* [Lab 3 - Deploy Istio using Gloo Mesh Lifecycle Manager](#lab-3---deploy-istio-using-gloo-mesh-lifecycle-manager-)
+* [Lab 4 - Deploy the Bookinfo demo app](#lab-4---deploy-the-bookinfo-demo-app-)
+* [Lab 5 - Deploy the httpbin demo app](#lab-5---deploy-the-httpbin-demo-app-)
+* [Lab 6 - Deploy Gloo Mesh Addons](#lab-6---deploy-gloo-mesh-addons-)
+* [Lab 7 - Create the gateways workspace](#lab-7---create-the-gateways-workspace-)
+* [Lab 8 - Create the bookinfo workspace](#lab-8---create-the-bookinfo-workspace-)
+* [Lab 9 - Expose the productpage through a gateway](#lab-9---expose-the-productpage-through-a-gateway-)
+* [Lab 10 - Traffic policies](#lab-10---traffic-policies-)
+* [Lab 11 - Create the Root Trust Policy](#lab-11---create-the-root-trust-policy-)
+* [Lab 12 - Leverage Virtual Destinations for east west communications](#lab-12---leverage-virtual-destinations-for-east-west-communications-)
+* [Lab 13 - Zero trust](#lab-13---zero-trust-)
+* [Lab 14 - See how Gloo Platform can help with observability](#lab-14---see-how-gloo-platform-can-help-with-observability-)
+* [Lab 15 - VM integration with Spire](#lab-15---vm-integration-with-spire-)
+* [Lab 16 - Securing the egress traffic](#lab-16---securing-the-egress-traffic-)
 
 
 
@@ -105,89 +104,7 @@ kubectl config use-context ${MGMT}
 
 
 
-## Lab 2 - Deploy KinD clusters <a name="lab-2---deploy-kind-clusters-"></a>
-
-
-Clone this repository and go to the directory where this `README.md` file is.
-
-Set the context environment variables:
-
-```bash
-export MGMT=mgmt
-export CLUSTER1=cluster1
-export CLUSTER2=cluster2
-```
-
-Run the following commands to deploy three Kubernetes clusters using [Kind](https://kind.sigs.k8s.io/):
-
-```bash
-./scripts/deploy-aws-with-calico.sh 1 mgmt
-./scripts/deploy-aws-with-calico.sh 2 cluster1 us-west us-west-1
-./scripts/deploy-aws-with-calico.sh 3 cluster2 us-west us-west-2
-```
-
-Then run the following commands to wait for all the Pods to be ready:
-
-```bash
-./scripts/check.sh mgmt
-./scripts/check.sh cluster1
-./scripts/check.sh cluster2
-```
-
-**Note:** If you run the `check.sh` script immediately after the `deploy.sh` script, you may see a jsonpath error. If that happens, simply wait a few seconds and try again.
-
-Once the `check.sh` script completes, when you execute the `kubectl get pods -A` command, you should see the following:
-
-```
-NAMESPACE            NAME                                          READY   STATUS    RESTARTS   AGE
-kube-system          calico-kube-controllers-59d85c5c84-sbk4k      1/1     Running   0          4h26m
-kube-system          calico-node-przxs                             1/1     Running   0          4h26m
-kube-system          coredns-6955765f44-ln8f5                      1/1     Running   0          4h26m
-kube-system          coredns-6955765f44-s7xxx                      1/1     Running   0          4h26m
-kube-system          etcd-cluster1-control-plane                   1/1     Running   0          4h27m
-kube-system          kube-apiserver-cluster1-control-plane         1/1     Running   0          4h27m
-kube-system          kube-controller-manager-cluster1-control-plane1/1     Running   0          4h27m
-kube-system          kube-proxy-ksvzw                              1/1     Running   0          4h26m
-kube-system          kube-scheduler-cluster1-control-plane         1/1     Running   0          4h27m
-local-path-storage   local-path-provisioner-58f6947c7-lfmdx        1/1     Running   0          4h26m
-metallb-system       controller-5c9894b5cd-cn9x2                   1/1     Running   0          4h26m
-metallb-system       speaker-d7jkp                                 1/1     Running   0          4h26m
-```
-
-**Note:** The CNI pods might be different, depending on which CNI you have deployed.
-
-You can see that your currently connected to this cluster by executing the `kubectl config get-contexts` command:
-
-```
-CURRENT   NAME         CLUSTER         AUTHINFO   NAMESPACE
-          cluster1     kind-cluster1   cluster1
-*         cluster2     kind-cluster2   cluster2
-          mgmt         kind-mgmt       kind-mgmt
-```
-
-Run the following command to make `mgmt` the current cluster.
-
-```bash
-kubectl config use-context ${MGMT}
-```
-<!--bash
-cat <<'EOF' > ./test.js
-const helpers = require('./tests/chai-exec');
-
-describe("Clusters are healthy", () => {
-    const clusters = [process.env.MGMT, process.env.CLUSTER1, process.env.CLUSTER2];
-    clusters.forEach(cluster => {
-        it(`Cluster ${cluster} is healthy`, () => helpers.k8sObjectIsPresent({ context: cluster, namespace: "default", k8sType: "service", k8sObj: "kubernetes" }));
-    });
-});
-EOF
-echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/deploy-kind-clusters/tests/cluster-healthy.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; exit 1; }
--->
-
-
-
-## Lab 3 - Deploy and register Gloo Mesh <a name="lab-3---deploy-and-register-gloo-mesh-"></a>
+## Lab 2 - Deploy and register Gloo Mesh <a name="lab-2---deploy-and-register-gloo-mesh-"></a>
 [<img src="https://img.youtube.com/vi/djfFiepK4GY/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/djfFiepK4GY "Video Link")
 
 
@@ -227,6 +144,7 @@ EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/deploy-and-register-gloo-mesh/tests/environment-variables.test.js.liquid"
 timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; exit 1; }
 -->
+
 Run the following commands to deploy the Gloo Mesh management plane:
 
 ```bash
@@ -536,7 +454,8 @@ timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || 
 
 
 
-## Lab 4 - Deploy Istio using Gloo Mesh Lifecycle Manager <a name="lab-4---deploy-istio-using-gloo-mesh-lifecycle-manager-"></a>
+
+## Lab 3 - Deploy Istio using Gloo Mesh Lifecycle Manager <a name="lab-3---deploy-istio-using-gloo-mesh-lifecycle-manager-"></a>
 [<img src="https://img.youtube.com/vi/f76-KOEjqHs/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/f76-KOEjqHs "Video Link")
 
 We are going to deploy Istio using Gloo Mesh Lifecycle Manager.
@@ -1167,7 +1086,7 @@ timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || 
 
 
 
-## Lab 5 - Deploy the Bookinfo demo app <a name="lab-5---deploy-the-bookinfo-demo-app-"></a>
+## Lab 4 - Deploy the Bookinfo demo app <a name="lab-4---deploy-the-bookinfo-demo-app-"></a>
 [<img src="https://img.youtube.com/vi/nzYcrjalY5A/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/nzYcrjalY5A "Video Link")
 
 We're going to deploy the bookinfo application to demonstrate several features of Gloo Mesh.
@@ -1327,7 +1246,7 @@ timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || 
 
 
 
-## Lab 6 - Deploy the httpbin demo app <a name="lab-6---deploy-the-httpbin-demo-app-"></a>
+## Lab 5 - Deploy the httpbin demo app <a name="lab-5---deploy-the-httpbin-demo-app-"></a>
 [<img src="https://img.youtube.com/vi/w1xB-o_gHs0/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/w1xB-o_gHs0 "Video Link")
 
 
@@ -1517,7 +1436,7 @@ timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || 
 
 
 
-## Lab 7 - Deploy Gloo Mesh Addons <a name="lab-7---deploy-gloo-mesh-addons-"></a>
+## Lab 6 - Deploy Gloo Mesh Addons <a name="lab-6---deploy-gloo-mesh-addons-"></a>
 [<img src="https://img.youtube.com/vi/_rorug_2bk8/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/_rorug_2bk8 "Video Link")
 
 To use the Gloo Mesh Gateway advanced features (external authentication, rate limiting, ...), you need to install the Gloo Mesh addons.
@@ -1697,7 +1616,7 @@ This is what the environment looks like now:
 
 
 
-## Lab 8 - Create the gateways workspace <a name="lab-8---create-the-gateways-workspace-"></a>
+## Lab 7 - Create the gateways workspace <a name="lab-7---create-the-gateways-workspace-"></a>
 [<img src="https://img.youtube.com/vi/QeVBH0eswWw/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/QeVBH0eswWw "Video Link")
 
 We're going to create a workspace for the team in charge of the Gateways.
@@ -1760,7 +1679,7 @@ The Gateway team has decided to import the following from the workspaces that ha
 
 
 
-## Lab 9 - Create the bookinfo workspace <a name="lab-9---create-the-bookinfo-workspace-"></a>
+## Lab 8 - Create the bookinfo workspace <a name="lab-8---create-the-bookinfo-workspace-"></a>
 
 We're going to create a workspace for the team in charge of the Bookinfo application.
 
@@ -1835,7 +1754,7 @@ This is how the environment looks like with the workspaces:
 
 
 
-## Lab 10 - Expose the productpage through a gateway <a name="lab-10---expose-the-productpage-through-a-gateway-"></a>
+## Lab 9 - Expose the productpage through a gateway <a name="lab-9---expose-the-productpage-through-a-gateway-"></a>
 [<img src="https://img.youtube.com/vi/emyIu99AOOA/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/emyIu99AOOA "Video Link")
 
 In this step, we're going to expose the `productpage` service through the Ingress Gateway using Gloo Mesh.
@@ -2104,7 +2023,7 @@ This diagram shows the flow of the request (through the Istio Ingress Gateway):
 
 
 
-## Lab 11 - Traffic policies <a name="lab-11---traffic-policies-"></a>
+## Lab 10 - Traffic policies <a name="lab-10---traffic-policies-"></a>
 [<img src="https://img.youtube.com/vi/ZBdt8WA0U64/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/ZBdt8WA0U64 "Video Link")
 
 We're going to use Gloo Mesh policies to inject faults and configure timeouts.
@@ -2282,7 +2201,7 @@ kubectl --context ${CLUSTER1} -n bookinfo-frontends delete routetable reviews
 
 
 
-## Lab 12 - Create the Root Trust Policy <a name="lab-12---create-the-root-trust-policy-"></a>
+## Lab 11 - Create the Root Trust Policy <a name="lab-11---create-the-root-trust-policy-"></a>
 [<img src="https://img.youtube.com/vi/-A2U2fYYgrU/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/-A2U2fYYgrU "Video Link")
 
 To allow secured (end-to-end mTLS) cross cluster communications, we need to make sure the certificates issued by the Istio control plane on each cluster are signed with intermediate certificates which have a common root CA.
@@ -2418,7 +2337,7 @@ timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || 
 
 
 
-## Lab 13 - Leverage Virtual Destinations for east west communications <a name="lab-13---leverage-virtual-destinations-for-east-west-communications-"></a>
+## Lab 12 - Leverage Virtual Destinations for east west communications <a name="lab-12---leverage-virtual-destinations-for-east-west-communications-"></a>
 
 We can create a Virtual Destination which will be composed of the `reviews` services running in both clusters.
 
@@ -2677,7 +2596,7 @@ kubectl --context ${CLUSTER1} -n bookinfo-backends delete outlierdetectionpolicy
 
 
 
-## Lab 14 - Zero trust <a name="lab-14---zero-trust-"></a>
+## Lab 13 - Zero trust <a name="lab-13---zero-trust-"></a>
 [<img src="https://img.youtube.com/vi/BiaBlUaplEs/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/BiaBlUaplEs "Video Link")
 
 In the previous step, we federated multiple meshes and established a shared root CA for a shared identity domain.
@@ -3033,7 +2952,7 @@ kubectl --context ${CLUSTER1} delete accesspolicies -n bookinfo-frontends --all
 
 
 
-## Lab 15 - See how Gloo Platform can help with observability <a name="lab-15---see-how-gloo-platform-can-help-with-observability-"></a>
+## Lab 14 - See how Gloo Platform can help with observability <a name="lab-14---see-how-gloo-platform-can-help-with-observability-"></a>
 [<img src="https://img.youtube.com/vi/UhWsk4YnOy0/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/UhWsk4YnOy0 "Video Link")
 
 # Observability with Gloo Platform
@@ -3265,7 +3184,7 @@ kubectl --context ${MGMT} label -n monitoring cm istio-control-plane-dashboard g
 
 
 
-## Lab 16 - VM integration with Spire <a name="lab-16---vm-integration-with-spire-"></a>
+## Lab 15 - VM integration with Spire <a name="lab-15---vm-integration-with-spire-"></a>
 
 
 Let's see how we can configure a VM to be part of the Mesh.
@@ -3578,6 +3497,8 @@ ATTEMPTS=0
 while [ $ATTEMPTS -lt $MAX_ATTEMPTS ]; do
   kubectl --context ${CLUSTER1} -n gloo-mesh rollout restart deploy gloo-spire-server
   kubectl --context ${CLUSTER1} -n gloo-mesh rollout status deploy gloo-spire-server
+  sleep 30
+
   export JOIN_TOKEN=$(meshctl external-workload gen-token --kubecontext ${CLUSTER1} --trust-domain ${CLUSTER1} --ttl 3600 --ext-workload virtualmachines/${VM_APP} --plain=true | grep -ioE "${uuid_regex_partial}")
   timeout 1m docker exec vm1 meshctl ew onboard --install \
   --attestor token \
@@ -3798,7 +3719,7 @@ docker rm -f vm1
 
 
 
-## Lab 17 - Securing the egress traffic <a name="lab-17---securing-the-egress-traffic-"></a>
+## Lab 16 - Securing the egress traffic <a name="lab-16---securing-the-egress-traffic-"></a>
 [<img src="https://img.youtube.com/vi/tQermml1Ryo/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/tQermml1Ryo "Video Link")
 
 In this step, we're going to secure the egress traffic.

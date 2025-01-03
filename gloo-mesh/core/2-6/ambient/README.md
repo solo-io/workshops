@@ -15,9 +15,9 @@ source ./scripts/assert.sh
 
 ## Table of Contents
 * [Introduction](#introduction)
-* [Lab 1 - Deploy KinD clusters](#lab-1---deploy-kind-clusters-)
+* [Lab 1 - Deploy KinD Cluster(s)](#lab-1---deploy-kind-cluster(s)-)
 * [Lab 2 - Deploy and register Gloo Mesh](#lab-2---deploy-and-register-gloo-mesh-)
-* [Lab 3 - Deploy Istio using Helm](#lab-3---deploy-istio-using-helm-)
+* [Lab 3 - Deploy Istio v1.23.1](#lab-3---deploy-istio-v1.23.1-)
 * [Lab 4 - Deploy the Bookinfo demo app](#lab-4---deploy-the-bookinfo-demo-app-)
 * [Lab 5 - Deploy the httpbin demo app](#lab-5---deploy-the-httpbin-demo-app-)
 * [Lab 6 - Deploy the clients to make requests to other services](#lab-6---deploy-the-clients-to-make-requests-to-other-services-)
@@ -27,9 +27,11 @@ source ./scripts/assert.sh
 * [Lab 10 - Introduction to Insights](#lab-10---introduction-to-insights-)
 * [Lab 11 - Insights related to configuration errors](#lab-11---insights-related-to-configuration-errors-)
 * [Lab 12 - Insights related to security issues](#lab-12---insights-related-to-security-issues-)
-* [Lab 13 - Deploy Istio using Helm](#lab-13---deploy-istio-using-helm-)
-* [Lab 14 - Ambient Egress Traffic with Waypoint](#lab-14---ambient-egress-traffic-with-waypoint-)
-* [Lab 15 - Waypoint Deployment Options](#lab-15---waypoint-deployment-options-)
+* [Lab 13 - Upgrade Istio to v1.23.0-patch1](#lab-13---upgrade-istio-to-v1.23.0-patch1-)
+* [Lab 14 - Migrate workloads to a new Istio revision](#lab-14---migrate-workloads-to-a-new-istio-revision-)
+* [Lab 15 - Helm Cleanup Istio Revision](#lab-15---helm-cleanup-istio-revision-)
+* [Lab 16 - Ambient Egress Traffic with Waypoint](#lab-16---ambient-egress-traffic-with-waypoint-)
+* [Lab 17 - Waypoint Deployment Options](#lab-17---waypoint-deployment-options-)
 
 
 
@@ -76,7 +78,7 @@ You can find more information about Gloo Mesh Core in the official documentation
 
 
 
-## Lab 1 - Deploy KinD clusters <a name="lab-1---deploy-kind-clusters-"></a>
+## Lab 1 - Deploy KinD Cluster(s) <a name="lab-1---deploy-kind-cluster(s)-"></a>
 
 
 Clone this repository and go to the directory where this `README.md` file is.
@@ -89,14 +91,13 @@ export CLUSTER1=cluster1
 export CLUSTER2=cluster2
 ```
 
-Run the following commands to deploy three Kubernetes clusters using [Kind](https://kind.sigs.k8s.io/):
+Deploy the KinD clusters:
 
 ```bash
-./scripts/deploy-aws-with-calico.sh 1 mgmt
-./scripts/deploy-aws-with-calico.sh 2 cluster1 us-west us-west-1
-./scripts/deploy-aws-with-calico.sh 3 cluster2 us-west us-west-2
+bash ./data/steps/deploy-kind-clusters/deploy-mgmt.sh
+bash ./data/steps/deploy-kind-clusters/deploy-cluster1.sh
+bash ./data/steps/deploy-kind-clusters/deploy-cluster2.sh
 ```
-
 Then run the following commands to wait for all the Pods to be ready:
 
 ```bash
@@ -107,27 +108,8 @@ Then run the following commands to wait for all the Pods to be ready:
 
 **Note:** If you run the `check.sh` script immediately after the `deploy.sh` script, you may see a jsonpath error. If that happens, simply wait a few seconds and try again.
 
-Once the `check.sh` script completes, when you execute the `kubectl get pods -A` command, you should see the following:
-
-```
-NAMESPACE            NAME                                          READY   STATUS    RESTARTS   AGE
-kube-system          calico-kube-controllers-59d85c5c84-sbk4k      1/1     Running   0          4h26m
-kube-system          calico-node-przxs                             1/1     Running   0          4h26m
-kube-system          coredns-6955765f44-ln8f5                      1/1     Running   0          4h26m
-kube-system          coredns-6955765f44-s7xxx                      1/1     Running   0          4h26m
-kube-system          etcd-cluster1-control-plane                   1/1     Running   0          4h27m
-kube-system          kube-apiserver-cluster1-control-plane         1/1     Running   0          4h27m
-kube-system          kube-controller-manager-cluster1-control-plane1/1     Running   0          4h27m
-kube-system          kube-proxy-ksvzw                              1/1     Running   0          4h26m
-kube-system          kube-scheduler-cluster1-control-plane         1/1     Running   0          4h27m
-local-path-storage   local-path-provisioner-58f6947c7-lfmdx        1/1     Running   0          4h26m
-metallb-system       controller-5c9894b5cd-cn9x2                   1/1     Running   0          4h26m
-metallb-system       speaker-d7jkp                                 1/1     Running   0          4h26m
-```
-
-**Note:** The CNI pods might be different, depending on which CNI you have deployed.
-
-You can see that your currently connected to this cluster by executing the `kubectl config get-contexts` command:
+Once the `check.sh` script completes, execute the `kubectl get pods -A` command, and verify that all pods are in a running state.
+  You can see that your currently connected to this cluster by executing the `kubectl config get-contexts` command:
 
 ```
 CURRENT   NAME         CLUSTER         AUTHINFO   NAMESPACE
@@ -146,7 +128,8 @@ cat <<'EOF' > ./test.js
 const helpers = require('./tests/chai-exec');
 
 describe("Clusters are healthy", () => {
-    const clusters = [process.env.MGMT, process.env.CLUSTER1, process.env.CLUSTER2];
+    const clusters = ["mgmt", "cluster1", "cluster2"];
+
     clusters.forEach(cluster => {
         it(`Cluster ${cluster} is healthy`, () => helpers.k8sObjectIsPresent({ context: cluster, namespace: "default", k8sType: "service", k8sObj: "kubernetes" }));
     });
@@ -155,6 +138,7 @@ EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/deploy-kind-clusters/tests/cluster-healthy.test.js.liquid"
 timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; exit 1; }
 -->
+
 
 
 
@@ -198,6 +182,7 @@ EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/deploy-and-register-gloo-mesh/tests/environment-variables.test.js.liquid"
 timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; exit 1; }
 -->
+
 Run the following commands to deploy the Gloo Mesh management plane:
 
 ```bash
@@ -502,7 +487,8 @@ timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || 
 
 
 
-## Lab 3 - Deploy Istio using Helm <a name="lab-3---deploy-istio-using-helm-"></a>
+
+## Lab 3 - Deploy Istio v1.23.1 <a name="lab-3---deploy-istio-v1.23.1-"></a>
 
 
 It is convenient to have the `istioctl` command line tool installed on your local machine. If you don't have it installed, you can install it by following the instructions below.
@@ -593,6 +579,7 @@ spec:
   selector:
     app: istio-ingressgateway
     istio: ingressgateway
+    revision: 1-23
   type: LoadBalancer
 EOF
 
@@ -650,6 +637,7 @@ spec:
   selector:
     app: istio-ingressgateway
     istio: eastwestgateway
+    revision: 1-23
   type: LoadBalancer
 EOF
 kubectl --context ${CLUSTER2} create ns istio-gateways
@@ -676,6 +664,7 @@ spec:
   selector:
     app: istio-ingressgateway
     istio: ingressgateway
+    revision: 1-23
   type: LoadBalancer
 EOF
 
@@ -733,6 +722,7 @@ spec:
   selector:
     app: istio-ingressgateway
     istio: eastwestgateway
+    revision: 1-23
   type: LoadBalancer
 EOF
 ```
@@ -749,6 +739,7 @@ helm upgrade --install istio-base oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<
 -f - <<EOF
 defaultRevision: ""
 profile: ambient
+revision: 1-23
 EOF
 
 helm upgrade --install istiod-1-23 oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/istiod \
@@ -765,6 +756,7 @@ global:
   multiCluster:
     clusterName: cluster1
 profile: ambient
+revision: 1-23
 istio_cni:
   enabled: true
 meshConfig:
@@ -792,6 +784,7 @@ global:
   hub: us-docker.pkg.dev/gloo-mesh/istio-<enterprise_istio_repo>
   proxy: 1.23.1-solo
 profile: ambient
+revision: 1-23
 cni:
   ambient:
     dnsCapture: true
@@ -808,6 +801,7 @@ helm upgrade --install ztunnel oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<ent
 -f - <<EOF
 configValidation: true
 enabled: true
+revision: 1-23
 env:
   L7_ENABLED: "true"
 hub: us-docker.pkg.dev/gloo-mesh/istio-<enterprise_istio_repo>
@@ -832,10 +826,12 @@ helm upgrade --install istio-ingressgateway-1-23 oci://us-docker.pkg.dev/gloo-me
 autoscaling:
   enabled: false
 profile: ambient
+revision: 1-23
 imagePullPolicy: IfNotPresent
 labels:
   app: istio-ingressgateway
   istio: ingressgateway
+  revision: 1-23
 service:
   type: None
 EOF
@@ -849,6 +845,7 @@ helm upgrade --install istio-eastwestgateway-1-23 oci://us-docker.pkg.dev/gloo-m
 autoscaling:
   enabled: false
 profile: ambient
+revision: 1-23
 imagePullPolicy: IfNotPresent
 env:
   ISTIO_META_REQUESTED_NETWORK_VIEW: cluster1
@@ -856,6 +853,7 @@ env:
 labels:
   app: istio-ingressgateway
   istio: eastwestgateway
+  revision: 1-23
   topology.istio.io/network: cluster1
 service:
   type: None
@@ -881,6 +879,7 @@ helm upgrade --install istio-base oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<
 -f - <<EOF
 defaultRevision: ""
 profile: ambient
+revision: 1-23
 EOF
 
 helm upgrade --install istiod-1-23 oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/istiod \
@@ -897,6 +896,7 @@ global:
   multiCluster:
     clusterName: cluster2
 profile: ambient
+revision: 1-23
 istio_cni:
   enabled: true
 meshConfig:
@@ -924,6 +924,7 @@ global:
   hub: us-docker.pkg.dev/gloo-mesh/istio-<enterprise_istio_repo>
   proxy: 1.23.1-solo
 profile: ambient
+revision: 1-23
 cni:
   ambient:
     dnsCapture: true
@@ -940,6 +941,7 @@ helm upgrade --install ztunnel oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<ent
 -f - <<EOF
 configValidation: true
 enabled: true
+revision: 1-23
 env:
   L7_ENABLED: "true"
 hub: us-docker.pkg.dev/gloo-mesh/istio-<enterprise_istio_repo>
@@ -964,10 +966,12 @@ helm upgrade --install istio-ingressgateway-1-23 oci://us-docker.pkg.dev/gloo-me
 autoscaling:
   enabled: false
 profile: ambient
+revision: 1-23
 imagePullPolicy: IfNotPresent
 labels:
   app: istio-ingressgateway
   istio: ingressgateway
+  revision: 1-23
 service:
   type: None
 EOF
@@ -981,6 +985,7 @@ helm upgrade --install istio-eastwestgateway-1-23 oci://us-docker.pkg.dev/gloo-m
 autoscaling:
   enabled: false
 profile: ambient
+revision: 1-23
 imagePullPolicy: IfNotPresent
 env:
   ISTIO_META_REQUESTED_NETWORK_VIEW: cluster2
@@ -988,6 +993,7 @@ env:
 labels:
   app: istio-ingressgateway
   istio: eastwestgateway
+  revision: 1-23
   topology.istio.io/network: cluster2
 service:
   type: None
@@ -1110,8 +1116,6 @@ timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || 
 
 
 
-
-
 ## Lab 4 - Deploy the Bookinfo demo app <a name="lab-4---deploy-the-bookinfo-demo-app-"></a>
 [<img src="https://img.youtube.com/vi/nzYcrjalY5A/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/nzYcrjalY5A "Video Link")
 
@@ -1128,6 +1132,8 @@ kubectl --context ${CLUSTER1} label namespace bookinfo-frontends istio.io/datapl
 kubectl --context ${CLUSTER1} label namespace bookinfo-backends istio.io/dataplane-mode=ambient
 kubectl --context ${CLUSTER1} label namespace bookinfo-frontends istio-injection=disabled
 kubectl --context ${CLUSTER1} label namespace bookinfo-backends istio-injection=disabled
+kubectl --context ${CLUSTER1} label namespace bookinfo-frontends istio.io/rev=1-23 --overwrite
+kubectl --context ${CLUSTER1} label namespace bookinfo-backends istio.io/rev=1-23 --overwrite
 
 # Deploy the frontend bookinfo service in the bookinfo-frontends namespace
 kubectl --context ${CLUSTER1} -n bookinfo-frontends apply -f data/steps/deploy-bookinfo/productpage-v1.yaml
@@ -1174,6 +1180,8 @@ kubectl --context ${CLUSTER2} label namespace bookinfo-frontends istio.io/datapl
 kubectl --context ${CLUSTER2} label namespace bookinfo-backends istio.io/dataplane-mode=ambient
 kubectl --context ${CLUSTER2} label namespace bookinfo-frontends istio-injection=disabled
 kubectl --context ${CLUSTER2} label namespace bookinfo-backends istio-injection=disabled
+kubectl --context ${CLUSTER2} label namespace bookinfo-frontends istio.io/rev=1-23 --overwrite
+kubectl --context ${CLUSTER2} label namespace bookinfo-backends istio.io/rev=1-23 --overwrite
 
 # Deploy the frontend bookinfo service in the bookinfo-frontends namespace
 kubectl --context ${CLUSTER2} -n bookinfo-frontends apply -f data/steps/deploy-bookinfo/productpage-v1.yaml
@@ -1254,6 +1262,7 @@ Run the following commands to deploy the httpbin app on `cluster1`. The deployme
 ```bash
 kubectl --context ${CLUSTER1} create ns httpbin
 kubectl --context ${CLUSTER1} label namespace httpbin istio.io/dataplane-mode=ambient
+kubectl --context ${CLUSTER1} label namespace httpbin istio.io/rev=1-23
 kubectl apply --context ${CLUSTER1} -f - <<EOF
 
 apiVersion: v1
@@ -1360,7 +1369,7 @@ spec:
       labels:
         app: in-mesh
         version: v1
-        sidecar.istio.io/inject: "true"
+        istio.io/rev: 1-23
     spec:
       serviceAccountName: in-mesh
       containers:
@@ -1550,7 +1559,7 @@ spec:
         args: ["-c", "while true; do ping localhost; sleep 60;done"]
 EOF
 ```
-Then, we deploy a second version, which will be called `in-mesh-with-sidecar` and will have the sidecar injected (because of the label `istio-injection` in the Pod template)
+Then, we deploy a second version, which will be called `in-mesh-with-sidecar` and will have the sidecar injected (because of the label `istio.io/rev` in the Pod template)
 
 ```bash
 kubectl apply --context ${CLUSTER1} -f - <<EOF
@@ -1592,7 +1601,7 @@ spec:
       labels:
         app: in-mesh-with-sidecar
         version: v1
-        sidecar.istio.io/inject: "true"
+        istio.io/rev: 1-23
     spec:
       serviceAccountName: in-mesh-with-sidecar
       containers:
@@ -3015,7 +3024,7 @@ kubectl --context ${CLUSTER1} -n istio-system delete peerauthentication default
 
 
 
-## Lab 13 - Deploy Istio using Helm <a name="lab-13---deploy-istio-using-helm-"></a>
+## Lab 13 - Upgrade Istio to v1.23.0-patch1 <a name="lab-13---upgrade-istio-to-v1.23.0-patch1-"></a>
 
 
 
@@ -3031,9 +3040,10 @@ helm upgrade --install istio-base oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<
 -f - <<EOF
 defaultRevision: ""
 profile: ambient
+revision: 1-23-0-patch1
 EOF
 
-helm upgrade --install istiod-1-23 oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/istiod \
+helm upgrade --install istiod-1-23-0-patch1 oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/istiod \
 --namespace istio-system \
 --kube-context=${CLUSTER1} \
 --version 1.23.0-patch1-solo \
@@ -3047,6 +3057,7 @@ global:
   multiCluster:
     clusterName: cluster1
 profile: ambient
+revision: 1-23-0-patch1
 istio_cni:
   enabled: true
 meshConfig:
@@ -3074,6 +3085,7 @@ global:
   hub: us-docker.pkg.dev/gloo-mesh/istio-<enterprise_istio_repo>
   proxy: 1.23.0-patch1-solo
 profile: ambient
+revision: 1-23-0-patch1
 cni:
   ambient:
     dnsCapture: true
@@ -3090,6 +3102,7 @@ helm upgrade --install ztunnel oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<ent
 -f - <<EOF
 configValidation: true
 enabled: true
+revision: 1-23-0-patch1
 env:
   L7_ENABLED: "true"
 hub: us-docker.pkg.dev/gloo-mesh/istio-<enterprise_istio_repo>
@@ -3105,7 +3118,7 @@ terminationGracePeriodSeconds: 29
 variant: distroless
 EOF
 
-helm upgrade --install istio-ingressgateway-1-23 oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/gateway \
+helm upgrade --install istio-ingressgateway-1-23-0-patch1 oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/gateway \
 --namespace istio-gateways \
 --kube-context=${CLUSTER1} \
 --version 1.23.0-patch1-solo \
@@ -3114,15 +3127,17 @@ helm upgrade --install istio-ingressgateway-1-23 oci://us-docker.pkg.dev/gloo-me
 autoscaling:
   enabled: false
 profile: ambient
+revision: 1-23-0-patch1
 imagePullPolicy: IfNotPresent
 labels:
   app: istio-ingressgateway
   istio: ingressgateway
+  revision: 1-23-0-patch1
 service:
   type: None
 EOF
 
-helm upgrade --install istio-eastwestgateway-1-23 oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/gateway \
+helm upgrade --install istio-eastwestgateway-1-23-0-patch1 oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/gateway \
 --namespace istio-gateways \
 --kube-context=${CLUSTER1} \
 --version 1.23.0-patch1-solo \
@@ -3131,6 +3146,7 @@ helm upgrade --install istio-eastwestgateway-1-23 oci://us-docker.pkg.dev/gloo-m
 autoscaling:
   enabled: false
 profile: ambient
+revision: 1-23-0-patch1
 imagePullPolicy: IfNotPresent
 env:
   ISTIO_META_REQUESTED_NETWORK_VIEW: cluster1
@@ -3138,6 +3154,7 @@ env:
 labels:
   app: istio-ingressgateway
   istio: eastwestgateway
+  revision: 1-23-0-patch1
   topology.istio.io/network: cluster1
 service:
   type: None
@@ -3156,9 +3173,10 @@ helm upgrade --install istio-base oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<
 -f - <<EOF
 defaultRevision: ""
 profile: ambient
+revision: 1-23-0-patch1
 EOF
 
-helm upgrade --install istiod-1-23 oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/istiod \
+helm upgrade --install istiod-1-23-0-patch1 oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/istiod \
 --namespace istio-system \
 --kube-context=${CLUSTER2} \
 --version 1.23.0-patch1-solo \
@@ -3172,6 +3190,7 @@ global:
   multiCluster:
     clusterName: cluster2
 profile: ambient
+revision: 1-23-0-patch1
 istio_cni:
   enabled: true
 meshConfig:
@@ -3199,6 +3218,7 @@ global:
   hub: us-docker.pkg.dev/gloo-mesh/istio-<enterprise_istio_repo>
   proxy: 1.23.0-patch1-solo
 profile: ambient
+revision: 1-23-0-patch1
 cni:
   ambient:
     dnsCapture: true
@@ -3215,6 +3235,7 @@ helm upgrade --install ztunnel oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<ent
 -f - <<EOF
 configValidation: true
 enabled: true
+revision: 1-23-0-patch1
 env:
   L7_ENABLED: "true"
 hub: us-docker.pkg.dev/gloo-mesh/istio-<enterprise_istio_repo>
@@ -3230,7 +3251,7 @@ terminationGracePeriodSeconds: 29
 variant: distroless
 EOF
 
-helm upgrade --install istio-ingressgateway-1-23 oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/gateway \
+helm upgrade --install istio-ingressgateway-1-23-0-patch1 oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/gateway \
 --namespace istio-gateways \
 --kube-context=${CLUSTER2} \
 --version 1.23.0-patch1-solo \
@@ -3239,15 +3260,17 @@ helm upgrade --install istio-ingressgateway-1-23 oci://us-docker.pkg.dev/gloo-me
 autoscaling:
   enabled: false
 profile: ambient
+revision: 1-23-0-patch1
 imagePullPolicy: IfNotPresent
 labels:
   app: istio-ingressgateway
   istio: ingressgateway
+  revision: 1-23-0-patch1
 service:
   type: None
 EOF
 
-helm upgrade --install istio-eastwestgateway-1-23 oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/gateway \
+helm upgrade --install istio-eastwestgateway-1-23-0-patch1 oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/gateway \
 --namespace istio-gateways \
 --kube-context=${CLUSTER2} \
 --version 1.23.0-patch1-solo \
@@ -3256,6 +3279,7 @@ helm upgrade --install istio-eastwestgateway-1-23 oci://us-docker.pkg.dev/gloo-m
 autoscaling:
   enabled: false
 profile: ambient
+revision: 1-23-0-patch1
 imagePullPolicy: IfNotPresent
 env:
   ISTIO_META_REQUESTED_NETWORK_VIEW: cluster2
@@ -3263,6 +3287,7 @@ env:
 labels:
   app: istio-ingressgateway
   istio: eastwestgateway
+  revision: 1-23-0-patch1
   topology.istio.io/network: cluster2
 service:
   type: None
@@ -3289,10 +3314,10 @@ afterEach(function (done) {
 });
 
 describe("Checking Istio installation", function() {
-  it('istiod pods are ready in cluster ' + process.env.CLUSTER1, () => helpers.checkDeploymentsWithLabels({ context: process.env.CLUSTER1, namespace: "istio-system", labels: "app=istiod", instances: 1 }));
-  it('gateway pods are ready in cluster ' + process.env.CLUSTER1, () => helpers.checkDeploymentsWithLabels({ context: process.env.CLUSTER1, namespace: "istio-gateways", labels: "app=istio-ingressgateway", instances: 2 }));
-  it('istiod pods are ready in cluster ' + process.env.CLUSTER2, () => helpers.checkDeploymentsWithLabels({ context: process.env.CLUSTER2, namespace: "istio-system", labels: "app=istiod", instances: 1 }));
-  it('gateway pods are ready in cluster ' + process.env.CLUSTER2, () => helpers.checkDeploymentsWithLabels({ context: process.env.CLUSTER2, namespace: "istio-gateways", labels: "app=istio-ingressgateway", instances: 2 }));
+  it('istiod pods are ready in cluster ' + process.env.CLUSTER1, () => helpers.checkDeploymentsWithLabels({ context: process.env.CLUSTER1, namespace: "istio-system", labels: "app=istiod", instances: 2 }));
+  it('gateway pods are ready in cluster ' + process.env.CLUSTER1, () => helpers.checkDeploymentsWithLabels({ context: process.env.CLUSTER1, namespace: "istio-gateways", labels: "app=istio-ingressgateway", instances: 4 }));
+  it('istiod pods are ready in cluster ' + process.env.CLUSTER2, () => helpers.checkDeploymentsWithLabels({ context: process.env.CLUSTER2, namespace: "istio-system", labels: "app=istiod", instances: 2 }));
+  it('gateway pods are ready in cluster ' + process.env.CLUSTER2, () => helpers.checkDeploymentsWithLabels({ context: process.env.CLUSTER2, namespace: "istio-gateways", labels: "app=istio-ingressgateway", instances: 4 }));
   it("Gateways have an ip attached in cluster " + process.env.CLUSTER1, () => {
     let cli = chaiExec("kubectl --context " + process.env.CLUSTER1 + " -n istio-gateways get svc -l app=istio-ingressgateway -o jsonpath='{.items}'");
     cli.stderr.should.be.empty;
@@ -3367,6 +3392,113 @@ timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || 
 
 
 
+
+## Lab 14 - Migrate workloads to a new Istio revision <a name="lab-14---migrate-workloads-to-a-new-istio-revision-"></a>
+
+Now, let's label all namespaces to use the new revision and rollout all deployments so that their proxies connect to the new revision:
+
+```bash
+kubectl --context ${CLUSTER1} get ns -l istio.io/rev=1-23 -o json | jq -r '.items[].metadata.name' | while read ns; do
+  kubectl --context ${CLUSTER1} label ns ${ns} istio.io/rev=1-23-0-patch1 --overwrite
+done
+kubectl --context ${CLUSTER2} get ns -l istio.io/rev=1-23 -o json | jq -r '.items[].metadata.name' | while read ns; do
+  kubectl --context ${CLUSTER2} label ns ${ns} istio.io/rev=1-23-0-patch1 --overwrite
+done
+kubectl --context ${CLUSTER1} -n httpbin patch deploy in-mesh --patch "{\"spec\": {\"template\": {\"metadata\": {\"labels\": {\"istio.io/rev\": \"1-23-0-patch1\" }}}}}"
+kubectl --context ${CLUSTER1} -n clients patch deploy in-mesh-with-sidecar --patch "{\"spec\": {\"template\": {\"metadata\": {\"labels\": {\"istio.io/rev\": \"1-23-0-patch1\" }}}}}"
+```
+<!--bash
+kubectl --context ${CLUSTER1} -n httpbin rollout status deploy in-mesh
+-->
+
+Test that you can still access the `productpage` service through the Istio Ingress Gateway corresponding to the old revision using the command below:
+
+```bash
+curl -k "https:///productpage" -I
+```
+
+You should get a response similar to the following one:
+
+```
+HTTP/2 200
+server: istio-envoy
+date: Wed, 24 Aug 2022 14:58:22 GMT
+content-type: application/json
+content-length: 670
+access-control-allow-origin: *
+access-control-allow-credentials: true
+x-envoy-upstream-service-time: 7
+```
+
+<!--bash
+cat <<'EOF' > ./test.js
+const helpers = require('./tests/chai-http');
+
+describe("productpage is accessible", () => {
+  it('/productpage is available in cluster1', () => helpers.checkURL({ host: `https://cluster1-bookinfo.example.com`, path: '/productpage', retCode: 200 }));
+})
+
+EOF
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/helm-migrate-workloads-to-revision/../deploy-istio-helm/tests/productpage-available.test.js.liquid"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; exit 1; }
+-->
+
+All good, so we can now configure the Istio gateway service(s) to use both revisions:
+
+```bash
+kubectl --context ${CLUSTER1} -n istio-gateways patch svc istio-ingressgateway --type=json --patch '[{"op": "remove", "path": "/spec/selector/revision"}]'
+kubectl --context ${CLUSTER1} -n istio-gateways patch svc istio-eastwestgateway --type=json --patch '[{"op": "remove", "path": "/spec/selector/revision"}]'
+kubectl --context ${CLUSTER2} -n istio-gateways patch svc istio-ingressgateway --type=json --patch '[{"op": "remove", "path": "/spec/selector/revision"}]'
+kubectl --context ${CLUSTER2} -n istio-gateways patch svc istio-eastwestgateway --type=json --patch '[{"op": "remove", "path": "/spec/selector/revision"}]'
+```
+
+We don't switch the selector directly from one the old revision to the new one to avoid any request to be dropped.
+
+Test that you can still access the `productpage` service:
+
+```bash
+curl -k "https:///productpage" -I
+```
+
+You should get a response similar to the following one:
+
+```
+HTTP/2 200
+server: istio-envoy
+date: Wed, 24 Aug 2022 14:58:22 GMT
+content-type: application/json
+content-length: 670
+access-control-allow-origin: *
+access-control-allow-credentials: true
+```
+
+<!--bash
+cat <<'EOF' > ./test.js
+const helpers = require('./tests/chai-http');
+
+describe("productpage is accessible", () => {
+  it('/productpage is available in cluster1', () => helpers.checkURL({ host: `https://cluster1-bookinfo.example.com`, path: '/productpage', retCode: 200 }));
+})
+
+EOF
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/helm-migrate-workloads-to-revision/../deploy-istio-helm/tests/productpage-available.test.js.liquid"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; exit 1; }
+-->
+
+<!--bash
+cat <<'EOF' > ./test.js
+const helpers = require('./tests/chai-http');
+
+describe("productpage is accessible", () => {
+  it('/productpage is available in cluster1', () => helpers.checkURL({ host: `https://cluster1-bookinfo.example.com`, path: '/productpage', retCode: 200 }));
+})
+
+EOF
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/helm-migrate-workloads-to-revision/../deploy-istio-helm/tests/productpage-available.test.js.liquid"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; exit 1; }
+-->
+
+
 <details>
   <summary>Waypoints are upgraded automatically</summary>
 The waypoints are upgraded by Istiod's Gateway Controller, so if you check the status you will see that it is on the newest "1.23.0-patch1" version:
@@ -3403,46 +3535,150 @@ describe("istio in place upgrades", function() {
   });
 });
 EOF
-echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/deploy-istio-helm/tests/waypoint-upgraded.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/helm-migrate-workloads-to-revision/tests/waypoint-upgraded.test.js.liquid"
 timeout --signal=INT 1m mocha ./test.js --timeout 10000 --retries=60 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; exit 1; }
 -->
 
-Test that you can still access the `productpage` service through the Istio Ingress Gateway corresponding to the old revision using the command below:
 
-```shell
-curl -k "https:///productpage" -I
+
+
+## Lab 15 - Helm Cleanup Istio Revision <a name="lab-15---helm-cleanup-istio-revision-"></a>
+
+Everything is working well with the new version, we can uninstall the previous version.
+
+Let's start with the gateways
+
+```bash
+helm uninstall istio-ingressgateway-1-23 \
+--namespace istio-gateways \
+--kube-context=${CLUSTER1}
+
+helm uninstall istio-eastwestgateway-1-23 \
+--namespace istio-gateways \
+--kube-context=${CLUSTER1}
+
+helm uninstall istio-ingressgateway-1-23 \
+--namespace istio-gateways \
+--kube-context=${CLUSTER2}
+
+helm uninstall istio-eastwestgateway-1-23 \
+--namespace istio-gateways \
+--kube-context=${CLUSTER2}
+```
+<!--bash
+kubectl --context ${CLUSTER1} -n istio-system get pods
+kubectl --context ${CLUSTER2} -n istio-system get pods
+kubectl --context ${CLUSTER1} -n istio-gateways get pods
+kubectl --context ${CLUSTER2} -n istio-gateways get pods
+-->
+<!--bash
+ATTEMPTS=1
+until [[ $(kubectl --context ${CLUSTER1} -n istio-gateways get pods -l "istio.io/rev=1-23" -o json | jq '.items | length') -eq 0 ]] || [ $ATTEMPTS -gt 120 ]; do
+  printf "."
+  ATTEMPTS=$((ATTEMPTS + 1))
+  sleep 1
+done
+[ $ATTEMPTS -le 120 ] || kubectl --context ${CLUSTER1} -n istio-gateways get pods -l "istio.io/rev=1-23"
+
+ATTEMPTS=1
+until [[ $(kubectl --context ${CLUSTER2} -n istio-gateways get pods -l "istio.io/rev=1-23" -o json | jq '.items | length') -eq 0 ]] || [ $ATTEMPTS -gt 60 ]; do
+  printf "."
+  ATTEMPTS=$((ATTEMPTS + 1))
+  sleep 1
+done
+[ $ATTEMPTS -le 60 ] || kubectl --context ${CLUSTER2} -n istio-gateways get pods -l "istio.io/rev=1-23"
+-->
+
+And then the control plane:
+
+```bash
+helm uninstall istiod-1-23 \
+--namespace istio-system \
+--kube-context=${CLUSTER1}
+
+helm uninstall istiod-1-23 \
+--namespace istio-system \
+--kube-context=${CLUSTER2}
+```
+<!--bash
+ATTEMPTS=1
+until [[ $(kubectl --context ${CLUSTER1} -n istio-system get pods -l "istio.io/rev=1-23" -o json | jq '.items | length') -eq 0 ]] || [ $ATTEMPTS -gt 120 ]; do
+  printf "."
+  ATTEMPTS=$((ATTEMPTS + 1))
+  sleep 1
+done
+[ $ATTEMPTS -le 120 ] || kubectl --context ${CLUSTER1} -n istio-system get pods -l "istio.io/rev=1-23"
+ATTEMPTS=1
+until [[ $(kubectl --context ${CLUSTER2} -n istio-system get pods -l "istio.io/rev=1-23" -o json | jq '.items | length') -eq 0 ]] || [ $ATTEMPTS -gt 60 ]; do
+  printf "."
+  ATTEMPTS=$((ATTEMPTS + 1))
+  sleep 1
+done
+[ $ATTEMPTS -le 60 ] || kubectl --context ${CLUSTER2} -n istio-system get pods -l "istio.io/rev=1-23"
+-->
+Run the following command:
+
+```bash
+kubectl --context ${CLUSTER1} -n istio-system get pods && kubectl --context ${CLUSTER1} -n istio-gateways get pods
 ```
 
-You should get a response similar to the following one:
+You should get the following output:
 
-```http,nocopy
-HTTP/2 200
-server: istio-envoy
-date: Wed, 24 Aug 2022 14:58:22 GMT
-content-type: application/json
-content-length: 670
-access-control-allow-origin: *
-access-control-allow-credentials: true
-x-envoy-upstream-service-time: 7
 ```
+NAME                           READY   STATUS    RESTARTS   AGE
+istiod-1-23-796fffbdf5-n6xc9   1/1     Running   0          25m
+NAME                                          READY   STATUS    RESTARTS   AGE
+istio-eastwestgateway-1-23-546446c77b-zg5hd   1/1     Running   0          25m
+istio-ingressgateway-1-23-784f69b4bb-lcfk9    1/1     Running   0          25m
+```
+
+It confirms that only the new version is running.
 
 <!--bash
 cat <<'EOF' > ./test.js
-const helpers = require('./tests/chai-http');
+const chaiExec = require("@jsdevtools/chai-exec");
+var chai = require('chai');
+var expect = chai.expect;
+chai.use(chaiExec);
 
-describe("productpage is accessible", () => {
-  it('/productpage is available in cluster1', () => helpers.checkURL({ host: `https://cluster1-bookinfo.example.com`, path: '/productpage', retCode: 200 }));
-})
-
+afterEach(function (done) {
+  if (this.currentTest.currentRetry() > 0) {
+    process.stdout.write(".");
+    setTimeout(done, 1000);
+  } else {
+    done();
+  }
+});
+describe("Old Istio version should be uninstalled", () => {
+  it("Pods aren't running anymore in CLUSTER1, namespace istio-system", () => {
+    let cli = chaiExec('kubectl --context ' + process.env.CLUSTER1 + ' -n istio-system get pods -l "istio.io/rev=' + process.env.OLD_REVISION +'" -o json');
+    expect(cli).to.exit.with.code(0);
+    expect(JSON.parse(cli.stdout).items).to.have.lengthOf(0);
+  });
+  it("Pods aren't running anymore in CLUSTER1, namespace istio-gateways", () => {
+    let cli = chaiExec('kubectl --context ' + process.env.CLUSTER1 + ' -n istio-gateways get pods -l "istio.io/rev=' + process.env.OLD_REVISION +'" -o json');
+    expect(cli).to.exit.with.code(0);
+    expect(JSON.parse(cli.stdout).items).to.have.lengthOf(0);
+  });
+  it("Pods aren't running anymore in CLUSTER2, namespace istio-system", () => {
+    let cli = chaiExec('kubectl --context ' + process.env.CLUSTER2 + ' -n istio-system get pods -l "istio.io/rev=' + process.env.OLD_REVISION +'" -o json');
+    expect(cli).to.exit.with.code(0);
+    expect(JSON.parse(cli.stdout).items).to.have.lengthOf(0);
+  });
+  it("Pods aren't running anymore in CLUSTER2, namespace istio-gateways", () => {
+    let cli = chaiExec('kubectl --context ' + process.env.CLUSTER2 + ' -n istio-gateways get pods -l "istio.io/rev=' + process.env.OLD_REVISION +'" -o json');
+    expect(cli).to.exit.with.code(0);
+    expect(JSON.parse(cli.stdout).items).to.have.lengthOf(0);
+  });
+});
 EOF
-echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/deploy-istio-helm/tests/productpage-available.test.js.liquid"
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/helm-cleanup-revision/tests/previous-version-uninstalled.test.js.liquid"
 timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; exit 1; }
 -->
 
 
 
-
-## Lab 14 - Ambient Egress Traffic with Waypoint <a name="lab-14---ambient-egress-traffic-with-waypoint-"></a>
+## Lab 16 - Ambient Egress Traffic with Waypoint <a name="lab-16---ambient-egress-traffic-with-waypoint-"></a>
 
 In this lab, we'll explore how to control and secure outbound traffic from your Ambient Mesh using Waypoints. We'll start by restricting all outgoing traffic from a specific namespace, then set up a shared Waypoint to manage egress traffic centrally. This approach allows for consistent policy enforcement across multiple services and namespaces.
 
@@ -3735,7 +3971,7 @@ kubectl --context ${CLUSTER1} delete authorizationpolicy httpbin -n egress
 
 
 
-## Lab 15 - Waypoint Deployment Options <a name="lab-15---waypoint-deployment-options-"></a>
+## Lab 17 - Waypoint Deployment Options <a name="lab-17---waypoint-deployment-options-"></a>
 
 This lab explores different ways to deploy Waypoints in Istio's Ambient Mesh. We'll learn about deploying Waypoints for services and for workloads.
 
