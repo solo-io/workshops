@@ -9,7 +9,7 @@ source ./scripts/assert.sh
 <img src="images/document-gloo-mesh.svg" style="height: 100px;"/>
 </center>
 
-# <center>Gloo Mesh Enterprise (2.6.6)</center>
+# <center>Gloo Mesh Enterprise (2.6.7)</center>
 
 
 
@@ -111,7 +111,7 @@ kubectl config use-context ${MGMT}
 Before we get started, let's install the `meshctl` CLI:
 
 ```bash
-export GLOO_MESH_VERSION=v2.6.6
+export GLOO_MESH_VERSION=v2.6.7
 curl -sL https://run.solo.io/meshctl/install | sh -
 export PATH=$HOME/.gloo-mesh/bin:$PATH
 ```
@@ -156,13 +156,13 @@ helm upgrade --install gloo-platform-crds gloo-platform-crds \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${MGMT} \
-  --version 2.6.6
+  --version 2.6.7
 
 helm upgrade --install gloo-platform gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${MGMT} \
-  --version 2.6.6 \
+  --version 2.6.7 \
   -f -<<EOF
 licensing:
   glooTrialLicenseKey: ${GLOO_MESH_LICENSE_KEY}
@@ -317,13 +317,13 @@ helm upgrade --install gloo-platform-crds gloo-platform-crds \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${CLUSTER1} \
-  --version 2.6.6
+  --version 2.6.7
 
 helm upgrade --install gloo-platform gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${CLUSTER1} \
-  --version 2.6.6 \
+  --version 2.6.7 \
   -f -<<EOF
 common:
   cluster: cluster1
@@ -371,13 +371,13 @@ helm upgrade --install gloo-platform-crds gloo-platform-crds \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${CLUSTER2} \
-  --version 2.6.6
+  --version 2.6.7
 
 helm upgrade --install gloo-platform gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${CLUSTER2} \
-  --version 2.6.6 \
+  --version 2.6.7 \
   -f -<<EOF
 common:
   cluster: cluster2
@@ -1473,7 +1473,7 @@ helm upgrade --install gloo-platform gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh-addons \
   --kube-context ${CLUSTER1} \
-  --version 2.6.6 \
+  --version 2.6.7 \
   -f -<<EOF
 common:
   cluster: cluster1
@@ -1498,7 +1498,7 @@ helm upgrade --install gloo-platform gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh-addons \
   --kube-context ${CLUSTER2} \
-  --version 2.6.6 \
+  --version 2.6.7 \
   -f -<<EOF
 common:
   cluster: cluster2
@@ -3043,7 +3043,7 @@ helm upgrade --install gloo-platform gloo-platform \
   --namespace gloo-mesh \
   --kube-context ${CLUSTER1} \
   --reuse-values \
-  --version 2.6.6 \
+  --version 2.6.7 \
   --values - <<EOF
 telemetryCollectorCustomization:
   extraProcessors:
@@ -3126,7 +3126,7 @@ helm upgrade --install gloo-platform gloo-platform \
   --namespace gloo-mesh \
   --kube-context ${CLUSTER1} \
   --reuse-values \
-  --version 2.6.6 \
+  --version 2.6.7 \
   --values - <<EOF
 telemetryCollectorCustomization:
   extraProcessors:
@@ -3199,7 +3199,7 @@ helm upgrade --install gloo-platform-crds gloo-platform-crds \
   --namespace gloo-mesh \
   --kube-context ${MGMT} \
   --set featureGates.ExternalWorkloads=true \
-  --version 2.6.6 \
+  --version 2.6.7 \
   --reuse-values \
   -f -<<EOF
 featureGates:
@@ -3210,7 +3210,7 @@ helm upgrade gloo-platform gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${MGMT} \
-  --version 2.6.6 \
+  --version 2.6.7 \
   --reuse-values \
   -f -<<EOF
 featureGates:
@@ -3223,7 +3223,7 @@ helm upgrade --install gloo-platform-crds gloo-platform-crds \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${CLUSTER1} \
-  --version 2.6.6 \
+  --version 2.6.7 \
   --reuse-values \
   -f -<<EOF
 featureGates:
@@ -3234,7 +3234,7 @@ helm upgrade gloo-platform gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${CLUSTER1} \
-  --version 2.6.6 \
+  --version 2.6.7 \
   --reuse-values \
   -f -<<EOF
 glooSpireServer:
@@ -3473,7 +3473,7 @@ echo
 -->
 
 ```shell
-export GLOO_AGENT_URL=https://storage.googleapis.com/gloo-platform/vm/v2.6.6/gloo-workload-agent.deb
+export GLOO_AGENT_URL=https://storage.googleapis.com/gloo-platform/vm/v2.6.7/gloo-workload-agent.deb
 export ISTIO_URL=https://storage.googleapis.com/solo-workshops/istio-binaries/1.23.1/istio-sidecar.deb
 docker exec vm1 meshctl ew onboard --install \
   --attestor token \
@@ -3490,7 +3490,7 @@ docker exec vm1 meshctl ew onboard --install \
   --ext-workload virtualmachines/${VM_APP}
 ```
 <!--bash
-export GLOO_AGENT_URL=https://storage.googleapis.com/gloo-platform/vm/v2.6.6/gloo-workload-agent.deb
+export GLOO_AGENT_URL=https://storage.googleapis.com/gloo-platform/vm/v2.6.7/gloo-workload-agent.deb
 export ISTIO_URL=https://storage.googleapis.com/solo-workshops/istio-binaries/1.23.1/istio-sidecar.deb
 echo -n Trying to onboard the VM...
 MAX_ATTEMPTS=10

@@ -291,7 +291,7 @@ git -C ${GITOPS_REPO_LOCAL} commit -m "Delete nginx"
 git -C ${GITOPS_REPO_LOCAL} push
 
 kubectl --context ${MGMT} -n default wait --for=delete pod/nginx --timeout=30s
-export GLOO_MESH_VERSION=v2.6.6
+export GLOO_MESH_VERSION=v2.6.7
 curl -sL https://run.solo.io/meshctl/install | sh -
 export PATH=$HOME/.gloo-mesh/bin:$PATH
 cat <<'EOF' > ./test.js
@@ -411,7 +411,7 @@ spec:
   sources:
   - chart: gloo-platform-crds
     repoURL: https://storage.googleapis.com/gloo-platform/helm-charts
-    targetRevision: 2.6.6
+    targetRevision: 2.6.7
     helm:
       releaseName: gloo-platform-crds
       parameters:
@@ -419,7 +419,7 @@ spec:
         value: "true"
   - chart: gloo-platform
     repoURL: https://storage.googleapis.com/gloo-platform/helm-charts
-    targetRevision: 2.6.6
+    targetRevision: 2.6.7
     helm:
       releaseName: gloo-platform
       valueFiles:
@@ -651,7 +651,7 @@ spec:
       sources:
       - chart: gloo-platform-crds
         repoURL: https://storage.googleapis.com/gloo-platform/helm-charts
-        targetRevision: 2.6.6
+        targetRevision: 2.6.7
         helm:
           releaseName: gloo-platform-crds
           parameters:
@@ -659,7 +659,7 @@ spec:
             value: "true"
       - chart: gloo-platform
         repoURL: https://storage.googleapis.com/gloo-platform/helm-charts
-        targetRevision: 2.6.6
+        targetRevision: 2.6.7
         helm:
           releaseName: gloo-platform
           valueFiles:
@@ -1890,7 +1890,7 @@ spec:
       sources:
       - chart: gloo-platform
         repoURL: https://storage.googleapis.com/gloo-platform/helm-charts
-        targetRevision: 2.6.6
+        targetRevision: 2.6.7
         helm:
           releaseName: gloo-platform
           valueFiles:
@@ -3348,7 +3348,7 @@ do
   echo -n .
 done"
 echo
-export GLOO_AGENT_URL=https://storage.googleapis.com/gloo-platform/vm/v2.6.6/gloo-workload-agent.deb
+export GLOO_AGENT_URL=https://storage.googleapis.com/gloo-platform/vm/v2.6.7/gloo-workload-agent.deb
 export ISTIO_URL=https://storage.googleapis.com/solo-workshops/istio-binaries/1.23.1/istio-sidecar.deb
 echo -n Trying to onboard the VM...
 MAX_ATTEMPTS=10
