@@ -1301,7 +1301,7 @@ do
 done"
 echo
 -->
-```
+
 You can follow the progress using the following command:
 
 ```bash
