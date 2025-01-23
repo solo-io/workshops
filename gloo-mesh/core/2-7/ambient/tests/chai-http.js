@@ -25,7 +25,30 @@ global = {
       .send()
       .then(async function (res) {
         debugLog(`Response status code: ${res.status}`);
-        expect(res).to.have.status(retCode);
+        expect(res).to.have.property('status', retCode);
+      });
+  },
+
+  checkURLWithIP: ({ ip, host, protocol = "http", path = "", headers = [], certFile = '', keyFile = '', retCode }) => {
+    debugLog(`Checking URL with IP: ${ip}, Host: ${host}, Path: ${path} with expected return code: ${retCode}`);
+
+    let cert = certFile ? fs.readFileSync(certFile) : '';
+    let key = keyFile ? fs.readFileSync(keyFile) : '';
+
+    let url = `${protocol}://${ip}`;
+
+    // Use chai-http to make a request to the IP address, but set the Host header
+    let request = chai.request(url).head(path).redirects(0).cert(cert).key(key).set('Host', host);
+
+    debugLog(`Setting headers: ${JSON.stringify(headers)}`);
+    headers.forEach(header => request.set(header.key, header.value));
+
+    return request
+      .send()
+      .then(async function (res) {
+        debugLog(`Response status code: ${res.status}`);
+        debugLog(`Response ${JSON.stringify(res)}`);
+        expect(res).to.have.property('status', retCode);
       });
   },
 
@@ -124,7 +147,7 @@ global = {
       .send()
       .then(async function (res) {
         debugLog(`Response status code: ${res.status}`);
-        expect(res).to.have.status(retCode);
+        expect(res).to.have.property('status', retCode);
       });
   }
 };
