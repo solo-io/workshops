@@ -1,104 +1,13 @@
-
-<!--bash
+#!/usr/bin/env bash
+source /root/.env 2>/dev/null || true
 source ./scripts/assert.sh
--->
-
-
-
-<center>
-<img src="images/document-gloo-mesh.svg" style="height: 100px;"/>
-</center>
-
-# <center>Gloo Mesh Core (2.6.7) Ambient</center>
-
-
-
-## Table of Contents
-* [Introduction](#introduction)
-* [Lab 1 - Deploy KinD Cluster(s)](#lab-1---deploy-kind-cluster(s)-)
-* [Lab 2 - Deploy and register Gloo Mesh](#lab-2---deploy-and-register-gloo-mesh-)
-* [Lab 3 - Configure common trust certificates in both clusters](#lab-3---configure-common-trust-certificates-in-both-clusters-)
-* [Lab 4 - Deploy Istio using Helm](#lab-4---deploy-istio-using-helm-)
-* [Lab 5 - Deploy the httpbin demo app](#lab-5---deploy-the-httpbin-demo-app-)
-* [Lab 6 - Deploy the httpbin demo app](#lab-6---deploy-the-httpbin-demo-app-)
-* [Lab 7 - Deploy the clients to make requests to other services](#lab-7---deploy-the-clients-to-make-requests-to-other-services-)
-* [Lab 8 - Link Clusters](#lab-8---link-clusters-)
-
-
-
-## Introduction <a name="introduction"></a>
-
-[Gloo Mesh Core](https://www.solo.io/products/gloo-mesh/) is a management plane that makes it easy to operate [Istio](https://istio.io) and adds additional features to Ambient.
-
-Gloo Mesh Core works with community [Istio](https://istio.io/) out of the box.
-You get instant insights into your Istio environment through a custom dashboard.
-Observability pipelines let you analyze many data sources that you already have.
-You can even automate installing and upgrading Istio with the Gloo lifecycle manager, on one or many Kubernetes clusters deployed anywhere.
-
-But Gloo Mesh Core includes more than tooling to complement an existing Istio installation.
-You can also replace community Istio with Solo's hardened Istio images. These images unlock enterprise-level support.
-Later, you might choose to upgrade seamlessly to Gloo Mesh Enterprise for a full-stack service mesh and API gateway solution.
-This approach lets you scale as you need more advanced routing and security features.
-
-### Istio and Ambient support
-
-The Gloo Mesh Core subscription includes end-to-end Istio support:
-
-* Upstream feature development
-* CI/CD-ready automated installation and upgrade
-* End-to-end Istio support and CVE security patching
-* Long-term n-4 version support with Solo images
-* Special image builds for distroless and FIPS compliance
-* 24x7 production support and one-hour Severity 1 SLA
-* Ambient support for Istio
-* L7 Telemetry support in Ztunnel
-
-### Gloo Mesh Core overview
-
-Gloo Mesh Core provides many unique features, including:
-
-* Single pane of glass for operational management of Istio, including global observability
-* Insights based on environment checks with corrective actions and best practices
-* [Cilium](https://cilium.io/) support
-* Seamless migration to full-stack service mesh
-
-### Want to learn more about Gloo Mesh Core?
-
-You can find more information about Gloo Mesh Core in the official documentation: <https://docs.solo.io/gloo-mesh-core>
-
-
-
-
-## Lab 1 - Deploy KinD Cluster(s) <a name="lab-1---deploy-kind-cluster(s)-"></a>
-
-
-Clone this repository and go to the directory where this `README.md` file is.
-
-Set the context environment variables:
-
-```bash
 export MGMT=cluster1
 export CLUSTER1=cluster1
 export CLUSTER2=cluster2
-```
-
-Deploy the KinD clusters:
-
-```bash
 bash ./data/steps/deploy-kind-clusters/deploy-cluster1.sh
 bash ./data/steps/deploy-kind-clusters/deploy-cluster2.sh
-```
-Then run the following commands to wait for all the Pods to be ready:
-
-```bash
 ./scripts/check.sh cluster1
 ./scripts/check.sh cluster2
-```
-
-**Note:** If you run the `check.sh` script immediately after the `deploy.sh` script, you may see a jsonpath error. If that happens, simply wait a few seconds and try again.
-
-Once the `check.sh` script completes, execute the `kubectl get pods -A` command, and verify that all pods are in a running state.
-<!--bash
 cat <<'EOF' > ./test.js
 const helpers = require('./tests/chai-exec');
 
@@ -112,23 +21,9 @@ describe("Clusters are healthy", () => {
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/deploy-kind-clusters/tests/cluster-healthy.test.js.liquid from lab number 1"
 timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 1"; exit 1; }
--->
-
-
-
-
-## Lab 2 - Deploy and register Gloo Mesh <a name="lab-2---deploy-and-register-gloo-mesh-"></a>
-[<img src="https://img.youtube.com/vi/djfFiepK4GY/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/djfFiepK4GY "Video Link")
-
-
-Before we get started, let's install the `meshctl` CLI:
-
-```bash
 export GLOO_MESH_VERSION=v2.6.7
 curl -sL https://run.solo.io/meshctl/install | sh -
 export PATH=$HOME/.gloo-mesh/bin:$PATH
-```
-<!--bash
 cat <<'EOF' > ./test.js
 var chai = require('chai');
 var expect = chai.expect;
@@ -156,11 +51,6 @@ describe("Required environment variables should contain value", () => {
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/deploy-and-register-gloo-mesh/tests/environment-variables.test.js.liquid from lab number 2"
 timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 2"; exit 1; }
--->
-
-Run the following commands to deploy the Gloo Mesh management plane:
-
-```bash
 kubectl --context ${MGMT} create ns gloo-mesh
 
 helm upgrade --install gloo-platform-crds gloo-platform-crds \
@@ -217,17 +107,10 @@ featureGates:
 EOF
 
 kubectl --context ${MGMT} -n gloo-mesh rollout status deploy/gloo-mesh-mgmt-server
-```
-
-<!--bash
 kubectl wait --context ${MGMT} --for=condition=Ready -n gloo-mesh --all pod
 timeout 2m bash -c "until [[ \$(kubectl --context ${MGMT} -n gloo-mesh get svc gloo-mesh-mgmt-server -o json | jq '.status.loadBalancer | length') -gt 0 ]]; do
   sleep 1
 done"
--->
-
-Then, you need to set the environment variable to tell the Gloo Mesh agents how to communicate with the management plane:
-<!--bash
 cat <<'EOF' > ./test.js
 
 const helpers = require('./tests/chai-exec');
@@ -242,8 +125,6 @@ describe("MGMT server is healthy", () => {
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/deploy-and-register-gloo-mesh/tests/check-deployment.test.js.liquid from lab number 2"
 timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 2"; exit 1; }
--->
-<!--bash
 cat <<'EOF' > ./test.js
 const chaiExec = require("@jsdevtools/chai-exec");
 var chai = require('chai');
@@ -261,22 +142,10 @@ afterEach(function (done) {
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/deploy-and-register-gloo-mesh/tests/get-gloo-mesh-mgmt-server-ip.test.js.liquid from lab number 2"
 timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 2"; exit 1; }
--->
-
-```bash
 export ENDPOINT_GLOO_MESH=$(kubectl --context ${MGMT} -n gloo-mesh get svc gloo-mesh-mgmt-server -o jsonpath='{.status.loadBalancer.ingress[0].ip}{.status.loadBalancer.ingress[0].hostname}'):9900
 export HOST_GLOO_MESH=$(echo ${ENDPOINT_GLOO_MESH%:*})
 export ENDPOINT_TELEMETRY_GATEWAY=$(kubectl --context ${MGMT} -n gloo-mesh get svc gloo-telemetry-gateway -o jsonpath='{.status.loadBalancer.ingress[0].ip}{.status.loadBalancer.ingress[0].hostname}'):4317
 export ENDPOINT_GLOO_MESH_UI=$(kubectl --context ${MGMT} -n gloo-mesh get svc gloo-mesh-ui -o jsonpath='{.status.loadBalancer.ingress[0].ip}{.status.loadBalancer.ingress[0].hostname}'):8090
-```
-
-Check that the variables have correct values:
-```
-echo $HOST_GLOO_MESH
-echo $ENDPOINT_GLOO_MESH
-```
-
-<!--bash
 cat <<'EOF' > ./test.js
 const dns = require('dns');
 const chaiHttp = require("chai-http");
@@ -298,13 +167,6 @@ describe("Address '" + process.env.HOST_GLOO_MESH + "' can be resolved in DNS", 
 EOF
 echo "executing test ./gloo-mesh-2-0/tests/can-resolve.test.js.liquid from lab number 2"
 timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 2"; exit 1; }
--->
-Finally, you need to register the cluster(s).
-
-
-And here is how you register the second one:
-
-```bash
 kubectl apply --context ${MGMT} -f - <<EOF
 apiVersion: admin.gloo.solo.io/v2
 kind: KubernetesCluster
@@ -353,28 +215,6 @@ telemetryCollector:
 glooAnalyzer:
   enabled: true
 EOF
-```
-
-You can check the cluster(s) have been registered correctly using the following commands:
-```
-meshctl --kubecontext ${MGMT} check
-```
-
-```
-pod=$(kubectl --context ${MGMT} -n gloo-mesh get pods -l app=gloo-mesh-mgmt-server -o jsonpath='{.items[0].metadata.name}')
-kubectl --context ${MGMT} -n gloo-mesh debug -q -i ${pod} --image=curlimages/curl -- curl -s http://localhost:9091/metrics | grep relay_push_clients_connected
-```
-
-You should get an output similar to this:
-```,nocopy
-# HELP relay_push_clients_connected Current number of connected Relay push clients (Relay Agents).
-# TYPE relay_push_clients_connected gauge
-relay_push_clients_connected{cluster="cluster1"} 1
-relay_push_clients_connected{cluster="cluster2"} 1
-```
-Finally, you need to specify which gateways you want to use for cross cluster traffic:
-
-```bash
 kubectl apply --context ${MGMT} -f - <<EOF
 apiVersion: admin.gloo.solo.io/v2
 kind: WorkspaceSettings
@@ -388,8 +228,6 @@ spec:
           labels:
             istio: eastwestgateway
 EOF
-```
-<!--bash
 cat <<'EOF' > ./test.js
 var chai = require('chai');
 var expect = chai.expect;
@@ -409,16 +247,6 @@ describe("Cluster registration", () => {
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/deploy-and-register-gloo-mesh/tests/cluster-registration.test.js.liquid from lab number 2"
 timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 2"; exit 1; }
--->
-
-
-
-
-## Lab 3 - Configure common trust certificates in both clusters <a name="lab-3---configure-common-trust-certificates-in-both-clusters-"></a>
-
-Create intermediate CAs in both clusters and the Root CA.
-
-```bash
 echo "Generating new certificates"
 mkdir -p "./certs/${CLUSTER1}"
 mkdir -p "./certs/${CLUSTER2}"
@@ -458,11 +286,6 @@ step certificate create $CLUSTER2 \
 
 cat ./certs/$CLUSTER1/ca-cert.pem ./certs/root-cert.pem > ./certs/$CLUSTER1/cert-chain.pem
 cat ./certs/$CLUSTER2/ca-cert.pem ./certs/root-cert.pem > ./certs/$CLUSTER2/cert-chain.pem
-```
-
-
-Now let's apply the certificates to the clusters.
-```bash
 kubectl --context="${CLUSTER1}" create namespace istio-system || true
 kubectl --context="${CLUSTER1}" create secret generic cacerts -n istio-system \
   --from-file=./certs/$CLUSTER1/ca-cert.pem \
@@ -476,21 +299,6 @@ kubectl --context="${CLUSTER2}" create secret generic cacerts -n istio-system \
   --from-file=./certs/$CLUSTER2/ca-key.pem \
   --from-file=./certs/root-cert.pem \
   --from-file=./certs/$CLUSTER2/cert-chain.pem
-```
-
-
-
-## Lab 4 - Deploy Istio using Helm <a name="lab-4---deploy-istio-using-helm-"></a>
-
-
-It is convenient to have the `istioctl` command line tool installed on your local machine. If you don't have it installed, you can install it by following the instructions below.
-
-<details>
-  <summary>Install <code>istioctl</code></summary>
-
-Install `istioctl` if not already installed as it will be useful in some of the labs that follow.
-
-```bash
 curl -L https://istio.io/downloadIstio | sh -
 
 if [ -d "istio-"*/ ]; then
@@ -498,12 +306,6 @@ if [ -d "istio-"*/ ]; then
   export PATH=$PWD/bin:$PATH
   cd ..
 fi
-```
-
-That's it!
-</details>
-
-<!--bash
 cat <<'EOF' > ./test.js
 const chaiExec = require("@jsdevtools/chai-exec");
 var chai = require('chai');
@@ -542,11 +344,6 @@ describe("istio_version is at least 1.23.0", () => {
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/deploy-istio-helm/tests/istio-version.test.js.liquid from lab number 4"
 timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 4"; exit 1; }
--->
-
-Let's create Kubernetes services for the gateways:
-
-```bash
 kubectl --context ${CLUSTER1} create ns istio-gateways
 
 kubectl apply --context ${CLUSTER1} -f - <<EOF
@@ -713,12 +510,6 @@ spec:
     istio: eastwestgateway
   type: LoadBalancer
 EOF
-```
-
-Let's deploy Istio using Helm in cluster1. We'll install the base Istio components, the Istiod control plane, the Istio CNI, the ztunnel, and the ingress/eastwest gateways.
-
-
-```bash
 helm upgrade --install istio-base oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/base \
 --namespace istio-system \
 --kube-context=${CLUSTER1} \
@@ -844,19 +635,10 @@ labels:
 service:
   type: None
 EOF
-```
-The Gateway APIs do not come installed by default on most Kubernetes clusters. Install the Gateway API CRDs if they are not present:
-```bash
 kubectl --context ${CLUSTER1} get crd gateways.gateway.networking.k8s.io &> /dev/null || \
   { kubectl kustomize "github.com/kubernetes-sigs/gateway-api/config/crd?ref=v1.1.0" | kubectl --context ${CLUSTER1} apply -f -; }
 kubectl --context ${CLUSTER2} get crd gateways.gateway.networking.k8s.io &> /dev/null || \
   { kubectl kustomize "github.com/kubernetes-sigs/gateway-api/config/crd?ref=v1.1.0" | kubectl --context ${CLUSTER2} apply -f -; }
-```
-  
-Let's deploy Istio using Helm in cluster2. We'll install the base Istio components, the Istiod control plane, the Istio CNI, the ztunnel, and the ingress/eastwest gateways.
-
-
-```bash
 helm upgrade --install istio-base oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/base \
 --namespace istio-system \
 --kube-context=${CLUSTER2} \
@@ -982,16 +764,10 @@ labels:
 service:
   type: None
 EOF
-```
-The Gateway APIs do not come installed by default on most Kubernetes clusters. Install the Gateway API CRDs if they are not present:
-```bash
 kubectl --context ${CLUSTER1} get crd gateways.gateway.networking.k8s.io &> /dev/null || \
   { kubectl kustomize "github.com/kubernetes-sigs/gateway-api/config/crd?ref=v1.1.0" | kubectl --context ${CLUSTER1} apply -f -; }
 kubectl --context ${CLUSTER2} get crd gateways.gateway.networking.k8s.io &> /dev/null || \
   { kubectl kustomize "github.com/kubernetes-sigs/gateway-api/config/crd?ref=v1.1.0" | kubectl --context ${CLUSTER2} apply -f -; }
-```
-
-<!--bash
 cat <<'EOF' > ./test.js
 
 const helpers = require('./tests/chai-exec');
@@ -1038,19 +814,11 @@ describe("Checking Istio installation", function() {
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/deploy-istio-helm/tests/istio-ready.test.js.liquid from lab number 4"
 timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 4"; exit 1; }
--->
-<!--bash
 timeout 2m bash -c "until [[ \$(kubectl --context ${CLUSTER1} -n istio-gateways get svc -l istio=ingressgateway -o json | jq '.items[0].status.loadBalancer | length') -gt 0 ]]; do
   sleep 1
 done"
--->
-
-```bash
 export HOST_GW_CLUSTER1="$(kubectl --context ${CLUSTER1} -n istio-gateways get svc -l istio=ingressgateway -o jsonpath='{.items[0].status.loadBalancer.ingress[0].*}')"
 export HOST_GW_CLUSTER2="$(kubectl --context ${CLUSTER2} -n istio-gateways get svc -l istio=ingressgateway -o jsonpath='{.items[0].status.loadBalancer.ingress[0].*}')"
-```
-
-<!--bash
 cat <<'EOF' > ./test.js
 const dns = require('dns');
 const chaiHttp = require("chai-http");
@@ -1072,8 +840,6 @@ describe("Address '" + process.env.HOST_GW_CLUSTER1 + "' can be resolved in DNS"
 EOF
 echo "executing test ./default/tests/can-resolve.test.js.liquid from lab number 4"
 timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 4"; exit 1; }
--->
-<!--bash
 cat <<'EOF' > ./test.js
 const dns = require('dns');
 const chaiHttp = require("chai-http");
@@ -1095,22 +861,6 @@ describe("Address '" + process.env.HOST_GW_CLUSTER2 + "' can be resolved in DNS"
 EOF
 echo "executing test ./default/tests/can-resolve.test.js.liquid from lab number 4"
 timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 4"; exit 1; }
--->
-
-
-
-
-## Lab 5 - Deploy the httpbin demo app <a name="lab-5---deploy-the-httpbin-demo-app-"></a>
-[<img src="https://img.youtube.com/vi/w1xB-o_gHs0/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/w1xB-o_gHs0 "Video Link")
-
-
-We're going to deploy the httpbin application to demonstrate several features of Gloo Mesh on cluster CLUSTER1.
-
-You can find more information about this application [here](http://httpbin.org/).
-
-Run the following commands to deploy the httpbin app on `cluster1`. The deployment will be called `not-in-mesh` and won't have the sidecar injected, because of the annotation `sidecar.istio.io/inject: "false"` and its traffic won't be redirected to ztunnel because of the annotation `istio.io/dataplane-mode: none`.
-
-```bash
 kubectl --context ${CLUSTER1} create ns httpbin
 kubectl --context ${CLUSTER1} label namespace httpbin istio.io/dataplane-mode=ambient
 kubectl apply --context ${CLUSTER1} -f - <<EOF
@@ -1174,11 +924,6 @@ spec:
             port: http
 
 EOF
-```
-
-Then, we deploy a second version, which will be called `in-mesh` and will be part of the mesh.
-
-```bash
 kubectl apply --context ${CLUSTER1} -f - <<EOF
 
 apiVersion: v1
@@ -1239,10 +984,6 @@ spec:
             port: http
 
 EOF
-```
-
-
-<!--bash
 echo -n Waiting for httpbin pods to be ready...
 timeout -v 5m bash -c "
 until [[ \$(kubectl --context ${CLUSTER1} -n httpbin get deploy -o json | jq '[.items[].status.readyReplicas] | add') -eq 2 ]] 2>/dev/null
@@ -1251,9 +992,6 @@ do
   echo -n .
 done"
 echo
--->
-Add another HTTPBin service which is deployed in Ambient.
-```bash
 kubectl apply --context ${CLUSTER1} -f - <<EOF
 
 apiVersion: v1
@@ -1316,20 +1054,7 @@ spec:
             port: http
 
 EOF
-```
-You can follow the progress using the following command:
-
-```bash
 kubectl --context ${CLUSTER1} -n httpbin get pods
-```
-
-```,nocopy
-NAME                           READY   STATUS    RESTARTS   AGE
-in-mesh-5d9d9549b5-qrdgd       2/2     Running   0          11s
-in-ambient-5c64bb49cd-m9kwm    1/1     Running   0          4s
-not-in-mesh-5c64bb49cd-m9kwm   1/1     Running   0          11s
-```
-<!--bash
 cat <<'EOF' > ./test.js
 const helpers = require('./tests/chai-exec');
 
@@ -1345,21 +1070,6 @@ describe("httpbin app", () => {
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/apps/httpbin/deploy-httpbin/tests/check-httpbin.test.js.liquid from lab number 5"
 timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 5"; exit 1; }
--->
-
-
-
-## Lab 6 - Deploy the httpbin demo app <a name="lab-6---deploy-the-httpbin-demo-app-"></a>
-[<img src="https://img.youtube.com/vi/w1xB-o_gHs0/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/w1xB-o_gHs0 "Video Link")
-
-
-We're going to deploy the httpbin application to demonstrate several features of Gloo Mesh on cluster CLUSTER2.
-
-You can find more information about this application [here](http://httpbin.org/).
-
-Run the following commands to deploy the httpbin app on `cluster1`. The deployment will be called `not-in-mesh` and won't have the sidecar injected, because of the annotation `sidecar.istio.io/inject: "false"` and its traffic won't be redirected to ztunnel because of the annotation `istio.io/dataplane-mode: none`.
-
-```bash
 kubectl --context ${CLUSTER2} create ns httpbin
 kubectl --context ${CLUSTER2} label namespace httpbin istio.io/dataplane-mode=ambient
 kubectl apply --context ${CLUSTER2} -f - <<EOF
@@ -1423,11 +1133,6 @@ spec:
             port: http
 
 EOF
-```
-
-Then, we deploy a second version, which will be called `in-mesh` and will be part of the mesh.
-
-```bash
 kubectl apply --context ${CLUSTER2} -f - <<EOF
 
 apiVersion: v1
@@ -1488,10 +1193,6 @@ spec:
             port: http
 
 EOF
-```
-
-
-<!--bash
 echo -n Waiting for httpbin pods to be ready...
 timeout -v 5m bash -c "
 until [[ \$(kubectl --context ${CLUSTER2} -n httpbin get deploy -o json | jq '[.items[].status.readyReplicas] | add') -eq 2 ]] 2>/dev/null
@@ -1500,9 +1201,6 @@ do
   echo -n .
 done"
 echo
--->
-Add another HTTPBin service which is deployed in Ambient.
-```bash
 kubectl apply --context ${CLUSTER2} -f - <<EOF
 
 apiVersion: v1
@@ -1565,20 +1263,7 @@ spec:
             port: http
 
 EOF
-```
-You can follow the progress using the following command:
-
-```bash
 kubectl --context ${CLUSTER2} -n httpbin get pods
-```
-
-```,nocopy
-NAME                           READY   STATUS    RESTARTS   AGE
-in-mesh-5d9d9549b5-qrdgd       2/2     Running   0          11s
-in-ambient-5c64bb49cd-m9kwm    1/1     Running   0          4s
-not-in-mesh-5c64bb49cd-m9kwm   1/1     Running   0          11s
-```
-<!--bash
 cat <<'EOF' > ./test.js
 const helpers = require('./tests/chai-exec');
 
@@ -1594,17 +1279,6 @@ describe("httpbin app", () => {
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/apps/httpbin/deploy-httpbin/tests/check-httpbin.test.js.liquid from lab number 6"
 timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 6"; exit 1; }
--->
-
-
-
-## Lab 7 - Deploy the clients to make requests to other services <a name="lab-7---deploy-the-clients-to-make-requests-to-other-services-"></a>
-
-We're going to deploy services that we'll use as clients to demonstrate several features of Gloo Mesh.
-
-Run the following commands to deploy the client on `cluster1`. The deployment will be called `not-in-mesh` and won't have the sidecar injected, because of the annotation `sidecar.istio.io/inject: "false"` and its traffic won't be redirected to ztunnel because of the annotation `istio.io/dataplane-mode: none`.
-
-```bash
 kubectl --context ${CLUSTER1} create ns clients
 
 kubectl apply --context ${CLUSTER1} -f - <<EOF
@@ -1657,10 +1331,6 @@ spec:
         command: ["/bin/bash"]
         args: ["-c", "while true; do ping localhost; sleep 60;done"]
 EOF
-```
-Then, we deploy a second version, which will be called `in-mesh-with-sidecar` and will have the sidecar injected (because of the label `istio-injection` in the Pod template)
-
-```bash
 kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: v1
 kind: ServiceAccount
@@ -1710,9 +1380,6 @@ spec:
         command: ["/bin/bash"]
         args: ["-c", "while true; do ping localhost; sleep 60;done"]
 EOF
-```
-
-<!--bash
 echo -n Waiting for clients to be ready...
 timeout -v 5m bash -c "
 until [[ \$(kubectl --context ${CLUSTER1} -n clients get deploy -o json | jq '[.items[].status.readyReplicas] | add') -eq 2 ]] 2>/dev/null
@@ -1721,10 +1388,6 @@ do
   echo -n .
 done"
 echo
--->
-Add another client service which is deployed in Ambient.
-
-```bash
 kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: v1
 kind: ServiceAccount
@@ -1776,20 +1439,7 @@ spec:
         command: ["/bin/bash"]
         args: ["-c", "while true; do ping localhost; sleep 60;done"]
 EOF
-```
-You can follow the progress using the following command:
-
-```bash
 kubectl --context ${CLUSTER1} -n clients get pods
-```
-
-```,nocopy
-NAME                           READY   STATUS    RESTARTS   AGE
-in-ambient-5c64bb49cd-w3dmw    1/1     Running   0          4s
-in-mesh-5d9d9549b5-qrdgd       2/2     Running   0          11s
-not-in-mesh-5c64bb49cd-m9kwm   1/1     Running   0          11s
-```
-<!--bash
 cat <<'EOF' > ./test.js
 const helpers = require('./tests/chai-exec');
 
@@ -1805,28 +1455,8 @@ describe("client apps", () => {
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/apps/clients/deploy-clients/tests/check-clients.test.js.liquid from lab number 7"
 timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 7"; exit 1; }
--->
-
-
-
-## Lab 8 - Link Clusters <a name="lab-8---link-clusters-"></a>
-
-Install the Kubernetes Gateway API in both clusters:
-```
-kubectl --context $CLUSTER1 apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.2.0/standard-install.yaml
-kubectl --context $CLUSTER2 apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.2.0/standard-install.yaml
-```
-
-Configure the network topology for each cluster in the `istio-system` namespace:
-
-```bash
 kubectl --context $CLUSTER1 label namespace istio-system topology.istio.io/network=$CLUSTER1
 kubectl --context $CLUSTER2 label namespace istio-system topology.istio.io/network=$CLUSTER2
-```
-
-Create a Gateway for each cluster:
-
-```bash
   cat <<EOF | kubectl --context $CLUSTER1 apply -f -
 apiVersion: gateway.networking.k8s.io/v1
 kind: Gateway
@@ -1864,18 +1494,8 @@ spec:
     tls:
       mode: Passthrough
 EOF
-```
-
-Patch the eastwest gateways to admit xds traffic to the clusters:
-
-```bash
 kubectl --context $CLUSTER1 -n istio-system patch svc eastwest --type='json' -p='[{"op": "add", "path": "/spec/ports/-", "value": {"name": "grpc-xds", "port": 15010, "targetPort": "grpc-xds", "protocol": "TCP"}}]'
 kubectl --context $CLUSTER2 -n istio-system patch svc eastwest --type='json' -p='[{"op": "add", "path": "/spec/ports/-", "value": {"name": "grpc-xds", "port": 15010, "targetPort": "grpc-xds", "protocol": "TCP"}}]'
-```
-
-Link the first cluster to the second cluster:
-
-```bash
 CLUSTER_GW_IP="$(kubectl --context $CLUSTER2 -n istio-system get service eastwest -o jsonpath='{.status.loadBalancer.ingress[0].ip}{.status.loadBalancer.ingress[0].hostname}')"
 
 cat << EOF | kubectl --context ${CLUSTER1} apply -f -
@@ -1898,11 +1518,6 @@ spec:
     port: 15008
     protocol: HBONE
 EOF
-```
-
-Link the second cluster to the first cluster:
-
-```bash
 CLUSTER_GW_IP="$(kubectl --context $CLUSTER1 -n istio-system get service eastwest -o jsonpath='{.status.loadBalancer.ingress[0].ip}{.status.loadBalancer.ingress[0].hostname}')"
 
 cat << EOF | kubectl --context ${CLUSTER2} apply -f -
@@ -1925,36 +1540,8 @@ spec:
     port: 15008
     protocol: HBONE
 EOF
-```
-
-Let's validate that cross cluster traffic works. Let's annotate services that are globally accessible:
-
-Next expose global service.
-
-```bash
 kubectl --context $CLUSTER1 -n httpbin annotate svc in-ambient istio.io/global-service=true
 kubectl --context $CLUSTER2 -n httpbin annotate svc in-ambient istio.io/global-service=true
-```
-
-Validate that Service Entries are workload entries are created to route traffic to the gateway of the other cluster:
-
-```shell
-kubectl --context $CLUSTER1 -n httpbin get serviceentry
-kubectl --context $CLUSTER2 -n httpbin get workloadentry
-```
-
-> [!IMPORTANT]
-> Limitation:
->
-> * Multi-Network traffic is currently not supported by Istio Gateways, Sidecars, and Waypoints.
-
-Next, let's send some traffic across the clusters:
-
-```shell
-kubectl --context=$CLUSTER1 -n clients exec -it deploy/in-ambient -- curl -v in-ambient.httpbin.global:8000/get
-```
-
-<!--bash
 cat <<'EOF' > ./test.js
 const chaiExec = require("@jsdevtools/chai-exec");
 var chai = require('chai');
@@ -1983,7 +1570,3 @@ describe("ensure traffic goes to workloads in both clusters", () => {
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/link-clusters/tests/check-cross-cluster-traffic.js.liquid from lab number 8"
 timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 8"; exit 1; }
--->
-
-
-
