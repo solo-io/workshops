@@ -139,7 +139,11 @@ global = {
   },
 
   k8sObjectIsPresent: ({ context, namespace, k8sType, k8sObj }) => {
-    let command = "kubectl --context " + context + " -n " + namespace + " get " + k8sType + " " + k8sObj + " -o name";
+    // covers both namespace scoped and cluster scoped objects
+    let command = "kubectl --context " + context + " get " + k8sType + " " + k8sObj + " -o name";
+    if (namespace) {
+      command = "kubectl --context " + context + " -n " + namespace + " get " + k8sType + " " + k8sObj + " -o name";
+    }
     debugLog(`Executing command: ${command}`);
     let cli = chaiExec(command);
 
@@ -176,7 +180,6 @@ global = {
     debugLog(`Command output (stdout): ${cli.stdout}`);
     return cli.stdout;
   },
-
   curlInPod: ({ curlCommand, podName, namespace }) => {
     debugLog(`Executing curl command: ${curlCommand} on pod: ${podName} in namespace: ${namespace}`);
     const cli = chaiExec(curlCommand);
