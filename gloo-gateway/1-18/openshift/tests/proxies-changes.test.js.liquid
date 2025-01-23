@@ -1,3 +1,4 @@
+{%- assign version_1_18_or_after = "1.18.0" | minimumGlooGatewayVersion %}
 const { execSync } = require('child_process');
 const { expect } = require('chai');
 const { diff } = require('jest-diff');
@@ -14,7 +15,7 @@ describe('Gloo snapshot stability test', function() {
 
   it('should retrieve initial snapshot', function() {
     const output = execSync(
-      `kubectl --context ${contextName} -n gloo-system exec deploy/gloo -- wget -O - localhost:9095/snapshots/proxies -q`,
+      `kubectl --context ${contextName} -n gloo-system exec deploy/gloo -- wget -O - localhost:{% if version_1_18_or_after %}9095{% else %}9091{% endif %}/snapshots/proxies -q`,
       { encoding: 'utf8' }
     );
 
@@ -32,7 +33,7 @@ describe('Gloo snapshot stability test', function() {
     let secondSnapshot;
     try {
       const output2 = execSync(
-        `kubectl --context ${contextName} -n gloo-system exec deploy/gloo -- wget -O - localhost:9095/snapshots/proxies -q`,
+        `kubectl --context ${contextName} -n gloo-system exec deploy/gloo -- wget -O - localhost:{% if version_1_18_or_after %}9095{% else %}9091{% endif %}/snapshots/proxies -q`,
         { encoding: 'utf8' }
       );
       secondSnapshot = JSON.parse(output2);
