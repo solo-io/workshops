@@ -8,7 +8,8 @@ class InsightsPage extends BasePage {
     this.insightTypeQuickFilters = {
       healthy: '[data-testid="health-count-box-healthy"]',
       warning: '[data-testid="health-count-box-warning"]',
-      error: '[data-testid="health-count-box-error"]'
+      error: '[data-testid="health-count-box-error"]',
+      healthy_2_7: '[data-testid="health-count-healthy-ui-unit-testing"]'
     };
     this.clusterDropdownButtonSelectors = [
       '[data-testid="filter by cluster...-dropdown"] button',
@@ -23,28 +24,18 @@ class InsightsPage extends BasePage {
     this.selectCheckbox = (name) => `input[type="checkbox"][value="${name}"]`;
   }
 
-  async getHealthyResourcesCount() {
-    return parseInt(await this.page.$eval(this.insightTypeQuickFilters.healthy, el => el.querySelector('div').textContent));
+  async getQuickFiltersResourcesCount(filterType) {
+    return parseInt(await this.page.$eval(this.insightTypeQuickFilters[filterType], el => el.textContent));
   }
-
-  async getWarningResourcesCount() {
-    return parseInt(await this.page.$eval(this.insightTypeQuickFilters.warning, el => el.querySelector('div').textContent));
-  }
-
-  async getErrorResourcesCount() {
-    return parseInt(await this.page.$eval(this.insightTypeQuickFilters.error, el => el.querySelector('div').textContent));
-  }
-
 
   async openFilterByTypeDropdown() {
     await this.page.waitForSelector(this.filterByTypeDropdown, { visible: true });
-    await this.page.click(this.filterByTypeDropdown);
+    await this.page.$$eval(this.filterByTypeDropdown, elHandles => elHandles.forEach(el => el.click()));
   }
 
   async openSearchByClusterDropdown() {
     const clusterDropdownButton = await this.findVisibleSelector(this.clusterDropdownButtonSelectors);
-    await this.page.waitForSelector(clusterDropdownButton, { visible: true });
-    await this.page.click(clusterDropdownButton);
+    await this.page.$$eval(clusterDropdownButton, elHandles => elHandles.forEach(el => el.click()));
   }
 
   async clearAllFilters() {
@@ -90,8 +81,7 @@ class InsightsPage extends BasePage {
   async selectClusters(clusters) {
     this.openSearchByClusterDropdown();
     for (const cluster of clusters) {
-      await this.page.waitForSelector(this.selectCheckbox(cluster), { visible: true });
-      await this.page.click(this.selectCheckbox(cluster));
+      await this.page.$$eval(this.selectCheckbox(cluster), elHandles => elHandles.forEach(el => el.click()));
       await new Promise(resolve => setTimeout(resolve, 50));
     }
   }
@@ -99,8 +89,7 @@ class InsightsPage extends BasePage {
   async selectInsightTypes(types) {
     this.openFilterByTypeDropdown();
     for (const type of types) {
-      await this.page.waitForSelector(this.selectCheckbox(type), { visible: true });
-      await this.page.click(this.selectCheckbox(type));
+      await this.page.$$eval(this.selectCheckbox(type), elHandles => elHandles.forEach(el => el.click()));
       await new Promise(resolve => setTimeout(resolve, 50));
     }
   }
