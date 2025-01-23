@@ -32,6 +32,7 @@ resolve_domain() {
 if is_ip "$new_ip_or_domain"; then
     new_ip="$new_ip_or_domain"
 else
+    echo "Resolving domain $new_ip_or_domain to an IPv4 address..."
     new_ip=$(resolve_domain "$new_ip_or_domain")
     if [ -z "$new_ip" ]; then
         echo "Failed to resolve domain to an IPv4 address."
