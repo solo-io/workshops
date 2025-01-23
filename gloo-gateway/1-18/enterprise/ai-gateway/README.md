@@ -87,6 +87,7 @@ export CLUSTER1=cluster1
 ```
 
 Deploy the KinD clusters:
+
 ```bash
 bash ./data/steps/deploy-kind-clusters/deploy-cluster1.sh
 ```
@@ -111,8 +112,8 @@ describe("Clusters are healthy", () => {
     });
 });
 EOF
-echo "executing test dist/gloo-gateway-workshop/build/templates/steps/deploy-kind-clusters/tests/cluster-healthy.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; exit 1; }
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/deploy-kind-clusters/tests/cluster-healthy.test.js.liquid from lab number 1"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 1"; exit 1; }
 -->
 
 
@@ -135,14 +136,14 @@ kubectl --context $CLUSTER1 apply -f https://github.com/kubernetes-sigs/gateway-
 Next, install Gloo Gateway. This command installs the Gloo Gateway control plane into the namespace `gloo-system`.
 
 ```bash
-helm repo add gloo-ee-helm https://storage.googleapis.com/gloo-ee-helm
 
+helm repo add gloo-ee-helm https://storage.googleapis.com/gloo-ee-helm
 helm repo update
 
 helm upgrade -i -n gloo-system \
   gloo-gateway gloo-ee-helm/gloo-ee \
   --create-namespace \
-  --version 1.18.0 \
+  --version 1.18.3 \
   --kube-context $CLUSTER1 \
   --set-string license_key=$LICENSE_KEY \
   -f -<<EOF
@@ -150,8 +151,6 @@ helm upgrade -i -n gloo-system \
 gloo:
   kubeGateway:
     enabled: true
-    portal:
-      enabled: true
   gatewayProxies:
     gatewayProxy:
       disabled: true
@@ -225,6 +224,8 @@ EOF
 
 
 
+
+
 Run the following command to check that the Gloo Gateway pods are running:
 
 <!--bash
@@ -261,8 +262,8 @@ describe("Gloo Gateway", () => {
   });
 });
 EOF
-echo "executing test dist/gloo-gateway-workshop/build/templates/steps/deploy-gloo-gateway-enterprise/tests/check-gloo.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; exit 1; }
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/deploy-gloo-gateway-enterprise/tests/check-gloo.test.js.liquid from lab number 2"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 2"; exit 1; }
 -->
 
 
@@ -329,8 +330,8 @@ describe("Gloo AI Gateway", () => {
   });
 });
 EOF
-echo "executing test dist/gloo-gateway-workshop/build/templates/steps/ai-gateway/deploy-ai-gateway/tests/check-ai-gateway.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; exit 1; }
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/ai-gateway/deploy-ai-gateway/tests/check-ai-gateway.test.js.liquid from lab number 3"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 3"; exit 1; }
 -->
 
 
@@ -626,8 +627,8 @@ curl -v "${glooAIGatewayIP}:8080/mistral" -H content-type:application/json -d '{
 });
 
 EOF
-echo "executing test dist/gloo-gateway-workshop/build/templates/steps/ai-gateway/ai-credential-management/tests/check-configured-llms.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; exit 1; }
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/ai-gateway/ai-credential-management/tests/check-configured-llms.test.js.liquid from lab number 4"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 4"; exit 1; }
 -->
 
 
@@ -911,8 +912,8 @@ curl "${glooAIGatewayIP}:8080/mistral" --header "Authorization: Bearer ${aliceTo
 });
 
 EOF
-echo "executing test dist/gloo-gateway-workshop/build/templates/steps/ai-gateway/ai-access-control/tests/check-llm-access.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; exit 1; }
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/ai-gateway/ai-access-control/tests/check-llm-access.test.js.liquid from lab number 5"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 5"; exit 1; }
 -->
 Next, cleanup the route options to not impact the next lab:
 ```bash
@@ -1084,8 +1085,8 @@ describe("rate limiting based on token usage", () => {
 });
 
 EOF
-echo "executing test dist/gloo-gateway-workshop/build/templates/steps/ai-gateway/ai-rate-limiting/tests/check-rate-limited.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; exit 1; }
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/ai-gateway/ai-rate-limiting/tests/check-rate-limited.liquid from lab number 6"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 6"; exit 1; }
 -->
 
 ### Viewing Usage Metrics
@@ -1278,8 +1279,8 @@ it('should have failed over to other configured models', () => {
   expect(cli).output.to.include("gpt-3.5-turbo");
 });
 EOF
-echo "executing test dist/gloo-gateway-workshop/build/templates/steps/ai-gateway/ai-model-failover/tests/check-failover.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; exit 1; }
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/ai-gateway/ai-model-failover/tests/check-failover.test.js.liquid from lab number 7"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 7"; exit 1; }
 -->
 Next, revert the upstream configuration to use the actual OpenAI API and Mistral AI API:
 
@@ -1479,8 +1480,8 @@ curl "${glooAIGatewayIP}:8080/openai" -H content-type:application/json -d '{
 });
 
 EOF
-echo "executing test dist/gloo-gateway-workshop/build/templates/steps/ai-gateway/ai-prompt-management/tests/check-csv-output.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; exit 1; }
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/ai-gateway/ai-prompt-management/tests/check-csv-output.test.js.liquid from lab number 8"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 8"; exit 1; }
 -->
 Next, cleanup the resource:
 ```bash
@@ -1686,8 +1687,8 @@ curl "${glooAIGatewayIP}:8080/mistral" -H content-type:application/json \
 });
 
 EOF
-echo "executing test dist/gloo-gateway-workshop/build/templates/steps/ai-gateway/ai-prompt-guard/tests/check-prompt-guard.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; exit 1; }
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/ai-gateway/ai-prompt-guard/tests/check-prompt-guard.test.js.liquid from lab number 9"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 9"; exit 1; }
 -->
 Next, cleanup the resources:
 ```bash
@@ -1844,8 +1845,8 @@ curl "${glooAIGatewayIP}:8080/openai" -H content-type:application/json \
 });
 
 EOF
-echo "executing test dist/gloo-gateway-workshop/build/templates/steps/ai-gateway/ai-rag/tests/check-rag.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; exit 1; }
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/ai-gateway/ai-rag/tests/check-rag.test.js.liquid from lab number 10"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 10"; exit 1; }
 -->
 Next, cleanup the resources:
 ```
@@ -2006,8 +2007,8 @@ curl -v "${glooAIGatewayIP}:8080/openai" -H content-type:application/json \
 });
 
 EOF
-echo "executing test dist/gloo-gateway-workshop/build/templates/steps/ai-gateway/ai-semantic-caching/tests/check-semantic-caching.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; exit 1; }
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/ai-gateway/ai-semantic-caching/tests/check-semantic-caching.test.js.liquid from lab number 11"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 11"; exit 1; }
 -->
 Next, cleanup the resources:
 ```bash
