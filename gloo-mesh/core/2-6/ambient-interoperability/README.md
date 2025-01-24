@@ -9,13 +9,13 @@ source ./scripts/assert.sh
 <img src="images/document-gloo-mesh.svg" style="height: 100px;"/>
 </center>
 
-# <center>Gloo Mesh Core (2.6.6) Ambient Interoperability</center>
+# <center>Gloo Mesh Core (2.6.7) Ambient Interoperability</center>
 
 
 
 ## Table of Contents
 * [Introduction](#introduction)
-* [Lab 1 - Deploy a KinD cluster](#lab-1---deploy-a-kind-cluster-)
+* [Lab 1 - Deploy KinD Cluster(s)](#lab-1---deploy-kind-cluster(s)-)
 * [Lab 2 - Deploy and register Gloo Mesh](#lab-2---deploy-and-register-gloo-mesh-)
 * [Lab 3 - Deploy Istio using Helm](#lab-3---deploy-istio-using-helm-)
 * [Lab 4 - Deploy the Bookinfo demo app](#lab-4---deploy-the-bookinfo-demo-app-)
@@ -72,7 +72,7 @@ You can find more information about Gloo Mesh Core in the official documentation
 
 
 
-## Lab 1 - Deploy a KinD cluster <a name="lab-1---deploy-a-kind-cluster-"></a>
+## Lab 1 - Deploy KinD Cluster(s) <a name="lab-1---deploy-kind-cluster(s)-"></a>
 
 
 Clone this repository and go to the directory where this `README.md` file is.
@@ -84,12 +84,11 @@ export MGMT=cluster1
 export CLUSTER1=cluster1
 ```
 
-Run the following commands to deploy a Kubernetes cluster using [Kind](https://kind.sigs.k8s.io/):
+Deploy the KinD clusters:
 
 ```bash
-./scripts/deploy-multi-with-calico.sh 1 cluster1 us-west us-west-1
+bash ./data/steps/deploy-kind-clusters/deploy-cluster1.sh
 ```
-
 Then run the following commands to wait for all the Pods to be ready:
 
 ```bash
@@ -98,39 +97,21 @@ Then run the following commands to wait for all the Pods to be ready:
 
 **Note:** If you run the `check.sh` script immediately after the `deploy.sh` script, you may see a jsonpath error. If that happens, simply wait a few seconds and try again.
 
-Once the `check.sh` script completes, when you execute the `kubectl get pods -A` command, you should see the following:
-
-```
-NAMESPACE            NAME                                          READY   STATUS    RESTARTS   AGE
-kube-system          calico-kube-controllers-59d85c5c84-sbk4k      1/1     Running   0          4h26m
-kube-system          calico-node-przxs                             1/1     Running   0          4h26m
-kube-system          coredns-6955765f44-ln8f5                      1/1     Running   0          4h26m
-kube-system          coredns-6955765f44-s7xxx                      1/1     Running   0          4h26m
-kube-system          etcd-cluster1-control-plane                   1/1     Running   0          4h27m
-kube-system          kube-apiserver-cluster1-control-plane         1/1     Running   0          4h27m
-kube-system          kube-controller-manager-cluster1-control-plane1/1     Running   0          4h27m
-kube-system          kube-proxy-ksvzw                              1/1     Running   0          4h26m
-kube-system          kube-scheduler-cluster1-control-plane         1/1     Running   0          4h27m
-local-path-storage   local-path-provisioner-58f6947c7-lfmdx        1/1     Running   0          4h26m
-metallb-system       controller-5c9894b5cd-cn9x2                   1/1     Running   0          4h26m
-metallb-system       speaker-d7jkp                                 1/1     Running   0          4h26m
-```
-
-**Note:** The CNI pods might be different, depending on which CNI you have deployed.
-
+Once the `check.sh` script completes, execute the `kubectl get pods -A` command, and verify that all pods are in a running state.
 <!--bash
 cat <<'EOF' > ./test.js
 const helpers = require('./tests/chai-exec');
 
 describe("Clusters are healthy", () => {
-    const clusters = [process.env.MGMT, process.env.CLUSTER1];
+    const clusters = ["cluster1"];
+
     clusters.forEach(cluster => {
         it(`Cluster ${cluster} is healthy`, () => helpers.k8sObjectIsPresent({ context: cluster, namespace: "default", k8sType: "service", k8sObj: "kubernetes" }));
     });
 });
 EOF
-echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/deploy-kind-cluster/tests/cluster-healthy.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; exit 1; }
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/deploy-kind-clusters/tests/cluster-healthy.test.js.liquid from lab number 1"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 1"; exit 1; }
 -->
 
 
@@ -143,7 +124,7 @@ timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || 
 Before we get started, let's install the `meshctl` CLI:
 
 ```bash
-export GLOO_MESH_VERSION=v2.6.6
+export GLOO_MESH_VERSION=v2.6.7
 curl -sL https://run.solo.io/meshctl/install | sh -
 export PATH=$HOME/.gloo-mesh/bin:$PATH
 ```
@@ -172,9 +153,10 @@ describe("Required environment variables should contain value", () => {
   });
 });
 EOF
-echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/deploy-and-register-gloo-mesh/tests/environment-variables.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; exit 1; }
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/deploy-and-register-gloo-mesh/tests/environment-variables.test.js.liquid from lab number 2"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 2"; exit 1; }
 -->
+
 Run the following commands to deploy the Gloo Mesh management plane:
 
 ```bash
@@ -185,13 +167,13 @@ helm upgrade --install gloo-platform-crds gloo-platform-crds \
   --namespace gloo-mesh \
   --kube-context ${MGMT} \
   --set featureGates.insightsConfiguration=true \
-  --version 2.6.6
+  --version 2.6.7
 
 helm upgrade --install gloo-platform-mgmt gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${MGMT} \
-  --version 2.6.6 \
+  --version 2.6.7 \
   -f -<<EOF
 licensing:
   glooTrialLicenseKey: ${GLOO_MESH_LICENSE_KEY}
@@ -236,6 +218,10 @@ EOF
 kubectl --context ${MGMT} -n gloo-mesh rollout status deploy/gloo-mesh-mgmt-server
 ```
 
+Set the endpoint for the Gloo Mesh UI:
+```bash
+export ENDPOINT_GLOO_MESH_UI=$(kubectl --context ${MGMT} -n gloo-mesh get svc gloo-mesh-ui -o jsonpath='{.status.loadBalancer.ingress[0].ip}{.status.loadBalancer.ingress[0].hostname}'):8090
+```
 <!--bash
 cat <<'EOF' > ./test.js
 var chai = require('chai');
@@ -249,9 +235,10 @@ describe("Cluster registration", () => {
   });
 });
 EOF
-echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/deploy-and-register-gloo-mesh/tests/cluster-registration.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; exit 1; }
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/deploy-and-register-gloo-mesh/tests/cluster-registration.test.js.liquid from lab number 2"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 2"; exit 1; }
 -->
+
 
 
 
@@ -315,8 +302,8 @@ describe("istio_version is at least 1.23.0", () => {
   });
 });
 EOF
-echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/deploy-istio-helm/tests/istio-version.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; exit 1; }
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/deploy-istio-helm/tests/istio-version.test.js.liquid from lab number 3"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 3"; exit 1; }
 -->
 
 Let's create Kubernetes services for the gateways:
@@ -495,8 +482,8 @@ describe("Checking Istio installation", function() {
 });
 
 EOF
-echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/deploy-istio-helm/tests/istio-ready.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; exit 1; }
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/deploy-istio-helm/tests/istio-ready.test.js.liquid from lab number 3"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 3"; exit 1; }
 -->
 <!--bash
 timeout 2m bash -c "until [[ \$(kubectl --context ${CLUSTER1} -n istio-gateways get svc -l istio=ingressgateway -o json | jq '.items[0].status.loadBalancer | length') -gt 0 ]]; do
@@ -528,11 +515,9 @@ describe("Address '" + process.env.HOST_GW_CLUSTER1 + "' can be resolved in DNS"
     });
 });
 EOF
-echo "executing test ./default/tests/can-resolve.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; exit 1; }
+echo "executing test ./default/tests/can-resolve.test.js.liquid from lab number 3"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 3"; exit 1; }
 -->
-
-
 
 
 
@@ -604,8 +589,8 @@ describe("Bookinfo app", () => {
   });
 });
 EOF
-echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/apps/bookinfo/deploy-bookinfo/tests/check-bookinfo.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; exit 1; }
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/apps/bookinfo/deploy-bookinfo/tests/check-bookinfo.test.js.liquid from lab number 4"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 4"; exit 1; }
 -->
 
 
@@ -815,8 +800,8 @@ describe("client apps", () => {
   });
 });
 EOF
-echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/apps/clients/deploy-clients/tests/check-clients.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; exit 1; }
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/apps/clients/deploy-clients/tests/check-clients.test.js.liquid from lab number 5"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 5"; exit 1; }
 -->
 
 
@@ -964,8 +949,8 @@ describe("l4 interoperability", function() {
 });
 
 EOF
-echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/l4-authn-interoperability/tests/validate-interoperability.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 60000 --retries=60 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; exit 1; }
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/l4-authn-interoperability/tests/validate-interoperability.test.js.liquid from lab number 6"
+timeout --signal=INT 3m mocha ./test.js --timeout 60000 --retries=60 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 6"; exit 1; }
 -->
 
 Now, you should see that requests from `in-mesh-with-sidecar` and `in-ambient` workloads succeed with a `200` status code, while the `not-in-mesh` workload's request is still denied.
@@ -1051,8 +1036,8 @@ describe("l4 interoperability", function() {
 });
 
 EOF
-echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/l4-authn-interoperability/tests/validate-interoperability.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 60000 --retries=60 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; exit 1; }
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/l4-authn-interoperability/tests/validate-interoperability.test.js.liquid from lab number 6"
+timeout --signal=INT 3m mocha ./test.js --timeout 60000 --retries=60 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 6"; exit 1; }
 -->
 
 You should see that the requests from `in-mesh-with-sidecar` and `in-ambient` workloads still succeed with a 200 status code, while the `not-in-mesh` workload's request is still denied. This confirms that our L4 policies are still being enforced, even though the bookinfo-backends services are now in the Ambient mesh.
@@ -1128,8 +1113,8 @@ describe("gateway API", function() {
   });
 });
 EOF
-echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/l7-authz-interoperability/tests/is-waypoint-created.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 1000 --retries=60 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; exit 1; }
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/l7-authz-interoperability/tests/is-waypoint-created.test.js.liquid from lab number 7"
+timeout --signal=INT 3m mocha ./test.js --timeout 60000 --retries=60 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 7"; exit 1; }
 -->
 <!--bash
 cat <<'EOF' > ./test.js
@@ -1164,8 +1149,8 @@ describe("l7 interoperability", function() {
 });
 
 EOF
-echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/l7-authz-interoperability/tests/validate-interoperability.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 60000 --retries=60 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; exit 1; }
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/l7-authz-interoperability/tests/validate-interoperability.test.js.liquid from lab number 7"
+timeout --signal=INT 3m mocha ./test.js --timeout 60000 --retries=60 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 7"; exit 1; }
 -->
 
 ### Step 2: Pre-configure policies for the waypoint
@@ -1294,8 +1279,8 @@ describe("l7 interoperability", function() {
 });
 
 EOF
-echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/l7-authz-interoperability/tests/validate-interoperability.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 60000 --retries=60 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; exit 1; }
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/l7-authz-interoperability/tests/validate-interoperability.test.js.liquid from lab number 7"
+timeout --signal=INT 3m mocha ./test.js --timeout 60000 --retries=60 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 7"; exit 1; }
 -->
 
 
@@ -1361,8 +1346,8 @@ describe("l7 interoperability", function() {
 });
 
 EOF
-echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/l7-authz-interoperability/tests/validate-interoperability.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 60000 --retries=60 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; exit 1; }
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/l7-authz-interoperability/tests/validate-interoperability.test.js.liquid from lab number 7"
+timeout --signal=INT 3m mocha ./test.js --timeout 60000 --retries=60 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 7"; exit 1; }
 -->
 
 
@@ -1421,8 +1406,8 @@ describe("l7 interoperability", function() {
 });
 
 EOF
-echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/l7-authz-interoperability/tests/validate-interoperability.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 60000 --retries=60 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; exit 1; }
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/l7-authz-interoperability/tests/validate-interoperability.test.js.liquid from lab number 7"
+timeout --signal=INT 3m mocha ./test.js --timeout 60000 --retries=60 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 7"; exit 1; }
 -->
 
 
@@ -1665,8 +1650,8 @@ describe("virtual service and destination rules configure routing", function() {
   })
 });
 EOF
-echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/l7-routing-interoperability/tests/validate-routing-interoperability.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; exit 1; }
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/l7-routing-interoperability/tests/validate-routing-interoperability.test.js.liquid from lab number 8"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 8"; exit 1; }
 -->
 
 
@@ -1765,8 +1750,8 @@ describe("virtual service", function() {
   }
 });
 EOF
-echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/l7-transforming-traffic-interoperability/tests/validate-traffic-transformation-interoperability.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 20000 --retries=10 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; exit 1; }
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/l7-transforming-traffic-interoperability/tests/validate-traffic-transformation-interoperability.test.js.liquid from lab number 9"
+timeout --signal=INT 3m mocha ./test.js --timeout 20000 --retries=10 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 9"; exit 1; }
 -->
 
 
@@ -1993,8 +1978,8 @@ describe("virtual service retry failed requests", function() {
   }
 });
 EOF
-echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/l7-traffic-resiliency-interoperability/tests/validate-resiliency-interoperability.test.js.liquid"
-timeout --signal=INT 3m mocha ./test.js --timeout 20000 --retries=10 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; exit 1; }
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/l7-traffic-resiliency-interoperability/tests/validate-resiliency-interoperability.test.js.liquid from lab number 11"
+timeout --signal=INT 3m mocha ./test.js --timeout 20000 --retries=10 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 11"; exit 1; }
 -->
 
 
