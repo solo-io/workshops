@@ -8,6 +8,7 @@ done
 printf "\n"
 kubectl --context $1 rollout restart deploy,ds -n istio-system
 kubectl --context $1 rollout status deploy,ds -n istio-system
+sleep 30
 namespaces=$(kubectl --context $1 get namespaces -o jsonpath='{.items[*].metadata.name}')
 
 for namespace in $namespaces; do
