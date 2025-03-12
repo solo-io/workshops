@@ -24,22 +24,237 @@ if [ -d "istio-"*/ ]; then
   export PATH=$PWD/bin:$PATH
   cd ..
 fi
-istioctl --context ${CLUSTER1} install --set profile=default -y
-kubectl --context ${CLUSTER1} -n istio-system get pods
 cat <<'EOF' > ./test.js
-const helpers = require('./tests/chai-exec');
+const chaiExec = require("@jsdevtools/chai-exec");
+var chai = require('chai');
+var expect = chai.expect;
+chai.use(chaiExec);
 
-describe("Istio", () => {
-  let cluster = process.env.CLUSTER1
-  let deployments = ["istiod", "istio-ingressgateway"];
-  deployments.forEach(deploy => {
-    it(deploy + ' pods are ready in ' + cluster, () => helpers.checkDeployment({ context: cluster, namespace: "istio-system", k8sObj: deploy }));
+afterEach(function (done) {
+  if (this.currentTest.currentRetry() > 0) {
+    process.stdout.write(".");
+    setTimeout(done, 1000);
+  } else {
+    done();
+  }
+});
+describe("istio_version is at least 1.23.0", () => {
+  it("version should be at least 1.23.0", () => {
+    // Compare the string istio_version to the number 1.23.0
+    // example 1.23.0-patch0 is valid, but 1.22.6 is not
+    let version = "1.23.2";
+    let versionParts = version.split('-')[0].split('.');
+    let major = parseInt(versionParts[0]);
+    let minor = parseInt(versionParts[1]);
+    let patch = parseInt(versionParts[2]);
+    let minMajor = 1;
+    let minMinor = 23;
+    let minPatch = 0;
+    expect(major).to.be.at.least(minMajor);
+    if (major === minMajor) {
+      expect(minor).to.be.at.least(minMinor);
+      if (minor === minMinor) {
+        expect(patch).to.be.at.least(minPatch);
+      }
+    }
   });
 });
 EOF
-echo "executing test dist/gloo-gateway-workshop/build/templates/steps/deploy-istio-sidecar/tests/check-istio.test.js.liquid from lab number 2"
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/deploy-istio-helm/tests/istio-version.test.js.liquid from lab number 2"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 2"; exit 1; }
+kubectl --context ${CLUSTER1} create ns istio-gateways
+
+kubectl apply --context ${CLUSTER1} -f - <<EOF
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: istio-ingressgateway
+    istio: ingressgateway
+  name: istio-ingressgateway
+  namespace: istio-gateways
+spec:
+  ports:
+  - name: http2
+    port: 80
+    protocol: TCP
+    targetPort: 80
+  - name: https
+    port: 443
+    protocol: TCP
+    targetPort: 443
+  selector:
+    app: istio-ingressgateway
+    istio: ingressgateway
+  type: LoadBalancer
+EOF
+kubectl --context ${CLUSTER1} create ns istio-system
+helm upgrade --install istio-base oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/base \
+--namespace istio-system \
+--kube-context=${CLUSTER1} \
+--version 1.23.2-solo \
+--create-namespace \
+-f - <<EOF
+defaultRevision: ""
+profile: ambient
+EOF
+
+helm upgrade --install istiod oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/istiod \
+--namespace istio-system \
+--kube-context=${CLUSTER1} \
+--version 1.23.2-solo \
+--create-namespace \
+-f - <<EOF
+global:
+  hub: us-docker.pkg.dev/gloo-mesh/istio-<enterprise_istio_repo>
+  proxy:
+    clusterDomain: cluster.local
+  tag: 1.23.2-solo
+  multiCluster:
+    clusterName: cluster1
+  meshID: mesh1
+profile: ambient
+meshConfig:
+  accessLogFile: /dev/stdout
+  defaultConfig:
+    proxyMetadata:
+      ISTIO_META_DNS_AUTO_ALLOCATE: "true"
+      ISTIO_META_DNS_CAPTURE: "true"
+  trustDomain: cluster1
+pilot:
+  enabled: true
+  cni:
+    enabled: true
+  env:
+    PILOT_ENABLE_IP_AUTOALLOCATE: "true"
+    PILOT_ENABLE_K8S_SELECT_WORKLOAD_ENTRIES: "false"
+    PILOT_SKIP_VALIDATE_TRUST_DOMAIN: "true"
+license:
+  value: ${GLOO_MESH_LICENSE_KEY}
+EOF
+
+helm upgrade --install istio-cni oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/cni \
+--namespace kube-system \
+--kube-context=${CLUSTER1} \
+--version 1.23.2-solo \
+--create-namespace \
+-f - <<EOF
+global:
+  hub: us-docker.pkg.dev/gloo-mesh/istio-<enterprise_istio_repo>
+  proxy: 1.23.2-solo
+profile: ambient
+cni:
+  ambient:
+    dnsCapture: true
+  excludeNamespaces:
+  - istio-system
+  - kube-system
+EOF
+
+helm upgrade --install ztunnel oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/ztunnel \
+--namespace istio-system \
+--kube-context=${CLUSTER1} \
+--version 1.23.2-solo \
+--create-namespace \
+-f - <<EOF
+configValidation: true
+enabled: true
+env:
+  L7_ENABLED: "true"
+  SKIP_VALIDATE_TRUST_DOMAIN: "true"
+hub: us-docker.pkg.dev/gloo-mesh/istio-<enterprise_istio_repo>
+istioNamespace: istio-system
+multiCluster:
+  clusterName: cluster1
+namespace: istio-system
+profile: ambient
+proxy:
+  clusterDomain: cluster.local
+tag: 1.23.2-solo
+terminationGracePeriodSeconds: 29
+variant: distroless
+EOF
+
+helm upgrade --install istio-ingressgateway oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/gateway \
+--namespace istio-gateways \
+--kube-context=${CLUSTER1} \
+--version 1.23.2-solo \
+--create-namespace \
+-f - <<EOF
+autoscaling:
+  enabled: false
+profile: ambient
+imagePullPolicy: IfNotPresent
+labels:
+  app: istio-ingressgateway
+  istio: ingressgateway
+service:
+  type: None
+EOF
+
+kubectl --context ${CLUSTER1} apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.2.0/experimental-install.yaml
+cat <<'EOF' > ./test.js
+
+const helpers = require('./tests/chai-exec');
+
+const chaiExec = require("@jsdevtools/chai-exec");
+const helpersHttp = require('./tests/chai-http');
+const chai = require("chai");
+const expect = chai.expect;
+
+afterEach(function (done) {
+  if (this.currentTest.currentRetry() > 0) {
+    process.stdout.write(".");
+    setTimeout(done, 1000);
+  } else {
+    done();
+  }
+});
+
+describe("Checking Istio installation", function() {
+  it('istiod pods are ready in cluster ' + process.env.CLUSTER1, () => helpers.checkDeploymentsWithLabels({ context: process.env.CLUSTER1, namespace: "istio-system", labels: "app=istiod", instances: 1 }));
+  it('gateway pods are ready in cluster ' + process.env.CLUSTER1, () => helpers.checkDeploymentsWithLabels({ context: process.env.CLUSTER1, namespace: "istio-gateways", labels: "app=istio-ingressgateway", instances: 1 }));
+  it("Gateways have an ip attached in cluster " + process.env.CLUSTER1, () => {
+    let cli = chaiExec("kubectl --context " + process.env.CLUSTER1 + " -n istio-gateways get svc -l app=istio-ingressgateway -o jsonpath='{.items}'");
+    cli.stderr.should.be.empty;
+    let deployments = JSON.parse(cli.stdout.slice(1,-1));
+    expect(deployments).to.have.lengthOf(1);
+    deployments.forEach((deployment) => {
+      expect(deployment.status.loadBalancer).to.have.property("ingress");
+    });
+  });
+});
+
+EOF
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/deploy-istio-helm/tests/istio-ready.test.js.liquid from lab number 2"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 2"; exit 1; }
+timeout 2m bash -c "until [[ \$(kubectl --context ${CLUSTER1} -n istio-gateways get svc -l istio=ingressgateway -o json | jq '.items[0].status.loadBalancer | length') -gt 0 ]]; do
+  sleep 1
+done"
+export HOST_GW_CLUSTER1="$(kubectl --context ${CLUSTER1} -n istio-gateways get svc -l istio=ingressgateway -o jsonpath='{.items[0].status.loadBalancer.ingress[0].*}')"
+cat <<'EOF' > ./test.js
+const dns = require('dns');
+const chaiHttp = require("chai-http");
+const chai = require("chai");
+const expect = chai.expect;
+chai.use(chaiHttp);
+const { waitOnFailedTest } = require('./tests/utils');
+
+afterEach(function(done) { waitOnFailedTest(done, this.currentTest.currentRetry())});
+
+describe("Address '" + process.env.HOST_GW_CLUSTER1 + "' can be resolved in DNS", () => {
+    it(process.env.HOST_GW_CLUSTER1 + ' can be resolved', (done) => {
+        return dns.lookup(process.env.HOST_GW_CLUSTER1, (err, address, family) => {
+            expect(address).to.be.an.ip;
+            done();
+        });
+    });
+});
+EOF
+echo "executing test ./default/tests/can-resolve.test.js.liquid from lab number 2"
 timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 2"; exit 1; }
 kubectl --context ${CLUSTER1} create namespace gloo-system
+kubectl --context ${CLUSTER1} label namespace gloo-system istio.io/dataplane-mode=ambient
 kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: v1
 kind: ServiceAccount
@@ -115,6 +330,8 @@ spec:
   ports:
     - port: 5432
 EOF
+kubectl --context ${CLUSTER1} create namespace keycloak
+kubectl --context ${CLUSTER1} label namespace keycloak istio.io/dataplane-mode=ambient
 kubectl --context ${CLUSTER1} -n gloo-system rollout status deploy/postgres
 
 sleep 5
@@ -555,11 +772,13 @@ describe("Address '" + process.env.HOST_KEYCLOAK + "' can be resolved in DNS", (
     });
 });
 EOF
-echo "executing test ./gloo-mesh-2-0/tests/can-resolve.test.js.liquid from lab number 3"
+echo "executing test ./default/tests/can-resolve.test.js.liquid from lab number 3"
 timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 3"; exit 1; }
 echo "Waiting for Keycloak to be ready at $KEYCLOAK_URL/realms/workshop/protocol/openid-connect/token"
 timeout 300 bash -c 'while [[ "$(curl -m 2 -s -o /dev/null -w ''%{http_code}'' $KEYCLOAK_URL/realms/workshop/protocol/openid-connect/token)" != "405" ]]; do printf '.';sleep 1; done' || false
 kubectl --context $CLUSTER1 apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.2.0/experimental-install.yaml
+kubectl --context $CLUSTER1 create namespace gloo-system
+kubectl --context $CLUSTER1 label namespace gloo-system istio.io/dataplane-mode=ambient
 kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: v1
 kind: Secret
@@ -578,7 +797,7 @@ helm repo update
 helm upgrade -i -n gloo-system \
   gloo-gateway gloo-ee-helm/gloo-ee \
   --create-namespace \
-  --version 1.18.3 \
+  --version 1.18.7 \
   --kube-context $CLUSTER1 \
   --set-string license_key=$LICENSE_KEY \
   -f -<<EOF
@@ -601,9 +820,6 @@ gloo:
       livenessProbeEnabled: true
   discovery:
     enabled: false
-  rbac:
-    namespaced: true
-    nameSuffix: gg-demo
 observability:
   enabled: false
 prometheus:
@@ -619,20 +835,24 @@ gateway-portal-web-server:
   glooPortalServer:
     database:
       type: postgres
-settings:
-  disableKubernetesDestinations: true
 global:
   extensions:
     caching:
       enabled: true
-  istioSDS:
-    enabled: true
-  istioIntegration:
-    enabled: true
-    enableAutoMtls: true
 EOF
 kubectl --context ${CLUSTER1} patch settings default -n gloo-system --type json \
   -p '[{ "op": "remove", "path": "/spec/cachingServer" }]'
+kubectl --context $CLUSTER1 patch gatewayparameters gloo-gateway -n gloo-system --type merge -p '{
+  "spec": {
+    "kube": {
+      "podTemplate": {
+        "extraAnnotations": {
+          "ambient.istio.io/bypass-inbound-capture": "true"
+        }
+      }
+    }
+  }
+}'
 echo -n Waiting for Gloo Gateway pods to be ready...
 kubectl --context $CLUSTER1 -n gloo-system rollout status deployment
 kubectl --context $CLUSTER1 -n gloo-system get pods
@@ -650,7 +870,8 @@ EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/deploy-gloo-gateway-enterprise/tests/check-gloo.test.js.liquid from lab number 4"
 timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 4"; exit 1; }
 kubectl --context ${CLUSTER1} create ns httpbin
-kubectl --context ${CLUSTER1} label namespace httpbin istio-injection=enabled
+kubectl --context ${CLUSTER1} label namespace httpbin istio.io/dataplane-mode=ambient
+kubectl --context ${CLUSTER1} label namespace httpbin istio-injection=disabled
 kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: v1
 kind: ServiceAccount
@@ -854,7 +1075,8 @@ EOF
 export PROXY_IP=$(kubectl --context ${CLUSTER1} -n gloo-system get svc gloo-proxy-http -o jsonpath='{.status.loadBalancer.ingress[0].ip}{.status.loadBalancer.ingress[0].hostname}')
 RETRY_COUNT=0
 MAX_RETRIES=60
-while [[ -z "$PROXY_IP" && $RETRY_COUNT -lt $MAX_RETRIES ]]; do
+GLOO_PROXY_SVC=$(kubectl --context ${CLUSTER1} -n gloo-system get svc gloo-proxy-http -oname)
+while [[ -z "$PROXY_IP" && $RETRY_COUNT -lt $MAX_RETRIES && $GLOO_PROXY_SVC ]]; do
   echo "Waiting for PROXY_IP to be assigned... Attempt $((RETRY_COUNT + 1))/$MAX_RETRIES"
   PROXY_IP=$(kubectl --context ${CLUSTER1} -n gloo-system get svc gloo-proxy-http -o jsonpath='{.status.loadBalancer.ingress[0].ip}{.status.loadBalancer.ingress[0].hostname}')
   RETRY_COUNT=$((RETRY_COUNT + 1))
@@ -881,7 +1103,9 @@ else
   echo "PROXY_IP has been assigned: $PROXY_IP"
   echo "IP has been resolved to: $IP"
 fi
+
 ./scripts/register-domain.sh httpbin.example.com ${PROXY_IP}
+
 cat <<'EOF' > ./test.js
 const helpersHttp = require('./tests/chai-http');
 
@@ -4275,7 +4499,7 @@ kubectl --context ${CLUSTER1} -n gloo-system rollout status deploy gloo-portal-i
 helm upgrade -i -n gloo-system \
   gloo-gateway gloo-ee-helm/gloo-ee \
   --create-namespace \
-  --version 1.18.3 \
+  --version 1.18.7 \
   --kube-context ${CLUSTER1} \
   --reuse-values \
   -f -<<EOF
