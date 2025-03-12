@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 source /root/.env 2>/dev/null || true
 source ./scripts/assert.sh
-gsutil cp gs://gloo-ee-vm/1.18.3/gloo-control.deb .
-gsutil cp gs://gloo-ee-vm/1.18.3/gloo-gateway.deb .
-gsutil cp gs://gloo-ee-vm/1.18.3/gloo-extensions.deb .
+gsutil cp gs://gloo-ee-vm/1.18.7/gloo-control.deb .
+gsutil cp gs://gloo-ee-vm/1.18.7/gloo-gateway.deb .
+gsutil cp gs://gloo-ee-vm/1.18.7/gloo-extensions.deb .
 docker run --name some-redis -d -p 6379:6379 redis
 sudo dpkg -i gloo-control.deb
 sudo dpkg -i gloo-gateway.deb
@@ -148,7 +148,8 @@ EOF
 export PROXY_IP=127.0.0.1
 RETRY_COUNT=0
 MAX_RETRIES=60
-while [[ -z "$PROXY_IP" && $RETRY_COUNT -lt $MAX_RETRIES ]]; do
+GLOO_PROXY_SVC=$(kubectl --context ${CLUSTER1} -n gloo-system get svc gloo-proxy-http -oname)
+while [[ -z "$PROXY_IP" && $RETRY_COUNT -lt $MAX_RETRIES && $GLOO_PROXY_SVC ]]; do
   echo "Waiting for PROXY_IP to be assigned... Attempt $((RETRY_COUNT + 1))/$MAX_RETRIES"
   PROXY_IP=$(kubectl --context ${CLUSTER1} -n gloo-system get svc gloo-proxy-http -o jsonpath='{.status.loadBalancer.ingress[0].ip}{.status.loadBalancer.ingress[0].hostname}')
   RETRY_COUNT=$((RETRY_COUNT + 1))
@@ -175,7 +176,9 @@ else
   echo "PROXY_IP has been assigned: $PROXY_IP"
   echo "IP has been resolved to: $IP"
 fi
+
 ./scripts/register-domain.sh httpbin.example.com ${PROXY_IP}
+
 cat <<'EOF' > ./test.js
 const helpersHttp = require('./tests/chai-http');
 
