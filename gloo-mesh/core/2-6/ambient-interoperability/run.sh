@@ -18,7 +18,7 @@ describe("Clusters are healthy", () => {
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/deploy-kind-clusters/tests/cluster-healthy.test.js.liquid from lab number 1"
 timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 1"; exit 1; }
-export GLOO_MESH_VERSION=v2.6.7
+export GLOO_MESH_VERSION=v2.6.8
 curl -sL https://run.solo.io/meshctl/install | sh -
 export PATH=$HOME/.gloo-mesh/bin:$PATH
 cat <<'EOF' > ./test.js
@@ -54,14 +54,15 @@ helm upgrade --install gloo-platform-crds gloo-platform-crds \
   --namespace gloo-mesh \
   --kube-context ${MGMT} \
   --set featureGates.insightsConfiguration=true \
-  --version 2.6.7
+  --version 2.6.8
 
 helm upgrade --install gloo-platform-mgmt gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${MGMT} \
-  --version 2.6.7 \
+  --version 2.6.8 \
   -f -<<EOF
+
 licensing:
   glooTrialLicenseKey: ${GLOO_MESH_LICENSE_KEY}
 common:
@@ -70,13 +71,16 @@ experimental:
   ambientEnabled: true
 glooInsightsEngine:
   enabled: true
+glooAgent:
+  enabled: true
+  relay:
+    serverAddress: gloo-mesh-mgmt-server:9900
+    authority: gloo-mesh-mgmt-server.gloo-mesh
 glooMgmtServer:
   enabled: true
   ports:
     healthcheck: 8091
   registerCluster: true
-prometheus:
-  enabled: true
 redis:
   deployment:
     enabled: true
@@ -84,6 +88,8 @@ telemetryGateway:
   enabled: true
   service:
     type: LoadBalancer
+prometheus:
+  enabled: true
 glooUi:
   enabled: true
   serviceType: LoadBalancer
@@ -93,15 +99,8 @@ telemetryCollector:
     exporters:
       otlp:
         endpoint: gloo-telemetry-gateway:4317
-glooAgent:
-  enabled: true
-  relay:
-    serverAddress: gloo-mesh-mgmt-server:9900
-    authority: gloo-mesh-mgmt-server.gloo-mesh
 featureGates:
-  istioLifecycleAgent: true
 EOF
-
 kubectl --context ${MGMT} -n gloo-mesh rollout status deploy/gloo-mesh-mgmt-server
 export ENDPOINT_GLOO_MESH_UI=$(kubectl --context ${MGMT} -n gloo-mesh get svc gloo-mesh-ui -o jsonpath='{.status.loadBalancer.ingress[0].ip}{.status.loadBalancer.ingress[0].hostname}'):8090
 cat <<'EOF' > ./test.js
@@ -143,7 +142,7 @@ describe("istio_version is at least 1.23.0", () => {
   it("version should be at least 1.23.0", () => {
     // Compare the string istio_version to the number 1.23.0
     // example 1.23.0-patch0 is valid, but 1.22.6 is not
-    let version = "1.23.1";
+    let version = "1.23.2";
     let versionParts = version.split('-')[0].split('.');
     let major = parseInt(versionParts[0]);
     let minor = parseInt(versionParts[1]);
@@ -189,10 +188,11 @@ spec:
     istio: ingressgateway
   type: LoadBalancer
 EOF
+kubectl --context ${CLUSTER1} create ns istio-system
 helm upgrade --install istio-base oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/base \
 --namespace istio-system \
 --kube-context=${CLUSTER1} \
---version 1.23.1-solo \
+--version 1.23.2-solo \
 --create-namespace \
 -f - <<EOF
 defaultRevision: ""
@@ -202,19 +202,18 @@ EOF
 helm upgrade --install istiod-1-23 oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/istiod \
 --namespace istio-system \
 --kube-context=${CLUSTER1} \
---version 1.23.1-solo \
+--version 1.23.2-solo \
 --create-namespace \
 -f - <<EOF
 global:
   hub: us-docker.pkg.dev/gloo-mesh/istio-<enterprise_istio_repo>
   proxy:
     clusterDomain: cluster.local
-  tag: 1.23.1-solo
+  tag: 1.23.2-solo
   multiCluster:
     clusterName: cluster1
+  meshID: mesh1
 profile: ambient
-istio_cni:
-  enabled: true
 meshConfig:
   accessLogFile: /dev/stdout
   defaultConfig:
@@ -224,6 +223,8 @@ meshConfig:
   trustDomain: cluster1
 pilot:
   enabled: true
+  cni:
+    enabled: true
   env:
     PILOT_ENABLE_IP_AUTOALLOCATE: "true"
     PILOT_ENABLE_K8S_SELECT_WORKLOAD_ENTRIES: "false"
@@ -233,12 +234,12 @@ EOF
 helm upgrade --install istio-cni oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/cni \
 --namespace kube-system \
 --kube-context=${CLUSTER1} \
---version 1.23.1-solo \
+--version 1.23.2-solo \
 --create-namespace \
 -f - <<EOF
 global:
   hub: us-docker.pkg.dev/gloo-mesh/istio-<enterprise_istio_repo>
-  proxy: 1.23.1-solo
+  proxy: 1.23.2-solo
 profile: ambient
 cni:
   ambient:
@@ -251,13 +252,14 @@ EOF
 helm upgrade --install ztunnel oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/ztunnel \
 --namespace istio-system \
 --kube-context=${CLUSTER1} \
---version 1.23.1-solo \
+--version 1.23.2-solo \
 --create-namespace \
 -f - <<EOF
 configValidation: true
 enabled: true
 env:
   L7_ENABLED: "true"
+  SKIP_VALIDATE_TRUST_DOMAIN: "true"
 hub: us-docker.pkg.dev/gloo-mesh/istio-<enterprise_istio_repo>
 istioNamespace: istio-system
 multiCluster:
@@ -266,7 +268,7 @@ namespace: istio-system
 profile: ambient
 proxy:
   clusterDomain: cluster.local
-tag: 1.23.1-solo
+tag: 1.23.2-solo
 terminationGracePeriodSeconds: 29
 variant: distroless
 EOF
@@ -274,7 +276,7 @@ EOF
 helm upgrade --install istio-ingressgateway-1-23 oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/gateway \
 --namespace istio-gateways \
 --kube-context=${CLUSTER1} \
---version 1.23.1-solo \
+--version 1.23.2-solo \
 --create-namespace \
 -f - <<EOF
 autoscaling:
@@ -288,8 +290,7 @@ service:
   type: None
 EOF
 
-kubectl --context ${CLUSTER1} get crd gateways.gateway.networking.k8s.io &> /dev/null || \
-  { kubectl kustomize "github.com/kubernetes-sigs/gateway-api/config/crd?ref=v1.1.0" | kubectl --context ${CLUSTER1} apply -f -; }
+kubectl --context ${CLUSTER1} apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.2.0/experimental-install.yaml
 cat <<'EOF' > ./test.js
 
 const helpers = require('./tests/chai-exec');
@@ -449,44 +450,44 @@ kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: in-mesh-with-sidecar
+  name: in-mesh
   namespace: clients
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: in-mesh-with-sidecar
+  name: in-mesh
   namespace: clients
   labels:
-    app: in-mesh-with-sidecar
-    service: in-mesh-with-sidecar
+    app: in-mesh
+    service: in-mesh
 spec:
   ports:
   - name: http
     port: 8000
     targetPort: 80
   selector:
-    app: in-mesh-with-sidecar
+    app: in-mesh
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: in-mesh-with-sidecar
+  name: in-mesh
   namespace: clients
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: in-mesh-with-sidecar
+      app: in-mesh
       version: v1
   template:
     metadata:
       labels:
-        app: in-mesh-with-sidecar
+        app: in-mesh
         version: v1
         sidecar.istio.io/inject: "true"
     spec:
-      serviceAccountName: in-mesh-with-sidecar
+      serviceAccountName: in-mesh
       containers:
       - image: nicolaka/netshoot:latest
         imagePullPolicy: IfNotPresent
@@ -494,14 +495,6 @@ spec:
         command: ["/bin/bash"]
         args: ["-c", "while true; do ping localhost; sleep 60;done"]
 EOF
-echo -n Waiting for clients to be ready...
-timeout -v 5m bash -c "
-until [[ \$(kubectl --context ${CLUSTER1} -n clients get deploy -o json | jq '[.items[].status.readyReplicas] | add') -eq 2 ]] 2>/dev/null
-do
-  sleep 1
-  echo -n .
-done"
-echo
 kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: v1
 kind: ServiceAccount
@@ -560,7 +553,7 @@ const helpers = require('./tests/chai-exec');
 describe("client apps", () => {
   let cluster = process.env.CLUSTER1
   
-  let deployments = ["not-in-mesh", "in-mesh-with-sidecar", "in-ambient"];
+  let deployments = ["not-in-mesh", "in-mesh", "in-ambient"];
   
   deployments.forEach(deploy => {
     it(deploy + ' pods are ready in ' + cluster, () => helpers.checkDeployment({ context: cluster, namespace: "clients", k8sObj: deploy }));
@@ -569,7 +562,7 @@ describe("client apps", () => {
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/apps/clients/deploy-clients/tests/check-clients.test.js.liquid from lab number 5"
 timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 5"; exit 1; }
-for workload in not-in-mesh in-mesh-with-sidecar in-ambient; do
+for workload in not-in-mesh in-mesh in-ambient; do
   echo "${workload} to reviews.bookinfo-backends"
   kubectl --context ${CLUSTER1} -n clients exec deploy/$workload -- curl -s -o /dev/null -w "%{http_code}" "http://reviews.bookinfo-backends:9080/reviews/0"
   echo
@@ -584,7 +577,7 @@ spec:
   mtls:
     mode: STRICT
 EOF
-for workload in not-in-mesh in-mesh-with-sidecar in-ambient; do
+for workload in not-in-mesh in-mesh in-ambient; do
   echo "${workload} to reviews.bookinfo-backends"
   kubectl --context ${CLUSTER1} -n clients exec deploy/$workload -- curl -s -o /dev/null -w "%{http_code}" "http://reviews.bookinfo-backends:9080/reviews/0"
   echo
@@ -598,7 +591,7 @@ metadata:
 spec:
   {}
 EOF
-for workload in not-in-mesh in-mesh-with-sidecar in-ambient; do
+for workload in not-in-mesh in-mesh in-ambient; do
   echo "${workload} to reviews.bookinfo-backends"
   kubectl --context ${CLUSTER1} -n clients exec deploy/$workload -- curl -s -o /dev/null -w "%{http_code}" "http://reviews.bookinfo-backends:9080/reviews/0"
   echo
@@ -618,10 +611,10 @@ spec:
   - from:
     - source:
         principals:
-        - "cluster1/ns/clients/sa/in-mesh-with-sidecar"
+        - "cluster1/ns/clients/sa/in-mesh"
         - "cluster1/ns/clients/sa/in-ambient"
 EOF
-for workload in not-in-mesh in-mesh-with-sidecar in-ambient; do
+for workload in not-in-mesh in-mesh in-ambient; do
   echo "${workload} to reviews.bookinfo-backends"
   kubectl --context ${CLUSTER1} -n clients exec deploy/$workload -- curl -s -o /dev/null -w "%{http_code}" "http://reviews.bookinfo-backends:9080/reviews/0"
   echo
@@ -644,7 +637,7 @@ afterEach(function (done) {
 describe("l4 interoperability", function() {
   const cluster = process.env.CLUSTER1
 
-  const workloads = ['in-mesh-with-sidecar', 'in-ambient'];
+  const workloads = ['in-mesh', 'in-ambient'];
   for (const workload of workloads) {
     it(`traffic is authenticated from ${workload} to the reviews.bookinfo-backends workload`, () => {
       let command = `kubectl --context ${cluster} -n clients exec deploy/${workload} -- curl -s -o /dev/null -w "%{http_code}" "http://reviews.bookinfo-backends:9080/reviews/0"`;
@@ -671,7 +664,7 @@ kubectl --context ${CLUSTER1} -n bookinfo-backends rollout restart deploy
 
 timeout 2m bash -c "until [[ \$(kubectl --context ${CLUSTER1} get pods -n bookinfo-backends -o json  | jq -r '.items[] | select(.status.phase != \"Running\" or .metadata.deletionTimestamp != null) | .metadata.name' | wc -l) -eq 0 ]]; do sleep 1; done"
 kubectl --context ${CLUSTER1} -n bookinfo-backends get pods
-for workload in not-in-mesh in-mesh-with-sidecar in-ambient; do
+for workload in not-in-mesh in-mesh in-ambient; do
   echo "${workload} to reviews.bookinfo-backends"
   kubectl --context ${CLUSTER1} -n clients exec deploy/$workload -- curl -s -o /dev/null -w "%{http_code}" "http://reviews.bookinfo-backends:9080/reviews/0"
   echo
@@ -694,7 +687,7 @@ afterEach(function (done) {
 describe("l4 interoperability", function() {
   const cluster = process.env.CLUSTER1
 
-  const workloads = ['in-mesh-with-sidecar', 'in-ambient'];
+  const workloads = ['in-mesh', 'in-ambient'];
   for (const workload of workloads) {
     it(`traffic is authenticated from ${workload} to the reviews.bookinfo-backends workload`, () => {
       let command = `kubectl --context ${cluster} -n clients exec deploy/${workload} -- curl -s -o /dev/null -w "%{http_code}" "http://reviews.bookinfo-backends:9080/reviews/0"`;
@@ -767,7 +760,7 @@ afterEach(function (done) {
 
 describe("l7 interoperability", function() {
   const cluster = process.env.CLUSTER1
-  const workloads = ['in-mesh-with-sidecar', 'in-ambient'];
+  const workloads = ['in-mesh', 'in-ambient'];
 
   describe("traffic is authorized", function() {
     for (const workload of workloads) {
@@ -817,7 +810,7 @@ spec:
   - from:
     - source:
         principals:
-        - "cluster1/ns/clients/sa/in-mesh-with-sidecar"
+        - "cluster1/ns/clients/sa/in-mesh"
         - "cluster1/ns/clients/sa/in-ambient"
     to:
     - operation:
@@ -840,7 +833,7 @@ spec:
   - from:
     - source:
         principals:
-        - "cluster1/ns/clients/sa/in-mesh-with-sidecar"
+        - "cluster1/ns/clients/sa/in-mesh"
         - "cluster1/ns/clients/sa/in-ambient"
     to:
     - operation:
@@ -863,7 +856,7 @@ afterEach(function (done) {
 
 describe("l7 interoperability", function() {
   const cluster = process.env.CLUSTER1
-  const workloads = ['in-mesh-with-sidecar', 'in-ambient'];
+  const workloads = ['in-mesh', 'in-ambient'];
 
   describe("traffic is authorized", function() {
     for (const workload of workloads) {
@@ -890,7 +883,7 @@ EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/l7-authz-interoperability/tests/validate-interoperability.test.js.liquid from lab number 7"
 timeout --signal=INT 3m mocha ./test.js --timeout 60000 --retries=60 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 7"; exit 1; }
 kubectl --context ${CLUSTER1} label ns bookinfo-backends istio.io/use-waypoint=waypoint
-for workload in not-in-mesh in-mesh-with-sidecar in-ambient; do
+for workload in not-in-mesh in-mesh in-ambient; do
   echo "${workload} to reviews.bookinfo-backends"
   kubectl --context ${CLUSTER1} -n clients exec deploy/$workload -- curl -s -o /dev/null -w "%{http_code}" "http://reviews.bookinfo-backends:9080/reviews/0"
   echo
@@ -913,7 +906,7 @@ afterEach(function (done) {
 
 describe("l7 interoperability", function() {
   const cluster = process.env.CLUSTER1
-  const workloads = ['in-mesh-with-sidecar', 'in-ambient'];
+  const workloads = ['in-mesh', 'in-ambient'];
 
   describe("traffic is authorized", function() {
     for (const workload of workloads) {
@@ -963,7 +956,7 @@ afterEach(function (done) {
 
 describe("l7 interoperability", function() {
   const cluster = process.env.CLUSTER1
-  const workloads = ['in-mesh-with-sidecar', 'in-ambient'];
+  const workloads = ['in-mesh', 'in-ambient'];
 
   describe("traffic is authorized", function() {
     for (const workload of workloads) {
@@ -1096,7 +1089,7 @@ afterEach(function (done) {
 
 describe("virtual service and destination rules configure routing", function() {
   const cluster = process.env.CLUSTER1
-  const workloads = ['in-mesh-with-sidecar', 'in-ambient'];
+  const workloads = ['in-mesh', 'in-ambient'];
   const repetitions = 10;
 
   describe("for beta users (specified by the header 'beta-tester: true')", function() {
@@ -1184,7 +1177,7 @@ afterEach(function (done) {
 
 describe("virtual service", function() {
   const cluster = process.env.CLUSTER1
-  const workloads = ['in-mesh-with-sidecar', 'in-ambient'];
+  const workloads = ['in-mesh', 'in-ambient'];
 
   for (const workload of workloads) {
     it(`adds header to responses for traffic from workload ${workload}`, () => {
@@ -1319,7 +1312,7 @@ afterEach(function (done) {
 
 describe("virtual service retry failed requests", function() {
   const cluster = process.env.CLUSTER1
-  const workloads = ['in-mesh-with-sidecar', 'in-ambient'];
+  const workloads = ['in-mesh', 'in-ambient'];
   const repetitions = 20;
 
   for (const workload of workloads) {
