@@ -80,6 +80,8 @@ You can find more information about Gloo Gateway in the official documentation: 
 
 Clone this repository and go to the directory where this `README.md` file is.
 
+
+
 Set the context environment variables:
 
 ```bash
@@ -143,7 +145,7 @@ helm repo update
 helm upgrade -i -n gloo-system \
   gloo-gateway gloo-ee-helm/gloo-ee \
   --create-namespace \
-  --version 1.18.3 \
+  --version 1.18.7 \
   --kube-context $CLUSTER1 \
   --set-string license_key=$LICENSE_KEY \
   -f -<<EOF
@@ -164,9 +166,6 @@ gloo:
       livenessProbeEnabled: true
   discovery:
     enabled: false
-  rbac:
-    namespaced: true
-    nameSuffix: gg-demo
 observability:
   enabled: true
 prometheus:
@@ -205,8 +204,6 @@ gloo-fed:
   enabled: false
   glooFedApiserver:
     enable: false
-settings:
-  disableKubernetesDestinations: true
 global:
   extensions:
     rateLimit:
