@@ -111,6 +111,8 @@ You can find more information about Gloo Gateway in the official documentation: 
 
 Clone this repository and go to the directory where this `README.md` file is.
 
+
+
 Set the context environment variables:
 
 ```bash
@@ -208,19 +210,23 @@ helm upgrade --install gloo-platform-mgmt gloo-platform \
   --kube-context ${MGMT} \
   --version 2.6.0 \
   -f -<<EOF
+
 licensing:
   glooTrialLicenseKey: ${GLOO_MESH_LICENSE_KEY}
 common:
   cluster: cluster1
 glooInsightsEngine:
   enabled: false
+glooAgent:
+  enabled: true
+  relay:
+    serverAddress: gloo-mesh-mgmt-server:9900
+    authority: gloo-mesh-mgmt-server.gloo-mesh
 glooMgmtServer:
   enabled: true
   ports:
     healthcheck: 8091
   registerCluster: true
-prometheus:
-  enabled: true
 redis:
   deployment:
     enabled: true
@@ -228,6 +234,8 @@ telemetryGateway:
   enabled: true
   service:
     type: LoadBalancer
+prometheus:
+  enabled: true
 glooUi:
   enabled: true
   serviceType: LoadBalancer
@@ -237,17 +245,16 @@ telemetryCollector:
     exporters:
       otlp:
         endpoint: gloo-telemetry-gateway:4317
-glooAgent:
-  enabled: true
-  relay:
-    serverAddress: gloo-mesh-mgmt-server:9900
-    authority: gloo-mesh-mgmt-server.gloo-mesh
 EOF
-
 kubectl --context ${MGMT} -n gloo-mesh rollout status deploy/gloo-mesh-mgmt-server
 
 kubectl --context ${MGMT} delete workspaces -A --all
 kubectl --context ${MGMT} delete workspacesettings -A --all
+```
+
+Set the endpoint for the Gloo Mesh UI:
+```bash
+export ENDPOINT_GLOO_MESH_UI=$(kubectl --context ${MGMT} -n gloo-mesh get svc gloo-mesh-ui -o jsonpath='{.status.loadBalancer.ingress[0].ip}{.status.loadBalancer.ingress[0].hostname}'):8090
 ```
 
 <!--bash
@@ -347,6 +354,11 @@ EOF
 
 Let's deploy Istio using Helm in cluster1. We'll install the base Istio components, the Istiod control plane, the Istio CNI, the ztunnel, and the ingress/eastwest gateways.
 
+Create the `istio-system` namespace:
+
+```bash
+kubectl --context ${CLUSTER1} create ns istio-system
+```
 
 ```bash
 helm upgrade --install istio-base oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/base \
@@ -373,7 +385,6 @@ global:
   multiCluster:
     clusterName: cluster1
   meshID: mesh1
-  network: cluster1
 revision: 1-23
 meshConfig:
   accessLogFile: /dev/stdout
@@ -413,8 +424,7 @@ EOF
 ```
 The Gateway APIs do not come installed by default on most Kubernetes clusters. Install the Gateway API CRDs if they are not present:
 ```bash
-kubectl --context ${CLUSTER1} get crd gateways.gateway.networking.k8s.io &> /dev/null || \
-  { kubectl kustomize "github.com/kubernetes-sigs/gateway-api/config/crd?ref=v1.1.0" | kubectl --context ${CLUSTER1} apply -f -; }
+kubectl --context ${CLUSTER1} apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.2.0/experimental-install.yaml
 ```
   
 
@@ -714,10 +724,9 @@ do
 done"
 echo
 -->
-```
 You can follow the progress using the following command:
 
-```bash
+```shell
 kubectl --context ${CLUSTER1} -n httpbin get pods
 ```
 
@@ -2325,7 +2334,6 @@ EOF
 ```
 
 Refresh the web page multiple times.
-
 <!--bash
 cat <<'EOF' > ./test.js
 const helpersHttp = require('./tests/chai-http');
@@ -3392,7 +3400,7 @@ describe("Address '" + process.env.HOST_KEYCLOAK + "' can be resolved in DNS", (
     });
 });
 EOF
-echo "executing test ./gloo-mesh-2-0/tests/can-resolve.test.js.liquid from lab number 19"
+echo "executing test ./default/tests/can-resolve.test.js.liquid from lab number 19"
 timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 19"; exit 1; }
 -->
 <!--bash
@@ -3442,7 +3450,7 @@ helm repo update
 helm upgrade -i -n gloo-system \
   gloo-gateway gloo-ee-helm/gloo-ee \
   --create-namespace \
-  --version 1.18.3 \
+  --version 1.18.7 \
   --kube-context $CLUSTER1 \
   --set-string license_key=$LICENSE_KEY \
   -f -<<EOF
@@ -3472,9 +3480,6 @@ gloo:
       livenessProbeEnabled: true
   discovery:
     enabled: false
-  rbac:
-    namespaced: true
-    nameSuffix: gg-demo
 observability:
   enabled: false
 prometheus:
@@ -3490,8 +3495,6 @@ gateway-portal-web-server:
   glooPortalServer:
     database:
       type: postgres
-settings:
-  disableKubernetesDestinations: true
 global:
   extensions:
     caching:
@@ -3808,6 +3811,7 @@ spec:
 EOF
 ```
 
+
 Set the environment variable for the service corresponding to the gateway:
 
 ```bash
@@ -3817,7 +3821,8 @@ export PROXY_IP=$(kubectl --context ${CLUSTER1} -n gloo-system get svc gloo-prox
 <!--bash
 RETRY_COUNT=0
 MAX_RETRIES=60
-while [[ -z "$PROXY_IP" && $RETRY_COUNT -lt $MAX_RETRIES ]]; do
+GLOO_PROXY_SVC=$(kubectl --context ${CLUSTER1} -n gloo-system get svc gloo-proxy-http -oname)
+while [[ -z "$PROXY_IP" && $RETRY_COUNT -lt $MAX_RETRIES && $GLOO_PROXY_SVC ]]; do
   echo "Waiting for PROXY_IP to be assigned... Attempt $((RETRY_COUNT + 1))/$MAX_RETRIES"
   PROXY_IP=$(kubectl --context ${CLUSTER1} -n gloo-system get svc gloo-proxy-http -o jsonpath='{.status.loadBalancer.ingress[0].ip}{.status.loadBalancer.ingress[0].hostname}')
   RETRY_COUNT=$((RETRY_COUNT + 1))
@@ -3849,7 +3854,9 @@ fi
 Configure your hosts file to resolve httpbin.example.com with the IP address of the proxy by executing the following command:
 
 ```bash
+
 ./scripts/register-domain.sh httpbin.example.com ${PROXY_IP}
+
 ```
 
 Try to access the application through HTTP:
@@ -3912,7 +3919,6 @@ Then, you have to store it in a Kubernetes secret running the following command:
 kubectl create --context ${CLUSTER1} -n gloo-system secret tls tls-secret --key tls.key \
    --cert tls.crt
 ```
-
 Update the `Gateway` resource to add HTTPS listeners.
 
 ```bash
@@ -3983,6 +3989,7 @@ spec:
           port: 8000
 EOF
 ```
+
 
 Try to access the application through HTTPS:
 
@@ -9373,7 +9380,7 @@ We can now configure the Gloo Gateway portal backend to use it:
 helm upgrade -i -n gloo-system \
   gloo-gateway gloo-ee-helm/gloo-ee \
   --create-namespace \
-  --version 1.18.3 \
+  --version 1.18.7 \
   --kube-context ${CLUSTER1} \
   --reuse-values \
   -f -<<EOF
