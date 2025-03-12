@@ -42,7 +42,7 @@ helm repo update
 helm upgrade -i -n gloo-system \
   gloo-gateway gloo-ee-helm/gloo-ee \
   --create-namespace \
-  --version 1.18.3 \
+  --version 1.18.7 \
   --kube-context $CLUSTER1 \
   --set-string license_key=$LICENSE_KEY \
   -f -<<EOF
@@ -68,13 +68,11 @@ gloo:
       livenessProbeEnabled: true
   discovery:
     enabled: false
-  rbac:
-    namespaced: true
-    nameSuffix: gg-demo
   settings:
     aws:
       enableServiceAccountCredentials: true
       stsCredentialsRegion: eu-west-1
+    disableKubernetesDestinations: true
 observability:
   enabled: false
 prometheus:
@@ -85,8 +83,6 @@ gloo-fed:
   enabled: false
   glooFedApiserver:
     enable: false
-settings:
-  disableKubernetesDestinations: true
 EOF
 echo -n Waiting for Gloo Gateway pods to be ready...
 kubectl --context $CLUSTER1 -n gloo-system rollout status deployment
@@ -308,7 +304,8 @@ EOF
 export PROXY_IP=$(kubectl --context ${CLUSTER1} -n gloo-system get svc gloo-proxy-http -o jsonpath='{.status.loadBalancer.ingress[0].ip}{.status.loadBalancer.ingress[0].hostname}')
 RETRY_COUNT=0
 MAX_RETRIES=60
-while [[ -z "$PROXY_IP" && $RETRY_COUNT -lt $MAX_RETRIES ]]; do
+GLOO_PROXY_SVC=$(kubectl --context ${CLUSTER1} -n gloo-system get svc gloo-proxy-http -oname)
+while [[ -z "$PROXY_IP" && $RETRY_COUNT -lt $MAX_RETRIES && $GLOO_PROXY_SVC ]]; do
   echo "Waiting for PROXY_IP to be assigned... Attempt $((RETRY_COUNT + 1))/$MAX_RETRIES"
   PROXY_IP=$(kubectl --context ${CLUSTER1} -n gloo-system get svc gloo-proxy-http -o jsonpath='{.status.loadBalancer.ingress[0].ip}{.status.loadBalancer.ingress[0].hostname}')
   RETRY_COUNT=$((RETRY_COUNT + 1))
@@ -335,7 +332,9 @@ else
   echo "PROXY_IP has been assigned: $PROXY_IP"
   echo "IP has been resolved to: $IP"
 fi
+
 ./scripts/register-domain.sh httpbin.example.com ${PROXY_IP}
+
 cat <<'EOF' > ./test.js
 const helpersHttp = require('./tests/chai-http');
 
