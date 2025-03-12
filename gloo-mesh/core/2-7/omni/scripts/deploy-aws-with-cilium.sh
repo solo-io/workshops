@@ -1,55 +1,19 @@
 #!/usr/bin/env bash
 set -o errexit
 
-number="1"
-name="mgmt"
-region=""
-zone=""
+number=$1
+name=$2
+region=$3
+zone=$4
 twodigits=$(printf "%02d\n" $number)
-
-kindest_node=${KINDEST_NODE}
-
-if [ -z "$kindest_node" ]; then
-  export k8s_version="1.28.0"
-
-  [[ ${k8s_version::1} != 'v' ]] && export k8s_version=v${k8s_version}
-  kindest_node_ver=$(curl --silent "https://registry.hub.docker.com/v2/repositories/kindest/node/tags?page_size=100" \
-                      | jq -r '.results | .[] | select(.name==env.k8s_version) | .name+"@"+.digest')
-
-  if [ -z "$kindest_node_ver" ]; then
-    echo "Incorrect Kubernetes version provided: ${k8s_version}."
-    exit 1
-  fi
-  kindest_node=kindest/node:${kindest_node_ver}
-fi
-echo "Using KinD image: ${kindest_node}"
+kindest_node=${KINDEST_NODE:-kindest\/node:v1.28.0@sha256:b7a4cad12c197af3ba43202d3efe03246b3f0793f162afb40a33c923952d5b31}
 
 if [ -z "$3" ]; then
-  case $name in
-    cluster1)
-      region=us-west-1
-      ;;
-    cluster2)
-      region=us-west-2
-      ;;
-    *)
-      region=us-east-1
-      ;;
-  esac
+  region=us-east-1
 fi
 
 if [ -z "$4" ]; then
-  case $name in
-    cluster1)
-      zone=us-west-1a
-      ;;
-    cluster2)
-      zone=us-west-2a
-      ;;
-    *)
-      zone=us-east-1a
-      ;;
-  esac
+  zone=us-east-1a
 fi
 
 if hostname -I 2>/dev/null; then
@@ -75,6 +39,7 @@ docker network connect "kind" $container || true
 number=$(get_next_cluster_number)
 twodigits=$(printf "%02d\n" $number)
 fi
+
 reg_name='kind-registry'
 reg_port='5000'
 docker start "${reg_name}" 2>/dev/null || \
@@ -116,6 +81,7 @@ EOF
 docker start "${cache_name}" 2>/dev/null || \
 docker run -d --restart=always ${DEPLOY_EXTRA_PARAMS} -v ${HOME}/.${cache_name}-config.yml:/etc/docker/registry/config.yml --name "${cache_name}" registry:2
 done
+
 mkdir -p /tmp/oidc
 
 cat <<'EOF' >/tmp/oidc/sa-signer-pkcs8.pub
@@ -160,8 +126,7 @@ qF50p34vIFqUBniNRwSArx8t2dq/CuAMgLAtSjh70Q6ZAnCF85PD8Q==
 -----END RSA PRIVATE KEY-----
 EOF
 
-echo Contents of kind${number}.yaml
-cat << EOF | tee kind${number}.yaml
+cat << EOF > kind${number}.yaml
 kind: Cluster
 apiVersion: kind.x-k8s.io/v1alpha4
 nodes:
@@ -212,13 +177,45 @@ containerdConfigPatches:
     endpoint = ["http://quay:${cache_port}"]
   [plugins."io.containerd.grpc.v1.cri".registry.mirrors."gcr.io"]
     endpoint = ["http://gcr:${cache_port}"]
+${KIND_ADDL_FEATURES}
 EOF
-echo -----------------------------------------------------
 
 kind create cluster --name kind${number} --config kind${number}.yaml
+
 ipkind=$(docker inspect kind${number}-control-plane | jq -r '.[0].NetworkSettings.Networks[].IPAddress')
 networkkind=$(echo ${ipkind} | awk -F. '{ print $1"."$2 }')
+
 kubectl config set-cluster kind-kind${number} --server=https://${myip}:70${twodigits} --insecure-skip-tls-verify=true
+
+helm repo add cilium https://helm.cilium.io/
+
+helm --kube-context kind-kind${number} install cilium cilium/cilium --version 1.15.5 \
+   --namespace kube-system \
+   --set prometheus.enabled=true \
+   --set operator.prometheus.enabled=true \
+   --set hubble.enabled=true \
+   --set hubble.metrics.enabled="{dns:destinationContext=pod|ip;sourceContext=pod|ip,drop:destinationContext=pod|ip;sourceContext=pod|ip,tcp:destinationContext=pod|ip;sourceContext=pod|ip,flow:destinationContext=pod|ip;sourceContext=pod|ip,port-distribution:destinationContext=pod|ip;sourceContext=pod|ip}" \
+   --set hubble.relay.enabled=true \
+   --set hubble.ui.enabled=true \
+   --set kubeProxyReplacement=partial \
+   --set hostServices.enabled=false \
+   --set hostServices.protocols="tcp" \
+   --set externalIPs.enabled=true \
+   --set nodePort.enabled=true \
+   --set hostPort.enabled=true \
+   --set bpf.masquerade=false \
+   --set image.pullPolicy=IfNotPresent \
+   --set cni.exclusive=false \
+   --set ipam.mode=kubernetes
+kubectl --context=kind-kind${number} -n kube-system rollout status ds cilium || true
+
+docker network connect "kind" "${reg_name}" || true
+docker network connect "kind" docker || true
+docker network connect "kind" us-docker || true
+docker network connect "kind" us-central1-docker || true
+docker network connect "kind" quay || true
+docker network connect "kind" gcr || true
+
 # Preload images
 cat << EOF >> images.txt
 quay.io/metallb/controller:v0.13.12
@@ -228,19 +225,11 @@ cat images.txt | while read image; do
   docker pull $image || true
   kind load docker-image $image --name kind${number} || true
 done
-docker network connect "kind" "${reg_name}" || true
-docker network connect "kind" docker || true
-docker network connect "kind" us-docker || true
-docker network connect "kind" us-central1-docker || true
-docker network connect "kind" quay || true
-docker network connect "kind" gcr || true
-# Calico for ipv4
-curl -sL https://raw.githubusercontent.com/projectcalico/calico/v3.28.1/manifests/calico.yaml | sed 's/250m/50m/g' | kubectl --context kind-kind${number} apply -f -
 for i in 1 2 3 4 5; do kubectl --context=kind-kind${number} apply -f https://raw.githubusercontent.com/metallb/metallb/v0.13.12/config/manifests/metallb-native.yaml && break || sleep 15; done
 kubectl --context=kind-kind${number} create secret generic -n metallb-system memberlist --from-literal=secretkey="$(openssl rand -base64 128)"
 kubectl --context=kind-kind${number} -n metallb-system rollout status deploy controller || true
 
-cat << EOF | tee metallb${number}.yaml
+cat << EOF > metallb${number}.yaml
 apiVersion: metallb.io/v1beta1
 kind: IPAddressPool
 metadata:
@@ -272,6 +261,7 @@ for i in {1..100}; do
   sleep 2
   [ $i -lt 100 ] || exit 1
 done
+
 # Document the local registry
 # https://github.com/kubernetes/enhancements/tree/master/keps/sig-cluster-lifecycle/generic/1755-communicating-a-local-registry
 cat <<EOF | kubectl --context=${name} apply -f -
