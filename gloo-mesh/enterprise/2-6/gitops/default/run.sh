@@ -39,10 +39,7 @@ service:
     type: LoadBalancer
     port: 3180
     annotations:
-      service.beta.kubernetes.io/aws-load-balancer-name: gitea-http
-      service.beta.kubernetes.io/aws-load-balancer-type: external
       service.beta.kubernetes.io/aws-load-balancer-scheme: internet-facing
-      service.beta.kubernetes.io/aws-load-balancer-nlb-target-type: instance
       service.beta.kubernetes.io/aws-load-balancer-cross-zone-load-balancing-enabled: "true"
 redis-cluster:
   enabled: false
@@ -71,7 +68,7 @@ gitea:
 EOF
 
 echo Waiting for Gitea LB to be ready...
-kubectl --context ${MGMT} -n gitea wait svc gitea-http --for=jsonpath='{.status.loadBalancer.ingress[0].ip}{.status.loadBalancer.ingress[0].hostname}' --timeout=300s
+kubectl --context ${MGMT} -n gitea wait svc gitea-http --for=jsonpath='{.status.loadBalancer.ingress[0]}' --timeout=300s
 cat <<'EOF' > ./test.js
 const chaiExec = require("@jsdevtools/chai-exec");
 var chai = require('chai');
@@ -133,7 +130,7 @@ GITEA_IP=$(kubectl --context ${MGMT} -n gitea get svc gitea-http -o jsonpath='{.
 ./scripts/register-domain.sh git.example.com ${GITEA_IP}
 GITEA_ADMIN_TOKEN=$(curl -Ss ${GITEA_HTTP}/api/v1/users/gitea_admin/tokens \
   -H "Content-Type: application/json" \
-  -d '{"name": "workshop", "scopes": ["write:admin", "write:repository"]}' \
+  -d '{"name": "bootstrap", "scopes": ["write:admin", "write:repository"]}' \
   -u 'gitea_admin:r8sA8CPHD9!bt6d' \
   | jq -r .sha1)
 echo export GITEA_ADMIN_TOKEN=${GITEA_ADMIN_TOKEN} >> ~/.env
@@ -329,7 +326,7 @@ git -C ${GITOPS_REPO_LOCAL} commit -m "Delete nginx"
 git -C ${GITOPS_REPO_LOCAL} push
 
 kubectl --context ${MGMT} -n default wait --for=delete pod/nginx --timeout=30s
-export GLOO_MESH_VERSION=v2.6.7
+export GLOO_MESH_VERSION=v2.6.8
 curl -sL https://run.solo.io/meshctl/install | sh -
 export PATH=$HOME/.gloo-mesh/bin:$PATH
 cat <<'EOF' > ./test.js
@@ -449,7 +446,7 @@ spec:
   sources:
   - chart: gloo-platform-crds
     repoURL: https://storage.googleapis.com/gloo-platform/helm-charts
-    targetRevision: 2.6.7
+    targetRevision: 2.6.8
     helm:
       releaseName: gloo-platform-crds
       parameters:
@@ -457,7 +454,7 @@ spec:
         value: "true"
   - chart: gloo-platform
     repoURL: https://storage.googleapis.com/gloo-platform/helm-charts
-    targetRevision: 2.6.7
+    targetRevision: 2.6.8
     helm:
       releaseName: gloo-platform
       valueFiles:
@@ -467,6 +464,7 @@ spec:
     ref: values
 EOF
 cat <<EOF > ${GITOPS_PLATFORM}/argo-cd/gloo-platform-mgmt-installation-values.yaml
+
 licensing:
   glooTrialLicenseKey: ${GLOO_MESH_LICENSE_KEY}
 common:
@@ -477,9 +475,6 @@ glooMgmtServer:
   enabled: true
   ports:
     healthcheck: 8091
-prometheus:
-  enabled: true
-  skipAutoMigration: true
 redis:
   deployment:
     enabled: true
@@ -487,6 +482,9 @@ telemetryGateway:
   enabled: true
   service:
     type: LoadBalancer
+prometheus:
+  enabled: true
+  skipAutoMigration: true
 glooUi:
   enabled: true
   serviceType: LoadBalancer
@@ -689,7 +687,7 @@ spec:
       sources:
       - chart: gloo-platform-crds
         repoURL: https://storage.googleapis.com/gloo-platform/helm-charts
-        targetRevision: 2.6.7
+        targetRevision: 2.6.8
         helm:
           releaseName: gloo-platform-crds
           parameters:
@@ -697,7 +695,7 @@ spec:
             value: "true"
       - chart: gloo-platform
         repoURL: https://storage.googleapis.com/gloo-platform/helm-charts
-        targetRevision: 2.6.7
+        targetRevision: 2.6.8
         helm:
           releaseName: gloo-platform
           valueFiles:
@@ -1046,7 +1044,7 @@ spec:
       istioOperatorSpec:
         profile: minimal
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.23.1-solo
+        tag: 1.23.2-solo
         namespace: istio-system
         values:
           global:
@@ -1096,7 +1094,7 @@ spec:
       istioOperatorSpec:
         profile: minimal
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.23.1-solo
+        tag: 1.23.2-solo
         namespace: istio-system
         values:
           global:
@@ -1159,7 +1157,7 @@ spec:
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.23.1-solo
+        tag: 1.23.2-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -1186,7 +1184,7 @@ spec:
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.23.1-solo
+        tag: 1.23.2-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -1222,7 +1220,7 @@ spec:
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.23.1-solo
+        tag: 1.23.2-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -1249,7 +1247,7 @@ spec:
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.23.1-solo
+        tag: 1.23.2-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -1860,7 +1858,6 @@ do
   echo -n .
 done"
 echo
-kubectl --context ${CLUSTER1} -n httpbin get pods
 cat <<'EOF' > ./test.js
 const helpers = require('./tests/chai-exec');
 
@@ -1928,7 +1925,7 @@ spec:
       sources:
       - chart: gloo-platform
         repoURL: https://storage.googleapis.com/gloo-platform/helm-charts
-        targetRevision: 2.6.7
+        targetRevision: 2.6.8
         helm:
           releaseName: gloo-platform
           valueFiles:
@@ -3386,8 +3383,8 @@ do
   echo -n .
 done"
 echo
-export GLOO_AGENT_URL=https://storage.googleapis.com/gloo-platform/vm/v2.6.7/gloo-workload-agent.deb
-export ISTIO_URL=https://storage.googleapis.com/solo-workshops/istio-binaries/1.23.1/istio-sidecar.deb
+export GLOO_AGENT_URL=https://storage.googleapis.com/gloo-platform/vm/v2.6.8/gloo-workload-agent.deb
+export ISTIO_URL=https://storage.googleapis.com/solo-workshops/istio-binaries/1.23.2/istio-sidecar.deb
 echo -n Trying to onboard the VM...
 MAX_ATTEMPTS=10
 ATTEMPTS=0
@@ -3529,7 +3526,7 @@ spec:
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.23.1-solo
+        tag: 1.23.2-solo
         components:
           egressGateways:
             - enabled: true
