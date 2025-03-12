@@ -96,6 +96,24 @@ global = {
     });
   },
 
+  checkPodRestartCountIs0: ({ context, namespace, k8sLabel }) => {
+    // covers both namespace scoped and cluster scoped objects
+    let command = "kubectl --context " + context + " get pods -l " + k8sLabel + " -o jsonpath='{.items[0].status.containerStatuses[0].restartCount}'";
+    if (namespace) {
+      command = "kubectl --context " + context + " -n " + namespace + " get pods -l " + k8sLabel + " -o jsonpath='{.items[0].status.containerStatuses[0].restartCount}'";
+    }
+    debugLog(`Executing command: ${command}`);
+    let cli = chaiExec(command);
+
+    debugLog(`Command output (stdout): ${cli.stdout}`);
+    debugLog(`Command error (stderr): ${cli.stderr}`);
+
+    cli.stderr.should.be.empty;
+    cli.should.exit.with.code(0);
+    const restartCount = +cli.stdout.replace(/\'/g, '');
+    restartCount.should.equal(0);
+  },
+
   checkStatefulSet: async ({ context, namespace, k8sObj }) => {
     let command = "kubectl --context " + context + " -n " + namespace + " get sts " + k8sObj + " -o jsonpath='{.status}'";
     debugLog(`Executing command: ${command}`);
