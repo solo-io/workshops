@@ -25,7 +25,7 @@ helm repo update
 helm upgrade -i -n gloo-system \
   gloo-gateway gloo-ee-helm/gloo-ee \
   --create-namespace \
-  --version 1.18.3 \
+  --version 1.18.7 \
   --kube-context $CLUSTER1 \
   --set-string license_key=$LICENSE_KEY \
   -f -<<EOF
@@ -46,9 +46,6 @@ gloo:
       livenessProbeEnabled: true
   discovery:
     enabled: false
-  rbac:
-    namespaced: true
-    nameSuffix: gg-demo
 observability:
   enabled: true
 prometheus:
@@ -87,8 +84,6 @@ gloo-fed:
   enabled: false
   glooFedApiserver:
     enable: false
-settings:
-  disableKubernetesDestinations: true
 global:
   extensions:
     rateLimit:
