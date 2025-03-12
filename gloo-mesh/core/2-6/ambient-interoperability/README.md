@@ -9,7 +9,7 @@ source ./scripts/assert.sh
 <img src="images/document-gloo-mesh.svg" style="height: 100px;"/>
 </center>
 
-# <center>Gloo Mesh Core (2.6.7) Ambient Interoperability</center>
+# <center>Gloo Mesh Core (2.6.8) Ambient Interoperability</center>
 
 
 
@@ -77,6 +77,8 @@ You can find more information about Gloo Mesh Core in the official documentation
 
 Clone this repository and go to the directory where this `README.md` file is.
 
+
+
 Set the context environment variables:
 
 ```bash
@@ -124,7 +126,7 @@ timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || 
 Before we get started, let's install the `meshctl` CLI:
 
 ```bash
-export GLOO_MESH_VERSION=v2.6.7
+export GLOO_MESH_VERSION=v2.6.8
 curl -sL https://run.solo.io/meshctl/install | sh -
 export PATH=$HOME/.gloo-mesh/bin:$PATH
 ```
@@ -167,14 +169,15 @@ helm upgrade --install gloo-platform-crds gloo-platform-crds \
   --namespace gloo-mesh \
   --kube-context ${MGMT} \
   --set featureGates.insightsConfiguration=true \
-  --version 2.6.7
+  --version 2.6.8
 
 helm upgrade --install gloo-platform-mgmt gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${MGMT} \
-  --version 2.6.7 \
+  --version 2.6.8 \
   -f -<<EOF
+
 licensing:
   glooTrialLicenseKey: ${GLOO_MESH_LICENSE_KEY}
 common:
@@ -183,13 +186,16 @@ experimental:
   ambientEnabled: true
 glooInsightsEngine:
   enabled: true
+glooAgent:
+  enabled: true
+  relay:
+    serverAddress: gloo-mesh-mgmt-server:9900
+    authority: gloo-mesh-mgmt-server.gloo-mesh
 glooMgmtServer:
   enabled: true
   ports:
     healthcheck: 8091
   registerCluster: true
-prometheus:
-  enabled: true
 redis:
   deployment:
     enabled: true
@@ -197,6 +203,8 @@ telemetryGateway:
   enabled: true
   service:
     type: LoadBalancer
+prometheus:
+  enabled: true
 glooUi:
   enabled: true
   serviceType: LoadBalancer
@@ -206,15 +214,8 @@ telemetryCollector:
     exporters:
       otlp:
         endpoint: gloo-telemetry-gateway:4317
-glooAgent:
-  enabled: true
-  relay:
-    serverAddress: gloo-mesh-mgmt-server:9900
-    authority: gloo-mesh-mgmt-server.gloo-mesh
 featureGates:
-  istioLifecycleAgent: true
 EOF
-
 kubectl --context ${MGMT} -n gloo-mesh rollout status deploy/gloo-mesh-mgmt-server
 ```
 
@@ -222,6 +223,7 @@ Set the endpoint for the Gloo Mesh UI:
 ```bash
 export ENDPOINT_GLOO_MESH_UI=$(kubectl --context ${MGMT} -n gloo-mesh get svc gloo-mesh-ui -o jsonpath='{.status.loadBalancer.ingress[0].ip}{.status.loadBalancer.ingress[0].hostname}'):8090
 ```
+
 <!--bash
 cat <<'EOF' > ./test.js
 var chai = require('chai');
@@ -284,7 +286,7 @@ describe("istio_version is at least 1.23.0", () => {
   it("version should be at least 1.23.0", () => {
     // Compare the string istio_version to the number 1.23.0
     // example 1.23.0-patch0 is valid, but 1.22.6 is not
-    let version = "1.23.1";
+    let version = "1.23.2";
     let versionParts = version.split('-')[0].split('.');
     let major = parseInt(versionParts[0]);
     let minor = parseInt(versionParts[1]);
@@ -339,12 +341,17 @@ EOF
 
 Let's deploy Istio using Helm in cluster1. We'll install the base Istio components, the Istiod control plane, the Istio CNI, the ztunnel, and the ingress/eastwest gateways.
 
+Create the `istio-system` namespace:
+
+```bash
+kubectl --context ${CLUSTER1} create ns istio-system
+```
 
 ```bash
 helm upgrade --install istio-base oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/base \
 --namespace istio-system \
 --kube-context=${CLUSTER1} \
---version 1.23.1-solo \
+--version 1.23.2-solo \
 --create-namespace \
 -f - <<EOF
 defaultRevision: ""
@@ -354,19 +361,18 @@ EOF
 helm upgrade --install istiod-1-23 oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/istiod \
 --namespace istio-system \
 --kube-context=${CLUSTER1} \
---version 1.23.1-solo \
+--version 1.23.2-solo \
 --create-namespace \
 -f - <<EOF
 global:
   hub: us-docker.pkg.dev/gloo-mesh/istio-<enterprise_istio_repo>
   proxy:
     clusterDomain: cluster.local
-  tag: 1.23.1-solo
+  tag: 1.23.2-solo
   multiCluster:
     clusterName: cluster1
+  meshID: mesh1
 profile: ambient
-istio_cni:
-  enabled: true
 meshConfig:
   accessLogFile: /dev/stdout
   defaultConfig:
@@ -376,6 +382,8 @@ meshConfig:
   trustDomain: cluster1
 pilot:
   enabled: true
+  cni:
+    enabled: true
   env:
     PILOT_ENABLE_IP_AUTOALLOCATE: "true"
     PILOT_ENABLE_K8S_SELECT_WORKLOAD_ENTRIES: "false"
@@ -385,12 +393,12 @@ EOF
 helm upgrade --install istio-cni oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/cni \
 --namespace kube-system \
 --kube-context=${CLUSTER1} \
---version 1.23.1-solo \
+--version 1.23.2-solo \
 --create-namespace \
 -f - <<EOF
 global:
   hub: us-docker.pkg.dev/gloo-mesh/istio-<enterprise_istio_repo>
-  proxy: 1.23.1-solo
+  proxy: 1.23.2-solo
 profile: ambient
 cni:
   ambient:
@@ -403,13 +411,14 @@ EOF
 helm upgrade --install ztunnel oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/ztunnel \
 --namespace istio-system \
 --kube-context=${CLUSTER1} \
---version 1.23.1-solo \
+--version 1.23.2-solo \
 --create-namespace \
 -f - <<EOF
 configValidation: true
 enabled: true
 env:
   L7_ENABLED: "true"
+  SKIP_VALIDATE_TRUST_DOMAIN: "true"
 hub: us-docker.pkg.dev/gloo-mesh/istio-<enterprise_istio_repo>
 istioNamespace: istio-system
 multiCluster:
@@ -418,7 +427,7 @@ namespace: istio-system
 profile: ambient
 proxy:
   clusterDomain: cluster.local
-tag: 1.23.1-solo
+tag: 1.23.2-solo
 terminationGracePeriodSeconds: 29
 variant: distroless
 EOF
@@ -426,7 +435,7 @@ EOF
 helm upgrade --install istio-ingressgateway-1-23 oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/gateway \
 --namespace istio-gateways \
 --kube-context=${CLUSTER1} \
---version 1.23.1-solo \
+--version 1.23.2-solo \
 --create-namespace \
 -f - <<EOF
 autoscaling:
@@ -443,8 +452,7 @@ EOF
 ```
 The Gateway APIs do not come installed by default on most Kubernetes clusters. Install the Gateway API CRDs if they are not present:
 ```bash
-kubectl --context ${CLUSTER1} get crd gateways.gateway.networking.k8s.io &> /dev/null || \
-  { kubectl kustomize "github.com/kubernetes-sigs/gateway-api/config/crd?ref=v1.1.0" | kubectl --context ${CLUSTER1} apply -f -; }
+kubectl --context ${CLUSTER1} apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.2.0/experimental-install.yaml
 ```
   
 
@@ -655,51 +663,51 @@ spec:
         args: ["-c", "while true; do ping localhost; sleep 60;done"]
 EOF
 ```
-Then, we deploy a second version, which will be called `in-mesh-with-sidecar` and will have the sidecar injected (because of the label `istio-injection` in the Pod template)
+Then, we deploy a second version, which will be called `in-mesh` and will have the sidecar injected (because of the label `istio-injection` in the Pod template)
 
 ```bash
 kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: in-mesh-with-sidecar
+  name: in-mesh
   namespace: clients
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: in-mesh-with-sidecar
+  name: in-mesh
   namespace: clients
   labels:
-    app: in-mesh-with-sidecar
-    service: in-mesh-with-sidecar
+    app: in-mesh
+    service: in-mesh
 spec:
   ports:
   - name: http
     port: 8000
     targetPort: 80
   selector:
-    app: in-mesh-with-sidecar
+    app: in-mesh
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: in-mesh-with-sidecar
+  name: in-mesh
   namespace: clients
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: in-mesh-with-sidecar
+      app: in-mesh
       version: v1
   template:
     metadata:
       labels:
-        app: in-mesh-with-sidecar
+        app: in-mesh
         version: v1
         sidecar.istio.io/inject: "true"
     spec:
-      serviceAccountName: in-mesh-with-sidecar
+      serviceAccountName: in-mesh
       containers:
       - image: nicolaka/netshoot:latest
         imagePullPolicy: IfNotPresent
@@ -708,17 +716,6 @@ spec:
         args: ["-c", "while true; do ping localhost; sleep 60;done"]
 EOF
 ```
-
-<!--bash
-echo -n Waiting for clients to be ready...
-timeout -v 5m bash -c "
-until [[ \$(kubectl --context ${CLUSTER1} -n clients get deploy -o json | jq '[.items[].status.readyReplicas] | add') -eq 2 ]] 2>/dev/null
-do
-  sleep 1
-  echo -n .
-done"
-echo
--->
 Add another client service which is deployed in Ambient.
 
 ```bash
@@ -793,7 +790,7 @@ const helpers = require('./tests/chai-exec');
 describe("client apps", () => {
   let cluster = process.env.CLUSTER1
   
-  let deployments = ["not-in-mesh", "in-mesh-with-sidecar", "in-ambient"];
+  let deployments = ["not-in-mesh", "in-mesh", "in-ambient"];
   
   deployments.forEach(deploy => {
     it(deploy + ' pods are ready in ' + cluster, () => helpers.checkDeployment({ context: cluster, namespace: "clients", k8sObj: deploy }));
@@ -813,7 +810,7 @@ In this lab, we'll explore how services in different mesh configurations interac
 Let's begin by testing the communication from different workloads to the `reviews` service in the `bookinfo-backends` namespace:
 
 ```bash
-for workload in not-in-mesh in-mesh-with-sidecar in-ambient; do
+for workload in not-in-mesh in-mesh in-ambient; do
   echo "${workload} to reviews.bookinfo-backends"
   kubectl --context ${CLUSTER1} -n clients exec deploy/$workload -- curl -s -o /dev/null -w "%{http_code}" "http://reviews.bookinfo-backends:9080/reviews/0"
   echo
@@ -841,14 +838,14 @@ This policy sets the mTLS mode to STRICT, meaning only authenticated requests wi
 Now, let's run our test again:
 
 ```bash
-for workload in not-in-mesh in-mesh-with-sidecar in-ambient; do
+for workload in not-in-mesh in-mesh in-ambient; do
   echo "${workload} to reviews.bookinfo-backends"
   kubectl --context ${CLUSTER1} -n clients exec deploy/$workload -- curl -s -o /dev/null -w "%{http_code}" "http://reviews.bookinfo-backends:9080/reviews/0"
   echo
 done
 ```
 
-This time, you'll see that the request from the `not-in-mesh` workload fails, while requests from `in-mesh-with-sidecar` and `in-ambient` workloads succeed. This is because the latter two can present valid mTLS certificates, while the not-in-mesh workload cannot.
+This time, you'll see that the request from the `not-in-mesh` workload fails, while requests from `in-mesh` and `in-ambient` workloads succeed. This is because the latter two can present valid mTLS certificates, while the not-in-mesh workload cannot.
 
 Next, let's implement more granular control using an `AuthorizationPolicy`. We'll start by denying all traffic by default:
 
@@ -867,7 +864,7 @@ EOF
 After applying this policy, all requests will be rejected
 
 ```bash
-for workload in not-in-mesh in-mesh-with-sidecar in-ambient; do
+for workload in not-in-mesh in-mesh in-ambient; do
   echo "${workload} to reviews.bookinfo-backends"
   kubectl --context ${CLUSTER1} -n clients exec deploy/$workload -- curl -s -o /dev/null -w "%{http_code}" "http://reviews.bookinfo-backends:9080/reviews/0"
   echo
@@ -876,7 +873,7 @@ done
 
 You'll see that all requests now return a 403 Forbidden status.
 
-To allow specific traffic, we'll create an AuthorizationPolicy that permits requests from the `in-mesh-with-sidecar` and `in-ambient` workloads:
+To allow specific traffic, we'll create an AuthorizationPolicy that permits requests from the `in-mesh` and `in-ambient` workloads:
 
 ```bash
 kubectl --context ${CLUSTER1} apply -f - <<EOF
@@ -894,7 +891,7 @@ spec:
   - from:
     - source:
         principals:
-        - "cluster1/ns/clients/sa/in-mesh-with-sidecar"
+        - "cluster1/ns/clients/sa/in-mesh"
         - "cluster1/ns/clients/sa/in-ambient"
 EOF
 ```
@@ -906,7 +903,7 @@ This policy allows traffic from the specified service accounts in the clients na
 Let's test our configuration one more time:
 
 ```bash
-for workload in not-in-mesh in-mesh-with-sidecar in-ambient; do
+for workload in not-in-mesh in-mesh in-ambient; do
   echo "${workload} to reviews.bookinfo-backends"
   kubectl --context ${CLUSTER1} -n clients exec deploy/$workload -- curl -s -o /dev/null -w "%{http_code}" "http://reviews.bookinfo-backends:9080/reviews/0"
   echo
@@ -931,7 +928,7 @@ afterEach(function (done) {
 describe("l4 interoperability", function() {
   const cluster = process.env.CLUSTER1
 
-  const workloads = ['in-mesh-with-sidecar', 'in-ambient'];
+  const workloads = ['in-mesh', 'in-ambient'];
   for (const workload of workloads) {
     it(`traffic is authenticated from ${workload} to the reviews.bookinfo-backends workload`, () => {
       let command = `kubectl --context ${cluster} -n clients exec deploy/${workload} -- curl -s -o /dev/null -w "%{http_code}" "http://reviews.bookinfo-backends:9080/reviews/0"`;
@@ -953,7 +950,7 @@ echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/l
 timeout --signal=INT 3m mocha ./test.js --timeout 60000 --retries=60 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 6"; exit 1; }
 -->
 
-Now, you should see that requests from `in-mesh-with-sidecar` and `in-ambient` workloads succeed with a `200` status code, while the `not-in-mesh` workload's request is still denied.
+Now, you should see that requests from `in-mesh` and `in-ambient` workloads succeed with a `200` status code, while the `not-in-mesh` workload's request is still denied.
 
 ### Migrate `bookinfo-backends` to Ambient
 
@@ -993,7 +990,7 @@ You should see that the pods now have only one container each, instead of two (w
 Now, let's validate that all traffic is still working as expected:
 
 ```bash
-for workload in not-in-mesh in-mesh-with-sidecar in-ambient; do
+for workload in not-in-mesh in-mesh in-ambient; do
   echo "${workload} to reviews.bookinfo-backends"
   kubectl --context ${CLUSTER1} -n clients exec deploy/$workload -- curl -s -o /dev/null -w "%{http_code}" "http://reviews.bookinfo-backends:9080/reviews/0"
   echo
@@ -1018,7 +1015,7 @@ afterEach(function (done) {
 describe("l4 interoperability", function() {
   const cluster = process.env.CLUSTER1
 
-  const workloads = ['in-mesh-with-sidecar', 'in-ambient'];
+  const workloads = ['in-mesh', 'in-ambient'];
   for (const workload of workloads) {
     it(`traffic is authenticated from ${workload} to the reviews.bookinfo-backends workload`, () => {
       let command = `kubectl --context ${cluster} -n clients exec deploy/${workload} -- curl -s -o /dev/null -w "%{http_code}" "http://reviews.bookinfo-backends:9080/reviews/0"`;
@@ -1040,7 +1037,7 @@ echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/l
 timeout --signal=INT 3m mocha ./test.js --timeout 60000 --retries=60 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 6"; exit 1; }
 -->
 
-You should see that the requests from `in-mesh-with-sidecar` and `in-ambient` workloads still succeed with a 200 status code, while the `not-in-mesh` workload's request is still denied. This confirms that our L4 policies are still being enforced, even though the bookinfo-backends services are now in the Ambient mesh.
+You should see that the requests from `in-mesh` and `in-ambient` workloads still succeed with a 200 status code, while the `not-in-mesh` workload's request is still denied. This confirms that our L4 policies are still being enforced, even though the bookinfo-backends services are now in the Ambient mesh.
 
 This validates that:
 
@@ -1134,7 +1131,7 @@ afterEach(function (done) {
 
 describe("l7 interoperability", function() {
   const cluster = process.env.CLUSTER1
-  const workloads = ['in-mesh-with-sidecar', 'in-ambient'];
+  const workloads = ['in-mesh', 'in-ambient'];
 
   describe("traffic is authorized", function() {
     for (const workload of workloads) {
@@ -1191,7 +1188,7 @@ spec:
   - from:
     - source:
         principals:
-        - "cluster1/ns/clients/sa/in-mesh-with-sidecar"
+        - "cluster1/ns/clients/sa/in-mesh"
         - "cluster1/ns/clients/sa/in-ambient"
     to:
     - operation:
@@ -1214,7 +1211,7 @@ spec:
   - from:
     - source:
         principals:
-        - "cluster1/ns/clients/sa/in-mesh-with-sidecar"
+        - "cluster1/ns/clients/sa/in-mesh"
         - "cluster1/ns/clients/sa/in-ambient"
     to:
     - operation:
@@ -1255,7 +1252,7 @@ afterEach(function (done) {
 
 describe("l7 interoperability", function() {
   const cluster = process.env.CLUSTER1
-  const workloads = ['in-mesh-with-sidecar', 'in-ambient'];
+  const workloads = ['in-mesh', 'in-ambient'];
 
   describe("traffic is authorized", function() {
     for (const workload of workloads) {
@@ -1295,7 +1292,7 @@ kubectl --context ${CLUSTER1} label ns bookinfo-backends istio.io/use-waypoint=w
 At this point, traffic is going through the waypoint to the reviews service, which still has a sidecar injected. Let's test the communication:
 
 ```bash
-for workload in not-in-mesh in-mesh-with-sidecar in-ambient; do
+for workload in not-in-mesh in-mesh in-ambient; do
   echo "${workload} to reviews.bookinfo-backends"
   kubectl --context ${CLUSTER1} -n clients exec deploy/$workload -- curl -s -o /dev/null -w "%{http_code}" "http://reviews.bookinfo-backends:9080/reviews/0"
   echo
@@ -1322,7 +1319,7 @@ afterEach(function (done) {
 
 describe("l7 interoperability", function() {
   const cluster = process.env.CLUSTER1
-  const workloads = ['in-mesh-with-sidecar', 'in-ambient'];
+  const workloads = ['in-mesh', 'in-ambient'];
 
   describe("traffic is authorized", function() {
     for (const workload of workloads) {
@@ -1382,7 +1379,7 @@ afterEach(function (done) {
 
 describe("l7 interoperability", function() {
   const cluster = process.env.CLUSTER1
-  const workloads = ['in-mesh-with-sidecar', 'in-ambient'];
+  const workloads = ['in-mesh', 'in-ambient'];
 
   describe("traffic is authorized", function() {
     for (const workload of workloads) {
@@ -1501,10 +1498,10 @@ spec:
 EOF
 ```
 
-Generate traffic with the beta user from both types of workloads. You'll find out that traffic from `in-mesh-with-sidecar` workload is routed to v2, in other words the routing rule is enforced. Meanwhile, traffic from the `in-ambient` workload is routed to both versions:
+Generate traffic with the beta user from both types of workloads. You'll find out that traffic from `in-mesh` workload is routed to v2, in other words the routing rule is enforced. Meanwhile, traffic from the `in-ambient` workload is routed to both versions:
 
 ```shell
-for workload in in-mesh-with-sidecar in-ambient; do
+for workload in in-mesh in-ambient; do
   echo "${workload} to reviews.bookinfo-backends"
 
   kubectl --context ${CLUSTER1} -n clients exec deploy/${workload} -- bash -c "
@@ -1515,7 +1512,7 @@ for workload in in-mesh-with-sidecar in-ambient; do
 done
 ```
 
-This is because the sidecar within `in-mesh-with-sidecar` can inspect the custom header and enforce the routing rule, while the workload in Ambient uses ztunnel, which is a Layer 4 proxy and doesn't support Layer 7 features such as routing based on headers.
+This is because the sidecar within `in-mesh` can inspect the custom header and enforce the routing rule, while the workload in Ambient uses ztunnel, which is a Layer 4 proxy and doesn't support Layer 7 features such as routing based on headers.
 
 To enable L7 routing for Ambient workloads, we need to introduce a waypoint proxy:
 
@@ -1575,7 +1572,7 @@ EOF
 Now generate traffic again with the beta user from both types of workloads:
 
 ```shell
-for workload in in-mesh-with-sidecar in-ambient; do
+for workload in in-mesh in-ambient; do
   echo "${workload} to reviews.bookinfo-backends"
 
   kubectl --context ${CLUSTER1} -n clients exec deploy/${workload} -- bash -c "
@@ -1586,10 +1583,10 @@ for workload in in-mesh-with-sidecar in-ambient; do
 done
 ```
 
-Both the `in-mesh-with-sidecar` and `in-ambient` will adhere to the policy and route traffic to v2 only. Next, validate that for requests without the `beta-tester` header, the traffic is routed to v1 for both types of workloads:
+Both the `in-mesh` and `in-ambient` will adhere to the policy and route traffic to v2 only. Next, validate that for requests without the `beta-tester` header, the traffic is routed to v1 for both types of workloads:
 
 ```shell
-for workload in in-mesh-with-sidecar in-ambient; do
+for workload in in-mesh in-ambient; do
   echo "${workload} to reviews.bookinfo-backends"
 
   kubectl --context ${CLUSTER1} -n clients exec deploy/${workload} -- bash -c "
@@ -1600,7 +1597,7 @@ for workload in in-mesh-with-sidecar in-ambient; do
 done
 ```
 
-It's important to note that with sidecars, policies are applied directly to the workload. In contrast, in Ambient mode, policies are enforced at the waypoint. In the following labs, we will consistently apply the same policies to both `in-mesh-with-sidecar` and `in-ambient` workloads, illustrating the interoperability of L7 routing rules across different mesh modes.
+It's important to note that with sidecars, policies are applied directly to the workload. In contrast, in Ambient mode, policies are enforced at the waypoint. In the following labs, we will consistently apply the same policies to both `in-mesh` and `in-ambient` workloads, illustrating the interoperability of L7 routing rules across different mesh modes.
 
 <!--bash
 cat <<'EOF' > ./test.js
@@ -1620,7 +1617,7 @@ afterEach(function (done) {
 
 describe("virtual service and destination rules configure routing", function() {
   const cluster = process.env.CLUSTER1
-  const workloads = ['in-mesh-with-sidecar', 'in-ambient'];
+  const workloads = ['in-mesh', 'in-ambient'];
   const repetitions = 10;
 
   describe("for beta users (specified by the header 'beta-tester: true')", function() {
@@ -1658,7 +1655,7 @@ timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || 
 
 ## Lab 9 - Ambient L7 Transforming traffic interoperability <a name="lab-9---ambient-l7-transforming-traffic-interoperability-"></a>
 
-In this lab, we'll explore how to transform traffic in the Ambient mesh using Istio's L7 features. We'll add a custom header to the response of the `reviews` service and observe how this transformation applies to the `in-mesh-with-sidecar` and `in-ambient`.
+In this lab, we'll explore how to transform traffic in the Ambient mesh using Istio's L7 features. We'll add a custom header to the response of the `reviews` service and observe how this transformation applies to the `in-mesh` and `in-ambient`.
 
 The `VirtualService` below adds a custom header to the response of the `reviews` service.
 
@@ -1707,7 +1704,7 @@ EOF
 Let's validate that the header is added when we make requests from different types of workloads:
 
 ```shell
-kubectl --context "${CLUSTER1}" -n clients exec deploy/in-mesh-with-sidecar -- curl -s -I "http://reviews.bookinfo-backends:9080/reviews/0" | grep my-added-header
+kubectl --context "${CLUSTER1}" -n clients exec deploy/in-mesh -- curl -s -I "http://reviews.bookinfo-backends:9080/reviews/0" | grep my-added-header
 kubectl --context "${CLUSTER1}" -n clients exec deploy/in-ambient -- curl -s -I "http://reviews.bookinfo-backends:9080/reviews/0" | grep my-added-header
 ```
 
@@ -1738,7 +1735,7 @@ afterEach(function (done) {
 
 describe("virtual service", function() {
   const cluster = process.env.CLUSTER1
-  const workloads = ['in-mesh-with-sidecar', 'in-ambient'];
+  const workloads = ['in-mesh', 'in-ambient'];
 
   for (const workload of workloads) {
     it(`adds header to responses for traffic from workload ${workload}`, () => {
@@ -1807,7 +1804,7 @@ EOF
 This configuration routes 70% of traffic to v1 and 30% to v2. Let's verify the traffic distribution:
 
 ```shell
-for workload in in-mesh-with-sidecar in-ambient; do
+for workload in in-mesh in-ambient; do
   echo "${workload} to reviews.bookinfo-backends"
 
   kubectl --context ${CLUSTER1} -n clients exec deploy/${workload} -- bash -c "
@@ -1869,7 +1866,7 @@ EOF
 You should see a mix of successful (200) and failed (500) responses.
 
 ```shell
-for workload in in-mesh-with-sidecar in-ambient; do
+for workload in in-mesh in-ambient; do
   echo "${workload} to echo-service.bookinfo-backends"
   kubectl --context ${CLUSTER1} -n clients exec deploy/$workload -- bash -c "
   for i in {1..10}; do
@@ -1922,7 +1919,7 @@ EOF
 With this configuration in place, let's test again:
 
 ```shell
-for workload in in-mesh-with-sidecar in-ambient; do
+for workload in in-mesh in-ambient; do
   echo "${workload} to echo-service.bookinfo-backends"
   kubectl --context="${CLUSTER1}" -n clients exec deploy/$workload -- bash -c "
   for i in {1..10}; do
@@ -1952,7 +1949,7 @@ afterEach(function (done) {
 
 describe("virtual service retry failed requests", function() {
   const cluster = process.env.CLUSTER1
-  const workloads = ['in-mesh-with-sidecar', 'in-ambient'];
+  const workloads = ['in-mesh', 'in-ambient'];
   const repetitions = 20;
 
   for (const workload of workloads) {
