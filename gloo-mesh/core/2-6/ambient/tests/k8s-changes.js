@@ -85,7 +85,9 @@ function extractChangeInfo(type, apiObj, previousObj, currentObj) {
         const path = d.path.join('.');
         return !path.startsWith('metadata.generation') &&
                !path.startsWith('metadata.resourceVersion') &&
-               !path.startsWith('metadata.creationTimestamp');
+               !path.startsWith('metadata.creationTimestamp') &&
+               !path.startsWith('metadata.managedFields') &&
+               !path.startsWith('status');
       });
 
       if (essentialDifferences.length > 0) {
@@ -146,7 +148,7 @@ async function watchCRs(contextName, delaySeconds, durationSeconds) {
       // Initialize the object cache
       if (listResponse.body.items) {
         listResponse.body.items.forEach(item => {
-          objectCache[item.metadata.uid] = sanitizeObject(item);
+          objectCache[item.metadata.uid] = item;
         });
       }
 
