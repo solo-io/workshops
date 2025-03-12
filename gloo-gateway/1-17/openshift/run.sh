@@ -643,7 +643,7 @@ describe("Address '" + process.env.HOST_KEYCLOAK + "' can be resolved in DNS", (
     });
 });
 EOF
-echo "executing test ./gloo-mesh-2-0/tests/can-resolve.test.js.liquid from lab number 4"
+echo "executing test ./default/tests/can-resolve.test.js.liquid from lab number 4"
 timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 4"; exit 1; }
 echo "Waiting for Keycloak to be ready at $KEYCLOAK_URL/realms/workshop/protocol/openid-connect/token"
 timeout 300 bash -c 'while [[ "$(curl -m 2 -s -o /dev/null -w ''%{http_code}'' $KEYCLOAK_URL/realms/workshop/protocol/openid-connect/token)" != "405" ]]; do printf '.';sleep 1; done' || false
@@ -690,9 +690,6 @@ gloo:
       livenessProbeEnabled: true
   discovery:
     enabled: false
-  rbac:
-    namespaced: true
-    nameSuffix: gg-demo
 observability:
   enabled: false
 prometheus:
@@ -705,8 +702,6 @@ gloo-fed:
     enable: false
 gateway-portal-web-server:
   enabled: true
-settings:
-  disableKubernetesDestinations: true
 global:
   securitySettings:
     floatingUserId: true
@@ -938,7 +933,8 @@ EOF
 export PROXY_IP=$(kubectl --context ${CLUSTER1} -n gloo-system get svc gloo-proxy-http -o jsonpath='{.status.loadBalancer.ingress[0].ip}{.status.loadBalancer.ingress[0].hostname}')
 RETRY_COUNT=0
 MAX_RETRIES=60
-while [[ -z "$PROXY_IP" && $RETRY_COUNT -lt $MAX_RETRIES ]]; do
+GLOO_PROXY_SVC=$(kubectl --context ${CLUSTER1} -n gloo-system get svc gloo-proxy-http -oname)
+while [[ -z "$PROXY_IP" && $RETRY_COUNT -lt $MAX_RETRIES && $GLOO_PROXY_SVC ]]; do
   echo "Waiting for PROXY_IP to be assigned... Attempt $((RETRY_COUNT + 1))/$MAX_RETRIES"
   PROXY_IP=$(kubectl --context ${CLUSTER1} -n gloo-system get svc gloo-proxy-http -o jsonpath='{.status.loadBalancer.ingress[0].ip}{.status.loadBalancer.ingress[0].hostname}')
   RETRY_COUNT=$((RETRY_COUNT + 1))
@@ -965,7 +961,9 @@ else
   echo "PROXY_IP has been assigned: $PROXY_IP"
   echo "IP has been resolved to: $IP"
 fi
+
 ./scripts/register-domain.sh httpbin.example.com ${PROXY_IP}
+
 cat <<'EOF' > ./test.js
 const helpersHttp = require('./tests/chai-http');
 
