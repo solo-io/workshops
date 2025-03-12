@@ -9,7 +9,7 @@ source ./scripts/assert.sh
 <img src="images/document-gloo-mesh.svg" style="height: 100px;"/>
 </center>
 
-# <center>Gloo Mesh Core (2.6.7)</center>
+# <center>Gloo Mesh Core (2.6.8)</center>
 
 
 
@@ -72,6 +72,8 @@ You can find more information about Gloo Mesh Core in the official documentation
 
 
 Clone this repository and go to the directory where this `README.md` file is.
+
+
 
 Set the context environment variables:
 
@@ -139,7 +141,7 @@ timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || 
 Before we get started, let's install the `meshctl` CLI:
 
 ```bash
-export GLOO_MESH_VERSION=v2.6.7
+export GLOO_MESH_VERSION=v2.6.8
 curl -sL https://run.solo.io/meshctl/install | sh -
 export PATH=$HOME/.gloo-mesh/bin:$PATH
 ```
@@ -183,14 +185,15 @@ helm upgrade --install gloo-platform-crds gloo-platform-crds \
   --namespace gloo-mesh \
   --kube-context ${MGMT} \
   --set featureGates.insightsConfiguration=true \
-  --version 2.6.7
+  --version 2.6.8
 
 helm upgrade --install gloo-platform gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${MGMT} \
-  --version 2.6.7 \
+  --version 2.6.8 \
   -f -<<EOF
+
 licensing:
   glooTrialLicenseKey: ${GLOO_MESH_LICENSE_KEY}
 common:
@@ -201,8 +204,6 @@ glooMgmtServer:
   enabled: true
   ports:
     healthcheck: 8091
-prometheus:
-  enabled: true
 redis:
   deployment:
     enabled: true
@@ -210,6 +211,8 @@ telemetryGateway:
   enabled: true
   service:
     type: LoadBalancer
+prometheus:
+  enabled: true
 glooUi:
   enabled: true
   serviceType: LoadBalancer
@@ -220,7 +223,6 @@ telemetryCollector:
       otlp:
         endpoint: gloo-telemetry-gateway:4317
 EOF
-
 kubectl --context ${MGMT} -n gloo-mesh rollout status deploy/gloo-mesh-mgmt-server
 ```
 
@@ -334,13 +336,13 @@ helm upgrade --install gloo-platform-crds gloo-platform-crds \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${CLUSTER1} \
-  --version 2.6.7
+  --version 2.6.8
 
 helm upgrade --install gloo-platform gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${CLUSTER1} \
-  --version 2.6.7 \
+  --version 2.6.8 \
   -f -<<EOF
 common:
   cluster: cluster1
@@ -389,13 +391,13 @@ helm upgrade --install gloo-platform-crds gloo-platform-crds \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${CLUSTER2} \
-  --version 2.6.7
+  --version 2.6.8
 
 helm upgrade --install gloo-platform gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${CLUSTER2} \
-  --version 2.6.7 \
+  --version 2.6.8 \
   -f -<<EOF
 common:
   cluster: cluster2
@@ -432,23 +434,7 @@ You should get an output similar to this:
 relay_push_clients_connected{cluster="cluster1"} 1
 relay_push_clients_connected{cluster="cluster2"} 1
 ```
-Finally, you need to specify which gateways you want to use for cross cluster traffic:
 
-```bash
-kubectl apply --context ${MGMT} -f - <<EOF
-apiVersion: admin.gloo.solo.io/v2
-kind: WorkspaceSettings
-metadata:
-  name: global
-  namespace: gloo-mesh
-spec:
-  options:
-    eastWestGateways:
-      - selector:
-          labels:
-            istio: eastwestgateway
-EOF
-```
 <!--bash
 cat <<'EOF' > ./test.js
 var chai = require('chai');
@@ -690,12 +676,17 @@ EOF
 
 Let's deploy Istio using Helm in cluster1. We'll install the base Istio components, the Istiod control plane, the Istio CNI, the ztunnel, and the ingress/eastwest gateways.
 
+Create the `istio-system` namespace:
+
+```bash
+kubectl --context ${CLUSTER1} create ns istio-system
+```
 
 ```bash
 helm upgrade --install istio-base oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/base \
 --namespace istio-system \
 --kube-context=${CLUSTER1} \
---version 1.23.1-solo \
+--version 1.23.2-solo \
 --create-namespace \
 -f - <<EOF
 defaultRevision: ""
@@ -705,18 +696,17 @@ EOF
 helm upgrade --install istiod-1-23 oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/istiod \
 --namespace istio-system \
 --kube-context=${CLUSTER1} \
---version 1.23.1-solo \
+--version 1.23.2-solo \
 --create-namespace \
 -f - <<EOF
 global:
   hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
   proxy:
     clusterDomain: cluster.local
-  tag: 1.23.1-solo
+  tag: 1.23.2-solo
   multiCluster:
     clusterName: cluster1
   meshID: mesh1
-  network: cluster1
 revision: 1-23
 meshConfig:
   accessLogFile: /dev/stdout
@@ -738,7 +728,7 @@ EOF
 helm upgrade --install istio-ingressgateway-1-23 oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/gateway \
 --namespace istio-gateways \
 --kube-context=${CLUSTER1} \
---version 1.23.1-solo \
+--version 1.23.2-solo \
 --create-namespace \
 -f - <<EOF
 autoscaling:
@@ -756,7 +746,7 @@ EOF
 helm upgrade --install istio-eastwestgateway-1-23 oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/gateway \
 --namespace istio-gateways \
 --kube-context=${CLUSTER1} \
---version 1.23.1-solo \
+--version 1.23.2-solo \
 --create-namespace \
 -f - <<EOF
 autoscaling:
@@ -777,20 +767,22 @@ EOF
 ```
 The Gateway APIs do not come installed by default on most Kubernetes clusters. Install the Gateway API CRDs if they are not present:
 ```bash
-kubectl --context ${CLUSTER1} get crd gateways.gateway.networking.k8s.io &> /dev/null || \
-  { kubectl kustomize "github.com/kubernetes-sigs/gateway-api/config/crd?ref=v1.1.0" | kubectl --context ${CLUSTER1} apply -f -; }
-kubectl --context ${CLUSTER2} get crd gateways.gateway.networking.k8s.io &> /dev/null || \
-  { kubectl kustomize "github.com/kubernetes-sigs/gateway-api/config/crd?ref=v1.1.0" | kubectl --context ${CLUSTER2} apply -f -; }
+kubectl --context ${CLUSTER1} apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.2.0/experimental-install.yaml
 ```
   
 Let's deploy Istio using Helm in cluster2. We'll install the base Istio components, the Istiod control plane, the Istio CNI, the ztunnel, and the ingress/eastwest gateways.
 
+Create the `istio-system` namespace:
+
+```bash
+kubectl --context ${CLUSTER2} create ns istio-system
+```
 
 ```bash
 helm upgrade --install istio-base oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/base \
 --namespace istio-system \
 --kube-context=${CLUSTER2} \
---version 1.23.1-solo \
+--version 1.23.2-solo \
 --create-namespace \
 -f - <<EOF
 defaultRevision: ""
@@ -800,18 +792,17 @@ EOF
 helm upgrade --install istiod-1-23 oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/istiod \
 --namespace istio-system \
 --kube-context=${CLUSTER2} \
---version 1.23.1-solo \
+--version 1.23.2-solo \
 --create-namespace \
 -f - <<EOF
 global:
   hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
   proxy:
     clusterDomain: cluster.local
-  tag: 1.23.1-solo
+  tag: 1.23.2-solo
   multiCluster:
     clusterName: cluster2
   meshID: mesh1
-  network: cluster2
 revision: 1-23
 meshConfig:
   accessLogFile: /dev/stdout
@@ -833,7 +824,7 @@ EOF
 helm upgrade --install istio-ingressgateway-1-23 oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/gateway \
 --namespace istio-gateways \
 --kube-context=${CLUSTER2} \
---version 1.23.1-solo \
+--version 1.23.2-solo \
 --create-namespace \
 -f - <<EOF
 autoscaling:
@@ -851,7 +842,7 @@ EOF
 helm upgrade --install istio-eastwestgateway-1-23 oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/gateway \
 --namespace istio-gateways \
 --kube-context=${CLUSTER2} \
---version 1.23.1-solo \
+--version 1.23.2-solo \
 --create-namespace \
 -f - <<EOF
 autoscaling:
@@ -872,10 +863,7 @@ EOF
 ```
 The Gateway APIs do not come installed by default on most Kubernetes clusters. Install the Gateway API CRDs if they are not present:
 ```bash
-kubectl --context ${CLUSTER1} get crd gateways.gateway.networking.k8s.io &> /dev/null || \
-  { kubectl kustomize "github.com/kubernetes-sigs/gateway-api/config/crd?ref=v1.1.0" | kubectl --context ${CLUSTER1} apply -f -; }
-kubectl --context ${CLUSTER2} get crd gateways.gateway.networking.k8s.io &> /dev/null || \
-  { kubectl kustomize "github.com/kubernetes-sigs/gateway-api/config/crd?ref=v1.1.0" | kubectl --context ${CLUSTER2} apply -f -; }
+kubectl --context ${CLUSTER2} apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.2.0/experimental-install.yaml
 ```
 
 <!--bash
@@ -1261,10 +1249,9 @@ do
 done"
 echo
 -->
-```
 You can follow the progress using the following command:
 
-```bash
+```shell
 kubectl --context ${CLUSTER1} -n httpbin get pods
 ```
 
@@ -1640,11 +1627,28 @@ var chai = require('chai');
 var expect = chai.expect;
 const helpers = require('./tests/chai-exec');
 
+const deployments = [
+  { name: "gloo-mesh-mgmt-server", arg: "--stats-port=9094" },
+  { name: "gloo-mesh-ui", arg: "--insights-stats-port=9094" }
+]
+
 describe("Insight generation", () => {
   it("Insight BP0002 has been triggered in the source (MGMT)", () => {
-    helpers.getOutputForCommand({ command: `kubectl --context ${process.env.MGMT} -n gloo-mesh patch svc gloo-mesh-mgmt-server -p '{"spec":{"ports": [{"port": 9094,"name":"http-insights"}]}}'` });
+    let insightsSvcName = '';
+    for (let i=0; i<deployments.length; i++) {
+      // Go through the deployments one at a time and get list of args for all the containers
+      let listOfArgs = helpers.getOutputForCommand({ command: `kubectl --context ${process.env.MGMT} -n gloo-mesh get deploy ${deployments[i].name} -o jsonpath='{.spec.template.spec.containers[*].args[*]}}'`}).replaceAll("'", "");
+      if (listOfArgs.includes(deployments[i].arg)) {
+        // if the list of arguments contain arg '*stats-port=9090', that's the deployment to use to query for insight metrics. Return the associated service.
+        insightsSvcName = helpers.getOutputForCommand({ command: `kubectl --context ${process.env.MGMT} -n gloo-mesh get svc --selector=app=${deployments[i].name} -o jsonpath='{range.items[]}{.metadata.name}'`}).replaceAll("'", "");
+        break;
+      };
+    }
+    expect(insightsSvcName).not.to.be.empty;
+
+    helpers.getOutputForCommand({ command: `kubectl --context ${process.env.MGMT} -n gloo-mesh patch svc ${insightsSvcName} -p '{"spec":{"ports": [{"port": 9094,"name":"http-insights"}]}}'` });
     helpers.getOutputForCommand({ command: "kubectl -n gloo-mesh run debug --image=nginx:1.25.3 --context " + process.env.MGMT });
-    command = helpers.getOutputForCommand({ command: "kubectl --context " + process.env.MGMT + " -n gloo-mesh exec debug -- curl -s http://gloo-mesh-mgmt-server.gloo-mesh:9094/metrics" }).replaceAll("'", "");
+    command = helpers.getOutputForCommand({ command: "kubectl --context " + process.env.MGMT + " -n gloo-mesh exec debug -- curl -s http://" + insightsSvcName + ".gloo-mesh:9094/metrics" }).replaceAll("'", "");
     const regex = /gloo_mesh_insights{.*BP0002.*} 1/;
     const match = command.match(regex);
     expect(match).to.not.be.null;
@@ -1945,11 +1949,28 @@ var chai = require('chai');
 var expect = chai.expect;
 const helpers = require('./tests/chai-exec');
 
+const deployments = [
+  { name: "gloo-mesh-mgmt-server", arg: "--stats-port=9094" },
+  { name: "gloo-mesh-ui", arg: "--insights-stats-port=9094" }
+]
+
 describe("Insight generation", () => {
   it("Insight CFG0001 has been triggered in the source (MGMT)", () => {
-    helpers.getOutputForCommand({ command: `kubectl --context ${process.env.MGMT} -n gloo-mesh patch svc gloo-mesh-mgmt-server -p '{"spec":{"ports": [{"port": 9094,"name":"http-insights"}]}}'` });
+    let insightsSvcName = '';
+    for (let i=0; i<deployments.length; i++) {
+      // Go through the deployments one at a time and get list of args for all the containers
+      let listOfArgs = helpers.getOutputForCommand({ command: `kubectl --context ${process.env.MGMT} -n gloo-mesh get deploy ${deployments[i].name} -o jsonpath='{.spec.template.spec.containers[*].args[*]}}'`}).replaceAll("'", "");
+      if (listOfArgs.includes(deployments[i].arg)) {
+        // if the list of arguments contain arg '*stats-port=9090', that's the deployment to use to query for insight metrics. Return the associated service.
+        insightsSvcName = helpers.getOutputForCommand({ command: `kubectl --context ${process.env.MGMT} -n gloo-mesh get svc --selector=app=${deployments[i].name} -o jsonpath='{range.items[]}{.metadata.name}'`}).replaceAll("'", "");
+        break;
+      };
+    }
+    expect(insightsSvcName).not.to.be.empty;
+
+    helpers.getOutputForCommand({ command: `kubectl --context ${process.env.MGMT} -n gloo-mesh patch svc ${insightsSvcName} -p '{"spec":{"ports": [{"port": 9094,"name":"http-insights"}]}}'` });
     helpers.getOutputForCommand({ command: "kubectl -n gloo-mesh run debug --image=nginx: --context " + process.env.MGMT });
-    command = helpers.getOutputForCommand({ command: "kubectl --context " + process.env.MGMT + " -n gloo-mesh exec debug -- curl -s http://gloo-mesh-mgmt-server.gloo-mesh:9094/metrics" }).replaceAll("'", "");
+    command = helpers.getOutputForCommand({ command: "kubectl --context " + process.env.MGMT + " -n gloo-mesh exec debug -- curl -s http://" + insightsSvcName + ".gloo-mesh:9094/metrics" }).replaceAll("'", "");
     const regex = /gloo_mesh_insights{.*CFG0001.*} 1/;
     const match = command.match(regex);
     expect(match).to.not.be.null;
@@ -2007,11 +2028,28 @@ var chai = require('chai');
 var expect = chai.expect;
 const helpers = require('./tests/chai-exec');
 
+const deployments = [
+  { name: "gloo-mesh-mgmt-server", arg: "--stats-port=9094" },
+  { name: "gloo-mesh-ui", arg: "--insights-stats-port=9094" }
+]
+
 describe("Insight generation", () => {
   it("Insight CFG0001 has not been triggered in the source (MGMT)", () => {
-    helpers.getOutputForCommand({ command: `kubectl --context ${process.env.MGMT} -n gloo-mesh patch svc gloo-mesh-mgmt-server -p '{"spec":{"ports": [{"port": 9094,"name":"http-insights"}]}}'` });
+    let insightsSvcName = '';
+    for (let i=0; i<deployments.length; i++) {
+      // Go through the deployments one at a time and get list of args for all the containers
+      let listOfArgs = helpers.getOutputForCommand({ command: `kubectl --context ${process.env.MGMT} -n gloo-mesh get deploy ${deployments[i].name} -o jsonpath='{.spec.template.spec.containers[*].args[*]}}'`}).replaceAll("'", "");
+      if (listOfArgs.includes(deployments[i].arg)) {
+        // if the list of arguments contain arg '*stats-port=9090', that's the deployment to use to query for insight metrics. Return the associated service.
+        insightsSvcName = helpers.getOutputForCommand({ command: `kubectl --context ${process.env.MGMT} -n gloo-mesh get svc --selector=app=${deployments[i].name} -o jsonpath='{range.items[]}{.metadata.name}'`}).replaceAll("'", "");
+        break;
+      };
+    }
+    expect(insightsSvcName).not.to.be.empty;
+
+    helpers.getOutputForCommand({ command: `kubectl --context ${process.env.MGMT} -n gloo-mesh patch svc ${insightsSvcName} -p '{"spec":{"ports": [{"port": 9094,"name":"http-insights"}]}}'` });
     helpers.getOutputForCommand({ command: "kubectl -n gloo-mesh run debug --image=nginx: --context " + process.env.MGMT });
-    command = helpers.getOutputForCommand({ command: "kubectl --context " + process.env.MGMT + " -n gloo-mesh exec debug -- curl -s http://gloo-mesh-mgmt-server.gloo-mesh:9094/metrics" }).replaceAll("'", "");
+    command = helpers.getOutputForCommand({ command: "kubectl --context " + process.env.MGMT + " -n gloo-mesh exec debug -- curl -s http://" + insightsSvcName + ".gloo-mesh:9094/metrics" }).replaceAll("'", "");
     const regex = /gloo_mesh_insights{.*CFG0001.*} 1/;
     const match = command.match(regex);
     expect(match).to.be.null;
@@ -2107,11 +2145,28 @@ var chai = require('chai');
 var expect = chai.expect;
 const helpers = require('./tests/chai-exec');
 
+const deployments = [
+  { name: "gloo-mesh-mgmt-server", arg: "--stats-port=9094" },
+  { name: "gloo-mesh-ui", arg: "--insights-stats-port=9094" }
+]
+
 describe("Insight generation", () => {
   it("Insight SEC0008 has been triggered in the source (MGMT)", () => {
-    helpers.getOutputForCommand({ command: `kubectl --context ${process.env.MGMT} -n gloo-mesh patch svc gloo-mesh-mgmt-server -p '{"spec":{"ports": [{"port": 9094,"name":"http-insights"}]}}'` });
+    let insightsSvcName = '';
+    for (let i=0; i<deployments.length; i++) {
+      // Go through the deployments one at a time and get list of args for all the containers
+      let listOfArgs = helpers.getOutputForCommand({ command: `kubectl --context ${process.env.MGMT} -n gloo-mesh get deploy ${deployments[i].name} -o jsonpath='{.spec.template.spec.containers[*].args[*]}}'`}).replaceAll("'", "");
+      if (listOfArgs.includes(deployments[i].arg)) {
+        // if the list of arguments contain arg '*stats-port=9090', that's the deployment to use to query for insight metrics. Return the associated service.
+        insightsSvcName = helpers.getOutputForCommand({ command: `kubectl --context ${process.env.MGMT} -n gloo-mesh get svc --selector=app=${deployments[i].name} -o jsonpath='{range.items[]}{.metadata.name}'`}).replaceAll("'", "");
+        break;
+      };
+    }
+    expect(insightsSvcName).not.to.be.empty;
+
+    helpers.getOutputForCommand({ command: `kubectl --context ${process.env.MGMT} -n gloo-mesh patch svc ${insightsSvcName} -p '{"spec":{"ports": [{"port": 9094,"name":"http-insights"}]}}'` });
     helpers.getOutputForCommand({ command: "kubectl -n gloo-mesh run debug --image=nginx: --context " + process.env.MGMT });
-    command = helpers.getOutputForCommand({ command: "kubectl --context " + process.env.MGMT + " -n gloo-mesh exec debug -- curl -s http://gloo-mesh-mgmt-server.gloo-mesh:9094/metrics" }).replaceAll("'", "");
+    command = helpers.getOutputForCommand({ command: "kubectl --context " + process.env.MGMT + " -n gloo-mesh exec debug -- curl -s http://" + insightsSvcName + ".gloo-mesh:9094/metrics" }).replaceAll("'", "");
     const regex = /gloo_mesh_insights{.*SEC0008.*} 1/;
     const match = command.match(regex);
     expect(match).to.not.be.null;
@@ -2158,11 +2213,28 @@ var chai = require('chai');
 var expect = chai.expect;
 const helpers = require('./tests/chai-exec');
 
+const deployments = [
+  { name: "gloo-mesh-mgmt-server", arg: "--stats-port=9094" },
+  { name: "gloo-mesh-ui", arg: "--insights-stats-port=9094" }
+]
+
 describe("Insight generation", () => {
   it("Insight SEC0008 has not been triggered in the source (MGMT)", () => {
-    helpers.getOutputForCommand({ command: `kubectl --context ${process.env.MGMT} -n gloo-mesh patch svc gloo-mesh-mgmt-server -p '{"spec":{"ports": [{"port": 9094,"name":"http-insights"}]}}'` });
+    let insightsSvcName = '';
+    for (let i=0; i<deployments.length; i++) {
+      // Go through the deployments one at a time and get list of args for all the containers
+      let listOfArgs = helpers.getOutputForCommand({ command: `kubectl --context ${process.env.MGMT} -n gloo-mesh get deploy ${deployments[i].name} -o jsonpath='{.spec.template.spec.containers[*].args[*]}}'`}).replaceAll("'", "");
+      if (listOfArgs.includes(deployments[i].arg)) {
+        // if the list of arguments contain arg '*stats-port=9090', that's the deployment to use to query for insight metrics. Return the associated service.
+        insightsSvcName = helpers.getOutputForCommand({ command: `kubectl --context ${process.env.MGMT} -n gloo-mesh get svc --selector=app=${deployments[i].name} -o jsonpath='{range.items[]}{.metadata.name}'`}).replaceAll("'", "");
+        break;
+      };
+    }
+    expect(insightsSvcName).not.to.be.empty;
+
+    helpers.getOutputForCommand({ command: `kubectl --context ${process.env.MGMT} -n gloo-mesh patch svc ${insightsSvcName} -p '{"spec":{"ports": [{"port": 9094,"name":"http-insights"}]}}'` });
     helpers.getOutputForCommand({ command: "kubectl -n gloo-mesh run debug --image=nginx: --context " + process.env.MGMT });
-    command = helpers.getOutputForCommand({ command: "kubectl --context " + process.env.MGMT + " -n gloo-mesh exec debug -- curl -s http://gloo-mesh-mgmt-server.gloo-mesh:9094/metrics" }).replaceAll("'", "");
+    command = helpers.getOutputForCommand({ command: "kubectl --context " + process.env.MGMT + " -n gloo-mesh exec debug -- curl -s http://" + insightsSvcName + ".gloo-mesh:9094/metrics" }).replaceAll("'", "");
     const regex = /gloo_mesh_insights{.*SEC0008.*} 1/;
     const match = command.match(regex);
     expect(match).to.be.null;

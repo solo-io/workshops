@@ -24,7 +24,7 @@ describe("Clusters are healthy", () => {
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/deploy-kind-clusters/tests/cluster-healthy.test.js.liquid from lab number 1"
 timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 1"; exit 1; }
-export GLOO_MESH_VERSION=v2.7.0-beta1
+export GLOO_MESH_VERSION=v2.7.0
 curl -sL https://run.solo.io/meshctl/install | sh -
 export PATH=$HOME/.gloo-mesh/bin:$PATH
 cat <<'EOF' > ./test.js
@@ -61,14 +61,15 @@ helm upgrade --install gloo-platform-crds gloo-platform-crds \
   --namespace gloo-mesh \
   --kube-context ${MGMT} \
   --set featureGates.insightsConfiguration=true \
-  --version 2.7.0-beta1
+  --version 2.7.0
 
 helm upgrade --install gloo-platform gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${MGMT} \
-  --version 2.7.0-beta1 \
+  --version 2.7.0 \
   -f -<<EOF
+
 licensing:
   glooTrialLicenseKey: ${GLOO_MESH_LICENSE_KEY}
 common:
@@ -81,8 +82,6 @@ glooMgmtServer:
   enabled: true
   ports:
     healthcheck: 8091
-prometheus:
-  enabled: true
 redis:
   deployment:
     enabled: true
@@ -90,6 +89,8 @@ telemetryGateway:
   enabled: true
   service:
     type: LoadBalancer
+prometheus:
+  enabled: true
 glooUi:
   enabled: true
   serviceType: LoadBalancer
@@ -100,9 +101,7 @@ telemetryCollector:
       otlp:
         endpoint: gloo-telemetry-gateway:4317
 featureGates:
-  istioLifecycleAgent: true
 EOF
-
 kubectl --context ${MGMT} -n gloo-mesh rollout status deploy/gloo-mesh-mgmt-server
 kubectl wait --context ${MGMT} --for=condition=Ready -n gloo-mesh --all pod
 timeout 2m bash -c "until [[ \$(kubectl --context ${MGMT} -n gloo-mesh get svc gloo-mesh-mgmt-server -o json | jq '.status.loadBalancer | length') -gt 0 ]]; do
@@ -188,13 +187,13 @@ helm upgrade --install gloo-platform-crds gloo-platform-crds \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${CLUSTER1} \
-  --version 2.7.0-beta1
+  --version 2.7.0
 
 helm upgrade --install gloo-platform gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${CLUSTER1} \
-  --version 2.7.0-beta1 \
+  --version 2.7.0 \
   -f -<<EOF
 common:
   cluster: cluster1
@@ -236,13 +235,13 @@ helm upgrade --install gloo-platform-crds gloo-platform-crds \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${CLUSTER2} \
-  --version 2.7.0-beta1
+  --version 2.7.0
 
 helm upgrade --install gloo-platform gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${CLUSTER2} \
-  --version 2.7.0-beta1 \
+  --version 2.7.0 \
   -f -<<EOF
 common:
   cluster: cluster2
@@ -259,19 +258,6 @@ telemetryCollector:
         endpoint: "${ENDPOINT_TELEMETRY_GATEWAY}"
 glooAnalyzer:
   enabled: true
-EOF
-kubectl apply --context ${MGMT} -f - <<EOF
-apiVersion: admin.gloo.solo.io/v2
-kind: WorkspaceSettings
-metadata:
-  name: global
-  namespace: gloo-mesh
-spec:
-  options:
-    eastWestGateways:
-      - selector:
-          labels:
-            istio: eastwestgateway
 EOF
 cat <<'EOF' > ./test.js
 var chai = require('chai');
@@ -361,7 +347,7 @@ spec:
   selector:
     app: istio-ingressgateway
     istio: ingressgateway
-    revision: 1-23
+    revision: 1-24
   type: LoadBalancer
 EOF
 
@@ -419,7 +405,7 @@ spec:
   selector:
     app: istio-ingressgateway
     istio: eastwestgateway
-    revision: 1-23
+    revision: 1-24
   type: LoadBalancer
 EOF
 kubectl --context ${CLUSTER2} create ns istio-gateways
@@ -446,7 +432,7 @@ spec:
   selector:
     app: istio-ingressgateway
     istio: ingressgateway
-    revision: 1-23
+    revision: 1-24
   type: LoadBalancer
 EOF
 
@@ -504,9 +490,10 @@ spec:
   selector:
     app: istio-ingressgateway
     istio: eastwestgateway
-    revision: 1-23
+    revision: 1-24
   type: LoadBalancer
 EOF
+kubectl --context ${CLUSTER1} create ns istio-system
 helm upgrade --install istio-base oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/base \
 --namespace istio-system \
 --kube-context=${CLUSTER1} \
@@ -515,10 +502,10 @@ helm upgrade --install istio-base oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<
 -f - <<EOF
 defaultRevision: ""
 profile: ambient
-revision: 1-23
+revision: 1-24
 EOF
 
-helm upgrade --install istiod-1-23 oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/istiod \
+helm upgrade --install istiod-1-24 oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/istiod \
 --namespace istio-system \
 --kube-context=${CLUSTER1} \
 --version 1.24.1-patch1-solo \
@@ -531,10 +518,9 @@ global:
   tag: 1.24.1-patch1-solo
   multiCluster:
     clusterName: cluster1
+  meshID: mesh1
 profile: ambient
-revision: 1-23
-istio_cni:
-  enabled: true
+revision: 1-24
 meshConfig:
   accessLogFile: /dev/stdout
   defaultConfig:
@@ -544,6 +530,8 @@ meshConfig:
   trustDomain: cluster1
 pilot:
   enabled: true
+  cni:
+    enabled: true
   env:
     PILOT_ENABLE_IP_AUTOALLOCATE: "true"
     PILOT_ENABLE_K8S_SELECT_WORKLOAD_ENTRIES: "false"
@@ -560,7 +548,7 @@ global:
   hub: us-docker.pkg.dev/gloo-mesh/istio-<enterprise_istio_repo>
   proxy: 1.24.1-patch1-solo
 profile: ambient
-revision: 1-23
+revision: 1-24
 cni:
   ambient:
     dnsCapture: true
@@ -577,9 +565,10 @@ helm upgrade --install ztunnel oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<ent
 -f - <<EOF
 configValidation: true
 enabled: true
-revision: 1-23
+revision: 1-24
 env:
   L7_ENABLED: "true"
+  SKIP_VALIDATE_TRUST_DOMAIN: "true"
 hub: us-docker.pkg.dev/gloo-mesh/istio-<enterprise_istio_repo>
 istioNamespace: istio-system
 multiCluster:
@@ -593,7 +582,7 @@ terminationGracePeriodSeconds: 29
 variant: distroless
 EOF
 
-helm upgrade --install istio-ingressgateway-1-23 oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/gateway \
+helm upgrade --install istio-ingressgateway-1-24 oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/gateway \
 --namespace istio-gateways \
 --kube-context=${CLUSTER1} \
 --version 1.24.1-patch1-solo \
@@ -602,17 +591,17 @@ helm upgrade --install istio-ingressgateway-1-23 oci://us-docker.pkg.dev/gloo-me
 autoscaling:
   enabled: false
 profile: ambient
-revision: 1-23
+revision: 1-24
 imagePullPolicy: IfNotPresent
 labels:
   app: istio-ingressgateway
   istio: ingressgateway
-  revision: 1-23
+  revision: 1-24
 service:
   type: None
 EOF
 
-helm upgrade --install istio-eastwestgateway-1-23 oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/gateway \
+helm upgrade --install istio-eastwestgateway-1-24 oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/gateway \
 --namespace istio-gateways \
 --kube-context=${CLUSTER1} \
 --version 1.24.1-patch1-solo \
@@ -621,7 +610,7 @@ helm upgrade --install istio-eastwestgateway-1-23 oci://us-docker.pkg.dev/gloo-m
 autoscaling:
   enabled: false
 profile: ambient
-revision: 1-23
+revision: 1-24
 imagePullPolicy: IfNotPresent
 env:
   ISTIO_META_REQUESTED_NETWORK_VIEW: cluster1
@@ -629,15 +618,13 @@ env:
 labels:
   app: istio-ingressgateway
   istio: eastwestgateway
-  revision: 1-23
+  revision: 1-24
   topology.istio.io/network: cluster1
 service:
   type: None
 EOF
-kubectl --context ${CLUSTER1} get crd gateways.gateway.networking.k8s.io &> /dev/null || \
-  { kubectl kustomize "github.com/kubernetes-sigs/gateway-api/config/crd?ref=v1.1.0" | kubectl --context ${CLUSTER1} apply -f -; }
-kubectl --context ${CLUSTER2} get crd gateways.gateway.networking.k8s.io &> /dev/null || \
-  { kubectl kustomize "github.com/kubernetes-sigs/gateway-api/config/crd?ref=v1.1.0" | kubectl --context ${CLUSTER2} apply -f -; }
+kubectl --context ${CLUSTER1} apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.2.0/experimental-install.yaml
+kubectl --context ${CLUSTER2} create ns istio-system
 helm upgrade --install istio-base oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/base \
 --namespace istio-system \
 --kube-context=${CLUSTER2} \
@@ -646,10 +633,10 @@ helm upgrade --install istio-base oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<
 -f - <<EOF
 defaultRevision: ""
 profile: ambient
-revision: 1-23
+revision: 1-24
 EOF
 
-helm upgrade --install istiod-1-23 oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/istiod \
+helm upgrade --install istiod-1-24 oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/istiod \
 --namespace istio-system \
 --kube-context=${CLUSTER2} \
 --version 1.24.1-patch1-solo \
@@ -662,10 +649,9 @@ global:
   tag: 1.24.1-patch1-solo
   multiCluster:
     clusterName: cluster2
+  meshID: mesh1
 profile: ambient
-revision: 1-23
-istio_cni:
-  enabled: true
+revision: 1-24
 meshConfig:
   accessLogFile: /dev/stdout
   defaultConfig:
@@ -675,6 +661,8 @@ meshConfig:
   trustDomain: cluster2
 pilot:
   enabled: true
+  cni:
+    enabled: true
   env:
     PILOT_ENABLE_IP_AUTOALLOCATE: "true"
     PILOT_ENABLE_K8S_SELECT_WORKLOAD_ENTRIES: "false"
@@ -691,7 +679,7 @@ global:
   hub: us-docker.pkg.dev/gloo-mesh/istio-<enterprise_istio_repo>
   proxy: 1.24.1-patch1-solo
 profile: ambient
-revision: 1-23
+revision: 1-24
 cni:
   ambient:
     dnsCapture: true
@@ -708,9 +696,10 @@ helm upgrade --install ztunnel oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<ent
 -f - <<EOF
 configValidation: true
 enabled: true
-revision: 1-23
+revision: 1-24
 env:
   L7_ENABLED: "true"
+  SKIP_VALIDATE_TRUST_DOMAIN: "true"
 hub: us-docker.pkg.dev/gloo-mesh/istio-<enterprise_istio_repo>
 istioNamespace: istio-system
 multiCluster:
@@ -724,7 +713,7 @@ terminationGracePeriodSeconds: 29
 variant: distroless
 EOF
 
-helm upgrade --install istio-ingressgateway-1-23 oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/gateway \
+helm upgrade --install istio-ingressgateway-1-24 oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/gateway \
 --namespace istio-gateways \
 --kube-context=${CLUSTER2} \
 --version 1.24.1-patch1-solo \
@@ -733,17 +722,17 @@ helm upgrade --install istio-ingressgateway-1-23 oci://us-docker.pkg.dev/gloo-me
 autoscaling:
   enabled: false
 profile: ambient
-revision: 1-23
+revision: 1-24
 imagePullPolicy: IfNotPresent
 labels:
   app: istio-ingressgateway
   istio: ingressgateway
-  revision: 1-23
+  revision: 1-24
 service:
   type: None
 EOF
 
-helm upgrade --install istio-eastwestgateway-1-23 oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/gateway \
+helm upgrade --install istio-eastwestgateway-1-24 oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/gateway \
 --namespace istio-gateways \
 --kube-context=${CLUSTER2} \
 --version 1.24.1-patch1-solo \
@@ -752,7 +741,7 @@ helm upgrade --install istio-eastwestgateway-1-23 oci://us-docker.pkg.dev/gloo-m
 autoscaling:
   enabled: false
 profile: ambient
-revision: 1-23
+revision: 1-24
 imagePullPolicy: IfNotPresent
 env:
   ISTIO_META_REQUESTED_NETWORK_VIEW: cluster2
@@ -760,15 +749,12 @@ env:
 labels:
   app: istio-ingressgateway
   istio: eastwestgateway
-  revision: 1-23
+  revision: 1-24
   topology.istio.io/network: cluster2
 service:
   type: None
 EOF
-kubectl --context ${CLUSTER1} get crd gateways.gateway.networking.k8s.io &> /dev/null || \
-  { kubectl kustomize "github.com/kubernetes-sigs/gateway-api/config/crd?ref=v1.1.0" | kubectl --context ${CLUSTER1} apply -f -; }
-kubectl --context ${CLUSTER2} get crd gateways.gateway.networking.k8s.io &> /dev/null || \
-  { kubectl kustomize "github.com/kubernetes-sigs/gateway-api/config/crd?ref=v1.1.0" | kubectl --context ${CLUSTER2} apply -f -; }
+kubectl --context ${CLUSTER2} apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.2.0/experimental-install.yaml
 cat <<'EOF' > ./test.js
 
 const helpers = require('./tests/chai-exec');
@@ -868,8 +854,8 @@ kubectl --context ${CLUSTER1} label namespace bookinfo-frontends istio.io/datapl
 kubectl --context ${CLUSTER1} label namespace bookinfo-backends istio.io/dataplane-mode=ambient
 kubectl --context ${CLUSTER1} label namespace bookinfo-frontends istio-injection=disabled
 kubectl --context ${CLUSTER1} label namespace bookinfo-backends istio-injection=disabled
-kubectl --context ${CLUSTER1} label namespace bookinfo-frontends istio.io/rev=1-23 --overwrite
-kubectl --context ${CLUSTER1} label namespace bookinfo-backends istio.io/rev=1-23 --overwrite
+kubectl --context ${CLUSTER1} label namespace bookinfo-frontends istio.io/rev=1-24 --overwrite
+kubectl --context ${CLUSTER1} label namespace bookinfo-backends istio.io/rev=1-24 --overwrite
 
 # Deploy the frontend bookinfo service in the bookinfo-frontends namespace
 kubectl --context ${CLUSTER1} -n bookinfo-frontends apply -f data/steps/deploy-bookinfo/productpage-v1.yaml
@@ -898,8 +884,8 @@ kubectl --context ${CLUSTER2} label namespace bookinfo-frontends istio.io/datapl
 kubectl --context ${CLUSTER2} label namespace bookinfo-backends istio.io/dataplane-mode=ambient
 kubectl --context ${CLUSTER2} label namespace bookinfo-frontends istio-injection=disabled
 kubectl --context ${CLUSTER2} label namespace bookinfo-backends istio-injection=disabled
-kubectl --context ${CLUSTER2} label namespace bookinfo-frontends istio.io/rev=1-23 --overwrite
-kubectl --context ${CLUSTER2} label namespace bookinfo-backends istio.io/rev=1-23 --overwrite
+kubectl --context ${CLUSTER2} label namespace bookinfo-frontends istio.io/rev=1-24 --overwrite
+kubectl --context ${CLUSTER2} label namespace bookinfo-backends istio.io/rev=1-24 --overwrite
 
 # Deploy the frontend bookinfo service in the bookinfo-frontends namespace
 kubectl --context ${CLUSTER2} -n bookinfo-frontends apply -f data/steps/deploy-bookinfo/productpage-v1.yaml
@@ -952,7 +938,7 @@ echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/apps/book
 timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 4"; exit 1; }
 kubectl --context ${CLUSTER1} create ns httpbin
 kubectl --context ${CLUSTER1} label namespace httpbin istio.io/dataplane-mode=ambient
-kubectl --context ${CLUSTER1} label namespace httpbin istio.io/rev=1-23
+kubectl --context ${CLUSTER1} label namespace httpbin istio.io/rev=1-24
 kubectl apply --context ${CLUSTER1} -f - <<EOF
 
 apiVersion: v1
@@ -1054,7 +1040,7 @@ spec:
       labels:
         app: in-mesh
         version: v1
-        istio.io/rev: 1-23
+        istio.io/rev: 1-24
     spec:
       serviceAccountName: in-mesh
       containers:
@@ -1144,7 +1130,6 @@ spec:
             port: http
 
 EOF
-kubectl --context ${CLUSTER1} -n httpbin get pods
 cat <<'EOF' > ./test.js
 const helpers = require('./tests/chai-exec');
 
@@ -1216,44 +1201,44 @@ kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: in-mesh-with-sidecar
+  name: in-mesh
   namespace: clients
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: in-mesh-with-sidecar
+  name: in-mesh
   namespace: clients
   labels:
-    app: in-mesh-with-sidecar
-    service: in-mesh-with-sidecar
+    app: in-mesh
+    service: in-mesh
 spec:
   ports:
   - name: http
     port: 8000
     targetPort: 80
   selector:
-    app: in-mesh-with-sidecar
+    app: in-mesh
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: in-mesh-with-sidecar
+  name: in-mesh
   namespace: clients
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: in-mesh-with-sidecar
+      app: in-mesh
       version: v1
   template:
     metadata:
       labels:
-        app: in-mesh-with-sidecar
+        app: in-mesh
         version: v1
-        istio.io/rev: 1-23
+        istio.io/rev: 1-24
     spec:
-      serviceAccountName: in-mesh-with-sidecar
+      serviceAccountName: in-mesh
       containers:
       - image: nicolaka/netshoot:latest
         imagePullPolicy: IfNotPresent
@@ -1261,14 +1246,6 @@ spec:
         command: ["/bin/bash"]
         args: ["-c", "while true; do ping localhost; sleep 60;done"]
 EOF
-echo -n Waiting for clients to be ready...
-timeout -v 5m bash -c "
-until [[ \$(kubectl --context ${CLUSTER1} -n clients get deploy -o json | jq '[.items[].status.readyReplicas] | add') -eq 2 ]] 2>/dev/null
-do
-  sleep 1
-  echo -n .
-done"
-echo
 kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: v1
 kind: ServiceAccount
@@ -1327,7 +1304,7 @@ const helpers = require('./tests/chai-exec');
 describe("client apps", () => {
   let cluster = process.env.CLUSTER1
   
-  let deployments = ["not-in-mesh", "in-mesh-with-sidecar", "in-ambient"];
+  let deployments = ["not-in-mesh", "in-mesh", "in-ambient"];
   
   deployments.forEach(deploy => {
     it(deploy + ' pods are ready in ' + cluster, () => helpers.checkDeployment({ context: cluster, namespace: "clients", k8sObj: deploy }));
@@ -1881,11 +1858,28 @@ var chai = require('chai');
 var expect = chai.expect;
 const helpers = require('./tests/chai-exec');
 
+const deployments = [
+  { name: "gloo-mesh-mgmt-server", arg: "--stats-port=9094" },
+  { name: "gloo-mesh-ui", arg: "--insights-stats-port=9094" }
+]
+
 describe("Insight generation", () => {
   it("Insight BP0002 has been triggered in the source (MGMT)", () => {
-    helpers.getOutputForCommand({ command: `kubectl --context ${process.env.MGMT} -n gloo-mesh patch svc gloo-mesh-mgmt-server -p '{"spec":{"ports": [{"port": 9094,"name":"http-insights"}]}}'` });
+    let insightsSvcName = '';
+    for (let i=0; i<deployments.length; i++) {
+      // Go through the deployments one at a time and get list of args for all the containers
+      let listOfArgs = helpers.getOutputForCommand({ command: `kubectl --context ${process.env.MGMT} -n gloo-mesh get deploy ${deployments[i].name} -o jsonpath='{.spec.template.spec.containers[*].args[*]}}'`}).replaceAll("'", "");
+      if (listOfArgs.includes(deployments[i].arg)) {
+        // if the list of arguments contain arg '*stats-port=9090', that's the deployment to use to query for insight metrics. Return the associated service.
+        insightsSvcName = helpers.getOutputForCommand({ command: `kubectl --context ${process.env.MGMT} -n gloo-mesh get svc --selector=app=${deployments[i].name} -o jsonpath='{range.items[]}{.metadata.name}'`}).replaceAll("'", "");
+        break;
+      };
+    }
+    expect(insightsSvcName).not.to.be.empty;
+
+    helpers.getOutputForCommand({ command: `kubectl --context ${process.env.MGMT} -n gloo-mesh patch svc ${insightsSvcName} -p '{"spec":{"ports": [{"port": 9094,"name":"http-insights"}]}}'` });
     helpers.getOutputForCommand({ command: "kubectl -n gloo-mesh run debug --image=nginx:1.25.3 --context " + process.env.MGMT });
-    command = helpers.getOutputForCommand({ command: "kubectl --context " + process.env.MGMT + " -n gloo-mesh exec debug -- curl -s http://gloo-mesh-mgmt-server.gloo-mesh:9094/metrics" }).replaceAll("'", "");
+    command = helpers.getOutputForCommand({ command: "kubectl --context " + process.env.MGMT + " -n gloo-mesh exec debug -- curl -s http://" + insightsSvcName + ".gloo-mesh:9094/metrics" }).replaceAll("'", "");
     const regex = /gloo_mesh_insights{.*BP0002.*} 1/;
     const match = command.match(regex);
     expect(match).to.not.be.null;
@@ -2079,11 +2073,28 @@ var chai = require('chai');
 var expect = chai.expect;
 const helpers = require('./tests/chai-exec');
 
+const deployments = [
+  { name: "gloo-mesh-mgmt-server", arg: "--stats-port=9094" },
+  { name: "gloo-mesh-ui", arg: "--insights-stats-port=9094" }
+]
+
 describe("Insight generation", () => {
   it("Insight CFG0001 has been triggered in the source (MGMT)", () => {
-    helpers.getOutputForCommand({ command: `kubectl --context ${process.env.MGMT} -n gloo-mesh patch svc gloo-mesh-mgmt-server -p '{"spec":{"ports": [{"port": 9094,"name":"http-insights"}]}}'` });
+    let insightsSvcName = '';
+    for (let i=0; i<deployments.length; i++) {
+      // Go through the deployments one at a time and get list of args for all the containers
+      let listOfArgs = helpers.getOutputForCommand({ command: `kubectl --context ${process.env.MGMT} -n gloo-mesh get deploy ${deployments[i].name} -o jsonpath='{.spec.template.spec.containers[*].args[*]}}'`}).replaceAll("'", "");
+      if (listOfArgs.includes(deployments[i].arg)) {
+        // if the list of arguments contain arg '*stats-port=9090', that's the deployment to use to query for insight metrics. Return the associated service.
+        insightsSvcName = helpers.getOutputForCommand({ command: `kubectl --context ${process.env.MGMT} -n gloo-mesh get svc --selector=app=${deployments[i].name} -o jsonpath='{range.items[]}{.metadata.name}'`}).replaceAll("'", "");
+        break;
+      };
+    }
+    expect(insightsSvcName).not.to.be.empty;
+
+    helpers.getOutputForCommand({ command: `kubectl --context ${process.env.MGMT} -n gloo-mesh patch svc ${insightsSvcName} -p '{"spec":{"ports": [{"port": 9094,"name":"http-insights"}]}}'` });
     helpers.getOutputForCommand({ command: "kubectl -n gloo-mesh run debug --image=nginx: --context " + process.env.MGMT });
-    command = helpers.getOutputForCommand({ command: "kubectl --context " + process.env.MGMT + " -n gloo-mesh exec debug -- curl -s http://gloo-mesh-mgmt-server.gloo-mesh:9094/metrics" }).replaceAll("'", "");
+    command = helpers.getOutputForCommand({ command: "kubectl --context " + process.env.MGMT + " -n gloo-mesh exec debug -- curl -s http://" + insightsSvcName + ".gloo-mesh:9094/metrics" }).replaceAll("'", "");
     const regex = /gloo_mesh_insights{.*CFG0001.*} 1/;
     const match = command.match(regex);
     expect(match).to.not.be.null;
@@ -2123,11 +2134,28 @@ var chai = require('chai');
 var expect = chai.expect;
 const helpers = require('./tests/chai-exec');
 
+const deployments = [
+  { name: "gloo-mesh-mgmt-server", arg: "--stats-port=9094" },
+  { name: "gloo-mesh-ui", arg: "--insights-stats-port=9094" }
+]
+
 describe("Insight generation", () => {
   it("Insight CFG0001 has not been triggered in the source (MGMT)", () => {
-    helpers.getOutputForCommand({ command: `kubectl --context ${process.env.MGMT} -n gloo-mesh patch svc gloo-mesh-mgmt-server -p '{"spec":{"ports": [{"port": 9094,"name":"http-insights"}]}}'` });
+    let insightsSvcName = '';
+    for (let i=0; i<deployments.length; i++) {
+      // Go through the deployments one at a time and get list of args for all the containers
+      let listOfArgs = helpers.getOutputForCommand({ command: `kubectl --context ${process.env.MGMT} -n gloo-mesh get deploy ${deployments[i].name} -o jsonpath='{.spec.template.spec.containers[*].args[*]}}'`}).replaceAll("'", "");
+      if (listOfArgs.includes(deployments[i].arg)) {
+        // if the list of arguments contain arg '*stats-port=9090', that's the deployment to use to query for insight metrics. Return the associated service.
+        insightsSvcName = helpers.getOutputForCommand({ command: `kubectl --context ${process.env.MGMT} -n gloo-mesh get svc --selector=app=${deployments[i].name} -o jsonpath='{range.items[]}{.metadata.name}'`}).replaceAll("'", "");
+        break;
+      };
+    }
+    expect(insightsSvcName).not.to.be.empty;
+
+    helpers.getOutputForCommand({ command: `kubectl --context ${process.env.MGMT} -n gloo-mesh patch svc ${insightsSvcName} -p '{"spec":{"ports": [{"port": 9094,"name":"http-insights"}]}}'` });
     helpers.getOutputForCommand({ command: "kubectl -n gloo-mesh run debug --image=nginx: --context " + process.env.MGMT });
-    command = helpers.getOutputForCommand({ command: "kubectl --context " + process.env.MGMT + " -n gloo-mesh exec debug -- curl -s http://gloo-mesh-mgmt-server.gloo-mesh:9094/metrics" }).replaceAll("'", "");
+    command = helpers.getOutputForCommand({ command: "kubectl --context " + process.env.MGMT + " -n gloo-mesh exec debug -- curl -s http://" + insightsSvcName + ".gloo-mesh:9094/metrics" }).replaceAll("'", "");
     const regex = /gloo_mesh_insights{.*CFG0001.*} 1/;
     const match = command.match(regex);
     expect(match).to.be.null;
@@ -2176,11 +2204,28 @@ var chai = require('chai');
 var expect = chai.expect;
 const helpers = require('./tests/chai-exec');
 
+const deployments = [
+  { name: "gloo-mesh-mgmt-server", arg: "--stats-port=9094" },
+  { name: "gloo-mesh-ui", arg: "--insights-stats-port=9094" }
+]
+
 describe("Insight generation", () => {
   it("Insight SEC0008 has been triggered in the source (MGMT)", () => {
-    helpers.getOutputForCommand({ command: `kubectl --context ${process.env.MGMT} -n gloo-mesh patch svc gloo-mesh-mgmt-server -p '{"spec":{"ports": [{"port": 9094,"name":"http-insights"}]}}'` });
+    let insightsSvcName = '';
+    for (let i=0; i<deployments.length; i++) {
+      // Go through the deployments one at a time and get list of args for all the containers
+      let listOfArgs = helpers.getOutputForCommand({ command: `kubectl --context ${process.env.MGMT} -n gloo-mesh get deploy ${deployments[i].name} -o jsonpath='{.spec.template.spec.containers[*].args[*]}}'`}).replaceAll("'", "");
+      if (listOfArgs.includes(deployments[i].arg)) {
+        // if the list of arguments contain arg '*stats-port=9090', that's the deployment to use to query for insight metrics. Return the associated service.
+        insightsSvcName = helpers.getOutputForCommand({ command: `kubectl --context ${process.env.MGMT} -n gloo-mesh get svc --selector=app=${deployments[i].name} -o jsonpath='{range.items[]}{.metadata.name}'`}).replaceAll("'", "");
+        break;
+      };
+    }
+    expect(insightsSvcName).not.to.be.empty;
+
+    helpers.getOutputForCommand({ command: `kubectl --context ${process.env.MGMT} -n gloo-mesh patch svc ${insightsSvcName} -p '{"spec":{"ports": [{"port": 9094,"name":"http-insights"}]}}'` });
     helpers.getOutputForCommand({ command: "kubectl -n gloo-mesh run debug --image=nginx: --context " + process.env.MGMT });
-    command = helpers.getOutputForCommand({ command: "kubectl --context " + process.env.MGMT + " -n gloo-mesh exec debug -- curl -s http://gloo-mesh-mgmt-server.gloo-mesh:9094/metrics" }).replaceAll("'", "");
+    command = helpers.getOutputForCommand({ command: "kubectl --context " + process.env.MGMT + " -n gloo-mesh exec debug -- curl -s http://" + insightsSvcName + ".gloo-mesh:9094/metrics" }).replaceAll("'", "");
     const regex = /gloo_mesh_insights{.*SEC0008.*} 1/;
     const match = command.match(regex);
     expect(match).to.not.be.null;
@@ -2217,11 +2262,28 @@ var chai = require('chai');
 var expect = chai.expect;
 const helpers = require('./tests/chai-exec');
 
+const deployments = [
+  { name: "gloo-mesh-mgmt-server", arg: "--stats-port=9094" },
+  { name: "gloo-mesh-ui", arg: "--insights-stats-port=9094" }
+]
+
 describe("Insight generation", () => {
   it("Insight SEC0008 has not been triggered in the source (MGMT)", () => {
-    helpers.getOutputForCommand({ command: `kubectl --context ${process.env.MGMT} -n gloo-mesh patch svc gloo-mesh-mgmt-server -p '{"spec":{"ports": [{"port": 9094,"name":"http-insights"}]}}'` });
+    let insightsSvcName = '';
+    for (let i=0; i<deployments.length; i++) {
+      // Go through the deployments one at a time and get list of args for all the containers
+      let listOfArgs = helpers.getOutputForCommand({ command: `kubectl --context ${process.env.MGMT} -n gloo-mesh get deploy ${deployments[i].name} -o jsonpath='{.spec.template.spec.containers[*].args[*]}}'`}).replaceAll("'", "");
+      if (listOfArgs.includes(deployments[i].arg)) {
+        // if the list of arguments contain arg '*stats-port=9090', that's the deployment to use to query for insight metrics. Return the associated service.
+        insightsSvcName = helpers.getOutputForCommand({ command: `kubectl --context ${process.env.MGMT} -n gloo-mesh get svc --selector=app=${deployments[i].name} -o jsonpath='{range.items[]}{.metadata.name}'`}).replaceAll("'", "");
+        break;
+      };
+    }
+    expect(insightsSvcName).not.to.be.empty;
+
+    helpers.getOutputForCommand({ command: `kubectl --context ${process.env.MGMT} -n gloo-mesh patch svc ${insightsSvcName} -p '{"spec":{"ports": [{"port": 9094,"name":"http-insights"}]}}'` });
     helpers.getOutputForCommand({ command: "kubectl -n gloo-mesh run debug --image=nginx: --context " + process.env.MGMT });
-    command = helpers.getOutputForCommand({ command: "kubectl --context " + process.env.MGMT + " -n gloo-mesh exec debug -- curl -s http://gloo-mesh-mgmt-server.gloo-mesh:9094/metrics" }).replaceAll("'", "");
+    command = helpers.getOutputForCommand({ command: "kubectl --context " + process.env.MGMT + " -n gloo-mesh exec debug -- curl -s http://" + insightsSvcName + ".gloo-mesh:9094/metrics" }).replaceAll("'", "");
     const regex = /gloo_mesh_insights{.*SEC0008.*} 1/;
     const match = command.match(regex);
     expect(match).to.be.null;
@@ -2245,34 +2307,34 @@ echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/apps/book
 timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 12"; exit 1; }
 kubectl --context ${CLUSTER1} -n bookinfo-backends delete authorizationpolicy reviews
 kubectl --context ${CLUSTER1} -n istio-system delete peerauthentication default
+kubectl --context ${CLUSTER1} create ns istio-system
 helm upgrade --install istio-base oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/base \
 --namespace istio-system \
 --kube-context=${CLUSTER1} \
---version 1.23.0-patch1-solo \
+--version 1.25.0-solo \
 --create-namespace \
 -f - <<EOF
 defaultRevision: ""
 profile: ambient
-revision: 1-23-0-patch1
+revision: 1-25
 EOF
 
-helm upgrade --install istiod-1-23-0-patch1 oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/istiod \
+helm upgrade --install istiod-1-25 oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/istiod \
 --namespace istio-system \
 --kube-context=${CLUSTER1} \
---version 1.23.0-patch1-solo \
+--version 1.25.0-solo \
 --create-namespace \
 -f - <<EOF
 global:
   hub: us-docker.pkg.dev/gloo-mesh/istio-<enterprise_istio_repo>
   proxy:
     clusterDomain: cluster.local
-  tag: 1.23.0-patch1-solo
+  tag: 1.25.0-solo
   multiCluster:
     clusterName: cluster1
+  meshID: mesh1
 profile: ambient
-revision: 1-23-0-patch1
-istio_cni:
-  enabled: true
+revision: 1-25
 meshConfig:
   accessLogFile: /dev/stdout
   defaultConfig:
@@ -2282,6 +2344,8 @@ meshConfig:
   trustDomain: cluster1
 pilot:
   enabled: true
+  cni:
+    enabled: true
   env:
     PILOT_ENABLE_IP_AUTOALLOCATE: "true"
     PILOT_ENABLE_K8S_SELECT_WORKLOAD_ENTRIES: "false"
@@ -2291,14 +2355,14 @@ EOF
 helm upgrade --install istio-cni oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/cni \
 --namespace kube-system \
 --kube-context=${CLUSTER1} \
---version 1.23.0-patch1-solo \
+--version 1.25.0-solo \
 --create-namespace \
 -f - <<EOF
 global:
   hub: us-docker.pkg.dev/gloo-mesh/istio-<enterprise_istio_repo>
-  proxy: 1.23.0-patch1-solo
+  proxy: 1.25.0-solo
 profile: ambient
-revision: 1-23-0-patch1
+revision: 1-25
 cni:
   ambient:
     dnsCapture: true
@@ -2310,14 +2374,15 @@ EOF
 helm upgrade --install ztunnel oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/ztunnel \
 --namespace istio-system \
 --kube-context=${CLUSTER1} \
---version 1.23.0-patch1-solo \
+--version 1.25.0-solo \
 --create-namespace \
 -f - <<EOF
 configValidation: true
 enabled: true
-revision: 1-23-0-patch1
+revision: 1-25
 env:
   L7_ENABLED: "true"
+  SKIP_VALIDATE_TRUST_DOMAIN: "true"
 hub: us-docker.pkg.dev/gloo-mesh/istio-<enterprise_istio_repo>
 istioNamespace: istio-system
 multiCluster:
@@ -2326,40 +2391,40 @@ namespace: istio-system
 profile: ambient
 proxy:
   clusterDomain: cluster.local
-tag: 1.23.0-patch1-solo
+tag: 1.25.0-solo
 terminationGracePeriodSeconds: 29
 variant: distroless
 EOF
 
-helm upgrade --install istio-ingressgateway-1-23-0-patch1 oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/gateway \
+helm upgrade --install istio-ingressgateway-1-25 oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/gateway \
 --namespace istio-gateways \
 --kube-context=${CLUSTER1} \
---version 1.23.0-patch1-solo \
+--version 1.25.0-solo \
 --create-namespace \
 -f - <<EOF
 autoscaling:
   enabled: false
 profile: ambient
-revision: 1-23-0-patch1
+revision: 1-25
 imagePullPolicy: IfNotPresent
 labels:
   app: istio-ingressgateway
   istio: ingressgateway
-  revision: 1-23-0-patch1
+  revision: 1-25
 service:
   type: None
 EOF
 
-helm upgrade --install istio-eastwestgateway-1-23-0-patch1 oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/gateway \
+helm upgrade --install istio-eastwestgateway-1-25 oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/gateway \
 --namespace istio-gateways \
 --kube-context=${CLUSTER1} \
---version 1.23.0-patch1-solo \
+--version 1.25.0-solo \
 --create-namespace \
 -f - <<EOF
 autoscaling:
   enabled: false
 profile: ambient
-revision: 1-23-0-patch1
+revision: 1-25
 imagePullPolicy: IfNotPresent
 env:
   ISTIO_META_REQUESTED_NETWORK_VIEW: cluster1
@@ -2367,39 +2432,39 @@ env:
 labels:
   app: istio-ingressgateway
   istio: eastwestgateway
-  revision: 1-23-0-patch1
+  revision: 1-25
   topology.istio.io/network: cluster1
 service:
   type: None
 EOF
+kubectl --context ${CLUSTER2} create ns istio-system
 helm upgrade --install istio-base oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/base \
 --namespace istio-system \
 --kube-context=${CLUSTER2} \
---version 1.23.0-patch1-solo \
+--version 1.25.0-solo \
 --create-namespace \
 -f - <<EOF
 defaultRevision: ""
 profile: ambient
-revision: 1-23-0-patch1
+revision: 1-25
 EOF
 
-helm upgrade --install istiod-1-23-0-patch1 oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/istiod \
+helm upgrade --install istiod-1-25 oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/istiod \
 --namespace istio-system \
 --kube-context=${CLUSTER2} \
---version 1.23.0-patch1-solo \
+--version 1.25.0-solo \
 --create-namespace \
 -f - <<EOF
 global:
   hub: us-docker.pkg.dev/gloo-mesh/istio-<enterprise_istio_repo>
   proxy:
     clusterDomain: cluster.local
-  tag: 1.23.0-patch1-solo
+  tag: 1.25.0-solo
   multiCluster:
     clusterName: cluster2
+  meshID: mesh1
 profile: ambient
-revision: 1-23-0-patch1
-istio_cni:
-  enabled: true
+revision: 1-25
 meshConfig:
   accessLogFile: /dev/stdout
   defaultConfig:
@@ -2409,6 +2474,8 @@ meshConfig:
   trustDomain: cluster2
 pilot:
   enabled: true
+  cni:
+    enabled: true
   env:
     PILOT_ENABLE_IP_AUTOALLOCATE: "true"
     PILOT_ENABLE_K8S_SELECT_WORKLOAD_ENTRIES: "false"
@@ -2418,14 +2485,14 @@ EOF
 helm upgrade --install istio-cni oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/cni \
 --namespace kube-system \
 --kube-context=${CLUSTER2} \
---version 1.23.0-patch1-solo \
+--version 1.25.0-solo \
 --create-namespace \
 -f - <<EOF
 global:
   hub: us-docker.pkg.dev/gloo-mesh/istio-<enterprise_istio_repo>
-  proxy: 1.23.0-patch1-solo
+  proxy: 1.25.0-solo
 profile: ambient
-revision: 1-23-0-patch1
+revision: 1-25
 cni:
   ambient:
     dnsCapture: true
@@ -2437,14 +2504,15 @@ EOF
 helm upgrade --install ztunnel oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/ztunnel \
 --namespace istio-system \
 --kube-context=${CLUSTER2} \
---version 1.23.0-patch1-solo \
+--version 1.25.0-solo \
 --create-namespace \
 -f - <<EOF
 configValidation: true
 enabled: true
-revision: 1-23-0-patch1
+revision: 1-25
 env:
   L7_ENABLED: "true"
+  SKIP_VALIDATE_TRUST_DOMAIN: "true"
 hub: us-docker.pkg.dev/gloo-mesh/istio-<enterprise_istio_repo>
 istioNamespace: istio-system
 multiCluster:
@@ -2453,40 +2521,40 @@ namespace: istio-system
 profile: ambient
 proxy:
   clusterDomain: cluster.local
-tag: 1.23.0-patch1-solo
+tag: 1.25.0-solo
 terminationGracePeriodSeconds: 29
 variant: distroless
 EOF
 
-helm upgrade --install istio-ingressgateway-1-23-0-patch1 oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/gateway \
+helm upgrade --install istio-ingressgateway-1-25 oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/gateway \
 --namespace istio-gateways \
 --kube-context=${CLUSTER2} \
---version 1.23.0-patch1-solo \
+--version 1.25.0-solo \
 --create-namespace \
 -f - <<EOF
 autoscaling:
   enabled: false
 profile: ambient
-revision: 1-23-0-patch1
+revision: 1-25
 imagePullPolicy: IfNotPresent
 labels:
   app: istio-ingressgateway
   istio: ingressgateway
-  revision: 1-23-0-patch1
+  revision: 1-25
 service:
   type: None
 EOF
 
-helm upgrade --install istio-eastwestgateway-1-23-0-patch1 oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/gateway \
+helm upgrade --install istio-eastwestgateway-1-25 oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/gateway \
 --namespace istio-gateways \
 --kube-context=${CLUSTER2} \
---version 1.23.0-patch1-solo \
+--version 1.25.0-solo \
 --create-namespace \
 -f - <<EOF
 autoscaling:
   enabled: false
 profile: ambient
-revision: 1-23-0-patch1
+revision: 1-25
 imagePullPolicy: IfNotPresent
 env:
   ISTIO_META_REQUESTED_NETWORK_VIEW: cluster2
@@ -2494,7 +2562,7 @@ env:
 labels:
   app: istio-ingressgateway
   istio: eastwestgateway
-  revision: 1-23-0-patch1
+  revision: 1-25
   topology.istio.io/network: cluster2
 service:
   type: None
@@ -2587,15 +2655,21 @@ describe("Address '" + process.env.HOST_GW_CLUSTER2 + "' can be resolved in DNS"
 EOF
 echo "executing test ./default/tests/can-resolve.test.js.liquid from lab number 13"
 timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 13"; exit 1; }
-kubectl --context ${CLUSTER1} get ns -l istio.io/rev=1-23 -o json | jq -r '.items[].metadata.name' | while read ns; do
-  kubectl --context ${CLUSTER1} label ns ${ns} istio.io/rev=1-23-0-patch1 --overwrite
+kubectl --context ${CLUSTER1} get ns -l istio.io/rev=1-24 -o json | jq -r '.items[].metadata.name' | while read ns; do
+  kubectl --context ${CLUSTER1} label ns ${ns} istio.io/rev=1-25 --overwrite
 done
-kubectl --context ${CLUSTER2} get ns -l istio.io/rev=1-23 -o json | jq -r '.items[].metadata.name' | while read ns; do
-  kubectl --context ${CLUSTER2} label ns ${ns} istio.io/rev=1-23-0-patch1 --overwrite
+kubectl --context ${CLUSTER2} get ns -l istio.io/rev=1-24 -o json | jq -r '.items[].metadata.name' | while read ns; do
+  kubectl --context ${CLUSTER2} label ns ${ns} istio.io/rev=1-25 --overwrite
 done
-kubectl --context ${CLUSTER1} -n httpbin patch deploy in-mesh --patch "{\"spec\": {\"template\": {\"metadata\": {\"labels\": {\"istio.io/rev\": \"1-23-0-patch1\" }}}}}"
-kubectl --context ${CLUSTER1} -n clients patch deploy in-mesh-with-sidecar --patch "{\"spec\": {\"template\": {\"metadata\": {\"labels\": {\"istio.io/rev\": \"1-23-0-patch1\" }}}}}"
-kubectl --context ${CLUSTER1} -n httpbin rollout status deploy in-mesh
+
+if kubectl --context ${CLUSTER1} -n httpbin get deploy in-mesh -o json | jq -e '.spec.template.metadata.labels."istio.io/rev"' >/dev/null; then
+  kubectl --context ${CLUSTER1} -n httpbin patch deploy in-mesh --patch "{\"spec\": {\"template\": {\"metadata\": {\"labels\": {\"istio.io/rev\": \"1-25\" }}}}}"
+  kubectl --context ${CLUSTER1} -n httpbin rollout status deploy in-mesh
+fi
+if kubectl --context ${CLUSTER1} -n clients get deploy in-mesh-with-sidecar -o json | jq -e '.spec.template.metadata.labels."istio.io/rev"' >/dev/null; then
+  kubectl --context ${CLUSTER1} -n clients patch deploy in-mesh-with-sidecar --patch "{\"spec\": {\"template\": {\"metadata\": {\"labels\": {\"istio.io/rev\": \"1-25\" }}}}}"
+  kubectl --context ${CLUSTER1} -n clients rollout status deploy in-mesh-with-sidecar
+fi
 curl -k "https:///productpage" -I
 cat <<'EOF' > ./test.js
 const helpers = require('./tests/chai-http');
@@ -2650,25 +2724,25 @@ describe("istio in place upgrades", function() {
   const cluster1 = process.env.CLUSTER1;
   it("should upgrade waypoints", () => {
     let cli = chaiExec(`sh -c "istioctl --context ${cluster1} ps | grep waypoint"`);
-    expect(cli.stdout).to.contain("1.23.0-patch1");
+    expect(cli.stdout).to.contain("1.25.0");
   });
 });
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/helm-migrate-workloads-to-revision/tests/waypoint-upgraded.test.js.liquid from lab number 14"
 timeout --signal=INT 1m mocha ./test.js --timeout 10000 --retries=60 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 14"; exit 1; }
-helm uninstall istio-ingressgateway-1-23 \
+helm uninstall istio-ingressgateway-1-24 \
 --namespace istio-gateways \
 --kube-context=${CLUSTER1}
 
-helm uninstall istio-eastwestgateway-1-23 \
+helm uninstall istio-eastwestgateway-1-24 \
 --namespace istio-gateways \
 --kube-context=${CLUSTER1}
 
-helm uninstall istio-ingressgateway-1-23 \
+helm uninstall istio-ingressgateway-1-24 \
 --namespace istio-gateways \
 --kube-context=${CLUSTER2}
 
-helm uninstall istio-eastwestgateway-1-23 \
+helm uninstall istio-eastwestgateway-1-24 \
 --namespace istio-gateways \
 --kube-context=${CLUSTER2}
 kubectl --context ${CLUSTER1} -n istio-system get pods
@@ -2676,41 +2750,41 @@ kubectl --context ${CLUSTER2} -n istio-system get pods
 kubectl --context ${CLUSTER1} -n istio-gateways get pods
 kubectl --context ${CLUSTER2} -n istio-gateways get pods
 ATTEMPTS=1
-until [[ $(kubectl --context ${CLUSTER1} -n istio-gateways get pods -l "istio.io/rev=1-23" -o json | jq '.items | length') -eq 0 ]] || [ $ATTEMPTS -gt 120 ]; do
+until [[ $(kubectl --context ${CLUSTER1} -n istio-gateways get pods -l "istio.io/rev=1-24" -o json | jq '.items | length') -eq 0 ]] || [ $ATTEMPTS -gt 120 ]; do
   printf "."
   ATTEMPTS=$((ATTEMPTS + 1))
   sleep 1
 done
-[ $ATTEMPTS -le 120 ] || kubectl --context ${CLUSTER1} -n istio-gateways get pods -l "istio.io/rev=1-23"
+[ $ATTEMPTS -le 120 ] || kubectl --context ${CLUSTER1} -n istio-gateways get pods -l "istio.io/rev=1-24"
 
 ATTEMPTS=1
-until [[ $(kubectl --context ${CLUSTER2} -n istio-gateways get pods -l "istio.io/rev=1-23" -o json | jq '.items | length') -eq 0 ]] || [ $ATTEMPTS -gt 60 ]; do
+until [[ $(kubectl --context ${CLUSTER2} -n istio-gateways get pods -l "istio.io/rev=1-24" -o json | jq '.items | length') -eq 0 ]] || [ $ATTEMPTS -gt 60 ]; do
   printf "."
   ATTEMPTS=$((ATTEMPTS + 1))
   sleep 1
 done
-[ $ATTEMPTS -le 60 ] || kubectl --context ${CLUSTER2} -n istio-gateways get pods -l "istio.io/rev=1-23"
-helm uninstall istiod-1-23 \
+[ $ATTEMPTS -le 60 ] || kubectl --context ${CLUSTER2} -n istio-gateways get pods -l "istio.io/rev=1-24"
+helm uninstall istiod-1-24 \
 --namespace istio-system \
 --kube-context=${CLUSTER1}
 
-helm uninstall istiod-1-23 \
+helm uninstall istiod-1-24 \
 --namespace istio-system \
 --kube-context=${CLUSTER2}
 ATTEMPTS=1
-until [[ $(kubectl --context ${CLUSTER1} -n istio-system get pods -l "istio.io/rev=1-23" -o json | jq '.items | length') -eq 0 ]] || [ $ATTEMPTS -gt 120 ]; do
+until [[ $(kubectl --context ${CLUSTER1} -n istio-system get pods -l "istio.io/rev=1-24" -o json | jq '.items | length') -eq 0 ]] || [ $ATTEMPTS -gt 120 ]; do
   printf "."
   ATTEMPTS=$((ATTEMPTS + 1))
   sleep 1
 done
-[ $ATTEMPTS -le 120 ] || kubectl --context ${CLUSTER1} -n istio-system get pods -l "istio.io/rev=1-23"
+[ $ATTEMPTS -le 120 ] || kubectl --context ${CLUSTER1} -n istio-system get pods -l "istio.io/rev=1-24"
 ATTEMPTS=1
-until [[ $(kubectl --context ${CLUSTER2} -n istio-system get pods -l "istio.io/rev=1-23" -o json | jq '.items | length') -eq 0 ]] || [ $ATTEMPTS -gt 60 ]; do
+until [[ $(kubectl --context ${CLUSTER2} -n istio-system get pods -l "istio.io/rev=1-24" -o json | jq '.items | length') -eq 0 ]] || [ $ATTEMPTS -gt 60 ]; do
   printf "."
   ATTEMPTS=$((ATTEMPTS + 1))
   sleep 1
 done
-[ $ATTEMPTS -le 60 ] || kubectl --context ${CLUSTER2} -n istio-system get pods -l "istio.io/rev=1-23"
+[ $ATTEMPTS -le 60 ] || kubectl --context ${CLUSTER2} -n istio-system get pods -l "istio.io/rev=1-24"
 kubectl --context ${CLUSTER1} -n istio-system get pods && kubectl --context ${CLUSTER1} -n istio-gateways get pods
 cat <<'EOF' > ./test.js
 const chaiExec = require("@jsdevtools/chai-exec");
@@ -2798,9 +2872,6 @@ kubectl --context ${CLUSTER1} apply -f - <<EOF
 apiVersion: networking.istio.io/v1
 kind: ServiceEntry
 metadata:
-  annotations:
-  labels:
-    istio.io/use-waypoint: waypoint
   name: httpbin.org
   namespace: egress
 spec:
@@ -2813,30 +2884,33 @@ spec:
   resolution: DNS
 EOF
 kubectl --context ${CLUSTER1} apply -f - <<EOF
-apiVersion: networking.istio.io/v1
-kind: VirtualService
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
 metadata:
   name: httpbin
   namespace: egress
 spec:
-  hosts:
-  - httpbin.org
-  http:
-  - route:
-    - destination:
-        host: httpbin.org
-    headers:
-      request:
-        add:
-          my-added-header: added-value
+  parentRefs:
+  - group: "networking.istio.io"
+    kind: ServiceEntry
+    name: httpbin.org
+  rules:
+  - backendRefs:
+    - kind: Hostname
+      group: networking.istio.io
+      name: httpbin.org
+      port: 80
+    filters:
+      - type: RequestHeaderModifier
+        requestHeaderModifier:
+          add:
+            - name: x-istio-workload
+              value: "%ENVIRONMENT(HOSTNAME)%"
 EOF
 kubectl --context ${CLUSTER1} apply -f - <<EOF
 apiVersion: networking.istio.io/v1
 kind: ServiceEntry
 metadata:
-  annotations:
-  labels:
-    istio.io/use-waypoint: waypoint
   name: httpbin.org
   namespace: egress
 spec:
@@ -2897,10 +2971,10 @@ afterEach(function (done) {
 describe("egress traffic", function() {
   const cluster = process.env.CLUSTER1
 
-  it(`virtual service should add customer header`, function() {
+  it(`httproute should add customer header`, function() {
     let command = `kubectl --context ${cluster} -n clients exec deploy/in-ambient -- curl -s httpbin.org/get`;
     let cli = chaiExec(command);
-    expect(cli.output.toLowerCase()).to.contain('my-added-header');
+    expect(cli.output.toLowerCase()).to.contain('x-istio-workload');
   });
 
   it(`destination rule should route to https`, function() {
@@ -2910,9 +2984,9 @@ describe("egress traffic", function() {
   });
 
   it(`other types of traffic (HTTP methods) should be rejected`, function() {
-    let command = `kubectl --context ${cluster} -n clients exec deploy/in-ambient -- curl -s -I httpbin.org/get`;
+    let command = `kubectl --context ${cluster} -n clients exec deploy/in-ambient -- curl -s -X POST httpbin.org/post`;
     let cli = chaiExec(command);
-    expect(cli.output).to.contain('403 Forbidden');
+    expect(cli.output).to.contain('RBAC: access denied');
   });
 });
 
@@ -2920,6 +2994,10 @@ EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/waypoint-egress/tests/validate-egress-traffic.test.js.liquid from lab number 16"
 timeout --signal=INT 3m mocha ./test.js --timeout 20000 --retries=60 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 16"; exit 1; }
 kubectl --context ${CLUSTER1} delete authorizationpolicy httpbin -n egress
+kubectl --context ${CLUSTER1} delete serviceentry httpbin.org -n egress
+kubectl --context ${CLUSTER1} delete destinationrule httpbin.org-tls -n egress
+kubectl --context ${CLUSTER1} delete httproute httpbin -n egress
+kubectl --context ${CLUSTER1} delete networkpolicy restricted-namespace-policy -n clients
 kubectl --context ${CLUSTER1} apply -f - <<EOF
 apiVersion: gateway.networking.k8s.io/v1
 kind: Gateway
