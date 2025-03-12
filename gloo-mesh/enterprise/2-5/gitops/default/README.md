@@ -9,7 +9,7 @@ source ./scripts/assert.sh
 <img src="images/document-gloo-mesh.svg" style="height: 100px;"/>
 </center>
 
-# <center>Gloo Mesh Enterprise (2.5.12)</center>
+# <center>Gloo Mesh Enterprise (2.5.13)</center>
 
 
 
@@ -74,6 +74,8 @@ You can find more information about Gloo Mesh Enterprise in the official documen
 
 
 Clone this repository and go to the directory where this `README.md` file is.
+
+
 
 Set the context environment variables:
 
@@ -159,10 +161,7 @@ service:
     type: LoadBalancer
     port: 3180
     annotations:
-      service.beta.kubernetes.io/aws-load-balancer-name: gitea-http
-      service.beta.kubernetes.io/aws-load-balancer-type: external
       service.beta.kubernetes.io/aws-load-balancer-scheme: internet-facing
-      service.beta.kubernetes.io/aws-load-balancer-nlb-target-type: instance
       service.beta.kubernetes.io/aws-load-balancer-cross-zone-load-balancing-enabled: "true"
 redis-cluster:
   enabled: false
@@ -191,7 +190,7 @@ gitea:
 EOF
 
 echo Waiting for Gitea LB to be ready...
-kubectl --context ${MGMT} -n gitea wait svc gitea-http --for=jsonpath='{.status.loadBalancer.ingress[0].ip}{.status.loadBalancer.ingress[0].hostname}' --timeout=300s
+kubectl --context ${MGMT} -n gitea wait svc gitea-http --for=jsonpath='{.status.loadBalancer.ingress[0]}' --timeout=300s
 ```
 <!--bash
 cat <<'EOF' > ./test.js
@@ -268,7 +267,7 @@ Let's create a user that can create a new repo, push changes, and work with pull
 ```bash
 GITEA_ADMIN_TOKEN=$(curl -Ss ${GITEA_HTTP}/api/v1/users/gitea_admin/tokens \
   -H "Content-Type: application/json" \
-  -d '{"name": "workshop", "scopes": ["write:admin", "write:repository"]}' \
+  -d '{"name": "bootstrap", "scopes": ["write:admin", "write:repository"]}' \
   -u 'gitea_admin:r8sA8CPHD9!bt6d' \
   | jq -r .sha1)
 echo export GITEA_ADMIN_TOKEN=${GITEA_ADMIN_TOKEN} >> ~/.env
@@ -606,7 +605,7 @@ kubectl --context ${MGMT} -n default wait --for=delete pod/nginx --timeout=30s
 Before we get started, let's install the `meshctl` CLI:
 
 ```bash
-export GLOO_MESH_VERSION=v2.5.12
+export GLOO_MESH_VERSION=v2.5.13
 curl -sL https://run.solo.io/meshctl/install | sh -
 export PATH=$HOME/.gloo-mesh/bin:$PATH
 ```
@@ -759,7 +758,7 @@ spec:
   sources:
   - chart: gloo-platform-crds
     repoURL: https://storage.googleapis.com/gloo-platform/helm-charts
-    targetRevision: 2.5.12
+    targetRevision: 2.5.13
     helm:
       releaseName: gloo-platform-crds
       parameters:
@@ -767,7 +766,7 @@ spec:
         value: "true"
   - chart: gloo-platform
     repoURL: https://storage.googleapis.com/gloo-platform/helm-charts
-    targetRevision: 2.5.12
+    targetRevision: 2.5.13
     helm:
       releaseName: gloo-platform
       valueFiles:
@@ -782,6 +781,7 @@ We'll use the following Helm values file to configure the Gloo Platform manageme
 
 ```bash
 cat <<EOF > ${GITOPS_PLATFORM}/argo-cd/gloo-platform-mgmt-installation-values.yaml
+
 licensing:
   glooTrialLicenseKey: ${GLOO_MESH_LICENSE_KEY}
 common:
@@ -792,9 +792,6 @@ glooMgmtServer:
   enabled: true
   ports:
     healthcheck: 8091
-prometheus:
-  enabled: true
-  skipAutoMigration: true
 redis:
   deployment:
     enabled: true
@@ -802,6 +799,9 @@ telemetryGateway:
   enabled: true
   service:
     type: LoadBalancer
+prometheus:
+  enabled: true
+  skipAutoMigration: true
 glooUi:
   enabled: true
   serviceType: LoadBalancer
@@ -1068,7 +1068,7 @@ spec:
       sources:
       - chart: gloo-platform-crds
         repoURL: https://storage.googleapis.com/gloo-platform/helm-charts
-        targetRevision: 2.5.12
+        targetRevision: 2.5.13
         helm:
           releaseName: gloo-platform-crds
           parameters:
@@ -1076,7 +1076,7 @@ spec:
             value: "true"
       - chart: gloo-platform
         repoURL: https://storage.googleapis.com/gloo-platform/helm-charts
-        targetRevision: 2.5.12
+        targetRevision: 2.5.13
         helm:
           releaseName: gloo-platform
           valueFiles:
@@ -1189,6 +1189,7 @@ git -C ${GITOPS_REPO_LOCAL} push
 
 Take a look at the repo in the **Git** tab. Notice that we've created all our resources in the directory under
 `environments` that corresponds to the management server or the Argo CD installation.
+
 <!--bash
 cat <<'EOF' > ./test.js
 var chai = require('chai');
@@ -1338,7 +1339,7 @@ kind: Namespace
 metadata:
   name: istio-gateways
   labels:
-    istio.io/rev: 1-20
+    istio.io/rev: 1-19
 EOF
 
 cat <<EOF >${GITOPS_GATEWAYS}/base/gateway-services/kustomization.yaml
@@ -1370,7 +1371,7 @@ spec:
   selector:
     app: istio-ingressgateway
     istio: ingressgateway
-    revision: 1-20
+    revision: 1-19
   type: LoadBalancer
 EOF
 
@@ -1425,7 +1426,7 @@ spec:
   selector:
     app: istio-ingressgateway
     istio: eastwestgateway
-    revision: 1-20
+    revision: 1-19
     topology.istio.io/network: cluster1
   type: LoadBalancer
 EOF
@@ -1530,11 +1531,11 @@ spec:
     - clusters:
       - name: cluster1
         defaultRevision: true
-      revision: 1-20
+      revision: 1-19
       istioOperatorSpec:
         profile: minimal
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.20.2-solo
+        tag: 1.19.10-patch2-solo
         namespace: istio-system
         values:
           global:
@@ -1580,11 +1581,11 @@ spec:
     - clusters:
       - name: cluster2
         defaultRevision: true
-      revision: 1-20
+      revision: 1-19
       istioOperatorSpec:
         profile: minimal
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.20.2-solo
+        tag: 1.19.10-patch2-solo
         namespace: istio-system
         values:
           global:
@@ -1648,11 +1649,11 @@ spec:
     - clusters:
       - name: cluster1
         activeGateway: false
-      gatewayRevision: 1-20
+      gatewayRevision: 1-19
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.20.2-solo
+        tag: 1.19.10-patch2-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -1675,11 +1676,11 @@ spec:
     - clusters:
       - name: cluster1
         activeGateway: false
-      gatewayRevision: 1-20
+      gatewayRevision: 1-19
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.20.2-solo
+        tag: 1.19.10-patch2-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -1711,11 +1712,11 @@ spec:
     - clusters:
       - name: cluster2
         activeGateway: false
-      gatewayRevision: 1-20
+      gatewayRevision: 1-19
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.20.2-solo
+        tag: 1.19.10-patch2-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -1738,11 +1739,11 @@ spec:
     - clusters:
       - name: cluster2
         activeGateway: false
-      gatewayRevision: 1-20
+      gatewayRevision: 1-19
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.20.2-solo
+        tag: 1.19.10-patch2-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -2008,7 +2009,7 @@ kind: Namespace
 metadata:
   name: bookinfo-frontends
   labels:
-    istio.io/rev: 1-20
+    istio.io/rev: 1-19
 EOF
 
 cat <<EOF >${GITOPS_BOOKINFO}/base/backends/ns.yaml
@@ -2017,7 +2018,7 @@ kind: Namespace
 metadata:
   name: bookinfo-backends
   labels:
-    istio.io/rev: 1-20
+    istio.io/rev: 1-19
 EOF
 ```
 
@@ -2520,7 +2521,7 @@ spec:
       labels:
         app: in-mesh
         version: v1
-        istio.io/rev: 1-20
+        istio.io/rev: 1-19
     spec:
       serviceAccountName: in-mesh
       containers:
@@ -2579,10 +2580,9 @@ do
 done"
 echo
 -->
-```
 You can follow the progress using the following command:
 
-```bash
+```shell
 kubectl --context ${CLUSTER1} -n httpbin get pods
 ```
 
@@ -2625,7 +2625,7 @@ kind: Namespace
 metadata:
   name: gloo-mesh-addons
   labels:
-    istio.io/rev: 1-20
+    istio.io/rev: 1-19
 EOF
 
 cat <<EOF >>${GITOPS_PLATFORM}/${CLUSTER1}/kustomization.yaml
@@ -2678,7 +2678,7 @@ spec:
       sources:
       - chart: gloo-platform
         repoURL: https://storage.googleapis.com/gloo-platform/helm-charts
-        targetRevision: 2.5.12
+        targetRevision: 2.5.13
         helm:
           releaseName: gloo-platform
           valueFiles:
@@ -4287,10 +4287,10 @@ spec:
     authz:
       allowedClients:
       - serviceAccountSelector:
-          name: istio-ingressgateway-1-20-service-account
+          name: istio-ingressgateway-1-19-service-account
           namespace: istio-gateways
       - serviceAccountSelector:
-          name: istio-eastwestgateway-1-20-service-account
+          name: istio-eastwestgateway-1-19-service-account
           namespace: istio-gateways
 EOF
 ```
@@ -5073,24 +5073,24 @@ echo
 -->
 
 ```shell
-export GLOO_AGENT_URL=https://storage.googleapis.com/gloo-platform/vm/v2.5.12/gloo-workload-agent.deb
-export ISTIO_URL=https://storage.googleapis.com/solo-workshops/istio-binaries/1.20.2/istio-sidecar.deb
+export GLOO_AGENT_URL=https://storage.googleapis.com/gloo-platform/vm/v2.5.13/gloo-workload-agent.deb
+export ISTIO_URL=https://storage.googleapis.com/solo-workshops/istio-binaries/1.19.10-patch2/istio-sidecar.deb
 docker exec vm1 meshctl ew onboard --install \
   --attestor token \
   --join-token ${JOIN_TOKEN} \
   --cluster ${CLUSTER1} \
   --gateway-addr ${EW_GW_ADDR} \
-  --gateway istio-gateways/istio-eastwestgateway-1-20 \
+  --gateway istio-gateways/istio-eastwestgateway-1-19 \
   --trust-domain ${CLUSTER1} \
-  --istio-rev 1-20 \
+  --istio-rev 1-19 \
   --network vm-network \
   --gloo ${GLOO_AGENT_URL} \
   --istio ${ISTIO_URL} \
   --ext-workload virtualmachines/${VM_APP}
 ```
 <!--bash
-export GLOO_AGENT_URL=https://storage.googleapis.com/gloo-platform/vm/v2.5.12/gloo-workload-agent.deb
-export ISTIO_URL=https://storage.googleapis.com/solo-workshops/istio-binaries/1.20.2/istio-sidecar.deb
+export GLOO_AGENT_URL=https://storage.googleapis.com/gloo-platform/vm/v2.5.13/gloo-workload-agent.deb
+export ISTIO_URL=https://storage.googleapis.com/solo-workshops/istio-binaries/1.19.10-patch2/istio-sidecar.deb
 echo -n Trying to onboard the VM...
 MAX_ATTEMPTS=10
 ATTEMPTS=0
@@ -5105,9 +5105,9 @@ while [ $ATTEMPTS -lt $MAX_ATTEMPTS ]; do
   --join-token ${JOIN_TOKEN} \
   --cluster ${CLUSTER1} \
   --gateway-addr ${EW_GW_ADDR} \
-  --gateway istio-gateways/istio-eastwestgateway-1-20 \
+  --gateway istio-gateways/istio-eastwestgateway-1-19 \
   --trust-domain ${CLUSTER1} \
-  --istio-rev 1-20 \
+  --istio-rev 1-19 \
   --network vm-network \
   --gloo ${GLOO_AGENT_URL} \
   --istio ${ISTIO_URL} \
@@ -5322,11 +5322,11 @@ spec:
     - clusters:
         - name: cluster1
           activeGateway: false
-      gatewayRevision: 1-20
+      gatewayRevision: 1-19
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.20.2-solo
+        tag: 1.19.10-patch2-solo
         components:
           egressGateways:
             - enabled: true
