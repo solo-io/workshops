@@ -82,9 +82,9 @@ You can find more information about Gloo Gateway in the official documentation: 
 Download Gloo Gateway packages:
 
 ```bash
-gsutil cp gs://gloo-ee-vm/1.18.3/gloo-control.deb .
-gsutil cp gs://gloo-ee-vm/1.18.3/gloo-gateway.deb .
-gsutil cp gs://gloo-ee-vm/1.18.3/gloo-extensions.deb .
+gsutil cp gs://gloo-ee-vm/1.18.7/gloo-control.deb .
+gsutil cp gs://gloo-ee-vm/1.18.7/gloo-gateway.deb .
+gsutil cp gs://gloo-ee-vm/1.18.7/gloo-extensions.deb .
 ```
 
 Deploy Redis on Docker:
@@ -311,6 +311,7 @@ spec:
 EOF
 ```
 
+
 Set the environment variable for the service corresponding to the gateway:
 
 ```bash
@@ -320,7 +321,8 @@ export PROXY_IP=127.0.0.1
 <!--bash
 RETRY_COUNT=0
 MAX_RETRIES=60
-while [[ -z "$PROXY_IP" && $RETRY_COUNT -lt $MAX_RETRIES ]]; do
+GLOO_PROXY_SVC=$(kubectl --context ${CLUSTER1} -n gloo-system get svc gloo-proxy-http -oname)
+while [[ -z "$PROXY_IP" && $RETRY_COUNT -lt $MAX_RETRIES && $GLOO_PROXY_SVC ]]; do
   echo "Waiting for PROXY_IP to be assigned... Attempt $((RETRY_COUNT + 1))/$MAX_RETRIES"
   PROXY_IP=$(kubectl --context ${CLUSTER1} -n gloo-system get svc gloo-proxy-http -o jsonpath='{.status.loadBalancer.ingress[0].ip}{.status.loadBalancer.ingress[0].hostname}')
   RETRY_COUNT=$((RETRY_COUNT + 1))
@@ -352,7 +354,9 @@ fi
 Configure your hosts file to resolve httpbin.example.com with the IP address of the proxy by executing the following command:
 
 ```bash
+
 ./scripts/register-domain.sh httpbin.example.com ${PROXY_IP}
+
 ```
 
 Try to access the application through HTTP:
@@ -415,7 +419,6 @@ Then, you have to store it in a Kubernetes secret running the following command:
 kubectl create --context ${CLUSTER1} -n gloo-system secret tls tls-secret --key tls.key \
    --cert tls.crt
 ```
-
 Update the `Gateway` resource to add HTTPS listeners.
 
 ```bash
@@ -488,6 +491,7 @@ spec:
           port: 8881
 EOF
 ```
+
 
 Try to access the application through HTTPS:
 
