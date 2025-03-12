@@ -5,10 +5,11 @@ class OverviewPage extends BasePage {
     super(page)
 
     // Selectors
-    this.listedWorkspacesLinks = 'div[data-testid="overview-area"] div[data-testid="solo-link"] a';
+    this.listedWorkspacesLinks = 'div[data-testid="overview-area"] div[data-testid="solo-link"]';
     this.licensesButtons = [
       'button[data-testid="topbar-licenses-toggle"]',
-      'div[data-testid="topbar-licenses-toggle"] button'
+      'div[data-testid="topbar-licenses-toggle"] button',
+      'button[data-testid="sidebar-licenses-toggle"]' // New sidebar license toggle
     ];
   }
 
