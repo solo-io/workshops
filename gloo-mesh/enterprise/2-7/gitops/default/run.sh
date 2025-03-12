@@ -39,10 +39,7 @@ service:
     type: LoadBalancer
     port: 3180
     annotations:
-      service.beta.kubernetes.io/aws-load-balancer-name: gitea-http
-      service.beta.kubernetes.io/aws-load-balancer-type: external
       service.beta.kubernetes.io/aws-load-balancer-scheme: internet-facing
-      service.beta.kubernetes.io/aws-load-balancer-nlb-target-type: instance
       service.beta.kubernetes.io/aws-load-balancer-cross-zone-load-balancing-enabled: "true"
 redis-cluster:
   enabled: false
@@ -71,7 +68,7 @@ gitea:
 EOF
 
 echo Waiting for Gitea LB to be ready...
-kubectl --context ${MGMT} -n gitea wait svc gitea-http --for=jsonpath='{.status.loadBalancer.ingress[0].ip}{.status.loadBalancer.ingress[0].hostname}' --timeout=300s
+kubectl --context ${MGMT} -n gitea wait svc gitea-http --for=jsonpath='{.status.loadBalancer.ingress[0]}' --timeout=300s
 cat <<'EOF' > ./test.js
 const chaiExec = require("@jsdevtools/chai-exec");
 var chai = require('chai');
@@ -133,7 +130,7 @@ GITEA_IP=$(kubectl --context ${MGMT} -n gitea get svc gitea-http -o jsonpath='{.
 ./scripts/register-domain.sh git.example.com ${GITEA_IP}
 GITEA_ADMIN_TOKEN=$(curl -Ss ${GITEA_HTTP}/api/v1/users/gitea_admin/tokens \
   -H "Content-Type: application/json" \
-  -d '{"name": "workshop", "scopes": ["write:admin", "write:repository"]}' \
+  -d '{"name": "bootstrap", "scopes": ["write:admin", "write:repository"]}' \
   -u 'gitea_admin:r8sA8CPHD9!bt6d' \
   | jq -r .sha1)
 echo export GITEA_ADMIN_TOKEN=${GITEA_ADMIN_TOKEN} >> ~/.env

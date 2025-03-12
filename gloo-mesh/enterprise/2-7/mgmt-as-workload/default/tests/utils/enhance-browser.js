@@ -31,8 +31,8 @@ function enhanceBrowser(browser, testId = 'test', shouldRecord = true) {
             } catch (error) {
               const pageContent = await target.content();
               console.error(`Error in page method '${prop}':`, error);
-              console.error('Page content at the time of error:');
-              console.error(pageContent);
+              debugLog('Page content at the time of error:');
+              debugLog(pageContent);
               throw error;
             }
           };
