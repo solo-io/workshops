@@ -61,19 +61,23 @@ helm upgrade --install gloo-platform-mgmt gloo-platform \
   --kube-context ${MGMT} \
   --version 2.6.0 \
   -f -<<EOF
+
 licensing:
   glooTrialLicenseKey: ${GLOO_MESH_LICENSE_KEY}
 common:
   cluster: cluster1
 glooInsightsEngine:
   enabled: false
+glooAgent:
+  enabled: true
+  relay:
+    serverAddress: gloo-mesh-mgmt-server:9900
+    authority: gloo-mesh-mgmt-server.gloo-mesh
 glooMgmtServer:
   enabled: true
   ports:
     healthcheck: 8091
   registerCluster: true
-prometheus:
-  enabled: true
 redis:
   deployment:
     enabled: true
@@ -81,6 +85,8 @@ telemetryGateway:
   enabled: true
   service:
     type: LoadBalancer
+prometheus:
+  enabled: true
 glooUi:
   enabled: true
   serviceType: LoadBalancer
@@ -90,17 +96,12 @@ telemetryCollector:
     exporters:
       otlp:
         endpoint: gloo-telemetry-gateway:4317
-glooAgent:
-  enabled: true
-  relay:
-    serverAddress: gloo-mesh-mgmt-server:9900
-    authority: gloo-mesh-mgmt-server.gloo-mesh
 EOF
-
 kubectl --context ${MGMT} -n gloo-mesh rollout status deploy/gloo-mesh-mgmt-server
 
 kubectl --context ${MGMT} delete workspaces -A --all
 kubectl --context ${MGMT} delete workspacesettings -A --all
+export ENDPOINT_GLOO_MESH_UI=$(kubectl --context ${MGMT} -n gloo-mesh get svc gloo-mesh-ui -o jsonpath='{.status.loadBalancer.ingress[0].ip}{.status.loadBalancer.ingress[0].hostname}'):8090
 cat <<'EOF' > ./test.js
 var chai = require('chai');
 var expect = chai.expect;
@@ -166,6 +167,7 @@ spec:
     revision: 1-23
   type: LoadBalancer
 EOF
+kubectl --context ${CLUSTER1} create ns istio-system
 helm upgrade --install istio-base oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/base \
 --namespace istio-system \
 --kube-context=${CLUSTER1} \
@@ -190,7 +192,6 @@ global:
   multiCluster:
     clusterName: cluster1
   meshID: mesh1
-  network: cluster1
 revision: 1-23
 meshConfig:
   accessLogFile: /dev/stdout
@@ -227,8 +228,7 @@ service:
   type: None
 EOF
 
-kubectl --context ${CLUSTER1} get crd gateways.gateway.networking.k8s.io &> /dev/null || \
-  { kubectl kustomize "github.com/kubernetes-sigs/gateway-api/config/crd?ref=v1.1.0" | kubectl --context ${CLUSTER1} apply -f -; }
+kubectl --context ${CLUSTER1} apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.2.0/experimental-install.yaml
 cat <<'EOF' > ./test.js
 
 const helpers = require('./tests/chai-exec');
@@ -460,7 +460,6 @@ do
   echo -n .
 done"
 echo
-kubectl --context ${CLUSTER1} -n httpbin get pods
 cat <<'EOF' > ./test.js
 const helpers = require('./tests/chai-exec');
 
@@ -2458,7 +2457,7 @@ describe("Address '" + process.env.HOST_KEYCLOAK + "' can be resolved in DNS", (
     });
 });
 EOF
-echo "executing test ./gloo-mesh-2-0/tests/can-resolve.test.js.liquid from lab number 19"
+echo "executing test ./default/tests/can-resolve.test.js.liquid from lab number 19"
 timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 19"; exit 1; }
 echo "Waiting for Keycloak to be ready at $KEYCLOAK_URL/realms/workshop/protocol/openid-connect/token"
 timeout 300 bash -c 'while [[ "$(curl -m 2 -s -o /dev/null -w ''%{http_code}'' $KEYCLOAK_URL/realms/workshop/protocol/openid-connect/token)" != "405" ]]; do printf '.';sleep 1; done' || false
@@ -2512,9 +2511,6 @@ gloo:
       livenessProbeEnabled: true
   discovery:
     enabled: false
-  rbac:
-    namespaced: true
-    nameSuffix: gg-demo
 observability:
   enabled: false
 prometheus:
@@ -2527,8 +2523,6 @@ gloo-fed:
     enable: false
 gateway-portal-web-server:
   enabled: true
-settings:
-  disableKubernetesDestinations: true
 global:
   istioSDS:
     enabled: true
@@ -2758,7 +2752,8 @@ EOF
 export PROXY_IP=$(kubectl --context ${CLUSTER1} -n gloo-system get svc gloo-proxy-http -o jsonpath='{.status.loadBalancer.ingress[0].ip}{.status.loadBalancer.ingress[0].hostname}')
 RETRY_COUNT=0
 MAX_RETRIES=60
-while [[ -z "$PROXY_IP" && $RETRY_COUNT -lt $MAX_RETRIES ]]; do
+GLOO_PROXY_SVC=$(kubectl --context ${CLUSTER1} -n gloo-system get svc gloo-proxy-http -oname)
+while [[ -z "$PROXY_IP" && $RETRY_COUNT -lt $MAX_RETRIES && $GLOO_PROXY_SVC ]]; do
   echo "Waiting for PROXY_IP to be assigned... Attempt $((RETRY_COUNT + 1))/$MAX_RETRIES"
   PROXY_IP=$(kubectl --context ${CLUSTER1} -n gloo-system get svc gloo-proxy-http -o jsonpath='{.status.loadBalancer.ingress[0].ip}{.status.loadBalancer.ingress[0].hostname}')
   RETRY_COUNT=$((RETRY_COUNT + 1))
@@ -2785,7 +2780,9 @@ else
   echo "PROXY_IP has been assigned: $PROXY_IP"
   echo "IP has been resolved to: $IP"
 fi
+
 ./scripts/register-domain.sh httpbin.example.com ${PROXY_IP}
+
 cat <<'EOF' > ./test.js
 const helpersHttp = require('./tests/chai-http');
 
