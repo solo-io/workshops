@@ -64,6 +64,8 @@ You can find more information about Gloo Mesh Enterprise in the official documen
 
 Clone this repository and go to the directory where this `README.md` file is.
 
+
+
 Set the context environment variables:
 
 ```bash
@@ -191,6 +193,7 @@ helm upgrade --install gloo-platform gloo-platform \
   --kube-context ${MGMT} \
   --version 2.7.0-beta1-2024-11-18-gg-config-distribution-07bf4f3f85 \
   -f -<<EOF
+
 licensing:
   glooTrialLicenseKey: ${GLOO_MESH_LICENSE_KEY}
 common:
@@ -201,8 +204,6 @@ glooMgmtServer:
   enabled: true
   ports:
     healthcheck: 8091
-prometheus:
-  enabled: true
 redis:
   deployment:
     enabled: true
@@ -210,6 +211,8 @@ telemetryGateway:
   enabled: true
   service:
     type: LoadBalancer
+prometheus:
+  enabled: true
 glooUi:
   enabled: true
   serviceType: LoadBalancer
@@ -220,7 +223,6 @@ telemetryCollector:
       otlp:
         endpoint: gloo-telemetry-gateway:4317
 EOF
-
 kubectl --context ${MGMT} -n gloo-mesh rollout status deploy/gloo-mesh-mgmt-server
 ```
 
@@ -428,6 +430,7 @@ You should get an output similar to this:
 relay_push_clients_connected{cluster="cluster1"} 1
 relay_push_clients_connected{cluster="cluster2"} 1
 ```
+
 <!--bash
 cat <<'EOF' > ./test.js
 var chai = require('chai');
