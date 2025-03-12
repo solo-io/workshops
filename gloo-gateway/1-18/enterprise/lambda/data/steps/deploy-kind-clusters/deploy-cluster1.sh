@@ -75,7 +75,6 @@ docker network connect "kind" $container || true
 number=$(get_next_cluster_number)
 twodigits=$(printf "%02d\n" $number)
 fi
-
 reg_name='kind-registry'
 reg_port='5000'
 docker start "${reg_name}" 2>/dev/null || \
@@ -219,7 +218,6 @@ kind create cluster --name kind${number} --config kind${number}.yaml
 ipkind=$(docker inspect kind${number}-control-plane | jq -r '.[0].NetworkSettings.Networks[].IPAddress')
 networkkind=$(echo ${ipkind} | awk -F. '{ print $1"."$2 }')
 kubectl config set-cluster kind-kind${number} --server=https://${myip}:70${twodigits} --insecure-skip-tls-verify=true
-
 # Preload images
 cat << EOF >> images.txt
 quay.io/metallb/controller:v0.13.12
@@ -229,14 +227,12 @@ cat images.txt | while read image; do
   docker pull $image || true
   kind load docker-image $image --name kind${number} || true
 done
-
 docker network connect "kind" "${reg_name}" || true
 docker network connect "kind" docker || true
 docker network connect "kind" us-docker || true
 docker network connect "kind" us-central1-docker || true
 docker network connect "kind" quay || true
 docker network connect "kind" gcr || true
-
 for i in 1 2 3 4 5; do kubectl --context=kind-kind${number} apply -f https://raw.githubusercontent.com/metallb/metallb/v0.13.12/config/manifests/metallb-native.yaml && break || sleep 15; done
 kubectl --context=kind-kind${number} create secret generic -n metallb-system memberlist --from-literal=secretkey="$(openssl rand -base64 128)"
 kubectl --context=kind-kind${number} -n metallb-system rollout status deploy controller || true
@@ -273,7 +269,6 @@ for i in {1..100}; do
   sleep 2
   [ $i -lt 100 ] || exit 1
 done
-
 # Document the local registry
 # https://github.com/kubernetes/enhancements/tree/master/keps/sig-cluster-lifecycle/generic/1755-communicating-a-local-registry
 cat <<EOF | kubectl --context=${name} apply -f -
