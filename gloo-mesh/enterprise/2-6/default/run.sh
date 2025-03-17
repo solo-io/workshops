@@ -958,14 +958,6 @@ spec:
             port: http
 
 EOF
-echo -n Waiting for httpbin pods to be ready...
-timeout -v 5m bash -c "
-until [[ \$(kubectl --context ${CLUSTER1} -n httpbin get deploy -o json | jq '[.items[].status.readyReplicas] | add') -eq 2 ]] 2>/dev/null
-do
-  sleep 1
-  echo -n .
-done"
-echo
 cat <<'EOF' > ./test.js
 const helpers = require('./tests/chai-exec');
 

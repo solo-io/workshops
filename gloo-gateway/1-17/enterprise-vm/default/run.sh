@@ -487,7 +487,6 @@ spec:
           kind: Upstream
           port: 8882
 EOF
-docker logs httpbin1 | grep curl | grep 200
 cat <<'EOF' > ./test.js
 const helpersHttp = require('./tests/chai-http');
 
@@ -497,7 +496,6 @@ describe("httpbin through HTTPS", () => {
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/delegation/tests/status-200.test.js.liquid from lab number 4"
 timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 4"; exit 1; }
-docker logs httpbin2 | grep curl | grep 201
 cat <<'EOF' > ./test.js
 const helpersHttp = require('./tests/chai-http');
 
