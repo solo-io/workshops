@@ -2701,7 +2701,7 @@ global:
     caching:
       enabled: true
 EOF
-kubectl --context ${CLUSTER1} patch settings default -n gloo-system --type json \
+kubectl --context $CLUSTER1 patch settings default -n gloo-system --type json \
   -p '[{ "op": "remove", "path": "/spec/cachingServer" }]'
 ```
 
@@ -3642,7 +3642,7 @@ Here is the expected output:
 
 You can use the following command to validate the request has still been handled by the first httpbin application.
 
-```bash
+```shell
 kubectl logs --context ${CLUSTER1} -n httpbin -l app=httpbin1 | grep curl | grep 200
 ```
 
@@ -3678,7 +3678,7 @@ Here is the expected output:
 
 You can use the following command to validate this request has been handled by the second httpbin application.
 
-```bash
+```shell
 kubectl logs --context ${CLUSTER1} -n httpbin -l app=httpbin2 | grep curl | grep 201
 ```
 

@@ -592,7 +592,6 @@ spec:
         - name: httpbin2
           port: 8000
 EOF
-kubectl logs --context ${CLUSTER1} -n httpbin -l app=httpbin1 | grep curl | grep 200
 cat <<'EOF' > ./test.js
 const helpersHttp = require('./tests/chai-http');
 
@@ -602,7 +601,6 @@ describe("httpbin through HTTPS", () => {
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/delegation/tests/status-200.test.js.liquid from lab number 5"
 timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 5"; exit 1; }
-kubectl logs --context ${CLUSTER1} -n httpbin -l app=httpbin2 | grep curl | grep 201
 cat <<'EOF' > ./test.js
 const helpersHttp = require('./tests/chai-http');
 
