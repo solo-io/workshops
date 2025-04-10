@@ -3,6 +3,7 @@ const sharp = require('sharp');
 const fs = require('fs');
 const path = require('path');
 const { debugLog } = require('../utils/logging');
+const util = require('util');
 
 const OUTPUT_DIR = 'extracted_text_boxes';
 
@@ -152,7 +153,15 @@ async function extractTextBoxes(inputImagePath, targetColor) {
  * @param {string[]} expectedWords - An array of expected words to recognize.
  * @returns {Promise<string[]>} - A promise that resolves to an array of recognized texts.
  */
-async function recognizeTextFromScreenshot(imagePath, expectedWords = [], targetColor = { r: 53, g: 57, b: 59 }) {
+async function recognizeTextFromScreenshot(imagePath, expectedWords = [], glooUILayoutSelector = 'originalUISelectors') {
+  var targetColor;
+  if (glooUILayoutSelector === 'reactFlowUISelectors') {
+    targetColor = { r: 255, g: 255, b: 255 };
+  } else {
+    // Original UI RGB values
+    targetColor = { r: 53, g: 57, b: 59 };
+  }
+  console.log(`Using targetColor profile: ${util.inspect(targetColor, { depth: null })} for ${glooUILayoutSelector}.`);
   const whitelist = expectedWords.join('').replace(/\s+/g, '');
   const extractedImages = await extractTextBoxes(imagePath, targetColor);
 
