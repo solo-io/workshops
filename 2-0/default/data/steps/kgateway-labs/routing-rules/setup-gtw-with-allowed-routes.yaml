@@ -1,0 +1,43 @@
+---
+kind: Gateway
+apiVersion: gateway.networking.k8s.io/v1
+metadata:
+  name: infra-gateway
+  namespace: infra
+spec:
+  gatewayClassName: kgateway
+  listeners:
+  - name: http
+    protocol: HTTP
+    port: 80
+    allowedRoutes:
+      namespaces:
+        from: Same
+  - name: httpbin-https
+    protocol: HTTPS
+    port: 443
+    hostname: httpbin.example.com
+    tls:
+      mode: Terminate
+      certificateRefs:
+      - name: httpbin-cert
+    allowedRoutes:
+      namespaces:
+        from: Selector
+        selector:
+          matchLabels:
+            self-serve-ingress: "true"
+  - name: bookinfo-https
+    protocol: HTTPS
+    port: 443
+    hostname: bookinfo.example.com
+    tls:
+      mode: Terminate
+      certificateRefs:
+      - name: bookinfo-cert
+    allowedRoutes:
+      namespaces:
+        from: Selector
+        selector:
+          matchLabels:
+            self-serve-ingress: "true"
