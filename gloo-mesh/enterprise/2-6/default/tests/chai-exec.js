@@ -11,7 +11,11 @@ chai.config.truncateThreshold = 4000; // length threshold for actual and expecte
 
 global = {
   checkKubernetesObject: async ({ context, namespace, kind, k8sObj, yaml }) => {
-    let command = "kubectl --context " + context + " -n " + namespace + " get " + kind + " " + k8sObj + " -o json";
+    let _context = "";
+    if (context) {
+      _context = `--context ${context}`;
+    }
+    let command = "kubectl " + _context + " -n " + namespace + " get " + kind + " " + k8sObj + " -o json";
     debugLog(`Executing command: ${command}`);
     let cli = chaiExec(command);
     let json = jsYaml.load(yaml)
@@ -36,7 +40,11 @@ global = {
   },
 
   checkDeployment: async ({ context, namespace, k8sObj }) => {
-    let command = "kubectl --context " + context + " -n " + namespace + " get deploy " + k8sObj + " -o jsonpath='{.status}'";
+    let _context = "";
+    if (context) {
+      _context = `--context ${context}`;
+    }
+    let command = "kubectl " + _context + " -n " + namespace + " get deploy " + k8sObj + " -o jsonpath='{.status}'";
     debugLog(`Executing command: ${command}`);
     let cli = chaiExec(command);
 
@@ -57,7 +65,11 @@ global = {
   },
 
   checkDeploymentHasPod: async ({ context, namespace, deployment }) => {
-    let command = "kubectl --context " + context + " -n " + namespace + " get deploy " + deployment + " -o name'";
+    let _context = "";
+    if (context) {
+      _context = `--context ${context}`;
+    }
+    let command = "kubectl " + _context + " -n " + namespace + " get deploy " + deployment + " -o name'";
     debugLog(`Executing command: ${command}`);
     let cli = chaiExec(command);
 
@@ -70,7 +82,11 @@ global = {
   },
 
   checkDeploymentsWithLabels: async ({ context, namespace, labels, instances }) => {
-    let command = "kubectl --context " + context + " -n " + namespace + " get deploy -l " + labels + " -o jsonpath='{.items}'";
+    let _context = "";
+    if (context) {
+      _context = `--context ${context}`;
+    }
+    let command = "kubectl " + _context + " -n " + namespace + " get deploy -l " + labels + " -o jsonpath='{.items}'";
     debugLog(`Executing command: ${command}`);
     let cli = chaiExec(command);
 
@@ -98,9 +114,13 @@ global = {
 
   checkPodRestartCountIs0: ({ context, namespace, k8sLabel }) => {
     // covers both namespace scoped and cluster scoped objects
-    let command = "kubectl --context " + context + " get pods -l " + k8sLabel + " -o jsonpath='{.items[0].status.containerStatuses[0].restartCount}'";
+    let _context = "";
+    if (context) {
+      _context = `--context ${context}`;
+    }
+    let command = "kubectl " + _context + " get pods -l " + k8sLabel + " -o jsonpath='{.items[0].status.containerStatuses[0].restartCount}'";
     if (namespace) {
-      command = "kubectl --context " + context + " -n " + namespace + " get pods -l " + k8sLabel + " -o jsonpath='{.items[0].status.containerStatuses[0].restartCount}'";
+      command = "kubectl " + _context + " -n " + namespace + " get pods -l " + k8sLabel + " -o jsonpath='{.items[0].status.containerStatuses[0].restartCount}'";
     }
     debugLog(`Executing command: ${command}`);
     let cli = chaiExec(command);
@@ -114,8 +134,60 @@ global = {
     restartCount.should.equal(0);
   },
 
+  checkPodContainerCount: ({ context, namespace, k8sLabel, expectedContainers }) => {
+    // covers both namespace scoped and cluster scoped objects
+    let _context = "";
+    if (context) {
+      _context = `--context ${context}`;
+    }
+    let command = "sh -c 'kubectl " + _context + " get pods -l " + k8sLabel + " -o json | jq -r \".items[] | \\\"\\(.metadata.name) \\(.spec.containers | length)\\\"\"'";
+    if (namespace) {
+      command = "sh -c 'kubectl " + _context + " -n " + namespace + " get pods -l " + k8sLabel + " -o json | jq -r \".items[] | \\\"\\(.metadata.name) \\(.spec.containers | length)\\\"\"'";
+    }
+    debugLog(`Executing command: ${command}`);
+    let cli = chaiExec(command);
+
+    debugLog(`Command output (stdout): ${cli.stdout}`);
+    debugLog(`Command error (stderr): ${cli.stderr}`);
+
+    cli.stderr.should.be.empty;
+    cli.should.exit.with.code(0);
+    const pods = cli.stdout.trim().split("\n");
+    const podCount = pods.length;
+    const podsWithMatchingContainerCount = pods.filter(line => line.endsWith(` ${expectedContainers}`)).length;
+    podsWithMatchingContainerCount.should.equal(podCount);
+  },
+
+  checkPodForAnnotation: ({ context, namespace, k8sLabel, expectedAnnotationKey, expectedAnnotationValue }) => {
+    // covers both namespace scoped and cluster scoped objects
+    let _context = "";
+    if (context) {
+      _context = `--context ${context}`;
+    }
+    let command = "kubectl " + _context + " get pods -l " + k8sLabel + " -ojsonpath='{range .items[*]}{.metadata.name}{\": \"}{.metadata.annotations." + expectedAnnotationKey.replace(/\./g, "\\.") + "}{\"\\n\"}{end}'";
+    if (namespace) {
+      command = "kubectl " + _context + " -n " + namespace + " get pods -l " + k8sLabel + " -ojsonpath='{range .items[*]}{.metadata.name}{\": \"}{.metadata.annotations." + expectedAnnotationKey.replace(/\./g, "\\.") + "}{\"\\n\"}{end}'";
+    }
+    debugLog(`Executing command: ${command}`);
+    let cli = chaiExec(command);
+
+    debugLog(`Command output (stdout): ${cli.stdout}`);
+    debugLog(`Command error (stderr): ${cli.stderr}`);
+
+    cli.stderr.should.be.empty;
+    cli.should.exit.with.code(0);
+    const pods = cli.stdout.replace(/^'|'$/g, "").trim().split("\n");
+    const podCount = pods.length;
+    const podsWithMatchingAnnotationCount = pods.filter(line => line.endsWith(`: ${expectedAnnotationValue}`)).length;
+    podsWithMatchingAnnotationCount.should.equal(podCount);
+  },
+
   checkStatefulSet: async ({ context, namespace, k8sObj }) => {
-    let command = "kubectl --context " + context + " -n " + namespace + " get sts " + k8sObj + " -o jsonpath='{.status}'";
+    let _context = "";
+    if (context) {
+      _context = `--context ${context}`;
+    }
+    let command = "kubectl " + _context + " -n " + namespace + " get sts " + k8sObj + " -o jsonpath='{.status}'";
     debugLog(`Executing command: ${command}`);
     let cli = chaiExec(command);
 
@@ -136,7 +208,11 @@ global = {
   },
 
   checkDaemonSet: async ({ context, namespace, k8sObj }) => {
-    let command = "kubectl --context " + context + " -n " + namespace + " get ds " + k8sObj + " -o jsonpath='{.status}'";
+    let _context = "";
+    if (context) {
+      _context = `--context ${context}`;
+    }
+    let command = "kubectl " + _context + " -n " + namespace + " get ds " + k8sObj + " -o jsonpath='{.status}'";
     debugLog(`Executing command: ${command}`);
     let cli = chaiExec(command);
 
@@ -158,9 +234,13 @@ global = {
 
   k8sObjectIsPresent: ({ context, namespace, k8sType, k8sObj }) => {
     // covers both namespace scoped and cluster scoped objects
-    let command = "kubectl --context " + context + " get " + k8sType + " " + k8sObj + " -o name";
+    let _context = "";
+    if (context) {
+      _context = `--context ${context}`;
+    }
+    let command = "kubectl " + _context + " get " + k8sType + " " + k8sObj + " -o name";
     if (namespace) {
-      command = "kubectl --context " + context + " -n " + namespace + " get " + k8sType + " " + k8sObj + " -o name";
+      command = "kubectl " + _context + " -n " + namespace + " get " + k8sType + " " + k8sObj + " -o name";
     }
     debugLog(`Executing command: ${command}`);
     let cli = chaiExec(command);
@@ -205,11 +285,15 @@ global = {
     return cli.stdout;
   },
   curlInDeployment: async ({ curlCommand, deploymentName, namespace, context }) => {
-    debugLog(`Executing curl command: ${curlCommand} on deployment: ${deploymentName} in namespace: ${namespace} and context: ${context}`);
-    let getPodCommand = `kubectl --context ${context} -n ${namespace} get pods -l app=${deploymentName} -o jsonpath='{.items[0].metadata.name}'`;
+    let _context = "";
+    if (context) {
+      _context = `--context ${context}`;
+    }
+    debugLog(`Executing curl command: ${curlCommand} on deployment: ${deploymentName} in namespace: ${namespace} and context: ${_context}`);
+    let getPodCommand = `kubectl ${_context} -n ${namespace} get pods -l app=${deploymentName} -o jsonpath='{.items[0].metadata.name}'`;
     let podName = chaiExec(getPodCommand).stdout.trim();
     debugLog(`Pod selected for curl command: ${podName}`);
-    let execCommand = `kubectl --context ${context} -n ${namespace} exec ${podName} -- ${curlCommand}`;
+    let execCommand = `kubectl ${_context} -n ${namespace} exec ${podName} -- ${curlCommand}`;
     const cli = chaiExec(execCommand);
     debugLog(`Curl command output (stdout): ${cli.stdout}`);
     return cli.stdout;
