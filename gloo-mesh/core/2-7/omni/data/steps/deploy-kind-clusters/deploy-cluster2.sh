@@ -10,7 +10,7 @@ twodigits=$(printf "%02d\n" $number)
 kindest_node=${KINDEST_NODE}
 
 if [ -z "$kindest_node" ]; then
-  export k8s_version="1.28.0"
+  export k8s_version="1.30.8"
 
   [[ ${k8s_version::1} != 'v' ]] && export k8s_version=v${k8s_version}
   kindest_node_ver=$(curl --silent "https://registry.hub.docker.com/v2/repositories/kindest/node/tags?page_size=100" \
@@ -132,7 +132,6 @@ nodes:
     topology.kubernetes.io/region: ${region}
     topology.kubernetes.io/zone: ${zone}
 networking:
-  disableDefaultCNI: true
   serviceSubnet: "10.$(echo $twodigits | sed 's/^0*//').0.0/16"
   podSubnet: "10.1${twodigits}.0.0/16"
 containerdConfigPatches:
@@ -158,10 +157,10 @@ networkkind=$(echo ${ipkind} | awk -F. '{ print $1"."$2 }')
 kubectl config set-cluster kind-kind${number} --server=https://${myip}:70${twodigits} --insecure-skip-tls-verify=true
 # Preload images
 cat << EOF >> images.txt
-quay.io/metallb/controller:v0.13.12
-quay.io/metallb/speaker:v0.13.12
+quay.io/metallb/controller:v0.14.9
+quay.io/metallb/speaker:v0.14.9
 EOF
-cat images.txt | while read image; do
+sort images.txt | uniq | while read image; do
   docker pull $image || true
   kind load docker-image $image --name kind${number} || true
 done
@@ -171,9 +170,18 @@ docker network connect "kind" us-docker || true
 docker network connect "kind" us-central1-docker || true
 docker network connect "kind" quay || true
 docker network connect "kind" gcr || true
-# Calico for ipv4
-curl -sL https://raw.githubusercontent.com/projectcalico/calico/v3.28.1/manifests/calico.yaml | sed 's/250m/50m/g' | kubectl --context kind-kind${number} apply -f -
-for i in 1 2 3 4 5; do kubectl --context=kind-kind${number} apply -f https://raw.githubusercontent.com/metallb/metallb/v0.13.12/config/manifests/metallb-native.yaml && break || sleep 15; done
+for i in 1 2 3 4 5; do kubectl --context=kind-kind${number} apply -f https://raw.githubusercontent.com/metallb/metallb/v0.14.9/config/manifests/metallb-native.yaml && break || sleep 15; done
+kubectl --context=kind-kind${number} patch daemonset speaker -n metallb-system -p "
+spec:
+  template:
+    spec:
+      containers:
+      - name: speaker
+        args:
+        - --port=7472
+        - --log-level=info
+        - --ignore-exclude-lb
+"
 kubectl --context=kind-kind${number} create secret generic -n metallb-system memberlist --from-literal=secretkey="$(openssl rand -base64 128)"
 kubectl --context=kind-kind${number} -n metallb-system rollout status deploy controller || true
 
