@@ -22,7 +22,7 @@ describe("Clusters are healthy", () => {
 });
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/deploy-kind-clusters/tests/cluster-healthy.test.js.liquid from lab number 1"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 1"; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 1"; exit 1; }
 export GLOO_MESH_VERSION=v2.7.0-beta1-2024-11-18-gg-config-distribution-07bf4f3f85
 mkdir -p $HOME/.gloo-mesh/bin
 curl "https://storage.googleapis.com/gloo-platform-dev/meshctl/$GLOO_MESH_VERSION/meshctl-$(uname | tr '[:upper:]' '[:lower:]')-amd64" > $HOME/.gloo-mesh/bin/meshctl
@@ -54,7 +54,7 @@ describe("Required environment variables should contain value", () => {
 });
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/deploy-and-register-gloo-mesh/tests/environment-variables.test.js.liquid from lab number 2"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 2"; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 2"; exit 1; }
 kubectl --context ${MGMT} apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.2.0/standard-install.yaml
 
 helm upgrade -i -n gloo-system \
@@ -86,7 +86,6 @@ helm upgrade --install gloo-platform gloo-platform \
   --kube-context ${MGMT} \
   --version 2.7.0-beta1-2024-11-18-gg-config-distribution-07bf4f3f85 \
   -f -<<EOF
-
 licensing:
   glooTrialLicenseKey: ${GLOO_MESH_LICENSE_KEY}
 common:
@@ -116,6 +115,7 @@ telemetryCollector:
       otlp:
         endpoint: gloo-telemetry-gateway:4317
 EOF
+
 kubectl --context ${MGMT} -n gloo-mesh rollout status deploy/gloo-mesh-mgmt-server
 kubectl wait --context ${MGMT} --for=condition=Ready -n gloo-mesh --all pod
 timeout 2m bash -c "until [[ \$(kubectl --context ${MGMT} -n gloo-mesh get svc gloo-mesh-mgmt-server -o json | jq '.status.loadBalancer | length') -gt 0 ]]; do
@@ -134,7 +134,7 @@ describe("MGMT server is healthy", () => {
 });
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/deploy-and-register-gloo-mesh/tests/check-deployment.test.js.liquid from lab number 2"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 2"; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 2"; exit 1; }
 cat <<'EOF' > ./test.js
 const chaiExec = require("@jsdevtools/chai-exec");
 var chai = require('chai');
@@ -151,7 +151,7 @@ afterEach(function (done) {
 });
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/deploy-and-register-gloo-mesh/tests/get-gloo-mesh-mgmt-server-ip.test.js.liquid from lab number 2"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 2"; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 2"; exit 1; }
 export ENDPOINT_GLOO_MESH=$(kubectl --context ${MGMT} -n gloo-mesh get svc gloo-mesh-mgmt-server -o jsonpath='{.status.loadBalancer.ingress[0].ip}{.status.loadBalancer.ingress[0].hostname}'):9900
 export HOST_GLOO_MESH=$(echo ${ENDPOINT_GLOO_MESH%:*})
 export ENDPOINT_TELEMETRY_GATEWAY=$(kubectl --context ${MGMT} -n gloo-mesh get svc gloo-telemetry-gateway -o jsonpath='{.status.loadBalancer.ingress[0].ip}{.status.loadBalancer.ingress[0].hostname}'):4317
@@ -176,7 +176,7 @@ describe("Address '" + process.env.HOST_GLOO_MESH + "' can be resolved in DNS", 
 });
 EOF
 echo "executing test ./gloo-mesh-2-0/tests/can-resolve.test.js.liquid from lab number 2"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 2"; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 2"; exit 1; }
 kubectl apply --context ${MGMT} -f - <<EOF
 apiVersion: admin.gloo.solo.io/v2
 kind: KubernetesCluster
@@ -287,159 +287,10 @@ describe("Cluster registration", () => {
 });
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/deploy-and-register-gloo-mesh/tests/cluster-registration.test.js.liquid from lab number 2"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 2"; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 2"; exit 1; }
 kubectl --context ${CLUSTER1} create ns httpbin
-kubectl apply --context ${CLUSTER1} -f - <<EOF
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: httpbin1
-  namespace: httpbin
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: httpbin1
-  namespace: httpbin
-  labels:
-    app: httpbin1
-    service: httpbin1
-spec:
-  ports:
-  - name: http
-    port: 8000
-    targetPort: http
-    protocol: TCP
-    appProtocol: http
-  selector:
-    app: httpbin1
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: httpbin1
-  namespace: httpbin
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: httpbin1
-      version: v1
-  template:
-    metadata:
-      labels:
-        app: httpbin1
-        version: v1
-    spec:
-      serviceAccountName: httpbin1
-      containers:
-      - name: httpbin
-        image: mccutchen/go-httpbin:v2.14.0
-        command: [ go-httpbin ]
-        args:
-          - "-max-duration"
-          - "600s" # override default 10s
-          - -use-real-hostname
-        ports:
-          - name: http
-            containerPort: 8080
-            protocol: TCP
-        livenessProbe:
-          httpGet:
-            path: /status/200
-            port: http
-        readinessProbe:
-          httpGet:
-            path: /status/200
-            port: http
-        env:
-        - name: K8S_MEM_LIMIT
-          valueFrom:
-            resourceFieldRef:
-              divisor: "1"
-              resource: limits.memory
-        - name: GOMAXPROCS
-          valueFrom:
-            resourceFieldRef:
-              divisor: "1"
-              resource: limits.cpu
-EOF
-
-kubectl apply --context ${CLUSTER1} -f - <<EOF
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: httpbin2
-  namespace: httpbin
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: httpbin2
-  namespace: httpbin
-  labels:
-    app: httpbin2
-    service: httpbin2
-spec:
-  ports:
-  - name: http
-    port: 8000
-    targetPort: http
-    protocol: TCP
-    appProtocol: http
-  selector:
-    app: httpbin2
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: httpbin2
-  namespace: httpbin
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: httpbin2
-      version: v1
-  template:
-    metadata:
-      labels:
-        app: httpbin2
-        version: v1
-    spec:
-      serviceAccountName: httpbin2
-      containers:
-      - name: httpbin
-        image: mccutchen/go-httpbin:v2.14.0
-        command: [ go-httpbin ]
-        args:
-          - "-max-duration"
-          - "600s" # override default 10s
-          - -use-real-hostname
-        ports:
-          - name: http
-            containerPort: 8080
-            protocol: TCP
-        livenessProbe:
-          httpGet:
-            path: /status/200
-            port: http
-        readinessProbe:
-          httpGet:
-            path: /status/200
-            port: http
-        env:
-        - name: K8S_MEM_LIMIT
-          valueFrom:
-            resourceFieldRef:
-              divisor: "1"
-              resource: limits.memory
-        - name: GOMAXPROCS
-          valueFrom:
-            resourceFieldRef:
-              divisor: "1"
-              resource: limits.cpu
-EOF
+kubectl --context ${CLUSTER1} apply -f data/steps/gloo-gateway/deploy-httpbin/app-httpbin1.yaml
+kubectl --context ${CLUSTER1} apply -f data/steps/gloo-gateway/deploy-httpbin/app-httpbin2.yaml
 echo -n Waiting for httpbin pods to be ready...
 kubectl --context ${CLUSTER1} -n httpbin rollout status deployment
 cat <<'EOF' > ./test.js
@@ -454,159 +305,10 @@ describe("httpbin app", () => {
 });
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/imported/gloo-gateway/templates/steps/apps/httpbin/deploy-httpbin/tests/check-httpbin.test.js.liquid from lab number 3"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 3"; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 3"; exit 1; }
 kubectl --context ${CLUSTER2} create ns httpbin
-kubectl apply --context ${CLUSTER2} -f - <<EOF
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: httpbin1
-  namespace: httpbin
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: httpbin1
-  namespace: httpbin
-  labels:
-    app: httpbin1
-    service: httpbin1
-spec:
-  ports:
-  - name: http
-    port: 8000
-    targetPort: http
-    protocol: TCP
-    appProtocol: http
-  selector:
-    app: httpbin1
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: httpbin1
-  namespace: httpbin
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: httpbin1
-      version: v1
-  template:
-    metadata:
-      labels:
-        app: httpbin1
-        version: v1
-    spec:
-      serviceAccountName: httpbin1
-      containers:
-      - name: httpbin
-        image: mccutchen/go-httpbin:v2.14.0
-        command: [ go-httpbin ]
-        args:
-          - "-max-duration"
-          - "600s" # override default 10s
-          - -use-real-hostname
-        ports:
-          - name: http
-            containerPort: 8080
-            protocol: TCP
-        livenessProbe:
-          httpGet:
-            path: /status/200
-            port: http
-        readinessProbe:
-          httpGet:
-            path: /status/200
-            port: http
-        env:
-        - name: K8S_MEM_LIMIT
-          valueFrom:
-            resourceFieldRef:
-              divisor: "1"
-              resource: limits.memory
-        - name: GOMAXPROCS
-          valueFrom:
-            resourceFieldRef:
-              divisor: "1"
-              resource: limits.cpu
-EOF
-
-kubectl apply --context ${CLUSTER2} -f - <<EOF
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: httpbin2
-  namespace: httpbin
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: httpbin2
-  namespace: httpbin
-  labels:
-    app: httpbin2
-    service: httpbin2
-spec:
-  ports:
-  - name: http
-    port: 8000
-    targetPort: http
-    protocol: TCP
-    appProtocol: http
-  selector:
-    app: httpbin2
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: httpbin2
-  namespace: httpbin
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: httpbin2
-      version: v1
-  template:
-    metadata:
-      labels:
-        app: httpbin2
-        version: v1
-    spec:
-      serviceAccountName: httpbin2
-      containers:
-      - name: httpbin
-        image: mccutchen/go-httpbin:v2.14.0
-        command: [ go-httpbin ]
-        args:
-          - "-max-duration"
-          - "600s" # override default 10s
-          - -use-real-hostname
-        ports:
-          - name: http
-            containerPort: 8080
-            protocol: TCP
-        livenessProbe:
-          httpGet:
-            path: /status/200
-            port: http
-        readinessProbe:
-          httpGet:
-            path: /status/200
-            port: http
-        env:
-        - name: K8S_MEM_LIMIT
-          valueFrom:
-            resourceFieldRef:
-              divisor: "1"
-              resource: limits.memory
-        - name: GOMAXPROCS
-          valueFrom:
-            resourceFieldRef:
-              divisor: "1"
-              resource: limits.cpu
-EOF
+kubectl --context ${CLUSTER2} apply -f data/steps/gloo-gateway/deploy-httpbin/app-httpbin1.yaml
+kubectl --context ${CLUSTER2} apply -f data/steps/gloo-gateway/deploy-httpbin/app-httpbin2.yaml
 echo -n Waiting for httpbin pods to be ready...
 kubectl --context ${CLUSTER2} -n httpbin rollout status deployment
 cat <<'EOF' > ./test.js
@@ -621,7 +323,7 @@ describe("httpbin app", () => {
 });
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/imported/gloo-gateway/templates/steps/apps/httpbin/deploy-httpbin/tests/check-httpbin.test.js.liquid from lab number 4"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 4"; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 4"; exit 1; }
 kubectl --context $CLUSTER1 apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.2.0/standard-install.yaml
 helm repo add solo-public-helm https://storage.googleapis.com/solo-public-helm
 
@@ -666,7 +368,7 @@ describe("Gloo Gateway", () => {
 });
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/imported/gloo-gateway/templates/steps/deploy-gloo-gateway/tests/check-gloo.test.js.liquid from lab number 5"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 5"; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 5"; exit 1; }
 kubectl --context $CLUSTER2 apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.2.0/standard-install.yaml
 helm repo add solo-public-helm https://storage.googleapis.com/solo-public-helm
 
@@ -711,7 +413,7 @@ describe("Gloo Gateway", () => {
 });
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/imported/gloo-gateway/templates/steps/deploy-gloo-gateway/tests/check-gloo.test.js.liquid from lab number 6"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 6"; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 6"; exit 1; }
 kubectl --context $MGMT create ns gloo-gateway-config
 kubectl --context $CLUSTER1 create ns gloo-gateway-config
 kubectl --context $CLUSTER2 create ns gloo-gateway-config
@@ -750,7 +452,7 @@ describe("Gateway", () => {
 });
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/distributed-configs/tests/check-gateway.test.js.liquid from lab number 7"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 7"; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 7"; exit 1; }
 kubectl apply --context ${MGMT} -f - <<EOF
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
@@ -796,7 +498,7 @@ describe("HTTPRoute", () => {
 
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/distributed-configs/tests/verify-routes-created-in-clusters.test.js.liquid from lab number 7"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 7"; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 7"; exit 1; }
 kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
@@ -841,4 +543,4 @@ describe("httpbin is accessible", () => {
 
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/distributed-configs/tests/check-connectivity-children.test.js.liquid from lab number 7"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 7"; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 7"; exit 1; }
