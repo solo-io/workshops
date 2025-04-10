@@ -1,8 +1,15 @@
 #!/bin/bash
 printf "\nWaiting until the secret is created in $1"
-until kubectl --context $1 get secret -n istio-system cacerts &>/dev/null
-do
-  printf "%s" "."
+timeout_seconds=600
+end_time=$(($(date +%s) + $timeout_seconds))
+
+while ! kubectl --context $1 get secret -n istio-system cacerts &>/dev/null; do
+  current_time=$(date +%s)
+  if [ $current_time -gt $end_time ]; then
+    printf "\nTimeout after %d seconds waiting for cacerts secret\n" $timeout_seconds
+    exit 1
+  fi
+  printf "."
   sleep 1
 done
 printf "\n"
