@@ -73,7 +73,7 @@ global = {
         request = request.head(path).redirects(0);
         break;
       default:
-        throw 'The requested method is not implemented.';
+        throw new Error('The requested method is not implemented');
     }
 
     debugLog(`Setting headers: ${JSON.stringify(headers)}`);
@@ -135,7 +135,7 @@ global = {
         request = request.put(path);
         break;
       default:
-        throw 'The requested method is not implemented.';
+        throw new Error('The requested method is not implemented');
     }
 
     request.cert(cert).key(key).redirects(0);
