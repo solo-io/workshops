@@ -1,0 +1,30 @@
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: bookinfo-reviews
+  namespace: bookinfo
+spec:
+  parentRefs:
+  - name: infra-gateway
+    namespace: infra
+    sectionName: bookinfo-https
+  rules:
+  - matches:
+    - path:
+        type: PathPrefix
+        value: /reviews
+      headers:
+      - type: Exact
+        name: role
+        value: qa
+    backendRefs:
+    - name: reviews-v3
+      port: 9080
+  - matches:
+    - path:
+        type: PathPrefix
+        value: /reviews
+    backendRefs:
+    - name: reviews-v2
+      port: 9080
