@@ -128,7 +128,7 @@ describe("Clusters are healthy", () => {
 });
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/deploy-kind-clusters/tests/cluster-healthy.test.js.liquid from lab number 1"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 1"; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 1"; exit 1; }
 -->
 
 
@@ -172,7 +172,7 @@ describe("Required environment variables should contain value", () => {
 });
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/imported/gloo-mesh-2-0/templates/steps/deploy-and-register-gloo-mesh/tests/environment-variables.test.js.liquid from lab number 2"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 2"; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 2"; exit 1; }
 -->
 
 Run the following commands to deploy the Gloo Mesh management plane:
@@ -192,7 +192,6 @@ helm upgrade --install gloo-platform gloo-platform \
   --kube-context ${MGMT} \
   --version 2.6.0 \
   -f -<<EOF
-
 licensing:
   glooTrialLicenseKey: ${GLOO_MESH_LICENSE_KEY}
 common:
@@ -222,6 +221,7 @@ telemetryCollector:
       otlp:
         endpoint: gloo-telemetry-gateway:4317
 EOF
+
 kubectl --context ${MGMT} -n gloo-mesh rollout status deploy/gloo-mesh-mgmt-server
 ```
 
@@ -247,7 +247,7 @@ describe("MGMT server is healthy", () => {
 });
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/imported/gloo-mesh-2-0/templates/steps/deploy-and-register-gloo-mesh/tests/check-deployment.test.js.liquid from lab number 2"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 2"; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 2"; exit 1; }
 -->
 <!--bash
 cat <<'EOF' > ./test.js
@@ -266,7 +266,7 @@ afterEach(function (done) {
 });
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/imported/gloo-mesh-2-0/templates/steps/deploy-and-register-gloo-mesh/tests/get-gloo-mesh-mgmt-server-ip.test.js.liquid from lab number 2"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 2"; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 2"; exit 1; }
 -->
 
 ```bash
@@ -277,7 +277,8 @@ export ENDPOINT_GLOO_MESH_UI=$(kubectl --context ${MGMT} -n gloo-mesh get svc gl
 ```
 
 Check that the variables have correct values:
-```
+
+```bash,noexecute
 echo $HOST_GLOO_MESH
 echo $ENDPOINT_GLOO_MESH
 ```
@@ -303,10 +304,9 @@ describe("Address '" + process.env.HOST_GLOO_MESH + "' can be resolved in DNS", 
 });
 EOF
 echo "executing test ./gloo-mesh-2-0/tests/can-resolve.test.js.liquid from lab number 2"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 2"; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 2"; exit 1; }
 -->
 Finally, you need to register the cluster(s).
-
 
 Here is how you register the first one:
 
@@ -361,7 +361,7 @@ EOF
 
 Note that the registration can also be performed using `meshctl cluster register`.
 
-And here is how you register the second one:
+Here is how you register the second one:
 
 ```bash
 kubectl apply --context ${MGMT} -f - <<EOF
@@ -412,10 +412,14 @@ telemetryCollector:
 EOF
 ```
 
-You can check the cluster(s) have been registered correctly using the following commands:
-```
+
+You can check the cluster(s) have been registered correctly in the Gloo UI or by using the following commands:
+
+```bash,noexecute
 meshctl --kubecontext ${MGMT} check
 ```
+
+Alternatively, check for `relay_push_clients_connected` metrics:
 
 ```
 pod=$(kubectl --context ${MGMT} -n gloo-mesh get pods -l app=gloo-mesh-mgmt-server -o jsonpath='{.items[0].metadata.name}')
@@ -423,6 +427,7 @@ kubectl --context ${MGMT} -n gloo-mesh debug -q -i ${pod} --image=curlimages/cur
 ```
 
 You should get an output similar to this:
+
 ```,nocopy
 # HELP relay_push_clients_connected Current number of connected Relay push clients (Relay Agents).
 # TYPE relay_push_clients_connected gauge
@@ -466,7 +471,7 @@ describe("Cluster registration", () => {
 });
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/imported/gloo-mesh-2-0/templates/steps/deploy-and-register-gloo-mesh/tests/cluster-registration.test.js.liquid from lab number 2"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 2"; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 2"; exit 1; }
 -->
 
 
@@ -512,7 +517,7 @@ afterEach(function (done) {
 });
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/deploy-istio-helm/tests/istio-version.test.js.liquid from lab number 3"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 3"; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 3"; exit 1; }
 -->
 
 Let's create Kubernetes services for the gateways:
@@ -924,7 +929,7 @@ describe("Checking Istio installation", function() {
 
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/deploy-istio-helm/tests/istio-ready.test.js.liquid from lab number 3"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 3"; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 3"; exit 1; }
 -->
 <!--bash
 timeout 2m bash -c "until [[ \$(kubectl --context ${CLUSTER1} -n istio-gateways get svc -l istio=ingressgateway -o json | jq '.items[0].status.loadBalancer | length') -gt 0 ]]; do
@@ -933,8 +938,8 @@ done"
 -->
 
 ```bash
-export HOST_GW_CLUSTER1="$(kubectl --context ${CLUSTER1} -n istio-gateways get svc -l istio=ingressgateway -o jsonpath='{.items[0].status.loadBalancer.ingress[0].*}')"
-export HOST_GW_CLUSTER2="$(kubectl --context ${CLUSTER2} -n istio-gateways get svc -l istio=ingressgateway -o jsonpath='{.items[0].status.loadBalancer.ingress[0].*}')"
+export HOST_GW_CLUSTER1="$(kubectl --context ${CLUSTER1} -n istio-gateways get svc -l istio=ingressgateway -o jsonpath='{.items[0].status.loadBalancer.ingress[0].hostname}{.items[0].status.loadBalancer.ingress[0].ip}')"
+export HOST_GW_CLUSTER2="$(kubectl --context ${CLUSTER2} -n istio-gateways get svc -l istio=ingressgateway -o jsonpath='{.items[0].status.loadBalancer.ingress[0].hostname}{.items[0].status.loadBalancer.ingress[0].ip}')"
 ```
 
 <!--bash
@@ -958,7 +963,7 @@ describe("Address '" + process.env.HOST_GW_CLUSTER1 + "' can be resolved in DNS"
 });
 EOF
 echo "executing test ./default/tests/can-resolve.test.js.liquid from lab number 3"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 3"; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 3"; exit 1; }
 -->
 <!--bash
 cat <<'EOF' > ./test.js
@@ -981,7 +986,7 @@ describe("Address '" + process.env.HOST_GW_CLUSTER2 + "' can be resolved in DNS"
 });
 EOF
 echo "executing test ./default/tests/can-resolve.test.js.liquid from lab number 3"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 3"; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 3"; exit 1; }
 -->
 
 
@@ -991,7 +996,6 @@ timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || 
 [<img src="https://img.youtube.com/vi/nzYcrjalY5A/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/nzYcrjalY5A "Video Link")
 
 We're going to deploy the bookinfo application to demonstrate several features of Gloo Mesh.
-
 You can find more information about this application [here](https://istio.io/latest/docs/examples/bookinfo/).
 
 Run the following commands to deploy the bookinfo application on `cluster1`:
@@ -1001,6 +1005,7 @@ kubectl --context ${CLUSTER1} create ns bookinfo-frontends
 kubectl --context ${CLUSTER1} create ns bookinfo-backends
 kubectl --context ${CLUSTER1} label namespace bookinfo-frontends istio.io/rev=1-23 --overwrite
 kubectl --context ${CLUSTER1} label namespace bookinfo-backends istio.io/rev=1-23 --overwrite
+
 
 # Deploy the frontend bookinfo service in the bookinfo-frontends namespace
 kubectl --context ${CLUSTER1} -n bookinfo-frontends apply -f data/steps/gloo-mesh-2-0/deploy-bookinfo/productpage-v1.yaml
@@ -1030,12 +1035,11 @@ echo
 
 You can check that the app is running using the following command:
 
-```shell
+```bash,noexecute
 kubectl --context ${CLUSTER1} -n bookinfo-frontends get pods && kubectl --context ${CLUSTER1} -n bookinfo-backends get pods
 ```
 
 Note that we deployed the `productpage` service in the `bookinfo-frontends` namespace and the other services in the `bookinfo-backends` namespace.
-
 And we deployed the `v1` and `v2` versions of the `reviews` microservice, not the `v3` version.
 
 Now, run the following commands to deploy the bookinfo application on `cluster2`:
@@ -1046,14 +1050,17 @@ kubectl --context ${CLUSTER2} create ns bookinfo-backends
 kubectl --context ${CLUSTER2} label namespace bookinfo-frontends istio.io/rev=1-23 --overwrite
 kubectl --context ${CLUSTER2} label namespace bookinfo-backends istio.io/rev=1-23 --overwrite
 
+
 # Deploy the frontend bookinfo service in the bookinfo-frontends namespace
 kubectl --context ${CLUSTER2} -n bookinfo-frontends apply -f data/steps/gloo-mesh-2-0/deploy-bookinfo/productpage-v1.yaml
+
 # Deploy the backend bookinfo services in the bookinfo-backends namespace for all versions
 kubectl --context ${CLUSTER2} -n bookinfo-backends apply \
   -f data/steps/gloo-mesh-2-0/deploy-bookinfo/details-v1.yaml \
   -f data/steps/gloo-mesh-2-0/deploy-bookinfo/ratings-v1.yaml \
   -f data/steps/gloo-mesh-2-0/deploy-bookinfo/reviews-v1-v2.yaml \
   -f data/steps/gloo-mesh-2-0/deploy-bookinfo/reviews-v3.yaml
+
 # Update the reviews service to display where it is coming from
 kubectl --context ${CLUSTER2} -n bookinfo-backends set env deploy/reviews-v1 CLUSTER_NAME=${CLUSTER2}
 kubectl --context ${CLUSTER2} -n bookinfo-backends set env deploy/reviews-v2 CLUSTER_NAME=${CLUSTER2}
@@ -1107,7 +1114,7 @@ describe("Bookinfo app", () => {
 });
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/imported/gloo-mesh-2-0/templates/steps/apps/bookinfo/deploy-bookinfo/tests/check-bookinfo.test.js.liquid from lab number 4"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 4"; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 4"; exit 1; }
 -->
 
 
@@ -1252,7 +1259,7 @@ EOF
 
 You can follow the progress using the following command:
 
-```shell
+```bash,noexecute
 kubectl --context ${CLUSTER1} -n httpbin get pods
 ```
 
@@ -1276,7 +1283,7 @@ describe("httpbin app", () => {
 });
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/imported/gloo-mesh-2-0/templates/steps/apps/httpbin/deploy-httpbin/tests/check-httpbin.test.js.liquid from lab number 5"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 5"; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 5"; exit 1; }
 -->
 
 
@@ -1412,7 +1419,7 @@ describe("Gloo Platform add-ons cluster2 deployment", () => {
 
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/imported/gloo-mesh-2-0/templates/steps/deploy-gloo-mesh-addons/tests/check-addons-deployments.test.js.liquid from lab number 6"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 6"; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 6"; exit 1; }
 -->
 <!--bash
 cat <<'EOF' > ./test.js
@@ -1435,7 +1442,7 @@ describe("Gloo Platform add-ons cluster2 service", () => {
 
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/imported/gloo-mesh-2-0/templates/steps/deploy-gloo-mesh-addons/tests/check-addons-services.test.js.liquid from lab number 6"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 6"; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 6"; exit 1; }
 -->
 This is what the environment looks like now:
 
@@ -1727,7 +1734,7 @@ describe("Productpage is available (HTTP)", () => {
 })
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/imported/gloo-mesh-2-0/templates/steps/apps/bookinfo/gateway-expose/tests/productpage-available.test.js.liquid from lab number 9"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 9"; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 9"; exit 1; }
 -->
 
 Gloo Mesh translates the `VirtualGateway` and `RouteTable` into the corresponding Istio objects (`Gateway` and `VirtualService`).
@@ -1822,7 +1829,7 @@ describe("Productpage is available (HTTPS)", () => {
 })
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/imported/gloo-mesh-2-0/templates/steps/apps/bookinfo/gateway-expose/tests/productpage-available-secure.test.js.liquid from lab number 9"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 9"; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 9"; exit 1; }
 -->
 <!--bash
 cat <<'EOF' > ./test.js
@@ -1841,7 +1848,7 @@ describe("Otel metrics", () => {
 
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/imported/gloo-mesh-2-0/templates/steps/apps/bookinfo/gateway-expose/tests/otel-metrics.test.js.liquid from lab number 9"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=150 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 9"; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=150 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 9"; exit 1; }
 -->
 
 This diagram shows the flow of the request (through the Istio Ingress Gateway):
@@ -1918,7 +1925,7 @@ describe("cacerts secrets have been created", () => {
 });
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/imported/gloo-mesh-2-0/templates/steps/root-trust-policy/tests/cacert-secrets-created.test.js.liquid from lab number 10"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=150 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 10"; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=150 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 10"; exit 1; }
 -->
 
 
@@ -1978,7 +1985,7 @@ describe("Certificate issued by Gloo Mesh", () => {
 });
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/imported/gloo-mesh-2-0/templates/steps/root-trust-policy/tests/certificate-issued-by-gloo-mesh.test.js.liquid from lab number 10"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 10"; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 10"; exit 1; }
 -->
 
 
@@ -2103,7 +2110,7 @@ describe("Postgres", () => {
 });
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/deploy-keycloak/tests/postgres-available.test.js.liquid from lab number 11"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 11"; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 11"; exit 1; }
 -->
 
 First, we need to define an ID and secret for a "client", which will be the service that delegates to Keycloak for authorization:
@@ -2513,7 +2520,7 @@ describe("Keycloak", () => {
 });
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/deploy-keycloak/tests/pods-available.test.js.liquid from lab number 11"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 11"; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 11"; exit 1; }
 -->
 <!--bash
 cat <<'EOF' > ./test.js
@@ -2540,7 +2547,7 @@ describe("Retrieve enterprise-networking ip", () => {
 });
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/deploy-keycloak/tests/keycloak-ip-is-attached.test.js.liquid from lab number 11"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 11"; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 11"; exit 1; }
 -->
 <!--bash
 timeout 2m bash -c "until [[ \$(kubectl --context ${CLUSTER1} -n keycloak get svc keycloak -o json | jq '.status.loadBalancer | length') -gt 0 ]]; do
@@ -2578,7 +2585,7 @@ describe("Address '" + process.env.HOST_KEYCLOAK + "' can be resolved in DNS", (
 });
 EOF
 echo "executing test ./default/tests/can-resolve.test.js.liquid from lab number 11"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 11"; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 11"; exit 1; }
 -->
 <!--bash
 echo "Waiting for Keycloak to be ready at $KEYCLOAK_URL/realms/workshop/protocol/openid-connect/token"
@@ -2611,7 +2618,7 @@ helm repo update
 helm upgrade -i -n gloo-system \
   gloo-gateway gloo-ee-helm/gloo-ee \
   --create-namespace \
-  --version 1.18.7 \
+  --version 1.18.9 \
   --kube-context $CLUSTER1 \
   --set-string license_key=$LICENSE_KEY \
   -f -<<EOF
@@ -2699,7 +2706,7 @@ describe("Gloo Gateway", () => {
 });
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/deploy-gloo-gateway-enterprise/tests/check-gloo.test.js.liquid from lab number 12"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 12"; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 12"; exit 1; }
 -->
 
 
@@ -2717,7 +2724,15 @@ Run the following commands to deploy the httpbin app twice (`httpbin1` and `http
 kubectl --context ${CLUSTER1} create ns httpbin
 kubectl --context ${CLUSTER1} label namespace httpbin istio-injection=enabled
 kubectl --context ${CLUSTER1} label namespace httpbin istio.io/rev=1-23
-kubectl apply --context ${CLUSTER1} -f - <<EOF
+kubectl --context ${CLUSTER1} apply -f data/steps/deploy-httpbin/app-httpbin1.yaml
+kubectl --context ${CLUSTER1} apply -f data/steps/deploy-httpbin/app-httpbin2.yaml
+```
+
+<details>
+  <summary>Show yaml files</summary>
+
+```yaml
+---
 apiVersion: v1
 kind: ServiceAccount
 metadata:
@@ -2791,9 +2806,7 @@ spec:
             resourceFieldRef:
               divisor: "1"
               resource: limits.cpu
-EOF
-
-kubectl apply --context ${CLUSTER1} -f - <<EOF
+---
 apiVersion: v1
 kind: ServiceAccount
 metadata:
@@ -2867,8 +2880,8 @@ spec:
             resourceFieldRef:
               divisor: "1"
               resource: limits.cpu
-EOF
 ```
+</details>
 
 You can follow the progress using the following command:
 
@@ -2876,7 +2889,7 @@ You can follow the progress using the following command:
 echo -n Waiting for httpbin pods to be ready...
 kubectl --context ${CLUSTER1} -n httpbin rollout status deployment
 -->
-```shell
+```bash,noexecute
 kubectl --context ${CLUSTER1} -n httpbin get pods
 ```
 
@@ -2901,7 +2914,7 @@ describe("httpbin app", () => {
 });
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/deploy-httpbin/tests/check-httpbin.test.js.liquid from lab number 13"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 13"; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 13"; exit 1; }
 -->
 
 
@@ -2913,6 +2926,7 @@ timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || 
 
 
 The team in charge of the gateway can create a `Gateway` resource and configure an HTTP listener.
+
 
 
 
@@ -2959,6 +2973,8 @@ spec:
           port: 8000
 EOF
 ```
+
+
 
 
 Set the environment variable for the service corresponding to the gateway:
@@ -3008,9 +3024,10 @@ Configure your hosts file to resolve httpbin.example.com with the IP address of 
 
 ```
 
+
 Try to access the application through HTTP:
 
-```shell
+```bash,noexecute
 curl http://httpbin.example.com/get
 ```
 
@@ -3051,7 +3068,7 @@ describe("httpbin through HTTP", () => {
 })
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/expose-httpbin/tests/http.test.js.liquid from lab number 14"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 14"; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 14"; exit 1; }
 -->
 
 Now, let's secure the access through TLS.
@@ -3137,10 +3154,11 @@ spec:
         - name: httpbin1
           port: 8000
 EOF
+kubectl --context ${CLUSTER1} -n gloo-system rollout status deploy gloo-proxy-http
 ```
 
 
-Try to access the application through HTTPS:
+Try to access the application through HTTPS (might take a few seconds to be ready):
 
 <!--bash
 echo -n Wait for up to 2 minutes until the url is ready...
@@ -3160,7 +3178,7 @@ while [[ $RETRY_COUNT -lt $MAX_RETRIES ]]; do
 done
 -->
 
-```shell
+```bash,noexecute
 curl -k https://httpbin.example.com/get
 ```
 
@@ -3201,8 +3219,9 @@ describe("httpbin through HTTPS", () => {
 })
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/expose-httpbin/tests/https.test.js.liquid from lab number 14"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 14"; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 14"; exit 1; }
 -->
+
 
 The team in charge of the gateway can create an `HTTPRoute` to automatically redirect HTTP to HTTPS:
 
@@ -3230,7 +3249,7 @@ EOF
 
 Try to access the application through HTTP:
 
-```shell
+```bash,noexecute
 curl -k http://httpbin.example.com/get -L
 ```
 
@@ -3273,8 +3292,9 @@ describe("location header correctly set", () => {
 })
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/expose-httpbin/tests/redirect-http-to-https.test.js.liquid from lab number 14"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 14"; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 14"; exit 1; }
 -->
+
 
 
 
@@ -3333,7 +3353,7 @@ EOF
 
 Check you can still access the application through HTTPS:
 
-```shell
+```bash,noexecute
 curl -k https://httpbin.example.com/get
 ```
 
@@ -3374,7 +3394,7 @@ describe("httpbin through HTTPS", () => {
 })
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/delegation/tests/https.test.js.liquid from lab number 15"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 15"; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 15"; exit 1; }
 -->
 
 In the previous example, we've used a simple `/` prefix matcher for both the parent and the child `HTTPRoute`.
@@ -3435,7 +3455,7 @@ EOF
 
 Check you can access the `/status/200` path:
 
-```shell
+```bash,noexecute
 curl -k https://httpbin.example.com/status/200 -w "%{http_code}"
 ```
 
@@ -3454,7 +3474,7 @@ describe("httpbin through HTTPS", () => {
 })
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/delegation/tests/status-200.test.js.liquid from lab number 15"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 15"; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 15"; exit 1; }
 -->
 
 In the child `HTTPRoute` we've indicated the absolute path (which includes the parent path), but instead we can inherite the parent matcher and use a relative path:
@@ -3482,7 +3502,7 @@ EOF
 
 Check you can still access the `/status/200` path:
 
-```shell
+```bash,noexecute
 curl -k https://httpbin.example.com/status/200 -w "%{http_code}"
 ```
 
@@ -3501,7 +3521,7 @@ describe("httpbin through HTTPS", () => {
 })
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/delegation/tests/status-200.test.js.liquid from lab number 15"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 15"; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 15"; exit 1; }
 -->
 
 The team in charge of the httpbin application can also take advantage of the `parentRefs` option to indicate which parent `HTTPRoute` can delegate to its own `HTTPRoute`.
@@ -3536,7 +3556,7 @@ EOF
 
 Check you can still access the `/status/200` path:
 
-```shell
+```bash,noexecute
 curl -k https://httpbin.example.com/status/200 -w "%{http_code}"
 ```
 
@@ -3555,7 +3575,7 @@ describe("httpbin through HTTPS", () => {
 })
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/delegation/tests/status-200.test.js.liquid from lab number 15"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 15"; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 15"; exit 1; }
 -->
 
 Delegation offers another very nice feature. It automatically reorders all the matchers to avoid any short-circuiting.
@@ -3585,7 +3605,7 @@ If the matcher for `/status` is positioned before the matcher for `/status/200`,
 
 Check you can still access the `/status/200` path:
 
-```shell
+```bash,noexecute
 curl -k https://httpbin.example.com/status/200 -w "%{http_code}"
 ```
 
@@ -3597,7 +3617,7 @@ Here is the expected output:
 
 You can use the following command to validate the request has still been handled by the first httpbin application.
 
-```shell
+```bash,noexecute
 kubectl logs --context ${CLUSTER1} -n httpbin -l app=httpbin1 | grep curl | grep 200
 ```
 
@@ -3616,12 +3636,12 @@ describe("httpbin through HTTPS", () => {
 })
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/delegation/tests/status-200.test.js.liquid from lab number 15"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 15"; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 15"; exit 1; }
 -->
 
 Check you can now also access the status `/status/201` path:
 
-```shell
+```bash,noexecute
 curl -k https://httpbin.example.com/status/201 -w "%{http_code}"
 ```
 
@@ -3633,7 +3653,7 @@ Here is the expected output:
 
 You can use the following command to validate this request has been handled by the second httpbin application.
 
-```shell
+```bash,noexecute
 kubectl logs --context ${CLUSTER1} -n httpbin -l app=httpbin2 | grep curl | grep 201
 ```
 
@@ -3652,7 +3672,7 @@ describe("httpbin through HTTPS", () => {
 })
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/delegation/tests/status-201.test.js.liquid from lab number 15"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 15"; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 15"; exit 1; }
 -->
 
 Let's delete the latest `HTTPRoute` and apply the original ones:
@@ -3712,7 +3732,7 @@ describe("httpbin through HTTPS", () => {
 })
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/delegation/tests/https.test.js.liquid from lab number 15"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 15"; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 15"; exit 1; }
 -->
 
 
@@ -3760,7 +3780,7 @@ EOF
 
 Try to access the application (with the `To-Remove` request header added):
 
-```shell
+```bash,noexecute
 curl -k https://httpbin.example.com/get -H 'To-Remove: whatever'
 ```
 
@@ -3770,28 +3790,15 @@ Here is the expected output:
 {
   "args": {},
   "headers": {
-    "Accept": [
-      "*/*"
-    ],
+    ...
     "Foo": [
       "bar"
     ],
-    "Host": [
-      "httpbin.example.com"
-    ],
+    ...
     "User-Agent": [
       "custom"
     ],
-    "X-Forwarded-Proto": [
-      "https"
-    ],
-    "X-Request-Id": [
-      "8595e525-4484-4aaa-8f56-97a96163c333"
-    ]
-  },
-  "method": "GET",
-  "origin": "127.0.0.6:48727",
-  "url": "https://httpbin.example.com/get"
+    ...
 }
 ```
 
@@ -3808,7 +3815,7 @@ describe("request transformations applied", () => {
 })
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/transformations/tests/request-headers.test.js.liquid from lab number 16"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 16"; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 16"; exit 1; }
 -->
 
 Another typical use case is to rewrite the hostname or the path before sending the request to the backend.
@@ -3845,7 +3852,7 @@ EOF
 
 Try to access the application:
 
-```shell
+```bash,noexecute
 curl -k https://httpbin.example.com/publicget
 ```
 
@@ -3880,6 +3887,7 @@ Here is the expected output:
 }
 ```
 
+
 The transformations have been applied as expected.
 
 <!--bash
@@ -3891,7 +3899,7 @@ describe("request rewrite applied", () => {
 })
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/transformations/tests/request-rewrite.test.js.liquid from lab number 16"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 16"; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 16"; exit 1; }
 -->
 
 
@@ -3934,7 +3942,7 @@ EOF
 
 Try to access the application (with the `To-Modify` and `To-Remove` response headers added):
 
-```shell
+```bash,noexecute
 curl -k "https://httpbin.example.com/response-headers?to-remove=whatever&to-modify=oldvalue" -I
 ```
 
@@ -3965,7 +3973,7 @@ describe("response transformations applied", () => {
 })
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/transformations/tests/response-headers.test.js.liquid from lab number 16"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 16"; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 16"; exit 1; }
 -->
 
 Let's apply the original `HTTPRoute` yaml:
@@ -3993,7 +4001,7 @@ All these transformations are great, but there are many cases where more flexibi
 
 For example, you may want to create a new header from a value of another header.
 
-Gloo Gateway provides some extensions to manipulate requests and responses in a more advanced way.
+Gloo Gateway provides some [extensions](https://docs.solo.io/gateway/latest/traffic-management/transformations/) to manipulate requests and responses in a more advanced way.
 
 Let's extract the product name from the `User-Agent` header (getting rid of the product version and comments).
 
@@ -4030,7 +4038,7 @@ EOF
 
 Try to access the application:
 
-```shell
+```bash,noexecute
 curl -k https://httpbin.example.com/get
 ```
 
@@ -4077,12 +4085,12 @@ describe("request transformation applied", () => {
 })
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/transformations/tests/x-client-request-header.test.js.liquid from lab number 16"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 16"; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 16"; exit 1; }
 -->
 
 As you can see, we've created a new header called `X-Client` by extracting some data from the `User-Agent` header using a regular expression.
 
-And we've targetted the `HTTPRoute` using the `targetRefs` of the `RouteOption` object. With this approach, it applies to all its rules. 
+And we've targetted the `HTTPRoute` using the `targetRefs` of the `RouteOption` object. With this approach, it applies to all its rules.
 
 Another nice capability of the Gloo Gateway transformation filter is the capability to add a response header from some information present in the request.
 
@@ -4137,14 +4145,14 @@ EOF
 
 Try to access the application:
 
-```shell
+```bash,noexecute
 curl -k "https://httpbin.example.com/get" -I
 ```
 
 Here is the expected output:
 
 ```http,nocopy
-HTTP/2 200 
+HTTP/2 200
 access-control-allow-credentials: true
 access-control-allow-origin: *
 date: Tue, 23 Jul 2024 13:13:53 GMT
@@ -4164,7 +4172,7 @@ describe("response transformation applied", () => {
 })
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/transformations/tests/x-request-id-response-header.js.liquid from lab number 16"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 16"; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 16"; exit 1; }
 -->
 
 Let's apply the original `HTTPRoute` yaml:
@@ -4192,6 +4200,7 @@ Let's delete the `RouteOption` object:
 ```bash
 kubectl delete --context ${CLUSTER1} -n httpbin routeoption routeoption
 ```
+
 
 
 
@@ -4313,7 +4322,7 @@ describe("Productpage is available (SSL)", () => {
 
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/imported/gloo-mesh-2-0/templates/steps/apps/bookinfo/virtual-destination/tests/productpage-available-secure.test.js.liquid from lab number 17"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 17"; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 17"; exit 1; }
 -->
 
 Now, if you try to access it from the first cluster, you can see that you now get the `v3` version of the `reviews` service (red stars).
@@ -4413,7 +4422,7 @@ describe("Productpage is available (SSL)", () => {
 
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/imported/gloo-mesh-2-0/templates/steps/apps/bookinfo/virtual-destination/tests/productpage-available-secure.test.js.liquid from lab number 17"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 17"; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 17"; exit 1; }
 -->
 
 Now, if you try to access the productpage from the first cluster, you should only get the `v1` and `v2` versions (the local ones).
@@ -4442,7 +4451,7 @@ describe("Productpage is available (SSL)", () => {
 
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/imported/gloo-mesh-2-0/templates/steps/apps/bookinfo/virtual-destination/tests/productpage-available-secure.test.js.liquid from lab number 17"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 17"; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 17"; exit 1; }
 -->
 
 You can still access the application on cluster1 even if the productpage isn't running there anymore. And you can see the `v3` version of the `reviews` service (red stars).
@@ -4480,7 +4489,7 @@ describe("Productpage is available (SSL)", () => {
 
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/imported/gloo-mesh-2-0/templates/steps/apps/bookinfo/virtual-destination/tests/productpage-available-secure.test.js.liquid from lab number 17"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 17"; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 17"; exit 1; }
 -->
 
 You can still access the bookinfo application.
@@ -4488,6 +4497,8 @@ You can still access the bookinfo application.
 This updated diagram shows the flow of the request now that the `productpage` service isn't available in the first cluster:
 
 ![Gloo Mesh Virtual Destination Failover](images/steps/gloo-mesh-2-0/virtual-destination/gloo-mesh-virtual-destination-failover.svg)
+
+
 
 
 
@@ -4572,7 +4583,7 @@ describe("Productpage is available", () => {
 })
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/virtual-destination/tests/productpage-available-cluster1.test.js.liquid from lab number 18"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 18"; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 18"; exit 1; }
 -->
 
 If the `productpage` service doesn't exist on the first cluster, Gloo Gateway will automatically use the `productpage` service running on the other cluster.
@@ -4607,7 +4618,7 @@ describe("Productpage is available", () => {
 })
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/virtual-destination/tests/productpage-available-cluster2.test.js.liquid from lab number 18"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 18"; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 18"; exit 1; }
 -->
 
 Let's restore the `productpage` service:
@@ -4651,7 +4662,7 @@ describe("Productpage is available", () => {
 })
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/virtual-destination/tests/productpage-available-cluster2.test.js.liquid from lab number 18"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 18"; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 18"; exit 1; }
 -->
 
 
