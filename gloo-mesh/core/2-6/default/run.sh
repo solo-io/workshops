@@ -23,8 +23,8 @@ describe("Clusters are healthy", () => {
 });
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/deploy-kind-clusters/tests/cluster-healthy.test.js.liquid from lab number 1"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 1"; exit 1; }
-export GLOO_MESH_VERSION=v2.6.8
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 1"; exit 1; }
+export GLOO_MESH_VERSION=v2.6.10
 curl -sL https://run.solo.io/meshctl/install | sh -
 export PATH=$HOME/.gloo-mesh/bin:$PATH
 cat <<'EOF' > ./test.js
@@ -53,7 +53,7 @@ describe("Required environment variables should contain value", () => {
 });
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/deploy-and-register-gloo-mesh/tests/environment-variables.test.js.liquid from lab number 2"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 2"; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 2"; exit 1; }
 kubectl --context ${MGMT} create ns gloo-mesh
 
 helm upgrade --install gloo-platform-crds gloo-platform-crds \
@@ -61,15 +61,15 @@ helm upgrade --install gloo-platform-crds gloo-platform-crds \
   --namespace gloo-mesh \
   --kube-context ${MGMT} \
   --set featureGates.insightsConfiguration=true \
-  --version 2.6.8
+  --set installEnterpriseCrds=false \
+  --version 2.6.10
 
 helm upgrade --install gloo-platform gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${MGMT} \
-  --version 2.6.8 \
+  --version 2.6.10 \
   -f -<<EOF
-
 licensing:
   glooTrialLicenseKey: ${GLOO_MESH_LICENSE_KEY}
 common:
@@ -78,6 +78,8 @@ glooInsightsEngine:
   enabled: true
 glooMgmtServer:
   enabled: true
+  policyApis:
+    enabled: false
   ports:
     healthcheck: 8091
 redis:
@@ -99,6 +101,7 @@ telemetryCollector:
       otlp:
         endpoint: gloo-telemetry-gateway:4317
 EOF
+
 kubectl --context ${MGMT} -n gloo-mesh rollout status deploy/gloo-mesh-mgmt-server
 kubectl wait --context ${MGMT} --for=condition=Ready -n gloo-mesh --all pod
 timeout 2m bash -c "until [[ \$(kubectl --context ${MGMT} -n gloo-mesh get svc gloo-mesh-mgmt-server -o json | jq '.status.loadBalancer | length') -gt 0 ]]; do
@@ -117,7 +120,7 @@ describe("MGMT server is healthy", () => {
 });
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/deploy-and-register-gloo-mesh/tests/check-deployment.test.js.liquid from lab number 2"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 2"; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 2"; exit 1; }
 cat <<'EOF' > ./test.js
 const chaiExec = require("@jsdevtools/chai-exec");
 var chai = require('chai');
@@ -134,7 +137,7 @@ afterEach(function (done) {
 });
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/deploy-and-register-gloo-mesh/tests/get-gloo-mesh-mgmt-server-ip.test.js.liquid from lab number 2"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 2"; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 2"; exit 1; }
 export ENDPOINT_GLOO_MESH=$(kubectl --context ${MGMT} -n gloo-mesh get svc gloo-mesh-mgmt-server -o jsonpath='{.status.loadBalancer.ingress[0].ip}{.status.loadBalancer.ingress[0].hostname}'):9900
 export HOST_GLOO_MESH=$(echo ${ENDPOINT_GLOO_MESH%:*})
 export ENDPOINT_TELEMETRY_GATEWAY=$(kubectl --context ${MGMT} -n gloo-mesh get svc gloo-telemetry-gateway -o jsonpath='{.status.loadBalancer.ingress[0].ip}{.status.loadBalancer.ingress[0].hostname}'):4317
@@ -159,7 +162,7 @@ describe("Address '" + process.env.HOST_GLOO_MESH + "' can be resolved in DNS", 
 });
 EOF
 echo "executing test ./gloo-mesh-2-0/tests/can-resolve.test.js.liquid from lab number 2"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 2"; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 2"; exit 1; }
 kubectl apply --context ${MGMT} -f - <<EOF
 apiVersion: admin.gloo.solo.io/v2
 kind: KubernetesCluster
@@ -183,14 +186,15 @@ rm token
 helm upgrade --install gloo-platform-crds gloo-platform-crds \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
+  --set installEnterpriseCrds=false \
   --kube-context ${CLUSTER1} \
-  --version 2.6.8
+  --version 2.6.10
 
 helm upgrade --install gloo-platform gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${CLUSTER1} \
-  --version 2.6.8 \
+  --version 2.6.10 \
   -f -<<EOF
 common:
   cluster: cluster1
@@ -231,14 +235,15 @@ rm token
 helm upgrade --install gloo-platform-crds gloo-platform-crds \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
+  --set installEnterpriseCrds=false \
   --kube-context ${CLUSTER2} \
-  --version 2.6.8
+  --version 2.6.10
 
 helm upgrade --install gloo-platform gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${CLUSTER2} \
-  --version 2.6.8 \
+  --version 2.6.10 \
   -f -<<EOF
 common:
   cluster: cluster2
@@ -274,7 +279,7 @@ describe("Cluster registration", () => {
 });
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/deploy-and-register-gloo-mesh/tests/cluster-registration.test.js.liquid from lab number 2"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 2"; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 2"; exit 1; }
 curl -L https://istio.io/downloadIstio | sh -
 
 if [ -d "istio-"*/ ]; then
@@ -298,7 +303,7 @@ afterEach(function (done) {
 });
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/deploy-istio-helm/tests/istio-version.test.js.liquid from lab number 3"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 3"; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 3"; exit 1; }
 kubectl --context ${CLUSTER1} create ns istio-gateways
 
 kubectl apply --context ${CLUSTER1} -f - <<EOF
@@ -676,12 +681,12 @@ describe("Checking Istio installation", function() {
 
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/deploy-istio-helm/tests/istio-ready.test.js.liquid from lab number 3"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 3"; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 3"; exit 1; }
 timeout 2m bash -c "until [[ \$(kubectl --context ${CLUSTER1} -n istio-gateways get svc -l istio=ingressgateway -o json | jq '.items[0].status.loadBalancer | length') -gt 0 ]]; do
   sleep 1
 done"
-export HOST_GW_CLUSTER1="$(kubectl --context ${CLUSTER1} -n istio-gateways get svc -l istio=ingressgateway -o jsonpath='{.items[0].status.loadBalancer.ingress[0].*}')"
-export HOST_GW_CLUSTER2="$(kubectl --context ${CLUSTER2} -n istio-gateways get svc -l istio=ingressgateway -o jsonpath='{.items[0].status.loadBalancer.ingress[0].*}')"
+export HOST_GW_CLUSTER1="$(kubectl --context ${CLUSTER1} -n istio-gateways get svc -l istio=ingressgateway -o jsonpath='{.items[0].status.loadBalancer.ingress[0].hostname}{.items[0].status.loadBalancer.ingress[0].ip}')"
+export HOST_GW_CLUSTER2="$(kubectl --context ${CLUSTER2} -n istio-gateways get svc -l istio=ingressgateway -o jsonpath='{.items[0].status.loadBalancer.ingress[0].hostname}{.items[0].status.loadBalancer.ingress[0].ip}')"
 cat <<'EOF' > ./test.js
 const dns = require('dns');
 const chaiHttp = require("chai-http");
@@ -702,7 +707,7 @@ describe("Address '" + process.env.HOST_GW_CLUSTER1 + "' can be resolved in DNS"
 });
 EOF
 echo "executing test ./default/tests/can-resolve.test.js.liquid from lab number 3"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 3"; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 3"; exit 1; }
 cat <<'EOF' > ./test.js
 const dns = require('dns');
 const chaiHttp = require("chai-http");
@@ -723,11 +728,12 @@ describe("Address '" + process.env.HOST_GW_CLUSTER2 + "' can be resolved in DNS"
 });
 EOF
 echo "executing test ./default/tests/can-resolve.test.js.liquid from lab number 3"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 3"; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 3"; exit 1; }
 kubectl --context ${CLUSTER1} create ns bookinfo-frontends
 kubectl --context ${CLUSTER1} create ns bookinfo-backends
 kubectl --context ${CLUSTER1} label namespace bookinfo-frontends istio.io/rev=1-23 --overwrite
 kubectl --context ${CLUSTER1} label namespace bookinfo-backends istio.io/rev=1-23 --overwrite
+
 
 # Deploy the frontend bookinfo service in the bookinfo-frontends namespace
 kubectl --context ${CLUSTER1} -n bookinfo-frontends apply -f data/steps/deploy-bookinfo/productpage-v1.yaml
@@ -755,14 +761,17 @@ kubectl --context ${CLUSTER2} create ns bookinfo-backends
 kubectl --context ${CLUSTER2} label namespace bookinfo-frontends istio.io/rev=1-23 --overwrite
 kubectl --context ${CLUSTER2} label namespace bookinfo-backends istio.io/rev=1-23 --overwrite
 
+
 # Deploy the frontend bookinfo service in the bookinfo-frontends namespace
 kubectl --context ${CLUSTER2} -n bookinfo-frontends apply -f data/steps/deploy-bookinfo/productpage-v1.yaml
+
 # Deploy the backend bookinfo services in the bookinfo-backends namespace for all versions
 kubectl --context ${CLUSTER2} -n bookinfo-backends apply \
   -f data/steps/deploy-bookinfo/details-v1.yaml \
   -f data/steps/deploy-bookinfo/ratings-v1.yaml \
   -f data/steps/deploy-bookinfo/reviews-v1-v2.yaml \
   -f data/steps/deploy-bookinfo/reviews-v3.yaml
+
 # Update the reviews service to display where it is coming from
 kubectl --context ${CLUSTER2} -n bookinfo-backends set env deploy/reviews-v1 CLUSTER_NAME=${CLUSTER2}
 kubectl --context ${CLUSTER2} -n bookinfo-backends set env deploy/reviews-v2 CLUSTER_NAME=${CLUSTER2}
@@ -803,7 +812,7 @@ describe("Bookinfo app", () => {
 });
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/apps/bookinfo/deploy-bookinfo/tests/check-bookinfo.test.js.liquid from lab number 4"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 4"; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 4"; exit 1; }
 kubectl --context ${CLUSTER1} create ns httpbin
 kubectl apply --context ${CLUSTER1} -f - <<EOF
 
@@ -938,7 +947,7 @@ describe("httpbin app", () => {
 });
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/apps/httpbin/deploy-httpbin/tests/check-httpbin.test.js.liquid from lab number 5"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 5"; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 5"; exit 1; }
 kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: networking.istio.io/v1beta1
 kind: Gateway
@@ -991,7 +1000,7 @@ describe("productpage is available (HTTP)", () => {
 })
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/apps/bookinfo/gateway-expose-istio/tests/productpage-available.test.js.liquid from lab number 6"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 6"; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 6"; exit 1; }
 openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
    -keyout tls.key -out tls.crt -subj "/CN=*"
 kubectl --context ${CLUSTER1} -n istio-gateways create secret generic tls-secret \
@@ -1035,7 +1044,7 @@ describe("productpage is available (HTTPS)", () => {
 })
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/apps/bookinfo/gateway-expose-istio/tests/productpage-available-secure.test.js.liquid from lab number 6"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 6"; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 6"; exit 1; }
 cat <<'EOF' > ./test.js
 var chai = require('chai');
 var expect = chai.expect;
@@ -1052,7 +1061,7 @@ describe("Otel metrics", () => {
 
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/apps/bookinfo/gateway-expose-istio/tests/otel-metrics.test.js.liquid from lab number 6"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=150 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 6"; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=150 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 6"; exit 1; }
 cat <<'EOF' > ./test.js
 const helpers = require('./tests/chai-http');
 const puppeteer = require('puppeteer');
@@ -1118,14 +1127,16 @@ describe("graph page", function () {
 
     const recognizedTexts = await recognizeTextFromScreenshot(
       screenshotPath,
-      ["istio-ingressgateway", "productpage-v1", "details-v1", "ratings-v1", "reviews-v1", "reviews-v2"]);
+      ["istio-ingressgateway", "productpage-v1", "details-v1", "ratings-v1", "reviews-v1", "reviews-v2"],
+      await graphPage.getCurrentGlooUISelectors());
 
     const flattenedRecognizedText = recognizedTexts.join(",").replace(/\n/g, '');
     console.log("Flattened recognized text:", flattenedRecognizedText);
 
     // Validate recognized texts
-    expect(flattenedRecognizedText).to.include("istio-ingressgateway");
     expect(flattenedRecognizedText).to.include("reviews-v2");
+    // New ReactFlow UI can truncate the istio-ingressgateway to istio-ingressgat...
+    expect(flattenedRecognizedText).to.include.oneOf(["istio-ingressgateway","istio-ingressgat..."]);
     // For 2.7 the tessaract image processor is interpreting v1 as vl due to bold font. So cover all cases for v1 checks
     expect(flattenedRecognizedText).to.include.oneOf(["productpage-v1", "productpage-vl"]);
     expect(flattenedRecognizedText).to.include.oneOf(["details-v1", "details-vl"]);
@@ -1136,7 +1147,7 @@ describe("graph page", function () {
 
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/apps/bookinfo/gateway-expose-istio/tests/graph-shows-traffic.test.js.liquid from lab number 6"
-timeout --signal=INT 7m mocha ./test.js --timeout 120000 --retries=3 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 6"; exit 1; }
+timeout --signal=INT 7m mocha ./test.js --timeout 120000 --retries=3 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 6"; exit 1; }
 cat <<'EOF' > ./test.js
 
 const helpersHttp = require('./tests/chai-http');
@@ -1204,7 +1215,7 @@ describe("Insights UI", function() {
 
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/apps/bookinfo/insights-intro/tests/insight-ui-BP0001.test.js.liquid from lab number 7"
-timeout --signal=INT 5m mocha ./test.js --timeout 120000 --retries=20 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 7"; exit 1; }
+timeout --signal=INT 5m mocha ./test.js --timeout 120000 --retries=20 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 7"; exit 1; }
 cat <<'EOF' > ./test.js
 var chai = require('chai');
 var expect = chai.expect;
@@ -1252,7 +1263,7 @@ describe("Insight generation", () => {
 });
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/apps/bookinfo/insights-intro/tests/insight-metrics.test.js.liquid from lab number 7"
-timeout --signal=INT 5m mocha ./test.js --timeout 120000 --retries=20 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 7"; exit 1; }
+timeout --signal=INT 5m mocha ./test.js --timeout 120000 --retries=20 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 7"; exit 1; }
 kubectl apply --context ${MGMT} -f - <<EOF
 apiVersion: admin.gloo.solo.io/v2alpha1
 kind: InsightsConfig
@@ -1319,7 +1330,7 @@ describe("Insights UI", function() {
 });
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/apps/bookinfo/insights-intro/tests/insight-not-ui-BP0002.test.js.liquid from lab number 7"
-timeout --signal=INT 5m mocha ./test.js --timeout 120000 --retries=20 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 7"; exit 1; }
+timeout --signal=INT 5m mocha ./test.js --timeout 120000 --retries=20 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 7"; exit 1; }
 kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: networking.istio.io/v1beta1
 kind: VirtualService
@@ -1401,7 +1412,7 @@ describe("Insights UI", function() {
 });
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/apps/bookinfo/insights-intro/tests/insight-not-ui-BP0001.test.js.liquid from lab number 7"
-timeout --signal=INT 5m mocha ./test.js --timeout 120000 --retries=20 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 7"; exit 1; }
+timeout --signal=INT 5m mocha ./test.js --timeout 120000 --retries=20 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 7"; exit 1; }
 kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: networking.istio.io/v1beta1
 kind: VirtualService
@@ -1467,7 +1478,7 @@ describe("Insight generation", () => {
 });
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/apps/bookinfo/insights-config/../insights-intro/tests/insight-metrics.test.js.liquid from lab number 8"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 8"; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 8"; exit 1; }
 kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: networking.istio.io/v1beta1
 kind: DestinationRule
@@ -1528,7 +1539,7 @@ describe("Insight generation", () => {
 });
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/apps/bookinfo/insights-config/../insights-intro/tests/insight-metrics.test.js.liquid from lab number 8"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 8"; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 8"; exit 1; }
 kubectl --context ${CLUSTER1} -n bookinfo-backends delete virtualservice reviews
 kubectl --context ${CLUSTER1} -n bookinfo-backends delete destinationrule reviews
 kubectl apply --context ${CLUSTER1} -f - <<EOF
@@ -1598,7 +1609,7 @@ describe("Insight generation", () => {
 });
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/apps/bookinfo/insights-security/../insights-intro/tests/insight-metrics.test.js.liquid from lab number 9"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 9"; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 9"; exit 1; }
 kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: security.istio.io/v1beta1
 kind: PeerAuthentication
@@ -1656,6 +1667,6 @@ describe("Insight generation", () => {
 });
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/apps/bookinfo/insights-security/../insights-intro/tests/insight-metrics.test.js.liquid from lab number 9"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 9"; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 9"; exit 1; }
 kubectl --context ${CLUSTER1} -n bookinfo-backends delete authorizationpolicy reviews
 kubectl --context ${CLUSTER1} -n istio-system delete peerauthentication default
