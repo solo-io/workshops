@@ -115,7 +115,7 @@ describe("Clusters are healthy", () => {
 });
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/deploy-kind-clusters/tests/cluster-healthy.test.js.liquid from lab number 1"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 1"; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 1"; exit 1; }
 -->
 
 
@@ -145,7 +145,7 @@ helm repo update
 helm upgrade -i -n gloo-system \
   gloo-gateway gloo-ee-helm/gloo-ee \
   --create-namespace \
-  --version 1.18.7 \
+  --version 1.18.9 \
   --kube-context $CLUSTER1 \
   --set-string license_key=$LICENSE_KEY \
   -f -<<EOF
@@ -260,7 +260,7 @@ describe("Gloo Gateway", () => {
 });
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/deploy-gloo-gateway-enterprise/tests/check-gloo.test.js.liquid from lab number 2"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 2"; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 2"; exit 1; }
 -->
 
 
@@ -311,7 +311,7 @@ EOF
 
 This should create a deployment for the AI Gateway. You can check the status of the deployment using the following command:
 
-```shell
+```bash,noexecute
 kubectl get deploy gloo-proxy-ai-gateway -n gloo-system
 ```
 
@@ -328,7 +328,7 @@ describe("Gloo AI Gateway", () => {
 });
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/ai-gateway/deploy-ai-gateway/tests/check-ai-gateway.test.js.liquid from lab number 3"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 3"; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 3"; exit 1; }
 -->
 
 
@@ -339,7 +339,7 @@ In this demo we'll show you how you can configure the API Gateway to automatical
 
 First, let's prepare two environment variables with the API keys:
 
-```shell
+```bash,noexecute
 export OPENAI_API_KEY=<your Open AI API Key>
 export MISTRAL_API_KEY=<your Mistral AI API Key>
 ```
@@ -462,7 +462,7 @@ export GLOO_AI_GATEWAY=$(kubectl --context $CLUSTER1 get svc -n gloo-system gloo
 
 Now we can send a prompt to the OpenAI API:
 
-```shell
+```bash,noexecute
 curl -v "$GLOO_AI_GATEWAY:8080/openai" -H content-type:application/json   -d '{
       "model": "gpt-4o-mini",
       "max_tokens": 128,
@@ -508,7 +508,7 @@ curl -v "$GLOO_AI_GATEWAY:8080/openai" -H content-type:application/json   -d '{
 
 Similarly, we can send a prompt to the Mistral AI API:
 
-```shell
+```bash,noexecute
 curl --location "$GLOO_AI_GATEWAY:8080/mistral" -H content-type:application/json \
      --data '{
     "model": "open-mistral-nemo",
@@ -526,7 +526,7 @@ Note that we didn't have to include the API keys in the request. The Gloo AI Gat
 
 We can also enable streaming responses by setting the `stream` field to `true` in the request. You can press <kbd>CTRL+C</kbd> to stop the streaming:
 
-```shell
+```bash,noexecute
 curl --location "$GLOO_AI_GATEWAY:8080/mistral" -H content-type:application/json \
      --data '{
     "model": "open-mistral-nemo",
@@ -625,7 +625,7 @@ curl -v "${glooAIGatewayIP}:8080/mistral" -H content-type:application/json -d '{
 
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/ai-gateway/ai-credential-management/tests/check-configured-llms.test.js.liquid from lab number 4"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 4"; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 4"; exit 1; }
 -->
 
 
@@ -676,7 +676,7 @@ EOF
 
 If you try to send the same request as before, without a JWT, you'll get an HTTP 401 Unauthorized response that says the request is missing a JWT:
 
-```shell
+```bash,noexecute
 curl -v "$GLOO_AI_GATEWAY:8080/openai" -H content-type:application/json -d '{
     "model": "gpt-4o-mini",
     "max_tokens": 128,
@@ -712,7 +712,7 @@ export BOB_TOKEN=$(./scripts/create-jwt.sh ./data/steps/ai-access-control/privat
 
 Now that we have a valid JWT for Alice and Bob, we can send the request to the Gloo AI Gateway with the JWT in the `Authorization` header:
 
-```shell
+```bash,noexecute
 curl "$GLOO_AI_GATEWAY:8080/openai" --header "Authorization: Bearer $ALICE_TOKEN" -H content-type:application/json -d '{
     "model": "gpt-4o-mini",
     "max_tokens": 128,
@@ -789,7 +789,7 @@ The part we added to the RouteOption is the `rbac` section in the options. In th
 
 Now, let's send a request to the Gloo AI Gateway with Bob's JWT (remember, Bob has access to the `open-mistral-nemo` model):
 
-```shell
+```bash,noexecute
 curl "$GLOO_AI_GATEWAY:8080/mistral" --header "Authorization: Bearer $BOB_TOKEN" -H content-type:application/json -d '{
     "model": "open-mistral-nemo",
     "max_tokens": 128,
@@ -810,7 +810,7 @@ As expected, we get a response from the Mistral AI API because Bob has access to
 
 If we try the same request with Alice's JWT, we'll get an HTTP 403 Forbidden response because Alice doesn't have access to the `open-mistral-nemo` model:
 
-```shell
+```bash,noexecute
 curl -v "$GLOO_AI_GATEWAY:8080/mistral"  -H "Authorization: Bearer $ALICE_TOKEN" -H content-type:application/json -d '{
     "model": "open-mistral-nemo",
     "max_tokens": 128,
@@ -910,7 +910,7 @@ curl "${glooAIGatewayIP}:8080/mistral" --header "Authorization: Bearer ${aliceTo
 
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/ai-gateway/ai-access-control/tests/check-llm-access.test.js.liquid from lab number 5"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 5"; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 5"; exit 1; }
 -->
 Next, cleanup the route options to not impact the next lab:
 ```bash
@@ -998,7 +998,7 @@ The rate limit configuration is attached to the route using the `rateLimitConfig
 
 Let's use Alice's token to access the API:
 
-```shell
+```bash,noexecute
 curl -v "$GLOO_AI_GATEWAY:8080/openai" --header "Authorization: Bearer $ALICE_TOKEN" -H content-type:application/json -d '{
     "model": "gpt-4o-mini",
     "max_tokens": 128,
@@ -1083,7 +1083,7 @@ describe("rate limiting based on token usage", () => {
 
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/ai-gateway/ai-rate-limiting/tests/check-rate-limited.liquid from lab number 6"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 6"; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 6"; exit 1; }
 -->
 
 ### Viewing Usage Metrics
@@ -1099,7 +1099,7 @@ In addition using the tokens to rate limit, the Gloo AI Gateway can also be conf
 
 Port-forward the Grafana service to view the dashboard:
 
-```shell
+```bash,noexecute
 kubectl --context $CLUSTER1 -n gloo-system port-forward svc/glooe-grafana 3000:80
 ```
 
@@ -1238,7 +1238,7 @@ curl -v "$GLOO_AI_GATEWAY:8080/openai" -H content-type:application/json -d '{
 Note the response in this case is 429 because that's what the custom model `model-failover` is configured to return when it receives a request. Let's also check the logs from the `model-failover` pod to see the requests that were sent:
 
 
-```shell
+```bash,noexecute
 kubectl --context $CLUSTER1 logs deploy/model-failover -n gloo-system
 ```
 
@@ -1277,7 +1277,7 @@ it('should have failed over to other configured models', () => {
 });
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/ai-gateway/ai-model-failover/tests/check-failover.test.js.liquid from lab number 7"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 7"; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 7"; exit 1; }
 -->
 Next, revert the upstream configuration to use the actual OpenAI API and Mistral AI API:
 
@@ -1328,7 +1328,7 @@ We'll start with the following prompt:
 Parse the unstructured text into CSV format: Seattle, Los Angeles, and Chicago are cities in the United States. London, Paris, and Berlin are cities in Europe. Respond only with the CSV data.
 ```
 
-```shell
+```bash,noexecute
 curl "$GLOO_AI_GATEWAY:8080/openai" -H content-type:application/json -d '{
     "model": "gpt-4o-mini",
     "max_tokens": 128,
@@ -1358,7 +1358,7 @@ Notice the prompt we're sending to the model includes the instructions on what t
 
 We can extract the instruction part of the prompt into a system prompt:
 
-```shell
+```bash,noexecute
 curl "$GLOO_AI_GATEWAY:8080/openai" -H content-type:application/json -d '{
     "model": "gpt-4o-mini",
     "max_tokens": 128,
@@ -1402,7 +1402,7 @@ EOF
 
 If we send a request now, the system prompt will be automatically included by the Gloo AI Gateway, before it's sent to the LLM provider:
 
-```shell
+```bash,noexecute
 curl "$GLOO_AI_GATEWAY:8080/openai" -H content-type:application/json -d '{
     "model": "gpt-4o-mini",
     "max_tokens": 128,
@@ -1478,7 +1478,7 @@ curl "${glooAIGatewayIP}:8080/openai" -H content-type:application/json -d '{
 
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/ai-gateway/ai-prompt-management/tests/check-csv-output.test.js.liquid from lab number 8"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 8"; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 8"; exit 1; }
 -->
 Next, cleanup the resource:
 ```bash
@@ -1495,7 +1495,7 @@ LLM provider APIs, given their ability to process and generate human-like text, 
 
 We'll start with an example prompt that asks for examples of credit card numbers:
 
-```shell
+```bash,noexecute
 curl --location "$GLOO_AI_GATEWAY:8080/mistral" -H content-type:application/json \
      --data '{
     "model": "open-mistral-nemo",
@@ -1545,7 +1545,7 @@ EOF
 
 If you repeat the previous request, you'll notice that it gets blocked right away:
 
-```shell
+```bash,noexecute
 curl -v "$GLOO_AI_GATEWAY:8080/mistral" -H content-type:application/json \
      --data '{
     "model": "open-mistral-nemo",
@@ -1564,7 +1564,7 @@ Rejected by guardrails regex
 
 The request was blocked because it contained the string "credit card". But what happens if we try to send a request without the string "credit card" to circumvent prompt guard?
 
-```shell
+```bash,noexecute
 curl -v "$GLOO_AI_GATEWAY:8080/mistral" -H content-type:application/json \
      --data '{
     "model": "open-mistral-nemo",
@@ -1604,15 +1604,15 @@ spec:
         response:
           regex:
             matches:
-            # Mastercard
-            - pattern: '(?:^|\D)(5[1-5][0-9]{2}(?:\ |\-|)[0-9]{4}(?:\ |\-|)[0-9]{4}(?:\ |\-|)[0-9]{4})(?:\D|$)'
+            # Credit card number regex
+            - pattern: '\b(\d{4}[-\s]\d{4}[-\s]\d{4}[-\s]\d{4})\b'
 EOF
 ```
 
 Let's try sending a request with a credit card number:
 
 
-```shell
+```bash,noexecute
 curl -v "$GLOO_AI_GATEWAY:8080/mistral" -H content-type:application/json \
      --data '{
     "model": "open-mistral-nemo",
@@ -1685,7 +1685,7 @@ curl "${glooAIGatewayIP}:8080/mistral" -H content-type:application/json \
 
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/ai-gateway/ai-prompt-guard/tests/check-prompt-guard.test.js.liquid from lab number 9"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 9"; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 9"; exit 1; }
 -->
 Next, cleanup the resources:
 ```bash
@@ -1704,7 +1704,7 @@ Gloo AI Gateway's RAG feature allows you to configure the system to retrieve dat
 
 Let's try sending a request to the Gloo AI Gateway without the RAG enabled, so we can compare the responses:
 
-```shell
+```bash,noexecute
 curl -v "$GLOO_AI_GATEWAY:8080/openai" -H content-type:application/json \
   --data '{
     "model": "gpt-4o-mini",
@@ -1770,7 +1770,7 @@ This configuration tells the Gloo AI Gateway to embed the original prompt we'll 
 
 Let's send the same prompt again and see how the response changes:
 
-```shell
+```bash,noexecute
 curl -v "$GLOO_AI_GATEWAY:8080/openai" -H content-type:application/json \
   --data '{
     "model": "gpt-4o-mini",
@@ -1843,7 +1843,7 @@ curl "${glooAIGatewayIP}:8080/openai" -H content-type:application/json \
 
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/ai-gateway/ai-rag/tests/check-rag.test.js.liquid from lab number 10"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 10"; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 10"; exit 1; }
 -->
 Next, cleanup the resources:
 ```
@@ -1895,7 +1895,7 @@ EOF
 This configuration tells the Gloo AI Gateway to use a Redis instance (`redis://redis-semantic-cache.gloo-system.svc.cluster.local:6379`) to cache the responses for semantically similar queries in Redis. Let's try sending the same prompt multiple times and see how the response time changes:
 
 
-```shell
+```bash,noexecute
 curl -v "$GLOO_AI_GATEWAY:8080/openai" -H content-type:application/json \
      --data '{
     "model": "gpt-4o-mini",
@@ -1916,7 +1916,7 @@ curl -v "$GLOO_AI_GATEWAY:8080/openai" -H content-type:application/json \
 
 Note the response time is 1748 milliseconds (1.7 seconds). Let's send the same prompt again and see how the response time changes:
 
-```shell
+```bash,noexecute
 curl -v "$GLOO_AI_GATEWAY:8080/openai" -H content-type:application/json \
      --data '{
     "model": "gpt-4o-mini",
@@ -1940,7 +1940,7 @@ The response should be significantly faster this time because the response is ca
 
 If you modify the prompt so it's still semantically similar but not exactly the same, the Gloo AI Gateway will still use the cached response. Let's try sending a slightly modified prompt and see we get a cached response:
 
-```shell
+```bash,noexecute
 curl -v "$GLOO_AI_GATEWAY:8080/openai" -H content-type:application/json \
     --data '{
     "model": "gpt-4o-mini",
@@ -2005,7 +2005,7 @@ curl -v "${glooAIGatewayIP}:8080/openai" -H content-type:application/json \
 
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/ai-gateway/ai-semantic-caching/tests/check-semantic-caching.test.js.liquid from lab number 11"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 11"; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 11"; exit 1; }
 -->
 Next, cleanup the resources:
 ```bash
