@@ -1,0 +1,83 @@
+openapi: 3.0.4
+info:
+  title: World Cities API
+  description: Search for any city in the world
+  version: "0.1"
+paths:
+  /:
+    post:
+      summary: Search for cities
+      description: Query world cities by string pattern
+      operationId: search
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/query"
+            examples:
+              0:
+                value: |-
+                  {
+                    "cityQuery": "south bo"
+                  }
+      responses:
+        200:
+          description: City search results
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/search_results"
+              examples:
+                0:
+                  value: |-
+                    {
+                      "matches": [
+                        {
+                          "city": "south boston",
+                          "country": "United States",
+                          "subCountry": "Massachusetts",
+                          "geoNameId": "4951305"
+                        },
+                        {
+                          "city": "south peabody",
+                          "country": "United States",
+                          "subCountry": "Massachusetts",
+                          "geoNameId": "4951473"
+                        },
+                        {
+                          "city": "south bradenton",
+                          "country": "United States",
+                          "subCountry": "Florida",
+                          "geoNameId": "4173392"
+                        },
+                        {
+                          "city": "south burlington",
+                          "country": "United States",
+                          "subCountry": "Vermont",
+                          "geoNameId": "5241248"
+                        }
+                      ]
+                    }
+components:
+  schemas:
+    query:
+      type: object
+      properties:
+        cityQuery:
+          type: string
+    search_results:
+      type: object
+      properties:
+        matches:
+          type: array
+          items:
+            type: object
+            properties:
+              geoNameId:
+                type: string
+              country:
+                type: string
+              subCountry:
+                type: string
+              city:
+                type: string

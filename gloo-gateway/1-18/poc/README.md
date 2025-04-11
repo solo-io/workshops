@@ -27,13 +27,16 @@ source ./scripts/assert.sh
 * [Lab 10 - Apply rate limiting to the Gateway](#lab-10---apply-rate-limiting-to-the-gateway-)
 * [Lab 11 - Use the JWT filter to validate JWT and create headers from claims](#lab-11---use-the-jwt-filter-to-validate-jwt-and-create-headers-from-claims-)
 * [Lab 12 - Use the Web Application Firewall filter](#lab-12---use-the-web-application-firewall-filter-)
-* [Lab 13 - Deploy the Bookinfo sample application](#lab-13---deploy-the-bookinfo-sample-application-)
-* [Lab 14 - Expose the productpage API securely](#lab-14---expose-the-productpage-api-securely-)
-* [Lab 15 - Expose an external API and stitch it with the productpage API](#lab-15---expose-an-external-api-and-stitch-it-with-the-productpage-api-)
-* [Lab 16 - Expose the dev portal backend](#lab-16---expose-the-dev-portal-backend-)
-* [Lab 17 - Deploy and expose the dev portal frontend](#lab-17---deploy-and-expose-the-dev-portal-frontend-)
-* [Lab 18 - Demonstrate the self service capabilities](#lab-18---demonstrate-the-self-service-capabilities-)
-* [Lab 19 - Deploy OpenTelemetry Collector](#lab-19---deploy-opentelemetry-collector-)
+* [Lab 13 - Deploy the World Cities sample application](#lab-13---deploy-the-world-cities-sample-application-)
+* [Lab 14 - Expose a SOAP service as REST](#lab-14---expose-a-soap-service-as-rest-)
+* [Lab 15 - Deploy the Bookinfo sample application](#lab-15---deploy-the-bookinfo-sample-application-)
+* [Lab 16 - Expose the productpage API securely](#lab-16---expose-the-productpage-api-securely-)
+* [Lab 17 - Expose an external API and stitch it with the productpage API](#lab-17---expose-an-external-api-and-stitch-it-with-the-productpage-api-)
+* [Lab 18 - Expose the dev portal backend](#lab-18---expose-the-dev-portal-backend-)
+* [Lab 19 - Deploy and expose the dev portal frontend](#lab-19---deploy-and-expose-the-dev-portal-frontend-)
+* [Lab 20 - Expose a SOAP service in the portal with OpenAPI](#lab-20---expose-a-soap-service-in-the-portal-with-openapi-)
+* [Lab 21 - Demonstrate the self service capabilities](#lab-21---demonstrate-the-self-service-capabilities-)
+* [Lab 22 - Deploy OpenTelemetry Collector](#lab-22---deploy-opentelemetry-collector-)
 
 
 
@@ -123,7 +126,7 @@ describe("Clusters are healthy", () => {
 });
 EOF
 echo "executing test dist/document/build/templates/steps/deploy-kind-clusters/tests/cluster-healthy.test.js.liquid from lab number 1"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 1"; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 1"; exit 1; }
 -->
 
 
@@ -245,7 +248,7 @@ describe("Postgres", () => {
 });
 EOF
 echo "executing test dist/document/build/templates/steps/deploy-keycloak/tests/postgres-available.test.js.liquid from lab number 2"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 2"; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 2"; exit 1; }
 -->
 
 First, we need to define an ID and secret for a "client", which will be the service that delegates to Keycloak for authorization:
@@ -655,7 +658,7 @@ describe("Keycloak", () => {
 });
 EOF
 echo "executing test dist/document/build/templates/steps/deploy-keycloak/tests/pods-available.test.js.liquid from lab number 2"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 2"; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 2"; exit 1; }
 -->
 <!--bash
 cat <<'EOF' > ./test.js
@@ -682,7 +685,7 @@ describe("Retrieve enterprise-networking ip", () => {
 });
 EOF
 echo "executing test dist/document/build/templates/steps/deploy-keycloak/tests/keycloak-ip-is-attached.test.js.liquid from lab number 2"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 2"; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 2"; exit 1; }
 -->
 <!--bash
 timeout 2m bash -c "until [[ \$(kubectl --context ${CLUSTER1} -n keycloak get svc keycloak -o json | jq '.status.loadBalancer | length') -gt 0 ]]; do
@@ -719,8 +722,8 @@ describe("Address '" + process.env.HOST_KEYCLOAK + "' can be resolved in DNS", (
     });
 });
 EOF
-echo "executing test ./gloo-mesh-2-0/tests/can-resolve.test.js.liquid from lab number 2"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 2"; exit 1; }
+echo "executing test ./default/tests/can-resolve.test.js.liquid from lab number 2"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 2"; exit 1; }
 -->
 <!--bash
 echo "Waiting for Keycloak to be ready at $KEYCLOAK_URL/realms/workshop/protocol/openid-connect/token"
@@ -792,9 +795,6 @@ gloo:
       livenessProbeEnabled: true
   discovery:
     enabled: false
-  rbac:
-    namespaced: true
-    nameSuffix: gg-demo
 observability:
   enabled: false
 prometheus:
@@ -854,7 +854,7 @@ describe("Gloo Gateway", () => {
 });
 EOF
 echo "executing test dist/document/build/templates/steps/deploy-gloo-gateway-enterprise/tests/check-gloo.test.js.liquid from lab number 3"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 3"; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 3"; exit 1; }
 -->
 
 
@@ -870,7 +870,15 @@ Run the following commands to deploy the httpbin app twice (`httpbin1` and `http
 
 ```bash
 kubectl --context ${CLUSTER1} create ns httpbin
-kubectl apply --context ${CLUSTER1} -f - <<EOF
+kubectl --context ${CLUSTER1} apply -f data/steps/deploy-httpbin/app-httpbin1.yaml
+kubectl --context ${CLUSTER1} apply -f data/steps/deploy-httpbin/app-httpbin2.yaml
+```
+
+<details>
+  <summary>Show yaml files</summary>
+
+```yaml
+---
 apiVersion: v1
 kind: ServiceAccount
 metadata:
@@ -944,9 +952,7 @@ spec:
             resourceFieldRef:
               divisor: "1"
               resource: limits.cpu
-EOF
-
-kubectl apply --context ${CLUSTER1} -f - <<EOF
+---
 apiVersion: v1
 kind: ServiceAccount
 metadata:
@@ -1020,8 +1026,8 @@ spec:
             resourceFieldRef:
               divisor: "1"
               resource: limits.cpu
-EOF
 ```
+</details>
 
 You can follow the progress using the following command:
 
@@ -1029,7 +1035,7 @@ You can follow the progress using the following command:
 echo -n Waiting for httpbin pods to be ready...
 kubectl --context ${CLUSTER1} -n httpbin rollout status deployment
 -->
-```shell
+```bash,noexecute
 kubectl --context ${CLUSTER1} -n httpbin get pods
 ```
 
@@ -1054,7 +1060,7 @@ describe("httpbin app", () => {
 });
 EOF
 echo "executing test dist/document/build/templates/steps/apps/httpbin/deploy-httpbin/tests/check-httpbin.test.js.liquid from lab number 4"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 4"; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 4"; exit 1; }
 -->
 
 
@@ -1066,6 +1072,7 @@ timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || 
 
 
 The team in charge of the gateway can create a `Gateway` resource and configure an HTTP listener.
+
 
 
 
@@ -1112,6 +1119,8 @@ spec:
           port: 8000
 EOF
 ```
+
+
 
 
 Set the environment variable for the service corresponding to the gateway:
@@ -1161,9 +1170,10 @@ Configure your hosts file to resolve httpbin.example.com with the IP address of 
 
 ```
 
+
 Try to access the application through HTTP:
 
-```shell
+```bash,noexecute
 curl http://httpbin.example.com/get
 ```
 
@@ -1204,7 +1214,7 @@ describe("httpbin through HTTP", () => {
 })
 EOF
 echo "executing test dist/document/build/templates/steps/apps/httpbin/expose-httpbin/tests/http.test.js.liquid from lab number 5"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 5"; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 5"; exit 1; }
 -->
 
 Now, let's secure the access through TLS.
@@ -1290,10 +1300,11 @@ spec:
         - name: httpbin1
           port: 8000
 EOF
+kubectl --context ${CLUSTER1} -n gloo-system rollout status deploy gloo-proxy-http
 ```
 
 
-Try to access the application through HTTPS:
+Try to access the application through HTTPS (might take a few seconds to be ready):
 
 <!--bash
 echo -n Wait for up to 2 minutes until the url is ready...
@@ -1313,7 +1324,7 @@ while [[ $RETRY_COUNT -lt $MAX_RETRIES ]]; do
 done
 -->
 
-```shell
+```bash,noexecute
 curl -k https://httpbin.example.com/get
 ```
 
@@ -1354,8 +1365,9 @@ describe("httpbin through HTTPS", () => {
 })
 EOF
 echo "executing test dist/document/build/templates/steps/apps/httpbin/expose-httpbin/tests/https.test.js.liquid from lab number 5"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 5"; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 5"; exit 1; }
 -->
+
 
 The team in charge of the gateway can create an `HTTPRoute` to automatically redirect HTTP to HTTPS:
 
@@ -1383,7 +1395,7 @@ EOF
 
 Try to access the application through HTTP:
 
-```shell
+```bash,noexecute
 curl -k http://httpbin.example.com/get -L
 ```
 
@@ -1426,8 +1438,9 @@ describe("location header correctly set", () => {
 })
 EOF
 echo "executing test dist/document/build/templates/steps/apps/httpbin/expose-httpbin/tests/redirect-http-to-https.test.js.liquid from lab number 5"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 5"; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 5"; exit 1; }
 -->
+
 
 
 
@@ -1486,7 +1499,7 @@ EOF
 
 Check you can still access the application through HTTPS:
 
-```shell
+```bash,noexecute
 curl -k https://httpbin.example.com/get
 ```
 
@@ -1527,7 +1540,7 @@ describe("httpbin through HTTPS", () => {
 })
 EOF
 echo "executing test dist/document/build/templates/steps/apps/httpbin/delegation/tests/https.test.js.liquid from lab number 6"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 6"; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 6"; exit 1; }
 -->
 
 In the previous example, we've used a simple `/` prefix matcher for both the parent and the child `HTTPRoute`.
@@ -1588,7 +1601,7 @@ EOF
 
 Check you can access the `/status/200` path:
 
-```shell
+```bash,noexecute
 curl -k https://httpbin.example.com/status/200 -w "%{http_code}"
 ```
 
@@ -1607,7 +1620,7 @@ describe("httpbin through HTTPS", () => {
 })
 EOF
 echo "executing test dist/document/build/templates/steps/apps/httpbin/delegation/tests/status-200.test.js.liquid from lab number 6"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 6"; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 6"; exit 1; }
 -->
 
 In the child `HTTPRoute` we've indicated the absolute path (which includes the parent path), but instead we can inherite the parent matcher and use a relative path:
@@ -1635,7 +1648,7 @@ EOF
 
 Check you can still access the `/status/200` path:
 
-```shell
+```bash,noexecute
 curl -k https://httpbin.example.com/status/200 -w "%{http_code}"
 ```
 
@@ -1654,7 +1667,7 @@ describe("httpbin through HTTPS", () => {
 })
 EOF
 echo "executing test dist/document/build/templates/steps/apps/httpbin/delegation/tests/status-200.test.js.liquid from lab number 6"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 6"; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 6"; exit 1; }
 -->
 
 The team in charge of the httpbin application can also take advantage of the `parentRefs` option to indicate which parent `HTTPRoute` can delegate to its own `HTTPRoute`.
@@ -1689,7 +1702,7 @@ EOF
 
 Check you can still access the `/status/200` path:
 
-```shell
+```bash,noexecute
 curl -k https://httpbin.example.com/status/200 -w "%{http_code}"
 ```
 
@@ -1708,7 +1721,7 @@ describe("httpbin through HTTPS", () => {
 })
 EOF
 echo "executing test dist/document/build/templates/steps/apps/httpbin/delegation/tests/status-200.test.js.liquid from lab number 6"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 6"; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 6"; exit 1; }
 -->
 
 Delegation offers another very nice feature. It automatically reorders all the matchers to avoid any short-circuiting.
@@ -1738,7 +1751,7 @@ If the matcher for `/status` is positioned before the matcher for `/status/200`,
 
 Check you can still access the `/status/200` path:
 
-```shell
+```bash,noexecute
 curl -k https://httpbin.example.com/status/200 -w "%{http_code}"
 ```
 
@@ -1750,7 +1763,7 @@ Here is the expected output:
 
 You can use the following command to validate the request has still been handled by the first httpbin application.
 
-```bash
+```bash,noexecute
 kubectl logs --context ${CLUSTER1} -n httpbin -l app=httpbin1 | grep curl | grep 200
 ```
 
@@ -1769,12 +1782,12 @@ describe("httpbin through HTTPS", () => {
 })
 EOF
 echo "executing test dist/document/build/templates/steps/apps/httpbin/delegation/tests/status-200.test.js.liquid from lab number 6"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 6"; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 6"; exit 1; }
 -->
 
 Check you can now also access the status `/status/201` path:
 
-```shell
+```bash,noexecute
 curl -k https://httpbin.example.com/status/201 -w "%{http_code}"
 ```
 
@@ -1786,7 +1799,7 @@ Here is the expected output:
 
 You can use the following command to validate this request has been handled by the second httpbin application.
 
-```bash
+```bash,noexecute
 kubectl logs --context ${CLUSTER1} -n httpbin -l app=httpbin2 | grep curl | grep 201
 ```
 
@@ -1805,7 +1818,7 @@ describe("httpbin through HTTPS", () => {
 })
 EOF
 echo "executing test dist/document/build/templates/steps/apps/httpbin/delegation/tests/status-201.test.js.liquid from lab number 6"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 6"; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 6"; exit 1; }
 -->
 
 Let's delete the latest `HTTPRoute` and apply the original ones:
@@ -1865,7 +1878,7 @@ describe("httpbin through HTTPS", () => {
 })
 EOF
 echo "executing test dist/document/build/templates/steps/apps/httpbin/delegation/tests/https.test.js.liquid from lab number 6"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 6"; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 6"; exit 1; }
 -->
 
 
@@ -1913,7 +1926,7 @@ EOF
 
 Try to access the application (with the `To-Remove` request header added):
 
-```shell
+```bash,noexecute
 curl -k https://httpbin.example.com/get -H 'To-Remove: whatever'
 ```
 
@@ -1923,28 +1936,15 @@ Here is the expected output:
 {
   "args": {},
   "headers": {
-    "Accept": [
-      "*/*"
-    ],
+    ...
     "Foo": [
       "bar"
     ],
-    "Host": [
-      "httpbin.example.com"
-    ],
+    ...
     "User-Agent": [
       "custom"
     ],
-    "X-Forwarded-Proto": [
-      "https"
-    ],
-    "X-Request-Id": [
-      "8595e525-4484-4aaa-8f56-97a96163c333"
-    ]
-  },
-  "method": "GET",
-  "origin": "127.0.0.6:48727",
-  "url": "https://httpbin.example.com/get"
+    ...
 }
 ```
 
@@ -1961,7 +1961,7 @@ describe("request transformations applied", () => {
 })
 EOF
 echo "executing test dist/document/build/templates/steps/apps/httpbin/transformations/tests/request-headers.test.js.liquid from lab number 7"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 7"; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 7"; exit 1; }
 -->
 
 Another typical use case is to rewrite the hostname or the path before sending the request to the backend.
@@ -1998,7 +1998,7 @@ EOF
 
 Try to access the application:
 
-```shell
+```bash,noexecute
 curl -k https://httpbin.example.com/publicget
 ```
 
@@ -2033,6 +2033,7 @@ Here is the expected output:
 }
 ```
 
+
 The transformations have been applied as expected.
 
 <!--bash
@@ -2044,7 +2045,7 @@ describe("request rewrite applied", () => {
 })
 EOF
 echo "executing test dist/document/build/templates/steps/apps/httpbin/transformations/tests/request-rewrite.test.js.liquid from lab number 7"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 7"; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 7"; exit 1; }
 -->
 
 
@@ -2087,7 +2088,7 @@ EOF
 
 Try to access the application (with the `To-Modify` and `To-Remove` response headers added):
 
-```shell
+```bash,noexecute
 curl -k "https://httpbin.example.com/response-headers?to-remove=whatever&to-modify=oldvalue" -I
 ```
 
@@ -2118,7 +2119,7 @@ describe("response transformations applied", () => {
 })
 EOF
 echo "executing test dist/document/build/templates/steps/apps/httpbin/transformations/tests/response-headers.test.js.liquid from lab number 7"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 7"; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 7"; exit 1; }
 -->
 
 Let's apply the original `HTTPRoute` yaml:
@@ -2146,7 +2147,7 @@ All these transformations are great, but there are many cases where more flexibi
 
 For example, you may want to create a new header from a value of another header.
 
-Gloo Gateway provides some extensions to manipulate requests and responses in a more advanced way.
+Gloo Gateway provides some [extensions](https://docs.solo.io/gateway/latest/traffic-management/transformations/) to manipulate requests and responses in a more advanced way.
 
 Let's extract the product name from the `User-Agent` header (getting rid of the product version and comments).
 
@@ -2183,7 +2184,7 @@ EOF
 
 Try to access the application:
 
-```shell
+```bash,noexecute
 curl -k https://httpbin.example.com/get
 ```
 
@@ -2230,12 +2231,12 @@ describe("request transformation applied", () => {
 })
 EOF
 echo "executing test dist/document/build/templates/steps/apps/httpbin/transformations/tests/x-client-request-header.test.js.liquid from lab number 7"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 7"; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 7"; exit 1; }
 -->
 
 As you can see, we've created a new header called `X-Client` by extracting some data from the `User-Agent` header using a regular expression.
 
-And we've targetted the `HTTPRoute` using the `targetRefs` of the `RouteOption` object. With this approach, it applies to all its rules. 
+And we've targetted the `HTTPRoute` using the `targetRefs` of the `RouteOption` object. With this approach, it applies to all its rules.
 
 Another nice capability of the Gloo Gateway transformation filter is the capability to add a response header from some information present in the request.
 
@@ -2290,14 +2291,14 @@ EOF
 
 Try to access the application:
 
-```shell
+```bash,noexecute
 curl -k "https://httpbin.example.com/get" -I
 ```
 
 Here is the expected output:
 
 ```http,nocopy
-HTTP/2 200 
+HTTP/2 200
 access-control-allow-credentials: true
 access-control-allow-origin: *
 date: Tue, 23 Jul 2024 13:13:53 GMT
@@ -2317,7 +2318,7 @@ describe("response transformation applied", () => {
 })
 EOF
 echo "executing test dist/document/build/templates/steps/apps/httpbin/transformations/tests/x-request-id-response-header.js.liquid from lab number 7"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 7"; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 7"; exit 1; }
 -->
 
 Let's apply the original `HTTPRoute` yaml:
@@ -2345,6 +2346,7 @@ Let's delete the `RouteOption` object:
 ```bash
 kubectl delete --context ${CLUSTER1} -n httpbin routeoption routeoption
 ```
+
 
 
 
@@ -2479,7 +2481,7 @@ describe("Authentication is working properly", function () {
 
 EOF
 echo "executing test dist/document/build/templates/steps/apps/httpbin/extauth-oauth/tests/authentication.test.js.liquid from lab number 8"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 8"; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 8"; exit 1; }
 -->
 <!--bash
 cat <<'EOF' > ./test.js
@@ -2492,7 +2494,7 @@ describe("Claim to header is working properly", function() {
 
 EOF
 echo "executing test dist/document/build/templates/steps/apps/httpbin/extauth-oauth/tests/header-added.test.js.liquid from lab number 8"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 8"; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 8"; exit 1; }
 -->
 
 If you refresh the web browser, you will be redirected to the authentication page.
@@ -2586,7 +2588,7 @@ describe("Authentication is working properly", function () {
 
 EOF
 echo "executing test dist/document/build/templates/steps/apps/httpbin/extauth-oauth/tests/authorization.test.js.liquid from lab number 8"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 8"; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 8"; exit 1; }
 -->
 If you open the browser in incognito and login using the username `user2` and the password `password`, you will now be able to access it since the user's email ends with `@solo.io`.
 
@@ -2642,7 +2644,7 @@ describe("Transformation is working properly", function() {
 
 EOF
 echo "executing test dist/document/build/templates/steps/apps/httpbin/advanced-transformations/tests/header-added.test.js.liquid from lab number 9"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 9"; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 9"; exit 1; }
 -->
 
 
@@ -2725,7 +2727,7 @@ describe("Rate limiting is working properly", function() {
 
 EOF
 echo "executing test dist/document/build/templates/steps/apps/httpbin/ratelimiting/tests/rate-limited.test.js.liquid from lab number 10"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 10"; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 10"; exit 1; }
 -->
 
 You should get a `200` response code the first 3 times and a `429` response code after.
@@ -2823,7 +2825,7 @@ This is targeting the httpbin `HTTPRoute`.
 
 Try accessing the `httpbin` application without any token.
 
-```shell
+```bash,noexecute
 curl -k https://httpbin.example.com/get
 ```
 
@@ -2844,7 +2846,7 @@ export USER1_COOKIE_JWT=$(curl -Ssm 10 --fail-with-body \
 
 Now, you should be able to access it:
 
-```shell
+```bash,noexecute
 curl -k https://httpbin.example.com/get -H "jwt: ${USER1_COOKIE_JWT}"
 ```
 
@@ -2896,7 +2898,7 @@ describe("Claim to header is working properly", function() {
 
 EOF
 echo "executing test dist/document/build/templates/steps/apps/httpbin/jwt/tests/header-added.test.js.liquid from lab number 11"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 11"; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 11"; exit 1; }
 -->
 
 
@@ -2945,7 +2947,7 @@ EOF
 
 Try accessing the `httpbin` application again.
 
-```shell
+```bash,noexecute
 curl -k https://httpbin.example.com/get -H "jwt: ${USER1_COOKIE_JWT}"
 ```
 
@@ -2968,7 +2970,7 @@ export USER2_COOKIE_JWT=$(curl -Ssm 10 --fail-with-body \
 
 You should be able to access the application with this user.
 
-```shell
+```bash,noexecute
 curl -k https://httpbin.example.com/get -H "jwt: ${USER2_COOKIE_JWT}"
 ```
 
@@ -2985,7 +2987,7 @@ describe("Only User2 can access httpbin", function() {
 
 EOF
 echo "executing test dist/document/build/templates/steps/apps/httpbin/jwt/tests/only-user2-allowed.test.js.liquid from lab number 11"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 11"; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 11"; exit 1; }
 -->
 
 
@@ -3055,7 +3057,7 @@ describe("WAF is working properly", function() {
 });
 EOF
 echo "executing test dist/document/build/templates/steps/apps/httpbin/waf/tests/waf.test.js.liquid from lab number 12"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 12"; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 12"; exit 1; }
 -->
 
 Run the following command to simulate an attack:
@@ -3085,7 +3087,487 @@ kubectl delete --context ${CLUSTER1} -n gloo-system routeoption waf
 
 
 
-## Lab 13 - Deploy the Bookinfo sample application <a name="lab-13---deploy-the-bookinfo-sample-application-"></a>
+## Lab 13 - Deploy the World Cities sample application <a name="lab-13---deploy-the-world-cities-sample-application-"></a>
+
+We're going to deploy the "World Cities" sample application to demonstrate additional features of Gloo Gateway.
+This is a simple application that provides a single SOAP endpoint to perform a fuzzy search for city names in a public [database](https://github.com/datasets/world-cities/blob/master/data/world-cities.csv).
+
+Create a new namespace in the cluster and apply a deployment and service for this application:
+
+```bash
+kubectl apply --context ${CLUSTER1} -f - <<EOF
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: world-cities
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: world-cities-soap-service
+  namespace: world-cities
+spec:
+  selector:
+    matchLabels:
+      app: world-cities-soap-service
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: world-cities-soap-service
+    spec:
+      containers:
+      - name: world-cities-soap-service
+        image: quay.io/solo-io/world-cities-soap-service:0.0.1
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8080
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: world-cities-soap-service
+  namespace: world-cities
+  labels:
+    app: world-cities-soap-service
+spec:
+  ports:
+  - port: 8080
+    protocol: TCP
+  selector:
+    app: world-cities-soap-service
+EOF
+```
+
+<!--bash
+kubectl --context ${CLUSTER1} -n world-cities rollout status deploy --timeout=5m
+-->
+
+You can check that the "World Cities" pod is running using the following command:
+
+```bash,noexecute
+kubectl --context ${CLUSTER1} -n world-cities get pods
+```
+
+<!--bash
+cat <<'EOF' > ./test.js
+const helpers = require('./tests/chai-exec');
+
+describe("World Cities application", () => {
+  it('is running', () => helpers.checkDeployment({ context: process.env.CLUSTER1, namespace: "world-cities", k8sObj: "world-cities-soap-service" }));
+});
+EOF
+echo "executing test dist/document/build/templates/steps/apps/world-cities/deploy-and-expose-world-cities/tests/check-world-cities.test.js.liquid from lab number 13"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 13"; exit 1; }
+-->
+
+Create a new `HTTPRoute` to expose the application via Gloo Gateway:
+
+```bash
+kubectl apply --context ${CLUSTER1} -f - <<EOF
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: world-cities
+  namespace: world-cities
+spec:
+  parentRefs:
+  - name: http
+    namespace: gloo-system
+    sectionName: https
+  hostnames:
+  - "world-cities.example.com"
+  rules:
+  - backendRefs:
+    - name: world-cities-soap-service
+      port: 8080
+EOF
+```
+
+Configure your hosts file to resolve world-cities.example.com with the IP address of the proxy by executing the following command:
+
+```bash
+./scripts/register-domain.sh world-cities.example.com ${PROXY_IP}
+```
+
+Make sure the service is accessible by sending it a SOAP message to return cities that match search string _"south bo"_:
+
+```bash,noexecute
+curl -ik https://world-cities.example.com/ -H "SOAPAction:findCity" -H "content-type:application/xml" -d \
+  '<?xml version="1.0" encoding="UTF-8"?>
+  <Envelope xmlns="http://schemas.xmlsoap.org/soap/envelope/" xmlns:soap="http://schemas.xmlsoap.org/soap/">
+      <Header />
+      <Body>
+          <Query>
+          <CityQuery>south bo</CityQuery>
+          </Query>
+          \
+      </Body>
+  </Envelope>'
+```
+
+You should get an XML response to that SOAP/XML query:
+
+```xml,nocopy
+HTTP/2 200
+content-length: 901
+content-type: text/xml; charset="utf-8"
+date: Thu, 10 Apr 2025 13:37:42 GMT
+x-envoy-upstream-service-time: 8
+server: envoy
+
+<Envelope xmlns="http://schemas.xmlsoap.org/soap/envelope/">
+	<Header xmlns="http://schemas.xmlsoap.org/soap/envelope/"></Header>
+	<Body xmlns="http://schemas.xmlsoap.org/soap/envelope/">
+		<Content>
+			<Match>
+				<City>south boston</City>
+				<Country>United States</Country>
+				<SubCountry>Massachusetts</SubCountry>
+				<GeoNameId>4951305</GeoNameId>
+			</Match>
+			<Match>
+				<City>south peabody</City>
+				<Country>United States</Country>
+				<SubCountry>Massachusetts</SubCountry>
+				<GeoNameId>4951473</GeoNameId>
+			</Match>
+			<Match>
+				<City>south bradenton</City>
+				<Country>United States</Country>
+				<SubCountry>Florida</SubCountry>
+				<GeoNameId>4173392</GeoNameId>
+			</Match>
+			<Match>
+				<City>south burlington</City>
+				<Country>United States</Country>
+				<SubCountry>Vermont</SubCountry>
+				<GeoNameId>5241248</GeoNameId>
+			</Match>
+		</Content>
+	</Body>
+</Envelope>
+```
+
+<!--bash
+cat <<'EOF' > ./test.js
+const helpers = require('./tests/chai-http');
+
+describe("World Cities service", () => {
+  it('is available as SOAP', () => helpers.checkBody({
+    host: `https://world-cities.example.com`,
+    path: '/',
+    headers: [
+      { key: 'SOAPAction', value: "findCity" },
+      { key: 'Content-Type', value: "application/xml" },
+    ],
+    method: "post",
+    data: `<?xml version="1.0" encoding="UTF-8"?>
+  <Envelope xmlns="http://schemas.xmlsoap.org/soap/envelope/" xmlns:soap="http://schemas.xmlsoap.org/soap/">
+      <Header />
+      <Body>
+          <Query>
+          <CityQuery>south bo</CityQuery>
+          </Query>
+          \
+      </Body>
+  </Envelope>`,
+    body: 'south boston',
+    match: true,
+  }));
+})
+EOF
+echo "executing test dist/document/build/templates/steps/apps/world-cities/deploy-and-expose-world-cities/tests/world-cities-exposed-soap.test.js.liquid from lab number 13"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 13"; exit 1; }
+-->
+
+
+
+## Lab 14 - Expose a SOAP service as REST <a name="lab-14---expose-a-soap-service-as-rest-"></a>
+
+The "World Cities" application we deployed is a SOAP service.
+In this step, we will expose the SOAP service as a REST service using Gloo Gateway's transformation capabilities.
+This will mean that the service is presented externally as a REST service while continuing to be implemented internally as a SOAP service.
+
+We'll use XSLT to transform the incoming REST request into a SOAP request and the SOAP response back into a REST response.
+This requires two transformations: one for the incoming request and one for the outgoing response.
+
+This is the incoming request transformation:
+
+```xml,nocopy
+<?xml version="1.0" encoding="UTF-8"?>
+<xsl:stylesheet
+xmlns:xsl="http://www.w3.org/1999/XSL/Transform"
+xmlns:math="http://www.w3.org/2005/xpath-functions/math"
+xmlns:xs="http://www.w3.org/2001/XMLSchema"
+exclude-result-prefixes="xs math" version="3.0">
+  <xsl:output indent="yes" omit-xml-declaration="yes" />
+  <xsl:strip-space elements="*"/>
+  <xsl:template match="/" xmlns="http://schemas.xmlsoap.org/soap/envelope/">
+    <Envelope >
+      <Header/>
+      <Body>
+        <Query>
+          <xsl:apply-templates select="json-to-xml(.)/*"/>
+        </Query>
+      </Body>
+    </Envelope>
+  </xsl:template>
+  <xsl:template match="map" xpath-default-namespace="http://www.w3.org/2005/xpath-functions" xmlns:web="http://www.qas.com/OnDemand-2011-03">
+    <CityQuery><xsl:value-of select="string[@key='cityQuery']" /></CityQuery>
+  </xsl:template>
+</xsl:stylesheet>
+```
+
+This converts a simple request body like `{"cityQuery": "south bo"}` into the full XML envelope required by the SOAP service, which we used earlier.
+Note that a lot of the difficult work is delegated to the XSLT function `json-to-xml`.
+We use it in the request XSLT to transform the core of the JSON input to XML, and vice versa later with the response.
+
+The response transformation is similar to the request transformation, but in reverse:
+
+```xml,nocopy
+<?xml version="1.0" encoding="UTF-8"?>
+<xsl:stylesheet
+xmlns:xsl="http://www.w3.org/1999/XSL/Transform"
+xmlns:xs="http://www.w3.org/2001/XMLSchema"
+xpath-default-namespace="http://schemas.xmlsoap.org/soap/envelope/"
+version="3.0">
+  <xsl:output method="text" omit-xml-declaration="yes" />
+  <xsl:variable name="myMap">
+    <map xmlns="http://www.w3.org/2005/xpath-functions">
+      <array key="matches" >
+        <xsl:for-each select="/Envelope/Body/Content/Match">
+          <map>
+            <string key="city"><xsl:value-of select="City"/></string>
+            <string key="country"><xsl:value-of select="Country" /></string>
+            <string key="subCountry"><xsl:value-of select="SubCountry" /></string>
+            <string key="geoNameId"><xsl:value-of select="GeoNameId" /></string>
+          </map>
+        </xsl:for-each>
+      </array>
+    </map>
+  </xsl:variable>
+  <xsl:template match="/">
+    <xsl:apply-templates select="xml-to-json($myMap, map{'indent': true()})" />
+  </xsl:template>
+</xsl:stylesheet>
+```
+
+The `xml-to-json` XSLT function translates the XML response from the server to the JSON that we see in the response payload.
+
+We can use a single `RouteOption` manifest to define both of these transformations and bind them to the `HTTPRoute` that exposes the application via Gloo Gateway.
+
+Create the `RouteOption` defining those transformations:
+
+```bash
+kubectl apply --context ${CLUSTER1} -f - <<EOF
+apiVersion: gateway.solo.io/v1
+kind: RouteOption
+metadata:
+  name: routeoption
+  namespace: world-cities
+spec:
+  targetRefs:
+  - group: gateway.networking.k8s.io
+    kind: HTTPRoute
+    name: world-cities
+  options:
+    stagedTransformations:
+      regular:
+        requestTransforms:
+        - requestTransformation:
+            xsltTransformation:
+              xslt: |
+                <?xml version="1.0" encoding="UTF-8"?>
+                <xsl:stylesheet
+                xmlns:xsl="http://www.w3.org/1999/XSL/Transform"
+                xmlns:math="http://www.w3.org/2005/xpath-functions/math"
+                xmlns:xs="http://www.w3.org/2001/XMLSchema"
+                exclude-result-prefixes="xs math" version="3.0">
+                  <xsl:output indent="yes" omit-xml-declaration="yes" />
+                  <xsl:strip-space elements="*"/>
+                  <xsl:template match="/" xmlns="http://schemas.xmlsoap.org/soap/envelope/">
+                    <Envelope >
+                      <Header/>
+                      <Body>
+                        <Query>
+                          <xsl:apply-templates select="json-to-xml(.)/*"/>
+                        </Query>
+                      </Body>
+                    </Envelope>
+                  </xsl:template>
+                  <xsl:template match="map" xpath-default-namespace="http://www.w3.org/2005/xpath-functions" xmlns:web="http://www.qas.com/OnDemand-2011-03">
+                    <CityQuery><xsl:value-of select="string[@key='cityQuery']" /></CityQuery>
+                  </xsl:template>
+                </xsl:stylesheet>
+              nonXmlTransform: true
+              setContentType: text/xml
+          responseTransformation:
+            xsltTransformation:
+              xslt: |
+                <?xml version="1.0" encoding="UTF-8"?>
+                <xsl:stylesheet
+                xmlns:xsl="http://www.w3.org/1999/XSL/Transform"
+                xmlns:xs="http://www.w3.org/2001/XMLSchema"
+                xpath-default-namespace="http://schemas.xmlsoap.org/soap/envelope/"
+                version="3.0">
+                  <xsl:output method="text" omit-xml-declaration="yes" />
+                  <xsl:variable name="myMap">
+                    <map xmlns="http://www.w3.org/2005/xpath-functions">
+                      <array key="matches" >
+                        <xsl:for-each select="/Envelope/Body/Content/Match">
+                          <map>
+                            <string key="city"><xsl:value-of select="City"/></string>
+                            <string key="country"><xsl:value-of select="Country" /></string>
+                            <string key="subCountry"><xsl:value-of select="SubCountry" /></string>
+                            <string key="geoNameId"><xsl:value-of select="GeoNameId" /></string>
+                          </map>
+                        </xsl:for-each>
+                      </array>
+                    </map>
+                  </xsl:variable>
+                  <xsl:template match="/">
+                    <xsl:apply-templates select="xml-to-json(\$myMap, map{'indent': true()})" />
+                  </xsl:template>
+                </xsl:stylesheet>
+              setContentType: application/json
+EOF
+```
+
+There are three key elements of the transformations as applied here:
+
+1. `xslt`: This is the payload transformation, used for the request transformation and the response transformation
+1. `nonXmlTransform`: This is set to `true` for requests since we are transforming JSON to XML
+   Natively, XSLT can only transform XML data. However, our input to the transformation is JSON, so by specifying this flag, we signal to our XSLT transformation filter that we are supplying non-XML (JSON) data as the input.
+1. The `setContentType` attribute indicates that we'll transforming the content type of the data from `application/json` to `text/xml` for requests,
+   and that we'll be serving JSON in the response instead of the XML returned from the upstream service.
+
+Now send a `curl` request to the service for the same search we carried out earlier, changing the payload from XML to JSON:
+
+```bash,noexecute
+curl -ksS https://world-cities.example.com/ -H "SOAPAction:findCity" -H "content-type:application/json" \
+  -d '{"cityQuery": "south bo"}' | jq
+```
+
+You should get the following response:
+
+```json,nocopy
+{
+  "matches": [
+    {
+      "city": "south boston",
+      "country": "United States",
+      "subCountry": "Massachusetts",
+      "geoNameId": "4951305"
+    },
+    {
+      "city": "south peabody",
+      "country": "United States",
+      "subCountry": "Massachusetts",
+      "geoNameId": "4951473"
+    },
+    {
+      "city": "south bradenton",
+      "country": "United States",
+      "subCountry": "Florida",
+      "geoNameId": "4173392"
+    },
+    {
+      "city": "south burlington",
+      "country": "United States",
+      "subCountry": "Vermont",
+      "geoNameId": "5241248"
+    }
+  ]
+}
+```
+
+You can see that the service is now accepting a JSON request, and we're also receiving a JSON payload instead of XML in the response.
+
+However, we're not quite finished. You'll notice that we still need to pass in the `SOAPAction` via a request header, which is not very RESTful.
+To make this more like a REST API, we'll add a Gateway API filter to inject that header rather than require it to be specified in the external request.
+So there will be two sets of transformations applied to each request:
+
+1. Inject the `SOAPAction` header
+1. Apply the XSLT transformations for the request and response payloads from JSON to XML and vice versa.
+
+Since a SOAP endpoint can accept multiple `SOAPAction`s, we'll also give the `findCity` action its own HTTP path, `/search`.
+This will require a match for path `/search` and a rewrite back to `/` for the upstream service.
+
+Modify the existing `HTTPRoute` to match on the `/search` path, add the new header, and rewrite the path:
+
+```bash
+kubectl apply --context ${CLUSTER1} -f - <<EOF
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: world-cities
+  namespace: world-cities
+spec:
+  parentRefs:
+  - name: http
+    namespace: gloo-system
+    sectionName: https
+  hostnames:
+  - "world-cities.example.com"
+  rules:
+  - backendRefs:
+    - name: world-cities-soap-service
+      port: 8080
+    matches:
+    - path:
+        type: PathPrefix
+        value: /search
+    filters:
+    - type: RequestHeaderModifier
+      requestHeaderModifier:
+        add:
+        - name: SOAPAction
+          value: findCity
+    - type: URLRewrite
+      urlRewrite:
+        path:
+          type: ReplacePrefixMatch
+          replacePrefixMatch: /
+EOF
+```
+
+Now make another `curl` request, but this time for the `/search` path and without the `SOAPAction` header:
+
+```bash,noexecute
+curl -ksS https://world-cities.example.com/search -H "content-type:application/json" \
+  -d '{"cityQuery": "south bo"}' | jq
+```
+
+You should get the same response.
+
+The result is that we have a proper REST API that presents a REST/JSON interface to the outside world while maintaining the upstream service in its original SOAP form.
+
+<!--bash
+cat <<'EOF' > ./test.js
+const helpers = require('./tests/chai-http');
+
+describe("World Cities service", () => {
+  it('is available as REST', () => helpers.checkBody({
+    host: `https://world-cities.example.com`,
+    path: '/search',
+    headers: [
+      { key: 'Content-Type', value: "application/json" },
+    ],
+    method: "post",
+    data: '{"cityQuery": "south bo"}',
+    body: 'south boston',
+    match: true,
+  }));
+})
+EOF
+echo "executing test dist/document/build/templates/steps/apps/world-cities/expose-soap-service-as-rest/tests/world-cities-exposed-rest.test.js.liquid from lab number 14"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 14"; exit 1; }
+-->
+
+
+
+## Lab 15 - Deploy the Bookinfo sample application <a name="lab-15---deploy-the-bookinfo-sample-application-"></a>
 [<img src="https://img.youtube.com/vi/nzYcrjalY5A/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/nzYcrjalY5A "Video Link")
 
 We're going to deploy the Bookinfo sample application to demonstrate several features of Gloo Gateway.
@@ -3101,7 +3583,7 @@ kubectl --context ${CLUSTER1} -n bookinfo rollout status deploy --timeout=5m
 
 You can check that the Bookinfo pods are running using the following command:
 
-```shell
+```bash,noexecute
 kubectl --context ${CLUSTER1} -n bookinfo get pods
 ```
 
@@ -3117,8 +3599,8 @@ describe("Bookinfo app", () => {
   });
 });
 EOF
-echo "executing test dist/document/build/templates/steps/apps/bookinfo/deploy-bookinfo/tests/check-bookinfo.test.js.liquid from lab number 13"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 13"; exit 1; }
+echo "executing test dist/document/build/templates/steps/apps/bookinfo/deploy-bookinfo/tests/check-bookinfo.test.js.liquid from lab number 15"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 15"; exit 1; }
 -->
 Configure your hosts file to resolve bookinfo.example.com with the IP address of the proxy by executing the following command:
 
@@ -3128,7 +3610,7 @@ Configure your hosts file to resolve bookinfo.example.com with the IP address of
 
 
 
-## Lab 14 - Expose the productpage API securely <a name="lab-14---expose-the-productpage-api-securely-"></a>
+## Lab 16 - Expose the productpage API securely <a name="lab-16---expose-the-productpage-api-securely-"></a>
 
 Gloo Gateway includes a developer portal, which provides a framework for managing API discovery, API client identity, and API policies.
 
@@ -3197,7 +3679,7 @@ EOF
 
 You should now be able to access the API through the gateway without any authentication:
 
-```shell
+```bash,noexecute
 curl -k "https://bookinfo.example.com/api/bookinfo/v1"
 ```
 
@@ -3216,8 +3698,8 @@ describe("Access the API without authentication", () => {
   it('Checking text \'The Comedy of Errors\' in the response', () => helpersHttp.checkBody({ host: `https://bookinfo.example.com`, path: '/api/bookinfo/v1', body: 'The Comedy of Errors', match: true }));
 })
 EOF
-echo "executing test dist/document/build/templates/steps/apps/bookinfo/dev-portal-api/tests/access-api-no-auth.test.js.liquid from lab number 14"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 14"; exit 1; }
+echo "executing test dist/document/build/templates/steps/apps/bookinfo/dev-portal-api/tests/access-api-no-auth.test.js.liquid from lab number 16"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 16"; exit 1; }
 -->
 
 
@@ -3288,7 +3770,7 @@ In case of conflict, the priority is given to:
 
 Try to access the API without authentication:
 
-```shell
+```bash,noexecute
 curl -k "https://bookinfo.example.com/api/bookinfo/v1" -I
 ```
 
@@ -3300,14 +3782,14 @@ describe("Access to API unauthorized", () => {
   it('Response code is 403', () => helpers.checkURL({ host: `https://bookinfo.example.com`, path: '/api/bookinfo/v1', retCode: 403 }));
 })
 EOF
-echo "executing test dist/document/build/templates/steps/apps/bookinfo/dev-portal-api/tests/access-api-unauthorized.test.js.liquid from lab number 14"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 14"; exit 1; }
+echo "executing test dist/document/build/templates/steps/apps/bookinfo/dev-portal-api/tests/access-api-unauthorized.test.js.liquid from lab number 16"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 16"; exit 1; }
 -->
 
 The access is refused (403 response):
 
 ```http,nocopy
-HTTP/2 403 
+HTTP/2 403
 date: Thu, 25 Apr 2024 09:16:18 GMT
 server: envoy
 ```
@@ -3332,7 +3814,7 @@ echo export USER1_TOKEN=${USER1_TOKEN}
 
 Now, you should be able to access the API using this token:
 
-```shell
+```bash,noexecute
 curl -k -H "Authorization: Bearer $USER1_TOKEN" "https://bookinfo.example.com/api/bookinfo/v1"
 ```
 
@@ -3344,8 +3826,8 @@ describe("Access to API authorized", () => {
   it('Response code is 200', () => helpers.checkURL({ host: `https://bookinfo.example.com`, path: '/api/bookinfo/v1', headers: [{key: 'Authorization', value: 'Bearer ' + process.env.USER1_TOKEN}], retCode: 200 }));
 })
 EOF
-echo "executing test dist/document/build/templates/steps/apps/bookinfo/dev-portal-api/tests/access-api-authorized.test.js.liquid from lab number 14"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 14"; exit 1; }
+echo "executing test dist/document/build/templates/steps/apps/bookinfo/dev-portal-api/tests/access-api-authorized.test.js.liquid from lab number 16"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 16"; exit 1; }
 -->
 
 So, we've secured the access to our API, but you generally want to also limit the usage of your API.
@@ -3420,14 +3902,14 @@ EOF
 
 Try to access the API more than 5 times:
 
-```shell
+```bash,noexecute
 for i in `seq 1 10`; do curl -k -H "Authorization: Bearer $USER1_TOKEN" "https://bookinfo.example.com/api/bookinfo/v1" -I; done
 ```
 
 You should be rate limited:
 
 ```http,nocopy
-HTTP/2 200 
+HTTP/2 200
 content-type: application/json
 content-length: 395
 server: istio-envoy
@@ -3436,7 +3918,7 @@ x-envoy-upstream-service-time: 1
 
 ...
 
-HTTP/2 429 
+HTTP/2 429
 x-envoy-ratelimited: true
 date: Thu, 25 Apr 2024 09:17:18 GMT
 server: istio-envoy
@@ -3450,8 +3932,8 @@ describe("Access to API rate limited", () => {
   it('Response code is 429', () => helpers.checkURL({ host: `https://bookinfo.example.com`, path: '/api/bookinfo/v1', headers: [{key: 'Authorization', value: 'Bearer ' + process.env.USER1_TOKEN}], retCode: 429 }));
 })
 EOF
-echo "executing test dist/document/build/templates/steps/apps/bookinfo/dev-portal-api/tests/access-api-rate-limited.test.js.liquid from lab number 14"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 14"; exit 1; }
+echo "executing test dist/document/build/templates/steps/apps/bookinfo/dev-portal-api/tests/access-api-rate-limited.test.js.liquid from lab number 16"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 16"; exit 1; }
 -->
 
 Next, let's tell Gloo about this API. Annotate the Bookinfo's `productpage` Service with information about it's OpenAPI schema. This allows Gloo to discover this APIs schema:
@@ -3474,7 +3956,7 @@ done"
 
 An `APIDoc` Kubernetes object, containing the schema of the API is automatically created:
 
-```shell
+```bash,noexecute
 kubectl --context ${CLUSTER1} -n bookinfo get apidoc productpage-service -o yaml
 ```
 
@@ -3486,18 +3968,16 @@ describe("APIDoc has been created", () => {
     it('APIDoc is present', () => helpers.k8sObjectIsPresent({ context: process.env.CLUSTER1, namespace: "bookinfo", k8sType: "apidoc", k8sObj: "productpage-service" }));
 });
 EOF
-echo "executing test dist/document/build/templates/steps/apps/bookinfo/dev-portal-api/tests/apidoc-created.test.js.liquid from lab number 14"
-timeout --signal=INT 5m mocha ./test.js --timeout 10000 --retries=300 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 14"; exit 1; }
+echo "executing test dist/document/build/templates/steps/apps/bookinfo/dev-portal-api/tests/apidoc-created.test.js.liquid from lab number 16"
+timeout --signal=INT 5m mocha ./test.js --timeout 10000 --retries=300 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 16"; exit 1; }
 -->
 
 You should get something like this:
 
 ```yaml,nocopy
-apiVersion: apimanagement.gloo.solo.io/v2
+apiVersion: portal.gloo.solo.io/v1
 kind: ApiDoc
 metadata:
-  annotations:
-    cluster.solo.io/cluster: ""
   creationTimestamp: "2024-04-23T15:57:44Z"
   generation: 1
   labels:
@@ -3508,7 +3988,8 @@ metadata:
   uid: 8c82fabc-cf4d-4894-806b-ac47ba9648b7
 spec:
   openapi:
-    inlineString: '{"components":{"schemas":{"Product":{"description":"Basic information
+    inlineString: |-
+      {"components":{"schemas":{"Product":{"description":"Basic information
       about a product","properties":{"descriptionHtml":{"description":"Description
       of the book - may contain HTML tags","type":"string"},"id":{"description":"Product
       id","format":"int32","type":"integer"},"title":{"description":"Title of the
@@ -3552,12 +4033,11 @@ spec:
       information for a product","name":"review"},{"description":"Rating information
       for a product","name":"rating"}]}'
   servedBy:
-  - destinationSelector:
-      port:
-        number: 9080
-      selector:
-        name: productpage
-        namespace: bookinfo
+  - port: 9080
+    targetRef:
+      kind: Service
+      name: productpage
+      namespace: bookinfo
 ```
 
 Note that you can also create the `APIDoc` objects manually to allow you to provide the OpenAPI document as code.
@@ -3676,7 +4156,7 @@ EOF
 
 
 
-## Lab 15 - Expose an external API and stitch it with the productpage API <a name="lab-15---expose-an-external-api-and-stitch-it-with-the-productpage-api-"></a>
+## Lab 17 - Expose an external API and stitch it with the productpage API <a name="lab-17---expose-an-external-api-and-stitch-it-with-the-productpage-api-"></a>
 
 You can also use Gloo Gateway to expose an API that is outside of the cluster. In this section, we will expose `https://openlibrary.org/search.json`
 
@@ -3725,7 +4205,7 @@ EOF
 
 An `APIDoc` Kubernetes object should be automatically created:
 
-```shell
+```bash,noexecute
 kubectl --context ${CLUSTER1} -n bookinfo get apidoc openlibrary -o yaml
 ```
 
@@ -3826,7 +4306,7 @@ EOF
 
 You can check the first path (/v2/search.json going to static.is.solo.io/search.json) is available:
 
-```shell
+```bash,noexecute
 curl -k -H "Authorization: Bearer ${USER1_TOKEN}" "https://bookinfo.example.com/api/bookinfo/v2/search.json?title=The%20Comedy%20of%20Errors&fields=language&limit=1"
 ```
 
@@ -3838,8 +4318,8 @@ describe("Access the openlibrary API", () => {
   it('Checking text \'language\' in the response', () => helpersHttp.checkBody({ host: `https://bookinfo.example.com`, path: '/api/bookinfo/v2/search.json?title=The%20Comedy%20of%20Errors&fields=language&limit=1', headers: [{key: 'Authorization', value: 'Bearer ' + process.env.USER1_TOKEN}], body: 'language', match: true }));
 })
 EOF
-echo "executing test dist/document/build/templates/steps/apps/bookinfo/dev-portal-stitching/tests/access-openlibrary-api.test.js.liquid from lab number 15"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 15"; exit 1; }
+echo "executing test dist/document/build/templates/steps/apps/bookinfo/dev-portal-stitching/tests/access-openlibrary-api.test.js.liquid from lab number 17"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 17"; exit 1; }
 -->
 
 You should see something like this:
@@ -3881,7 +4361,7 @@ We've also exposed the `/authors/{olid}.json` path to demonstrate how we can use
 
 You can try it out with the following command:
 
-```shell
+```bash,noexecute
 curl -k -H "Authorization: Bearer ${USER1_TOKEN}" "https://bookinfo.example.com/api/bookinfo/v2/authors/OL23919A.json"
 ```
 
@@ -3893,8 +4373,8 @@ describe("Access the openlibrary API with regex", () => {
   it('Checking text \'Rowling\' in the response', () => helpersHttp.checkBody({ host: `https://bookinfo.example.com`, path: '/api/bookinfo/v2/authors/OL23919A.json', headers: [{key: 'Authorization', value: 'Bearer ' + process.env.USER1_TOKEN}], body: 'Rowling', match: true }));
 })
 EOF
-echo "executing test dist/document/build/templates/steps/apps/bookinfo/dev-portal-stitching/tests/access-openlibrary-api-regex.test.js.liquid from lab number 15"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 15"; exit 1; }
+echo "executing test dist/document/build/templates/steps/apps/bookinfo/dev-portal-stitching/tests/access-openlibrary-api-regex.test.js.liquid from lab number 17"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 17"; exit 1; }
 -->
 
 We also need to update the `ApiProduct` object to define a new version targetting the new HTTPRoute:
@@ -3943,7 +4423,7 @@ EOF
 
 
 
-## Lab 16 - Expose the dev portal backend <a name="lab-16---expose-the-dev-portal-backend-"></a>
+## Lab 18 - Expose the dev portal backend <a name="lab-18---expose-the-dev-portal-backend-"></a>
 
 Now that your API has been exposed securely and our plans defined, lets advertise this API through a developer portal.
 
@@ -4076,7 +4556,7 @@ Make sure the domain is in our `/etc/hosts` file:
 
 You should now be able to access the portal API through the gateway:
 
-```shell
+```bash,noexecute
 curl -k "https://portal.example.com/v1/api-products"
 ```
 
@@ -4088,8 +4568,8 @@ describe("Access the portal API without authentication", () => {
   it('Checking text \'apiProductMetadata\' in the response', () => helpersHttp.checkBody({ host: `https://portal.example.com`, path: '/v1/api-products', body: 'apiProductMetadata', match: true }));
 })
 EOF
-echo "executing test dist/document/build/templates/steps/apps/bookinfo/dev-portal-backend/tests/access-portal-api-no-auth.test.js.liquid from lab number 16"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 16"; exit 1; }
+echo "executing test dist/document/build/templates/steps/apps/bookinfo/dev-portal-backend/tests/access-portal-api-no-auth.test.js.liquid from lab number 18"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 18"; exit 1; }
 -->
 
 Here is the expected output:
@@ -4101,7 +4581,7 @@ Here is the expected output:
 
 
 
-## Lab 17 - Deploy and expose the dev portal frontend <a name="lab-17---deploy-and-expose-the-dev-portal-frontend-"></a>
+## Lab 19 - Deploy and expose the dev portal frontend <a name="lab-19---deploy-and-expose-the-dev-portal-frontend-"></a>
 
 The developer frontend is provided as a fully functional template to allow you to customize it based on your own requirements.
 
@@ -4256,15 +4736,15 @@ describe("Access the portal frontend with authentication", () => {
   it('Checking text \'apiProductMetadata\' in the response', () => helpersHttp.checkBody({ host: `https://portal.example.com`, path: '/v1/api-products', headers: [{ key: 'Cookie', value: cookieString }], body: 'apiProductMetadata', match: true }));
 })
 EOF
-echo "executing test dist/document/build/templates/steps/apps/bookinfo/dev-portal-frontend/tests/access-portal-api-auth.test.js.liquid from lab number 17"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 17"; exit 1; }
+echo "executing test dist/document/build/templates/steps/apps/bookinfo/dev-portal-frontend/tests/access-portal-api-auth.test.js.liquid from lab number 19"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 19"; exit 1; }
 -->
 
 You should now be able to access the portal frontend through the gateway.
 
 Get the URL to access the portal frontend using the following command:
 
-```shell
+```bash,noexecute
 echo "https://portal.example.com"
 ```
 
@@ -4284,8 +4764,8 @@ describe("Authentication is working properly", function() {
   });
 });
 EOF
-echo "executing test dist/document/build/templates/steps/apps/bookinfo/dev-portal-frontend/tests/access-portal-frontend-authenticated.test.js.liquid from lab number 17"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 17"; exit 1; }
+echo "executing test dist/document/build/templates/steps/apps/bookinfo/dev-portal-frontend/tests/access-portal-frontend-authenticated.test.js.liquid from lab number 19"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 19"; exit 1; }
 -->
 
 If you click on the `LOGIN` button on the top right corner, you'll be redirected to keycloak and should be able to auth with the user `user1` and the password `password`.
@@ -4367,8 +4847,8 @@ describe("Dev portal frontend UI", function () {
 });
 
 EOF
-echo "executing test dist/document/build/templates/steps/apps/bookinfo/dev-portal-frontend/tests/dev-portal-ui-tests.test.js.liquid from lab number 17"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=10 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 17"; exit 1; }
+echo "executing test dist/document/build/templates/steps/apps/bookinfo/dev-portal-frontend/tests/dev-portal-ui-tests.test.js.liquid from lab number 19"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=10 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 19"; exit 1; }
 -->
 
 
@@ -4489,8 +4969,8 @@ describe("Dev portal frontend UI", function () {
 });
 
 EOF
-echo "executing test dist/document/build/templates/steps/apps/bookinfo/dev-portal-frontend/tests/dev-portal-ui-tests-rbac.test.js.liquid from lab number 17"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=10 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 17"; exit 1; }
+echo "executing test dist/document/build/templates/steps/apps/bookinfo/dev-portal-frontend/tests/dev-portal-ui-tests-rbac.test.js.liquid from lab number 19"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=10 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 19"; exit 1; }
 -->
 
 Let's delete the `PortalGroup` to allow both users to access the `ApiProduct`:
@@ -4502,7 +4982,221 @@ kubectl --context ${CLUSTER1} -n gloo-system delete portalgroups.portal.gloo.sol
 
 
 
-## Lab 18 - Demonstrate the self service capabilities <a name="lab-18---demonstrate-the-self-service-capabilities-"></a>
+## Lab 20 - Expose a SOAP service in the portal with OpenAPI <a name="lab-20---expose-a-soap-service-in-the-portal-with-openapi-"></a>
+
+Earlier, we created route configuration for a SOAP API to expose it to the outside world as a REST API.
+Now that we're cataloguing our APIs in the developer portal, we need to make sure that "World Cities" API is also included.
+To do that, we need to use an OpenAPI Description for this API.
+
+An OpenAPI document has already been created for you at `data/steps/dev-portal-api-soap/openapi.yaml`.
+Take a look at it:
+
+```bash,noexecute
+cat data/steps/dev-portal-api-soap/openapi.yaml
+```
+
+Let's manually create an `APIDoc` resource that embeds this OpenAPI description of the "World Cities" REST API:
+
+```bash
+kubectl apply --context ${CLUSTER1} -f - <<EOF
+apiVersion: portal.gloo.solo.io/v1
+kind: ApiDoc
+metadata:
+  name: world-cities
+  namespace: world-cities
+spec:
+  openapi:
+    inlineString: |-
+$(cat data/steps/dev-portal-api-soap/openapi.yaml | sed 's/^/      /')
+  servedBy:
+  - targetRef:
+      kind: Service
+      name: world-cities-soap-service
+      namespace: world-cities
+    port: 8080
+EOF
+```
+
+Create an `APIProduct` that consists of this API, linked to the `HTTPRoute` that exposes it:
+
+```bash
+kubectl apply --context ${CLUSTER1} -f - <<EOF
+apiVersion: portal.gloo.solo.io/v1
+kind: ApiProduct
+metadata:
+  name: world-cities
+  namespace: world-cities
+spec:
+  id: world-cities
+  displayName: World Cities API
+  customMetadata:
+    imageURL: https://upload.wikimedia.org/wikipedia/commons/thumb/6/67/London_Skyline_%28125508655%29.jpeg/1280px-London_Skyline_%28125508655%29.jpeg
+  versions:
+  - apiVersion: v1
+    targetRefs:
+    - group: gateway.networking.k8s.io
+      kind: HTTPRoute
+      name: world-cities
+      namespace: world-cities
+    openapiMetadata:
+      title: World Cities API
+      description: |
+        # World Cities REST API Documentation
+        This API serves data from a public database [here](https://github.com/datasets/world-cities/blob/main/data/world-cities.csv).
+    customMetadata:
+      lifecyclePhase: General Availability
+EOF
+```
+
+Now that we've defined the API and how it is hosted, we need to add the `world-cities` namespace to the `Portal` configuration so that API products defined in this namespace will be discovered:
+
+```bash
+kubectl apply --context ${CLUSTER1} -f - <<EOF
+apiVersion: portal.gloo.solo.io/v1
+kind: Portal
+metadata:
+  name: portal
+  namespace: gloo-system
+spec:
+  # APIs will be accessible to unauthenticated users
+  visibility:
+    public: true
+  # List of API products to be included in the portal
+  apiProducts:
+    - namespace: bookinfo
+    - namespace: world-cities
+EOF
+```
+
+Discovery of the APIs in this namespace depends on this namespace providing a `ReferenceGrant` allowing the `gloo-system` namespace to read its resources.
+Let's create that `ReferenceGrant`:
+
+```bash
+kubectl apply --context ${CLUSTER1} -f - <<EOF
+apiVersion: gateway.networking.k8s.io/v1beta1
+kind: ReferenceGrant
+metadata:
+  name: allow-portal-to-access-apiproduct
+  namespace: world-cities
+spec:
+  from:
+  - group: portal.gloo.solo.io
+    kind: Portal
+    namespace: gloo-system
+  to:
+  - group: portal.gloo.solo.io
+    kind: ApiProduct
+EOF
+```
+
+Finally, add a CORS policy to the existing `RouteOptions` where the transformations are defined so that the portal can invoke this API:
+
+```bash
+kubectl apply --context ${CLUSTER1} -f - <<EOF
+apiVersion: gateway.solo.io/v1
+kind: RouteOption
+metadata:
+  name: routeoption
+  namespace: world-cities
+spec:
+  targetRefs:
+  - group: gateway.networking.k8s.io
+    kind: HTTPRoute
+    name: world-cities
+  options:
+    stagedTransformations:
+      regular:
+        requestTransforms:
+        - requestTransformation:
+            xsltTransformation:
+              xslt: |
+                <?xml version="1.0" encoding="UTF-8"?>
+                <xsl:stylesheet
+                xmlns:xsl="http://www.w3.org/1999/XSL/Transform"
+                xmlns:math="http://www.w3.org/2005/xpath-functions/math"
+                xmlns:xs="http://www.w3.org/2001/XMLSchema"
+                exclude-result-prefixes="xs math" version="3.0">
+                  <xsl:output indent="yes" omit-xml-declaration="yes" />
+                  <xsl:strip-space elements="*"/>
+                  <xsl:template match="/" xmlns="http://schemas.xmlsoap.org/soap/envelope/">
+                    <Envelope >
+                      <Header/>
+                      <Body>
+                        <Query>
+                          <xsl:apply-templates select="json-to-xml(.)/*"/>
+                        </Query>
+                      </Body>
+                    </Envelope>
+                  </xsl:template>
+                  <xsl:template match="map" xpath-default-namespace="http://www.w3.org/2005/xpath-functions" xmlns:web="http://www.qas.com/OnDemand-2011-03">
+                    <CityQuery><xsl:value-of select="string[@key='cityQuery']" /></CityQuery>
+                  </xsl:template>
+                </xsl:stylesheet>
+              nonXmlTransform: true
+              setContentType: text/xml
+          responseTransformation:
+            xsltTransformation:
+              xslt: |
+                <?xml version="1.0" encoding="UTF-8"?>
+                <xsl:stylesheet
+                xmlns:xsl="http://www.w3.org/1999/XSL/Transform"
+                xmlns:xs="http://www.w3.org/2001/XMLSchema"
+                xpath-default-namespace="http://schemas.xmlsoap.org/soap/envelope/"
+                version="3.0">
+                  <xsl:output method="text" omit-xml-declaration="yes" />
+                  <xsl:variable name="myMap">
+                    <map xmlns="http://www.w3.org/2005/xpath-functions">
+                      <array key="matches" >
+                        <xsl:for-each select="/Envelope/Body/Content/Match">
+                          <map>
+                            <string key="city"><xsl:value-of select="City"/></string>
+                            <string key="country"><xsl:value-of select="Country" /></string>
+                            <string key="subCountry"><xsl:value-of select="SubCountry" /></string>
+                            <string key="geoNameId"><xsl:value-of select="GeoNameId" /></string>
+                          </map>
+                        </xsl:for-each>
+                      </array>
+                    </map>
+                  </xsl:variable>
+                  <xsl:template match="/">
+                    <xsl:apply-templates select="xml-to-json(\$myMap, map{'indent': true()})" />
+                  </xsl:template>
+                </xsl:stylesheet>
+              setContentType: application/json
+    cors:
+      allowCredentials: true
+      allowHeaders:
+      - "*"
+      allowMethods:
+      - GET
+      allowOriginRegex:
+      - ".*"
+EOF
+```
+
+That's it! We didn't add any authentication or authorisation to this API so it is publicly accessible.
+Take a look in the portal frontend and see that the API has been added, and that you can browse its documentation and try out the search operation.
+
+<!--bash
+cat <<'EOF' > ./test.js
+const helpers = require('./tests/chai-http');
+
+describe("World Cities API", () => {
+  it('is included in the portal', () => helpers.checkBody({
+    host: `https://portal.example.com`,
+    path: '/v1/api-products',
+    body: 'World Cities API',
+    match: true,
+  }));
+})
+EOF
+echo "executing test dist/document/build/templates/steps/apps/world-cities/dev-portal-api-soap/tests/world-cities-exposed-portal.test.js.liquid from lab number 20"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 20"; exit 1; }
+-->
+
+
+
+## Lab 21 - Demonstrate the self service capabilities <a name="lab-21---demonstrate-the-self-service-capabilities-"></a>
 
 
 We're going to demonstrate how to allow users to create their own teams and applications, subscribe to API Products and get credentials.
@@ -4744,8 +5438,8 @@ describe("Dev portal frontend UI", function () {
 });
 
 EOF
-echo "executing test dist/document/build/templates/steps/apps/bookinfo/dev-portal-self-service/tests/dev-portal-ui-tests.test.js.liquid from lab number 18"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=10 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 18"; exit 1; }
+echo "executing test dist/document/build/templates/steps/apps/bookinfo/dev-portal-self-service/tests/dev-portal-ui-tests.test.js.liquid from lab number 21"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=10 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 21"; exit 1; }
 -->
 <!--bash
 export API_KEY=$(cat apiKey)
@@ -4754,7 +5448,7 @@ export API_KEY=$(cat apiKey)
 
 Try to access the API without authentication:
 
-```shell
+```bash,noexecute
 curl -k "https://bookinfo.example.com/api/bookinfo/v1" -I
 ```
 
@@ -4766,14 +5460,14 @@ describe("Access to API unauthorized", () => {
   it('Response code is 403', () => helpers.checkURL({ host: `https://bookinfo.example.com`, path: '/api/bookinfo/v1', retCode: 403 }));
 })
 EOF
-echo "executing test dist/document/build/templates/steps/apps/bookinfo/dev-portal-self-service/tests/access-api-unauthorized.test.js.liquid from lab number 18"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 18"; exit 1; }
+echo "executing test dist/document/build/templates/steps/apps/bookinfo/dev-portal-self-service/tests/access-api-unauthorized.test.js.liquid from lab number 21"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 21"; exit 1; }
 -->
 
 The access is refused (403 response):
 
 ```,nocopy
-HTTP/2 403 
+HTTP/2 403
 content-length: 8
 content-type: text/plain
 date: Tue, 17 Sep 2024 14:36:54 GMT
@@ -4782,7 +5476,7 @@ server: envoy
 
 Now, let's try with the api key
 
-```shell
+```bash,noexecute
 curl -k -H "api-key: $API_KEY" "https://bookinfo.example.com/api/bookinfo/v1"
 ```
 
@@ -4794,8 +5488,8 @@ describe("Access to API authorized", () => {
   it('Response code is 200', () => helpers.checkURL({ host: `https://bookinfo.example.com`, path: '/api/bookinfo/v1', headers: [{key: 'api-key', value: process.env.API_KEY}], retCode: 200 }));
 })
 EOF
-echo "executing test dist/document/build/templates/steps/apps/bookinfo/dev-portal-self-service/tests/access-api-authorized.test.js.liquid from lab number 18"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 18"; exit 1; }
+echo "executing test dist/document/build/templates/steps/apps/bookinfo/dev-portal-self-service/tests/access-api-authorized.test.js.liquid from lab number 21"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 21"; exit 1; }
 -->
 
 So, we've secured the access to our API, but you generally want to also limit the usage of your API.
@@ -4874,7 +5568,7 @@ EOF
 
 Run the following command:
 
-```shell
+```bash,noexecute
 for i in `seq 1 10`; do curl -k -H "api-key: $API_KEY" "https://bookinfo.example.com/api/bookinfo/v1" -I; done
 ```
 
@@ -4886,8 +5580,8 @@ describe("Access to API rate limited", () => {
   it('Response code is 429', () => helpers.checkURL({ host: `https://bookinfo.example.com`, path: '/api/bookinfo/v1', headers: [{key: 'api-key', value: process.env.API_KEY}], retCode: 429 }));
 })
 EOF
-echo "executing test dist/document/build/templates/steps/apps/bookinfo/dev-portal-self-service/tests/access-api-rate-limited.test.js.liquid from lab number 18"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 18"; exit 1; }
+echo "executing test dist/document/build/templates/steps/apps/bookinfo/dev-portal-self-service/tests/access-api-rate-limited.test.js.liquid from lab number 21"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 21"; exit 1; }
 -->
 
 You should get a `200` response code the first 5 time and a `429` response code after.
@@ -5076,8 +5770,8 @@ describe("Dev portal frontend UI oauth", function () {
   });
 });
 EOF
-echo "executing test dist/document/build/templates/steps/apps/bookinfo/dev-portal-self-service/tests/dev-portal-ui-tests-oauth.test.js.liquid from lab number 18"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=10 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 18"; exit 1; }
+echo "executing test dist/document/build/templates/steps/apps/bookinfo/dev-portal-self-service/tests/dev-portal-ui-tests-oauth.test.js.liquid from lab number 21"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=10 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 21"; exit 1; }
 -->
 <!--bash
 export CLIENT_ID=$(cat oauthClient | jq -r .clientId)
@@ -5100,7 +5794,7 @@ echo export APP_TOKEN=${APP_TOKEN}
 
 Run the following command:
 
-```shell
+```bash,noexecute
 for i in `seq 1 10`; do curl -k -H "Authorization: Bearer $APP_TOKEN" "https://bookinfo.example.com/api/bookinfo/v1" -I; done
 ```
 
@@ -5112,8 +5806,8 @@ describe("Access to API unauthorized", () => {
   it('Response code is 403', () => helpers.checkURL({ host: `https://bookinfo.example.com`, path: '/api/bookinfo/v1', retCode: 403 }));
 })
 EOF
-echo "executing test dist/document/build/templates/steps/apps/bookinfo/dev-portal-self-service/tests/access-api-unauthorized.test.js.liquid from lab number 18"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 18"; exit 1; }
+echo "executing test dist/document/build/templates/steps/apps/bookinfo/dev-portal-self-service/tests/access-api-unauthorized.test.js.liquid from lab number 21"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 21"; exit 1; }
 -->
 
 <!--bash
@@ -5124,8 +5818,8 @@ describe("Access to API rate limited", () => {
   it('Response code is 429', () => helpers.checkURL({ host: `https://bookinfo.example.com`, path: '/api/bookinfo/v1', headers: [{key: 'Authorization', value: 'Bearer ' + process.env.APP_TOKEN}], retCode: 429 }));
 })
 EOF
-echo "executing test dist/document/build/templates/steps/apps/bookinfo/dev-portal-self-service/tests/access-api-oauth.test.js.liquid from lab number 18"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 18"; exit 1; }
+echo "executing test dist/document/build/templates/steps/apps/bookinfo/dev-portal-self-service/tests/access-api-oauth.test.js.liquid from lab number 21"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 21"; exit 1; }
 -->
 
 You should get a `200` response code the first 5 time and a `429` response code after.
@@ -5133,7 +5827,7 @@ You should get a `200` response code the first 5 time and a `429` response code 
 
 
 
-## Lab 19 - Deploy OpenTelemetry Collector <a name="lab-19---deploy-opentelemetry-collector-"></a>
+## Lab 22 - Deploy OpenTelemetry Collector <a name="lab-22---deploy-opentelemetry-collector-"></a>
 
 Having metrics is essential for running applications reliably, and gateways are no exceptions.
 
@@ -5313,7 +6007,7 @@ kubectl label -n monitoring cm envoy-dashboard grafana_dashboard=1
 
 Let's generate some traffic!
 
-```shell,run
+```bash,noexecute
 for i in {1..5}; do curl https://httpbin.example.com/get -v; done
 ```
 
@@ -5326,7 +6020,7 @@ echo "http://$(kubectl --context ${CLUSTER1} -n monitoring get svc kube-promethe
 
 
 Login with `admin` and `prom-operator` you should be able to see how traffic flows trough your Gateways!
-			    
+
 ![Envoy dashboard](images/steps/deploy-otel-collector/envoy.png)
 
 
