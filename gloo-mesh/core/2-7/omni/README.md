@@ -15,6 +15,7 @@ source ./scripts/assert.sh
 
 ## Table of Contents
 * [Introduction](#introduction)
+* [Setup](#setup)
 * [Lab 1 - Deploy KinD Cluster(s)](#lab-1---deploy-kind-cluster(s)-)
 * [Lab 2 - Deploy and register Gloo Mesh](#lab-2---deploy-and-register-gloo-mesh-)
 * [Lab 3 - Configure common trust certificates in both clusters](#lab-3---configure-common-trust-certificates-in-both-clusters-)
@@ -80,14 +81,20 @@ Gloo Mesh Core provides many unique features, including:
 You can find more information about Gloo Mesh Core in the official documentation: <https://docs.solo.io/gloo-mesh-core>
 
 
-
-
-## Lab 1 - Deploy KinD Cluster(s) <a name="lab-1---deploy-kind-cluster(s)-"></a>
-
+## Setup
 
 Clone this repository and go to the directory where this `README.md` file is.
 
+The host system will need Docker, Kind, helm, and kubectl installed.
 
+For convenience, a setup script has been made for Ubuntu 24.04 which installs these for you:
+
+```bash
+./scripts/setup-ubuntu24.sh
+```
+
+
+## Lab 1 - Deploy KinD Cluster(s) <a name="lab-1---deploy-kind-cluster(s)-"></a>
 
 Set the context environment variables:
 
