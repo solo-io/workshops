@@ -24,7 +24,7 @@ describe("Clusters are healthy", () => {
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/deploy-kind-clusters/tests/cluster-healthy.test.js.liquid from lab number 1"
 timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 1"; exit 1; }
-export GLOO_MESH_VERSION=v2.7.1
+export GLOO_MESH_VERSION=v2.7.3
 curl -sL https://run.solo.io/meshctl/install | sh -
 export PATH=$HOME/.gloo-mesh/bin:$PATH
 cat <<'EOF' > ./test.js
@@ -62,13 +62,13 @@ helm upgrade --install gloo-platform-crds gloo-platform-crds \
   --kube-context ${MGMT} \
   --set featureGates.insightsConfiguration=true \
   --set installEnterpriseCrds=false \
-  --version 2.7.1
+  --version 2.7.3
 
 helm upgrade --install gloo-platform gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${MGMT} \
-  --version 2.7.1 \
+  --version 2.7.3 \
   -f -<<EOF
 licensing:
   glooTrialLicenseKey: ${GLOO_MESH_LICENSE_KEY}
@@ -191,13 +191,13 @@ helm upgrade --install gloo-platform-crds gloo-platform-crds \
   --namespace gloo-mesh \
   --set installEnterpriseCrds=false \
   --kube-context ${CLUSTER1} \
-  --version 2.7.1
+  --version 2.7.3
 
 helm upgrade --install gloo-platform gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${CLUSTER1} \
-  --version 2.7.1 \
+  --version 2.7.3 \
   -f -<<EOF
 common:
   cluster: cluster1
@@ -240,13 +240,13 @@ helm upgrade --install gloo-platform-crds gloo-platform-crds \
   --namespace gloo-mesh \
   --set installEnterpriseCrds=false \
   --kube-context ${CLUSTER2} \
-  --version 2.7.1
+  --version 2.7.3
 
 helm upgrade --install gloo-platform gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${CLUSTER2} \
-  --version 2.7.1 \
+  --version 2.7.3 \
   -f -<<EOF
 common:
   cluster: cluster2
@@ -308,7 +308,7 @@ describe("istio_version is at least 1.23.0", () => {
   it("version should be at least 1.23.0", () => {
     // Compare the string istio_version to the number 1.23.0
     // example 1.23.0-patch0 is valid, but 1.22.6 is not
-    let version = "1.24.1-patch1";
+    let version = "1.24.5";
     let versionParts = version.split('-')[0].split('.');
     let major = parseInt(versionParts[0]);
     let minor = parseInt(versionParts[1]);
@@ -502,7 +502,7 @@ kubectl --context ${CLUSTER1} create ns istio-system
 helm upgrade --install istio-base oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/base \
 --namespace istio-system \
 --kube-context=${CLUSTER1} \
---version 1.24.1-patch1-solo \
+--version 1.24.5-solo \
 --create-namespace \
 -f - <<EOF
 defaultRevision: ""
@@ -513,14 +513,14 @@ EOF
 helm upgrade --install istiod-1-24 oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/istiod \
 --namespace istio-system \
 --kube-context=${CLUSTER1} \
---version 1.24.1-patch1-solo \
+--version 1.24.5-solo \
 --create-namespace \
 -f - <<EOF
 global:
   hub: us-docker.pkg.dev/gloo-mesh/istio-<enterprise_istio_repo>
   proxy:
     clusterDomain: cluster.local
-  tag: 1.24.1-patch1-solo
+  tag: 1.24.5-solo
   multiCluster:
     clusterName: cluster1
   meshID: mesh1
@@ -546,12 +546,12 @@ EOF
 helm upgrade --install istio-cni oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/cni \
 --namespace kube-system \
 --kube-context=${CLUSTER1} \
---version 1.24.1-patch1-solo \
+--version 1.24.5-solo \
 --create-namespace \
 -f - <<EOF
 global:
   hub: us-docker.pkg.dev/gloo-mesh/istio-<enterprise_istio_repo>
-  proxy: 1.24.1-patch1-solo
+  proxy: 1.24.5-solo
 profile: ambient
 revision: 1-24
 cni:
@@ -565,7 +565,7 @@ EOF
 helm upgrade --install ztunnel oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/ztunnel \
 --namespace istio-system \
 --kube-context=${CLUSTER1} \
---version 1.24.1-patch1-solo \
+--version 1.24.5-solo \
 --create-namespace \
 -f - <<EOF
 configValidation: true
@@ -582,7 +582,7 @@ namespace: istio-system
 profile: ambient
 proxy:
   clusterDomain: cluster.local
-tag: 1.24.1-patch1-solo
+tag: 1.24.5-solo
 terminationGracePeriodSeconds: 29
 variant: distroless
 EOF
@@ -590,7 +590,7 @@ EOF
 helm upgrade --install istio-ingressgateway-1-24 oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/gateway \
 --namespace istio-gateways \
 --kube-context=${CLUSTER1} \
---version 1.24.1-patch1-solo \
+--version 1.24.5-solo \
 --create-namespace \
 -f - <<EOF
 autoscaling:
@@ -609,7 +609,7 @@ EOF
 helm upgrade --install istio-eastwestgateway-1-24 oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/gateway \
 --namespace istio-gateways \
 --kube-context=${CLUSTER1} \
---version 1.24.1-patch1-solo \
+--version 1.24.5-solo \
 --create-namespace \
 -f - <<EOF
 autoscaling:
@@ -619,7 +619,6 @@ revision: 1-24
 imagePullPolicy: IfNotPresent
 env:
   ISTIO_META_REQUESTED_NETWORK_VIEW: cluster1
-  ISTIO_META_ROUTER_MODE: sni-dnat
 labels:
   app: istio-ingressgateway
   istio: eastwestgateway
@@ -628,12 +627,12 @@ labels:
 service:
   type: None
 EOF
-kubectl --context ${CLUSTER1} apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.2.0/experimental-install.yaml
+kubectl --context ${CLUSTER1} apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.3.0/experimental-install.yaml
 kubectl --context ${CLUSTER2} create ns istio-system
 helm upgrade --install istio-base oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/base \
 --namespace istio-system \
 --kube-context=${CLUSTER2} \
---version 1.24.1-patch1-solo \
+--version 1.24.5-solo \
 --create-namespace \
 -f - <<EOF
 defaultRevision: ""
@@ -644,14 +643,14 @@ EOF
 helm upgrade --install istiod-1-24 oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/istiod \
 --namespace istio-system \
 --kube-context=${CLUSTER2} \
---version 1.24.1-patch1-solo \
+--version 1.24.5-solo \
 --create-namespace \
 -f - <<EOF
 global:
   hub: us-docker.pkg.dev/gloo-mesh/istio-<enterprise_istio_repo>
   proxy:
     clusterDomain: cluster.local
-  tag: 1.24.1-patch1-solo
+  tag: 1.24.5-solo
   multiCluster:
     clusterName: cluster2
   meshID: mesh1
@@ -677,12 +676,12 @@ EOF
 helm upgrade --install istio-cni oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/cni \
 --namespace kube-system \
 --kube-context=${CLUSTER2} \
---version 1.24.1-patch1-solo \
+--version 1.24.5-solo \
 --create-namespace \
 -f - <<EOF
 global:
   hub: us-docker.pkg.dev/gloo-mesh/istio-<enterprise_istio_repo>
-  proxy: 1.24.1-patch1-solo
+  proxy: 1.24.5-solo
 profile: ambient
 revision: 1-24
 cni:
@@ -696,7 +695,7 @@ EOF
 helm upgrade --install ztunnel oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/ztunnel \
 --namespace istio-system \
 --kube-context=${CLUSTER2} \
---version 1.24.1-patch1-solo \
+--version 1.24.5-solo \
 --create-namespace \
 -f - <<EOF
 configValidation: true
@@ -713,7 +712,7 @@ namespace: istio-system
 profile: ambient
 proxy:
   clusterDomain: cluster.local
-tag: 1.24.1-patch1-solo
+tag: 1.24.5-solo
 terminationGracePeriodSeconds: 29
 variant: distroless
 EOF
@@ -721,7 +720,7 @@ EOF
 helm upgrade --install istio-ingressgateway-1-24 oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/gateway \
 --namespace istio-gateways \
 --kube-context=${CLUSTER2} \
---version 1.24.1-patch1-solo \
+--version 1.24.5-solo \
 --create-namespace \
 -f - <<EOF
 autoscaling:
@@ -740,7 +739,7 @@ EOF
 helm upgrade --install istio-eastwestgateway-1-24 oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/gateway \
 --namespace istio-gateways \
 --kube-context=${CLUSTER2} \
---version 1.24.1-patch1-solo \
+--version 1.24.5-solo \
 --create-namespace \
 -f - <<EOF
 autoscaling:
@@ -750,7 +749,6 @@ revision: 1-24
 imagePullPolicy: IfNotPresent
 env:
   ISTIO_META_REQUESTED_NETWORK_VIEW: cluster2
-  ISTIO_META_ROUTER_MODE: sni-dnat
 labels:
   app: istio-ingressgateway
   istio: eastwestgateway
@@ -759,7 +757,7 @@ labels:
 service:
   type: None
 EOF
-kubectl --context ${CLUSTER2} apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.2.0/experimental-install.yaml
+kubectl --context ${CLUSTER2} apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.3.0/experimental-install.yaml
 cat <<'EOF' > ./test.js
 
 const helpers = require('./tests/chai-exec');
@@ -1480,6 +1478,7 @@ describe("graph page", function () {
     // Select the clusters and namespaces so that the graph shows
     await graphPage.selectClusters(['cluster1', 'cluster2']);
     await graphPage.selectNamespaces(['istio-gateways', 'bookinfo-backends', 'bookinfo-frontends']);
+    await graphPage.checkViewGraphButton();
     // Disabling Cilium nodes due to this issue: https://github.com/solo-io/gloo-mesh-enterprise/issues/18623
     await graphPage.toggleLayoutSettings();
     await graphPage.disableCiliumNodes();
@@ -1793,7 +1792,6 @@ echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/l
 timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 9"; exit 1; }
 kubectl --context "${CLUSTER1}" -n istio-system logs ds/ztunnel
 cat <<'EOF' > ./test.js
-
 const helpersHttp = require('./tests/chai-http');
 const InsightsPage = require('./tests/pages/insights-page');
 const constants = require('./tests/pages/constants');
@@ -1848,7 +1846,11 @@ describe("Insights UI", function() {
 
   it("should have quick resource state filters", async () => {
     await insightsPage.navigateTo(`http://${process.env.ENDPOINT_GLOO_MESH_UI}/insights`);
-    const healthy = await insightsPage.getQuickFiltersResourcesCount("healthy_2_7");
+    const healthy = await insightsPage.getQuickFiltersResourcesCount("healthy");
+    const warning = await insightsPage.getQuickFiltersResourcesCount("warning");
+    const error = await insightsPage.getQuickFiltersResourcesCount("error");
+    expect(warning).to.be.greaterThan(0);
+    expect(error).to.be.a('number');
     expect(healthy).to.be.greaterThan(0);
   });
 });
@@ -2118,7 +2120,7 @@ describe("Insight generation", () => {
 });
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/apps/bookinfo/insights-config/../insights-intro/tests/insight-metrics.test.js.liquid from lab number 11"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 11"; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 120000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 11"; exit 1; }
 kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: networking.istio.io/v1beta1
 kind: DestinationRule
@@ -2179,7 +2181,7 @@ describe("Insight generation", () => {
 });
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/apps/bookinfo/insights-config/../insights-intro/tests/insight-metrics.test.js.liquid from lab number 11"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 11"; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 120000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 11"; exit 1; }
 kubectl --context ${CLUSTER1} -n bookinfo-backends delete virtualservice reviews
 kubectl --context ${CLUSTER1} -n bookinfo-backends delete destinationrule reviews
 kubectl apply --context ${CLUSTER1} -f - <<EOF
@@ -2314,7 +2316,7 @@ kubectl --context ${CLUSTER1} create ns istio-system
 helm upgrade --install istio-base oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/base \
 --namespace istio-system \
 --kube-context=${CLUSTER1} \
---version 1.25.0-solo \
+--version 1.25.3-solo \
 --create-namespace \
 -f - <<EOF
 defaultRevision: ""
@@ -2325,14 +2327,14 @@ EOF
 helm upgrade --install istiod-1-25 oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/istiod \
 --namespace istio-system \
 --kube-context=${CLUSTER1} \
---version 1.25.0-solo \
+--version 1.25.3-solo \
 --create-namespace \
 -f - <<EOF
 global:
   hub: us-docker.pkg.dev/gloo-mesh/istio-<enterprise_istio_repo>
   proxy:
     clusterDomain: cluster.local
-  tag: 1.25.0-solo
+  tag: 1.25.3-solo
   multiCluster:
     clusterName: cluster1
   meshID: mesh1
@@ -2358,12 +2360,12 @@ EOF
 helm upgrade --install istio-cni oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/cni \
 --namespace kube-system \
 --kube-context=${CLUSTER1} \
---version 1.25.0-solo \
+--version 1.25.3-solo \
 --create-namespace \
 -f - <<EOF
 global:
   hub: us-docker.pkg.dev/gloo-mesh/istio-<enterprise_istio_repo>
-  proxy: 1.25.0-solo
+  proxy: 1.25.3-solo
 profile: ambient
 revision: 1-25
 cni:
@@ -2377,7 +2379,7 @@ EOF
 helm upgrade --install ztunnel oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/ztunnel \
 --namespace istio-system \
 --kube-context=${CLUSTER1} \
---version 1.25.0-solo \
+--version 1.25.3-solo \
 --create-namespace \
 -f - <<EOF
 configValidation: true
@@ -2394,7 +2396,7 @@ namespace: istio-system
 profile: ambient
 proxy:
   clusterDomain: cluster.local
-tag: 1.25.0-solo
+tag: 1.25.3-solo
 terminationGracePeriodSeconds: 29
 variant: distroless
 EOF
@@ -2402,7 +2404,7 @@ EOF
 helm upgrade --install istio-ingressgateway-1-25 oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/gateway \
 --namespace istio-gateways \
 --kube-context=${CLUSTER1} \
---version 1.25.0-solo \
+--version 1.25.3-solo \
 --create-namespace \
 -f - <<EOF
 autoscaling:
@@ -2421,7 +2423,7 @@ EOF
 helm upgrade --install istio-eastwestgateway-1-25 oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/gateway \
 --namespace istio-gateways \
 --kube-context=${CLUSTER1} \
---version 1.25.0-solo \
+--version 1.25.3-solo \
 --create-namespace \
 -f - <<EOF
 autoscaling:
@@ -2431,7 +2433,6 @@ revision: 1-25
 imagePullPolicy: IfNotPresent
 env:
   ISTIO_META_REQUESTED_NETWORK_VIEW: cluster1
-  ISTIO_META_ROUTER_MODE: sni-dnat
 labels:
   app: istio-ingressgateway
   istio: eastwestgateway
@@ -2444,7 +2445,7 @@ kubectl --context ${CLUSTER2} create ns istio-system
 helm upgrade --install istio-base oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/base \
 --namespace istio-system \
 --kube-context=${CLUSTER2} \
---version 1.25.0-solo \
+--version 1.25.3-solo \
 --create-namespace \
 -f - <<EOF
 defaultRevision: ""
@@ -2455,14 +2456,14 @@ EOF
 helm upgrade --install istiod-1-25 oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/istiod \
 --namespace istio-system \
 --kube-context=${CLUSTER2} \
---version 1.25.0-solo \
+--version 1.25.3-solo \
 --create-namespace \
 -f - <<EOF
 global:
   hub: us-docker.pkg.dev/gloo-mesh/istio-<enterprise_istio_repo>
   proxy:
     clusterDomain: cluster.local
-  tag: 1.25.0-solo
+  tag: 1.25.3-solo
   multiCluster:
     clusterName: cluster2
   meshID: mesh1
@@ -2488,12 +2489,12 @@ EOF
 helm upgrade --install istio-cni oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/cni \
 --namespace kube-system \
 --kube-context=${CLUSTER2} \
---version 1.25.0-solo \
+--version 1.25.3-solo \
 --create-namespace \
 -f - <<EOF
 global:
   hub: us-docker.pkg.dev/gloo-mesh/istio-<enterprise_istio_repo>
-  proxy: 1.25.0-solo
+  proxy: 1.25.3-solo
 profile: ambient
 revision: 1-25
 cni:
@@ -2507,7 +2508,7 @@ EOF
 helm upgrade --install ztunnel oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/ztunnel \
 --namespace istio-system \
 --kube-context=${CLUSTER2} \
---version 1.25.0-solo \
+--version 1.25.3-solo \
 --create-namespace \
 -f - <<EOF
 configValidation: true
@@ -2524,7 +2525,7 @@ namespace: istio-system
 profile: ambient
 proxy:
   clusterDomain: cluster.local
-tag: 1.25.0-solo
+tag: 1.25.3-solo
 terminationGracePeriodSeconds: 29
 variant: distroless
 EOF
@@ -2532,7 +2533,7 @@ EOF
 helm upgrade --install istio-ingressgateway-1-25 oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/gateway \
 --namespace istio-gateways \
 --kube-context=${CLUSTER2} \
---version 1.25.0-solo \
+--version 1.25.3-solo \
 --create-namespace \
 -f - <<EOF
 autoscaling:
@@ -2551,7 +2552,7 @@ EOF
 helm upgrade --install istio-eastwestgateway-1-25 oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/gateway \
 --namespace istio-gateways \
 --kube-context=${CLUSTER2} \
---version 1.25.0-solo \
+--version 1.25.3-solo \
 --create-namespace \
 -f - <<EOF
 autoscaling:
@@ -2561,7 +2562,6 @@ revision: 1-25
 imagePullPolicy: IfNotPresent
 env:
   ISTIO_META_REQUESTED_NETWORK_VIEW: cluster2
-  ISTIO_META_ROUTER_MODE: sni-dnat
 labels:
   app: istio-ingressgateway
   istio: eastwestgateway
@@ -2727,7 +2727,7 @@ describe("istio in place upgrades", function() {
   const cluster1 = process.env.CLUSTER1;
   it("should upgrade waypoints", () => {
     let cli = chaiExec(`sh -c "istioctl --context ${cluster1} ps | grep waypoint"`);
-    expect(cli.stdout).to.contain("1.25.0");
+    expect(cli.stdout).to.contain("1.25.3");
   });
 });
 EOF
@@ -2997,10 +2997,10 @@ EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/waypoint-egress/tests/validate-egress-traffic.test.js.liquid from lab number 16"
 timeout --signal=INT 3m mocha ./test.js --timeout 20000 --retries=60 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 16"; exit 1; }
 kubectl --context ${CLUSTER1} delete authorizationpolicy httpbin -n egress
-kubectl --context ${CLUSTER1} delete serviceentry httpbin.org -n egress
-kubectl --context ${CLUSTER1} delete destinationrule httpbin.org-tls -n egress
 kubectl --context ${CLUSTER1} delete httproute httpbin -n egress
 kubectl --context ${CLUSTER1} delete networkpolicy restricted-namespace-policy -n clients
+kubectl --context ${CLUSTER1} delete serviceentry httpbin.org -n egress
+kubectl --context ${CLUSTER1} delete destinationrule httpbin.org-tls -n egress
 kubectl --context ${CLUSTER1} apply -f - <<EOF
 apiVersion: gateway.networking.k8s.io/v1
 kind: Gateway
@@ -3120,7 +3120,7 @@ describe("service labeling to use a waypoint takes precedence over namespace lab
 
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/waypoint-deployment-options/tests/validate-waypoint-for-specific-service.test.js.liquid from lab number 17"
-timeout --signal=INT 3m mocha ./test.js --timeout 20000 --retries=20 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 17"; exit 1; }
+timeout --signal=INT 3m mocha ./test.js --timeout 120000 --retries=40 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 17"; exit 1; }
 kubectl --context ${CLUSTER1} apply -f - <<EOF
 apiVersion: gateway.networking.k8s.io/v1
 kind: Gateway
