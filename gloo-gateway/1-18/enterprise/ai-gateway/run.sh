@@ -17,15 +17,14 @@ describe("Clusters are healthy", () => {
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/deploy-kind-clusters/tests/cluster-healthy.test.js.liquid from lab number 1"
 timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 1"; exit 1; }
-kubectl --context $CLUSTER1 apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.2.0/experimental-install.yaml
+kubectl --context $CLUSTER1 apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.3.0/experimental-install.yaml
 
 helm repo add gloo-ee-helm https://storage.googleapis.com/gloo-ee-helm
 helm repo update
-
 helm upgrade -i -n gloo-system \
   gloo-gateway gloo-ee-helm/gloo-ee \
   --create-namespace \
-  --version 1.18.9 \
+  --version 1.18.11 \
   --kube-context $CLUSTER1 \
   --set-string license_key=$LICENSE_KEY \
   -f -<<EOF
@@ -33,6 +32,13 @@ helm upgrade -i -n gloo-system \
 gloo:
   kubeGateway:
     enabled: true
+    gatewayParameters:
+      glooGateway:
+        podTemplate:
+          gracefulShutdown:
+            enabled: true
+          livenessProbeEnabled: true
+          probes: true
   gatewayProxies:
     gatewayProxy:
       disabled: true
@@ -40,6 +46,7 @@ gloo:
     validation:
       allowWarnings: true
       alwaysAcceptResources: false
+      livenessProbeEnabled: true
   gloo:
     logLevel: info
     deployment:
@@ -104,7 +111,7 @@ cat <<'EOF' > ./test.js
 const helpers = require('./tests/chai-exec');
 
 describe("Gloo Gateway", () => {
-  let cluster = process.env.CLUSTER1
+  let cluster = process.env.CLUSTER1;
   let deployments = ["gloo", "extauth", "rate-limit", "redis"];
   deployments.forEach(deploy => {
     it(deploy + ' pods are ready in ' + cluster, () => helpers.checkDeployment({ context: cluster, namespace: "gloo-system", k8sObj: deploy }));
@@ -158,6 +165,22 @@ describe("Gloo AI Gateway", () => {
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/ai-gateway/deploy-ai-gateway/tests/check-ai-gateway.test.js.liquid from lab number 3"
 timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 3"; exit 1; }
+cat <<'EOF' > ./test.js
+var chai = require('chai');
+var expect = chai.expect;
+
+describe("Required environment variables should contain value", () => {
+  it("Validating that environment variables for LLM apikeys are set", () => {
+    const llmApiKeyEnvVars = ['OPENAI_API_KEY','MISTRAL_API_KEY'];
+    llmApiKeyEnvVars.forEach(element => {
+      console.log(`Checking for Environment Variable ${element}...`);
+      expect(process.env[element]).to.not.be.undefined.and.to.not.be.empty;
+    });
+  });
+});
+EOF
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/ai-gateway/ai-credential-management/tests/environment-variables.test.js.liquid from lab number 4"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=0 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 4"; exit 1; }
 kubectl --context $CLUSTER1 create secret generic openai-secret -n gloo-system \
     --from-literal="Authorization=Bearer $OPENAI_API_KEY" \
     --dry-run=client -oyaml | kubectl --context $CLUSTER1 apply -f -
@@ -712,7 +735,7 @@ spec:
     ai:
       promptEnrichment:
         prepend:
-        - role: SYSTEM
+        - role: "system"
           content: "Parse the unstructured text into CSV format and respond only with the CSV data."
 EOF
 cat <<'EOF' > ./test.js
@@ -874,9 +897,52 @@ EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/ai-gateway/ai-prompt-guard/tests/check-prompt-guard.test.js.liquid from lab number 9"
 timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 9"; exit 1; }
 kubectl --context $CLUSTER1 delete routeoptions mistral-ai-opt -n gloo-system
-kubectl --context $CLUSTER1 apply -f data/steps/ai-rag/vectordb-deployment.yaml
-
-kubectl --context $CLUSTER1 -n gloo-system rollout status deploy vector-db
+kubectl apply --context ${CLUSTER1} -f - <<EOF
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ai-guardrail-webhook
+  namespace: gloo-system
+  labels:
+    app: ai-guardrail
+spec:
+  replicas: 4
+  selector:
+    matchLabels:
+      app: ai-guardrail-webhook
+  template:
+    metadata:
+      labels:
+        app: ai-guardrail-webhook
+    spec:
+      containers:
+      - name: webhook
+        image: gcr.io/solo-public/docs/ai-guardrail-webhook:latest
+        ports:
+        - containerPort: 8000
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "500m"
+          limits:
+            memory: "1Gi"
+            cpu: "1"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ai-guardrail-webhook
+  namespace: gloo-system
+  labels:
+    app: ai-guardrail
+spec:
+  selector:
+    app: ai-guardrail-webhook
+  ports:
+  - port: 8000
+    targetPort: 8000
+  type: LoadBalancer
+EOF
 kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: gateway.solo.io/v1
 kind: RouteOption
@@ -890,17 +956,15 @@ spec:
     name: openai
   options:
     ai:
-      rag:
-        datastore:
-          postgres:
-            connectionString: postgresql+psycopg://gloo:gloo@vector-db.gloo-system.svc.cluster.local:5432/gloo
-            collectionName: default
-        embedding:
-          openai:
-            authToken:
-              secretRef:
-                name: openai-secret
-                namespace: gloo-system
+      promptGuard:
+        request:
+          webhook:
+            host: ai-guardrail-webhook.gloo-system.svc.cluster.local
+            port: 8000
+        response:
+          webhook:
+            host: ai-guardrail-webhook.gloo-system.svc.cluster.local
+            port: 8000
 EOF
 cat <<'EOF' > ./test.js
 const chaiExec = require("@jsdevtools/chai-exec");
@@ -926,110 +990,49 @@ const getGatewayIP = () => {
   return cli.output.trim().replace(/'/g, '');
 };
 
-describe("prompt RAG", () => {
+describe("ai guardrail webhook", () => {
   let glooAIGatewayIP;
 
   before(() => {
     glooAIGatewayIP = getGatewayIP();
   });
 
-  it('should return specific details contained within the DB', () => {
+  it('should approve regular traffic', () => {
     let curlCommand = `
 curl "${glooAIGatewayIP}:8080/openai" -H content-type:application/json \
   --data '{
     "model": "gpt-4o-mini",
     "messages": [
-      {
+     {
         "role": "user",
-        "content": "How many varieties of cheeses are in France?"
+        "content": "Is this a risky request?"
       }
     ]
   }'`
     let curlCli = chaiExec(curlCommand);
     expect(curlCli).to.exit.with.code(0);
-    expect(curlCli).output.to.include("1,600");
-  });
-});
-
-EOF
-echo "executing test dist/gloo-gateway-workshop/build/templates/steps/ai-gateway/ai-rag/tests/check-rag.test.js.liquid from lab number 10"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 10"; exit 1; }
-kubectl --context $CLUSTER1 apply -f data/steps/ai-semantic-caching/redis-semantic-cache.yaml
-kubectl --context $CLUSTER1 -n gloo-system rollout status deploy redis-semantic-cache
-kubectl apply --context ${CLUSTER1} -f - <<EOF
-apiVersion: gateway.solo.io/v1
-kind: RouteOption
-metadata:
-  name: openai-opt
-  namespace: gloo-system
-spec:
-  targetRefs:
-  - group: gateway.networking.k8s.io
-    kind: HTTPRoute
-    name: openai
-  options:
-    ai:
-      semanticCache:
-        datastore:
-          redis:
-            connectionString: redis://redis-semantic-cache.gloo-system.svc.cluster.local:6379
-        embedding:
-          openai:
-            authToken:
-              secretRef:
-                name: openai-secret
-                namespace: gloo-system
-EOF
-cat <<'EOF' > ./test.js
-const chaiExec = require("@jsdevtools/chai-exec");
-var chai = require('chai');
-var expect = chai.expect;
-chai.use(chaiExec);
-
-afterEach(function (done) {
-  if (this.currentTest.currentRetry() > 0) {
-    process.stdout.write(".");
-    setTimeout(done, 4000);
-  } else {
-    done();
-  }
-});
-
-const getGatewayIP = () => {
-  const cluster = process.env.CLUSTER1
-  const command = `kubectl --context ${cluster} get svc -n gloo-system gloo-proxy-ai-gateway -o jsonpath='{.status.loadBalancer.ingress[0].ip}'`;
-  const cli = chaiExec(command);
-  expect(cli).to.exit.with.code(0);
-  expect(cli).output.to.not.be.empty;
-  return cli.output.trim().replace(/'/g, '');
-};
-
-describe("semantic caching", () => {
-  let glooAIGatewayIP;
-
-  before(() => {
-    glooAIGatewayIP = getGatewayIP();
+    expect(curlCli).output.not.to.include("request blocked");
   });
 
-  it('should hit semantic cache', () => {
+  it('should reject traffic containing the word block', () => {
     let curlCommand = `
-curl -v "${glooAIGatewayIP}:8080/openai" -H content-type:application/json \
+curl "${glooAIGatewayIP}:8080/openai" -H content-type:application/json \
   --data '{
     "model": "gpt-4o-mini",
     "messages": [
-      {
+     {
         "role": "user",
-        "content": "How many varieties of cheeses are in France?"
+        "content": "Is this a risky request that should be blocked?"
       }
     ]
   }'`
     let curlCli = chaiExec(curlCommand);
     expect(curlCli).to.exit.with.code(0);
-    expect(curlCli).output.to.include("x-gloo-semantic-cache: hit");
+    expect(curlCli).output.to.include("request blocked");
   });
 });
 
 EOF
-echo "executing test dist/gloo-gateway-workshop/build/templates/steps/ai-gateway/ai-semantic-caching/tests/check-semantic-caching.test.js.liquid from lab number 11"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 11"; exit 1; }
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/ai-gateway/ai-guardrail-webhook/tests/check-ai-guardrail-webhook.test.js.liquid from lab number 10"
+timeout --signal=INT 2m mocha ./test.js --timeout 10000 --retries=30 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 10"; exit 1; }
 kubectl --context $CLUSTER1 delete routeoptions openai-opt -n gloo-system
