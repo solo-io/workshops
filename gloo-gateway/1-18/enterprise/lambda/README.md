@@ -17,7 +17,7 @@ source ./scripts/assert.sh
 * [Introduction](#introduction)
 * [Lab 1 - Deploy KinD Cluster(s)](#lab-1---deploy-kind-cluster(s)-)
 * [Lab 2 - Deploy the Amazon pod identity webhook](#lab-2---deploy-the-amazon-pod-identity-webhook-)
-* [Lab 3 - Deploy Gloo Gateway](#lab-3---deploy-gloo-gateway-)
+* [Lab 3 - Deploy Gloo Gateway Enterprise](#lab-3---deploy-gloo-gateway-enterprise-)
 * [Lab 4 - Deploy the httpbin demo app](#lab-4---deploy-the-httpbin-demo-app-)
 * [Lab 5 - Expose the httpbin application through the gateway](#lab-5---expose-the-httpbin-application-through-the-gateway-)
 * [Lab 6 - Execute Lambda functions](#lab-6---execute-lambda-functions-)
@@ -161,7 +161,8 @@ timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --e
 
 
 
-## Lab 3 - Deploy Gloo Gateway <a name="lab-3---deploy-gloo-gateway-"></a>
+## Lab 3 - Deploy Gloo Gateway Enterprise <a name="lab-3---deploy-gloo-gateway-enterprise-"></a>
+
 
 You can deploy Gloo Gateway with the `glooctl` CLI or declaratively using Helm.
 
@@ -170,22 +171,20 @@ We're going to use the Helm option.
 Install the Kubernetes Gateway API CRDs as they do not come installed by default on most Kubernetes clusters.
 
 ```bash
-kubectl --context $CLUSTER1 apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.2.0/experimental-install.yaml
+kubectl --context $CLUSTER1 apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.3.0/experimental-install.yaml
 ```
 
 
-
-Next, install Gloo Gateway. This command installs the Gloo Gateway control plane into the namespace `gloo-system`.
+Next install Gloo Gateway. This command installs the Gloo Gateway control plane into the namespace `gloo-system`.
 
 ```bash
 
 helm repo add gloo-ee-helm https://storage.googleapis.com/gloo-ee-helm
 helm repo update
-
 helm upgrade -i -n gloo-system \
   gloo-gateway gloo-ee-helm/gloo-ee \
   --create-namespace \
-  --version 1.18.9 \
+  --version 1.18.11 \
   --kube-context $CLUSTER1 \
   --set-string license_key=$LICENSE_KEY \
   -f -<<EOF
@@ -195,6 +194,11 @@ gloo:
     enabled: true
     gatewayParameters:
       glooGateway:
+        podTemplate:
+          gracefulShutdown:
+            enabled: true
+          livenessProbeEnabled: true
+          probes: true
         serviceAccount:
           extraAnnotations:
             eks.amazonaws.com/role-arn: arn:aws:iam::253915036081:role/lambda-workshop
@@ -205,6 +209,7 @@ gloo:
     validation:
       allowWarnings: true
       alwaysAcceptResources: false
+      livenessProbeEnabled: true
   gloo:
     logLevel: info
     deployment:
@@ -262,7 +267,7 @@ cat <<'EOF' > ./test.js
 const helpers = require('./tests/chai-exec');
 
 describe("Gloo Gateway", () => {
-  let cluster = process.env.CLUSTER1
+  let cluster = process.env.CLUSTER1;
   let deployments = ["gloo", "extauth", "rate-limit", "redis"];
   deployments.forEach(deploy => {
     it(deploy + ' pods are ready in ' + cluster, () => helpers.checkDeployment({ context: cluster, namespace: "gloo-system", k8sObj: deploy }));
@@ -451,7 +456,7 @@ You can follow the progress using the following command:
 echo -n Waiting for httpbin pods to be ready...
 kubectl --context ${CLUSTER1} -n httpbin rollout status deployment
 -->
-```bash,noexecute
+```bash,norun-workshop
 kubectl --context ${CLUSTER1} -n httpbin get pods
 ```
 
@@ -548,8 +553,27 @@ export PROXY_IP=$(kubectl --context ${CLUSTER1} -n gloo-system get svc gloo-prox
 <!--bash
 RETRY_COUNT=0
 MAX_RETRIES=60
-GLOO_PROXY_SVC=$(kubectl --context ${CLUSTER1} -n gloo-system get svc gloo-proxy-http -oname)
-while [[ -z "$PROXY_IP" && $RETRY_COUNT -lt $MAX_RETRIES && $GLOO_PROXY_SVC ]]; do
+while true; do
+  GLOO_PROXY_SVC=$(kubectl --context ${CLUSTER1} -n gloo-system get svc gloo-proxy-http -oname 2>/dev/null || echo "")
+  if [[ -n "$GLOO_PROXY_SVC" ]]; then
+    echo "Service gloo-proxy-http has been created."
+    break
+  fi
+
+  RETRY_COUNT=$((RETRY_COUNT + 1))
+  if [[ $RETRY_COUNT -ge $MAX_RETRIES ]]; then
+    echo "Warning: Maximum retries reached. Service gloo-proxy-http could not be found."
+    break
+  fi
+
+  echo "Waiting for service gloo-proxy-http to be created... Attempt $RETRY_COUNT/$MAX_RETRIES"
+  sleep 1
+done
+
+# Then, wait for the IP to be assigned
+RETRY_COUNT=0
+MAX_RETRIES=60
+while [[ -z "$PROXY_IP" && $RETRY_COUNT -lt $MAX_RETRIES && -n "$GLOO_PROXY_SVC" ]]; do
   echo "Waiting for PROXY_IP to be assigned... Attempt $((RETRY_COUNT + 1))/$MAX_RETRIES"
   PROXY_IP=$(kubectl --context ${CLUSTER1} -n gloo-system get svc gloo-proxy-http -o jsonpath='{.status.loadBalancer.ingress[0].ip}{.status.loadBalancer.ingress[0].hostname}')
   RETRY_COUNT=$((RETRY_COUNT + 1))
@@ -577,19 +601,18 @@ else
   echo "IP has been resolved to: $IP"
 fi
 -->
-
 Configure your hosts file to resolve httpbin.example.com with the IP address of the proxy by executing the following command:
 
 ```bash
 
-./scripts/register-domain.sh httpbin.example.com ${PROXY_IP}
+./scripts/register-domain.sh httpbin.example.com ${IP}
 
 ```
 
 
 Try to access the application through HTTP:
 
-```bash,noexecute
+```bash,norun-workshop
 curl http://httpbin.example.com/get
 ```
 
@@ -740,7 +763,7 @@ while [[ $RETRY_COUNT -lt $MAX_RETRIES ]]; do
 done
 -->
 
-```bash,noexecute
+```bash,norun-workshop
 curl -k https://httpbin.example.com/get
 ```
 
@@ -811,7 +834,7 @@ EOF
 
 Try to access the application through HTTP:
 
-```bash,noexecute
+```bash,norun-workshop
 curl -k http://httpbin.example.com/get -L
 ```
 
@@ -929,7 +952,7 @@ exports.handler = async (event) => {
 
 You should now be able to invoke the Lambda function using the following command:
 
-```bash,noexecute
+```bash,norun-workshop
 curl -k "https://httpbin.example.com/lambda" -d '{"foo":"bar"}'
 ```
 
