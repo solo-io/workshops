@@ -17,7 +17,7 @@ describe("Clusters are healthy", () => {
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/deploy-kind-clusters/tests/cluster-healthy.test.js.liquid from lab number 1"
 timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 1"; exit 1; }
-kubectl --context $CLUSTER1 apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.2.0/standard-install.yaml
+kubectl --context $CLUSTER1 apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.3.0/experimental-install.yaml
 helm repo add solo-public-helm https://storage.googleapis.com/solo-public-helm
 
 helm repo update
@@ -25,7 +25,7 @@ helm repo update
 helm upgrade -i -n gloo-system \
   gloo-gateway solo-public-helm/gloo \
   --create-namespace \
-  --version 1.18.13 \
+  --version 1.18.19 \
   --kube-context $CLUSTER1 \
   -f -<<EOF
 kubeGateway:
@@ -117,8 +117,27 @@ EOF
 export PROXY_IP=$(kubectl --context ${CLUSTER1} -n gloo-system get svc gloo-proxy-http -o jsonpath='{.status.loadBalancer.ingress[0].ip}{.status.loadBalancer.ingress[0].hostname}')
 RETRY_COUNT=0
 MAX_RETRIES=60
-GLOO_PROXY_SVC=$(kubectl --context ${CLUSTER1} -n gloo-system get svc gloo-proxy-http -oname)
-while [[ -z "$PROXY_IP" && $RETRY_COUNT -lt $MAX_RETRIES && $GLOO_PROXY_SVC ]]; do
+while true; do
+  GLOO_PROXY_SVC=$(kubectl --context ${CLUSTER1} -n gloo-system get svc gloo-proxy-http -oname 2>/dev/null || echo "")
+  if [[ -n "$GLOO_PROXY_SVC" ]]; then
+    echo "Service gloo-proxy-http has been created."
+    break
+  fi
+
+  RETRY_COUNT=$((RETRY_COUNT + 1))
+  if [[ $RETRY_COUNT -ge $MAX_RETRIES ]]; then
+    echo "Warning: Maximum retries reached. Service gloo-proxy-http could not be found."
+    break
+  fi
+
+  echo "Waiting for service gloo-proxy-http to be created... Attempt $RETRY_COUNT/$MAX_RETRIES"
+  sleep 1
+done
+
+# Then, wait for the IP to be assigned
+RETRY_COUNT=0
+MAX_RETRIES=60
+while [[ -z "$PROXY_IP" && $RETRY_COUNT -lt $MAX_RETRIES && -n "$GLOO_PROXY_SVC" ]]; do
   echo "Waiting for PROXY_IP to be assigned... Attempt $((RETRY_COUNT + 1))/$MAX_RETRIES"
   PROXY_IP=$(kubectl --context ${CLUSTER1} -n gloo-system get svc gloo-proxy-http -o jsonpath='{.status.loadBalancer.ingress[0].ip}{.status.loadBalancer.ingress[0].hostname}')
   RETRY_COUNT=$((RETRY_COUNT + 1))
@@ -146,7 +165,7 @@ else
   echo "IP has been resolved to: $IP"
 fi
 
-./scripts/register-domain.sh httpbin.example.com ${PROXY_IP}
+./scripts/register-domain.sh httpbin.example.com ${IP}
 
 cat <<'EOF' > ./test.js
 const helpersHttp = require('./tests/chai-http');
