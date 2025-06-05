@@ -18,7 +18,7 @@ source ./scripts/assert.sh
 * [Lab 1 - Deploy KinD Cluster(s)](#lab-1---deploy-kind-cluster(s)-)
 * [Lab 2 - Deploy Istio using Helm](#lab-2---deploy-istio-using-helm-)
 * [Lab 3 - Deploy Keycloak](#lab-3---deploy-keycloak-)
-* [Lab 4 - Deploy Gloo Gateway](#lab-4---deploy-gloo-gateway-)
+* [Lab 4 - Deploy Gloo Gateway Enterprise](#lab-4---deploy-gloo-gateway-enterprise-)
 * [Lab 5 - Deploy the httpbin demo app](#lab-5---deploy-the-httpbin-demo-app-)
 * [Lab 6 - Expose the httpbin application through the gateway](#lab-6---expose-the-httpbin-application-through-the-gateway-)
 * [Lab 7 - Delegate with control](#lab-7---delegate-with-control-)
@@ -336,7 +336,7 @@ EOF
 ```
 The Gateway APIs do not come installed by default on most Kubernetes clusters. Install the Gateway API CRDs if they are not present:
 ```bash
-kubectl --context ${CLUSTER1} apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.2.0/experimental-install.yaml
+kubectl --context ${CLUSTER1} apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.3.0/experimental-install.yaml
 ```
   
 
@@ -1021,7 +1021,8 @@ timeout 300 bash -c 'while [[ "$(curl -m 2 -s -o /dev/null -w ''%{http_code}'' $
 
 
 
-## Lab 4 - Deploy Gloo Gateway <a name="lab-4---deploy-gloo-gateway-"></a>
+## Lab 4 - Deploy Gloo Gateway Enterprise <a name="lab-4---deploy-gloo-gateway-enterprise-"></a>
+
 
 You can deploy Gloo Gateway with the `glooctl` CLI or declaratively using Helm.
 
@@ -1030,7 +1031,7 @@ We're going to use the Helm option.
 Install the Kubernetes Gateway API CRDs as they do not come installed by default on most Kubernetes clusters.
 
 ```bash
-kubectl --context $CLUSTER1 apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.2.0/experimental-install.yaml
+kubectl --context $CLUSTER1 apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.3.0/experimental-install.yaml
 ```
 Let's create the `gloo-system` namespace and label it to be part of the mesh:
 
@@ -1040,18 +1041,16 @@ kubectl --context $CLUSTER1 label namespace gloo-system istio.io/dataplane-mode=
 ```
 
 
-
-Next, install Gloo Gateway. This command installs the Gloo Gateway control plane into the namespace `gloo-system`.
+Next install Gloo Gateway. This command installs the Gloo Gateway control plane into the namespace `gloo-system`.
 
 ```bash
 
 helm repo add gloo-ee-helm https://storage.googleapis.com/gloo-ee-helm
 helm repo update
-
 helm upgrade -i -n gloo-system \
   gloo-gateway gloo-ee-helm/gloo-ee \
   --create-namespace \
-  --version 1.18.9 \
+  --version 1.18.11 \
   --kube-context $CLUSTER1 \
   --set-string license_key=$LICENSE_KEY \
   -f -<<EOF
@@ -1059,6 +1058,13 @@ helm upgrade -i -n gloo-system \
 gloo:
   kubeGateway:
     enabled: true
+    gatewayParameters:
+      glooGateway:
+        podTemplate:
+          gracefulShutdown:
+            enabled: true
+          livenessProbeEnabled: true
+          probes: true
   gatewayProxies:
     gatewayProxy:
       disabled: true
@@ -1066,6 +1072,7 @@ gloo:
     validation:
       allowWarnings: true
       alwaysAcceptResources: false
+      livenessProbeEnabled: true
   gloo:
     logLevel: info
     deployment:
@@ -1148,7 +1155,7 @@ cat <<'EOF' > ./test.js
 const helpers = require('./tests/chai-exec');
 
 describe("Gloo Gateway", () => {
-  let cluster = process.env.CLUSTER1
+  let cluster = process.env.CLUSTER1;
   let deployments = ["gloo", "extauth", "rate-limit", "redis"];
   deployments.forEach(deploy => {
     it(deploy + ' pods are ready in ' + cluster, () => helpers.checkDeployment({ context: cluster, namespace: "gloo-system", k8sObj: deploy }));
@@ -1338,7 +1345,7 @@ You can follow the progress using the following command:
 echo -n Waiting for httpbin pods to be ready...
 kubectl --context ${CLUSTER1} -n httpbin rollout status deployment
 -->
-```bash,noexecute
+```bash,norun-workshop
 kubectl --context ${CLUSTER1} -n httpbin get pods
 ```
 
@@ -1435,8 +1442,27 @@ export PROXY_IP=$(kubectl --context ${CLUSTER1} -n gloo-system get svc gloo-prox
 <!--bash
 RETRY_COUNT=0
 MAX_RETRIES=60
-GLOO_PROXY_SVC=$(kubectl --context ${CLUSTER1} -n gloo-system get svc gloo-proxy-http -oname)
-while [[ -z "$PROXY_IP" && $RETRY_COUNT -lt $MAX_RETRIES && $GLOO_PROXY_SVC ]]; do
+while true; do
+  GLOO_PROXY_SVC=$(kubectl --context ${CLUSTER1} -n gloo-system get svc gloo-proxy-http -oname 2>/dev/null || echo "")
+  if [[ -n "$GLOO_PROXY_SVC" ]]; then
+    echo "Service gloo-proxy-http has been created."
+    break
+  fi
+
+  RETRY_COUNT=$((RETRY_COUNT + 1))
+  if [[ $RETRY_COUNT -ge $MAX_RETRIES ]]; then
+    echo "Warning: Maximum retries reached. Service gloo-proxy-http could not be found."
+    break
+  fi
+
+  echo "Waiting for service gloo-proxy-http to be created... Attempt $RETRY_COUNT/$MAX_RETRIES"
+  sleep 1
+done
+
+# Then, wait for the IP to be assigned
+RETRY_COUNT=0
+MAX_RETRIES=60
+while [[ -z "$PROXY_IP" && $RETRY_COUNT -lt $MAX_RETRIES && -n "$GLOO_PROXY_SVC" ]]; do
   echo "Waiting for PROXY_IP to be assigned... Attempt $((RETRY_COUNT + 1))/$MAX_RETRIES"
   PROXY_IP=$(kubectl --context ${CLUSTER1} -n gloo-system get svc gloo-proxy-http -o jsonpath='{.status.loadBalancer.ingress[0].ip}{.status.loadBalancer.ingress[0].hostname}')
   RETRY_COUNT=$((RETRY_COUNT + 1))
@@ -1464,19 +1490,18 @@ else
   echo "IP has been resolved to: $IP"
 fi
 -->
-
 Configure your hosts file to resolve httpbin.example.com with the IP address of the proxy by executing the following command:
 
 ```bash
 
-./scripts/register-domain.sh httpbin.example.com ${PROXY_IP}
+./scripts/register-domain.sh httpbin.example.com ${IP}
 
 ```
 
 
 Try to access the application through HTTP:
 
-```bash,noexecute
+```bash,norun-workshop
 curl http://httpbin.example.com/get
 ```
 
@@ -1627,7 +1652,7 @@ while [[ $RETRY_COUNT -lt $MAX_RETRIES ]]; do
 done
 -->
 
-```bash,noexecute
+```bash,norun-workshop
 curl -k https://httpbin.example.com/get
 ```
 
@@ -1698,7 +1723,7 @@ EOF
 
 Try to access the application through HTTP:
 
-```bash,noexecute
+```bash,norun-workshop
 curl -k http://httpbin.example.com/get -L
 ```
 
@@ -1802,7 +1827,7 @@ EOF
 
 Check you can still access the application through HTTPS:
 
-```bash,noexecute
+```bash,norun-workshop
 curl -k https://httpbin.example.com/get
 ```
 
@@ -1904,7 +1929,7 @@ EOF
 
 Check you can access the `/status/200` path:
 
-```bash,noexecute
+```bash,norun-workshop
 curl -k https://httpbin.example.com/status/200 -w "%{http_code}"
 ```
 
@@ -1951,7 +1976,7 @@ EOF
 
 Check you can still access the `/status/200` path:
 
-```bash,noexecute
+```bash,norun-workshop
 curl -k https://httpbin.example.com/status/200 -w "%{http_code}"
 ```
 
@@ -2005,7 +2030,7 @@ EOF
 
 Check you can still access the `/status/200` path:
 
-```bash,noexecute
+```bash,norun-workshop
 curl -k https://httpbin.example.com/status/200 -w "%{http_code}"
 ```
 
@@ -2054,7 +2079,7 @@ If the matcher for `/status` is positioned before the matcher for `/status/200`,
 
 Check you can still access the `/status/200` path:
 
-```bash,noexecute
+```bash,norun-workshop
 curl -k https://httpbin.example.com/status/200 -w "%{http_code}"
 ```
 
@@ -2066,7 +2091,7 @@ Here is the expected output:
 
 You can use the following command to validate the request has still been handled by the first httpbin application.
 
-```bash,noexecute
+```bash,norun-workshop
 kubectl logs --context ${CLUSTER1} -n httpbin -l app=httpbin1 | grep curl | grep 200
 ```
 
@@ -2090,7 +2115,7 @@ timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --e
 
 Check you can now also access the status `/status/201` path:
 
-```bash,noexecute
+```bash,norun-workshop
 curl -k https://httpbin.example.com/status/201 -w "%{http_code}"
 ```
 
@@ -2102,7 +2127,7 @@ Here is the expected output:
 
 You can use the following command to validate this request has been handled by the second httpbin application.
 
-```bash,noexecute
+```bash,norun-workshop
 kubectl logs --context ${CLUSTER1} -n httpbin -l app=httpbin2 | grep curl | grep 201
 ```
 
@@ -2229,7 +2254,7 @@ EOF
 
 Try to access the application (with the `To-Remove` request header added):
 
-```bash,noexecute
+```bash,norun-workshop
 curl -k https://httpbin.example.com/get -H 'To-Remove: whatever'
 ```
 
@@ -2301,7 +2326,7 @@ EOF
 
 Try to access the application:
 
-```bash,noexecute
+```bash,norun-workshop
 curl -k https://httpbin.example.com/publicget
 ```
 
@@ -2391,7 +2416,7 @@ EOF
 
 Try to access the application (with the `To-Modify` and `To-Remove` response headers added):
 
-```bash,noexecute
+```bash,norun-workshop
 curl -k "https://httpbin.example.com/response-headers?to-remove=whatever&to-modify=oldvalue" -I
 ```
 
@@ -2487,7 +2512,7 @@ EOF
 
 Try to access the application:
 
-```bash,noexecute
+```bash,norun-workshop
 curl -k https://httpbin.example.com/get
 ```
 
@@ -2594,7 +2619,7 @@ EOF
 
 Try to access the application:
 
-```bash,noexecute
+```bash,norun-workshop
 curl -k "https://httpbin.example.com/get" -I
 ```
 
@@ -2688,7 +2713,7 @@ EOF
 
 Try to access the application several times, using the `/hostname` endpoint which returns the hostname of the pod that handled the request:
 
-```bash,noexecute
+```bash,norun-workshop
 curl -k https://httpbin.example.com/hostname
 ```
 
@@ -3201,7 +3226,7 @@ This is targeting the httpbin `HTTPRoute`.
 
 Try accessing the `httpbin` application without any token.
 
-```bash,noexecute
+```bash,norun-workshop
 curl -k https://httpbin.example.com/get
 ```
 
@@ -3222,7 +3247,7 @@ export USER1_COOKIE_JWT=$(curl -Ssm 10 --fail-with-body \
 
 Now, you should be able to access it:
 
-```bash,noexecute
+```bash,norun-workshop
 curl -k https://httpbin.example.com/get -H "jwt: ${USER1_COOKIE_JWT}"
 ```
 
@@ -3323,7 +3348,7 @@ EOF
 
 Try accessing the `httpbin` application again.
 
-```bash,noexecute
+```bash,norun-workshop
 curl -k https://httpbin.example.com/get -H "jwt: ${USER1_COOKIE_JWT}"
 ```
 
@@ -3346,7 +3371,7 @@ export USER2_COOKIE_JWT=$(curl -Ssm 10 --fail-with-body \
 
 You should be able to access the application with this user.
 
-```bash,noexecute
+```bash,norun-workshop
 curl -k https://httpbin.example.com/get -H "jwt: ${USER2_COOKIE_JWT}"
 ```
 
@@ -3471,7 +3496,7 @@ All subsequent requests receive the cached response until the cache entry expire
 
 Check that we have a caching service running in the Gloo Gateway installation:
 
-```bash,noexecute
+```bash,norun-workshop
 kubectl --context ${CLUSTER1} -n gloo-system get deploy caching-service
 ```
 
@@ -3487,7 +3512,7 @@ This service is responsible for creating the cached responses in the backing Red
 The **httpbin** application has some utility endpoints we can use to test that caching is applied.
 First of all, let's make sure that caching is *not* being applied by making a request to the `/cache` endpoint, passing a cache time-to-live (TTL) value of 10 seconds that we want the service to use in the response `cache-control` header:
 
-```bash,noexecute
+```bash,norun-workshop
 curl -ksSD - -o /dev/null https://httpbin.example.com/cache/10
 ```
 
@@ -3507,7 +3532,7 @@ server: envoy
 
 Send a second request within that cache TTL of 10 seconds and look at the response:
 
-```bash,noexecute
+```bash,norun-workshop
 curl -ksSD - -o /dev/null https://httpbin.example.com/cache/10
 ```
 
@@ -3600,7 +3625,7 @@ We can also restrict it to a particular listener by including a value for `secti
 
 Let's test this configuration by making three requests to the `/cache` endpoint with a 10s cache TTL value, waiting 6 seconds between requests:
 
-```bash,noexecute
+```bash,norun-workshop
 curl -ksSD - -o /dev/null https://httpbin.example.com/cache/10
 sleep 6
 curl -ksSD - -o /dev/null https://httpbin.example.com/cache/10
@@ -3863,14 +3888,14 @@ This policy means that only the client can send requests to `httpbin2`, and only
 
 Try to send a POST request:
 
-```bash,noexecute
+```bash,norun-workshop
 kubectl --context ${CLUSTER1} -n httpbin exec deploy/client -- curl -s -X POST http://httpbin2:8000/post
 ```
 
 You'll get an `RBAC: access denied` response.
 Try to send a GET request:
 
-```bash,noexecute
+```bash,norun-workshop
 kubectl --context ${CLUSTER1} -n httpbin exec deploy/client -- curl -s http://httpbin2:8000/get
 ```
 
@@ -3962,7 +3987,7 @@ EOF
 
 Try to access the application (with the `To-Remove` request header added):
 
-```bash,noexecute
+```bash,norun-workshop
 kubectl --context ${CLUSTER1} -n httpbin exec deploy/client -- curl -s http://httpbin2:8000/get -H 'To-Remove: whatever'
 ```
 
@@ -4077,7 +4102,7 @@ EOF
 
 Try to access the application:
 
-```bash,noexecute
+```bash,norun-workshop
 kubectl --context ${CLUSTER1} -n httpbin exec deploy/client -- curl -s http://httpbin2:8000/get
 ```
 
@@ -4228,7 +4253,7 @@ timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --e
 
 After you've completed these steps, you should be able to access the `httpbin2` service using the api key. You can test this by running the following command:
 
-```bash,noexecute
+```bash,norun-workshop
 kubectl --context ${CLUSTER1} -n httpbin exec deploy/client -- curl -s http://httpbin2:8000/get -H "api-key: apikey1"
 ```
 
@@ -4295,7 +4320,7 @@ EOF
 
 Run the following command several times:
 
-```bash,noexecute
+```bash,norun-workshop
 kubectl --context ${CLUSTER1} -n httpbin exec deploy/client -- curl -s http://httpbin2:8000/get -H "api-key: apikey1" -I
 ```
 
@@ -4363,7 +4388,7 @@ EOF
 
 Let's test this configuration by making three requests to the `/cache` endpoint with a 10s cache TTL value, waiting 6 seconds between requests:
 
-```bash,noexecute
+```bash,norun-workshop
 kubectl --context ${CLUSTER1} -n httpbin exec deploy/client -- curl -ksSD - -o /dev/null http://httpbin2:8000/cache/10
 sleep 6
 kubectl --context ${CLUSTER1} -n httpbin exec deploy/client -- curl -ksSD - -o /dev/null http://httpbin2:8000/cache/10
