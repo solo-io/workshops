@@ -9,7 +9,7 @@ source ./scripts/assert.sh
 <img src="images/document-gloo-mesh.svg" style="height: 100px;"/>
 </center>
 
-# <center>Gloo Mesh Enterprise (2.6.10)</center>
+# <center>Gloo Mesh Enterprise (2.6.12)</center>
 
 
 
@@ -267,7 +267,7 @@ Let's create a user that can create a new repo, push changes, and work with pull
 ```bash
 GITEA_ADMIN_TOKEN=$(curl -Ss ${GITEA_HTTP}/api/v1/users/gitea_admin/tokens \
   -H "Content-Type: application/json" \
-  -d '{"name": "bootstrap", "scopes": ["write:admin", "write:repository"]}' \
+  -d "{\"name\": \"admin-$RANDOM\", \"scopes\": [\"write:admin\", \"write:repository\"]}" \
   -u 'gitea_admin:r8sA8CPHD9!bt6d' \
   | jq -r .sha1)
 echo export GITEA_ADMIN_TOKEN=${GITEA_ADMIN_TOKEN} >> ~/.env
@@ -605,7 +605,7 @@ kubectl --context ${MGMT} -n default wait --for=delete pod/nginx --timeout=30s
 Before we get started, let's install the `meshctl` CLI:
 
 ```bash
-export GLOO_MESH_VERSION=v2.6.10
+export GLOO_MESH_VERSION=v2.6.12
 curl -sL https://run.solo.io/meshctl/install | sh -
 export PATH=$HOME/.gloo-mesh/bin:$PATH
 ```
@@ -758,7 +758,7 @@ spec:
   sources:
   - chart: gloo-platform-crds
     repoURL: https://storage.googleapis.com/gloo-platform/helm-charts
-    targetRevision: 2.6.10
+    targetRevision: 2.6.12
     helm:
       releaseName: gloo-platform-crds
       parameters:
@@ -766,7 +766,7 @@ spec:
         value: "true"
   - chart: gloo-platform
     repoURL: https://storage.googleapis.com/gloo-platform/helm-charts
-    targetRevision: 2.6.10
+    targetRevision: 2.6.12
     helm:
       releaseName: gloo-platform
       valueFiles:
@@ -914,7 +914,7 @@ export ENDPOINT_GLOO_MESH_UI=$(kubectl --context ${MGMT} -n gloo-mesh get svc gl
 
 Check that the variables have correct values:
 
-```bash,noexecute
+```bash,norun-workshop
 echo $HOST_GLOO_MESH
 echo $ENDPOINT_GLOO_MESH
 ```
@@ -1068,7 +1068,7 @@ spec:
       sources:
       - chart: gloo-platform-crds
         repoURL: https://storage.googleapis.com/gloo-platform/helm-charts
-        targetRevision: 2.6.10
+        targetRevision: 2.6.12
         helm:
           releaseName: gloo-platform-crds
           parameters:
@@ -1076,7 +1076,7 @@ spec:
             value: "true"
       - chart: gloo-platform
         repoURL: https://storage.googleapis.com/gloo-platform/helm-charts
-        targetRevision: 2.6.10
+        targetRevision: 2.6.12
         helm:
           releaseName: gloo-platform
           valueFiles:
@@ -1138,7 +1138,7 @@ echo
 
 You can check the cluster(s) have been registered correctly in the Gloo UI or by using the following commands:
 
-```bash,noexecute
+```bash,norun-workshop
 meshctl --kubecontext ${MGMT} check
 ```
 
@@ -1539,7 +1539,7 @@ spec:
       istioOperatorSpec:
         profile: minimal
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.23.2-solo
+        tag: 1.23.6-patch0-solo
         namespace: istio-system
         values:
           global:
@@ -1589,7 +1589,7 @@ spec:
       istioOperatorSpec:
         profile: minimal
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.23.2-solo
+        tag: 1.23.6-patch0-solo
         namespace: istio-system
         values:
           global:
@@ -1657,7 +1657,7 @@ spec:
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.23.2-solo
+        tag: 1.23.6-patch0-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -1684,7 +1684,7 @@ spec:
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.23.2-solo
+        tag: 1.23.6-patch0-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -1699,8 +1699,6 @@ spec:
                 topology.istio.io/network: cluster1
               k8s:
                 env:
-                  - name: ISTIO_META_ROUTER_MODE
-                    value: "sni-dnat"
                   - name: ISTIO_META_REQUESTED_NETWORK_VIEW
                     value: cluster1
 EOF
@@ -1720,7 +1718,7 @@ spec:
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.23.2-solo
+        tag: 1.23.6-patch0-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -1747,7 +1745,7 @@ spec:
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.23.2-solo
+        tag: 1.23.6-patch0-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -1762,8 +1760,6 @@ spec:
                 topology.istio.io/network: cluster2
               k8s:
                 env:
-                  - name: ISTIO_META_ROUTER_MODE
-                    value: "sni-dnat"
                   - name: ISTIO_META_REQUESTED_NETWORK_VIEW
                     value: cluster2
 EOF
@@ -2110,7 +2106,7 @@ echo
 
 You can check that the app is running using the following command:
 
-```bash,noexecute
+```bash,norun-workshop
 kubectl --context ${CLUSTER1} -n bookinfo-frontends get pods && kubectl --context ${CLUSTER1} -n bookinfo-backends get pods
 ```
 
@@ -2573,7 +2569,7 @@ git -C ${GITOPS_REPO_LOCAL} push
 ```
 You can follow the progress using the following command:
 
-```bash,noexecute
+```bash,norun-workshop
 kubectl --context ${CLUSTER1} -n httpbin get pods
 ```
 
@@ -2669,7 +2665,7 @@ spec:
       sources:
       - chart: gloo-platform
         repoURL: https://storage.googleapis.com/gloo-platform/helm-charts
-        targetRevision: 2.6.10
+        targetRevision: 2.6.12
         helm:
           releaseName: gloo-platform
           valueFiles:
@@ -5036,7 +5032,7 @@ done
 
 Get a Spire token to register the VM:
 
-```bash,noexecute
+```bash,norun-workshop
 export JOIN_TOKEN=$(meshctl external-workload gen-token \
   --kubecontext ${CLUSTER1} \
   --ext-workload virtualmachines/${VM_APP} \
@@ -5063,9 +5059,9 @@ done"
 echo
 -->
 
-```bash,noexecute
-export GLOO_AGENT_URL=https://storage.googleapis.com/gloo-platform/vm/v2.6.10/gloo-workload-agent.deb
-export ISTIO_URL=https://storage.googleapis.com/solo-workshops/istio-binaries/1.23.2/istio-sidecar.deb
+```bash,norun-workshop
+export GLOO_AGENT_URL=https://storage.googleapis.com/gloo-platform/vm/v2.6.12/gloo-workload-agent.deb
+export ISTIO_URL=https://storage.googleapis.com/solo-workshops/istio-binaries/1.23.6-patch0/istio-sidecar.deb
 docker exec vm1 meshctl ew onboard --install \
   --attestor token \
   --join-token ${JOIN_TOKEN} \
@@ -5081,8 +5077,8 @@ docker exec vm1 meshctl ew onboard --install \
   --ext-workload virtualmachines/${VM_APP}
 ```
 <!--bash
-export GLOO_AGENT_URL=https://storage.googleapis.com/gloo-platform/vm/v2.6.10/gloo-workload-agent.deb
-export ISTIO_URL=https://storage.googleapis.com/solo-workshops/istio-binaries/1.23.2/istio-sidecar.deb
+export GLOO_AGENT_URL=https://storage.googleapis.com/gloo-platform/vm/v2.6.12/gloo-workload-agent.deb
+export ISTIO_URL=https://storage.googleapis.com/solo-workshops/istio-binaries/1.23.6-patch0/istio-sidecar.deb
 echo -n Trying to onboard the VM...
 MAX_ATTEMPTS=10
 ATTEMPTS=0
@@ -5319,7 +5315,7 @@ spec:
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.23.2-solo
+        tag: 1.23.6-patch0-solo
         components:
           egressGateways:
             - enabled: true
@@ -5348,7 +5344,7 @@ echo
 
 Check that the egress gateway has been deployed using the following command:
 
-```bash,noexecute
+```bash,norun-workshop
 kubectl --context ${CLUSTER1} -n istio-gateways get pods -l istio=egressgateway
 ```
 <!--bash
@@ -5452,7 +5448,7 @@ echo
 -->
 Try to to access the `httpbin.org` site from the `productpage` Pod:
 
-```bash,noexecute
+```bash,norun-workshop
 kubectl --context ${CLUSTER1} -n bookinfo-frontends exec $(kubectl --context ${CLUSTER1} -n bookinfo-frontends get pods -l app=productpage -o jsonpath='{.items[0].metadata.name}') -- python -c "import requests; r = requests.get('http://httpbin.org/get'); print(r.text)"
 ```
 
@@ -5548,7 +5544,7 @@ Now, it works!
 
 And you can run the following command to check that the request went through the egress gateway:
 
-```bash,noexecute
+```bash,norun-workshop
 kubectl --context ${CLUSTER1} -n istio-gateways logs -l istio=egressgateway --tail 1
 ```
 
@@ -5628,13 +5624,13 @@ timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --e
 
 You can still send GET requests to the `httpbin.org` site from the `productpage` Pod:
 
-```bash,noexecute
+```bash,norun-workshop
 kubectl --context ${CLUSTER1} -n bookinfo-frontends exec $(kubectl --context ${CLUSTER1} -n bookinfo-frontends get pods -l app=productpage -o jsonpath='{.items[0].metadata.name}') -- python -c "import requests; r = requests.get('http://httpbin.org/get'); print(r.text)"
 ```
 
 But you can't send POST requests to the `httpbin.org` site from the `productpage` Pod:
 
-```bash,noexecute
+```bash,norun-workshop
 kubectl --context ${CLUSTER1} -n bookinfo-frontends exec $(kubectl --context ${CLUSTER1} -n bookinfo-frontends get pods -l app=productpage -o jsonpath='{.items[0].metadata.name}') -- python -c "import requests; r = requests.post('http://httpbin.org/post'); print(r.text)"
 ```
 
