@@ -16,7 +16,7 @@ source ./scripts/assert.sh
 ## Table of Contents
 * [Introduction](#introduction)
 * [Lab 1 - Deploy KinD Cluster(s)](#lab-1---deploy-kind-cluster(s)-)
-* [Lab 2 - Deploy Gloo Gateway](#lab-2---deploy-gloo-gateway-)
+* [Lab 2 - Deploy Gloo Gateway Enterprise](#lab-2---deploy-gloo-gateway-enterprise-)
 * [Lab 3 - Deploy Gloo AI Gateway](#lab-3---deploy-gloo-ai-gateway-)
 * [Lab 4 - Managing LLM provider credentials with Gloo AI Gateway](#lab-4---managing-llm-provider-credentials-with-gloo-ai-gateway-)
 * [Lab 5 - Controlling access to LLM providers with Gloo AI Gateway](#lab-5---controlling-access-to-llm-providers-with-gloo-ai-gateway-)
@@ -24,8 +24,7 @@ source ./scripts/assert.sh
 * [Lab 7 - Model failover](#lab-7---model-failover-)
 * [Lab 8 - Managing prompts and LLM configuration with Gloo AI Gateway](#lab-8---managing-prompts-and-llm-configuration-with-gloo-ai-gateway-)
 * [Lab 9 - Content safety with Prompt Guard](#lab-9---content-safety-with-prompt-guard-)
-* [Lab 10 - Retrieval Augmented Generation (RAG)](#lab-10---retrieval-augmented-generation-(rag)-)
-* [Lab 11 - Semantic Caching](#lab-11---semantic-caching-)
+* [Lab 10 - Content safety with AI Guardrail Webhook](#lab-10---content-safety-with-ai-guardrail-webhook-)
 
 
 
@@ -121,7 +120,8 @@ timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --e
 
 
 
-## Lab 2 - Deploy Gloo Gateway <a name="lab-2---deploy-gloo-gateway-"></a>
+## Lab 2 - Deploy Gloo Gateway Enterprise <a name="lab-2---deploy-gloo-gateway-enterprise-"></a>
+
 
 You can deploy Gloo Gateway with the `glooctl` CLI or declaratively using Helm.
 
@@ -130,22 +130,20 @@ We're going to use the Helm option.
 Install the Kubernetes Gateway API CRDs as they do not come installed by default on most Kubernetes clusters.
 
 ```bash
-kubectl --context $CLUSTER1 apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.2.0/experimental-install.yaml
+kubectl --context $CLUSTER1 apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.3.0/experimental-install.yaml
 ```
 
 
-
-Next, install Gloo Gateway. This command installs the Gloo Gateway control plane into the namespace `gloo-system`.
+Next install Gloo Gateway. This command installs the Gloo Gateway control plane into the namespace `gloo-system`.
 
 ```bash
 
 helm repo add gloo-ee-helm https://storage.googleapis.com/gloo-ee-helm
 helm repo update
-
 helm upgrade -i -n gloo-system \
   gloo-gateway gloo-ee-helm/gloo-ee \
   --create-namespace \
-  --version 1.18.9 \
+  --version 1.18.11 \
   --kube-context $CLUSTER1 \
   --set-string license_key=$LICENSE_KEY \
   -f -<<EOF
@@ -153,6 +151,13 @@ helm upgrade -i -n gloo-system \
 gloo:
   kubeGateway:
     enabled: true
+    gatewayParameters:
+      glooGateway:
+        podTemplate:
+          gracefulShutdown:
+            enabled: true
+          livenessProbeEnabled: true
+          probes: true
   gatewayProxies:
     gatewayProxy:
       disabled: true
@@ -160,6 +165,7 @@ gloo:
     validation:
       allowWarnings: true
       alwaysAcceptResources: false
+      livenessProbeEnabled: true
   gloo:
     logLevel: info
     deployment:
@@ -252,7 +258,7 @@ cat <<'EOF' > ./test.js
 const helpers = require('./tests/chai-exec');
 
 describe("Gloo Gateway", () => {
-  let cluster = process.env.CLUSTER1
+  let cluster = process.env.CLUSTER1;
   let deployments = ["gloo", "extauth", "rate-limit", "redis"];
   deployments.forEach(deploy => {
     it(deploy + ' pods are ready in ' + cluster, () => helpers.checkDeployment({ context: cluster, namespace: "gloo-system", k8sObj: deploy }));
@@ -311,7 +317,7 @@ EOF
 
 This should create a deployment for the AI Gateway. You can check the status of the deployment using the following command:
 
-```bash,noexecute
+```bash,norun-workshop
 kubectl get deploy gloo-proxy-ai-gateway -n gloo-system
 ```
 
@@ -339,10 +345,29 @@ In this demo we'll show you how you can configure the API Gateway to automatical
 
 First, let's prepare two environment variables with the API keys:
 
-```bash,noexecute
+```bash,norun-workshop
 export OPENAI_API_KEY=<your Open AI API Key>
 export MISTRAL_API_KEY=<your Mistral AI API Key>
 ```
+
+<!--bash
+cat <<'EOF' > ./test.js
+var chai = require('chai');
+var expect = chai.expect;
+
+describe("Required environment variables should contain value", () => {
+  it("Validating that environment variables for LLM apikeys are set", () => {
+    const llmApiKeyEnvVars = ['OPENAI_API_KEY','MISTRAL_API_KEY'];
+    llmApiKeyEnvVars.forEach(element => {
+      console.log(`Checking for Environment Variable ${element}...`);
+      expect(process.env[element]).to.not.be.undefined.and.to.not.be.empty;
+    });
+  });
+});
+EOF
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/ai-gateway/ai-credential-management/tests/environment-variables.test.js.liquid from lab number 4"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=0 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 4"; exit 1; }
+-->
 
 We'll store the API keys in Kubernetes secrets and then reference them in the Gateway configuration.
 
@@ -462,7 +487,7 @@ export GLOO_AI_GATEWAY=$(kubectl --context $CLUSTER1 get svc -n gloo-system gloo
 
 Now we can send a prompt to the OpenAI API:
 
-```bash,noexecute
+```bash,norun-workshop
 curl -v "$GLOO_AI_GATEWAY:8080/openai" -H content-type:application/json   -d '{
       "model": "gpt-4o-mini",
       "max_tokens": 128,
@@ -508,7 +533,7 @@ curl -v "$GLOO_AI_GATEWAY:8080/openai" -H content-type:application/json   -d '{
 
 Similarly, we can send a prompt to the Mistral AI API:
 
-```bash,noexecute
+```bash,norun-workshop
 curl --location "$GLOO_AI_GATEWAY:8080/mistral" -H content-type:application/json \
      --data '{
     "model": "open-mistral-nemo",
@@ -526,7 +551,7 @@ Note that we didn't have to include the API keys in the request. The Gloo AI Gat
 
 We can also enable streaming responses by setting the `stream` field to `true` in the request. You can press <kbd>CTRL+C</kbd> to stop the streaming:
 
-```bash,noexecute
+```bash,norun-workshop
 curl --location "$GLOO_AI_GATEWAY:8080/mistral" -H content-type:application/json \
      --data '{
     "model": "open-mistral-nemo",
@@ -676,7 +701,7 @@ EOF
 
 If you try to send the same request as before, without a JWT, you'll get an HTTP 401 Unauthorized response that says the request is missing a JWT:
 
-```bash,noexecute
+```bash,norun-workshop
 curl -v "$GLOO_AI_GATEWAY:8080/openai" -H content-type:application/json -d '{
     "model": "gpt-4o-mini",
     "max_tokens": 128,
@@ -712,7 +737,7 @@ export BOB_TOKEN=$(./scripts/create-jwt.sh ./data/steps/ai-access-control/privat
 
 Now that we have a valid JWT for Alice and Bob, we can send the request to the Gloo AI Gateway with the JWT in the `Authorization` header:
 
-```bash,noexecute
+```bash,norun-workshop
 curl "$GLOO_AI_GATEWAY:8080/openai" --header "Authorization: Bearer $ALICE_TOKEN" -H content-type:application/json -d '{
     "model": "gpt-4o-mini",
     "max_tokens": 128,
@@ -789,7 +814,7 @@ The part we added to the RouteOption is the `rbac` section in the options. In th
 
 Now, let's send a request to the Gloo AI Gateway with Bob's JWT (remember, Bob has access to the `open-mistral-nemo` model):
 
-```bash,noexecute
+```bash,norun-workshop
 curl "$GLOO_AI_GATEWAY:8080/mistral" --header "Authorization: Bearer $BOB_TOKEN" -H content-type:application/json -d '{
     "model": "open-mistral-nemo",
     "max_tokens": 128,
@@ -810,7 +835,7 @@ As expected, we get a response from the Mistral AI API because Bob has access to
 
 If we try the same request with Alice's JWT, we'll get an HTTP 403 Forbidden response because Alice doesn't have access to the `open-mistral-nemo` model:
 
-```bash,noexecute
+```bash,norun-workshop
 curl -v "$GLOO_AI_GATEWAY:8080/mistral"  -H "Authorization: Bearer $ALICE_TOKEN" -H content-type:application/json -d '{
     "model": "open-mistral-nemo",
     "max_tokens": 128,
@@ -998,7 +1023,7 @@ The rate limit configuration is attached to the route using the `rateLimitConfig
 
 Let's use Alice's token to access the API:
 
-```bash,noexecute
+```bash,norun-workshop
 curl -v "$GLOO_AI_GATEWAY:8080/openai" --header "Authorization: Bearer $ALICE_TOKEN" -H content-type:application/json -d '{
     "model": "gpt-4o-mini",
     "max_tokens": 128,
@@ -1099,7 +1124,7 @@ In addition using the tokens to rate limit, the Gloo AI Gateway can also be conf
 
 Port-forward the Grafana service to view the dashboard:
 
-```bash,noexecute
+```bash,norun-workshop
 kubectl --context $CLUSTER1 -n gloo-system port-forward svc/glooe-grafana 3000:80
 ```
 
@@ -1238,7 +1263,7 @@ curl -v "$GLOO_AI_GATEWAY:8080/openai" -H content-type:application/json -d '{
 Note the response in this case is 429 because that's what the custom model `model-failover` is configured to return when it receives a request. Let's also check the logs from the `model-failover` pod to see the requests that were sent:
 
 
-```bash,noexecute
+```bash,norun-workshop
 kubectl --context $CLUSTER1 logs deploy/model-failover -n gloo-system
 ```
 
@@ -1328,7 +1353,7 @@ We'll start with the following prompt:
 Parse the unstructured text into CSV format: Seattle, Los Angeles, and Chicago are cities in the United States. London, Paris, and Berlin are cities in Europe. Respond only with the CSV data.
 ```
 
-```bash,noexecute
+```bash,norun-workshop
 curl "$GLOO_AI_GATEWAY:8080/openai" -H content-type:application/json -d '{
     "model": "gpt-4o-mini",
     "max_tokens": 128,
@@ -1358,7 +1383,7 @@ Notice the prompt we're sending to the model includes the instructions on what t
 
 We can extract the instruction part of the prompt into a system prompt:
 
-```bash,noexecute
+```bash,norun-workshop
 curl "$GLOO_AI_GATEWAY:8080/openai" -H content-type:application/json -d '{
     "model": "gpt-4o-mini",
     "max_tokens": 128,
@@ -1395,14 +1420,14 @@ spec:
     ai:
       promptEnrichment:
         prepend:
-        - role: SYSTEM
+        - role: "system"
           content: "Parse the unstructured text into CSV format and respond only with the CSV data."
 EOF
 ```
 
 If we send a request now, the system prompt will be automatically included by the Gloo AI Gateway, before it's sent to the LLM provider:
 
-```bash,noexecute
+```bash,norun-workshop
 curl "$GLOO_AI_GATEWAY:8080/openai" -H content-type:application/json -d '{
     "model": "gpt-4o-mini",
     "max_tokens": 128,
@@ -1495,7 +1520,7 @@ LLM provider APIs, given their ability to process and generate human-like text, 
 
 We'll start with an example prompt that asks for examples of credit card numbers:
 
-```bash,noexecute
+```bash,norun-workshop
 curl --location "$GLOO_AI_GATEWAY:8080/mistral" -H content-type:application/json \
      --data '{
     "model": "open-mistral-nemo",
@@ -1545,7 +1570,7 @@ EOF
 
 If you repeat the previous request, you'll notice that it gets blocked right away:
 
-```bash,noexecute
+```bash,norun-workshop
 curl -v "$GLOO_AI_GATEWAY:8080/mistral" -H content-type:application/json \
      --data '{
     "model": "open-mistral-nemo",
@@ -1564,7 +1589,7 @@ Rejected by guardrails regex
 
 The request was blocked because it contained the string "credit card". But what happens if we try to send a request without the string "credit card" to circumvent prompt guard?
 
-```bash,noexecute
+```bash,norun-workshop
 curl -v "$GLOO_AI_GATEWAY:8080/mistral" -H content-type:application/json \
      --data '{
     "model": "open-mistral-nemo",
@@ -1612,7 +1637,7 @@ EOF
 Let's try sending a request with a credit card number:
 
 
-```bash,noexecute
+```bash,norun-workshop
 curl -v "$GLOO_AI_GATEWAY:8080/mistral" -H content-type:application/json \
      --data '{
     "model": "open-mistral-nemo",
@@ -1694,49 +1719,66 @@ kubectl --context $CLUSTER1 delete routeoptions mistral-ai-opt -n gloo-system
 
 
 
-## Lab 10 - Retrieval Augmented Generation (RAG) <a name="lab-10---retrieval-augmented-generation-(rag)-"></a>
+## Lab 10 - Content safety with AI Guardrail Webhook <a name="lab-10---content-safety-with-ai-guardrail-webhook-"></a>
 
-Retrieval augmented generation or RAG is a technique of providing relevant context by retrieving relevant data from one or more datasets and augmenting the prompt with the retrieved information. This approach helps LLMs to generate more accurate and relevant responses and to a certain point prevent hallucinations.
+AI Guardrail Webhooks provide a mechanism to inspect and validate both user prompts and LLM responses. This allows you to implement custom safety rules, content filtering, and moderation at both the request and response level.
 
-Gloo AI Gateway's RAG feature allows you to configure the system to retrieve data from a specified datastore and use it to augment the prompt before sending it to the model. This can be particularly useful in scenarios where the model requires additional context to generate accurate responses.
+The webhook server receives the content, applies your validation rules, and can approve, reject, or modify the content before it continues through the Gloo AI Gateway.
 
-### Configure the RAG Feature
+For this lab, we'll deploy a simple mock webhook server that demonstrates basic guardrail functionality:
 
-Let's try sending a request to the Gloo AI Gateway without the RAG enabled, so we can compare the responses:
-
-```bash,noexecute
-curl -v "$GLOO_AI_GATEWAY:8080/openai" -H content-type:application/json \
-  --data '{
-    "model": "gpt-4o-mini",
-    "messages": [
-      {
-        "role": "user",
-        "content": "How many varieties of cheeses are in France?"
-      }
-    ]
-  }'
-```
-
-```console,nocopy
-...
-"France is renowned for its rich cheese-making tradition, and the exact number of cheese varieties can vary depending on how one counts them. Generally, it is often cited that France boasts around 1,000 distinct varieties of cheese. This includes a wide range of types categorized by factors such as their region of origin, milk type (cow, goat, sheep), and production methods. Some of the most famous French cheeses include Brie, Camembert, Roquefort, and Comté, but the diversity extends far beyond these well-known examples."
-...
-```
-
-The response from the LLM can be made more accurate and relevant using RAG.
-
-We've prepared a vector database (`vector-db` pod in the cluster) with the embeddings created from a [website that talks about French cheeses](https://francevoyager.com/best-french-cheeses/) and explicitly mentions "1,000-1,600 varieties of cheeses" in France.
-
-Let's configure the RAG feature to retrieve the relevant data from the database and see how the response changes.
-
-Deploy the vector DB:
 ```bash
-kubectl --context $CLUSTER1 apply -f data/steps/ai-rag/vectordb-deployment.yaml
-
-kubectl --context $CLUSTER1 -n gloo-system rollout status deploy vector-db
+kubectl apply --context ${CLUSTER1} -f - <<EOF
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ai-guardrail-webhook
+  namespace: gloo-system
+  labels:
+    app: ai-guardrail
+spec:
+  replicas: 4
+  selector:
+    matchLabels:
+      app: ai-guardrail-webhook
+  template:
+    metadata:
+      labels:
+        app: ai-guardrail-webhook
+    spec:
+      containers:
+      - name: webhook
+        image: gcr.io/solo-public/docs/ai-guardrail-webhook:latest
+        ports:
+        - containerPort: 8000
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "500m"
+          limits:
+            memory: "1Gi"
+            cpu: "1"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ai-guardrail-webhook
+  namespace: gloo-system
+  labels:
+    app: ai-guardrail
+spec:
+  selector:
+    app: ai-guardrail-webhook
+  ports:
+  - port: 8000
+    targetPort: 8000
+  type: LoadBalancer
+EOF
 ```
 
-We'll use the RouteOption and configure point the data store to the Postgres database (with embeddings) that's running inside the cluster:
+The webhook rejects only traffic containing the word "block" in the request. Thus we can easily try both scenarios, one in which the request is approved and another in which it is rejected.
+
+Proceed to configure the AI Gateway to send both requests and responses to our webhook for validation:
 
 ```bash
 kubectl apply --context ${CLUSTER1} -f - <<EOF
@@ -1752,44 +1794,34 @@ spec:
     name: openai
   options:
     ai:
-      rag:
-        datastore:
-          postgres:
-            connectionString: postgresql+psycopg://gloo:gloo@vector-db.gloo-system.svc.cluster.local:5432/gloo
-            collectionName: default
-        embedding:
-          openai:
-            authToken:
-              secretRef:
-                name: openai-secret
-                namespace: gloo-system
+      promptGuard:
+        request:
+          webhook:
+            host: ai-guardrail-webhook.gloo-system.svc.cluster.local
+            port: 8000
+        response:
+          webhook:
+            host: ai-guardrail-webhook.gloo-system.svc.cluster.local
+            port: 8000
 EOF
 ```
 
-This configuration tells the Gloo AI Gateway to embed the original prompt we'll be sending and then use it to retrieve the similar embeddings from the database and finally augment the prompt with the retrieved data before sending it to the model.
+Let's test with a regular request that should be approved:
 
-Let's send the same prompt again and see how the response changes:
-
-```bash,noexecute
-curl -v "$GLOO_AI_GATEWAY:8080/openai" -H content-type:application/json \
+```bash,norun-workshop
+curl -v "$GLOO_AI_GATEWAY:8080/openai-mock" -H content-type:application/json \
   --data '{
     "model": "gpt-4o-mini",
     "messages": [
-      {
-        "role": "user",
-        "content": "How many varieties of cheeses are in France?"
+       {
+          "role": "user",
+          "content": "What is a risky or not safe request?"
       }
     ]
   }'
 ```
 
-```console,nocopy
-...
-"France has between 1,000 and 1,600 varieties of cheese."
-...
-```
-
-This time, the response is accurate and concise, providing a definitive answer that can be found on the website that was used to create the embeddings.
+You should get a normal response. Now try the same request but include the word "block" in the content - this will trigger the webhook to reject the request with a 403 Forbidden response.
 
 <!--bash
 cat <<'EOF' > ./test.js
@@ -1816,196 +1848,51 @@ const getGatewayIP = () => {
   return cli.output.trim().replace(/'/g, '');
 };
 
-describe("prompt RAG", () => {
+describe("ai guardrail webhook", () => {
   let glooAIGatewayIP;
 
   before(() => {
     glooAIGatewayIP = getGatewayIP();
   });
 
-  it('should return specific details contained within the DB', () => {
+  it('should approve regular traffic', () => {
     let curlCommand = `
 curl "${glooAIGatewayIP}:8080/openai" -H content-type:application/json \
   --data '{
     "model": "gpt-4o-mini",
     "messages": [
-      {
+     {
         "role": "user",
-        "content": "How many varieties of cheeses are in France?"
+        "content": "Is this a risky request?"
       }
     ]
   }'`
     let curlCli = chaiExec(curlCommand);
     expect(curlCli).to.exit.with.code(0);
-    expect(curlCli).output.to.include("1,600");
-  });
-});
-
-EOF
-echo "executing test dist/gloo-gateway-workshop/build/templates/steps/ai-gateway/ai-rag/tests/check-rag.test.js.liquid from lab number 10"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 10"; exit 1; }
--->
-Next, cleanup the resources:
-```
-kubectl --context $CLUSTER1 delete routeoptions openai-opt -n gloo-system
-```
-
-
-
-## Lab 11 - Semantic Caching <a name="lab-11---semantic-caching-"></a>
-
-Semantic caching is a feature in Gloo AI Gateway that caches semantically similar queries. This means that if two prompts are semantically similar, the LLM response from the first prompt can be reused for the second prompt, without sending a request to the LLM. This reduces the number of requests made to the LLM provider, improves the response time, and reduces the cost.
-
-For caching the responses, we'll use Redis as the caching datastore:
-
-```bash
-kubectl --context $CLUSTER1 apply -f data/steps/ai-semantic-caching/redis-semantic-cache.yaml
-kubectl --context $CLUSTER1 -n gloo-system rollout status deploy redis-semantic-cache
-```
-
-Let's configure the Gloo AI Gateway to use Redis for semantic caching by deploying a RouteOption resource:
-
-```bash
-kubectl apply --context ${CLUSTER1} -f - <<EOF
-apiVersion: gateway.solo.io/v1
-kind: RouteOption
-metadata:
-  name: openai-opt
-  namespace: gloo-system
-spec:
-  targetRefs:
-  - group: gateway.networking.k8s.io
-    kind: HTTPRoute
-    name: openai
-  options:
-    ai:
-      semanticCache:
-        datastore:
-          redis:
-            connectionString: redis://redis-semantic-cache.gloo-system.svc.cluster.local:6379
-        embedding:
-          openai:
-            authToken:
-              secretRef:
-                name: openai-secret
-                namespace: gloo-system
-EOF
-```
-
-This configuration tells the Gloo AI Gateway to use a Redis instance (`redis://redis-semantic-cache.gloo-system.svc.cluster.local:6379`) to cache the responses for semantically similar queries in Redis. Let's try sending the same prompt multiple times and see how the response time changes:
-
-
-```bash,noexecute
-curl -v "$GLOO_AI_GATEWAY:8080/openai" -H content-type:application/json \
-     --data '{
-    "model": "gpt-4o-mini",
-    "messages": [
-     {
-        "role": "user",
-        "content": "How many varieties of cheeses are in France?"
-      }
-    ]
-  }'
-```
-
-```console,nocopy
-...
-< x-envoy-upstream-service-time: 1748
-...
-```
-
-Note the response time is 1748 milliseconds (1.7 seconds). Let's send the same prompt again and see how the response time changes:
-
-```bash,noexecute
-curl -v "$GLOO_AI_GATEWAY:8080/openai" -H content-type:application/json \
-     --data '{
-    "model": "gpt-4o-mini",
-    "messages": [
-     {
-        "role": "user",
-        "content": "How many varieties of cheeses are in France?"
-      }
-    ]
-  }'
-```
-
-
-The response should be significantly faster this time because the response is cached in Redis and the Gloo AI Gateway is reusing the cached response for the same prompt. We know the response was cached because the `x-gloo-semantic-cache: hit` header is present in the response:
-
-```,nocopy
-...
-< x-gloo-semantic-cache: hit
-...
-```
-
-If you modify the prompt so it's still semantically similar but not exactly the same, the Gloo AI Gateway will still use the cached response. Let's try sending a slightly modified prompt and see we get a cached response:
-
-```bash,noexecute
-curl -v "$GLOO_AI_GATEWAY:8080/openai" -H content-type:application/json \
-    --data '{
-    "model": "gpt-4o-mini",
-    "messages": [
-     {
-        "role": "user",
-        "content": "How many cheeses are in France?"
-      }
-    ]
-  }'
-```
-
-<!--bash
-cat <<'EOF' > ./test.js
-const chaiExec = require("@jsdevtools/chai-exec");
-var chai = require('chai');
-var expect = chai.expect;
-chai.use(chaiExec);
-
-afterEach(function (done) {
-  if (this.currentTest.currentRetry() > 0) {
-    process.stdout.write(".");
-    setTimeout(done, 4000);
-  } else {
-    done();
-  }
-});
-
-const getGatewayIP = () => {
-  const cluster = process.env.CLUSTER1
-  const command = `kubectl --context ${cluster} get svc -n gloo-system gloo-proxy-ai-gateway -o jsonpath='{.status.loadBalancer.ingress[0].ip}'`;
-  const cli = chaiExec(command);
-  expect(cli).to.exit.with.code(0);
-  expect(cli).output.to.not.be.empty;
-  return cli.output.trim().replace(/'/g, '');
-};
-
-describe("semantic caching", () => {
-  let glooAIGatewayIP;
-
-  before(() => {
-    glooAIGatewayIP = getGatewayIP();
+    expect(curlCli).output.not.to.include("request blocked");
   });
 
-  it('should hit semantic cache', () => {
+  it('should reject traffic containing the word block', () => {
     let curlCommand = `
-curl -v "${glooAIGatewayIP}:8080/openai" -H content-type:application/json \
+curl "${glooAIGatewayIP}:8080/openai" -H content-type:application/json \
   --data '{
     "model": "gpt-4o-mini",
     "messages": [
-      {
+     {
         "role": "user",
-        "content": "How many varieties of cheeses are in France?"
+        "content": "Is this a risky request that should be blocked?"
       }
     ]
   }'`
     let curlCli = chaiExec(curlCommand);
     expect(curlCli).to.exit.with.code(0);
-    expect(curlCli).output.to.include("x-gloo-semantic-cache: hit");
+    expect(curlCli).output.to.include("request blocked");
   });
 });
 
 EOF
-echo "executing test dist/gloo-gateway-workshop/build/templates/steps/ai-gateway/ai-semantic-caching/tests/check-semantic-caching.test.js.liquid from lab number 11"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 11"; exit 1; }
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/ai-gateway/ai-guardrail-webhook/tests/check-ai-guardrail-webhook.test.js.liquid from lab number 10"
+timeout --signal=INT 2m mocha ./test.js --timeout 10000 --retries=30 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 10"; exit 1; }
 -->
 Next, cleanup the resources:
 ```bash
