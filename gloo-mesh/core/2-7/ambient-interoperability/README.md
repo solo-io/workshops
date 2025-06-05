@@ -9,7 +9,7 @@ source ./scripts/assert.sh
 <img src="images/document-gloo-mesh.svg" style="height: 100px;"/>
 </center>
 
-# <center>Gloo Mesh Core (2.7.1) Ambient Interoperability</center>
+# <center>Gloo Mesh Core (2.7.3) Ambient Interoperability</center>
 
 
 
@@ -126,7 +126,7 @@ timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --e
 Before we get started, let's install the `meshctl` CLI:
 
 ```bash
-export GLOO_MESH_VERSION=v2.7.1
+export GLOO_MESH_VERSION=v2.7.3
 curl -sL https://run.solo.io/meshctl/install | sh -
 export PATH=$HOME/.gloo-mesh/bin:$PATH
 ```
@@ -170,13 +170,13 @@ helm upgrade --install gloo-platform-crds gloo-platform-crds \
   --kube-context ${MGMT} \
   --set featureGates.insightsConfiguration=true \
   --set installEnterpriseCrds=false \
-  --version 2.7.1
+  --version 2.7.3
 
 helm upgrade --install gloo-platform-mgmt gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${MGMT} \
-  --version 2.7.1 \
+  --version 2.7.3 \
   -f -<<EOF
 licensing:
   glooTrialLicenseKey: ${GLOO_MESH_LICENSE_KEY}
@@ -251,7 +251,7 @@ describe("istio_version is at least 1.23.0", () => {
   it("version should be at least 1.23.0", () => {
     // Compare the string istio_version to the number 1.23.0
     // example 1.23.0-patch0 is valid, but 1.22.6 is not
-    let version = "1.24.1-patch1";
+    let version = "1.24.5";
     let versionParts = version.split('-')[0].split('.');
     let major = parseInt(versionParts[0]);
     let minor = parseInt(versionParts[1]);
@@ -316,7 +316,7 @@ kubectl --context ${CLUSTER1} create ns istio-system
 helm upgrade --install istio-base oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/base \
 --namespace istio-system \
 --kube-context=${CLUSTER1} \
---version 1.24.1-patch1-solo \
+--version 1.24.5-solo \
 --create-namespace \
 -f - <<EOF
 defaultRevision: ""
@@ -326,14 +326,14 @@ EOF
 helm upgrade --install istiod-1-24 oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/istiod \
 --namespace istio-system \
 --kube-context=${CLUSTER1} \
---version 1.24.1-patch1-solo \
+--version 1.24.5-solo \
 --create-namespace \
 -f - <<EOF
 global:
   hub: us-docker.pkg.dev/gloo-mesh/istio-<enterprise_istio_repo>
   proxy:
     clusterDomain: cluster.local
-  tag: 1.24.1-patch1-solo
+  tag: 1.24.5-solo
   multiCluster:
     clusterName: cluster1
   meshID: mesh1
@@ -358,12 +358,12 @@ EOF
 helm upgrade --install istio-cni oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/cni \
 --namespace kube-system \
 --kube-context=${CLUSTER1} \
---version 1.24.1-patch1-solo \
+--version 1.24.5-solo \
 --create-namespace \
 -f - <<EOF
 global:
   hub: us-docker.pkg.dev/gloo-mesh/istio-<enterprise_istio_repo>
-  proxy: 1.24.1-patch1-solo
+  proxy: 1.24.5-solo
 profile: ambient
 cni:
   ambient:
@@ -376,7 +376,7 @@ EOF
 helm upgrade --install ztunnel oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/ztunnel \
 --namespace istio-system \
 --kube-context=${CLUSTER1} \
---version 1.24.1-patch1-solo \
+--version 1.24.5-solo \
 --create-namespace \
 -f - <<EOF
 configValidation: true
@@ -392,7 +392,7 @@ namespace: istio-system
 profile: ambient
 proxy:
   clusterDomain: cluster.local
-tag: 1.24.1-patch1-solo
+tag: 1.24.5-solo
 terminationGracePeriodSeconds: 29
 variant: distroless
 EOF
@@ -400,7 +400,7 @@ EOF
 helm upgrade --install istio-ingressgateway-1-24 oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/gateway \
 --namespace istio-gateways \
 --kube-context=${CLUSTER1} \
---version 1.24.1-patch1-solo \
+--version 1.24.5-solo \
 --create-namespace \
 -f - <<EOF
 autoscaling:
@@ -417,7 +417,7 @@ EOF
 ```
 The Gateway APIs do not come installed by default on most Kubernetes clusters. Install the Gateway API CRDs if they are not present:
 ```bash
-kubectl --context ${CLUSTER1} apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.2.0/experimental-install.yaml
+kubectl --context ${CLUSTER1} apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.3.0/experimental-install.yaml
 ```
   
 
@@ -538,7 +538,7 @@ echo
 
 You can check that the app is running using the following command:
 
-```bash,noexecute
+```bash,norun-workshop
 kubectl --context ${CLUSTER1} -n bookinfo-frontends get pods && kubectl --context ${CLUSTER1} -n bookinfo-backends get pods
 ```
 
@@ -1463,7 +1463,7 @@ EOF
 
 Generate traffic with the beta user from both types of workloads. You'll find out that traffic from `in-mesh` workload is routed to v2, in other words the routing rule is enforced. Meanwhile, traffic from the `in-ambient` workload is routed to both versions:
 
-```bash,noexecute
+```bash,norun-workshop
 for workload in in-mesh in-ambient; do
   echo "${workload} to reviews.bookinfo-backends"
 
@@ -1534,7 +1534,7 @@ EOF
 
 Now generate traffic again with the beta user from both types of workloads:
 
-```bash,noexecute
+```bash,norun-workshop
 for workload in in-mesh in-ambient; do
   echo "${workload} to reviews.bookinfo-backends"
 
@@ -1548,7 +1548,7 @@ done
 
 Both the `in-mesh` and `in-ambient` will adhere to the policy and route traffic to v2 only. Next, validate that for requests without the `beta-tester` header, the traffic is routed to v1 for both types of workloads:
 
-```bash,noexecute
+```bash,norun-workshop
 for workload in in-mesh in-ambient; do
   echo "${workload} to reviews.bookinfo-backends"
 
@@ -1666,14 +1666,14 @@ EOF
 
 Let's validate that the header is added when we make requests from different types of workloads:
 
-```bash,noexecute
+```bash,norun-workshop
 kubectl --context "${CLUSTER1}" -n clients exec deploy/in-mesh -- curl -s -I "http://reviews.bookinfo-backends:9080/reviews/0" | grep my-added-header
 kubectl --context "${CLUSTER1}" -n clients exec deploy/in-ambient -- curl -s -I "http://reviews.bookinfo-backends:9080/reviews/0" | grep my-added-header
 ```
 
 Expected output:
 
-```bash,noexecute,nocopy
+```bash,norun-workshop,nocopy
 my-added-header: added-value
 my-added-header: added-value
 ```
@@ -1766,7 +1766,7 @@ EOF
 
 This configuration routes 70% of traffic to v1 and 30% to v2. Let's verify the traffic distribution:
 
-```bash,noexecute
+```bash,norun-workshop
 for workload in in-mesh in-ambient; do
   echo "${workload} to reviews.bookinfo-backends"
 
@@ -1828,7 +1828,7 @@ EOF
 
 You should see a mix of successful (200) and failed (500) responses.
 
-```bash,noexecute
+```bash,norun-workshop
 for workload in in-mesh in-ambient; do
   echo "${workload} to echo-service.bookinfo-backends"
   kubectl --context ${CLUSTER1} -n clients exec deploy/$workload -- bash -c "
@@ -1881,7 +1881,7 @@ EOF
 
 With this configuration in place, let's test again:
 
-```bash,noexecute
+```bash,norun-workshop
 for workload in in-mesh in-ambient; do
   echo "${workload} to echo-service.bookinfo-backends"
   kubectl --context="${CLUSTER1}" -n clients exec deploy/$workload -- bash -c "
