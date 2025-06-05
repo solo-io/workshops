@@ -19,7 +19,7 @@ source ./scripts/assert.sh
 * [Lab 2 - Install MetalLB on OpenShift cluster](#lab-2---install-metallb-on-openshift-cluster-)
 * [Lab 3 - Deploy Istio in Sidecar mode](#lab-3---deploy-istio-in-sidecar-mode-)
 * [Lab 4 - Deploy Keycloak](#lab-4---deploy-keycloak-)
-* [Lab 5 - Deploy Gloo Gateway](#lab-5---deploy-gloo-gateway-)
+* [Lab 5 - Deploy Gloo Gateway Enterprise](#lab-5---deploy-gloo-gateway-enterprise-)
 * [Lab 6 - Deploy the httpbin demo app](#lab-6---deploy-the-httpbin-demo-app-)
 * [Lab 7 - Expose the httpbin application through the gateway](#lab-7---expose-the-httpbin-application-through-the-gateway-)
 * [Lab 8 - Delegate with control](#lab-8---delegate-with-control-)
@@ -952,7 +952,8 @@ timeout 300 bash -c 'while [[ "$(curl -m 2 -s -o /dev/null -w ''%{http_code}'' $
 
 
 
-## Lab 5 - Deploy Gloo Gateway <a name="lab-5---deploy-gloo-gateway-"></a>
+## Lab 5 - Deploy Gloo Gateway Enterprise <a name="lab-5---deploy-gloo-gateway-enterprise-"></a>
+
 
 You can deploy Gloo Gateway with the `glooctl` CLI or declaratively using Helm.
 
@@ -961,7 +962,7 @@ We're going to use the Helm option.
 Install the Kubernetes Gateway API CRDs as they do not come installed by default on most Kubernetes clusters.
 
 ```bash
-kubectl --context $CLUSTER1 apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.2.0/experimental-install.yaml
+kubectl --context $CLUSTER1 apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.3.0/experimental-install.yaml
 ```
 
 
@@ -981,18 +982,16 @@ data:
 EOF
 ```
 
-
-Next, install Gloo Gateway. This command installs the Gloo Gateway control plane into the namespace `gloo-system`.
+Next install Gloo Gateway. This command installs the Gloo Gateway control plane into the namespace `gloo-system`.
 
 ```bash
 
 helm repo add gloo-ee-helm https://storage.googleapis.com/gloo-ee-helm
 helm repo update
-
 helm upgrade -i -n gloo-system \
   gloo-gateway gloo-ee-helm/gloo-ee \
   --create-namespace \
-  --version 1.17.9 \
+  --version 1.17.10 \
   --kube-context $CLUSTER1 \
   --set-string license_key=$LICENSE_KEY \
   -f -<<EOF
@@ -1007,6 +1006,7 @@ gloo:
     validation:
       allowWarnings: true
       alwaysAcceptResources: false
+      livenessProbeEnabled: true
   gloo:
     logLevel: info
     deployment:
@@ -1078,7 +1078,7 @@ cat <<'EOF' > ./test.js
 const helpers = require('./tests/chai-exec');
 
 describe("Gloo Gateway", () => {
-  let cluster = process.env.CLUSTER1
+  let cluster = process.env.CLUSTER1;
   let deployments = ["gloo", "extauth", "rate-limit", "redis"];
   deployments.forEach(deploy => {
     it(deploy + ' pods are ready in ' + cluster, () => helpers.checkDeployment({ context: cluster, namespace: "gloo-system", k8sObj: deploy }));
@@ -1268,7 +1268,7 @@ You can follow the progress using the following command:
 echo -n Waiting for httpbin pods to be ready...
 kubectl --context ${CLUSTER1} -n httpbin rollout status deployment
 -->
-```bash,noexecute
+```bash,norun-workshop
 kubectl --context ${CLUSTER1} -n httpbin get pods
 ```
 
@@ -1365,8 +1365,27 @@ export PROXY_IP=$(kubectl --context ${CLUSTER1} -n gloo-system get svc gloo-prox
 <!--bash
 RETRY_COUNT=0
 MAX_RETRIES=60
-GLOO_PROXY_SVC=$(kubectl --context ${CLUSTER1} -n gloo-system get svc gloo-proxy-http -oname)
-while [[ -z "$PROXY_IP" && $RETRY_COUNT -lt $MAX_RETRIES && $GLOO_PROXY_SVC ]]; do
+while true; do
+  GLOO_PROXY_SVC=$(kubectl --context ${CLUSTER1} -n gloo-system get svc gloo-proxy-http -oname 2>/dev/null || echo "")
+  if [[ -n "$GLOO_PROXY_SVC" ]]; then
+    echo "Service gloo-proxy-http has been created."
+    break
+  fi
+
+  RETRY_COUNT=$((RETRY_COUNT + 1))
+  if [[ $RETRY_COUNT -ge $MAX_RETRIES ]]; then
+    echo "Warning: Maximum retries reached. Service gloo-proxy-http could not be found."
+    break
+  fi
+
+  echo "Waiting for service gloo-proxy-http to be created... Attempt $RETRY_COUNT/$MAX_RETRIES"
+  sleep 1
+done
+
+# Then, wait for the IP to be assigned
+RETRY_COUNT=0
+MAX_RETRIES=60
+while [[ -z "$PROXY_IP" && $RETRY_COUNT -lt $MAX_RETRIES && -n "$GLOO_PROXY_SVC" ]]; do
   echo "Waiting for PROXY_IP to be assigned... Attempt $((RETRY_COUNT + 1))/$MAX_RETRIES"
   PROXY_IP=$(kubectl --context ${CLUSTER1} -n gloo-system get svc gloo-proxy-http -o jsonpath='{.status.loadBalancer.ingress[0].ip}{.status.loadBalancer.ingress[0].hostname}')
   RETRY_COUNT=$((RETRY_COUNT + 1))
@@ -1394,19 +1413,18 @@ else
   echo "IP has been resolved to: $IP"
 fi
 -->
-
 Configure your hosts file to resolve httpbin.example.com with the IP address of the proxy by executing the following command:
 
 ```bash
 
-./scripts/register-domain.sh httpbin.example.com ${PROXY_IP}
+./scripts/register-domain.sh httpbin.example.com ${IP}
 
 ```
 
 
 Try to access the application through HTTP:
 
-```bash,noexecute
+```bash,norun-workshop
 curl http://httpbin.example.com/get
 ```
 
@@ -1557,7 +1575,7 @@ while [[ $RETRY_COUNT -lt $MAX_RETRIES ]]; do
 done
 -->
 
-```bash,noexecute
+```bash,norun-workshop
 curl -k https://httpbin.example.com/get
 ```
 
@@ -1628,7 +1646,7 @@ EOF
 
 Try to access the application through HTTP:
 
-```bash,noexecute
+```bash,norun-workshop
 curl -k http://httpbin.example.com/get -L
 ```
 
@@ -1732,7 +1750,7 @@ EOF
 
 Check you can still access the application through HTTPS:
 
-```bash,noexecute
+```bash,norun-workshop
 curl -k https://httpbin.example.com/get
 ```
 
@@ -1834,7 +1852,7 @@ EOF
 
 Check you can access the `/status/200` path:
 
-```bash,noexecute
+```bash,norun-workshop
 curl -k https://httpbin.example.com/status/200 -w "%{http_code}"
 ```
 
@@ -1881,7 +1899,7 @@ EOF
 
 Check you can still access the `/status/200` path:
 
-```bash,noexecute
+```bash,norun-workshop
 curl -k https://httpbin.example.com/status/200 -w "%{http_code}"
 ```
 
@@ -1935,7 +1953,7 @@ EOF
 
 Check you can still access the `/status/200` path:
 
-```bash,noexecute
+```bash,norun-workshop
 curl -k https://httpbin.example.com/status/200 -w "%{http_code}"
 ```
 
@@ -1984,7 +2002,7 @@ If the matcher for `/status` is positioned before the matcher for `/status/200`,
 
 Check you can still access the `/status/200` path:
 
-```bash,noexecute
+```bash,norun-workshop
 curl -k https://httpbin.example.com/status/200 -w "%{http_code}"
 ```
 
@@ -1996,7 +2014,7 @@ Here is the expected output:
 
 You can use the following command to validate the request has still been handled by the first httpbin application.
 
-```bash,noexecute
+```bash,norun-workshop
 kubectl logs --context ${CLUSTER1} -n httpbin -l app=httpbin1 | grep curl | grep 200
 ```
 
@@ -2020,7 +2038,7 @@ timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --e
 
 Check you can now also access the status `/status/201` path:
 
-```bash,noexecute
+```bash,norun-workshop
 curl -k https://httpbin.example.com/status/201 -w "%{http_code}"
 ```
 
@@ -2032,7 +2050,7 @@ Here is the expected output:
 
 You can use the following command to validate this request has been handled by the second httpbin application.
 
-```bash,noexecute
+```bash,norun-workshop
 kubectl logs --context ${CLUSTER1} -n httpbin -l app=httpbin2 | grep curl | grep 201
 ```
 
@@ -2159,7 +2177,7 @@ EOF
 
 Try to access the application (with the `To-Remove` request header added):
 
-```bash,noexecute
+```bash,norun-workshop
 curl -k https://httpbin.example.com/get -H 'To-Remove: whatever'
 ```
 
@@ -2231,7 +2249,7 @@ EOF
 
 Try to access the application:
 
-```bash,noexecute
+```bash,norun-workshop
 curl -k https://httpbin.example.com/publicget
 ```
 
@@ -2321,7 +2339,7 @@ EOF
 
 Try to access the application (with the `To-Modify` and `To-Remove` response headers added):
 
-```bash,noexecute
+```bash,norun-workshop
 curl -k "https://httpbin.example.com/response-headers?to-remove=whatever&to-modify=oldvalue" -I
 ```
 
@@ -2417,7 +2435,7 @@ EOF
 
 Try to access the application:
 
-```bash,noexecute
+```bash,norun-workshop
 curl -k https://httpbin.example.com/get
 ```
 
@@ -2524,7 +2542,7 @@ EOF
 
 Try to access the application:
 
-```bash,noexecute
+```bash,norun-workshop
 curl -k "https://httpbin.example.com/get" -I
 ```
 
@@ -2618,7 +2636,7 @@ EOF
 
 Try to access the application several times, using the `/hostname` endpoint which returns the hostname of the pod that handled the request:
 
-```bash,noexecute
+```bash,norun-workshop
 curl -k https://httpbin.example.com/hostname
 ```
 
@@ -3133,7 +3151,7 @@ This is targeting the `https-httpbin` section of the `Gateway`.
 
 Try accessing the `httpbin` application without any token.
 
-```bash,noexecute
+```bash,norun-workshop
 curl -k https://httpbin.example.com/get
 ```
 
@@ -3154,7 +3172,7 @@ export USER1_COOKIE_JWT=$(curl -Ssm 10 --fail-with-body \
 
 Now, you should be able to access it:
 
-```bash,noexecute
+```bash,norun-workshop
 curl -k https://httpbin.example.com/get -H "jwt: ${USER1_COOKIE_JWT}"
 ```
 
@@ -3257,7 +3275,7 @@ EOF
 
 Try accessing the `httpbin` application again.
 
-```bash,noexecute
+```bash,norun-workshop
 curl -k https://httpbin.example.com/get -H "jwt: ${USER1_COOKIE_JWT}"
 ```
 
@@ -3280,7 +3298,7 @@ export USER2_COOKIE_JWT=$(curl -Ssm 10 --fail-with-body \
 
 You should be able to access the application with this user.
 
-```bash,noexecute
+```bash,norun-workshop
 curl -k https://httpbin.example.com/get -H "jwt: ${USER2_COOKIE_JWT}"
 ```
 
@@ -3452,7 +3470,7 @@ Now we can test that the httpbin service is only accessible when the client prov
 
 Try to access httpbin without providing a client certificate:
 
-```bash,noexecute
+```bash,norun-workshop
 curl -k https://httpbin.example.com/get
 ```
 
@@ -3464,7 +3482,7 @@ curl: (56) OpenSSL SSL_read: OpenSSL/3.0.13: error:0A00045C:SSL routines::tlsv13
 
 Now try to access the service using the client certificate that we generated and signed with the client CA:
 
-```bash,noexecute
+```bash,norun-workshop
 curl -k https://httpbin.example.com/get --cert authorized-client.crt --key authorized-client.key
 ```
 
@@ -3568,7 +3586,7 @@ EOF
 
 Access the httpbin application again, and look for a new `X-Forwarded-Client-Cert` header in the response:
 
-```bash,noexecute
+```bash,norun-workshop
 curl -k https://httpbin.example.com/get --cert authorized-client.crt --key authorized-client.key
 ```
 
@@ -3711,7 +3729,7 @@ EOF
 
 Let's test this using the client we worked with above, who is authorised to the httpbin service based on its Common Name:
 
-```bash,noexecute
+```bash,norun-workshop
 curl -k https://httpbin.example.com/get --cert authorized-client.crt --key authorized-client.key
 ```
 
@@ -3738,13 +3756,13 @@ openssl req -x509 \
 
 Note that we created this with a subject containing `CN=unauthorized-client`:
 
-```bash,noexecute
+```bash,norun-workshop
 openssl x509 -in unauthorized-client.crt -noout -subject
 ```
 
 Try to access the httpbin service with this client certificate:
 
-```bash,noexecute
+```bash,norun-workshop
 curl -Ik https://httpbin.example.com/get --cert unauthorized-client.crt --key unauthorized-client.key
 ```
 
@@ -3976,7 +3994,7 @@ These steps define the canary strategy:
 You can now see the status of the rollout in the Argo Rollouts CLI and dashboard.
 List all rollouts in the cluster with the CLI:
 
-```bash,noexecute
+```bash,norun-workshop
 kubectl argo rollouts --context ${CLUSTER1} list rollouts -A
 ```
 
@@ -4014,7 +4032,7 @@ NAME                                 KIND        STATUS     AGE  INFO
 The same information is available in the Argo Rollouts dashboard.
 You can access the dashboard by running this command:
 
-```bash,noexecute
+```bash,norun-workshop
 kubectl argo rollouts --context ${CLUSTER1} dashboard
 ```
 
@@ -4144,7 +4162,7 @@ EOF
 
 Take a look at the "stable" service now that the `Rollout` has been updated:
 
-```bash,noexecute
+```bash,norun-workshop
 kubectl --context ${CLUSTER1} -n httpbin get svc httpbin1 -oyaml
 ```
 
@@ -4160,7 +4178,7 @@ This means that the stable service has been modified to point to the `ReplicaSet
 
 Check the canary service too:
 
-```bash,noexecute
+```bash,norun-workshop
 kubectl --context ${CLUSTER1} -n httpbin get svc httpbin1-canary -oyaml
 ```
 
@@ -4434,7 +4452,7 @@ Spec:
 
 Take a look at the canary service again:
 
-```bash,noexecute
+```bash,norun-workshop
 kubectl --context ${CLUSTER1} -n httpbin get svc httpbin1-canary -oyaml
 ```
 
@@ -4845,7 +4863,7 @@ kubectl --context ${CLUSTER1} -n bookinfo rollout status deploy --timeout=5m
 
 You can check that the Bookinfo pods are running using the following command:
 
-```bash,noexecute
+```bash,norun-workshop
 kubectl --context ${CLUSTER1} -n bookinfo get pods
 ```
 
@@ -4941,7 +4959,7 @@ EOF
 
 You should now be able to access the API through the gateway without any authentication:
 
-```bash,noexecute
+```bash,norun-workshop
 curl -k "https://bookinfo.example.com/api/bookinfo/v1"
 ```
 
@@ -5032,7 +5050,7 @@ In case of conflict, the priority is given to:
 
 Try to access the API without authentication:
 
-```bash,noexecute
+```bash,norun-workshop
 curl -k "https://bookinfo.example.com/api/bookinfo/v1" -I
 ```
 
@@ -5076,7 +5094,7 @@ echo export USER1_TOKEN=${USER1_TOKEN}
 
 Now, you should be able to access the API using this token:
 
-```bash,noexecute
+```bash,norun-workshop
 curl -k -H "Authorization: Bearer $USER1_TOKEN" "https://bookinfo.example.com/api/bookinfo/v1"
 ```
 
@@ -5164,7 +5182,7 @@ EOF
 
 Try to access the API more than 5 times:
 
-```bash,noexecute
+```bash,norun-workshop
 for i in `seq 1 10`; do curl -k -H "Authorization: Bearer $USER1_TOKEN" "https://bookinfo.example.com/api/bookinfo/v1" -I; done
 ```
 
@@ -5218,7 +5236,7 @@ done"
 
 An `APIDoc` Kubernetes object, containing the schema of the API is automatically created:
 
-```bash,noexecute
+```bash,norun-workshop
 kubectl --context ${CLUSTER1} -n bookinfo get apidoc productpage-service -o yaml
 ```
 
@@ -5237,11 +5255,9 @@ timeout --signal=INT 5m mocha ./test.js --timeout 10000 --retries=300 --bail --e
 You should get something like this:
 
 ```yaml,nocopy
-apiVersion: apimanagement.gloo.solo.io/v2
+apiVersion: portal.gloo.solo.io/v1
 kind: ApiDoc
 metadata:
-  annotations:
-    cluster.solo.io/cluster: ""
   creationTimestamp: "2024-04-23T15:57:44Z"
   generation: 1
   labels:
@@ -5252,7 +5268,8 @@ metadata:
   uid: 8c82fabc-cf4d-4894-806b-ac47ba9648b7
 spec:
   openapi:
-    inlineString: '{"components":{"schemas":{"Product":{"description":"Basic information
+    inlineString: |-
+      {"components":{"schemas":{"Product":{"description":"Basic information
       about a product","properties":{"descriptionHtml":{"description":"Description
       of the book - may contain HTML tags","type":"string"},"id":{"description":"Product
       id","format":"int32","type":"integer"},"title":{"description":"Title of the
@@ -5296,12 +5313,11 @@ spec:
       information for a product","name":"review"},{"description":"Rating information
       for a product","name":"rating"}]}'
   servedBy:
-  - destinationSelector:
-      port:
-        number: 9080
-      selector:
-        name: productpage
-        namespace: bookinfo
+  - port: 9080
+    targetRef:
+      kind: Service
+      name: productpage
+      namespace: bookinfo
 ```
 
 Note that you can also create the `APIDoc` objects manually to allow you to provide the OpenAPI document as code.
@@ -5469,7 +5485,7 @@ EOF
 
 An `APIDoc` Kubernetes object should be automatically created:
 
-```bash,noexecute
+```bash,norun-workshop
 kubectl --context ${CLUSTER1} -n bookinfo get apidoc openlibrary -o yaml
 ```
 
@@ -5570,7 +5586,7 @@ EOF
 
 You can check the first path (/v2/search.json going to static.is.solo.io/search.json) is available:
 
-```bash,noexecute
+```bash,norun-workshop
 curl -k -H "Authorization: Bearer ${USER1_TOKEN}" "https://bookinfo.example.com/api/bookinfo/v2/search.json?title=The%20Comedy%20of%20Errors&fields=language&limit=1"
 ```
 
@@ -5625,7 +5641,7 @@ We've also exposed the `/authors/{olid}.json` path to demonstrate how we can use
 
 You can try it out with the following command:
 
-```bash,noexecute
+```bash,norun-workshop
 curl -k -H "Authorization: Bearer ${USER1_TOKEN}" "https://bookinfo.example.com/api/bookinfo/v2/authors/OL23919A.json"
 ```
 
@@ -5820,7 +5836,7 @@ Make sure the domain is in our `/etc/hosts` file:
 
 You should now be able to access the portal API through the gateway:
 
-```bash,noexecute
+```bash,norun-workshop
 curl -k "https://portal.example.com/v1/api-products"
 ```
 
@@ -5841,10 +5857,6 @@ Here is the expected output:
 ```json,nocopy
 [{"apiProductMetadata":{"imageURL":"https://raw.githubusercontent.com/solo-io/workshops/master/images/bookinfo.jpg"},"description":"# Bookinfo REST API v1 Documentation\nThis is some extra information about the API\n","id":"bookinfo","name":"BookInfo REST API","versionsCount":2}]
 ```
-
-You can see that no portal configuration has been found.
-
-We'll create it later.
 
 
 
@@ -6018,7 +6030,7 @@ You should now be able to access the portal frontend through the gateway.
 
 Get the URL to access the portal frontend using the following command:
 
-```bash,noexecute
+```bash,norun-workshop
 echo "https://portal.example.com"
 ```
 
@@ -6186,13 +6198,13 @@ EOF
 
 After that, you can send an API call:
 
-```bash,noexecute
+```bash,norun-workshop
 curl -k -H "Authorization: Bearer ${USER1_TOKEN}" "https://bookinfo.example.com/api/bookinfo/v1"
 ```
 
 Now, let's check the logs of the Gateway:
 
-```bash,noexecute
+```bash,norun-workshop
 kubectl --context ${CLUSTER1} -n gloo-system logs deploy/gloo-proxy-http --tail 1 | jq .
 ```
 
