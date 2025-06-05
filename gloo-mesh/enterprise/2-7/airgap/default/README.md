@@ -3767,7 +3767,7 @@ timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --e
 The gateways team is going to deploy an egress gateway:
 
 ```bash
-helm upgrade --install istio-eastwestgateway oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/gateway \
+helm upgrade --install istio-egressgateway oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/gateway \
 --namespace istio-gateways \
 --kube-context=${CLUSTER1} \
 --version 1.24.1-patch1-solo \
