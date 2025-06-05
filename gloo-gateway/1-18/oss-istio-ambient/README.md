@@ -332,7 +332,7 @@ EOF
 ```
 The Gateway APIs do not come installed by default on most Kubernetes clusters. Install the Gateway API CRDs if they are not present:
 ```bash
-kubectl --context ${CLUSTER1} apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.2.0/experimental-install.yaml
+kubectl --context ${CLUSTER1} apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.3.0/experimental-install.yaml
 ```
   
 
@@ -419,7 +419,7 @@ We're going to use the Helm option.
 Install the Kubernetes Gateway API CRDs as they do not come installed by default on most Kubernetes clusters.
 
 ```bash
-kubectl --context $CLUSTER1 apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.2.0/standard-install.yaml
+kubectl --context $CLUSTER1 apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.3.0/experimental-install.yaml
 ```
 
 Next, install Gloo Gateway. This command installs the Gloo Gateway control plane into the namespace `gloo-system`.
@@ -432,7 +432,7 @@ helm repo update
 helm upgrade -i -n gloo-system \
   gloo-gateway solo-public-helm/gloo \
   --create-namespace \
-  --version 1.18.13 \
+  --version 1.18.19 \
   --kube-context $CLUSTER1 \
   -f -<<EOF
 kubeGateway:
@@ -676,7 +676,7 @@ You can follow the progress using the following command:
 echo -n Waiting for httpbin pods to be ready...
 kubectl --context ${CLUSTER1} -n httpbin rollout status deployment
 -->
-```bash,noexecute
+```bash,norun-workshop
 kubectl --context ${CLUSTER1} -n httpbin get pods
 ```
 
@@ -773,8 +773,27 @@ export PROXY_IP=$(kubectl --context ${CLUSTER1} -n gloo-system get svc gloo-prox
 <!--bash
 RETRY_COUNT=0
 MAX_RETRIES=60
-GLOO_PROXY_SVC=$(kubectl --context ${CLUSTER1} -n gloo-system get svc gloo-proxy-http -oname)
-while [[ -z "$PROXY_IP" && $RETRY_COUNT -lt $MAX_RETRIES && $GLOO_PROXY_SVC ]]; do
+while true; do
+  GLOO_PROXY_SVC=$(kubectl --context ${CLUSTER1} -n gloo-system get svc gloo-proxy-http -oname 2>/dev/null || echo "")
+  if [[ -n "$GLOO_PROXY_SVC" ]]; then
+    echo "Service gloo-proxy-http has been created."
+    break
+  fi
+
+  RETRY_COUNT=$((RETRY_COUNT + 1))
+  if [[ $RETRY_COUNT -ge $MAX_RETRIES ]]; then
+    echo "Warning: Maximum retries reached. Service gloo-proxy-http could not be found."
+    break
+  fi
+
+  echo "Waiting for service gloo-proxy-http to be created... Attempt $RETRY_COUNT/$MAX_RETRIES"
+  sleep 1
+done
+
+# Then, wait for the IP to be assigned
+RETRY_COUNT=0
+MAX_RETRIES=60
+while [[ -z "$PROXY_IP" && $RETRY_COUNT -lt $MAX_RETRIES && -n "$GLOO_PROXY_SVC" ]]; do
   echo "Waiting for PROXY_IP to be assigned... Attempt $((RETRY_COUNT + 1))/$MAX_RETRIES"
   PROXY_IP=$(kubectl --context ${CLUSTER1} -n gloo-system get svc gloo-proxy-http -o jsonpath='{.status.loadBalancer.ingress[0].ip}{.status.loadBalancer.ingress[0].hostname}')
   RETRY_COUNT=$((RETRY_COUNT + 1))
@@ -802,19 +821,18 @@ else
   echo "IP has been resolved to: $IP"
 fi
 -->
-
 Configure your hosts file to resolve httpbin.example.com with the IP address of the proxy by executing the following command:
 
 ```bash
 
-./scripts/register-domain.sh httpbin.example.com ${PROXY_IP}
+./scripts/register-domain.sh httpbin.example.com ${IP}
 
 ```
 
 
 Try to access the application through HTTP:
 
-```bash,noexecute
+```bash,norun-workshop
 curl http://httpbin.example.com/get
 ```
 
@@ -965,7 +983,7 @@ while [[ $RETRY_COUNT -lt $MAX_RETRIES ]]; do
 done
 -->
 
-```bash,noexecute
+```bash,norun-workshop
 curl -k https://httpbin.example.com/get
 ```
 
@@ -1036,7 +1054,7 @@ EOF
 
 Try to access the application through HTTP:
 
-```bash,noexecute
+```bash,norun-workshop
 curl -k http://httpbin.example.com/get -L
 ```
 
@@ -1140,7 +1158,7 @@ EOF
 
 Check you can still access the application through HTTPS:
 
-```bash,noexecute
+```bash,norun-workshop
 curl -k https://httpbin.example.com/get
 ```
 
@@ -1242,7 +1260,7 @@ EOF
 
 Check you can access the `/status/200` path:
 
-```bash,noexecute
+```bash,norun-workshop
 curl -k https://httpbin.example.com/status/200 -w "%{http_code}"
 ```
 
@@ -1289,7 +1307,7 @@ EOF
 
 Check you can still access the `/status/200` path:
 
-```bash,noexecute
+```bash,norun-workshop
 curl -k https://httpbin.example.com/status/200 -w "%{http_code}"
 ```
 
@@ -1343,7 +1361,7 @@ EOF
 
 Check you can still access the `/status/200` path:
 
-```bash,noexecute
+```bash,norun-workshop
 curl -k https://httpbin.example.com/status/200 -w "%{http_code}"
 ```
 
@@ -1392,7 +1410,7 @@ If the matcher for `/status` is positioned before the matcher for `/status/200`,
 
 Check you can still access the `/status/200` path:
 
-```bash,noexecute
+```bash,norun-workshop
 curl -k https://httpbin.example.com/status/200 -w "%{http_code}"
 ```
 
@@ -1404,7 +1422,7 @@ Here is the expected output:
 
 You can use the following command to validate the request has still been handled by the first httpbin application.
 
-```bash,noexecute
+```bash,norun-workshop
 kubectl logs --context ${CLUSTER1} -n httpbin -l app=httpbin1 | grep curl | grep 200
 ```
 
@@ -1428,7 +1446,7 @@ timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --e
 
 Check you can now also access the status `/status/201` path:
 
-```bash,noexecute
+```bash,norun-workshop
 curl -k https://httpbin.example.com/status/201 -w "%{http_code}"
 ```
 
@@ -1440,7 +1458,7 @@ Here is the expected output:
 
 You can use the following command to validate this request has been handled by the second httpbin application.
 
-```bash,noexecute
+```bash,norun-workshop
 kubectl logs --context ${CLUSTER1} -n httpbin -l app=httpbin2 | grep curl | grep 201
 ```
 
@@ -1567,7 +1585,7 @@ EOF
 
 Try to access the application (with the `To-Remove` request header added):
 
-```bash,noexecute
+```bash,norun-workshop
 curl -k https://httpbin.example.com/get -H 'To-Remove: whatever'
 ```
 
@@ -1639,7 +1657,7 @@ EOF
 
 Try to access the application:
 
-```bash,noexecute
+```bash,norun-workshop
 curl -k https://httpbin.example.com/publicget
 ```
 
@@ -1729,7 +1747,7 @@ EOF
 
 Try to access the application (with the `To-Modify` and `To-Remove` response headers added):
 
-```bash,noexecute
+```bash,norun-workshop
 curl -k "https://httpbin.example.com/response-headers?to-remove=whatever&to-modify=oldvalue" -I
 ```
 
@@ -1825,7 +1843,7 @@ EOF
 
 Try to access the application:
 
-```bash,noexecute
+```bash,norun-workshop
 curl -k https://httpbin.example.com/get
 ```
 
@@ -1932,7 +1950,7 @@ EOF
 
 Try to access the application:
 
-```bash,noexecute
+```bash,norun-workshop
 curl -k "https://httpbin.example.com/get" -I
 ```
 
@@ -2026,7 +2044,7 @@ EOF
 
 Try to access the application several times, using the `/hostname` endpoint which returns the hostname of the pod that handled the request:
 
-```bash,noexecute
+```bash,norun-workshop
 curl -k https://httpbin.example.com/hostname
 ```
 
@@ -2215,7 +2233,7 @@ These steps define the canary strategy:
 You can now see the status of the rollout in the Argo Rollouts CLI and dashboard.
 List all rollouts in the cluster with the CLI:
 
-```bash,noexecute
+```bash,norun-workshop
 kubectl argo rollouts --context ${CLUSTER1} list rollouts -A
 ```
 
@@ -2253,7 +2271,7 @@ NAME                                 KIND        STATUS     AGE  INFO
 The same information is available in the Argo Rollouts dashboard.
 You can access the dashboard by running this command:
 
-```bash,noexecute
+```bash,norun-workshop
 kubectl argo rollouts --context ${CLUSTER1} dashboard
 ```
 
@@ -2383,7 +2401,7 @@ EOF
 
 Take a look at the "stable" service now that the `Rollout` has been updated:
 
-```bash,noexecute
+```bash,norun-workshop
 kubectl --context ${CLUSTER1} -n httpbin get svc httpbin1 -oyaml
 ```
 
@@ -2399,7 +2417,7 @@ This means that the stable service has been modified to point to the `ReplicaSet
 
 Check the canary service too:
 
-```bash,noexecute
+```bash,norun-workshop
 kubectl --context ${CLUSTER1} -n httpbin get svc httpbin1-canary -oyaml
 ```
 
@@ -2673,7 +2691,7 @@ Spec:
 
 Take a look at the canary service again:
 
-```bash,noexecute
+```bash,norun-workshop
 kubectl --context ${CLUSTER1} -n httpbin get svc httpbin1-canary -oyaml
 ```
 
@@ -3248,7 +3266,7 @@ kubectl label -n monitoring cm envoy-dashboard grafana_dashboard=1
 
 Let's generate some traffic!
 
-```bash,noexecute,run
+```bash,norun-workshop
 for i in {1..5}; do curl https://httpbin.example.com/get -v; done
 ```
 
@@ -3284,7 +3302,7 @@ kubectl --context ${CLUSTER1} -n istio-system patch service kiali -p '{"spec": {
 
 Run the following command to check the Prometheus and Kiali Pods are running:
 
-```bash,noexecute
+```bash,norun-workshop
 kubectl --context ${CLUSTER1} -n istio-system get pods | egrep "kiali|prometheus"
 ```
 
