@@ -9,7 +9,7 @@ source ./scripts/assert.sh
 <img src="images/document-gloo-mesh.svg" style="height: 100px;"/>
 </center>
 
-# <center>Gloo Mesh Core (2.7.1) Ambient</center>
+# <center>Gloo Mesh Core (2.7.3) Ambient</center>
 
 
 
@@ -26,16 +26,17 @@ source ./scripts/assert.sh
 * [Lab 9 - Deploy the clients to make requests to other services](#lab-9---deploy-the-clients-to-make-requests-to-other-services-)
 * [Lab 10 - Deploy the clients to make requests to other services](#lab-10---deploy-the-clients-to-make-requests-to-other-services-)
 * [Lab 11 - Deploy Keycloak](#lab-11---deploy-keycloak-)
-* [Lab 12 - Deploy Gloo Gateway](#lab-12---deploy-gloo-gateway-)
+* [Lab 12 - Deploy Gloo Gateway Enterprise](#lab-12---deploy-gloo-gateway-enterprise-)
 * [Lab 13 - Deploy the httpbin demo app](#lab-13---deploy-the-httpbin-demo-app-)
 * [Lab 14 - Expose the httpbin application through the gateway](#lab-14---expose-the-httpbin-application-through-the-gateway-)
 * [Lab 15 - Delegate with control](#lab-15---delegate-with-control-)
 * [Lab 16 - Use the `cache-control` response header to cache responses](#lab-16---use-the-`cache-control`-response-header-to-cache-responses-)
 * [Lab 17 - Deploy and use waypoint](#lab-17---deploy-and-use-waypoint-)
-* [Lab 18 - Deploy Gloo Gateway](#lab-18---deploy-gloo-gateway-)
+* [Lab 18 - Deploy Gloo Gateway Enterprise](#lab-18---deploy-gloo-gateway-enterprise-)
 * [Lab 19 - Ambient Egress Traffic with Waypoint](#lab-19---ambient-egress-traffic-with-waypoint-)
-* [Lab 20 - Link Clusters](#lab-20---link-clusters-)
-* [Lab 21 - Ambient multicluster routing](#lab-21---ambient-multicluster-routing-)
+* [Lab 20 - Ambient Egress Traffic with Waypoint](#lab-20---ambient-egress-traffic-with-waypoint-)
+* [Lab 21 - Link Clusters](#lab-21---link-clusters-)
+* [Lab 22 - Ambient multicluster routing](#lab-22---ambient-multicluster-routing-)
 
 
 
@@ -139,7 +140,7 @@ timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --e
 Before we get started, let's install the `meshctl` CLI:
 
 ```bash
-export GLOO_MESH_VERSION=v2.7.1
+export GLOO_MESH_VERSION=v2.7.3
 curl -sL https://run.solo.io/meshctl/install | sh -
 export PATH=$HOME/.gloo-mesh/bin:$PATH
 ```
@@ -184,13 +185,13 @@ helm upgrade --install gloo-platform-crds gloo-platform-crds \
   --kube-context ${MGMT} \
   --set featureGates.insightsConfiguration=true \
   --set installEnterpriseCrds=false \
-  --version 2.7.1
+  --version 2.7.3
 
 helm upgrade --install gloo-platform-mgmt gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${MGMT} \
-  --version 2.7.1 \
+  --version 2.7.3 \
   -f -<<EOF
 licensing:
   glooTrialLicenseKey: ${GLOO_MESH_LICENSE_KEY}
@@ -289,7 +290,7 @@ export ENDPOINT_GLOO_MESH_UI=$(kubectl --context ${MGMT} -n gloo-mesh get svc gl
 
 Check that the variables have correct values:
 
-```bash,noexecute
+```bash,norun-workshop
 echo $HOST_GLOO_MESH
 echo $ENDPOINT_GLOO_MESH
 ```
@@ -348,13 +349,13 @@ helm upgrade --install gloo-platform-crds gloo-platform-crds \
   --namespace gloo-mesh \
   --set installEnterpriseCrds=false \
   --kube-context ${CLUSTER2} \
-  --version 2.7.1
+  --version 2.7.3
 
 helm upgrade --install gloo-platform-agent gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${CLUSTER2} \
-  --version 2.7.1 \
+  --version 2.7.3 \
   -f -<<EOF
 common:
   cluster: cluster2
@@ -377,7 +378,7 @@ EOF
 
 You can check the cluster(s) have been registered correctly in the Gloo UI or by using the following commands:
 
-```bash,noexecute
+```bash,norun-workshop
 meshctl --kubecontext ${MGMT} check
 ```
 
@@ -513,7 +514,7 @@ Gloo Operator is a Kubernetes operator that manages the lifecycle of Istio Contr
 
 ```bash
 gcloud auth configure-docker us-docker.pkg.dev --quiet
-export GLOO_OPERATOR_VERSION=0.2.0-rc.0
+export GLOO_OPERATOR_VERSION=0.2.4-rc.0
 
 kubectl --context "${CLUSTER1}" create ns gloo-mesh
 
@@ -587,7 +588,7 @@ metadata:
   name: istio
   namespace: gloo-mesh
 spec:
-  version: 1.25.0
+  version: 1.25.3
   installNamespace: istio-system
   cluster: cluster1
   network: cluster1
@@ -605,7 +606,7 @@ metadata:
   name: istio
   namespace: gloo-mesh
 spec:
-  version: 1.25.0
+  version: 1.25.3
   installNamespace: istio-system
   cluster: cluster2
   network: cluster2
@@ -880,7 +881,7 @@ EOF
 ```
 You can follow the progress using the following command:
 
-```bash,noexecute
+```bash,norun-workshop
 kubectl --context ${CLUSTER1} -n httpbin get pods
 ```
 
@@ -1118,7 +1119,7 @@ EOF
 ```
 You can follow the progress using the following command:
 
-```bash,noexecute
+```bash,norun-workshop
 kubectl --context ${CLUSTER2} -n httpbin get pods
 ```
 
@@ -1356,7 +1357,7 @@ EOF
 ```
 You can follow the progress using the following command:
 
-```bash,noexecute
+```bash,norun-workshop
 kubectl --context ${CLUSTER2} -n httpbin get pods
 ```
 
@@ -2393,7 +2394,8 @@ timeout 300 bash -c 'while [[ "$(curl -m 2 -s -o /dev/null -w ''%{http_code}'' $
 
 
 
-## Lab 12 - Deploy Gloo Gateway <a name="lab-12---deploy-gloo-gateway-"></a>
+## Lab 12 - Deploy Gloo Gateway Enterprise <a name="lab-12---deploy-gloo-gateway-enterprise-"></a>
+
 
 You can deploy Gloo Gateway with the `glooctl` CLI or declaratively using Helm.
 
@@ -2402,7 +2404,7 @@ We're going to use the Helm option.
 Install the Kubernetes Gateway API CRDs as they do not come installed by default on most Kubernetes clusters.
 
 ```bash
-kubectl --context $CLUSTER1 apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.2.0/experimental-install.yaml
+kubectl --context $CLUSTER1 apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.3.0/experimental-install.yaml
 ```
 Let's create the `gloo-system` namespace and label it to be part of the mesh:
 
@@ -2412,18 +2414,16 @@ kubectl --context $CLUSTER1 label namespace gloo-system istio.io/dataplane-mode=
 ```
 
 
-
-Next, install Gloo Gateway. This command installs the Gloo Gateway control plane into the namespace `gloo-system`.
+Next install Gloo Gateway. This command installs the Gloo Gateway control plane into the namespace `gloo-system`.
 
 ```bash
 
 helm repo add gloo-ee-helm https://storage.googleapis.com/gloo-ee-helm
 helm repo update
-
 helm upgrade -i -n gloo-system \
   gloo-gateway gloo-ee-helm/gloo-ee \
   --create-namespace \
-  --version 1.19.0-beta3 \
+  --version 1.19.0 \
   --kube-context $CLUSTER1 \
   --set-string license_key=$LICENSE_KEY \
   -f -<<EOF
@@ -2431,6 +2431,13 @@ helm upgrade -i -n gloo-system \
 gloo:
   kubeGateway:
     enabled: true
+    gatewayParameters:
+      glooGateway:
+        podTemplate:
+          gracefulShutdown:
+            enabled: true
+          livenessProbeEnabled: true
+          probes: true
   gatewayProxies:
     gatewayProxy:
       disabled: true
@@ -2438,6 +2445,7 @@ gloo:
     validation:
       allowWarnings: true
       alwaysAcceptResources: false
+      livenessProbeEnabled: true
   gloo:
     logLevel: info
     deployment:
@@ -2520,7 +2528,7 @@ cat <<'EOF' > ./test.js
 const helpers = require('./tests/chai-exec');
 
 describe("Gloo Gateway", () => {
-  let cluster = process.env.CLUSTER1
+  let cluster = process.env.CLUSTER1;
   let deployments = ["gloo", "extauth", "rate-limit", "redis"];
   deployments.forEach(deploy => {
     it(deploy + ' pods are ready in ' + cluster, () => helpers.checkDeployment({ context: cluster, namespace: "gloo-system", k8sObj: deploy }));
@@ -2710,7 +2718,7 @@ You can follow the progress using the following command:
 echo -n Waiting for httpbin pods to be ready...
 kubectl --context ${CLUSTER1} -n httpbin rollout status deployment
 -->
-```bash,noexecute
+```bash,norun-workshop
 kubectl --context ${CLUSTER1} -n httpbin get pods
 ```
 
@@ -2807,8 +2815,27 @@ export PROXY_IP=$(kubectl --context ${CLUSTER1} -n gloo-system get svc gloo-prox
 <!--bash
 RETRY_COUNT=0
 MAX_RETRIES=60
-GLOO_PROXY_SVC=$(kubectl --context ${CLUSTER1} -n gloo-system get svc gloo-proxy-http -oname)
-while [[ -z "$PROXY_IP" && $RETRY_COUNT -lt $MAX_RETRIES && $GLOO_PROXY_SVC ]]; do
+while true; do
+  GLOO_PROXY_SVC=$(kubectl --context ${CLUSTER1} -n gloo-system get svc gloo-proxy-http -oname 2>/dev/null || echo "")
+  if [[ -n "$GLOO_PROXY_SVC" ]]; then
+    echo "Service gloo-proxy-http has been created."
+    break
+  fi
+
+  RETRY_COUNT=$((RETRY_COUNT + 1))
+  if [[ $RETRY_COUNT -ge $MAX_RETRIES ]]; then
+    echo "Warning: Maximum retries reached. Service gloo-proxy-http could not be found."
+    break
+  fi
+
+  echo "Waiting for service gloo-proxy-http to be created... Attempt $RETRY_COUNT/$MAX_RETRIES"
+  sleep 1
+done
+
+# Then, wait for the IP to be assigned
+RETRY_COUNT=0
+MAX_RETRIES=60
+while [[ -z "$PROXY_IP" && $RETRY_COUNT -lt $MAX_RETRIES && -n "$GLOO_PROXY_SVC" ]]; do
   echo "Waiting for PROXY_IP to be assigned... Attempt $((RETRY_COUNT + 1))/$MAX_RETRIES"
   PROXY_IP=$(kubectl --context ${CLUSTER1} -n gloo-system get svc gloo-proxy-http -o jsonpath='{.status.loadBalancer.ingress[0].ip}{.status.loadBalancer.ingress[0].hostname}')
   RETRY_COUNT=$((RETRY_COUNT + 1))
@@ -2836,19 +2863,18 @@ else
   echo "IP has been resolved to: $IP"
 fi
 -->
-
 Configure your hosts file to resolve httpbin.example.com with the IP address of the proxy by executing the following command:
 
 ```bash
 
-./scripts/register-domain.sh httpbin.example.com ${PROXY_IP}
+./scripts/register-domain.sh httpbin.example.com ${IP}
 
 ```
 
 
 Try to access the application through HTTP:
 
-```bash,noexecute
+```bash,norun-workshop
 curl http://httpbin.example.com/get
 ```
 
@@ -2999,7 +3025,7 @@ while [[ $RETRY_COUNT -lt $MAX_RETRIES ]]; do
 done
 -->
 
-```bash,noexecute
+```bash,norun-workshop
 curl -k https://httpbin.example.com/get
 ```
 
@@ -3070,7 +3096,7 @@ EOF
 
 Try to access the application through HTTP:
 
-```bash,noexecute
+```bash,norun-workshop
 curl -k http://httpbin.example.com/get -L
 ```
 
@@ -3174,7 +3200,7 @@ EOF
 
 Check you can still access the application through HTTPS:
 
-```bash,noexecute
+```bash,norun-workshop
 curl -k https://httpbin.example.com/get
 ```
 
@@ -3276,7 +3302,7 @@ EOF
 
 Check you can access the `/status/200` path:
 
-```bash,noexecute
+```bash,norun-workshop
 curl -k https://httpbin.example.com/status/200 -w "%{http_code}"
 ```
 
@@ -3323,7 +3349,7 @@ EOF
 
 Check you can still access the `/status/200` path:
 
-```bash,noexecute
+```bash,norun-workshop
 curl -k https://httpbin.example.com/status/200 -w "%{http_code}"
 ```
 
@@ -3377,7 +3403,7 @@ EOF
 
 Check you can still access the `/status/200` path:
 
-```bash,noexecute
+```bash,norun-workshop
 curl -k https://httpbin.example.com/status/200 -w "%{http_code}"
 ```
 
@@ -3426,7 +3452,7 @@ If the matcher for `/status` is positioned before the matcher for `/status/200`,
 
 Check you can still access the `/status/200` path:
 
-```bash,noexecute
+```bash,norun-workshop
 curl -k https://httpbin.example.com/status/200 -w "%{http_code}"
 ```
 
@@ -3438,7 +3464,7 @@ Here is the expected output:
 
 You can use the following command to validate the request has still been handled by the first httpbin application.
 
-```bash,noexecute
+```bash,norun-workshop
 kubectl logs --context ${CLUSTER1} -n httpbin -l app=httpbin1 | grep curl | grep 200
 ```
 
@@ -3462,7 +3488,7 @@ timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --e
 
 Check you can now also access the status `/status/201` path:
 
-```bash,noexecute
+```bash,norun-workshop
 curl -k https://httpbin.example.com/status/201 -w "%{http_code}"
 ```
 
@@ -3474,7 +3500,7 @@ Here is the expected output:
 
 You can use the following command to validate this request has been handled by the second httpbin application.
 
-```bash,noexecute
+```bash,norun-workshop
 kubectl logs --context ${CLUSTER1} -n httpbin -l app=httpbin2 | grep curl | grep 201
 ```
 
@@ -3566,7 +3592,7 @@ All subsequent requests receive the cached response until the cache entry expire
 
 Check that we have a caching service running in the Gloo Gateway installation:
 
-```bash,noexecute
+```bash,norun-workshop
 kubectl --context ${CLUSTER1} -n gloo-system get deploy caching-service
 ```
 
@@ -3582,7 +3608,7 @@ This service is responsible for creating the cached responses in the backing Red
 The **httpbin** application has some utility endpoints we can use to test that caching is applied.
 First of all, let's make sure that caching is *not* being applied by making a request to the `/cache` endpoint, passing a cache time-to-live (TTL) value of 10 seconds that we want the service to use in the response `cache-control` header:
 
-```bash,noexecute
+```bash,norun-workshop
 curl -ksSD - -o /dev/null https://httpbin.example.com/cache/10
 ```
 
@@ -3602,7 +3628,7 @@ server: envoy
 
 Send a second request within that cache TTL of 10 seconds and look at the response:
 
-```bash,noexecute
+```bash,norun-workshop
 curl -ksSD - -o /dev/null https://httpbin.example.com/cache/10
 ```
 
@@ -3650,7 +3676,7 @@ We can also restrict it to a particular listener by including a value for `secti
 
 Let's test this configuration by making three requests to the `/cache` endpoint with a 10s cache TTL value, waiting 6 seconds between requests:
 
-```bash,noexecute
+```bash,norun-workshop
 curl -ksSD - -o /dev/null https://httpbin.example.com/cache/10
 sleep 6
 curl -ksSD - -o /dev/null https://httpbin.example.com/cache/10
@@ -3852,14 +3878,14 @@ This policy means that only the client can send requests to `httpbin2`, and only
 
 Try to send a POST request:
 
-```bash,noexecute
+```bash,norun-workshop
 kubectl --context ${CLUSTER1} -n httpbin exec deploy/client -- curl -s -X POST http://httpbin2:8000/post
 ```
 
 You'll get an `RBAC: access denied` response.
 Try to send a GET request:
 
-```bash,noexecute
+```bash,norun-workshop
 kubectl --context ${CLUSTER1} -n httpbin exec deploy/client -- curl -s http://httpbin2:8000/get
 ```
 
@@ -3951,7 +3977,7 @@ EOF
 
 Try to access the application (with the `To-Remove` request header added):
 
-```bash,noexecute
+```bash,norun-workshop
 kubectl --context ${CLUSTER1} -n httpbin exec deploy/client -- curl -s http://httpbin2:8000/get -H 'To-Remove: whatever'
 ```
 
@@ -4066,7 +4092,7 @@ EOF
 
 Try to access the application:
 
-```bash,noexecute
+```bash,norun-workshop
 kubectl --context ${CLUSTER1} -n httpbin exec deploy/client -- curl -s http://httpbin2:8000/get
 ```
 
@@ -4217,7 +4243,7 @@ timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --e
 
 After you've completed these steps, you should be able to access the `httpbin2` service using the api key. You can test this by running the following command:
 
-```bash,noexecute
+```bash,norun-workshop
 kubectl --context ${CLUSTER1} -n httpbin exec deploy/client -- curl -s http://httpbin2:8000/get -H "api-key: apikey1"
 ```
 
@@ -4284,7 +4310,7 @@ EOF
 
 Run the following command several times:
 
-```bash,noexecute
+```bash,norun-workshop
 kubectl --context ${CLUSTER1} -n httpbin exec deploy/client -- curl -s http://httpbin2:8000/get -H "api-key: apikey1" -I
 ```
 
@@ -4352,7 +4378,7 @@ EOF
 
 Let's test this configuration by making three requests to the `/cache` endpoint with a 10s cache TTL value, waiting 6 seconds between requests:
 
-```bash,noexecute
+```bash,norun-workshop
 kubectl --context ${CLUSTER1} -n httpbin exec deploy/client -- curl -ksSD - -o /dev/null http://httpbin2:8000/cache/10
 sleep 6
 kubectl --context ${CLUSTER1} -n httpbin exec deploy/client -- curl -ksSD - -o /dev/null http://httpbin2:8000/cache/10
@@ -4442,7 +4468,8 @@ kubectl delete --context ${CLUSTER1} -n httpbin httplisteneroption cache
 
 
 
-## Lab 18 - Deploy Gloo Gateway <a name="lab-18---deploy-gloo-gateway-"></a>
+## Lab 18 - Deploy Gloo Gateway Enterprise <a name="lab-18---deploy-gloo-gateway-enterprise-"></a>
+
 
 You can deploy Gloo Gateway with the `glooctl` CLI or declaratively using Helm.
 
@@ -4451,7 +4478,7 @@ We're going to use the Helm option.
 Install the Kubernetes Gateway API CRDs as they do not come installed by default on most Kubernetes clusters.
 
 ```bash
-kubectl --context $CLUSTER2 apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.2.0/experimental-install.yaml
+kubectl --context $CLUSTER2 apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.3.0/experimental-install.yaml
 ```
 Let's create the `gloo-system` namespace and label it to be part of the mesh:
 
@@ -4461,18 +4488,16 @@ kubectl --context $CLUSTER2 label namespace gloo-system istio.io/dataplane-mode=
 ```
 
 
-
-Next, install Gloo Gateway. This command installs the Gloo Gateway control plane into the namespace `gloo-system`.
+Next install Gloo Gateway. This command installs the Gloo Gateway control plane into the namespace `gloo-system`.
 
 ```bash
 
 helm repo add gloo-ee-helm https://storage.googleapis.com/gloo-ee-helm
 helm repo update
-
 helm upgrade -i -n gloo-system \
   gloo-gateway gloo-ee-helm/gloo-ee \
   --create-namespace \
-  --version 1.19.0-beta3 \
+  --version 1.19.0 \
   --kube-context $CLUSTER2 \
   --set-string license_key=$LICENSE_KEY \
   -f -<<EOF
@@ -4480,13 +4505,26 @@ helm upgrade -i -n gloo-system \
 gloo:
   kubeGateway:
     enabled: true
+    gatewayParameters:
+      glooGateway:
+        podTemplate:
+          gracefulShutdown:
+            enabled: true
+          livenessProbeEnabled: true
+          probes: true
   gatewayProxies:
     gatewayProxy:
       disabled: false
+      podTemplate:
+        gracefulShutdown:
+          enabled: true
+        livenessProbeEnabled: true
+        probes: true
   gateway:
     validation:
       allowWarnings: true
       alwaysAcceptResources: false
+      livenessProbeEnabled: true
   gloo:
     logLevel: info
     deployment:
@@ -4569,7 +4607,7 @@ cat <<'EOF' > ./test.js
 const helpers = require('./tests/chai-exec');
 
 describe("Gloo Gateway", () => {
-  let cluster = process.env.CLUSTER2
+  let cluster = process.env.CLUSTER2;
   let deployments = ["gloo", "extauth", "rate-limit", "redis"];
   deployments.forEach(deploy => {
     it(deploy + ' pods are ready in ' + cluster, () => helpers.checkDeployment({ context: cluster, namespace: "gloo-system", k8sObj: deploy }));
@@ -4612,7 +4650,277 @@ EOF
 ```
 
 After applying this policy, verify that outbound traffic is indeed restricted by attempting to access an external service. You should observe that the connection fails.
-```bash,noexecute
+```bash,norun-workshop
+kubectl --context ${CLUSTER1} -n clients exec deploy/in-ambient -- curl -I httpbin.org/get
+```
+
+### Establishing a Shared Waypoint for Egress
+
+Next, we'll create a dedicated `egress` namespace and deploy a shared Waypoint. This Waypoint will serve as a centralized control point for outbound traffic from various namespaces.
+
+```bash
+kubectl --context ${CLUSTER1} apply -f - <<EOF
+apiVersion: v1
+kind: Namespace
+metadata:
+  labels:
+    istio.io/dataplane-mode: ambient
+    istio.io/use-waypoint: gloo-waypoint
+  name: egress
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: gloo-waypoint
+  namespace: egress
+spec:
+  gatewayClassName: gloo-waypoint
+  listeners:
+  - name: proxy
+    port: 15088
+    protocol: istio.io/PROXY
+EOF
+```
+
+Wait for the Waypoint deployment to be fully operational before proceeding.
+
+```bash
+kubectl --context ${CLUSTER1} -n egress rollout status deployment/gloo-proxy-gloo-waypoint
+```
+
+### Configuring External Service Access
+
+Next, create a Service Entry to represent the external service 'httpbin.org' and by setting the labels `istio.io/use-waypoint` and `istio.io/use-waypoint-namespace` we configure traffic targeted at this service entry to be routed through the shared egress waypoint.
+
+```bash
+kubectl --context ${CLUSTER1} apply -f - <<EOF
+apiVersion: networking.istio.io/v1
+kind: ServiceEntry
+metadata:
+  name: httpbin.org
+  namespace: egress
+spec:
+  hosts:
+  - httpbin.org
+  ports:
+  - name: http
+    number: 80
+    protocol: HTTP
+  resolution: DNS
+EOF
+```
+
+To confirm that traffic is correctly flowing through the Waypoint, send a request to the external service and look for Envoy-specific headers in the response. These headers indicate that the traffic has been processed by the Waypoint.
+
+```bash,norun-workshop
+kubectl --context ${CLUSTER1} -n clients exec deploy/in-ambient -- curl -sI httpbin.org/get | grep envoy
+```
+
+```http,nocopy
+server: istio-envoy
+x-envoy-decorator-operation: :80/*
+```
+
+The presence of Envoy headers in the response confirms that our traffic is being routed through the Waypoint as intended.
+
+### Transforming Traffic in Egress Waypoint
+
+To demonstrate the traffic management capabilities of our Waypoint, we'll apply a HTTPRoute that adds a custom header to outbound requests. This illustrates how you can modify and control egress traffic at the Waypoint level.
+
+```bash
+kubectl --context ${CLUSTER1} apply -f - <<EOF
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: httpbin
+  namespace: egress
+spec:
+  parentRefs:
+  - group: "networking.istio.io"
+    kind: ServiceEntry
+    name: httpbin.org
+  rules:
+  - backendRefs:
+    - kind: Upstream
+      group: gloo.solo.io
+      name: httpbin-static
+      namespace: egress
+    filters:
+      - type: RequestHeaderModifier
+        requestHeaderModifier:
+          add:
+            - name: x-istio-workload
+              value: "%ENVIRONMENT(HOSTNAME)%"
+EOF
+```
+
+Verify that the new header is present in your requests to the external service.
+
+```bash,norun-workshop
+kubectl  --context ${CLUSTER1} -n clients exec deploy/in-ambient -- curl -s httpbin.org/get | grep -i X-Istio-Workload
+```
+
+Expected output:
+
+```http,nocopy
+    "X-Istio-Workload": "waypoint-94f49bb5b-b96k7",
+```
+
+### Securing Egress Traffic with Encryption
+
+To enhance security, we'll now configure TLS encryption for our egress traffic. This involves updating the ServiceEntry to redirect traffic to a secure port and creating a DestinationRule to enable TLS.
+
+```bash
+kubectl --context ${CLUSTER1} apply -f - <<EOF
+apiVersion: gloo.solo.io/v1
+kind: Upstream
+metadata:
+  name: httpbin-static
+  namespace: egress
+spec:
+  static:
+    hosts:
+      - addr: httpbin.org
+        port: 443
+EOF
+```
+
+Confirm that your traffic is now encrypted by checking the URL scheme in the response.
+
+```bash,norun-workshop
+kubectl --context ${CLUSTER1} -n clients exec deploy/in-ambient -- curl -s httpbin.org/get | jq .url
+```
+
+Expected output:
+
+```,nocopy
+"https://httpbin.org/get"
+```
+
+### Implementing Egress Authorization Policies
+
+Finally, we'll apply an authorization policy to our Waypoint. This policy will allow only specific types of requests (in this case, GET requests to a particular path) and block all others, providing fine-grained control over outbound traffic.
+
+```bash
+kubectl --context ${CLUSTER1} apply -f - <<EOF
+apiVersion: security.istio.io/v1
+kind: AuthorizationPolicy
+metadata:
+  name: httpbin
+  namespace: egress
+spec:
+  targetRefs:
+  - kind: Gateway
+    name: gloo-waypoint
+    group: gateway.networking.k8s.io
+  action: ALLOW
+  rules:
+  - to:
+    - operation:
+        hosts: ["httpbin.org"]
+        methods: ["GET"]
+        paths: ["/get"]
+EOF
+```
+
+Confirm that the authorization policy is correctly enforced by attempting to access a different path on the external service. You should observe that the request is blocked.
+
+```bash,norun-workshop
+kubectl --context ${CLUSTER1} -n clients exec deploy/in-ambient -- curl -s -X POST httpbin.org/post
+```
+
+Expected output:
+```http,nocopy
+RBAC: access denied
+```
+
+By setting up a Waypoint in the egress namespace and restricting direct outbound traffic, we've created a centralized point of control for all egress traffic. This setup allows for consistent policy enforcement, traffic management, and security measures across your entire mesh. Such an approach is crucial for maintaining compliance and security in enterprise environments.
+
+<!--bash
+cat <<'EOF' > ./test.js
+const chaiExec = require("@jsdevtools/chai-exec");
+var chai = require('chai');
+var expect = chai.expect;
+chai.use(chaiExec);
+
+afterEach(function (done) {
+  if (this.currentTest.currentRetry() > 0) {
+    process.stdout.write(".");
+    setTimeout(done, 1000);
+  } else {
+    done();
+  }
+});
+
+describe("egress traffic", function() {
+  const cluster = process.env.CLUSTER1
+
+  it(`httproute should add customer header`, function() {
+    let command = `kubectl --context ${cluster} -n clients exec deploy/in-ambient -- curl -s httpbin.org/get`;
+    let cli = chaiExec(command);
+    expect(cli.output.toLowerCase()).to.contain('x-istio-workload');
+  });
+
+  it(`destination rule should route to https`, function() {
+    let command = `kubectl --context ${cluster} -n clients exec deploy/in-ambient -- curl -s httpbin.org/get`;
+    let cli = chaiExec(command);
+    expect(cli.output.toLowerCase()).to.contain('https://httpbin.org/get');
+  });
+
+  it(`other types of traffic (HTTP methods) should be rejected`, function() {
+    let command = `kubectl --context ${cluster} -n clients exec deploy/in-ambient -- curl -s -X POST httpbin.org/post`;
+    let cli = chaiExec(command);
+    expect(cli.output).to.contain('RBAC: access denied');
+  });
+});
+
+EOF
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/waypoint-egress/tests/validate-egress-traffic.test.js.liquid from lab number 19"
+timeout --signal=INT 3m mocha ./test.js --timeout 20000 --retries=60 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 19"; exit 1; }
+-->
+
+Let's cleanup the resources:
+
+```bash
+kubectl --context ${CLUSTER1} delete authorizationpolicy httpbin -n egress
+kubectl --context ${CLUSTER1} delete httproute httpbin -n egress
+kubectl --context ${CLUSTER1} delete networkpolicy restricted-namespace-policy -n clients
+kubectl --context ${CLUSTER1} delete upstream httpbin-static -n egress
+```
+
+
+
+## Lab 20 - Ambient Egress Traffic with Waypoint <a name="lab-20---ambient-egress-traffic-with-waypoint-"></a>
+
+In this lab, we'll explore how to control and secure outbound traffic from your Ambient Mesh using Waypoints. We'll start by restricting all outgoing traffic from a specific namespace, then set up a shared Waypoint to manage egress traffic centrally. This approach allows for consistent policy enforcement across multiple services and namespaces.
+
+### Restricting Egress Traffic
+
+We'll begin by implementing a NetworkPolicy to prohibit all outgoing traffic from the `clients` namespace. This step simulates a secure environment where external access is tightly controlled.
+
+```bash
+kubectl --context ${CLUSTER1} apply -f - <<EOF
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: restricted-namespace-policy
+  namespace: clients
+spec:
+  podSelector: {}  # This applies to all pods in the namespace
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  - {}  # Allow all ingress traffic
+  egress:
+  - to:
+    - namespaceSelector: {}  # Allow egress to all namespaces
+    - podSelector: {}  # Allow egress to all pods within the cluster
+EOF
+```
+
+After applying this policy, verify that outbound traffic is indeed restricted by attempting to access an external service. You should observe that the connection fails.
+```bash,norun-workshop
 kubectl --context ${CLUSTER1} -n clients exec deploy/in-ambient -- curl -I httpbin.org/get
 ```
 
@@ -4677,7 +4985,7 @@ EOF
 
 To confirm that traffic is correctly flowing through the Waypoint, send a request to the external service and look for Envoy-specific headers in the response. These headers indicate that the traffic has been processed by the Waypoint.
 
-```bash,noexecute
+```bash,norun-workshop
 kubectl --context ${CLUSTER1} -n clients exec deploy/in-ambient -- curl -sI httpbin.org/get | grep envoy
 ```
 
@@ -4721,7 +5029,7 @@ EOF
 
 Verify that the new header is present in your requests to the external service.
 
-```bash,noexecute
+```bash,norun-workshop
 kubectl  --context ${CLUSTER1} -n clients exec deploy/in-ambient -- curl -s httpbin.org/get | grep -i X-Istio-Workload
 ```
 
@@ -4767,7 +5075,7 @@ EOF
 
 Confirm that your traffic is now encrypted by checking the URL scheme in the response.
 
-```bash,noexecute
+```bash,norun-workshop
 kubectl --context ${CLUSTER1} -n clients exec deploy/in-ambient -- curl -s httpbin.org/get | jq .url
 ```
 
@@ -4805,7 +5113,7 @@ EOF
 
 Confirm that the authorization policy is correctly enforced by attempting to access a different path on the external service. You should observe that the request is blocked.
 
-```bash,noexecute
+```bash,norun-workshop
 kubectl --context ${CLUSTER1} -n clients exec deploy/in-ambient -- curl -s -X POST httpbin.org/post
 ```
 
@@ -4855,23 +5163,23 @@ describe("egress traffic", function() {
 });
 
 EOF
-echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/waypoint-egress/tests/validate-egress-traffic.test.js.liquid from lab number 19"
-timeout --signal=INT 3m mocha ./test.js --timeout 20000 --retries=60 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 19"; exit 1; }
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/waypoint-egress/tests/validate-egress-traffic.test.js.liquid from lab number 20"
+timeout --signal=INT 3m mocha ./test.js --timeout 20000 --retries=60 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 20"; exit 1; }
 -->
 
 Let's cleanup the resources:
 
 ```bash
 kubectl --context ${CLUSTER1} delete authorizationpolicy httpbin -n egress
-kubectl --context ${CLUSTER1} delete serviceentry httpbin.org -n egress
-kubectl --context ${CLUSTER1} delete destinationrule httpbin.org-tls -n egress
 kubectl --context ${CLUSTER1} delete httproute httpbin -n egress
 kubectl --context ${CLUSTER1} delete networkpolicy restricted-namespace-policy -n clients
+kubectl --context ${CLUSTER1} delete serviceentry httpbin.org -n egress
+kubectl --context ${CLUSTER1} delete destinationrule httpbin.org-tls -n egress
 ```
 
 
 
-## Lab 20 - Link Clusters <a name="lab-20---link-clusters-"></a>
+## Lab 21 - Link Clusters <a name="lab-21---link-clusters-"></a>
 
 Create the `istio-gateways` namespaces:
 
@@ -5060,14 +5368,14 @@ Note that the default value of the traffic distribution is `PreferClose` which w
 
 Validate that Service Entries are workload entries are created to route traffic to the gateway of the other cluster:
 
-```bash,noexecute
+```bash,norun-workshop
 kubectl --context $CLUSTER1 -n httpbin get serviceentry
 kubectl --context $CLUSTER2 -n httpbin get workloadentry
 ```
 
 Next, let's send some traffic across the clusters:
 
-```bash,noexecute
+```bash,norun-workshop
 kubectl --context=$CLUSTER1 -n httpbin exec -it deploy/client-in-ambient -- curl -v in-ambient.httpbin.mesh.internal:8000/get
 ```
 
@@ -5085,7 +5393,7 @@ describe("ensure traffic goes to workloads in both clusters", () => {
     const origins = new Set();
     for (let i = 0; i < 10; i++) {
       const command = await helpers.curlInDeployment({
-        curlCommand: 'curl in-ambient.httpbin.mesh.internal:8000/get',
+        curlCommand: 'curl -s in-ambient.httpbin.mesh.internal:8000/get',
         deploymentName: 'client-in-ambient',
         namespace: 'httpbin',
         context: `${process.env.CLUSTER1}`
@@ -5097,13 +5405,14 @@ describe("ensure traffic goes to workloads in both clusters", () => {
   });
 });
 EOF
-echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/link-clusters/tests/check-cross-cluster-traffic.js.liquid from lab number 20"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 20"; exit 1; }
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/link-clusters/tests/check-cross-cluster-traffic.js.liquid from lab number 21"
+timeout --signal=INT 3m mocha ./test.js --timeout 120000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 21"; exit 1; }
 -->
 
 
 
-## Lab 21 - Ambient multicluster routing <a name="lab-21---ambient-multicluster-routing-"></a>
+
+## Lab 22 - Ambient multicluster routing <a name="lab-22---ambient-multicluster-routing-"></a>
 
 Let's configure the Istio Ingress Gateway:
 
@@ -5226,20 +5535,21 @@ kubectl --context ${CLUSTER1} -n httpbin rollout status deploy httpbin-gateway-i
 export ISTIO_INGRESS=$(kubectl --context ${CLUSTER1} -n httpbin get svc httpbin-gateway-istio-istio -o jsonpath='{.status.loadBalancer.ingress[0].ip}{.status.loadBalancer.ingress[0].hostname}')
 ```
 
-Let's configure the Gloo Ingress Gateway:
+
+Let's configure the Gloo Gateway Ingress Gateway:
 
 ```bash
 cat << EOF | kubectl --context ${CLUSTER1} apply -f -
 apiVersion: gateway.networking.k8s.io/v1
 kind: Gateway
 metadata:
-  name: httpbin-gateway-gloo
+  name: httpbin-gateway-gloo-gateway
   namespace: httpbin
 spec:
   gatewayClassName: gloo-gateway
   listeners:
   - name: http
-    hostname: "httpbin.gloo"
+    hostname: "httpbin.gloo-gateway"
     port: 80
     protocol: HTTP
     allowedRoutes:
@@ -5249,12 +5559,12 @@ spec:
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
 metadata:
-  name: httpbin-gloo
+  name: httpbin-gloo-gateway
   namespace: httpbin
 spec:
   parentRefs:
-  - name: httpbin-gateway-gloo
-  hostnames: ["httpbin.gloo"]
+  - name: httpbin-gateway-gloo-gateway
+  hostnames: ["httpbin.gloo-gateway"]
   rules:
   - matches:
     - path:
@@ -5414,11 +5724,13 @@ spec:
       - addr: remote-in-mesh.httpbin.mesh.internal
         port: 8000
 EOF
-kubectl --context ${CLUSTER1} -n httpbin rollout status deploy gloo-proxy-httpbin-gateway-gloo
-export GLOO_INGRESS=$(kubectl --context ${CLUSTER1} -n httpbin get svc gloo-proxy-httpbin-gateway-gloo -o jsonpath='{.status.loadBalancer.ingress[0].ip}{.status.loadBalancer.ingress[0].hostname}')
+kubectl --context ${CLUSTER1} -n httpbin rollout status deploy gloo-proxy-httpbin-gateway-gloo-gateway-gateway
+export SOLO_INGRESS=$(kubectl --context ${CLUSTER1} -n httpbin get svc gloo-proxy-httpbin-gateway-gloo-gateway -o jsonpath='{.status.loadBalancer.ingress[0].ip}{.status.loadBalancer.ingress[0].hostname}')
 ```
 
+
 ### Scenario 1: No waypoint
+
 
 <!--bash
 echo "Scenario 1: No waypoint"
@@ -5550,84 +5862,7 @@ Expected output: `200`
 
 
 
-<!--bash
-cat <<'EOF' > ./test.js
-const chaiExec = require("@jsdevtools/chai-exec");
-var chai = require('chai');
-var expect = chai.expect;
-chai.use(chaiExec);
-const helpers = require('./tests/chai-exec');
-
-async function status_test(source, target) {
-  const command = await helpers.curlInDeployment({
-    context: `${process.env.CLUSTER1}`,
-    namespace: 'httpbin',
-    deploymentName: source,
-    curlCommand: `curl -s -o /dev/null -w "%{http_code}" ${target}:8000/get`
-  });
-  output = JSON.parse(command);
-  expect(output).to.equal(200);
-}
-
-async function header_test(source, target) {
-  const command = await helpers.curlInDeployment({
-    context: `${process.env.CLUSTER1}`,
-    namespace: 'httpbin',
-    deploymentName: source,
-    curlCommand: `curl -s ${target}:8000/get`
-  });
-  output = JSON.parse(command);
-  expect(output.headers["X-Istio-Workload"]).to.equal(process.env.LOCAL_ISTIO_WAYPOINT);
-}
-
-describe("Tests all possible eastwest communication", () => {
-  ["client-in-mesh", "client-in-ambient"].forEach(async (source) => {
-    ["in-mesh.httpbin.svc.cluster.local", "in-ambient.httpbin.svc.cluster.local","in-mesh.httpbin.mesh.internal", "in-ambient.httpbin.mesh.internal","remote-in-mesh.httpbin.mesh.internal", "remote-in-ambient.httpbin.mesh.internal"].forEach(async (target) => {
-      it(`${source} => ${target}`, async () => {
-        
-        await status_test(source, target);
-        
-      });
-    });
-  });
-});
-
-const fs = require('fs');
-const path = require('path');
-
-const counterFilePath = path.join(__dirname, '.test-counter');
-
-// Setup before all tests
-before(function() {
-  // Initialize counter file if it doesn't exist
-  if (!fs.existsSync(counterFilePath)) {
-    fs.writeFileSync(counterFilePath, '0');
-  }
-});
-
-// Before each test
-beforeEach(function() {
-  // Read current counter value
-  let counter = parseInt(fs.readFileSync(counterFilePath, 'utf8'));
-  
-  // Increment counter
-  counter++;
-  
-  // Save incremented value
-  fs.writeFileSync(counterFilePath, counter.toString());
-  
-  // Set environment variable
-  process.env.TEST_COUNTER = counter.toString();
-  
-  console.log(`Running test #${process.env.TEST_COUNTER}`);
-});
-EOF
-echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/multicluster-routing/tests/check-all.js.liquid from lab number 21"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 21"; exit 1; }
--->
-
-
-#### Testing Ingress Connectivity
+#### Testing Ingress Connectivity (istio ISTIO_INGRESS)
 
 
 1. Test connectivity to in-mesh service via ingress:
@@ -5688,63 +5923,12 @@ Expected output: `200`
 
 
 
-<!--bash
-cat <<'EOF' > ./test.js
-const chaiExec = require("@jsdevtools/chai-exec");
-var chai = require('chai');
-var expect = chai.expect;
-chai.use(chaiExec);
-const helpers = require('./tests/chai-http');
-
-describe("Tests all possible communication from istio ingress", () => {
-  ["/in-ambient", "/in-mesh","/global-in-ambient", "/global-in-mesh","/remote-in-ambient", "/remote-in-mesh"].forEach(async (path) => {
-    
-    it(`${path} is available`, () => helpers.checkURL({ host: `http://${process.env.ISTIO_INGRESS}`, headers: [{key: 'Host', value: 'httpbin.istio'}], path: `${path}/get`, retCode: 200 }));
-    
-  });
-});
-
-const fs = require('fs');
-const path = require('path');
-
-const counterFilePath = path.join(__dirname, '.test-counter');
-
-// Setup before all tests
-before(function() {
-  // Initialize counter file if it doesn't exist
-  if (!fs.existsSync(counterFilePath)) {
-    fs.writeFileSync(counterFilePath, '0');
-  }
-});
-
-// Before each test
-beforeEach(function() {
-  // Read current counter value
-  let counter = parseInt(fs.readFileSync(counterFilePath, 'utf8'));
-  
-  // Increment counter
-  counter++;
-  
-  // Save incremented value
-  fs.writeFileSync(counterFilePath, counter.toString());
-  
-  // Set environment variable
-  process.env.TEST_COUNTER = counter.toString();
-  
-  console.log(`Running test #${process.env.TEST_COUNTER}`);
-});
-EOF
-echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/multicluster-routing/tests/check-ingress.js.liquid from lab number 21"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 21"; exit 1; }
--->
-
-
-#### Testing Ingress Connectivity
+#### Testing Ingress Connectivity (gloo-gateway SOLO_INGRESS)
 
 
 1. Test connectivity to in-mesh service via ingress:
 ```
-curl -s -o /dev/null -w "%{http_code}" -H "Host: httpbin.gloo" http://${GLOO_INGRESS}/in-mesh/get
+curl -s -o /dev/null -w "%{http_code}" -H "Host: httpbin.gloo-gateway" http://${SOLO_INGRESS}/in-mesh/get
 ```
 
 Expected output: `200`
@@ -5753,7 +5937,7 @@ Expected output: `200`
 
 2. Test connectivity to in-ambient service via ingress:
 ```
-curl -s -o /dev/null -w "%{http_code}" -H "Host: httpbin.gloo" http://${GLOO_INGRESS}/in-ambient/get
+curl -s -o /dev/null -w "%{http_code}" -H "Host: httpbin.gloo-gateway" http://${SOLO_INGRESS}/in-ambient/get
 ```
 
 Expected output: `200`
@@ -5764,7 +5948,7 @@ Expected output: `200`
 
 3. Test connectivity to global in-mesh service via ingress:
 ```
-curl -s -o /dev/null -w "%{http_code}" -H "Host: httpbin.gloo" http://${GLOO_INGRESS}/global-in-mesh/get
+curl -s -o /dev/null -w "%{http_code}" -H "Host: httpbin.gloo-gateway" http://${SOLO_INGRESS}/global-in-mesh/get
 ```
 
 Expected output: `200`
@@ -5773,7 +5957,7 @@ Expected output: `200`
 
 4. Test connectivity to global in-ambient service via ingress:
 ```
-curl -s -o /dev/null -w "%{http_code}" -H "Host: httpbin.gloo" http://${GLOO_INGRESS}/global-in-ambient/get
+curl -s -o /dev/null -w "%{http_code}" -H "Host: httpbin.gloo-gateway" http://${SOLO_INGRESS}/global-in-ambient/get
 ```
 
 Expected output: `200`
@@ -5784,7 +5968,7 @@ Expected output: `200`
 
 5. Test connectivity to remote in-mesh service via ingress:
 ```
-curl -s -o /dev/null -w "%{http_code}" -H "Host: httpbin.gloo" http://${GLOO_INGRESS}/remote-in-mesh/get
+curl -s -o /dev/null -w "%{http_code}" -H "Host: httpbin.gloo-gateway" http://${SOLO_INGRESS}/remote-in-mesh/get
 ```
 
 Expected output: `200`
@@ -5793,7 +5977,7 @@ Expected output: `200`
 
 6. Test connectivity to remote in-ambient service via ingress:
 ```
-curl -s -o /dev/null -w "%{http_code}" -H "Host: httpbin.gloo" http://${GLOO_INGRESS}/remote-in-ambient/get
+curl -s -o /dev/null -w "%{http_code}" -H "Host: httpbin.gloo-gateway" http://${SOLO_INGRESS}/remote-in-ambient/get
 ```
 
 Expected output: `200`
@@ -5806,12 +5990,86 @@ const chaiExec = require("@jsdevtools/chai-exec");
 var chai = require('chai');
 var expect = chai.expect;
 chai.use(chaiExec);
+const helpers = require('./tests/chai-exec');
+
+async function status_test(source, target) {
+  const command = await helpers.curlInDeployment({
+    context: `${process.env.CLUSTER1}`,
+    namespace: 'httpbin',
+    deploymentName: source,
+    curlCommand: `curl -s -o /dev/null -w "%{http_code}" ${target}:8000/get`
+  });
+  output = JSON.parse(command);
+  expect(output).to.equal(200);
+}
+
+async function header_test(source, target) {
+  const command = await helpers.curlInDeployment({
+    context: `${process.env.CLUSTER1}`,
+    namespace: 'httpbin',
+    deploymentName: source,
+    curlCommand: `curl -s ${target}:8000/get`
+  });
+  output = JSON.parse(command);
+  expect(output.headers["X-Istio-Workload"]).to.equal(process.env.LOCAL_ISTIO_WAYPOINT);
+}
+
+describe("Tests all possible eastwest communication (Local Waypoint=None, Remote Waypoint=None, Failover=false, Authorization Policy=false)", () => {
+  ["client-in-mesh", "client-in-ambient"].forEach(async (source) => {
+    ["in-mesh.httpbin.svc.cluster.local", "in-ambient.httpbin.svc.cluster.local","in-mesh.httpbin.mesh.internal", "in-ambient.httpbin.mesh.internal","remote-in-mesh.httpbin.mesh.internal", "remote-in-ambient.httpbin.mesh.internal"].forEach(async (target) => {
+      
+      it(`${source} => ${target}`, async () => {
+        await status_test(source, target);
+      });
+      
+    });
+  });
+});
+
+const fs = require('fs');
+const path = require('path');
+
+const counterFilePath = path.join(__dirname, '.test-counter');
+
+// Setup before all tests
+before(function() {
+  // Initialize counter file if it doesn't exist
+  if (!fs.existsSync(counterFilePath)) {
+    fs.writeFileSync(counterFilePath, '0');
+  }
+});
+
+// Before each test
+beforeEach(function() {
+  // Read current counter value
+  let counter = parseInt(fs.readFileSync(counterFilePath, 'utf8'));
+  
+  // Increment counter
+  counter++;
+  
+  // Save incremented value
+  fs.writeFileSync(counterFilePath, counter.toString());
+  
+  // Set environment variable
+  process.env.TEST_COUNTER = counter.toString();
+  
+  console.log(`Running test #${process.env.TEST_COUNTER}`);
+});
+EOF
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/multicluster-routing/tests/check-all.js.liquid from lab number 22"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 22"; exit 1; }
+-->
+<!--bash
+cat <<'EOF' > ./test.js
+const chaiExec = require("@jsdevtools/chai-exec");
+var chai = require('chai');
+var expect = chai.expect;
+chai.use(chaiExec);
 const helpers = require('./tests/chai-http');
 
-describe("Tests all possible communication from gloo ingress", () => {
+describe("Tests all possible communication from istio ingress (Local Waypoint=None, Remote Waypoint=None, Failover=false, Authorization Policy=false)", () => {
   ["/in-ambient", "/in-mesh","/global-in-ambient", "/global-in-mesh","/remote-in-ambient", "/remote-in-mesh"].forEach(async (path) => {
-    
-    it(`${path} is available`, () => helpers.checkURL({ host: `http://${process.env.GLOO_INGRESS}`, headers: [{key: 'Host', value: 'httpbin.gloo'}], path: `${path}/get`, retCode: 200 }));
+    it(`Ingress => ${path}`, () => helpers.checkURL({ host: `http://${process.env.ISTIO_INGRESS}`, headers: [{key: 'Host', value: 'httpbin.istio'}], path: `${path}/get`, retCode: 200 }));
     
   });
 });
@@ -5846,11 +6104,60 @@ beforeEach(function() {
   console.log(`Running test #${process.env.TEST_COUNTER}`);
 });
 EOF
-echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/multicluster-routing/tests/check-ingress.js.liquid from lab number 21"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 21"; exit 1; }
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/multicluster-routing/tests/check-ingress.js.liquid from lab number 22"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 22"; exit 1; }
+-->
+<!--bash
+cat <<'EOF' > ./test.js
+const chaiExec = require("@jsdevtools/chai-exec");
+var chai = require('chai');
+var expect = chai.expect;
+chai.use(chaiExec);
+const helpers = require('./tests/chai-http');
+
+describe("Tests all possible communication from gloo-gateway ingress (Local Waypoint=None, Remote Waypoint=None, Failover=false, Authorization Policy=false)", () => {
+  ["/in-ambient", "/in-mesh","/global-in-ambient", "/global-in-mesh","/remote-in-ambient", "/remote-in-mesh"].forEach(async (path) => {
+    it(`Ingress => ${path}`, () => helpers.checkURL({ host: `http://${process.env.SOLO_INGRESS}`, headers: [{key: 'Host', value: 'httpbin.gloo-gateway'}], path: `${path}/get`, retCode: 200 }));
+    
+  });
+});
+
+const fs = require('fs');
+const path = require('path');
+
+const counterFilePath = path.join(__dirname, '.test-counter');
+
+// Setup before all tests
+before(function() {
+  // Initialize counter file if it doesn't exist
+  if (!fs.existsSync(counterFilePath)) {
+    fs.writeFileSync(counterFilePath, '0');
+  }
+});
+
+// Before each test
+beforeEach(function() {
+  // Read current counter value
+  let counter = parseInt(fs.readFileSync(counterFilePath, 'utf8'));
+  
+  // Increment counter
+  counter++;
+  
+  // Save incremented value
+  fs.writeFileSync(counterFilePath, counter.toString());
+  
+  // Set environment variable
+  process.env.TEST_COUNTER = counter.toString();
+  
+  console.log(`Running test #${process.env.TEST_COUNTER}`);
+});
+EOF
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/multicluster-routing/tests/check-ingress.js.liquid from lab number 22"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 22"; exit 1; }
 -->
 
 ### Scenario 1b: No waypoint with failover
+
 
 <!--bash
 echo "Scenario 1b: No waypoint with failover"
@@ -5919,6 +6226,56 @@ Expected output: `200`
 
 
 
+#### Testing Ingress Connectivity (istio ISTIO_INGRESS)
+
+
+
+
+1. Test connectivity to global in-mesh service via ingress:
+```
+curl -s -o /dev/null -w "%{http_code}" -H "Host: httpbin.istio" http://${ISTIO_INGRESS}/global-in-mesh/get
+```
+
+Expected output: `200`
+
+
+
+2. Test connectivity to global in-ambient service via ingress:
+```
+curl -s -o /dev/null -w "%{http_code}" -H "Host: httpbin.istio" http://${ISTIO_INGRESS}/global-in-ambient/get
+```
+
+Expected output: `200`
+
+
+
+
+
+#### Testing Ingress Connectivity (gloo-gateway SOLO_INGRESS)
+
+
+
+
+1. Test connectivity to global in-mesh service via ingress:
+```
+curl -s -o /dev/null -w "%{http_code}" -H "Host: httpbin.gloo-gateway" http://${SOLO_INGRESS}/global-in-mesh/get
+```
+
+Expected output: `200`
+
+
+
+2. Test connectivity to global in-ambient service via ingress:
+```
+curl -s -o /dev/null -w "%{http_code}" -H "Host: httpbin.gloo-gateway" http://${SOLO_INGRESS}/global-in-ambient/get
+```
+
+Expected output: `200`
+
+
+
+
+
 <!--bash
 cat <<'EOF' > ./test.js
 const chaiExec = require("@jsdevtools/chai-exec");
@@ -5949,14 +6306,14 @@ async function header_test(source, target) {
   expect(output.headers["X-Istio-Workload"]).to.equal(process.env.LOCAL_ISTIO_WAYPOINT);
 }
 
-describe("Tests all possible eastwest communication", () => {
+describe("Tests all possible eastwest communication (Local Waypoint=None, Remote Waypoint=None, Failover=true, Authorization Policy=false)", () => {
   ["client-in-mesh", "client-in-ambient"].forEach(async (source) => {
-    ["in-mesh.httpbin.mesh.internal", "in-ambient.httpbin.mesh.internal",].forEach(async (target) => {
+    ["in-mesh.httpbin.mesh.internal", "in-ambient.httpbin.mesh.internal","remote-in-mesh.httpbin.mesh.internal", "remote-in-ambient.httpbin.mesh.internal"].forEach(async (target) => {
+      
       it(`${source} => ${target}`, async () => {
-        
         await status_test(source, target);
-        
       });
+      
     });
   });
 });
@@ -5991,36 +6348,9 @@ beforeEach(function() {
   console.log(`Running test #${process.env.TEST_COUNTER}`);
 });
 EOF
-echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/multicluster-routing/tests/check-all.js.liquid from lab number 21"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 21"; exit 1; }
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/multicluster-routing/tests/check-all.js.liquid from lab number 22"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 22"; exit 1; }
 -->
-
-
-#### Testing Ingress Connectivity
-
-
-
-
-1. Test connectivity to global in-mesh service via ingress:
-```
-curl -s -o /dev/null -w "%{http_code}" -H "Host: httpbin.istio" http://${ISTIO_INGRESS}/global-in-mesh/get
-```
-
-Expected output: `200`
-
-
-
-2. Test connectivity to global in-ambient service via ingress:
-```
-curl -s -o /dev/null -w "%{http_code}" -H "Host: httpbin.istio" http://${ISTIO_INGRESS}/global-in-ambient/get
-```
-
-Expected output: `200`
-
-
-
-
-
 <!--bash
 cat <<'EOF' > ./test.js
 const chaiExec = require("@jsdevtools/chai-exec");
@@ -6029,10 +6359,9 @@ var expect = chai.expect;
 chai.use(chaiExec);
 const helpers = require('./tests/chai-http');
 
-describe("Tests all possible communication from istio ingress", () => {
-  [].forEach(async (path) => {
-    
-    it(`${path} is available`, () => helpers.checkURL({ host: `http://${process.env.ISTIO_INGRESS}`, headers: [{key: 'Host', value: 'httpbin.istio'}], path: `${path}/get`, retCode: 200 }));
+describe("Tests all possible communication from istio ingress (Local Waypoint=None, Remote Waypoint=None, Failover=true, Authorization Policy=false)", () => {
+  ["/remote-in-ambient", "/remote-in-mesh"].forEach(async (path) => {
+    it(`Ingress => ${path}`, () => helpers.checkURL({ host: `http://${process.env.ISTIO_INGRESS}`, headers: [{key: 'Host', value: 'httpbin.istio'}], path: `${path}/get`, retCode: 200 }));
     
   });
 });
@@ -6067,36 +6396,9 @@ beforeEach(function() {
   console.log(`Running test #${process.env.TEST_COUNTER}`);
 });
 EOF
-echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/multicluster-routing/tests/check-ingress.js.liquid from lab number 21"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 21"; exit 1; }
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/multicluster-routing/tests/check-ingress.js.liquid from lab number 22"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 22"; exit 1; }
 -->
-
-
-#### Testing Ingress Connectivity
-
-
-
-
-1. Test connectivity to global in-mesh service via ingress:
-```
-curl -s -o /dev/null -w "%{http_code}" -H "Host: httpbin.gloo" http://${GLOO_INGRESS}/global-in-mesh/get
-```
-
-Expected output: `200`
-
-
-
-2. Test connectivity to global in-ambient service via ingress:
-```
-curl -s -o /dev/null -w "%{http_code}" -H "Host: httpbin.gloo" http://${GLOO_INGRESS}/global-in-ambient/get
-```
-
-Expected output: `200`
-
-
-
-
-
 <!--bash
 cat <<'EOF' > ./test.js
 const chaiExec = require("@jsdevtools/chai-exec");
@@ -6105,10 +6407,9 @@ var expect = chai.expect;
 chai.use(chaiExec);
 const helpers = require('./tests/chai-http');
 
-describe("Tests all possible communication from gloo ingress", () => {
-  [].forEach(async (path) => {
-    
-    it(`${path} is available`, () => helpers.checkURL({ host: `http://${process.env.GLOO_INGRESS}`, headers: [{key: 'Host', value: 'httpbin.gloo'}], path: `${path}/get`, retCode: 200 }));
+describe("Tests all possible communication from gloo-gateway ingress (Local Waypoint=None, Remote Waypoint=None, Failover=true, Authorization Policy=false)", () => {
+  ["/remote-in-ambient", "/remote-in-mesh"].forEach(async (path) => {
+    it(`Ingress => ${path}`, () => helpers.checkURL({ host: `http://${process.env.SOLO_INGRESS}`, headers: [{key: 'Host', value: 'httpbin.gloo-gateway'}], path: `${path}/get`, retCode: 200 }));
     
   });
 });
@@ -6143,8 +6444,8 @@ beforeEach(function() {
   console.log(`Running test #${process.env.TEST_COUNTER}`);
 });
 EOF
-echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/multicluster-routing/tests/check-ingress.js.liquid from lab number 21"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 21"; exit 1; }
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/multicluster-routing/tests/check-ingress.js.liquid from lab number 22"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 22"; exit 1; }
 -->
 
 Let's scale up the local services:
@@ -6157,6 +6458,7 @@ kubectl --context ${CLUSTER1} -n httpbin rollout status deploy/in-ambient
 ```
 
 ### Scenario 2: Local Istio waypoints
+
 
 <!--bash
 echo "Scenario 2: Local Istio waypoints"
@@ -6385,24 +6687,6 @@ Expected output: `200`
 
 
 
-5. Test connectivity to remote in-mesh service:
-```
-kubectl --context ${CLUSTER1} exec -n httpbin $(kubectl --context ${CLUSTER1} get pod -l app=client-in-mesh -n httpbin -o jsonpath='{.items[0].metadata.name}') -- curl -s -o /dev/null -w "%{http_code}" remote-in-mesh.httpbin.mesh.internal:8000/get
-```
-
-Expected output: `200`
-
-
-
-6. Test connectivity to remote in-ambient service:
-```
-kubectl --context ${CLUSTER1} exec -n httpbin $(kubectl --context ${CLUSTER1} get pod -l app=client-in-mesh -n httpbin -o jsonpath='{.items[0].metadata.name}') -- curl -s -o /dev/null -w "%{http_code}" remote-in-ambient.httpbin.mesh.internal:8000/get
-```
-
-Expected output: `200`
-
-
-
 
 
 #### From client-in-ambient
@@ -6448,102 +6732,7 @@ Expected output: `200`
 
 
 
-5. Test connectivity to remote in-mesh service:
-```
-kubectl --context ${CLUSTER1} exec -n httpbin $(kubectl --context ${CLUSTER1} get pod -l app=client-in-ambient -n httpbin -o jsonpath='{.items[0].metadata.name}') -- curl -s -o /dev/null -w "%{http_code}" remote-in-mesh.httpbin.mesh.internal:8000/get
-```
-
-Expected output: `200`
-
-
-
-6. Test connectivity to remote in-ambient service:
-```
-kubectl --context ${CLUSTER1} exec -n httpbin $(kubectl --context ${CLUSTER1} get pod -l app=client-in-ambient -n httpbin -o jsonpath='{.items[0].metadata.name}') -- curl -s -o /dev/null -w "%{http_code}" remote-in-ambient.httpbin.mesh.internal:8000/get
-```
-
-Expected output: `200`
-
-
-
-<!--bash
-cat <<'EOF' > ./test.js
-const chaiExec = require("@jsdevtools/chai-exec");
-var chai = require('chai');
-var expect = chai.expect;
-chai.use(chaiExec);
-const helpers = require('./tests/chai-exec');
-
-async function status_test(source, target) {
-  const command = await helpers.curlInDeployment({
-    context: `${process.env.CLUSTER1}`,
-    namespace: 'httpbin',
-    deploymentName: source,
-    curlCommand: `curl -s -o /dev/null -w "%{http_code}" ${target}:8000/get`
-  });
-  output = JSON.parse(command);
-  expect(output).to.equal(200);
-}
-
-async function header_test(source, target) {
-  const command = await helpers.curlInDeployment({
-    context: `${process.env.CLUSTER1}`,
-    namespace: 'httpbin',
-    deploymentName: source,
-    curlCommand: `curl -s ${target}:8000/get`
-  });
-  output = JSON.parse(command);
-  expect(output.headers["X-Istio-Workload"]).to.equal(process.env.LOCAL_ISTIO_WAYPOINT);
-}
-
-describe("Tests all possible eastwest communication", () => {
-  ["client-in-mesh", "client-in-ambient"].forEach(async (source) => {
-    ["in-mesh.httpbin.svc.cluster.local", "in-ambient.httpbin.svc.cluster.local","in-mesh.httpbin.mesh.internal", "in-ambient.httpbin.mesh.internal","remote-in-mesh.httpbin.mesh.internal", "remote-in-ambient.httpbin.mesh.internal"].forEach(async (target) => {
-      it(`${source} => ${target}`, async () => {
-        
-        await status_test(source, target);
-        
-      });
-    });
-  });
-});
-
-const fs = require('fs');
-const path = require('path');
-
-const counterFilePath = path.join(__dirname, '.test-counter');
-
-// Setup before all tests
-before(function() {
-  // Initialize counter file if it doesn't exist
-  if (!fs.existsSync(counterFilePath)) {
-    fs.writeFileSync(counterFilePath, '0');
-  }
-});
-
-// Before each test
-beforeEach(function() {
-  // Read current counter value
-  let counter = parseInt(fs.readFileSync(counterFilePath, 'utf8'));
-  
-  // Increment counter
-  counter++;
-  
-  // Save incremented value
-  fs.writeFileSync(counterFilePath, counter.toString());
-  
-  // Set environment variable
-  process.env.TEST_COUNTER = counter.toString();
-  
-  console.log(`Running test #${process.env.TEST_COUNTER}`);
-});
-EOF
-echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/multicluster-routing/tests/check-all.js.liquid from lab number 21"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 21"; exit 1; }
--->
-
-
-#### Testing Ingress Connectivity
+#### Testing Ingress Connectivity (istio ISTIO_INGRESS)
 
 
 1. Test connectivity to in-mesh service via ingress:
@@ -6586,81 +6775,12 @@ Expected output: `200`
 
 
 
-5. Test connectivity to remote in-mesh service via ingress:
-```
-curl -s -o /dev/null -w "%{http_code}" -H "Host: httpbin.istio" http://${ISTIO_INGRESS}/remote-in-mesh/get
-```
-
-Expected output: `200`
-
-
-
-6. Test connectivity to remote in-ambient service via ingress:
-```
-curl -s -o /dev/null -w "%{http_code}" -H "Host: httpbin.istio" http://${ISTIO_INGRESS}/remote-in-ambient/get
-```
-
-Expected output: `200`
-
-
-
-<!--bash
-cat <<'EOF' > ./test.js
-const chaiExec = require("@jsdevtools/chai-exec");
-var chai = require('chai');
-var expect = chai.expect;
-chai.use(chaiExec);
-const helpers = require('./tests/chai-http');
-
-describe("Tests all possible communication from istio ingress", () => {
-  ["/in-ambient", "/in-mesh","/global-in-ambient", "/global-in-mesh","/remote-in-ambient", "/remote-in-mesh"].forEach(async (path) => {
-    
-    it(`${path} is available`, () => helpers.checkURL({ host: `http://${process.env.ISTIO_INGRESS}`, headers: [{key: 'Host', value: 'httpbin.istio'}], path: `${path}/get`, retCode: 200 }));
-    
-  });
-});
-
-const fs = require('fs');
-const path = require('path');
-
-const counterFilePath = path.join(__dirname, '.test-counter');
-
-// Setup before all tests
-before(function() {
-  // Initialize counter file if it doesn't exist
-  if (!fs.existsSync(counterFilePath)) {
-    fs.writeFileSync(counterFilePath, '0');
-  }
-});
-
-// Before each test
-beforeEach(function() {
-  // Read current counter value
-  let counter = parseInt(fs.readFileSync(counterFilePath, 'utf8'));
-  
-  // Increment counter
-  counter++;
-  
-  // Save incremented value
-  fs.writeFileSync(counterFilePath, counter.toString());
-  
-  // Set environment variable
-  process.env.TEST_COUNTER = counter.toString();
-  
-  console.log(`Running test #${process.env.TEST_COUNTER}`);
-});
-EOF
-echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/multicluster-routing/tests/check-ingress.js.liquid from lab number 21"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 21"; exit 1; }
--->
-
-
-#### Testing Ingress Connectivity
+#### Testing Ingress Connectivity (gloo-gateway SOLO_INGRESS)
 
 
 1. Test connectivity to in-mesh service via ingress:
 ```
-curl -s -o /dev/null -w "%{http_code}" -H "Host: httpbin.gloo" http://${GLOO_INGRESS}/in-mesh/get
+curl -s -o /dev/null -w "%{http_code}" -H "Host: httpbin.gloo-gateway" http://${SOLO_INGRESS}/in-mesh/get
 ```
 
 Expected output: `200`
@@ -6669,7 +6789,7 @@ Expected output: `200`
 
 2. Test connectivity to in-ambient service via ingress:
 ```
-curl -s -o /dev/null -w "%{http_code}" -H "Host: httpbin.gloo" http://${GLOO_INGRESS}/in-ambient/get
+curl -s -o /dev/null -w "%{http_code}" -H "Host: httpbin.gloo-gateway" http://${SOLO_INGRESS}/in-ambient/get
 ```
 
 Expected output: `200`
@@ -6680,7 +6800,7 @@ Expected output: `200`
 
 3. Test connectivity to global in-mesh service via ingress:
 ```
-curl -s -o /dev/null -w "%{http_code}" -H "Host: httpbin.gloo" http://${GLOO_INGRESS}/global-in-mesh/get
+curl -s -o /dev/null -w "%{http_code}" -H "Host: httpbin.gloo-gateway" http://${SOLO_INGRESS}/global-in-mesh/get
 ```
 
 Expected output: `200`
@@ -6689,82 +6809,13 @@ Expected output: `200`
 
 4. Test connectivity to global in-ambient service via ingress:
 ```
-curl -s -o /dev/null -w "%{http_code}" -H "Host: httpbin.gloo" http://${GLOO_INGRESS}/global-in-ambient/get
+curl -s -o /dev/null -w "%{http_code}" -H "Host: httpbin.gloo-gateway" http://${SOLO_INGRESS}/global-in-ambient/get
 ```
 
 Expected output: `200`
 
 
 
-
-
-5. Test connectivity to remote in-mesh service via ingress:
-```
-curl -s -o /dev/null -w "%{http_code}" -H "Host: httpbin.gloo" http://${GLOO_INGRESS}/remote-in-mesh/get
-```
-
-Expected output: `200`
-
-
-
-6. Test connectivity to remote in-ambient service via ingress:
-```
-curl -s -o /dev/null -w "%{http_code}" -H "Host: httpbin.gloo" http://${GLOO_INGRESS}/remote-in-ambient/get
-```
-
-Expected output: `200`
-
-
-
-<!--bash
-cat <<'EOF' > ./test.js
-const chaiExec = require("@jsdevtools/chai-exec");
-var chai = require('chai');
-var expect = chai.expect;
-chai.use(chaiExec);
-const helpers = require('./tests/chai-http');
-
-describe("Tests all possible communication from gloo ingress", () => {
-  ["/in-ambient", "/in-mesh","/global-in-ambient", "/global-in-mesh","/remote-in-ambient", "/remote-in-mesh"].forEach(async (path) => {
-    
-    it(`${path} is available`, () => helpers.checkURL({ host: `http://${process.env.GLOO_INGRESS}`, headers: [{key: 'Host', value: 'httpbin.gloo'}], path: `${path}/get`, retCode: 200 }));
-    
-  });
-});
-
-const fs = require('fs');
-const path = require('path');
-
-const counterFilePath = path.join(__dirname, '.test-counter');
-
-// Setup before all tests
-before(function() {
-  // Initialize counter file if it doesn't exist
-  if (!fs.existsSync(counterFilePath)) {
-    fs.writeFileSync(counterFilePath, '0');
-  }
-});
-
-// Before each test
-beforeEach(function() {
-  // Read current counter value
-  let counter = parseInt(fs.readFileSync(counterFilePath, 'utf8'));
-  
-  // Increment counter
-  counter++;
-  
-  // Save incremented value
-  fs.writeFileSync(counterFilePath, counter.toString());
-  
-  // Set environment variable
-  process.env.TEST_COUNTER = counter.toString();
-  
-  console.log(`Running test #${process.env.TEST_COUNTER}`);
-});
-EOF
-echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/multicluster-routing/tests/check-ingress.js.liquid from lab number 21"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 21"; exit 1; }
--->
 
 
 
@@ -6856,84 +6907,7 @@ Check that the response headers include `X-Istio-Workload: $LOCAL_ISTIO_WAYPOINT
 
 
 
-<!--bash
-cat <<'EOF' > ./test.js
-const chaiExec = require("@jsdevtools/chai-exec");
-var chai = require('chai');
-var expect = chai.expect;
-chai.use(chaiExec);
-const helpers = require('./tests/chai-exec');
-
-async function status_test(source, target) {
-  const command = await helpers.curlInDeployment({
-    context: `${process.env.CLUSTER1}`,
-    namespace: 'httpbin',
-    deploymentName: source,
-    curlCommand: `curl -s -o /dev/null -w "%{http_code}" ${target}:8000/get`
-  });
-  output = JSON.parse(command);
-  expect(output).to.equal(200);
-}
-
-async function header_test(source, target) {
-  const command = await helpers.curlInDeployment({
-    context: `${process.env.CLUSTER1}`,
-    namespace: 'httpbin',
-    deploymentName: source,
-    curlCommand: `curl -s ${target}:8000/get`
-  });
-  output = JSON.parse(command);
-  expect(output.headers["X-Istio-Workload"]).to.equal(process.env.LOCAL_ISTIO_WAYPOINT);
-}
-
-describe("Tests all possible eastwest communication through waypoint", () => {
-  ["client-in-mesh", "client-in-ambient"].forEach(async (source) => {
-    ["in-mesh.httpbin.svc.cluster.local", "in-ambient.httpbin.svc.cluster.local","in-mesh.httpbin.mesh.internal", "in-ambient.httpbin.mesh.internal",].forEach(async (target) => {
-      it(`${source} => ${target}`, async () => {
-        
-        await header_test(source, target);
-        
-      });
-    });
-  });
-});
-
-const fs = require('fs');
-const path = require('path');
-
-const counterFilePath = path.join(__dirname, '.test-counter');
-
-// Setup before all tests
-before(function() {
-  // Initialize counter file if it doesn't exist
-  if (!fs.existsSync(counterFilePath)) {
-    fs.writeFileSync(counterFilePath, '0');
-  }
-});
-
-// Before each test
-beforeEach(function() {
-  // Read current counter value
-  let counter = parseInt(fs.readFileSync(counterFilePath, 'utf8'));
-  
-  // Increment counter
-  counter++;
-  
-  // Save incremented value
-  fs.writeFileSync(counterFilePath, counter.toString());
-  
-  // Set environment variable
-  process.env.TEST_COUNTER = counter.toString();
-  
-  console.log(`Running test #${process.env.TEST_COUNTER}`);
-});
-EOF
-echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/multicluster-routing/tests/check-all.js.liquid from lab number 21"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 21"; exit 1; }
--->
-
-
-#### Testing Ingress Connectivity
+#### Testing Ingress Connectivity (istio ISTIO_INGRESS)
 
 
 1. Test connectivity to in-mesh service via ingress:
@@ -6976,63 +6950,12 @@ Check that the response body contains `${process.env.LOCAL_ISTIO_WAYPOINT}`
 
 
 
-<!--bash
-cat <<'EOF' > ./test.js
-const chaiExec = require("@jsdevtools/chai-exec");
-var chai = require('chai');
-var expect = chai.expect;
-chai.use(chaiExec);
-const helpers = require('./tests/chai-http');
-
-describe("Tests all possible communication from istio ingress through waypoint", () => {
-  ["/in-ambient", "/in-mesh","/global-in-ambient", "/global-in-mesh",].forEach(async (path) => {
-    
-    it(`${path} is going through the right waypoint`, () => helpers.checkBody({ host: `http://${process.env.ISTIO_INGRESS}`, headers: [{key: 'Host', value: 'httpbin.istio'}], path: `${path}/get`, body: process.env.LOCAL_ISTIO_WAYPOINT }));
-    
-  });
-});
-
-const fs = require('fs');
-const path = require('path');
-
-const counterFilePath = path.join(__dirname, '.test-counter');
-
-// Setup before all tests
-before(function() {
-  // Initialize counter file if it doesn't exist
-  if (!fs.existsSync(counterFilePath)) {
-    fs.writeFileSync(counterFilePath, '0');
-  }
-});
-
-// Before each test
-beforeEach(function() {
-  // Read current counter value
-  let counter = parseInt(fs.readFileSync(counterFilePath, 'utf8'));
-  
-  // Increment counter
-  counter++;
-  
-  // Save incremented value
-  fs.writeFileSync(counterFilePath, counter.toString());
-  
-  // Set environment variable
-  process.env.TEST_COUNTER = counter.toString();
-  
-  console.log(`Running test #${process.env.TEST_COUNTER}`);
-});
-EOF
-echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/multicluster-routing/tests/check-ingress.js.liquid from lab number 21"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 21"; exit 1; }
--->
-
-
-#### Testing Ingress Connectivity
+#### Testing Ingress Connectivity (gloo-gateway SOLO_INGRESS)
 
 
 1. Test connectivity to in-mesh service via ingress:
 ```
-curl -s  -H "Host: httpbin.gloo" http://${GLOO_INGRESS}/in-mesh/get
+curl -s  -H "Host: httpbin.gloo-gateway" http://${SOLO_INGRESS}/in-mesh/get
 ```
 
 Check that the response body contains `${process.env.LOCAL_ISTIO_WAYPOINT}`
@@ -7041,7 +6964,7 @@ Check that the response body contains `${process.env.LOCAL_ISTIO_WAYPOINT}`
 
 2. Test connectivity to in-ambient service via ingress:
 ```
-curl -s  -H "Host: httpbin.gloo" http://${GLOO_INGRESS}/in-ambient/get
+curl -s  -H "Host: httpbin.gloo-gateway" http://${SOLO_INGRESS}/in-ambient/get
 ```
 
 Check that the response body contains `${process.env.LOCAL_ISTIO_WAYPOINT}`
@@ -7052,7 +6975,7 @@ Check that the response body contains `${process.env.LOCAL_ISTIO_WAYPOINT}`
 
 3. Test connectivity to global in-mesh service via ingress:
 ```
-curl -s  -H "Host: httpbin.gloo" http://${GLOO_INGRESS}/global-in-mesh/get
+curl -s  -H "Host: httpbin.gloo-gateway" http://${SOLO_INGRESS}/global-in-mesh/get
 ```
 
 Check that the response body contains `${process.env.LOCAL_ISTIO_WAYPOINT}`
@@ -7061,7 +6984,7 @@ Check that the response body contains `${process.env.LOCAL_ISTIO_WAYPOINT}`
 
 4. Test connectivity to global in-ambient service via ingress:
 ```
-curl -s  -H "Host: httpbin.gloo" http://${GLOO_INGRESS}/global-in-ambient/get
+curl -s  -H "Host: httpbin.gloo-gateway" http://${SOLO_INGRESS}/global-in-ambient/get
 ```
 
 Check that the response body contains `${process.env.LOCAL_ISTIO_WAYPOINT}`
@@ -7076,12 +6999,164 @@ const chaiExec = require("@jsdevtools/chai-exec");
 var chai = require('chai');
 var expect = chai.expect;
 chai.use(chaiExec);
+const helpers = require('./tests/chai-exec');
+
+async function status_test(source, target) {
+  const command = await helpers.curlInDeployment({
+    context: `${process.env.CLUSTER1}`,
+    namespace: 'httpbin',
+    deploymentName: source,
+    curlCommand: `curl -s -o /dev/null -w "%{http_code}" ${target}:8000/get`
+  });
+  output = JSON.parse(command);
+  expect(output).to.equal(200);
+}
+
+async function header_test(source, target) {
+  const command = await helpers.curlInDeployment({
+    context: `${process.env.CLUSTER1}`,
+    namespace: 'httpbin',
+    deploymentName: source,
+    curlCommand: `curl -s ${target}:8000/get`
+  });
+  output = JSON.parse(command);
+  expect(output.headers["X-Istio-Workload"]).to.equal(process.env.LOCAL_ISTIO_WAYPOINT);
+}
+
+describe("Tests all possible eastwest communication (Local Waypoint=Istio, Remote Waypoint=None, Failover=false, Authorization Policy=false)", () => {
+  ["client-in-mesh", "client-in-ambient"].forEach(async (source) => {
+    ["in-mesh.httpbin.svc.cluster.local", "in-ambient.httpbin.svc.cluster.local","in-mesh.httpbin.mesh.internal", "in-ambient.httpbin.mesh.internal",].forEach(async (target) => {
+      
+      it(`${source} => LOCAL_ISTIO_WAYPOINT => ${target}`, async () => {
+        await header_test(source, target);
+        await status_test(source, target);
+      });
+      
+    });
+  });
+});
+
+const fs = require('fs');
+const path = require('path');
+
+const counterFilePath = path.join(__dirname, '.test-counter');
+
+// Setup before all tests
+before(function() {
+  // Initialize counter file if it doesn't exist
+  if (!fs.existsSync(counterFilePath)) {
+    fs.writeFileSync(counterFilePath, '0');
+  }
+});
+
+// Before each test
+beforeEach(function() {
+  // Read current counter value
+  let counter = parseInt(fs.readFileSync(counterFilePath, 'utf8'));
+  
+  // Increment counter
+  counter++;
+  
+  // Save incremented value
+  fs.writeFileSync(counterFilePath, counter.toString());
+  
+  // Set environment variable
+  process.env.TEST_COUNTER = counter.toString();
+  
+  console.log(`Running test #${process.env.TEST_COUNTER}`);
+});
+EOF
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/multicluster-routing/tests/check-all.js.liquid from lab number 22"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 22"; exit 1; }
+-->
+<!--bash
+cat <<'EOF' > ./test.js
+const chaiExec = require("@jsdevtools/chai-exec");
+var chai = require('chai');
+var expect = chai.expect;
+chai.use(chaiExec);
+const helpers = require('./tests/chai-exec');
+
+async function status_test(source, target) {
+  const command = await helpers.curlInDeployment({
+    context: `${process.env.CLUSTER1}`,
+    namespace: 'httpbin',
+    deploymentName: source,
+    curlCommand: `curl -s -o /dev/null -w "%{http_code}" ${target}:8000/get`
+  });
+  output = JSON.parse(command);
+  expect(output).to.equal(200);
+}
+
+async function header_test(source, target) {
+  const command = await helpers.curlInDeployment({
+    context: `${process.env.CLUSTER1}`,
+    namespace: 'httpbin',
+    deploymentName: source,
+    curlCommand: `curl -s ${target}:8000/get`
+  });
+  output = JSON.parse(command);
+  expect(output.headers["X-Istio-Workload"]).to.equal(process.env.LOCAL_ISTIO_WAYPOINT);
+}
+
+describe("Tests all possible eastwest communication (Local Waypoint=Istio, Remote Waypoint=None, Failover=false, Authorization Policy=false)", () => {
+  ["client-in-mesh", "client-in-ambient"].forEach(async (source) => {
+    ["remote-in-mesh.httpbin.mesh.internal", "remote-in-ambient.httpbin.mesh.internal"].forEach(async (target) => {
+      
+      it(`${source} => ${target}`, async () => {
+        await status_test(source, target);
+      });
+      
+    });
+  });
+});
+
+const fs = require('fs');
+const path = require('path');
+
+const counterFilePath = path.join(__dirname, '.test-counter');
+
+// Setup before all tests
+before(function() {
+  // Initialize counter file if it doesn't exist
+  if (!fs.existsSync(counterFilePath)) {
+    fs.writeFileSync(counterFilePath, '0');
+  }
+});
+
+// Before each test
+beforeEach(function() {
+  // Read current counter value
+  let counter = parseInt(fs.readFileSync(counterFilePath, 'utf8'));
+  
+  // Increment counter
+  counter++;
+  
+  // Save incremented value
+  fs.writeFileSync(counterFilePath, counter.toString());
+  
+  // Set environment variable
+  process.env.TEST_COUNTER = counter.toString();
+  
+  console.log(`Running test #${process.env.TEST_COUNTER}`);
+});
+EOF
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/multicluster-routing/tests/check-all.js.liquid from lab number 22"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 22"; exit 1; }
+-->
+<!--bash
+cat <<'EOF' > ./test.js
+const chaiExec = require("@jsdevtools/chai-exec");
+var chai = require('chai');
+var expect = chai.expect;
+chai.use(chaiExec);
 const helpers = require('./tests/chai-http');
 
-describe("Tests all possible communication from gloo ingress through waypoint", () => {
+describe("Tests all possible communication from istio ingress (Local Waypoint=Istio, Remote Waypoint=None, Failover=false, Authorization Policy=false)", () => {
   ["/in-ambient", "/in-mesh","/global-in-ambient", "/global-in-mesh",].forEach(async (path) => {
+    it(`Ingress => ${path}`, () => helpers.checkURL({ host: `http://${process.env.ISTIO_INGRESS}`, headers: [{key: 'Host', value: 'httpbin.istio'}], path: `${path}/get`, retCode: 200 }));
     
-    it(`${path} is going through the right waypoint`, () => helpers.checkBody({ host: `http://${process.env.GLOO_INGRESS}`, headers: [{key: 'Host', value: 'httpbin.gloo'}], path: `${path}/get`, body: process.env.LOCAL_ISTIO_WAYPOINT }));
+    it(`Ingress => LOCAL_ISTIO_WAYPOINT => ${path}`, () => helpers.checkBody({ host: `http://${process.env.ISTIO_INGRESS}`, headers: [{key: 'Host', value: 'httpbin.istio'}], path: `${path}/get`, body: process.env.LOCAL_ISTIO_WAYPOINT }));
     
   });
 });
@@ -7116,11 +7191,158 @@ beforeEach(function() {
   console.log(`Running test #${process.env.TEST_COUNTER}`);
 });
 EOF
-echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/multicluster-routing/tests/check-ingress.js.liquid from lab number 21"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 21"; exit 1; }
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/multicluster-routing/tests/check-ingress.js.liquid from lab number 22"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 22"; exit 1; }
+-->
+<!--bash
+cat <<'EOF' > ./test.js
+const chaiExec = require("@jsdevtools/chai-exec");
+var chai = require('chai');
+var expect = chai.expect;
+chai.use(chaiExec);
+const helpers = require('./tests/chai-http');
+
+describe("Tests all possible communication from istio ingress (Local Waypoint=Istio, Remote Waypoint=None, Failover=false, Authorization Policy=false)", () => {
+  ["/remote-in-ambient", "/remote-in-mesh"].forEach(async (path) => {
+    it(`Ingress => ${path}`, () => helpers.checkURL({ host: `http://${process.env.ISTIO_INGRESS}`, headers: [{key: 'Host', value: 'httpbin.istio'}], path: `${path}/get`, retCode: 200 }));
+    
+  });
+});
+
+const fs = require('fs');
+const path = require('path');
+
+const counterFilePath = path.join(__dirname, '.test-counter');
+
+// Setup before all tests
+before(function() {
+  // Initialize counter file if it doesn't exist
+  if (!fs.existsSync(counterFilePath)) {
+    fs.writeFileSync(counterFilePath, '0');
+  }
+});
+
+// Before each test
+beforeEach(function() {
+  // Read current counter value
+  let counter = parseInt(fs.readFileSync(counterFilePath, 'utf8'));
+  
+  // Increment counter
+  counter++;
+  
+  // Save incremented value
+  fs.writeFileSync(counterFilePath, counter.toString());
+  
+  // Set environment variable
+  process.env.TEST_COUNTER = counter.toString();
+  
+  console.log(`Running test #${process.env.TEST_COUNTER}`);
+});
+EOF
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/multicluster-routing/tests/check-ingress.js.liquid from lab number 22"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 22"; exit 1; }
+-->
+<!--bash
+cat <<'EOF' > ./test.js
+const chaiExec = require("@jsdevtools/chai-exec");
+var chai = require('chai');
+var expect = chai.expect;
+chai.use(chaiExec);
+const helpers = require('./tests/chai-http');
+
+describe("Tests all possible communication from gloo-gateway ingress (Local Waypoint=Istio, Remote Waypoint=None, Failover=false, Authorization Policy=false)", () => {
+  ["/in-ambient", "/in-mesh","/global-in-ambient", "/global-in-mesh",].forEach(async (path) => {
+    it(`Ingress => ${path}`, () => helpers.checkURL({ host: `http://${process.env.SOLO_INGRESS}`, headers: [{key: 'Host', value: 'httpbin.gloo-gateway'}], path: `${path}/get`, retCode: 200 }));
+    
+    it(`Ingress => LOCAL_ISTIO_WAYPOINT => ${path}`, () => helpers.checkBody({ host: `http://${process.env.SOLO_INGRESS}`, headers: [{key: 'Host', value: 'httpbin.gloo-gateway'}], path: `${path}/get`, body: process.env.LOCAL_ISTIO_WAYPOINT }));
+    
+  });
+});
+
+const fs = require('fs');
+const path = require('path');
+
+const counterFilePath = path.join(__dirname, '.test-counter');
+
+// Setup before all tests
+before(function() {
+  // Initialize counter file if it doesn't exist
+  if (!fs.existsSync(counterFilePath)) {
+    fs.writeFileSync(counterFilePath, '0');
+  }
+});
+
+// Before each test
+beforeEach(function() {
+  // Read current counter value
+  let counter = parseInt(fs.readFileSync(counterFilePath, 'utf8'));
+  
+  // Increment counter
+  counter++;
+  
+  // Save incremented value
+  fs.writeFileSync(counterFilePath, counter.toString());
+  
+  // Set environment variable
+  process.env.TEST_COUNTER = counter.toString();
+  
+  console.log(`Running test #${process.env.TEST_COUNTER}`);
+});
+EOF
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/multicluster-routing/tests/check-ingress.js.liquid from lab number 22"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 22"; exit 1; }
+-->
+<!--bash
+cat <<'EOF' > ./test.js
+const chaiExec = require("@jsdevtools/chai-exec");
+var chai = require('chai');
+var expect = chai.expect;
+chai.use(chaiExec);
+const helpers = require('./tests/chai-http');
+
+describe("Tests all possible communication from gloo-gateway ingress (Local Waypoint=Istio, Remote Waypoint=None, Failover=false, Authorization Policy=false)", () => {
+  ["/remote-in-ambient", "/remote-in-mesh"].forEach(async (path) => {
+    it(`Ingress => ${path}`, () => helpers.checkURL({ host: `http://${process.env.SOLO_INGRESS}`, headers: [{key: 'Host', value: 'httpbin.gloo-gateway'}], path: `${path}/get`, retCode: 200 }));
+    
+  });
+});
+
+const fs = require('fs');
+const path = require('path');
+
+const counterFilePath = path.join(__dirname, '.test-counter');
+
+// Setup before all tests
+before(function() {
+  // Initialize counter file if it doesn't exist
+  if (!fs.existsSync(counterFilePath)) {
+    fs.writeFileSync(counterFilePath, '0');
+  }
+});
+
+// Before each test
+beforeEach(function() {
+  // Read current counter value
+  let counter = parseInt(fs.readFileSync(counterFilePath, 'utf8'));
+  
+  // Increment counter
+  counter++;
+  
+  // Save incremented value
+  fs.writeFileSync(counterFilePath, counter.toString());
+  
+  // Set environment variable
+  process.env.TEST_COUNTER = counter.toString();
+  
+  console.log(`Running test #${process.env.TEST_COUNTER}`);
+});
+EOF
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/multicluster-routing/tests/check-ingress.js.liquid from lab number 22"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 22"; exit 1; }
 -->
 
 ### Scenario 2b: Local Istio waypoints with failover
+
 
 <!--bash
 echo "Scenario 2b: Local Istio waypoints with failover"
@@ -7189,84 +7411,7 @@ Expected output: `200`
 
 
 
-<!--bash
-cat <<'EOF' > ./test.js
-const chaiExec = require("@jsdevtools/chai-exec");
-var chai = require('chai');
-var expect = chai.expect;
-chai.use(chaiExec);
-const helpers = require('./tests/chai-exec');
-
-async function status_test(source, target) {
-  const command = await helpers.curlInDeployment({
-    context: `${process.env.CLUSTER1}`,
-    namespace: 'httpbin',
-    deploymentName: source,
-    curlCommand: `curl -s -o /dev/null -w "%{http_code}" ${target}:8000/get`
-  });
-  output = JSON.parse(command);
-  expect(output).to.equal(200);
-}
-
-async function header_test(source, target) {
-  const command = await helpers.curlInDeployment({
-    context: `${process.env.CLUSTER1}`,
-    namespace: 'httpbin',
-    deploymentName: source,
-    curlCommand: `curl -s ${target}:8000/get`
-  });
-  output = JSON.parse(command);
-  expect(output.headers["X-Istio-Workload"]).to.equal(process.env.LOCAL_ISTIO_WAYPOINT);
-}
-
-describe("Tests all possible eastwest communication", () => {
-  ["client-in-mesh", "client-in-ambient"].forEach(async (source) => {
-    ["in-mesh.httpbin.mesh.internal", "in-ambient.httpbin.mesh.internal",].forEach(async (target) => {
-      it(`${source} => ${target}`, async () => {
-        
-        await status_test(source, target);
-        
-      });
-    });
-  });
-});
-
-const fs = require('fs');
-const path = require('path');
-
-const counterFilePath = path.join(__dirname, '.test-counter');
-
-// Setup before all tests
-before(function() {
-  // Initialize counter file if it doesn't exist
-  if (!fs.existsSync(counterFilePath)) {
-    fs.writeFileSync(counterFilePath, '0');
-  }
-});
-
-// Before each test
-beforeEach(function() {
-  // Read current counter value
-  let counter = parseInt(fs.readFileSync(counterFilePath, 'utf8'));
-  
-  // Increment counter
-  counter++;
-  
-  // Save incremented value
-  fs.writeFileSync(counterFilePath, counter.toString());
-  
-  // Set environment variable
-  process.env.TEST_COUNTER = counter.toString();
-  
-  console.log(`Running test #${process.env.TEST_COUNTER}`);
-});
-EOF
-echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/multicluster-routing/tests/check-all.js.liquid from lab number 21"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 21"; exit 1; }
--->
-
-
-#### Testing Ingress Connectivity
+#### Testing Ingress Connectivity (istio ISTIO_INGRESS)
 
 
 
@@ -7291,65 +7436,14 @@ Expected output: `200`
 
 
 
-<!--bash
-cat <<'EOF' > ./test.js
-const chaiExec = require("@jsdevtools/chai-exec");
-var chai = require('chai');
-var expect = chai.expect;
-chai.use(chaiExec);
-const helpers = require('./tests/chai-http');
-
-describe("Tests all possible communication from istio ingress", () => {
-  [].forEach(async (path) => {
-    
-    it(`${path} is available`, () => helpers.checkURL({ host: `http://${process.env.ISTIO_INGRESS}`, headers: [{key: 'Host', value: 'httpbin.istio'}], path: `${path}/get`, retCode: 200 }));
-    
-  });
-});
-
-const fs = require('fs');
-const path = require('path');
-
-const counterFilePath = path.join(__dirname, '.test-counter');
-
-// Setup before all tests
-before(function() {
-  // Initialize counter file if it doesn't exist
-  if (!fs.existsSync(counterFilePath)) {
-    fs.writeFileSync(counterFilePath, '0');
-  }
-});
-
-// Before each test
-beforeEach(function() {
-  // Read current counter value
-  let counter = parseInt(fs.readFileSync(counterFilePath, 'utf8'));
-  
-  // Increment counter
-  counter++;
-  
-  // Save incremented value
-  fs.writeFileSync(counterFilePath, counter.toString());
-  
-  // Set environment variable
-  process.env.TEST_COUNTER = counter.toString();
-  
-  console.log(`Running test #${process.env.TEST_COUNTER}`);
-});
-EOF
-echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/multicluster-routing/tests/check-ingress.js.liquid from lab number 21"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 21"; exit 1; }
--->
-
-
-#### Testing Ingress Connectivity
+#### Testing Ingress Connectivity (gloo-gateway SOLO_INGRESS)
 
 
 
 
 1. Test connectivity to global in-mesh service via ingress:
 ```
-curl -s -o /dev/null -w "%{http_code}" -H "Host: httpbin.gloo" http://${GLOO_INGRESS}/global-in-mesh/get
+curl -s -o /dev/null -w "%{http_code}" -H "Host: httpbin.gloo-gateway" http://${SOLO_INGRESS}/global-in-mesh/get
 ```
 
 Expected output: `200`
@@ -7358,64 +7452,13 @@ Expected output: `200`
 
 2. Test connectivity to global in-ambient service via ingress:
 ```
-curl -s -o /dev/null -w "%{http_code}" -H "Host: httpbin.gloo" http://${GLOO_INGRESS}/global-in-ambient/get
+curl -s -o /dev/null -w "%{http_code}" -H "Host: httpbin.gloo-gateway" http://${SOLO_INGRESS}/global-in-ambient/get
 ```
 
 Expected output: `200`
 
 
 
-
-
-<!--bash
-cat <<'EOF' > ./test.js
-const chaiExec = require("@jsdevtools/chai-exec");
-var chai = require('chai');
-var expect = chai.expect;
-chai.use(chaiExec);
-const helpers = require('./tests/chai-http');
-
-describe("Tests all possible communication from gloo ingress", () => {
-  [].forEach(async (path) => {
-    
-    it(`${path} is available`, () => helpers.checkURL({ host: `http://${process.env.GLOO_INGRESS}`, headers: [{key: 'Host', value: 'httpbin.gloo'}], path: `${path}/get`, retCode: 200 }));
-    
-  });
-});
-
-const fs = require('fs');
-const path = require('path');
-
-const counterFilePath = path.join(__dirname, '.test-counter');
-
-// Setup before all tests
-before(function() {
-  // Initialize counter file if it doesn't exist
-  if (!fs.existsSync(counterFilePath)) {
-    fs.writeFileSync(counterFilePath, '0');
-  }
-});
-
-// Before each test
-beforeEach(function() {
-  // Read current counter value
-  let counter = parseInt(fs.readFileSync(counterFilePath, 'utf8'));
-  
-  // Increment counter
-  counter++;
-  
-  // Save incremented value
-  fs.writeFileSync(counterFilePath, counter.toString());
-  
-  // Set environment variable
-  process.env.TEST_COUNTER = counter.toString();
-  
-  console.log(`Running test #${process.env.TEST_COUNTER}`);
-});
-EOF
-echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/multicluster-routing/tests/check-ingress.js.liquid from lab number 21"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 21"; exit 1; }
--->
 
 
 
@@ -7466,6 +7509,31 @@ kubectl --context ${CLUSTER1} exec -n httpbin $(kubectl --context ${CLUSTER1} ge
 ```
 
 Check that the response headers include `X-Istio-Workload: $LOCAL_ISTIO_WAYPOINT`
+
+
+
+
+
+#### Testing Ingress Connectivity (istio ISTIO_INGRESS)
+
+
+
+
+1. Test connectivity to global in-mesh service via ingress:
+```
+curl -s  -H "Host: httpbin.istio" http://${ISTIO_INGRESS}/global-in-mesh/get
+```
+
+Check that the response body contains `${process.env.LOCAL_ISTIO_WAYPOINT}`
+
+
+
+2. Test connectivity to global in-ambient service via ingress:
+```
+curl -s  -H "Host: httpbin.istio" http://${ISTIO_INGRESS}/global-in-ambient/get
+```
+
+Check that the response body contains `${process.env.LOCAL_ISTIO_WAYPOINT}`
 
 
 
@@ -7501,14 +7569,15 @@ async function header_test(source, target) {
   expect(output.headers["X-Istio-Workload"]).to.equal(process.env.LOCAL_ISTIO_WAYPOINT);
 }
 
-describe("Tests all possible eastwest communication through waypoint", () => {
+describe("Tests all possible eastwest communication (Local Waypoint=Istio, Remote Waypoint=None, Failover=true, Authorization Policy=false)", () => {
   ["client-in-mesh", "client-in-ambient"].forEach(async (source) => {
     ["in-mesh.httpbin.mesh.internal", "in-ambient.httpbin.mesh.internal",].forEach(async (target) => {
-      it(`${source} => ${target}`, async () => {
-        
+      
+      it(`${source} => LOCAL_ISTIO_WAYPOINT => ${target}`, async () => {
         await header_test(source, target);
-        
+        await status_test(source, target);
       });
+      
     });
   });
 });
@@ -7543,36 +7612,84 @@ beforeEach(function() {
   console.log(`Running test #${process.env.TEST_COUNTER}`);
 });
 EOF
-echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/multicluster-routing/tests/check-all.js.liquid from lab number 21"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 21"; exit 1; }
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/multicluster-routing/tests/check-all.js.liquid from lab number 22"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 22"; exit 1; }
 -->
+<!--bash
+cat <<'EOF' > ./test.js
+const chaiExec = require("@jsdevtools/chai-exec");
+var chai = require('chai');
+var expect = chai.expect;
+chai.use(chaiExec);
+const helpers = require('./tests/chai-exec');
 
+async function status_test(source, target) {
+  const command = await helpers.curlInDeployment({
+    context: `${process.env.CLUSTER1}`,
+    namespace: 'httpbin',
+    deploymentName: source,
+    curlCommand: `curl -s -o /dev/null -w "%{http_code}" ${target}:8000/get`
+  });
+  output = JSON.parse(command);
+  expect(output).to.equal(200);
+}
 
-#### Testing Ingress Connectivity
+async function header_test(source, target) {
+  const command = await helpers.curlInDeployment({
+    context: `${process.env.CLUSTER1}`,
+    namespace: 'httpbin',
+    deploymentName: source,
+    curlCommand: `curl -s ${target}:8000/get`
+  });
+  output = JSON.parse(command);
+  expect(output.headers["X-Istio-Workload"]).to.equal(process.env.LOCAL_ISTIO_WAYPOINT);
+}
 
+describe("Tests all possible eastwest communication (Local Waypoint=Istio, Remote Waypoint=None, Failover=true, Authorization Policy=false)", () => {
+  ["client-in-mesh", "client-in-ambient"].forEach(async (source) => {
+    ["remote-in-mesh.httpbin.mesh.internal", "remote-in-ambient.httpbin.mesh.internal"].forEach(async (target) => {
+      
+      it(`${source} => ${target}`, async () => {
+        await status_test(source, target);
+      });
+      
+    });
+  });
+});
 
+const fs = require('fs');
+const path = require('path');
 
+const counterFilePath = path.join(__dirname, '.test-counter');
 
-1. Test connectivity to global in-mesh service via ingress:
-```
-curl -s  -H "Host: httpbin.istio" http://${ISTIO_INGRESS}/global-in-mesh/get
-```
+// Setup before all tests
+before(function() {
+  // Initialize counter file if it doesn't exist
+  if (!fs.existsSync(counterFilePath)) {
+    fs.writeFileSync(counterFilePath, '0');
+  }
+});
 
-Check that the response body contains `${process.env.LOCAL_ISTIO_WAYPOINT}`
-
-
-
-2. Test connectivity to global in-ambient service via ingress:
-```
-curl -s  -H "Host: httpbin.istio" http://${ISTIO_INGRESS}/global-in-ambient/get
-```
-
-Check that the response body contains `${process.env.LOCAL_ISTIO_WAYPOINT}`
-
-
-
-
-
+// Before each test
+beforeEach(function() {
+  // Read current counter value
+  let counter = parseInt(fs.readFileSync(counterFilePath, 'utf8'));
+  
+  // Increment counter
+  counter++;
+  
+  // Save incremented value
+  fs.writeFileSync(counterFilePath, counter.toString());
+  
+  // Set environment variable
+  process.env.TEST_COUNTER = counter.toString();
+  
+  console.log(`Running test #${process.env.TEST_COUNTER}`);
+});
+EOF
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/multicluster-routing/tests/check-all.js.liquid from lab number 22"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 22"; exit 1; }
+-->
 <!--bash
 cat <<'EOF' > ./test.js
 const chaiExec = require("@jsdevtools/chai-exec");
@@ -7581,10 +7698,11 @@ var expect = chai.expect;
 chai.use(chaiExec);
 const helpers = require('./tests/chai-http');
 
-describe("Tests all possible communication from istio ingress through waypoint", () => {
+describe("Tests all possible communication from istio ingress (Local Waypoint=Istio, Remote Waypoint=None, Failover=true, Authorization Policy=false)", () => {
   [].forEach(async (path) => {
+    it(`Ingress => ${path}`, () => helpers.checkURL({ host: `http://${process.env.ISTIO_INGRESS}`, headers: [{key: 'Host', value: 'httpbin.istio'}], path: `${path}/get`, retCode: 200 }));
     
-    it(`${path} is going through the right waypoint`, () => helpers.checkBody({ host: `http://${process.env.ISTIO_INGRESS}`, headers: [{key: 'Host', value: 'httpbin.istio'}], path: `${path}/get`, body: process.env.LOCAL_ISTIO_WAYPOINT }));
+    it(`Ingress => LOCAL_ISTIO_WAYPOINT => ${path}`, () => helpers.checkBody({ host: `http://${process.env.ISTIO_INGRESS}`, headers: [{key: 'Host', value: 'httpbin.istio'}], path: `${path}/get`, body: process.env.LOCAL_ISTIO_WAYPOINT }));
     
   });
 });
@@ -7619,8 +7737,154 @@ beforeEach(function() {
   console.log(`Running test #${process.env.TEST_COUNTER}`);
 });
 EOF
-echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/multicluster-routing/tests/check-ingress.js.liquid from lab number 21"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 21"; exit 1; }
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/multicluster-routing/tests/check-ingress.js.liquid from lab number 22"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 22"; exit 1; }
+-->
+<!--bash
+cat <<'EOF' > ./test.js
+const chaiExec = require("@jsdevtools/chai-exec");
+var chai = require('chai');
+var expect = chai.expect;
+chai.use(chaiExec);
+const helpers = require('./tests/chai-http');
+
+describe("Tests all possible communication from istio ingress (Local Waypoint=Istio, Remote Waypoint=None, Failover=true, Authorization Policy=false)", () => {
+  ["/remote-in-ambient", "/remote-in-mesh"].forEach(async (path) => {
+    it(`Ingress => ${path}`, () => helpers.checkURL({ host: `http://${process.env.ISTIO_INGRESS}`, headers: [{key: 'Host', value: 'httpbin.istio'}], path: `${path}/get`, retCode: 200 }));
+    
+  });
+});
+
+const fs = require('fs');
+const path = require('path');
+
+const counterFilePath = path.join(__dirname, '.test-counter');
+
+// Setup before all tests
+before(function() {
+  // Initialize counter file if it doesn't exist
+  if (!fs.existsSync(counterFilePath)) {
+    fs.writeFileSync(counterFilePath, '0');
+  }
+});
+
+// Before each test
+beforeEach(function() {
+  // Read current counter value
+  let counter = parseInt(fs.readFileSync(counterFilePath, 'utf8'));
+  
+  // Increment counter
+  counter++;
+  
+  // Save incremented value
+  fs.writeFileSync(counterFilePath, counter.toString());
+  
+  // Set environment variable
+  process.env.TEST_COUNTER = counter.toString();
+  
+  console.log(`Running test #${process.env.TEST_COUNTER}`);
+});
+EOF
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/multicluster-routing/tests/check-ingress.js.liquid from lab number 22"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 22"; exit 1; }
+-->
+<!--bash
+cat <<'EOF' > ./test.js
+const chaiExec = require("@jsdevtools/chai-exec");
+var chai = require('chai');
+var expect = chai.expect;
+chai.use(chaiExec);
+const helpers = require('./tests/chai-http');
+
+describe("Tests all possible communication from gloo-gateway ingress (Local Waypoint=Istio, Remote Waypoint=None, Failover=true, Authorization Policy=false)", () => {
+  [].forEach(async (path) => {
+    it(`Ingress => ${path}`, () => helpers.checkURL({ host: `http://${process.env.SOLO_INGRESS}`, headers: [{key: 'Host', value: 'httpbin.gloo-gateway'}], path: `${path}/get`, retCode: 200 }));
+    
+    it(`Ingress => LOCAL_ISTIO_WAYPOINT => ${path}`, () => helpers.checkBody({ host: `http://${process.env.SOLO_INGRESS}`, headers: [{key: 'Host', value: 'httpbin.gloo-gateway'}], path: `${path}/get`, body: process.env.LOCAL_ISTIO_WAYPOINT }));
+    
+  });
+});
+
+const fs = require('fs');
+const path = require('path');
+
+const counterFilePath = path.join(__dirname, '.test-counter');
+
+// Setup before all tests
+before(function() {
+  // Initialize counter file if it doesn't exist
+  if (!fs.existsSync(counterFilePath)) {
+    fs.writeFileSync(counterFilePath, '0');
+  }
+});
+
+// Before each test
+beforeEach(function() {
+  // Read current counter value
+  let counter = parseInt(fs.readFileSync(counterFilePath, 'utf8'));
+  
+  // Increment counter
+  counter++;
+  
+  // Save incremented value
+  fs.writeFileSync(counterFilePath, counter.toString());
+  
+  // Set environment variable
+  process.env.TEST_COUNTER = counter.toString();
+  
+  console.log(`Running test #${process.env.TEST_COUNTER}`);
+});
+EOF
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/multicluster-routing/tests/check-ingress.js.liquid from lab number 22"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 22"; exit 1; }
+-->
+<!--bash
+cat <<'EOF' > ./test.js
+const chaiExec = require("@jsdevtools/chai-exec");
+var chai = require('chai');
+var expect = chai.expect;
+chai.use(chaiExec);
+const helpers = require('./tests/chai-http');
+
+describe("Tests all possible communication from gloo-gateway ingress (Local Waypoint=Istio, Remote Waypoint=None, Failover=true, Authorization Policy=false)", () => {
+  ["/remote-in-ambient", "/remote-in-mesh"].forEach(async (path) => {
+    it(`Ingress => ${path}`, () => helpers.checkURL({ host: `http://${process.env.SOLO_INGRESS}`, headers: [{key: 'Host', value: 'httpbin.gloo-gateway'}], path: `${path}/get`, retCode: 200 }));
+    
+  });
+});
+
+const fs = require('fs');
+const path = require('path');
+
+const counterFilePath = path.join(__dirname, '.test-counter');
+
+// Setup before all tests
+before(function() {
+  // Initialize counter file if it doesn't exist
+  if (!fs.existsSync(counterFilePath)) {
+    fs.writeFileSync(counterFilePath, '0');
+  }
+});
+
+// Before each test
+beforeEach(function() {
+  // Read current counter value
+  let counter = parseInt(fs.readFileSync(counterFilePath, 'utf8'));
+  
+  // Increment counter
+  counter++;
+  
+  // Save incremented value
+  fs.writeFileSync(counterFilePath, counter.toString());
+  
+  // Set environment variable
+  process.env.TEST_COUNTER = counter.toString();
+  
+  console.log(`Running test #${process.env.TEST_COUNTER}`);
+});
+EOF
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/multicluster-routing/tests/check-ingress.js.liquid from lab number 22"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 22"; exit 1; }
 -->
 
 Let's scale up the local services:
@@ -7633,6 +7897,7 @@ kubectl --context ${CLUSTER1} -n httpbin rollout status deploy/in-ambient
 ```
 
 ### Scenario 2c: Local Istio waypoints with AuthorizationPolicy
+
 
 <!--bash
 echo "Scenario 2c: Local Istio waypoints with AuthorizationPolicy"
@@ -7652,7 +7917,7 @@ spec:
   - kind: ServiceEntry
     group: "networking.istio.io"
     name: autogen.httpbin.in-ambient
-  # for Gloo waypoints
+  # for Product waypoints
   - kind: Service
     group: ""
     name: in-ambient
@@ -7664,7 +7929,7 @@ spec:
         - cluster1/ns/httpbin/sa/httpbin-gateway-istio-istio
     - source:
         principals:
-        - cluster1/ns/httpbin/sa/gloo-proxy-httpbin-gateway-gloo
+        - cluster1/ns/httpbin/sa/gloo-proxy-httpbin-gateway-gloo-gateway
     - source:
         principals:
         - cluster1/ns/httpbin/sa/client-in-ambient
@@ -7685,7 +7950,7 @@ spec:
   - kind: ServiceEntry
     group: "networking.istio.io"
     name: autogen.httpbin.in-mesh
-  # for Gloo waypoints
+  # for Product waypoints
   - kind: Service
     group: ""
     name: in-mesh
@@ -7697,7 +7962,7 @@ spec:
         - cluster1/ns/httpbin/sa/httpbin-gateway-istio-istio
     - source:
         principals:
-        - cluster1/ns/httpbin/sa/gloo-proxy-httpbin-gateway-gloo
+        - cluster1/ns/httpbin/sa/gloo-proxy-httpbin-gateway-gloo-gateway
     - source:
         principals:
         - cluster1/ns/httpbin/sa/client-in-ambient
@@ -7718,7 +7983,7 @@ spec:
   - kind: ServiceEntry
     group: "networking.istio.io"
     name: autogen.httpbin.remote-in-ambient
-  # for Gloo waypoints
+  # for Product waypoints
   - kind: Service
     group: ""
     name: remote-in-ambient
@@ -7730,7 +7995,7 @@ spec:
         - cluster1/ns/httpbin/sa/httpbin-gateway-istio-istio
     - source:
         principals:
-        - cluster1/ns/httpbin/sa/gloo-proxy-httpbin-gateway-gloo
+        - cluster1/ns/httpbin/sa/gloo-proxy-httpbin-gateway-gloo-gateway
     - source:
         principals:
         - cluster1/ns/httpbin/sa/client-in-ambient
@@ -7751,7 +8016,7 @@ spec:
   - kind: ServiceEntry
     group: "networking.istio.io"
     name: autogen.httpbin.remote-in-mesh
-  # for Gloo waypoints
+  # for Product waypoints
   - kind: Service
     group: ""
     name: remote-in-mesh
@@ -7763,7 +8028,7 @@ spec:
         - cluster1/ns/httpbin/sa/httpbin-gateway-istio-istio
     - source:
         principals:
-        - cluster1/ns/httpbin/sa/gloo-proxy-httpbin-gateway-gloo
+        - cluster1/ns/httpbin/sa/gloo-proxy-httpbin-gateway-gloo-gateway
     - source:
         principals:
         - cluster1/ns/httpbin/sa/client-in-ambient
@@ -7778,7 +8043,7 @@ EOF
 
 POST requests should be denied. For example:
 
-```bash,noexecute
+```bash,norun-workshop
 kubectl --context ${CLUSTER1} exec -n httpbin $(kubectl --context ${CLUSTER1} get pod -l app=client-in-ambient -n httpbin -o jsonpath='{.items[0].metadata.name}') -- curl -s -X POST in-ambient.httpbin.svc.cluster.local:8000/post
 ```
 
@@ -7790,7 +8055,7 @@ var expect = chai.expect;
 chai.use(chaiExec);
 const helpers = require('./tests/chai-http');
 
-describe("AuthorizationPolicy is working properly", () => {
+describe("AuthorizationPolicy is working properly (Local Waypoint=Istio, Remote Waypoint=None, Failover=false, Authorization Policy=true)", () => {
   ["client-in-mesh", "client-in-ambient"].forEach(async (source) => {
     ["in-mesh.httpbin.mesh.internal", "in-ambient.httpbin.mesh.internal",].forEach(async (target) => {
       it(`${source} isn't allowed to send POST requests to ${target}`, () => {
@@ -7809,9 +8074,9 @@ describe("AuthorizationPolicy is working properly", () => {
     ["in-mesh", "in-ambient",].forEach(async (target) => {
       it(`Istio ingress isn't allowed to send POST requests to /${target}`, () => helpers.checkWithMethod({ host: `http://${process.env.ISTIO_INGRESS}`, method: "post", headers: [{key: 'Host', value: 'httpbin.istio'}], path: `/${target}/post`, retCode: 403 }));
       it(`Istio ingress is allowed to send GET requests to /${target}`, () => helpers.checkWithMethod({ host: `http://${process.env.ISTIO_INGRESS}`, method: "get", headers: [{key: 'Host', value: 'httpbin.istio'}], path: `/${target}/get`, retCode: 200 }));
-      // Gloo Gateway as an ingress doesn't use Istio waypoint
-      // it(`Gloo ingress isn't allowed to send POST requests to /${target}`, () => helpers.checkWithMethod({ host: `http://${process.env.GLOO_INGRESS}`, method: "post", headers: [{key: 'Host', value: 'httpbin.gloo'}], path: `/${target}/post`, retCode: 403 }));
-      // it(`Gloo ingress is allowed to send GET requests to /${target}`, () => helpers.checkWithMethod({ host: `http://${process.env.GLOO_INGRESS}`, method: "get", headers: [{key: 'Host', value: 'httpbin.gloo'}], path: `/${target}/get`, retCode: 200 }));
+
+      it(`gloo-gateway ingress isn't allowed to send POST requests to /${target}`, () => helpers.checkWithMethod({ host: `http://${process.env.SOLO_INGRESS}`, method: "post", headers: [{key: 'Host', value: 'httpbin.gloo-gateway'}], path: `/${target}/post`, retCode: 403 }));
+      it(`gloo-gateway ingress is allowed to send GET requests to /${target}`, () => helpers.checkWithMethod({ host: `http://${process.env.SOLO_INGRESS}`, method: "get", headers: [{key: 'Host', value: 'httpbin.gloo-gateway'}], path: `/${target}/get`, retCode: 200 }));
     });
   });
 });
@@ -7846,31 +8111,572 @@ beforeEach(function() {
   console.log(`Running test #${process.env.TEST_COUNTER}`);
 });
 EOF
-echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/multicluster-routing/tests/check-authorization.js.liquid from lab number 21"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 21"; exit 1; }
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/multicluster-routing/tests/check-authorization.js.liquid from lab number 22"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 22"; exit 1; }
+-->
+<!--bash
+cat <<'EOF' > ./test.js
+const chaiExec = require("@jsdevtools/chai-exec");
+var chai = require('chai');
+var expect = chai.expect;
+chai.use(chaiExec);
+const helpers = require('./tests/chai-exec');
+
+async function status_test(source, target) {
+  const command = await helpers.curlInDeployment({
+    context: `${process.env.CLUSTER1}`,
+    namespace: 'httpbin',
+    deploymentName: source,
+    curlCommand: `curl -s -o /dev/null -w "%{http_code}" ${target}:8000/get`
+  });
+  output = JSON.parse(command);
+  expect(output).to.equal(200);
+}
+
+async function header_test(source, target) {
+  const command = await helpers.curlInDeployment({
+    context: `${process.env.CLUSTER1}`,
+    namespace: 'httpbin',
+    deploymentName: source,
+    curlCommand: `curl -s ${target}:8000/get`
+  });
+  output = JSON.parse(command);
+  expect(output.headers["X-Istio-Workload"]).to.equal(process.env.LOCAL_ISTIO_WAYPOINT);
+}
+
+describe("Tests all possible eastwest communication (Local Waypoint=Istio, Remote Waypoint=None, Failover=false, Authorization Policy=true)", () => {
+  ["client-in-mesh", "client-in-ambient"].forEach(async (source) => {
+    ["in-mesh.httpbin.svc.cluster.local", "in-ambient.httpbin.svc.cluster.local","in-mesh.httpbin.mesh.internal", "in-ambient.httpbin.mesh.internal",].forEach(async (target) => {
+      
+      it(`${source} => LOCAL_ISTIO_WAYPOINT => ${target}`, async () => {
+        await header_test(source, target);
+        await status_test(source, target);
+      });
+      
+    });
+  });
+});
+
+const fs = require('fs');
+const path = require('path');
+
+const counterFilePath = path.join(__dirname, '.test-counter');
+
+// Setup before all tests
+before(function() {
+  // Initialize counter file if it doesn't exist
+  if (!fs.existsSync(counterFilePath)) {
+    fs.writeFileSync(counterFilePath, '0');
+  }
+});
+
+// Before each test
+beforeEach(function() {
+  // Read current counter value
+  let counter = parseInt(fs.readFileSync(counterFilePath, 'utf8'));
+  
+  // Increment counter
+  counter++;
+  
+  // Save incremented value
+  fs.writeFileSync(counterFilePath, counter.toString());
+  
+  // Set environment variable
+  process.env.TEST_COUNTER = counter.toString();
+  
+  console.log(`Running test #${process.env.TEST_COUNTER}`);
+});
+EOF
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/multicluster-routing/tests/check-all.js.liquid from lab number 22"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 22"; exit 1; }
+-->
+<!--bash
+cat <<'EOF' > ./test.js
+const chaiExec = require("@jsdevtools/chai-exec");
+var chai = require('chai');
+var expect = chai.expect;
+chai.use(chaiExec);
+const helpers = require('./tests/chai-exec');
+
+async function status_test(source, target) {
+  const command = await helpers.curlInDeployment({
+    context: `${process.env.CLUSTER1}`,
+    namespace: 'httpbin',
+    deploymentName: source,
+    curlCommand: `curl -s -o /dev/null -w "%{http_code}" ${target}:8000/get`
+  });
+  output = JSON.parse(command);
+  expect(output).to.equal(200);
+}
+
+async function header_test(source, target) {
+  const command = await helpers.curlInDeployment({
+    context: `${process.env.CLUSTER1}`,
+    namespace: 'httpbin',
+    deploymentName: source,
+    curlCommand: `curl -s ${target}:8000/get`
+  });
+  output = JSON.parse(command);
+  expect(output.headers["X-Istio-Workload"]).to.equal(process.env.LOCAL_ISTIO_WAYPOINT);
+}
+
+describe("Tests all possible eastwest communication (Local Waypoint=Istio, Remote Waypoint=None, Failover=false, Authorization Policy=true)", () => {
+  ["client-in-mesh", "client-in-ambient"].forEach(async (source) => {
+    ["remote-in-mesh.httpbin.mesh.internal", "remote-in-ambient.httpbin.mesh.internal"].forEach(async (target) => {
+      
+      it(`${source} => ${target}`, async () => {
+        await status_test(source, target);
+      });
+      
+    });
+  });
+});
+
+const fs = require('fs');
+const path = require('path');
+
+const counterFilePath = path.join(__dirname, '.test-counter');
+
+// Setup before all tests
+before(function() {
+  // Initialize counter file if it doesn't exist
+  if (!fs.existsSync(counterFilePath)) {
+    fs.writeFileSync(counterFilePath, '0');
+  }
+});
+
+// Before each test
+beforeEach(function() {
+  // Read current counter value
+  let counter = parseInt(fs.readFileSync(counterFilePath, 'utf8'));
+  
+  // Increment counter
+  counter++;
+  
+  // Save incremented value
+  fs.writeFileSync(counterFilePath, counter.toString());
+  
+  // Set environment variable
+  process.env.TEST_COUNTER = counter.toString();
+  
+  console.log(`Running test #${process.env.TEST_COUNTER}`);
+});
+EOF
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/multicluster-routing/tests/check-all.js.liquid from lab number 22"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 22"; exit 1; }
+-->
+<!--bash
+cat <<'EOF' > ./test.js
+const chaiExec = require("@jsdevtools/chai-exec");
+var chai = require('chai');
+var expect = chai.expect;
+chai.use(chaiExec);
+const helpers = require('./tests/chai-http');
+
+describe("Tests all possible communication from istio ingress (Local Waypoint=Istio, Remote Waypoint=None, Failover=false, Authorization Policy=true)", () => {
+  ["/in-ambient", "/in-mesh","/global-in-ambient", "/global-in-mesh",].forEach(async (path) => {
+    it(`Ingress => ${path}`, () => helpers.checkURL({ host: `http://${process.env.ISTIO_INGRESS}`, headers: [{key: 'Host', value: 'httpbin.istio'}], path: `${path}/get`, retCode: 200 }));
+    
+    it(`Ingress => LOCAL_ISTIO_WAYPOINT => ${path}`, () => helpers.checkBody({ host: `http://${process.env.ISTIO_INGRESS}`, headers: [{key: 'Host', value: 'httpbin.istio'}], path: `${path}/get`, body: process.env.LOCAL_ISTIO_WAYPOINT }));
+    
+  });
+});
+
+const fs = require('fs');
+const path = require('path');
+
+const counterFilePath = path.join(__dirname, '.test-counter');
+
+// Setup before all tests
+before(function() {
+  // Initialize counter file if it doesn't exist
+  if (!fs.existsSync(counterFilePath)) {
+    fs.writeFileSync(counterFilePath, '0');
+  }
+});
+
+// Before each test
+beforeEach(function() {
+  // Read current counter value
+  let counter = parseInt(fs.readFileSync(counterFilePath, 'utf8'));
+  
+  // Increment counter
+  counter++;
+  
+  // Save incremented value
+  fs.writeFileSync(counterFilePath, counter.toString());
+  
+  // Set environment variable
+  process.env.TEST_COUNTER = counter.toString();
+  
+  console.log(`Running test #${process.env.TEST_COUNTER}`);
+});
+EOF
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/multicluster-routing/tests/check-ingress.js.liquid from lab number 22"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 22"; exit 1; }
+-->
+<!--bash
+cat <<'EOF' > ./test.js
+const chaiExec = require("@jsdevtools/chai-exec");
+var chai = require('chai');
+var expect = chai.expect;
+chai.use(chaiExec);
+const helpers = require('./tests/chai-http');
+
+describe("Tests all possible communication from istio ingress (Local Waypoint=Istio, Remote Waypoint=None, Failover=false, Authorization Policy=true)", () => {
+  ["/remote-in-ambient", "/remote-in-mesh"].forEach(async (path) => {
+    it(`Ingress => ${path}`, () => helpers.checkURL({ host: `http://${process.env.ISTIO_INGRESS}`, headers: [{key: 'Host', value: 'httpbin.istio'}], path: `${path}/get`, retCode: 200 }));
+    
+  });
+});
+
+const fs = require('fs');
+const path = require('path');
+
+const counterFilePath = path.join(__dirname, '.test-counter');
+
+// Setup before all tests
+before(function() {
+  // Initialize counter file if it doesn't exist
+  if (!fs.existsSync(counterFilePath)) {
+    fs.writeFileSync(counterFilePath, '0');
+  }
+});
+
+// Before each test
+beforeEach(function() {
+  // Read current counter value
+  let counter = parseInt(fs.readFileSync(counterFilePath, 'utf8'));
+  
+  // Increment counter
+  counter++;
+  
+  // Save incremented value
+  fs.writeFileSync(counterFilePath, counter.toString());
+  
+  // Set environment variable
+  process.env.TEST_COUNTER = counter.toString();
+  
+  console.log(`Running test #${process.env.TEST_COUNTER}`);
+});
+EOF
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/multicluster-routing/tests/check-ingress.js.liquid from lab number 22"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 22"; exit 1; }
+-->
+<!--bash
+cat <<'EOF' > ./test.js
+const chaiExec = require("@jsdevtools/chai-exec");
+var chai = require('chai');
+var expect = chai.expect;
+chai.use(chaiExec);
+const helpers = require('./tests/chai-http');
+
+describe("Tests all possible communication from gloo-gateway ingress (Local Waypoint=Istio, Remote Waypoint=None, Failover=false, Authorization Policy=true)", () => {
+  ["/in-ambient", "/in-mesh","/global-in-ambient", "/global-in-mesh",].forEach(async (path) => {
+    it(`Ingress => ${path}`, () => helpers.checkURL({ host: `http://${process.env.SOLO_INGRESS}`, headers: [{key: 'Host', value: 'httpbin.gloo-gateway'}], path: `${path}/get`, retCode: 200 }));
+    
+    it(`Ingress => LOCAL_ISTIO_WAYPOINT => ${path}`, () => helpers.checkBody({ host: `http://${process.env.SOLO_INGRESS}`, headers: [{key: 'Host', value: 'httpbin.gloo-gateway'}], path: `${path}/get`, body: process.env.LOCAL_ISTIO_WAYPOINT }));
+    
+  });
+});
+
+const fs = require('fs');
+const path = require('path');
+
+const counterFilePath = path.join(__dirname, '.test-counter');
+
+// Setup before all tests
+before(function() {
+  // Initialize counter file if it doesn't exist
+  if (!fs.existsSync(counterFilePath)) {
+    fs.writeFileSync(counterFilePath, '0');
+  }
+});
+
+// Before each test
+beforeEach(function() {
+  // Read current counter value
+  let counter = parseInt(fs.readFileSync(counterFilePath, 'utf8'));
+  
+  // Increment counter
+  counter++;
+  
+  // Save incremented value
+  fs.writeFileSync(counterFilePath, counter.toString());
+  
+  // Set environment variable
+  process.env.TEST_COUNTER = counter.toString();
+  
+  console.log(`Running test #${process.env.TEST_COUNTER}`);
+});
+EOF
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/multicluster-routing/tests/check-ingress.js.liquid from lab number 22"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 22"; exit 1; }
+-->
+<!--bash
+cat <<'EOF' > ./test.js
+const chaiExec = require("@jsdevtools/chai-exec");
+var chai = require('chai');
+var expect = chai.expect;
+chai.use(chaiExec);
+const helpers = require('./tests/chai-http');
+
+describe("Tests all possible communication from gloo-gateway ingress (Local Waypoint=Istio, Remote Waypoint=None, Failover=false, Authorization Policy=true)", () => {
+  ["/remote-in-ambient", "/remote-in-mesh"].forEach(async (path) => {
+    it(`Ingress => ${path}`, () => helpers.checkURL({ host: `http://${process.env.SOLO_INGRESS}`, headers: [{key: 'Host', value: 'httpbin.gloo-gateway'}], path: `${path}/get`, retCode: 200 }));
+    
+  });
+});
+
+const fs = require('fs');
+const path = require('path');
+
+const counterFilePath = path.join(__dirname, '.test-counter');
+
+// Setup before all tests
+before(function() {
+  // Initialize counter file if it doesn't exist
+  if (!fs.existsSync(counterFilePath)) {
+    fs.writeFileSync(counterFilePath, '0');
+  }
+});
+
+// Before each test
+beforeEach(function() {
+  // Read current counter value
+  let counter = parseInt(fs.readFileSync(counterFilePath, 'utf8'));
+  
+  // Increment counter
+  counter++;
+  
+  // Save incremented value
+  fs.writeFileSync(counterFilePath, counter.toString());
+  
+  // Set environment variable
+  process.env.TEST_COUNTER = counter.toString();
+  
+  console.log(`Running test #${process.env.TEST_COUNTER}`);
+});
+EOF
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/multicluster-routing/tests/check-ingress.js.liquid from lab number 22"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 22"; exit 1; }
 -->
 
-### Scenario 3: Local Gloo waypoints
+### Scenario 3: Local gloo-gateway waypoints
+
 
 <!--bash
-echo "Scenario 3: Local Gloo waypoints"
+echo "Scenario 3: Local gloo-gateway waypoints"
 -->
 
-Let's use Gloo Waypoint:
+Let's use Solo Waypoint:
 
 ```bash
-kubectl --context ${CLUSTER1} -n httpbin label svc in-mesh istio.io/use-waypoint=gloo-waypoint --overwrite
-kubectl --context ${CLUSTER1} -n httpbin label svc in-ambient istio.io/use-waypoint=gloo-waypoint --overwrite
-kubectl --context ${CLUSTER2} -n httpbin label svc in-mesh istio.io/use-waypoint=gloo-waypoint --overwrite
-kubectl --context ${CLUSTER2} -n httpbin label svc in-ambient istio.io/use-waypoint=gloo-waypoint --overwrite
+
+cat << EOF | kubectl --context ${CLUSTER1} apply -f -
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: gloo-gateway-waypoint
+  namespace: httpbin
+spec:
+  gatewayClassName: gloo-waypoint
+  listeners:
+  - name: proxy
+    port: 15088
+    protocol: istio.io/PROXY
+  - name: hbone
+    port: 15008
+    protocol: istio.io/HBONE
+EOF
+
+kubectl --context ${CLUSTER1} -n httpbin label svc in-mesh istio.io/use-waypoint=gloo-gateway-waypoint --overwrite
+kubectl --context ${CLUSTER1} -n httpbin label svc in-ambient istio.io/use-waypoint=gloo-gateway-waypoint --overwrite
+kubectl --context ${CLUSTER2} -n httpbin label svc in-mesh istio.io/use-waypoint=gloo-gateway-waypoint --overwrite
+kubectl --context ${CLUSTER2} -n httpbin label svc in-ambient istio.io/use-waypoint=gloo-gateway-waypoint --overwrite
 kubectl --context ${CLUSTER1} -n httpbin rollout restart deploy client-in-mesh
 kubectl --context ${CLUSTER1} -n httpbin rollout status deploy client-in-mesh
 kubectl --context ${CLUSTER1} -n httpbin rollout restart deploy httpbin-gateway-istio-istio
 kubectl --context ${CLUSTER1} -n httpbin rollout status deploy httpbin-gateway-istio-istio
-kubectl --context ${CLUSTER1} -n httpbin rollout restart deploy gloo-proxy-httpbin-gateway-gloo
-kubectl --context ${CLUSTER1} -n httpbin rollout status deploy gloo-proxy-httpbin-gateway-gloo
-export LOCAL_GLOO_WAYPOINT=$(kubectl --context ${CLUSTER1} -n httpbin get pods -l gateway.networking.k8s.io/gateway-name=gloo-waypoint -o jsonpath='{.items[0].metadata.name}')
+kubectl --context ${CLUSTER1} -n httpbin rollout restart deploy gloo-proxy-httpbin-gateway-gloo-gateway
+kubectl --context ${CLUSTER1} -n httpbin rollout status deploy gloo-proxy-httpbin-gateway-gloo-gateway
+export LOCAL_SOLO_WAYPOINT=$(kubectl --context ${CLUSTER1} -n httpbin get pods -l gateway.networking.k8s.io/gateway-name=gloo-gateway-waypoint -o jsonpath='{.items[0].metadata.name}')
 ```
+
+
+
+#### From client-in-mesh
+
+
+1. Test connectivity to in-mesh service:
+```
+kubectl --context ${CLUSTER1} exec -n httpbin $(kubectl --context ${CLUSTER1} get pod -l app=client-in-mesh -n httpbin -o jsonpath='{.items[0].metadata.name}') -- curl -s -o /dev/null -w "%{http_code}" in-mesh.httpbin.svc.cluster.local:8000/get
+```
+
+Expected output: `200`
+
+
+
+2. Test connectivity to in-ambient service:
+```
+kubectl --context ${CLUSTER1} exec -n httpbin $(kubectl --context ${CLUSTER1} get pod -l app=client-in-mesh -n httpbin -o jsonpath='{.items[0].metadata.name}') -- curl -s -o /dev/null -w "%{http_code}" in-ambient.httpbin.svc.cluster.local:8000/get
+```
+
+Expected output: `200`
+
+
+
+
+
+3. Test connectivity to global in-mesh service:
+```
+kubectl --context ${CLUSTER1} exec -n httpbin $(kubectl --context ${CLUSTER1} get pod -l app=client-in-mesh -n httpbin -o jsonpath='{.items[0].metadata.name}') -- curl -s -o /dev/null -w "%{http_code}" in-mesh.httpbin.mesh.internal:8000/get
+```
+
+Expected output: `200`
+
+
+
+4. Test connectivity to global in-ambient service:
+```
+kubectl --context ${CLUSTER1} exec -n httpbin $(kubectl --context ${CLUSTER1} get pod -l app=client-in-mesh -n httpbin -o jsonpath='{.items[0].metadata.name}') -- curl -s -o /dev/null -w "%{http_code}" in-ambient.httpbin.mesh.internal:8000/get
+```
+
+Expected output: `200`
+
+
+
+
+
+
+
+#### From client-in-ambient
+
+
+1. Test connectivity to in-mesh service:
+```
+kubectl --context ${CLUSTER1} exec -n httpbin $(kubectl --context ${CLUSTER1} get pod -l app=client-in-ambient -n httpbin -o jsonpath='{.items[0].metadata.name}') -- curl -s -o /dev/null -w "%{http_code}" in-mesh.httpbin.svc.cluster.local:8000/get
+```
+
+Expected output: `200`
+
+
+
+2. Test connectivity to in-ambient service:
+```
+kubectl --context ${CLUSTER1} exec -n httpbin $(kubectl --context ${CLUSTER1} get pod -l app=client-in-ambient -n httpbin -o jsonpath='{.items[0].metadata.name}') -- curl -s -o /dev/null -w "%{http_code}" in-ambient.httpbin.svc.cluster.local:8000/get
+```
+
+Expected output: `200`
+
+
+
+
+
+3. Test connectivity to global in-mesh service:
+```
+kubectl --context ${CLUSTER1} exec -n httpbin $(kubectl --context ${CLUSTER1} get pod -l app=client-in-ambient -n httpbin -o jsonpath='{.items[0].metadata.name}') -- curl -s -o /dev/null -w "%{http_code}" in-mesh.httpbin.mesh.internal:8000/get
+```
+
+Expected output: `200`
+
+
+
+4. Test connectivity to global in-ambient service:
+```
+kubectl --context ${CLUSTER1} exec -n httpbin $(kubectl --context ${CLUSTER1} get pod -l app=client-in-ambient -n httpbin -o jsonpath='{.items[0].metadata.name}') -- curl -s -o /dev/null -w "%{http_code}" in-ambient.httpbin.mesh.internal:8000/get
+```
+
+Expected output: `200`
+
+
+
+
+
+#### Testing Ingress Connectivity (istio ISTIO_INGRESS)
+
+
+1. Test connectivity to in-mesh service via ingress:
+```
+curl -s -o /dev/null -w "%{http_code}" -H "Host: httpbin.istio" http://${ISTIO_INGRESS}/in-mesh/get
+```
+
+Expected output: `200`
+
+
+
+2. Test connectivity to in-ambient service via ingress:
+```
+curl -s -o /dev/null -w "%{http_code}" -H "Host: httpbin.istio" http://${ISTIO_INGRESS}/in-ambient/get
+```
+
+Expected output: `200`
+
+
+
+
+
+3. Test connectivity to global in-mesh service via ingress:
+```
+curl -s -o /dev/null -w "%{http_code}" -H "Host: httpbin.istio" http://${ISTIO_INGRESS}/global-in-mesh/get
+```
+
+Expected output: `200`
+
+
+
+4. Test connectivity to global in-ambient service via ingress:
+```
+curl -s -o /dev/null -w "%{http_code}" -H "Host: httpbin.istio" http://${ISTIO_INGRESS}/global-in-ambient/get
+```
+
+Expected output: `200`
+
+
+
+
+
+#### Testing Ingress Connectivity (gloo-gateway SOLO_INGRESS)
+
+
+1. Test connectivity to in-mesh service via ingress:
+```
+curl -s -o /dev/null -w "%{http_code}" -H "Host: httpbin.gloo-gateway" http://${SOLO_INGRESS}/in-mesh/get
+```
+
+Expected output: `200`
+
+
+
+2. Test connectivity to in-ambient service via ingress:
+```
+curl -s -o /dev/null -w "%{http_code}" -H "Host: httpbin.gloo-gateway" http://${SOLO_INGRESS}/in-ambient/get
+```
+
+Expected output: `200`
+
+
+
+
+
+3. Test connectivity to global in-mesh service via ingress:
+```
+curl -s -o /dev/null -w "%{http_code}" -H "Host: httpbin.gloo-gateway" http://${SOLO_INGRESS}/global-in-mesh/get
+```
+
+Expected output: `200`
+
+
+
+4. Test connectivity to global in-ambient service via ingress:
+```
+curl -s -o /dev/null -w "%{http_code}" -H "Host: httpbin.gloo-gateway" http://${SOLO_INGRESS}/global-in-ambient/get
+```
+
+Expected output: `200`
+
+
+
 
 
 
@@ -7882,7 +8688,7 @@ export LOCAL_GLOO_WAYPOINT=$(kubectl --context ${CLUSTER1} -n httpbin get pods -
 kubectl --context ${CLUSTER1} exec -n httpbin $(kubectl --context ${CLUSTER1} get pod -l app=client-in-mesh -n httpbin -o jsonpath='{.items[0].metadata.name}') -- curl -s  in-mesh.httpbin.svc.cluster.local:8000/get
 ```
 
-Check that the response headers include `X-Istio-Workload: $LOCAL_GLOO_WAYPOINT`
+Check that the response headers include `X-Istio-Workload: $LOCAL_SOLO_WAYPOINT`
 
 
 
@@ -7891,7 +8697,7 @@ Check that the response headers include `X-Istio-Workload: $LOCAL_GLOO_WAYPOINT`
 kubectl --context ${CLUSTER1} exec -n httpbin $(kubectl --context ${CLUSTER1} get pod -l app=client-in-mesh -n httpbin -o jsonpath='{.items[0].metadata.name}') -- curl -s  in-ambient.httpbin.svc.cluster.local:8000/get
 ```
 
-Check that the response headers include `X-Istio-Workload: $LOCAL_GLOO_WAYPOINT`
+Check that the response headers include `X-Istio-Workload: $LOCAL_SOLO_WAYPOINT`
 
 
 
@@ -7902,7 +8708,7 @@ Check that the response headers include `X-Istio-Workload: $LOCAL_GLOO_WAYPOINT`
 kubectl --context ${CLUSTER1} exec -n httpbin $(kubectl --context ${CLUSTER1} get pod -l app=client-in-mesh -n httpbin -o jsonpath='{.items[0].metadata.name}') -- curl -s  in-mesh.httpbin.mesh.internal:8000/get
 ```
 
-Check that the response headers include `X-Istio-Workload: $LOCAL_GLOO_WAYPOINT`
+Check that the response headers include `X-Istio-Workload: $LOCAL_SOLO_WAYPOINT`
 
 
 
@@ -7911,7 +8717,7 @@ Check that the response headers include `X-Istio-Workload: $LOCAL_GLOO_WAYPOINT`
 kubectl --context ${CLUSTER1} exec -n httpbin $(kubectl --context ${CLUSTER1} get pod -l app=client-in-mesh -n httpbin -o jsonpath='{.items[0].metadata.name}') -- curl -s  in-ambient.httpbin.mesh.internal:8000/get
 ```
 
-Check that the response headers include `X-Istio-Workload: $LOCAL_GLOO_WAYPOINT`
+Check that the response headers include `X-Istio-Workload: $LOCAL_SOLO_WAYPOINT`
 
 
 
@@ -7927,7 +8733,7 @@ Check that the response headers include `X-Istio-Workload: $LOCAL_GLOO_WAYPOINT`
 kubectl --context ${CLUSTER1} exec -n httpbin $(kubectl --context ${CLUSTER1} get pod -l app=client-in-ambient -n httpbin -o jsonpath='{.items[0].metadata.name}') -- curl -s  in-mesh.httpbin.svc.cluster.local:8000/get
 ```
 
-Check that the response headers include `X-Istio-Workload: $LOCAL_GLOO_WAYPOINT`
+Check that the response headers include `X-Istio-Workload: $LOCAL_SOLO_WAYPOINT`
 
 
 
@@ -7936,7 +8742,7 @@ Check that the response headers include `X-Istio-Workload: $LOCAL_GLOO_WAYPOINT`
 kubectl --context ${CLUSTER1} exec -n httpbin $(kubectl --context ${CLUSTER1} get pod -l app=client-in-ambient -n httpbin -o jsonpath='{.items[0].metadata.name}') -- curl -s  in-ambient.httpbin.svc.cluster.local:8000/get
 ```
 
-Check that the response headers include `X-Istio-Workload: $LOCAL_GLOO_WAYPOINT`
+Check that the response headers include `X-Istio-Workload: $LOCAL_SOLO_WAYPOINT`
 
 
 
@@ -7947,7 +8753,7 @@ Check that the response headers include `X-Istio-Workload: $LOCAL_GLOO_WAYPOINT`
 kubectl --context ${CLUSTER1} exec -n httpbin $(kubectl --context ${CLUSTER1} get pod -l app=client-in-ambient -n httpbin -o jsonpath='{.items[0].metadata.name}') -- curl -s  in-mesh.httpbin.mesh.internal:8000/get
 ```
 
-Check that the response headers include `X-Istio-Workload: $LOCAL_GLOO_WAYPOINT`
+Check that the response headers include `X-Istio-Workload: $LOCAL_SOLO_WAYPOINT`
 
 
 
@@ -7956,7 +8762,93 @@ Check that the response headers include `X-Istio-Workload: $LOCAL_GLOO_WAYPOINT`
 kubectl --context ${CLUSTER1} exec -n httpbin $(kubectl --context ${CLUSTER1} get pod -l app=client-in-ambient -n httpbin -o jsonpath='{.items[0].metadata.name}') -- curl -s  in-ambient.httpbin.mesh.internal:8000/get
 ```
 
-Check that the response headers include `X-Istio-Workload: $LOCAL_GLOO_WAYPOINT`
+Check that the response headers include `X-Istio-Workload: $LOCAL_SOLO_WAYPOINT`
+
+
+
+
+
+#### Testing Ingress Connectivity (istio ISTIO_INGRESS)
+
+
+1. Test connectivity to in-mesh service via ingress:
+```
+curl -s  -H "Host: httpbin.istio" http://${ISTIO_INGRESS}/in-mesh/get
+```
+
+Check that the response body contains `${process.env.LOCAL_SOLO_WAYPOINT}`
+
+
+
+2. Test connectivity to in-ambient service via ingress:
+```
+curl -s  -H "Host: httpbin.istio" http://${ISTIO_INGRESS}/in-ambient/get
+```
+
+Check that the response body contains `${process.env.LOCAL_SOLO_WAYPOINT}`
+
+
+
+
+
+3. Test connectivity to global in-mesh service via ingress:
+```
+curl -s  -H "Host: httpbin.istio" http://${ISTIO_INGRESS}/global-in-mesh/get
+```
+
+Check that the response body contains `${process.env.LOCAL_SOLO_WAYPOINT}`
+
+
+
+4. Test connectivity to global in-ambient service via ingress:
+```
+curl -s  -H "Host: httpbin.istio" http://${ISTIO_INGRESS}/global-in-ambient/get
+```
+
+Check that the response body contains `${process.env.LOCAL_SOLO_WAYPOINT}`
+
+
+
+
+
+#### Testing Ingress Connectivity (gloo-gateway SOLO_INGRESS)
+
+
+1. Test connectivity to in-mesh service via ingress:
+```
+curl -s  -H "Host: httpbin.gloo-gateway" http://${SOLO_INGRESS}/in-mesh/get
+```
+
+Check that the response body contains `${process.env.LOCAL_SOLO_WAYPOINT}`
+
+
+
+2. Test connectivity to in-ambient service via ingress:
+```
+curl -s  -H "Host: httpbin.gloo-gateway" http://${SOLO_INGRESS}/in-ambient/get
+```
+
+Check that the response body contains `${process.env.LOCAL_SOLO_WAYPOINT}`
+
+
+
+
+
+3. Test connectivity to global in-mesh service via ingress:
+```
+curl -s  -H "Host: httpbin.gloo-gateway" http://${SOLO_INGRESS}/global-in-mesh/get
+```
+
+Check that the response body contains `${process.env.LOCAL_SOLO_WAYPOINT}`
+
+
+
+4. Test connectivity to global in-ambient service via ingress:
+```
+curl -s  -H "Host: httpbin.gloo-gateway" http://${SOLO_INGRESS}/global-in-ambient/get
+```
+
+Check that the response body contains `${process.env.LOCAL_SOLO_WAYPOINT}`
 
 
 
@@ -7989,17 +8881,18 @@ async function header_test(source, target) {
     curlCommand: `curl -s ${target}:8000/get`
   });
   output = JSON.parse(command);
-  expect(output.headers["X-Istio-Workload"]).to.equal(process.env.LOCAL_GLOO_WAYPOINT);
+  expect(output.headers["X-Istio-Workload"]).to.equal(process.env.LOCAL_SOLO_WAYPOINT);
 }
 
-describe("Tests all possible eastwest communication through waypoint", () => {
+describe("Tests all possible eastwest communication (Local Waypoint=gloo-gateway, Remote Waypoint=None, Failover=false, Authorization Policy=)", () => {
   ["client-in-mesh", "client-in-ambient"].forEach(async (source) => {
     ["in-mesh.httpbin.svc.cluster.local", "in-ambient.httpbin.svc.cluster.local","in-mesh.httpbin.mesh.internal", "in-ambient.httpbin.mesh.internal",].forEach(async (target) => {
-      it(`${source} => ${target}`, async () => {
-        
+      
+      it(`${source} => LOCAL_SOLO_WAYPOINT => ${target}`, async () => {
         await header_test(source, target);
-        
+        await status_test(source, target);
       });
+      
     });
   });
 });
@@ -8034,54 +8927,84 @@ beforeEach(function() {
   console.log(`Running test #${process.env.TEST_COUNTER}`);
 });
 EOF
-echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/multicluster-routing/tests/check-all.js.liquid from lab number 21"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 21"; exit 1; }
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/multicluster-routing/tests/check-all.js.liquid from lab number 22"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 22"; exit 1; }
 -->
+<!--bash
+cat <<'EOF' > ./test.js
+const chaiExec = require("@jsdevtools/chai-exec");
+var chai = require('chai');
+var expect = chai.expect;
+chai.use(chaiExec);
+const helpers = require('./tests/chai-exec');
 
+async function status_test(source, target) {
+  const command = await helpers.curlInDeployment({
+    context: `${process.env.CLUSTER1}`,
+    namespace: 'httpbin',
+    deploymentName: source,
+    curlCommand: `curl -s -o /dev/null -w "%{http_code}" ${target}:8000/get`
+  });
+  output = JSON.parse(command);
+  expect(output).to.equal(200);
+}
 
-#### Testing Ingress Connectivity
+async function header_test(source, target) {
+  const command = await helpers.curlInDeployment({
+    context: `${process.env.CLUSTER1}`,
+    namespace: 'httpbin',
+    deploymentName: source,
+    curlCommand: `curl -s ${target}:8000/get`
+  });
+  output = JSON.parse(command);
+  expect(output.headers["X-Istio-Workload"]).to.equal(process.env.LOCAL_ISTIO_WAYPOINT);
+}
 
+describe("Tests all possible eastwest communication (Local Waypoint=gloo-gateway, Remote Waypoint=None, Failover=false, Authorization Policy=)", () => {
+  ["client-in-mesh", "client-in-ambient"].forEach(async (source) => {
+    ["remote-in-mesh.httpbin.mesh.internal", "remote-in-ambient.httpbin.mesh.internal"].forEach(async (target) => {
+      
+      it(`${source} => ${target}`, async () => {
+        await status_test(source, target);
+      });
+      
+    });
+  });
+});
 
-1. Test connectivity to in-mesh service via ingress:
-```
-curl -s  -H "Host: httpbin.istio" http://${ISTIO_INGRESS}/in-mesh/get
-```
+const fs = require('fs');
+const path = require('path');
 
-Check that the response body contains `${process.env.LOCAL_GLOO_WAYPOINT}`
+const counterFilePath = path.join(__dirname, '.test-counter');
 
+// Setup before all tests
+before(function() {
+  // Initialize counter file if it doesn't exist
+  if (!fs.existsSync(counterFilePath)) {
+    fs.writeFileSync(counterFilePath, '0');
+  }
+});
 
-
-2. Test connectivity to in-ambient service via ingress:
-```
-curl -s  -H "Host: httpbin.istio" http://${ISTIO_INGRESS}/in-ambient/get
-```
-
-Check that the response body contains `${process.env.LOCAL_GLOO_WAYPOINT}`
-
-
-
-
-
-3. Test connectivity to global in-mesh service via ingress:
-```
-curl -s  -H "Host: httpbin.istio" http://${ISTIO_INGRESS}/global-in-mesh/get
-```
-
-Check that the response body contains `${process.env.LOCAL_GLOO_WAYPOINT}`
-
-
-
-4. Test connectivity to global in-ambient service via ingress:
-```
-curl -s  -H "Host: httpbin.istio" http://${ISTIO_INGRESS}/global-in-ambient/get
-```
-
-Check that the response body contains `${process.env.LOCAL_GLOO_WAYPOINT}`
-
-
-
-
-
+// Before each test
+beforeEach(function() {
+  // Read current counter value
+  let counter = parseInt(fs.readFileSync(counterFilePath, 'utf8'));
+  
+  // Increment counter
+  counter++;
+  
+  // Save incremented value
+  fs.writeFileSync(counterFilePath, counter.toString());
+  
+  // Set environment variable
+  process.env.TEST_COUNTER = counter.toString();
+  
+  console.log(`Running test #${process.env.TEST_COUNTER}`);
+});
+EOF
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/multicluster-routing/tests/check-all.js.liquid from lab number 22"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 22"; exit 1; }
+-->
 <!--bash
 cat <<'EOF' > ./test.js
 const chaiExec = require("@jsdevtools/chai-exec");
@@ -8090,10 +9013,11 @@ var expect = chai.expect;
 chai.use(chaiExec);
 const helpers = require('./tests/chai-http');
 
-describe("Tests all possible communication from istio ingress through waypoint", () => {
+describe("Tests all possible communication from istio ingress (Local Waypoint=gloo-gateway, Remote Waypoint=None, Failover=false, Authorization Policy=)", () => {
   ["/in-ambient", "/in-mesh","/global-in-ambient", "/global-in-mesh",].forEach(async (path) => {
+    it(`Ingress => ${path}`, () => helpers.checkURL({ host: `http://${process.env.ISTIO_INGRESS}`, headers: [{key: 'Host', value: 'httpbin.istio'}], path: `${path}/get`, retCode: 200 }));
     
-    it(`${path} is going through the right waypoint`, () => helpers.checkBody({ host: `http://${process.env.ISTIO_INGRESS}`, headers: [{key: 'Host', value: 'httpbin.istio'}], path: `${path}/get`, body: process.env.LOCAL_GLOO_WAYPOINT }));
+    it(`Ingress => LOCAL_SOLO_WAYPOINT => ${path}`, () => helpers.checkBody({ host: `http://${process.env.ISTIO_INGRESS}`, headers: [{key: 'Host', value: 'httpbin.istio'}], path: `${path}/get`, body: process.env.LOCAL_SOLO_WAYPOINT }));
     
   });
 });
@@ -8128,54 +9052,9 @@ beforeEach(function() {
   console.log(`Running test #${process.env.TEST_COUNTER}`);
 });
 EOF
-echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/multicluster-routing/tests/check-ingress.js.liquid from lab number 21"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 21"; exit 1; }
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/multicluster-routing/tests/check-ingress.js.liquid from lab number 22"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 22"; exit 1; }
 -->
-
-
-#### Testing Ingress Connectivity
-
-
-1. Test connectivity to in-mesh service via ingress:
-```
-curl -s  -H "Host: httpbin.gloo" http://${GLOO_INGRESS}/in-mesh/get
-```
-
-Check that the response body contains `${process.env.LOCAL_GLOO_WAYPOINT}`
-
-
-
-2. Test connectivity to in-ambient service via ingress:
-```
-curl -s  -H "Host: httpbin.gloo" http://${GLOO_INGRESS}/in-ambient/get
-```
-
-Check that the response body contains `${process.env.LOCAL_GLOO_WAYPOINT}`
-
-
-
-
-
-3. Test connectivity to global in-mesh service via ingress:
-```
-curl -s  -H "Host: httpbin.gloo" http://${GLOO_INGRESS}/global-in-mesh/get
-```
-
-Check that the response body contains `${process.env.LOCAL_GLOO_WAYPOINT}`
-
-
-
-4. Test connectivity to global in-ambient service via ingress:
-```
-curl -s  -H "Host: httpbin.gloo" http://${GLOO_INGRESS}/global-in-ambient/get
-```
-
-Check that the response body contains `${process.env.LOCAL_GLOO_WAYPOINT}`
-
-
-
-
-
 <!--bash
 cat <<'EOF' > ./test.js
 const chaiExec = require("@jsdevtools/chai-exec");
@@ -8184,10 +9063,9 @@ var expect = chai.expect;
 chai.use(chaiExec);
 const helpers = require('./tests/chai-http');
 
-describe("Tests all possible communication from gloo ingress through waypoint", () => {
-  ["/in-ambient", "/in-mesh","/global-in-ambient", "/global-in-mesh",].forEach(async (path) => {
-    
-    it(`${path} is going through the right waypoint`, () => helpers.checkBody({ host: `http://${process.env.GLOO_INGRESS}`, headers: [{key: 'Host', value: 'httpbin.gloo'}], path: `${path}/get`, body: process.env.LOCAL_GLOO_WAYPOINT }));
+describe("Tests all possible communication from istio ingress (Local Waypoint=gloo-gateway, Remote Waypoint=None, Failover=false, Authorization Policy=)", () => {
+  ["/remote-in-ambient", "/remote-in-mesh"].forEach(async (path) => {
+    it(`Ingress => ${path}`, () => helpers.checkURL({ host: `http://${process.env.ISTIO_INGRESS}`, headers: [{key: 'Host', value: 'httpbin.istio'}], path: `${path}/get`, retCode: 200 }));
     
   });
 });
@@ -8222,14 +9100,112 @@ beforeEach(function() {
   console.log(`Running test #${process.env.TEST_COUNTER}`);
 });
 EOF
-echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/multicluster-routing/tests/check-ingress.js.liquid from lab number 21"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 21"; exit 1; }
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/multicluster-routing/tests/check-ingress.js.liquid from lab number 22"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 22"; exit 1; }
 -->
+<!--bash
+cat <<'EOF' > ./test.js
+const chaiExec = require("@jsdevtools/chai-exec");
+var chai = require('chai');
+var expect = chai.expect;
+chai.use(chaiExec);
+const helpers = require('./tests/chai-http');
 
-### Scenario 3b: Local Gloo waypoints with failover
+describe("Tests all possible communication from gloo-gateway ingress (Local Waypoint=gloo-gateway, Remote Waypoint=None, Failover=false, Authorization Policy=)", () => {
+  ["/in-ambient", "/in-mesh","/global-in-ambient", "/global-in-mesh",].forEach(async (path) => {
+    it(`Ingress => ${path}`, () => helpers.checkURL({ host: `http://${process.env.SOLO_INGRESS}`, headers: [{key: 'Host', value: 'httpbin.gloo-gateway'}], path: `${path}/get`, retCode: 200 }));
+    
+    it(`Ingress => LOCAL_SOLO_WAYPOINT => ${path}`, () => helpers.checkBody({ host: `http://${process.env.SOLO_INGRESS}`, headers: [{key: 'Host', value: 'httpbin.gloo-gateway'}], path: `${path}/get`, body: process.env.LOCAL_SOLO_WAYPOINT }));
+    
+  });
+});
+
+const fs = require('fs');
+const path = require('path');
+
+const counterFilePath = path.join(__dirname, '.test-counter');
+
+// Setup before all tests
+before(function() {
+  // Initialize counter file if it doesn't exist
+  if (!fs.existsSync(counterFilePath)) {
+    fs.writeFileSync(counterFilePath, '0');
+  }
+});
+
+// Before each test
+beforeEach(function() {
+  // Read current counter value
+  let counter = parseInt(fs.readFileSync(counterFilePath, 'utf8'));
+  
+  // Increment counter
+  counter++;
+  
+  // Save incremented value
+  fs.writeFileSync(counterFilePath, counter.toString());
+  
+  // Set environment variable
+  process.env.TEST_COUNTER = counter.toString();
+  
+  console.log(`Running test #${process.env.TEST_COUNTER}`);
+});
+EOF
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/multicluster-routing/tests/check-ingress.js.liquid from lab number 22"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 22"; exit 1; }
+-->
+<!--bash
+cat <<'EOF' > ./test.js
+const chaiExec = require("@jsdevtools/chai-exec");
+var chai = require('chai');
+var expect = chai.expect;
+chai.use(chaiExec);
+const helpers = require('./tests/chai-http');
+
+describe("Tests all possible communication from gloo-gateway ingress (Local Waypoint=gloo-gateway, Remote Waypoint=None, Failover=false, Authorization Policy=)", () => {
+  ["/remote-in-ambient", "/remote-in-mesh"].forEach(async (path) => {
+    it(`Ingress => ${path}`, () => helpers.checkURL({ host: `http://${process.env.SOLO_INGRESS}`, headers: [{key: 'Host', value: 'httpbin.gloo-gateway'}], path: `${path}/get`, retCode: 200 }));
+    
+  });
+});
+
+const fs = require('fs');
+const path = require('path');
+
+const counterFilePath = path.join(__dirname, '.test-counter');
+
+// Setup before all tests
+before(function() {
+  // Initialize counter file if it doesn't exist
+  if (!fs.existsSync(counterFilePath)) {
+    fs.writeFileSync(counterFilePath, '0');
+  }
+});
+
+// Before each test
+beforeEach(function() {
+  // Read current counter value
+  let counter = parseInt(fs.readFileSync(counterFilePath, 'utf8'));
+  
+  // Increment counter
+  counter++;
+  
+  // Save incremented value
+  fs.writeFileSync(counterFilePath, counter.toString());
+  
+  // Set environment variable
+  process.env.TEST_COUNTER = counter.toString();
+  
+  console.log(`Running test #${process.env.TEST_COUNTER}`);
+});
+EOF
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/multicluster-routing/tests/check-ingress.js.liquid from lab number 22"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 22"; exit 1; }
+-->
+### Scenario 3b: Local gloo-gateway waypoints with failover
+
 
 <!--bash
-echo "Scenario 3b: Local Gloo waypoints with failover"
+echo "Scenario 3b: Local gloo-gateway waypoints with failover"
 -->
 
 Let's scale down the local services:
@@ -8302,6 +9278,210 @@ Expected output: `200`
 
 
 
+#### Testing Ingress Connectivity (istio ISTIO_INGRESS)
+
+
+
+
+1. Test connectivity to global in-mesh service via ingress:
+```
+curl -s -o /dev/null -w "%{http_code}" -H "Host: httpbin.istio" http://${ISTIO_INGRESS}/global-in-mesh/get
+```
+
+Expected output: `200`
+
+
+
+2. Test connectivity to global in-ambient service via ingress:
+```
+curl -s -o /dev/null -w "%{http_code}" -H "Host: httpbin.istio" http://${ISTIO_INGRESS}/global-in-ambient/get
+```
+
+Expected output: `200`
+
+
+
+
+
+#### Testing Ingress Connectivity (gloo-gateway SOLO_INGRESS)
+
+
+
+
+1. Test connectivity to global in-mesh service via ingress:
+```
+curl -s -o /dev/null -w "%{http_code}" -H "Host: httpbin.gloo-gateway" http://${SOLO_INGRESS}/global-in-mesh/get
+```
+
+Expected output: `200`
+
+
+
+2. Test connectivity to global in-ambient service via ingress:
+```
+curl -s -o /dev/null -w "%{http_code}" -H "Host: httpbin.gloo-gateway" http://${SOLO_INGRESS}/global-in-ambient/get
+```
+
+Expected output: `200`
+
+
+
+
+
+
+#### From client-in-mesh
+
+
+
+
+1. Test connectivity to global in-mesh service:
+```
+kubectl --context ${CLUSTER1} exec -n httpbin $(kubectl --context ${CLUSTER1} get pod -l app=client-in-mesh -n httpbin -o jsonpath='{.items[0].metadata.name}') -- curl -s  in-mesh.httpbin.mesh.internal:8000/get
+```
+
+Check that the response headers include `X-Istio-Workload: $LOCAL_SOLO_WAYPOINT`
+
+
+
+2. Test connectivity to global in-ambient service:
+```
+kubectl --context ${CLUSTER1} exec -n httpbin $(kubectl --context ${CLUSTER1} get pod -l app=client-in-mesh -n httpbin -o jsonpath='{.items[0].metadata.name}') -- curl -s  in-ambient.httpbin.mesh.internal:8000/get
+```
+
+Check that the response headers include `X-Istio-Workload: $LOCAL_SOLO_WAYPOINT`
+
+
+
+
+
+
+
+#### From client-in-ambient
+
+
+
+
+1. Test connectivity to global in-mesh service:
+```
+kubectl --context ${CLUSTER1} exec -n httpbin $(kubectl --context ${CLUSTER1} get pod -l app=client-in-ambient -n httpbin -o jsonpath='{.items[0].metadata.name}') -- curl -s  in-mesh.httpbin.mesh.internal:8000/get
+```
+
+Check that the response headers include `X-Istio-Workload: $LOCAL_SOLO_WAYPOINT`
+
+
+
+2. Test connectivity to global in-ambient service:
+```
+kubectl --context ${CLUSTER1} exec -n httpbin $(kubectl --context ${CLUSTER1} get pod -l app=client-in-ambient -n httpbin -o jsonpath='{.items[0].metadata.name}') -- curl -s  in-ambient.httpbin.mesh.internal:8000/get
+```
+
+Check that the response headers include `X-Istio-Workload: $LOCAL_SOLO_WAYPOINT`
+
+
+
+
+
+#### Testing Ingress Connectivity (istio ISTIO_INGRESS)
+
+
+
+
+1. Test connectivity to global in-mesh service via ingress:
+```
+curl -s  -H "Host: httpbin.istio" http://${ISTIO_INGRESS}/global-in-mesh/get
+```
+
+Check that the response body contains `${process.env.LOCAL_SOLO_WAYPOINT}`
+
+
+
+2. Test connectivity to global in-ambient service via ingress:
+```
+curl -s  -H "Host: httpbin.istio" http://${ISTIO_INGRESS}/global-in-ambient/get
+```
+
+Check that the response body contains `${process.env.LOCAL_SOLO_WAYPOINT}`
+
+
+
+
+
+<!--bash
+cat <<'EOF' > ./test.js
+const chaiExec = require("@jsdevtools/chai-exec");
+var chai = require('chai');
+var expect = chai.expect;
+chai.use(chaiExec);
+const helpers = require('./tests/chai-exec');
+
+async function status_test(source, target) {
+  const command = await helpers.curlInDeployment({
+    context: `${process.env.CLUSTER1}`,
+    namespace: 'httpbin',
+    deploymentName: source,
+    curlCommand: `curl -s -o /dev/null -w "%{http_code}" ${target}:8000/get`
+  });
+  output = JSON.parse(command);
+  expect(output).to.equal(200);
+}
+
+async function header_test(source, target) {
+  const command = await helpers.curlInDeployment({
+    context: `${process.env.CLUSTER1}`,
+    namespace: 'httpbin',
+    deploymentName: source,
+    curlCommand: `curl -s ${target}:8000/get`
+  });
+  output = JSON.parse(command);
+  expect(output.headers["X-Istio-Workload"]).to.equal(process.env.LOCAL_SOLO_WAYPOINT);
+}
+
+describe("Tests all possible eastwest communication (Local Waypoint=gloo-gateway, Remote Waypoint=None, Failover=true, Authorization Policy=)", () => {
+  ["client-in-mesh", "client-in-ambient"].forEach(async (source) => {
+    ["in-mesh.httpbin.mesh.internal", "in-ambient.httpbin.mesh.internal",].forEach(async (target) => {
+      
+      it(`${source} => LOCAL_SOLO_WAYPOINT => ${target}`, async () => {
+        await header_test(source, target);
+        await status_test(source, target);
+      });
+      
+    });
+  });
+});
+
+const fs = require('fs');
+const path = require('path');
+
+const counterFilePath = path.join(__dirname, '.test-counter');
+
+// Setup before all tests
+before(function() {
+  // Initialize counter file if it doesn't exist
+  if (!fs.existsSync(counterFilePath)) {
+    fs.writeFileSync(counterFilePath, '0');
+  }
+});
+
+// Before each test
+beforeEach(function() {
+  // Read current counter value
+  let counter = parseInt(fs.readFileSync(counterFilePath, 'utf8'));
+  
+  // Increment counter
+  counter++;
+  
+  // Save incremented value
+  fs.writeFileSync(counterFilePath, counter.toString());
+  
+  // Set environment variable
+  process.env.TEST_COUNTER = counter.toString();
+  
+  console.log(`Running test #${process.env.TEST_COUNTER}`);
+});
+EOF
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/multicluster-routing/tests/check-all.js.liquid from lab number 22"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 22"; exit 1; }
+-->
 <!--bash
 cat <<'EOF' > ./test.js
 const chaiExec = require("@jsdevtools/chai-exec");
@@ -8332,14 +9512,14 @@ async function header_test(source, target) {
   expect(output.headers["X-Istio-Workload"]).to.equal(process.env.LOCAL_ISTIO_WAYPOINT);
 }
 
-describe("Tests all possible eastwest communication", () => {
+describe("Tests all possible eastwest communication (Local Waypoint=gloo-gateway, Remote Waypoint=None, Failover=true, Authorization Policy=)", () => {
   ["client-in-mesh", "client-in-ambient"].forEach(async (source) => {
-    ["in-mesh.httpbin.mesh.internal", "in-ambient.httpbin.mesh.internal",].forEach(async (target) => {
+    ["remote-in-mesh.httpbin.mesh.internal", "remote-in-ambient.httpbin.mesh.internal"].forEach(async (target) => {
+      
       it(`${source} => ${target}`, async () => {
-        
         await status_test(source, target);
-        
       });
+      
     });
   });
 });
@@ -8374,36 +9554,9 @@ beforeEach(function() {
   console.log(`Running test #${process.env.TEST_COUNTER}`);
 });
 EOF
-echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/multicluster-routing/tests/check-all.js.liquid from lab number 21"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 21"; exit 1; }
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/multicluster-routing/tests/check-all.js.liquid from lab number 22"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 22"; exit 1; }
 -->
-
-
-#### Testing Ingress Connectivity
-
-
-
-
-1. Test connectivity to global in-mesh service via ingress:
-```
-curl -s -o /dev/null -w "%{http_code}" -H "Host: httpbin.istio" http://${ISTIO_INGRESS}/global-in-mesh/get
-```
-
-Expected output: `200`
-
-
-
-2. Test connectivity to global in-ambient service via ingress:
-```
-curl -s -o /dev/null -w "%{http_code}" -H "Host: httpbin.istio" http://${ISTIO_INGRESS}/global-in-ambient/get
-```
-
-Expected output: `200`
-
-
-
-
-
 <!--bash
 cat <<'EOF' > ./test.js
 const chaiExec = require("@jsdevtools/chai-exec");
@@ -8412,10 +9565,11 @@ var expect = chai.expect;
 chai.use(chaiExec);
 const helpers = require('./tests/chai-http');
 
-describe("Tests all possible communication from istio ingress", () => {
+describe("Tests all possible communication from istio ingress (Local Waypoint=gloo-gateway, Remote Waypoint=None, Failover=true, Authorization Policy=)", () => {
   [].forEach(async (path) => {
+    it(`Ingress => ${path}`, () => helpers.checkURL({ host: `http://${process.env.ISTIO_INGRESS}`, headers: [{key: 'Host', value: 'httpbin.istio'}], path: `${path}/get`, retCode: 200 }));
     
-    it(`${path} is available`, () => helpers.checkURL({ host: `http://${process.env.ISTIO_INGRESS}`, headers: [{key: 'Host', value: 'httpbin.istio'}], path: `${path}/get`, retCode: 200 }));
+    it(`Ingress => LOCAL_SOLO_WAYPOINT => ${path}`, () => helpers.checkBody({ host: `http://${process.env.ISTIO_INGRESS}`, headers: [{key: 'Host', value: 'httpbin.istio'}], path: `${path}/get`, body: process.env.LOCAL_SOLO_WAYPOINT }));
     
   });
 });
@@ -8450,36 +9604,9 @@ beforeEach(function() {
   console.log(`Running test #${process.env.TEST_COUNTER}`);
 });
 EOF
-echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/multicluster-routing/tests/check-ingress.js.liquid from lab number 21"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 21"; exit 1; }
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/multicluster-routing/tests/check-ingress.js.liquid from lab number 22"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 22"; exit 1; }
 -->
-
-
-#### Testing Ingress Connectivity
-
-
-
-
-1. Test connectivity to global in-mesh service via ingress:
-```
-curl -s -o /dev/null -w "%{http_code}" -H "Host: httpbin.gloo" http://${GLOO_INGRESS}/global-in-mesh/get
-```
-
-Expected output: `200`
-
-
-
-2. Test connectivity to global in-ambient service via ingress:
-```
-curl -s -o /dev/null -w "%{http_code}" -H "Host: httpbin.gloo" http://${GLOO_INGRESS}/global-in-ambient/get
-```
-
-Expected output: `200`
-
-
-
-
-
 <!--bash
 cat <<'EOF' > ./test.js
 const chaiExec = require("@jsdevtools/chai-exec");
@@ -8488,10 +9615,9 @@ var expect = chai.expect;
 chai.use(chaiExec);
 const helpers = require('./tests/chai-http');
 
-describe("Tests all possible communication from gloo ingress", () => {
-  [].forEach(async (path) => {
-    
-    it(`${path} is available`, () => helpers.checkURL({ host: `http://${process.env.GLOO_INGRESS}`, headers: [{key: 'Host', value: 'httpbin.gloo'}], path: `${path}/get`, retCode: 200 }));
+describe("Tests all possible communication from istio ingress (Local Waypoint=gloo-gateway, Remote Waypoint=None, Failover=true, Authorization Policy=)", () => {
+  ["/remote-in-ambient", "/remote-in-mesh"].forEach(async (path) => {
+    it(`Ingress => ${path}`, () => helpers.checkURL({ host: `http://${process.env.ISTIO_INGRESS}`, headers: [{key: 'Host', value: 'httpbin.istio'}], path: `${path}/get`, retCode: 200 }));
     
   });
 });
@@ -8526,64 +9652,197 @@ beforeEach(function() {
   console.log(`Running test #${process.env.TEST_COUNTER}`);
 });
 EOF
-echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/multicluster-routing/tests/check-ingress.js.liquid from lab number 21"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 21"; exit 1; }
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/multicluster-routing/tests/check-ingress.js.liquid from lab number 22"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 22"; exit 1; }
+-->
+<!--bash
+cat <<'EOF' > ./test.js
+const chaiExec = require("@jsdevtools/chai-exec");
+var chai = require('chai');
+var expect = chai.expect;
+chai.use(chaiExec);
+const helpers = require('./tests/chai-http');
+
+describe("Tests all possible communication from gloo-gateway ingress (Local Waypoint=gloo-gateway, Remote Waypoint=None, Failover=true, Authorization Policy=)", () => {
+  [].forEach(async (path) => {
+    it(`Ingress => ${path}`, () => helpers.checkURL({ host: `http://${process.env.SOLO_INGRESS}`, headers: [{key: 'Host', value: 'httpbin.gloo-gateway'}], path: `${path}/get`, retCode: 200 }));
+    
+    it(`Ingress => LOCAL_SOLO_WAYPOINT => ${path}`, () => helpers.checkBody({ host: `http://${process.env.SOLO_INGRESS}`, headers: [{key: 'Host', value: 'httpbin.gloo-gateway'}], path: `${path}/get`, body: process.env.LOCAL_SOLO_WAYPOINT }));
+    
+  });
+});
+
+const fs = require('fs');
+const path = require('path');
+
+const counterFilePath = path.join(__dirname, '.test-counter');
+
+// Setup before all tests
+before(function() {
+  // Initialize counter file if it doesn't exist
+  if (!fs.existsSync(counterFilePath)) {
+    fs.writeFileSync(counterFilePath, '0');
+  }
+});
+
+// Before each test
+beforeEach(function() {
+  // Read current counter value
+  let counter = parseInt(fs.readFileSync(counterFilePath, 'utf8'));
+  
+  // Increment counter
+  counter++;
+  
+  // Save incremented value
+  fs.writeFileSync(counterFilePath, counter.toString());
+  
+  // Set environment variable
+  process.env.TEST_COUNTER = counter.toString();
+  
+  console.log(`Running test #${process.env.TEST_COUNTER}`);
+});
+EOF
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/multicluster-routing/tests/check-ingress.js.liquid from lab number 22"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 22"; exit 1; }
+-->
+<!--bash
+cat <<'EOF' > ./test.js
+const chaiExec = require("@jsdevtools/chai-exec");
+var chai = require('chai');
+var expect = chai.expect;
+chai.use(chaiExec);
+const helpers = require('./tests/chai-http');
+
+describe("Tests all possible communication from gloo-gateway ingress (Local Waypoint=gloo-gateway, Remote Waypoint=None, Failover=true, Authorization Policy=)", () => {
+  ["/remote-in-ambient", "/remote-in-mesh"].forEach(async (path) => {
+    it(`Ingress => ${path}`, () => helpers.checkURL({ host: `http://${process.env.SOLO_INGRESS}`, headers: [{key: 'Host', value: 'httpbin.gloo-gateway'}], path: `${path}/get`, retCode: 200 }));
+    
+  });
+});
+
+const fs = require('fs');
+const path = require('path');
+
+const counterFilePath = path.join(__dirname, '.test-counter');
+
+// Setup before all tests
+before(function() {
+  // Initialize counter file if it doesn't exist
+  if (!fs.existsSync(counterFilePath)) {
+    fs.writeFileSync(counterFilePath, '0');
+  }
+});
+
+// Before each test
+beforeEach(function() {
+  // Read current counter value
+  let counter = parseInt(fs.readFileSync(counterFilePath, 'utf8'));
+  
+  // Increment counter
+  counter++;
+  
+  // Save incremented value
+  fs.writeFileSync(counterFilePath, counter.toString());
+  
+  // Set environment variable
+  process.env.TEST_COUNTER = counter.toString();
+  
+  console.log(`Running test #${process.env.TEST_COUNTER}`);
+});
+EOF
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/multicluster-routing/tests/check-ingress.js.liquid from lab number 22"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 22"; exit 1; }
 -->
 
+Let's scale up the local services:
 
-
-#### From client-in-mesh
-
-
-
-
-1. Test connectivity to global in-mesh service:
-```
-kubectl --context ${CLUSTER1} exec -n httpbin $(kubectl --context ${CLUSTER1} get pod -l app=client-in-mesh -n httpbin -o jsonpath='{.items[0].metadata.name}') -- curl -s  in-mesh.httpbin.mesh.internal:8000/get
+```bash
+kubectl --context ${CLUSTER1} -n httpbin scale deploy/in-mesh --replicas=1
+kubectl --context ${CLUSTER1} -n httpbin scale deploy/in-ambient --replicas=1
+kubectl --context ${CLUSTER1} -n httpbin rollout status deploy/in-mesh
+kubectl --context ${CLUSTER1} -n httpbin rollout status deploy/in-ambient
 ```
 
-Check that the response headers include `X-Istio-Workload: $LOCAL_GLOO_WAYPOINT`
+### Scenario 3c: Local gloo-gateway waypoints with AuthorizationPolicy
 
 
+<!--bash
+echo "Scenario 3c: Local gloo-gateway waypoints with AuthorizationPolicy"
+-->
 
-2. Test connectivity to global in-ambient service:
-```
-kubectl --context ${CLUSTER1} exec -n httpbin $(kubectl --context ${CLUSTER1} get pod -l app=client-in-mesh -n httpbin -o jsonpath='{.items[0].metadata.name}') -- curl -s  in-ambient.httpbin.mesh.internal:8000/get
-```
+POST requests should be denied. For example:
 
-Check that the response headers include `X-Istio-Workload: $LOCAL_GLOO_WAYPOINT`
-
-
-
-
-
-
-
-#### From client-in-ambient
-
-
-
-
-1. Test connectivity to global in-mesh service:
-```
-kubectl --context ${CLUSTER1} exec -n httpbin $(kubectl --context ${CLUSTER1} get pod -l app=client-in-ambient -n httpbin -o jsonpath='{.items[0].metadata.name}') -- curl -s  in-mesh.httpbin.mesh.internal:8000/get
+```bash,norun-workshop
+kubectl --context ${CLUSTER1} exec -n httpbin $(kubectl --context ${CLUSTER1} get pod -l app=client-in-ambient -n httpbin -o jsonpath='{.items[0].metadata.name}') -- curl -s -X POST in-ambient.httpbin.svc.cluster.local:8000/post
 ```
 
-Check that the response headers include `X-Istio-Workload: $LOCAL_GLOO_WAYPOINT`
+<!--bash
+cat <<'EOF' > ./test.js
+const chaiExec = require("@jsdevtools/chai-exec");
+var chai = require('chai');
+var expect = chai.expect;
+chai.use(chaiExec);
+const helpers = require('./tests/chai-http');
 
+describe("AuthorizationPolicy is working properly (Local Waypoint=gloo-gateway, Remote Waypoint=None, Failover=false, Authorization Policy=true)", () => {
+  ["client-in-mesh", "client-in-ambient"].forEach(async (source) => {
+    ["in-mesh.httpbin.mesh.internal", "in-ambient.httpbin.mesh.internal",].forEach(async (target) => {
+      it(`${source} isn't allowed to send POST requests to ${target}`, () => {
+        let command = `kubectl --context ${process.env.CLUSTER1} -n httpbin exec deploy/${source} -- curl -m 2 --max-time 2 -s -X POST -o /dev/null -w "%{http_code}" "http://${target}:8000/post"`;
+        let cli = chaiExec(command);
+        expect(cli).to.exit.with.code(0);
+        expect(cli).output.to.contain('403');
+      });
+      it(`${source} is allowed to send GET requests to ${target}`, () => {
+        let command = `kubectl --context ${process.env.CLUSTER1} -n httpbin exec deploy/${source} -- curl -m 2 --max-time 2 -s -o /dev/null -w "%{http_code}" "http://${target}:8000/get"`;
+        let cli = chaiExec(command);
+        expect(cli).to.exit.with.code(0);
+        expect(cli).output.to.contain('200');
+      });
+    });
+    ["in-mesh", "in-ambient",].forEach(async (target) => {
+      it(`Istio ingress isn't allowed to send POST requests to /${target}`, () => helpers.checkWithMethod({ host: `http://${process.env.ISTIO_INGRESS}`, method: "post", headers: [{key: 'Host', value: 'httpbin.istio'}], path: `/${target}/post`, retCode: 403 }));
+      it(`Istio ingress is allowed to send GET requests to /${target}`, () => helpers.checkWithMethod({ host: `http://${process.env.ISTIO_INGRESS}`, method: "get", headers: [{key: 'Host', value: 'httpbin.istio'}], path: `/${target}/get`, retCode: 200 }));
 
+      it(`gloo-gateway ingress isn't allowed to send POST requests to /${target}`, () => helpers.checkWithMethod({ host: `http://${process.env.SOLO_INGRESS}`, method: "post", headers: [{key: 'Host', value: 'httpbin.gloo-gateway'}], path: `/${target}/post`, retCode: 403 }));
+      it(`gloo-gateway ingress is allowed to send GET requests to /${target}`, () => helpers.checkWithMethod({ host: `http://${process.env.SOLO_INGRESS}`, method: "get", headers: [{key: 'Host', value: 'httpbin.gloo-gateway'}], path: `/${target}/get`, retCode: 200 }));
+    });
+  });
+});
 
-2. Test connectivity to global in-ambient service:
-```
-kubectl --context ${CLUSTER1} exec -n httpbin $(kubectl --context ${CLUSTER1} get pod -l app=client-in-ambient -n httpbin -o jsonpath='{.items[0].metadata.name}') -- curl -s  in-ambient.httpbin.mesh.internal:8000/get
-```
+const fs = require('fs');
+const path = require('path');
 
-Check that the response headers include `X-Istio-Workload: $LOCAL_GLOO_WAYPOINT`
+const counterFilePath = path.join(__dirname, '.test-counter');
 
+// Setup before all tests
+before(function() {
+  // Initialize counter file if it doesn't exist
+  if (!fs.existsSync(counterFilePath)) {
+    fs.writeFileSync(counterFilePath, '0');
+  }
+});
 
-
-
-
+// Before each test
+beforeEach(function() {
+  // Read current counter value
+  let counter = parseInt(fs.readFileSync(counterFilePath, 'utf8'));
+  
+  // Increment counter
+  counter++;
+  
+  // Save incremented value
+  fs.writeFileSync(counterFilePath, counter.toString());
+  
+  // Set environment variable
+  process.env.TEST_COUNTER = counter.toString();
+  
+  console.log(`Running test #${process.env.TEST_COUNTER}`);
+});
+EOF
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/multicluster-routing/tests/check-authorization.js.liquid from lab number 22"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 22"; exit 1; }
+-->
 <!--bash
 cat <<'EOF' > ./test.js
 const chaiExec = require("@jsdevtools/chai-exec");
@@ -8611,17 +9870,18 @@ async function header_test(source, target) {
     curlCommand: `curl -s ${target}:8000/get`
   });
   output = JSON.parse(command);
-  expect(output.headers["X-Istio-Workload"]).to.equal(process.env.LOCAL_GLOO_WAYPOINT);
+  expect(output.headers["X-Istio-Workload"]).to.equal(process.env.LOCAL_SOLO_WAYPOINT);
 }
 
-describe("Tests all possible eastwest communication through waypoint", () => {
+describe("Tests all possible eastwest communication (Local Waypoint=gloo-gateway, Remote Waypoint=None, Failover=false, Authorization Policy=true)", () => {
   ["client-in-mesh", "client-in-ambient"].forEach(async (source) => {
-    ["in-mesh.httpbin.mesh.internal", "in-ambient.httpbin.mesh.internal",].forEach(async (target) => {
-      it(`${source} => ${target}`, async () => {
-        
+    ["in-mesh.httpbin.svc.cluster.local", "in-ambient.httpbin.svc.cluster.local","in-mesh.httpbin.mesh.internal", "in-ambient.httpbin.mesh.internal",].forEach(async (target) => {
+      
+      it(`${source} => LOCAL_SOLO_WAYPOINT => ${target}`, async () => {
         await header_test(source, target);
-        
+        await status_test(source, target);
       });
+      
     });
   });
 });
@@ -8656,137 +9916,47 @@ beforeEach(function() {
   console.log(`Running test #${process.env.TEST_COUNTER}`);
 });
 EOF
-echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/multicluster-routing/tests/check-all.js.liquid from lab number 21"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 21"; exit 1; }
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/multicluster-routing/tests/check-all.js.liquid from lab number 22"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 22"; exit 1; }
 -->
-
-
-#### Testing Ingress Connectivity
-
-
-
-
-1. Test connectivity to global in-mesh service via ingress:
-```
-curl -s  -H "Host: httpbin.istio" http://${ISTIO_INGRESS}/global-in-mesh/get
-```
-
-Check that the response body contains `${process.env.LOCAL_GLOO_WAYPOINT}`
-
-
-
-2. Test connectivity to global in-ambient service via ingress:
-```
-curl -s  -H "Host: httpbin.istio" http://${ISTIO_INGRESS}/global-in-ambient/get
-```
-
-Check that the response body contains `${process.env.LOCAL_GLOO_WAYPOINT}`
-
-
-
-
-
 <!--bash
 cat <<'EOF' > ./test.js
 const chaiExec = require("@jsdevtools/chai-exec");
 var chai = require('chai');
 var expect = chai.expect;
 chai.use(chaiExec);
-const helpers = require('./tests/chai-http');
+const helpers = require('./tests/chai-exec');
 
-describe("Tests all possible communication from istio ingress through waypoint", () => {
-  [].forEach(async (path) => {
-    
-    it(`${path} is going through the right waypoint`, () => helpers.checkBody({ host: `http://${process.env.ISTIO_INGRESS}`, headers: [{key: 'Host', value: 'httpbin.istio'}], path: `${path}/get`, body: process.env.LOCAL_GLOO_WAYPOINT }));
-    
+async function status_test(source, target) {
+  const command = await helpers.curlInDeployment({
+    context: `${process.env.CLUSTER1}`,
+    namespace: 'httpbin',
+    deploymentName: source,
+    curlCommand: `curl -s -o /dev/null -w "%{http_code}" ${target}:8000/get`
   });
-});
+  output = JSON.parse(command);
+  expect(output).to.equal(200);
+}
 
-const fs = require('fs');
-const path = require('path');
+async function header_test(source, target) {
+  const command = await helpers.curlInDeployment({
+    context: `${process.env.CLUSTER1}`,
+    namespace: 'httpbin',
+    deploymentName: source,
+    curlCommand: `curl -s ${target}:8000/get`
+  });
+  output = JSON.parse(command);
+  expect(output.headers["X-Istio-Workload"]).to.equal(process.env.LOCAL_ISTIO_WAYPOINT);
+}
 
-const counterFilePath = path.join(__dirname, '.test-counter');
-
-// Setup before all tests
-before(function() {
-  // Initialize counter file if it doesn't exist
-  if (!fs.existsSync(counterFilePath)) {
-    fs.writeFileSync(counterFilePath, '0');
-  }
-});
-
-// Before each test
-beforeEach(function() {
-  // Read current counter value
-  let counter = parseInt(fs.readFileSync(counterFilePath, 'utf8'));
-  
-  // Increment counter
-  counter++;
-  
-  // Save incremented value
-  fs.writeFileSync(counterFilePath, counter.toString());
-  
-  // Set environment variable
-  process.env.TEST_COUNTER = counter.toString();
-  
-  console.log(`Running test #${process.env.TEST_COUNTER}`);
-});
-EOF
-echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/multicluster-routing/tests/check-ingress.js.liquid from lab number 21"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 21"; exit 1; }
--->
-
-Let's scale up the local services:
-
-```bash
-kubectl --context ${CLUSTER1} -n httpbin scale deploy/in-mesh --replicas=1
-kubectl --context ${CLUSTER1} -n httpbin scale deploy/in-ambient --replicas=1
-kubectl --context ${CLUSTER1} -n httpbin rollout status deploy/in-mesh
-kubectl --context ${CLUSTER1} -n httpbin rollout status deploy/in-ambient
-```
-
-### Scenario 3c: Local Gloo waypoints with AuthorizationPolicy
-
-<!--bash
-echo "Scenario 3c: Local Gloo waypoints with AuthorizationPolicy"
--->
-
-POST requests should be denied. For example:
-
-```bash,noexecute
-kubectl --context ${CLUSTER1} exec -n httpbin $(kubectl --context ${CLUSTER1} get pod -l app=client-in-ambient -n httpbin -o jsonpath='{.items[0].metadata.name}') -- curl -s -X POST in-ambient.httpbin.svc.cluster.local:8000/post
-```
-
-<!--bash
-cat <<'EOF' > ./test.js
-const chaiExec = require("@jsdevtools/chai-exec");
-var chai = require('chai');
-var expect = chai.expect;
-chai.use(chaiExec);
-const helpers = require('./tests/chai-http');
-
-describe("AuthorizationPolicy is working properly", () => {
+describe("Tests all possible eastwest communication (Local Waypoint=gloo-gateway, Remote Waypoint=None, Failover=false, Authorization Policy=true)", () => {
   ["client-in-mesh", "client-in-ambient"].forEach(async (source) => {
-    ["in-mesh.httpbin.mesh.internal", "in-ambient.httpbin.mesh.internal",].forEach(async (target) => {
-      it(`${source} isn't allowed to send POST requests to ${target}`, () => {
-        let command = `kubectl --context ${process.env.CLUSTER1} -n httpbin exec deploy/${source} -- curl -m 2 --max-time 2 -s -X POST -o /dev/null -w "%{http_code}" "http://${target}:8000/post"`;
-        let cli = chaiExec(command);
-        expect(cli).to.exit.with.code(0);
-        expect(cli).output.to.contain('403');
+    ["remote-in-mesh.httpbin.mesh.internal", "remote-in-ambient.httpbin.mesh.internal"].forEach(async (target) => {
+      
+      it(`${source} => ${target}`, async () => {
+        await status_test(source, target);
       });
-      it(`${source} is allowed to send GET requests to ${target}`, () => {
-        let command = `kubectl --context ${process.env.CLUSTER1} -n httpbin exec deploy/${source} -- curl -m 2 --max-time 2 -s -o /dev/null -w "%{http_code}" "http://${target}:8000/get"`;
-        let cli = chaiExec(command);
-        expect(cli).to.exit.with.code(0);
-        expect(cli).output.to.contain('200');
-      });
-    });
-    ["in-mesh", "in-ambient",].forEach(async (target) => {
-      it(`Istio ingress isn't allowed to send POST requests to /${target}`, () => helpers.checkWithMethod({ host: `http://${process.env.ISTIO_INGRESS}`, method: "post", headers: [{key: 'Host', value: 'httpbin.istio'}], path: `/${target}/post`, retCode: 403 }));
-      it(`Istio ingress is allowed to send GET requests to /${target}`, () => helpers.checkWithMethod({ host: `http://${process.env.ISTIO_INGRESS}`, method: "get", headers: [{key: 'Host', value: 'httpbin.istio'}], path: `/${target}/get`, retCode: 200 }));
-      // Gloo Gateway as an ingress doesn't use Istio waypoint
-      // it(`Gloo ingress isn't allowed to send POST requests to /${target}`, () => helpers.checkWithMethod({ host: `http://${process.env.GLOO_INGRESS}`, method: "post", headers: [{key: 'Host', value: 'httpbin.gloo'}], path: `/${target}/post`, retCode: 403 }));
-      // it(`Gloo ingress is allowed to send GET requests to /${target}`, () => helpers.checkWithMethod({ host: `http://${process.env.GLOO_INGRESS}`, method: "get", headers: [{key: 'Host', value: 'httpbin.gloo'}], path: `/${target}/get`, retCode: 200 }));
+      
     });
   });
 });
@@ -8821,8 +9991,204 @@ beforeEach(function() {
   console.log(`Running test #${process.env.TEST_COUNTER}`);
 });
 EOF
-echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/multicluster-routing/tests/check-authorization.js.liquid from lab number 21"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 21"; exit 1; }
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/multicluster-routing/tests/check-all.js.liquid from lab number 22"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 22"; exit 1; }
+-->
+<!--bash
+cat <<'EOF' > ./test.js
+const chaiExec = require("@jsdevtools/chai-exec");
+var chai = require('chai');
+var expect = chai.expect;
+chai.use(chaiExec);
+const helpers = require('./tests/chai-http');
+
+describe("Tests all possible communication from istio ingress (Local Waypoint=gloo-gateway, Remote Waypoint=None, Failover=false, Authorization Policy=true)", () => {
+  ["/in-ambient", "/in-mesh","/global-in-ambient", "/global-in-mesh",].forEach(async (path) => {
+    it(`Ingress => ${path}`, () => helpers.checkURL({ host: `http://${process.env.ISTIO_INGRESS}`, headers: [{key: 'Host', value: 'httpbin.istio'}], path: `${path}/get`, retCode: 200 }));
+    
+    it(`Ingress => LOCAL_SOLO_WAYPOINT => ${path}`, () => helpers.checkBody({ host: `http://${process.env.ISTIO_INGRESS}`, headers: [{key: 'Host', value: 'httpbin.istio'}], path: `${path}/get`, body: process.env.LOCAL_SOLO_WAYPOINT }));
+    
+  });
+});
+
+const fs = require('fs');
+const path = require('path');
+
+const counterFilePath = path.join(__dirname, '.test-counter');
+
+// Setup before all tests
+before(function() {
+  // Initialize counter file if it doesn't exist
+  if (!fs.existsSync(counterFilePath)) {
+    fs.writeFileSync(counterFilePath, '0');
+  }
+});
+
+// Before each test
+beforeEach(function() {
+  // Read current counter value
+  let counter = parseInt(fs.readFileSync(counterFilePath, 'utf8'));
+  
+  // Increment counter
+  counter++;
+  
+  // Save incremented value
+  fs.writeFileSync(counterFilePath, counter.toString());
+  
+  // Set environment variable
+  process.env.TEST_COUNTER = counter.toString();
+  
+  console.log(`Running test #${process.env.TEST_COUNTER}`);
+});
+EOF
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/multicluster-routing/tests/check-ingress.js.liquid from lab number 22"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 22"; exit 1; }
+-->
+<!--bash
+cat <<'EOF' > ./test.js
+const chaiExec = require("@jsdevtools/chai-exec");
+var chai = require('chai');
+var expect = chai.expect;
+chai.use(chaiExec);
+const helpers = require('./tests/chai-http');
+
+describe("Tests all possible communication from istio ingress (Local Waypoint=gloo-gateway, Remote Waypoint=None, Failover=false, Authorization Policy=true)", () => {
+  ["/remote-in-ambient", "/remote-in-mesh"].forEach(async (path) => {
+    it(`Ingress => ${path}`, () => helpers.checkURL({ host: `http://${process.env.ISTIO_INGRESS}`, headers: [{key: 'Host', value: 'httpbin.istio'}], path: `${path}/get`, retCode: 200 }));
+    
+  });
+});
+
+const fs = require('fs');
+const path = require('path');
+
+const counterFilePath = path.join(__dirname, '.test-counter');
+
+// Setup before all tests
+before(function() {
+  // Initialize counter file if it doesn't exist
+  if (!fs.existsSync(counterFilePath)) {
+    fs.writeFileSync(counterFilePath, '0');
+  }
+});
+
+// Before each test
+beforeEach(function() {
+  // Read current counter value
+  let counter = parseInt(fs.readFileSync(counterFilePath, 'utf8'));
+  
+  // Increment counter
+  counter++;
+  
+  // Save incremented value
+  fs.writeFileSync(counterFilePath, counter.toString());
+  
+  // Set environment variable
+  process.env.TEST_COUNTER = counter.toString();
+  
+  console.log(`Running test #${process.env.TEST_COUNTER}`);
+});
+EOF
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/multicluster-routing/tests/check-ingress.js.liquid from lab number 22"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 22"; exit 1; }
+-->
+<!--bash
+cat <<'EOF' > ./test.js
+const chaiExec = require("@jsdevtools/chai-exec");
+var chai = require('chai');
+var expect = chai.expect;
+chai.use(chaiExec);
+const helpers = require('./tests/chai-http');
+
+describe("Tests all possible communication from gloo-gateway ingress (Local Waypoint=gloo-gateway, Remote Waypoint=None, Failover=false, Authorization Policy=true)", () => {
+  ["/in-ambient", "/in-mesh","/global-in-ambient", "/global-in-mesh",].forEach(async (path) => {
+    it(`Ingress => ${path}`, () => helpers.checkURL({ host: `http://${process.env.SOLO_INGRESS}`, headers: [{key: 'Host', value: 'httpbin.gloo-gateway'}], path: `${path}/get`, retCode: 200 }));
+    
+    it(`Ingress => LOCAL_SOLO_WAYPOINT => ${path}`, () => helpers.checkBody({ host: `http://${process.env.SOLO_INGRESS}`, headers: [{key: 'Host', value: 'httpbin.gloo-gateway'}], path: `${path}/get`, body: process.env.LOCAL_SOLO_WAYPOINT }));
+    
+  });
+});
+
+const fs = require('fs');
+const path = require('path');
+
+const counterFilePath = path.join(__dirname, '.test-counter');
+
+// Setup before all tests
+before(function() {
+  // Initialize counter file if it doesn't exist
+  if (!fs.existsSync(counterFilePath)) {
+    fs.writeFileSync(counterFilePath, '0');
+  }
+});
+
+// Before each test
+beforeEach(function() {
+  // Read current counter value
+  let counter = parseInt(fs.readFileSync(counterFilePath, 'utf8'));
+  
+  // Increment counter
+  counter++;
+  
+  // Save incremented value
+  fs.writeFileSync(counterFilePath, counter.toString());
+  
+  // Set environment variable
+  process.env.TEST_COUNTER = counter.toString();
+  
+  console.log(`Running test #${process.env.TEST_COUNTER}`);
+});
+EOF
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/multicluster-routing/tests/check-ingress.js.liquid from lab number 22"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 22"; exit 1; }
+-->
+<!--bash
+cat <<'EOF' > ./test.js
+const chaiExec = require("@jsdevtools/chai-exec");
+var chai = require('chai');
+var expect = chai.expect;
+chai.use(chaiExec);
+const helpers = require('./tests/chai-http');
+
+describe("Tests all possible communication from gloo-gateway ingress (Local Waypoint=gloo-gateway, Remote Waypoint=None, Failover=false, Authorization Policy=true)", () => {
+  ["/remote-in-ambient", "/remote-in-mesh"].forEach(async (path) => {
+    it(`Ingress => ${path}`, () => helpers.checkURL({ host: `http://${process.env.SOLO_INGRESS}`, headers: [{key: 'Host', value: 'httpbin.gloo-gateway'}], path: `${path}/get`, retCode: 200 }));
+    
+  });
+});
+
+const fs = require('fs');
+const path = require('path');
+
+const counterFilePath = path.join(__dirname, '.test-counter');
+
+// Setup before all tests
+before(function() {
+  // Initialize counter file if it doesn't exist
+  if (!fs.existsSync(counterFilePath)) {
+    fs.writeFileSync(counterFilePath, '0');
+  }
+});
+
+// Before each test
+beforeEach(function() {
+  // Read current counter value
+  let counter = parseInt(fs.readFileSync(counterFilePath, 'utf8'));
+  
+  // Increment counter
+  counter++;
+  
+  // Save incremented value
+  fs.writeFileSync(counterFilePath, counter.toString());
+  
+  // Set environment variable
+  process.env.TEST_COUNTER = counter.toString();
+  
+  console.log(`Running test #${process.env.TEST_COUNTER}`);
+});
+EOF
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/multicluster-routing/tests/check-ingress.js.liquid from lab number 22"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 22"; exit 1; }
 -->
 
 Add the local HTTPRoutes:
@@ -8875,6 +10241,13 @@ spec:
 EOF
 ```
 
+### Scenario 4: Local and remote Istio waypoints
+
+
+<!--bash
+echo "Scenario 4: Local and remote Istio waypoints"
+-->
+
 Let's use Istio Waypoint:
 
 ```bash
@@ -8884,13 +10257,7 @@ kubectl --context ${CLUSTER2} -n httpbin label svc in-mesh istio.io/use-waypoint
 kubectl --context ${CLUSTER2} -n httpbin label svc in-ambient istio.io/use-waypoint=waypoint --overwrite
 ```
 
-### Scenario 4: Local and remote Istio waypoints
-
-<!--bash
-echo "Scenario 4: Local and remote Istio waypoints"
--->
-
-Let's add remote waypoint:
+And add remote waypoint:
 
 ```bash
 cat << EOF | kubectl --context ${CLUSTER2} apply -f -
@@ -8913,7 +10280,7 @@ cat << EOF | kubectl --context ${CLUSTER2} apply -f -
 apiVersion: gateway.networking.k8s.io/v1
 kind: Gateway
 metadata:
-  name: gloo-waypoint
+  name: gloo-gateway-waypoint
   namespace: httpbin
 spec:
   gatewayClassName: gloo-waypoint
@@ -8934,8 +10301,8 @@ kubectl --context ${CLUSTER1} -n httpbin rollout restart deploy client-in-mesh
 kubectl --context ${CLUSTER1} -n httpbin rollout status deploy client-in-mesh
 kubectl --context ${CLUSTER1} -n httpbin rollout restart deploy httpbin-gateway-istio-istio
 kubectl --context ${CLUSTER1} -n httpbin rollout status deploy httpbin-gateway-istio-istio
-kubectl --context ${CLUSTER1} -n httpbin rollout restart deploy gloo-proxy-httpbin-gateway-gloo
-kubectl --context ${CLUSTER1} -n httpbin rollout status deploy gloo-proxy-httpbin-gateway-gloo
+kubectl --context ${CLUSTER1} -n httpbin rollout restart deploy gloo-proxy-httpbin-gateway-gloo-gateway
+kubectl --context ${CLUSTER1} -n httpbin rollout status deploy gloo-proxy-httpbin-gateway-gloo-gateway
 export REMOTE_ISTIO_WAYPOINT=$(kubectl --context ${CLUSTER2} -n httpbin get pods -l gateway.networking.k8s.io/gateway-name=waypoint -o jsonpath='{.items[0].metadata.name}')
 ```
 
@@ -9168,84 +10535,7 @@ Expected output: `200`
 
 
 
-<!--bash
-cat <<'EOF' > ./test.js
-const chaiExec = require("@jsdevtools/chai-exec");
-var chai = require('chai');
-var expect = chai.expect;
-chai.use(chaiExec);
-const helpers = require('./tests/chai-exec');
-
-async function status_test(source, target) {
-  const command = await helpers.curlInDeployment({
-    context: `${process.env.CLUSTER1}`,
-    namespace: 'httpbin',
-    deploymentName: source,
-    curlCommand: `curl -s -o /dev/null -w "%{http_code}" ${target}:8000/get`
-  });
-  output = JSON.parse(command);
-  expect(output).to.equal(200);
-}
-
-async function header_test(source, target) {
-  const command = await helpers.curlInDeployment({
-    context: `${process.env.CLUSTER1}`,
-    namespace: 'httpbin',
-    deploymentName: source,
-    curlCommand: `curl -s ${target}:8000/get`
-  });
-  output = JSON.parse(command);
-  expect(output.headers["X-Istio-Workload"]).to.equal(process.env.LOCAL_ISTIO_WAYPOINT);
-}
-
-describe("Tests all possible eastwest communication", () => {
-  ["client-in-mesh", "client-in-ambient"].forEach(async (source) => {
-    ["in-mesh.httpbin.svc.cluster.local", "in-ambient.httpbin.svc.cluster.local","in-mesh.httpbin.mesh.internal", "in-ambient.httpbin.mesh.internal","remote-in-mesh.httpbin.mesh.internal", "remote-in-ambient.httpbin.mesh.internal"].forEach(async (target) => {
-      it(`${source} => ${target}`, async () => {
-        
-        await status_test(source, target);
-        
-      });
-    });
-  });
-});
-
-const fs = require('fs');
-const path = require('path');
-
-const counterFilePath = path.join(__dirname, '.test-counter');
-
-// Setup before all tests
-before(function() {
-  // Initialize counter file if it doesn't exist
-  if (!fs.existsSync(counterFilePath)) {
-    fs.writeFileSync(counterFilePath, '0');
-  }
-});
-
-// Before each test
-beforeEach(function() {
-  // Read current counter value
-  let counter = parseInt(fs.readFileSync(counterFilePath, 'utf8'));
-  
-  // Increment counter
-  counter++;
-  
-  // Save incremented value
-  fs.writeFileSync(counterFilePath, counter.toString());
-  
-  // Set environment variable
-  process.env.TEST_COUNTER = counter.toString();
-  
-  console.log(`Running test #${process.env.TEST_COUNTER}`);
-});
-EOF
-echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/multicluster-routing/tests/check-all.js.liquid from lab number 21"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 21"; exit 1; }
--->
-
-
-#### Testing Ingress Connectivity
+#### Testing Ingress Connectivity (istio ISTIO_INGRESS)
 
 
 1. Test connectivity to in-mesh service via ingress:
@@ -9306,63 +10596,12 @@ Expected output: `200`
 
 
 
-<!--bash
-cat <<'EOF' > ./test.js
-const chaiExec = require("@jsdevtools/chai-exec");
-var chai = require('chai');
-var expect = chai.expect;
-chai.use(chaiExec);
-const helpers = require('./tests/chai-http');
-
-describe("Tests all possible communication from istio ingress", () => {
-  ["/in-ambient", "/in-mesh","/global-in-ambient", "/global-in-mesh","/remote-in-ambient", "/remote-in-mesh"].forEach(async (path) => {
-    
-    it(`${path} is available`, () => helpers.checkURL({ host: `http://${process.env.ISTIO_INGRESS}`, headers: [{key: 'Host', value: 'httpbin.istio'}], path: `${path}/get`, retCode: 200 }));
-    
-  });
-});
-
-const fs = require('fs');
-const path = require('path');
-
-const counterFilePath = path.join(__dirname, '.test-counter');
-
-// Setup before all tests
-before(function() {
-  // Initialize counter file if it doesn't exist
-  if (!fs.existsSync(counterFilePath)) {
-    fs.writeFileSync(counterFilePath, '0');
-  }
-});
-
-// Before each test
-beforeEach(function() {
-  // Read current counter value
-  let counter = parseInt(fs.readFileSync(counterFilePath, 'utf8'));
-  
-  // Increment counter
-  counter++;
-  
-  // Save incremented value
-  fs.writeFileSync(counterFilePath, counter.toString());
-  
-  // Set environment variable
-  process.env.TEST_COUNTER = counter.toString();
-  
-  console.log(`Running test #${process.env.TEST_COUNTER}`);
-});
-EOF
-echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/multicluster-routing/tests/check-ingress.js.liquid from lab number 21"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 21"; exit 1; }
--->
-
-
-#### Testing Ingress Connectivity
+#### Testing Ingress Connectivity (gloo-gateway SOLO_INGRESS)
 
 
 1. Test connectivity to in-mesh service via ingress:
 ```
-curl -s -o /dev/null -w "%{http_code}" -H "Host: httpbin.gloo" http://${GLOO_INGRESS}/in-mesh/get
+curl -s -o /dev/null -w "%{http_code}" -H "Host: httpbin.gloo-gateway" http://${SOLO_INGRESS}/in-mesh/get
 ```
 
 Expected output: `200`
@@ -9371,7 +10610,7 @@ Expected output: `200`
 
 2. Test connectivity to in-ambient service via ingress:
 ```
-curl -s -o /dev/null -w "%{http_code}" -H "Host: httpbin.gloo" http://${GLOO_INGRESS}/in-ambient/get
+curl -s -o /dev/null -w "%{http_code}" -H "Host: httpbin.gloo-gateway" http://${SOLO_INGRESS}/in-ambient/get
 ```
 
 Expected output: `200`
@@ -9382,7 +10621,7 @@ Expected output: `200`
 
 3. Test connectivity to global in-mesh service via ingress:
 ```
-curl -s -o /dev/null -w "%{http_code}" -H "Host: httpbin.gloo" http://${GLOO_INGRESS}/global-in-mesh/get
+curl -s -o /dev/null -w "%{http_code}" -H "Host: httpbin.gloo-gateway" http://${SOLO_INGRESS}/global-in-mesh/get
 ```
 
 Expected output: `200`
@@ -9391,7 +10630,7 @@ Expected output: `200`
 
 4. Test connectivity to global in-ambient service via ingress:
 ```
-curl -s -o /dev/null -w "%{http_code}" -H "Host: httpbin.gloo" http://${GLOO_INGRESS}/global-in-ambient/get
+curl -s -o /dev/null -w "%{http_code}" -H "Host: httpbin.gloo-gateway" http://${SOLO_INGRESS}/global-in-ambient/get
 ```
 
 Expected output: `200`
@@ -9402,7 +10641,7 @@ Expected output: `200`
 
 5. Test connectivity to remote in-mesh service via ingress:
 ```
-curl -s -o /dev/null -w "%{http_code}" -H "Host: httpbin.gloo" http://${GLOO_INGRESS}/remote-in-mesh/get
+curl -s -o /dev/null -w "%{http_code}" -H "Host: httpbin.gloo-gateway" http://${SOLO_INGRESS}/remote-in-mesh/get
 ```
 
 Expected output: `200`
@@ -9411,62 +10650,11 @@ Expected output: `200`
 
 6. Test connectivity to remote in-ambient service via ingress:
 ```
-curl -s -o /dev/null -w "%{http_code}" -H "Host: httpbin.gloo" http://${GLOO_INGRESS}/remote-in-ambient/get
+curl -s -o /dev/null -w "%{http_code}" -H "Host: httpbin.gloo-gateway" http://${SOLO_INGRESS}/remote-in-ambient/get
 ```
 
 Expected output: `200`
 
-
-
-<!--bash
-cat <<'EOF' > ./test.js
-const chaiExec = require("@jsdevtools/chai-exec");
-var chai = require('chai');
-var expect = chai.expect;
-chai.use(chaiExec);
-const helpers = require('./tests/chai-http');
-
-describe("Tests all possible communication from gloo ingress", () => {
-  ["/in-ambient", "/in-mesh","/global-in-ambient", "/global-in-mesh","/remote-in-ambient", "/remote-in-mesh"].forEach(async (path) => {
-    
-    it(`${path} is available`, () => helpers.checkURL({ host: `http://${process.env.GLOO_INGRESS}`, headers: [{key: 'Host', value: 'httpbin.gloo'}], path: `${path}/get`, retCode: 200 }));
-    
-  });
-});
-
-const fs = require('fs');
-const path = require('path');
-
-const counterFilePath = path.join(__dirname, '.test-counter');
-
-// Setup before all tests
-before(function() {
-  // Initialize counter file if it doesn't exist
-  if (!fs.existsSync(counterFilePath)) {
-    fs.writeFileSync(counterFilePath, '0');
-  }
-});
-
-// Before each test
-beforeEach(function() {
-  // Read current counter value
-  let counter = parseInt(fs.readFileSync(counterFilePath, 'utf8'));
-  
-  // Increment counter
-  counter++;
-  
-  // Save incremented value
-  fs.writeFileSync(counterFilePath, counter.toString());
-  
-  // Set environment variable
-  process.env.TEST_COUNTER = counter.toString();
-  
-  console.log(`Running test #${process.env.TEST_COUNTER}`);
-});
-EOF
-echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/multicluster-routing/tests/check-ingress.js.liquid from lab number 21"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 21"; exit 1; }
--->
 
 
 
@@ -9555,6 +10743,195 @@ kubectl --context ${CLUSTER1} exec -n httpbin $(kubectl --context ${CLUSTER1} ge
 Check that the response headers include `X-Istio-Workload: $LOCAL_ISTIO_WAYPOINT`
 
 
+
+
+
+
+#### From client-in-mesh
+
+
+
+
+
+
+1. Test connectivity to remote in-mesh service:
+```
+kubectl --context ${CLUSTER1} exec -n httpbin $(kubectl --context ${CLUSTER1} get pod -l app=client-in-mesh -n httpbin -o jsonpath='{.items[0].metadata.name}') -- curl -s  remote-in-mesh.httpbin.mesh.internal:8000/get
+```
+
+Check that the response headers include `X-Istio-Workload: $REMOTE_ISTIO_WAYPOINT`
+
+
+
+2. Test connectivity to remote in-ambient service:
+```
+kubectl --context ${CLUSTER1} exec -n httpbin $(kubectl --context ${CLUSTER1} get pod -l app=client-in-mesh -n httpbin -o jsonpath='{.items[0].metadata.name}') -- curl -s  remote-in-ambient.httpbin.mesh.internal:8000/get
+```
+
+Check that the response headers include `X-Istio-Workload: $REMOTE_ISTIO_WAYPOINT`
+
+
+
+
+
+#### From client-in-ambient
+
+
+
+
+
+
+1. Test connectivity to remote in-mesh service:
+```
+kubectl --context ${CLUSTER1} exec -n httpbin $(kubectl --context ${CLUSTER1} get pod -l app=client-in-ambient -n httpbin -o jsonpath='{.items[0].metadata.name}') -- curl -s  remote-in-mesh.httpbin.mesh.internal:8000/get
+```
+
+Check that the response headers include `X-Istio-Workload: $REMOTE_ISTIO_WAYPOINT`
+
+
+
+2. Test connectivity to remote in-ambient service:
+```
+kubectl --context ${CLUSTER1} exec -n httpbin $(kubectl --context ${CLUSTER1} get pod -l app=client-in-ambient -n httpbin -o jsonpath='{.items[0].metadata.name}') -- curl -s  remote-in-ambient.httpbin.mesh.internal:8000/get
+```
+
+Check that the response headers include `X-Istio-Workload: $REMOTE_ISTIO_WAYPOINT`
+
+
+
+#### Testing Ingress Connectivity (istio ISTIO_INGRESS)
+
+
+1. Test connectivity to in-mesh service via ingress:
+```
+curl -s  -H "Host: httpbin.istio" http://${ISTIO_INGRESS}/in-mesh/get
+```
+
+Check that the response body contains `${process.env.LOCAL_ISTIO_WAYPOINT}`
+
+
+
+2. Test connectivity to in-ambient service via ingress:
+```
+curl -s  -H "Host: httpbin.istio" http://${ISTIO_INGRESS}/in-ambient/get
+```
+
+Check that the response body contains `${process.env.LOCAL_ISTIO_WAYPOINT}`
+
+
+
+
+
+3. Test connectivity to global in-mesh service via ingress:
+```
+curl -s  -H "Host: httpbin.istio" http://${ISTIO_INGRESS}/global-in-mesh/get
+```
+
+Check that the response body contains `${process.env.LOCAL_ISTIO_WAYPOINT}`
+
+
+
+4. Test connectivity to global in-ambient service via ingress:
+```
+curl -s  -H "Host: httpbin.istio" http://${ISTIO_INGRESS}/global-in-ambient/get
+```
+
+Check that the response body contains `${process.env.LOCAL_ISTIO_WAYPOINT}`
+
+
+
+
+
+#### Testing Ingress Connectivity (istio ISTIO_INGRESS)
+
+
+
+
+
+
+1. Test connectivity to remote in-mesh service via ingress:
+```
+curl -s  -H "Host: httpbin.istio" http://${ISTIO_INGRESS}/remote-in-mesh/get
+```
+
+Check that the response body contains `${process.env.REMOTE_ISTIO_WAYPOINT}`
+
+
+
+2. Test connectivity to remote in-ambient service via ingress:
+```
+curl -s  -H "Host: httpbin.istio" http://${ISTIO_INGRESS}/remote-in-ambient/get
+```
+
+Check that the response body contains `${process.env.REMOTE_ISTIO_WAYPOINT}`
+
+
+
+#### Testing Ingress Connectivity (gloo-gateway SOLO_INGRESS)
+
+
+1. Test connectivity to in-mesh service via ingress:
+```
+curl -s  -H "Host: httpbin.gloo-gateway" http://${SOLO_INGRESS}/in-mesh/get
+```
+
+Check that the response body contains `${process.env.LOCAL_ISTIO_WAYPOINT}`
+
+
+
+2. Test connectivity to in-ambient service via ingress:
+```
+curl -s  -H "Host: httpbin.gloo-gateway" http://${SOLO_INGRESS}/in-ambient/get
+```
+
+Check that the response body contains `${process.env.LOCAL_ISTIO_WAYPOINT}`
+
+
+
+
+
+3. Test connectivity to global in-mesh service via ingress:
+```
+curl -s  -H "Host: httpbin.gloo-gateway" http://${SOLO_INGRESS}/global-in-mesh/get
+```
+
+Check that the response body contains `${process.env.LOCAL_ISTIO_WAYPOINT}`
+
+
+
+4. Test connectivity to global in-ambient service via ingress:
+```
+curl -s  -H "Host: httpbin.gloo-gateway" http://${SOLO_INGRESS}/global-in-ambient/get
+```
+
+Check that the response body contains `${process.env.LOCAL_ISTIO_WAYPOINT}`
+
+
+
+
+
+#### Testing Ingress Connectivity (gloo-gateway SOLO_INGRESS)
+
+
+
+
+
+
+1. Test connectivity to remote in-mesh service via ingress:
+```
+curl -s  -H "Host: httpbin.gloo-gateway" http://${SOLO_INGRESS}/remote-in-mesh/get
+```
+
+Check that the response body contains `${process.env.REMOTE_ISTIO_WAYPOINT}`
+
+
+
+2. Test connectivity to remote in-ambient service via ingress:
+```
+curl -s  -H "Host: httpbin.gloo-gateway" http://${SOLO_INGRESS}/remote-in-ambient/get
+```
+
+Check that the response body contains `${process.env.REMOTE_ISTIO_WAYPOINT}`
 
 
 
@@ -9588,14 +10965,15 @@ async function header_test(source, target) {
   expect(output.headers["X-Istio-Workload"]).to.equal(process.env.LOCAL_ISTIO_WAYPOINT);
 }
 
-describe("Tests all possible eastwest communication through waypoint", () => {
+describe("Tests all possible eastwest communication (Local Waypoint=Istio, Remote Waypoint=Istio, Failover=false, Authorization Policy=false)", () => {
   ["client-in-mesh", "client-in-ambient"].forEach(async (source) => {
     ["in-mesh.httpbin.svc.cluster.local", "in-ambient.httpbin.svc.cluster.local","in-mesh.httpbin.mesh.internal", "in-ambient.httpbin.mesh.internal",].forEach(async (target) => {
-      it(`${source} => ${target}`, async () => {
-        
+      
+      it(`${source} => LOCAL_ISTIO_WAYPOINT => ${target}`, async () => {
         await header_test(source, target);
-        
+        await status_test(source, target);
       });
+      
     });
   });
 });
@@ -9630,64 +11008,9 @@ beforeEach(function() {
   console.log(`Running test #${process.env.TEST_COUNTER}`);
 });
 EOF
-echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/multicluster-routing/tests/check-all.js.liquid from lab number 21"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 21"; exit 1; }
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/multicluster-routing/tests/check-all.js.liquid from lab number 22"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 22"; exit 1; }
 -->
-
-
-
-#### From client-in-mesh
-
-
-
-
-
-
-1. Test connectivity to remote in-mesh service:
-```
-kubectl --context ${CLUSTER1} exec -n httpbin $(kubectl --context ${CLUSTER1} get pod -l app=client-in-mesh -n httpbin -o jsonpath='{.items[0].metadata.name}') -- curl -s  remote-in-mesh.httpbin.mesh.internal:8000/get
-```
-
-Check that the response headers include `X-Istio-Workload: $REMOTE_ISTIO_WAYPOINT`
-
-
-
-2. Test connectivity to remote in-ambient service:
-```
-kubectl --context ${CLUSTER1} exec -n httpbin $(kubectl --context ${CLUSTER1} get pod -l app=client-in-mesh -n httpbin -o jsonpath='{.items[0].metadata.name}') -- curl -s  remote-in-ambient.httpbin.mesh.internal:8000/get
-```
-
-Check that the response headers include `X-Istio-Workload: $REMOTE_ISTIO_WAYPOINT`
-
-
-
-
-
-#### From client-in-ambient
-
-
-
-
-
-
-1. Test connectivity to remote in-mesh service:
-```
-kubectl --context ${CLUSTER1} exec -n httpbin $(kubectl --context ${CLUSTER1} get pod -l app=client-in-ambient -n httpbin -o jsonpath='{.items[0].metadata.name}') -- curl -s  remote-in-mesh.httpbin.mesh.internal:8000/get
-```
-
-Check that the response headers include `X-Istio-Workload: $REMOTE_ISTIO_WAYPOINT`
-
-
-
-2. Test connectivity to remote in-ambient service:
-```
-kubectl --context ${CLUSTER1} exec -n httpbin $(kubectl --context ${CLUSTER1} get pod -l app=client-in-ambient -n httpbin -o jsonpath='{.items[0].metadata.name}') -- curl -s  remote-in-ambient.httpbin.mesh.internal:8000/get
-```
-
-Check that the response headers include `X-Istio-Workload: $REMOTE_ISTIO_WAYPOINT`
-
-
-
 <!--bash
 cat <<'EOF' > ./test.js
 const chaiExec = require("@jsdevtools/chai-exec");
@@ -9718,14 +11041,15 @@ async function header_test(source, target) {
   expect(output.headers["X-Istio-Workload"]).to.equal(process.env.REMOTE_ISTIO_WAYPOINT);
 }
 
-describe("Tests all possible eastwest communication through waypoint", () => {
+describe("Tests all possible eastwest communication (Local Waypoint=Istio, Remote Waypoint=Istio, Failover=false, Authorization Policy=false)", () => {
   ["client-in-mesh", "client-in-ambient"].forEach(async (source) => {
     ["remote-in-mesh.httpbin.mesh.internal", "remote-in-ambient.httpbin.mesh.internal"].forEach(async (target) => {
-      it(`${source} => ${target}`, async () => {
-        
+      
+      it(`${source} => REMOTE_ISTIO_WAYPOINT => ${target}`, async () => {
         await header_test(source, target);
-        
+        await status_test(source, target);
       });
+      
     });
   });
 });
@@ -9760,54 +11084,9 @@ beforeEach(function() {
   console.log(`Running test #${process.env.TEST_COUNTER}`);
 });
 EOF
-echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/multicluster-routing/tests/check-all.js.liquid from lab number 21"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 21"; exit 1; }
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/multicluster-routing/tests/check-all.js.liquid from lab number 22"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 22"; exit 1; }
 -->
-
-
-#### Testing Ingress Connectivity
-
-
-1. Test connectivity to in-mesh service via ingress:
-```
-curl -s  -H "Host: httpbin.istio" http://${ISTIO_INGRESS}/in-mesh/get
-```
-
-Check that the response body contains `${process.env.LOCAL_ISTIO_WAYPOINT}`
-
-
-
-2. Test connectivity to in-ambient service via ingress:
-```
-curl -s  -H "Host: httpbin.istio" http://${ISTIO_INGRESS}/in-ambient/get
-```
-
-Check that the response body contains `${process.env.LOCAL_ISTIO_WAYPOINT}`
-
-
-
-
-
-3. Test connectivity to global in-mesh service via ingress:
-```
-curl -s  -H "Host: httpbin.istio" http://${ISTIO_INGRESS}/global-in-mesh/get
-```
-
-Check that the response body contains `${process.env.LOCAL_ISTIO_WAYPOINT}`
-
-
-
-4. Test connectivity to global in-ambient service via ingress:
-```
-curl -s  -H "Host: httpbin.istio" http://${ISTIO_INGRESS}/global-in-ambient/get
-```
-
-Check that the response body contains `${process.env.LOCAL_ISTIO_WAYPOINT}`
-
-
-
-
-
 <!--bash
 cat <<'EOF' > ./test.js
 const chaiExec = require("@jsdevtools/chai-exec");
@@ -9816,86 +11095,11 @@ var expect = chai.expect;
 chai.use(chaiExec);
 const helpers = require('./tests/chai-http');
 
-describe("Tests all possible communication from istio ingress through waypoint", () => {
+describe("Tests all possible communication from istio ingress (Local Waypoint=Istio, Remote Waypoint=Istio, Failover=false, Authorization Policy=false)", () => {
   ["/in-ambient", "/in-mesh","/global-in-ambient", "/global-in-mesh",].forEach(async (path) => {
+    it(`Ingress => ${path}`, () => helpers.checkURL({ host: `http://${process.env.ISTIO_INGRESS}`, headers: [{key: 'Host', value: 'httpbin.istio'}], path: `${path}/get`, retCode: 200 }));
     
-    it(`${path} is going through the right waypoint`, () => helpers.checkBody({ host: `http://${process.env.ISTIO_INGRESS}`, headers: [{key: 'Host', value: 'httpbin.istio'}], path: `${path}/get`, body: process.env.LOCAL_ISTIO_WAYPOINT }));
-    
-  });
-});
-
-const fs = require('fs');
-const path = require('path');
-
-const counterFilePath = path.join(__dirname, '.test-counter');
-
-// Setup before all tests
-before(function() {
-  // Initialize counter file if it doesn't exist
-  if (!fs.existsSync(counterFilePath)) {
-    fs.writeFileSync(counterFilePath, '0');
-  }
-});
-
-// Before each test
-beforeEach(function() {
-  // Read current counter value
-  let counter = parseInt(fs.readFileSync(counterFilePath, 'utf8'));
-  
-  // Increment counter
-  counter++;
-  
-  // Save incremented value
-  fs.writeFileSync(counterFilePath, counter.toString());
-  
-  // Set environment variable
-  process.env.TEST_COUNTER = counter.toString();
-  
-  console.log(`Running test #${process.env.TEST_COUNTER}`);
-});
-EOF
-echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/multicluster-routing/tests/check-ingress.js.liquid from lab number 21"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 21"; exit 1; }
--->
-
-
-#### Testing Ingress Connectivity
-
-
-
-
-
-
-1. Test connectivity to remote in-mesh service via ingress:
-```
-curl -s  -H "Host: httpbin.istio" http://${ISTIO_INGRESS}/remote-in-mesh/get
-```
-
-Check that the response body contains `${process.env.REMOTE_ISTIO_WAYPOINT}`
-
-
-
-2. Test connectivity to remote in-ambient service via ingress:
-```
-curl -s  -H "Host: httpbin.istio" http://${ISTIO_INGRESS}/remote-in-ambient/get
-```
-
-Check that the response body contains `${process.env.REMOTE_ISTIO_WAYPOINT}`
-
-
-
-<!--bash
-cat <<'EOF' > ./test.js
-const chaiExec = require("@jsdevtools/chai-exec");
-var chai = require('chai');
-var expect = chai.expect;
-chai.use(chaiExec);
-const helpers = require('./tests/chai-http');
-
-describe("Tests all possible communication from istio ingress through waypoint", () => {
-  ["/remote-in-ambient", "/remote-in-mesh"].forEach(async (path) => {
-    
-    it(`${path} is going through the right waypoint`, () => helpers.checkBody({ host: `http://${process.env.ISTIO_INGRESS}`, headers: [{key: 'Host', value: 'httpbin.istio'}], path: `${path}/get`, body: process.env.REMOTE_ISTIO_WAYPOINT }));
+    it(`Ingress => LOCAL_ISTIO_WAYPOINT => ${path}`, () => helpers.checkBody({ host: `http://${process.env.ISTIO_INGRESS}`, headers: [{key: 'Host', value: 'httpbin.istio'}], path: `${path}/get`, body: process.env.LOCAL_ISTIO_WAYPOINT }));
     
   });
 });
@@ -9930,54 +11134,9 @@ beforeEach(function() {
   console.log(`Running test #${process.env.TEST_COUNTER}`);
 });
 EOF
-echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/multicluster-routing/tests/check-ingress.js.liquid from lab number 21"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 21"; exit 1; }
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/multicluster-routing/tests/check-ingress.js.liquid from lab number 22"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 22"; exit 1; }
 -->
-
-
-#### Testing Ingress Connectivity
-
-
-1. Test connectivity to in-mesh service via ingress:
-```
-curl -s  -H "Host: httpbin.gloo" http://${GLOO_INGRESS}/in-mesh/get
-```
-
-Check that the response body contains `${process.env.LOCAL_ISTIO_WAYPOINT}`
-
-
-
-2. Test connectivity to in-ambient service via ingress:
-```
-curl -s  -H "Host: httpbin.gloo" http://${GLOO_INGRESS}/in-ambient/get
-```
-
-Check that the response body contains `${process.env.LOCAL_ISTIO_WAYPOINT}`
-
-
-
-
-
-3. Test connectivity to global in-mesh service via ingress:
-```
-curl -s  -H "Host: httpbin.gloo" http://${GLOO_INGRESS}/global-in-mesh/get
-```
-
-Check that the response body contains `${process.env.LOCAL_ISTIO_WAYPOINT}`
-
-
-
-4. Test connectivity to global in-ambient service via ingress:
-```
-curl -s  -H "Host: httpbin.gloo" http://${GLOO_INGRESS}/global-in-ambient/get
-```
-
-Check that the response body contains `${process.env.LOCAL_ISTIO_WAYPOINT}`
-
-
-
-
-
 <!--bash
 cat <<'EOF' > ./test.js
 const chaiExec = require("@jsdevtools/chai-exec");
@@ -9986,10 +11145,11 @@ var expect = chai.expect;
 chai.use(chaiExec);
 const helpers = require('./tests/chai-http');
 
-describe("Tests all possible communication from gloo ingress through waypoint", () => {
+describe("Tests all possible communication from gloo-gateway ingress (Local Waypoint=Istio, Remote Waypoint=Istio, Failover=false, Authorization Policy=false)", () => {
   ["/in-ambient", "/in-mesh","/global-in-ambient", "/global-in-mesh",].forEach(async (path) => {
+    it(`Ingress => ${path}`, () => helpers.checkURL({ host: `http://${process.env.SOLO_INGRESS}`, headers: [{key: 'Host', value: 'httpbin.gloo-gateway'}], path: `${path}/get`, retCode: 200 }));
     
-    it(`${path} is going through the right waypoint`, () => helpers.checkBody({ host: `http://${process.env.GLOO_INGRESS}`, headers: [{key: 'Host', value: 'httpbin.gloo'}], path: `${path}/get`, body: process.env.LOCAL_ISTIO_WAYPOINT }));
+    it(`Ingress => LOCAL_ISTIO_WAYPOINT => ${path}`, () => helpers.checkBody({ host: `http://${process.env.SOLO_INGRESS}`, headers: [{key: 'Host', value: 'httpbin.gloo-gateway'}], path: `${path}/get`, body: process.env.LOCAL_ISTIO_WAYPOINT }));
     
   });
 });
@@ -10024,36 +11184,9 @@ beforeEach(function() {
   console.log(`Running test #${process.env.TEST_COUNTER}`);
 });
 EOF
-echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/multicluster-routing/tests/check-ingress.js.liquid from lab number 21"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 21"; exit 1; }
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/multicluster-routing/tests/check-ingress.js.liquid from lab number 22"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 22"; exit 1; }
 -->
-
-
-#### Testing Ingress Connectivity
-
-
-
-
-
-
-1. Test connectivity to remote in-mesh service via ingress:
-```
-curl -s  -H "Host: httpbin.gloo" http://${GLOO_INGRESS}/remote-in-mesh/get
-```
-
-Check that the response body contains `${process.env.REMOTE_ISTIO_WAYPOINT}`
-
-
-
-2. Test connectivity to remote in-ambient service via ingress:
-```
-curl -s  -H "Host: httpbin.gloo" http://${GLOO_INGRESS}/remote-in-ambient/get
-```
-
-Check that the response body contains `${process.env.REMOTE_ISTIO_WAYPOINT}`
-
-
-
 <!--bash
 cat <<'EOF' > ./test.js
 const chaiExec = require("@jsdevtools/chai-exec");
@@ -10062,10 +11195,11 @@ var expect = chai.expect;
 chai.use(chaiExec);
 const helpers = require('./tests/chai-http');
 
-describe("Tests all possible communication from gloo ingress through waypoint", () => {
+describe("Tests all possible communication from istio ingress (Local Waypoint=Istio, Remote Waypoint=Istio, Failover=false, Authorization Policy=false)", () => {
   ["/remote-in-ambient", "/remote-in-mesh"].forEach(async (path) => {
+    it(`Ingress => ${path}`, () => helpers.checkURL({ host: `http://${process.env.ISTIO_INGRESS}`, headers: [{key: 'Host', value: 'httpbin.istio'}], path: `${path}/get`, retCode: 200 }));
     
-    it(`${path} is going through the right waypoint`, () => helpers.checkBody({ host: `http://${process.env.GLOO_INGRESS}`, headers: [{key: 'Host', value: 'httpbin.gloo'}], path: `${path}/get`, body: process.env.REMOTE_ISTIO_WAYPOINT }));
+    it(`Ingress => REMOTE_ISTIO_WAYPOINT => ${path}`, () => helpers.checkBody({ host: `http://${process.env.ISTIO_INGRESS}`, headers: [{key: 'Host', value: 'httpbin.istio'}], path: `${path}/get`, body: process.env.REMOTE_ISTIO_WAYPOINT }));
     
   });
 });
@@ -10100,24 +11234,74 @@ beforeEach(function() {
   console.log(`Running test #${process.env.TEST_COUNTER}`);
 });
 EOF
-echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/multicluster-routing/tests/check-ingress.js.liquid from lab number 21"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 21"; exit 1; }
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/multicluster-routing/tests/check-ingress.js.liquid from lab number 22"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 22"; exit 1; }
+-->
+<!--bash
+cat <<'EOF' > ./test.js
+const chaiExec = require("@jsdevtools/chai-exec");
+var chai = require('chai');
+var expect = chai.expect;
+chai.use(chaiExec);
+const helpers = require('./tests/chai-http');
+
+describe("Tests all possible communication from gloo-gateway ingress (Local Waypoint=Istio, Remote Waypoint=Istio, Failover=false, Authorization Policy=false)", () => {
+  ["/remote-in-ambient", "/remote-in-mesh"].forEach(async (path) => {
+    it(`Ingress => ${path}`, () => helpers.checkURL({ host: `http://${process.env.SOLO_INGRESS}`, headers: [{key: 'Host', value: 'httpbin.gloo-gateway'}], path: `${path}/get`, retCode: 200 }));
+    
+    it(`Ingress => REMOTE_ISTIO_WAYPOINT => ${path}`, () => helpers.checkBody({ host: `http://${process.env.SOLO_INGRESS}`, headers: [{key: 'Host', value: 'httpbin.gloo-gateway'}], path: `${path}/get`, body: process.env.REMOTE_ISTIO_WAYPOINT }));
+    
+  });
+});
+
+const fs = require('fs');
+const path = require('path');
+
+const counterFilePath = path.join(__dirname, '.test-counter');
+
+// Setup before all tests
+before(function() {
+  // Initialize counter file if it doesn't exist
+  if (!fs.existsSync(counterFilePath)) {
+    fs.writeFileSync(counterFilePath, '0');
+  }
+});
+
+// Before each test
+beforeEach(function() {
+  // Read current counter value
+  let counter = parseInt(fs.readFileSync(counterFilePath, 'utf8'));
+  
+  // Increment counter
+  counter++;
+  
+  // Save incremented value
+  fs.writeFileSync(counterFilePath, counter.toString());
+  
+  // Set environment variable
+  process.env.TEST_COUNTER = counter.toString();
+  
+  console.log(`Running test #${process.env.TEST_COUNTER}`);
+});
+EOF
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/multicluster-routing/tests/check-ingress.js.liquid from lab number 22"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 22"; exit 1; }
 -->
 
-### Scenario 5: Local and remote Gloo waypoints
+### Scenario 5: Local and remote gloo-gateway waypoints
 
 <!--bash
-echo "Scenario 5: Local and remote Gloo waypoints"
+echo "Scenario 5: Local and remote gloo-gateway waypoints"
 -->
 
-Let's use Gloo Waypoint:
+Let's use Solo Waypoint:
 
 ```bash
 cat << EOF | kubectl --context ${CLUSTER2} apply -f -
 apiVersion: gateway.networking.k8s.io/v1
 kind: Gateway
 metadata:
-  name: gloo-waypoint
+  name: gloo-gateway-waypoint
   namespace: httpbin
 spec:
   gatewayClassName: gloo-waypoint
@@ -10129,696 +11313,20 @@ spec:
     port: 15008
     protocol: istio.io/HBONE
 EOF
-kubectl --context ${CLUSTER2} -n httpbin rollout status deploy gloo-proxy-gloo-waypoint
-kubectl --context ${CLUSTER1} -n httpbin label svc in-mesh istio.io/use-waypoint=gloo-waypoint --overwrite
-kubectl --context ${CLUSTER1} -n httpbin label svc in-ambient istio.io/use-waypoint=gloo-waypoint --overwrite
-kubectl --context ${CLUSTER2} -n httpbin label svc in-mesh istio.io/use-waypoint=gloo-waypoint --overwrite
-kubectl --context ${CLUSTER2} -n httpbin label svc in-ambient istio.io/use-waypoint=gloo-waypoint --overwrite
-kubectl --context ${CLUSTER2} -n httpbin label svc remote-in-mesh istio.io/use-waypoint=gloo-waypoint --overwrite
-kubectl --context ${CLUSTER2} -n httpbin label svc remote-in-ambient istio.io/use-waypoint=gloo-waypoint --overwrite
+kubectl --context ${CLUSTER2} -n httpbin rollout status deploy gloo-proxy-httpbin-gateway-gloo-gateway
+kubectl --context ${CLUSTER1} -n httpbin label svc in-mesh istio.io/use-waypoint=gloo-gateway-waypoint --overwrite
+kubectl --context ${CLUSTER1} -n httpbin label svc in-ambient istio.io/use-waypoint=gloo-gateway-waypoint --overwrite
+kubectl --context ${CLUSTER2} -n httpbin label svc in-mesh istio.io/use-waypoint=gloo-gateway-waypoint --overwrite
+kubectl --context ${CLUSTER2} -n httpbin label svc in-ambient istio.io/use-waypoint=gloo-gateway-waypoint --overwrite
+kubectl --context ${CLUSTER2} -n httpbin label svc remote-in-mesh istio.io/use-waypoint=gloo-gateway-waypoint --overwrite
+kubectl --context ${CLUSTER2} -n httpbin label svc remote-in-ambient istio.io/use-waypoint=gloo-gateway-waypoint --overwrite
 kubectl --context ${CLUSTER1} -n httpbin rollout restart deploy client-in-mesh
 kubectl --context ${CLUSTER1} -n httpbin rollout status deploy client-in-mesh
 kubectl --context ${CLUSTER1} -n httpbin rollout restart deploy httpbin-gateway-istio-istio
 kubectl --context ${CLUSTER1} -n httpbin rollout status deploy httpbin-gateway-istio-istio
-kubectl --context ${CLUSTER1} -n httpbin rollout restart deploy gloo-proxy-httpbin-gateway-gloo
-kubectl --context ${CLUSTER1} -n httpbin rollout status deploy gloo-proxy-httpbin-gateway-gloo
-export REMOTE_GLOO_WAYPOINT=$(kubectl --context ${CLUSTER2} -n httpbin get pods -l gateway.networking.k8s.io/gateway-name=gloo-waypoint -o jsonpath='{.items[0].metadata.name}')
-```
-
-
-
-#### From client-in-mesh
-
-
-1. Test connectivity to in-mesh service:
-```
-kubectl --context ${CLUSTER1} exec -n httpbin $(kubectl --context ${CLUSTER1} get pod -l app=client-in-mesh -n httpbin -o jsonpath='{.items[0].metadata.name}') -- curl -s  in-mesh.httpbin.svc.cluster.local:8000/get
-```
-
-Check that the response headers include `X-Istio-Workload: $LOCAL_GLOO_WAYPOINT`
-
-
-
-2. Test connectivity to in-ambient service:
-```
-kubectl --context ${CLUSTER1} exec -n httpbin $(kubectl --context ${CLUSTER1} get pod -l app=client-in-mesh -n httpbin -o jsonpath='{.items[0].metadata.name}') -- curl -s  in-ambient.httpbin.svc.cluster.local:8000/get
-```
-
-Check that the response headers include `X-Istio-Workload: $LOCAL_GLOO_WAYPOINT`
-
-
-
-
-
-3. Test connectivity to global in-mesh service:
-```
-kubectl --context ${CLUSTER1} exec -n httpbin $(kubectl --context ${CLUSTER1} get pod -l app=client-in-mesh -n httpbin -o jsonpath='{.items[0].metadata.name}') -- curl -s  in-mesh.httpbin.mesh.internal:8000/get
-```
-
-Check that the response headers include `X-Istio-Workload: $LOCAL_GLOO_WAYPOINT`
-
-
-
-4. Test connectivity to global in-ambient service:
-```
-kubectl --context ${CLUSTER1} exec -n httpbin $(kubectl --context ${CLUSTER1} get pod -l app=client-in-mesh -n httpbin -o jsonpath='{.items[0].metadata.name}') -- curl -s  in-ambient.httpbin.mesh.internal:8000/get
-```
-
-Check that the response headers include `X-Istio-Workload: $LOCAL_GLOO_WAYPOINT`
-
-
-
-
-
-
-
-#### From client-in-ambient
-
-
-1. Test connectivity to in-mesh service:
-```
-kubectl --context ${CLUSTER1} exec -n httpbin $(kubectl --context ${CLUSTER1} get pod -l app=client-in-ambient -n httpbin -o jsonpath='{.items[0].metadata.name}') -- curl -s  in-mesh.httpbin.svc.cluster.local:8000/get
-```
-
-Check that the response headers include `X-Istio-Workload: $LOCAL_GLOO_WAYPOINT`
-
-
-
-2. Test connectivity to in-ambient service:
-```
-kubectl --context ${CLUSTER1} exec -n httpbin $(kubectl --context ${CLUSTER1} get pod -l app=client-in-ambient -n httpbin -o jsonpath='{.items[0].metadata.name}') -- curl -s  in-ambient.httpbin.svc.cluster.local:8000/get
-```
-
-Check that the response headers include `X-Istio-Workload: $LOCAL_GLOO_WAYPOINT`
-
-
-
-
-
-3. Test connectivity to global in-mesh service:
-```
-kubectl --context ${CLUSTER1} exec -n httpbin $(kubectl --context ${CLUSTER1} get pod -l app=client-in-ambient -n httpbin -o jsonpath='{.items[0].metadata.name}') -- curl -s  in-mesh.httpbin.mesh.internal:8000/get
-```
-
-Check that the response headers include `X-Istio-Workload: $LOCAL_GLOO_WAYPOINT`
-
-
-
-4. Test connectivity to global in-ambient service:
-```
-kubectl --context ${CLUSTER1} exec -n httpbin $(kubectl --context ${CLUSTER1} get pod -l app=client-in-ambient -n httpbin -o jsonpath='{.items[0].metadata.name}') -- curl -s  in-ambient.httpbin.mesh.internal:8000/get
-```
-
-Check that the response headers include `X-Istio-Workload: $LOCAL_GLOO_WAYPOINT`
-
-
-
-
-
-<!--bash
-cat <<'EOF' > ./test.js
-const chaiExec = require("@jsdevtools/chai-exec");
-var chai = require('chai');
-var expect = chai.expect;
-chai.use(chaiExec);
-const helpers = require('./tests/chai-exec');
-
-async function status_test(source, target) {
-  const command = await helpers.curlInDeployment({
-    context: `${process.env.CLUSTER1}`,
-    namespace: 'httpbin',
-    deploymentName: source,
-    curlCommand: `curl -s -o /dev/null -w "%{http_code}" ${target}:8000/get`
-  });
-  output = JSON.parse(command);
-  expect(output).to.equal(200);
-}
-
-async function header_test(source, target) {
-  const command = await helpers.curlInDeployment({
-    context: `${process.env.CLUSTER1}`,
-    namespace: 'httpbin',
-    deploymentName: source,
-    curlCommand: `curl -s ${target}:8000/get`
-  });
-  output = JSON.parse(command);
-  expect(output.headers["X-Istio-Workload"]).to.equal(process.env.LOCAL_GLOO_WAYPOINT);
-}
-
-describe("Tests all possible eastwest communication through waypoint", () => {
-  ["client-in-mesh", "client-in-ambient"].forEach(async (source) => {
-    ["in-mesh.httpbin.svc.cluster.local", "in-ambient.httpbin.svc.cluster.local","in-mesh.httpbin.mesh.internal", "in-ambient.httpbin.mesh.internal",].forEach(async (target) => {
-      it(`${source} => ${target}`, async () => {
-        
-        await header_test(source, target);
-        
-      });
-    });
-  });
-});
-
-const fs = require('fs');
-const path = require('path');
-
-const counterFilePath = path.join(__dirname, '.test-counter');
-
-// Setup before all tests
-before(function() {
-  // Initialize counter file if it doesn't exist
-  if (!fs.existsSync(counterFilePath)) {
-    fs.writeFileSync(counterFilePath, '0');
-  }
-});
-
-// Before each test
-beforeEach(function() {
-  // Read current counter value
-  let counter = parseInt(fs.readFileSync(counterFilePath, 'utf8'));
-  
-  // Increment counter
-  counter++;
-  
-  // Save incremented value
-  fs.writeFileSync(counterFilePath, counter.toString());
-  
-  // Set environment variable
-  process.env.TEST_COUNTER = counter.toString();
-  
-  console.log(`Running test #${process.env.TEST_COUNTER}`);
-});
-EOF
-echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/multicluster-routing/tests/check-all.js.liquid from lab number 21"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 21"; exit 1; }
--->
-
-
-
-#### From client-in-mesh
-
-
-
-
-
-
-1. Test connectivity to remote in-mesh service:
-```
-kubectl --context ${CLUSTER1} exec -n httpbin $(kubectl --context ${CLUSTER1} get pod -l app=client-in-mesh -n httpbin -o jsonpath='{.items[0].metadata.name}') -- curl -s  remote-in-mesh.httpbin.mesh.internal:8000/get
-```
-
-Check that the response headers include `X-Istio-Workload: $REMOTE_GLOO_WAYPOINT`
-
-
-
-2. Test connectivity to remote in-ambient service:
-```
-kubectl --context ${CLUSTER1} exec -n httpbin $(kubectl --context ${CLUSTER1} get pod -l app=client-in-mesh -n httpbin -o jsonpath='{.items[0].metadata.name}') -- curl -s  remote-in-ambient.httpbin.mesh.internal:8000/get
-```
-
-Check that the response headers include `X-Istio-Workload: $REMOTE_GLOO_WAYPOINT`
-
-
-
-
-
-#### From client-in-ambient
-
-
-
-
-
-
-1. Test connectivity to remote in-mesh service:
-```
-kubectl --context ${CLUSTER1} exec -n httpbin $(kubectl --context ${CLUSTER1} get pod -l app=client-in-ambient -n httpbin -o jsonpath='{.items[0].metadata.name}') -- curl -s  remote-in-mesh.httpbin.mesh.internal:8000/get
-```
-
-Check that the response headers include `X-Istio-Workload: $REMOTE_GLOO_WAYPOINT`
-
-
-
-2. Test connectivity to remote in-ambient service:
-```
-kubectl --context ${CLUSTER1} exec -n httpbin $(kubectl --context ${CLUSTER1} get pod -l app=client-in-ambient -n httpbin -o jsonpath='{.items[0].metadata.name}') -- curl -s  remote-in-ambient.httpbin.mesh.internal:8000/get
-```
-
-Check that the response headers include `X-Istio-Workload: $REMOTE_GLOO_WAYPOINT`
-
-
-
-<!--bash
-cat <<'EOF' > ./test.js
-const chaiExec = require("@jsdevtools/chai-exec");
-var chai = require('chai');
-var expect = chai.expect;
-chai.use(chaiExec);
-const helpers = require('./tests/chai-exec');
-
-async function status_test(source, target) {
-  const command = await helpers.curlInDeployment({
-    context: `${process.env.CLUSTER1}`,
-    namespace: 'httpbin',
-    deploymentName: source,
-    curlCommand: `curl -s -o /dev/null -w "%{http_code}" ${target}:8000/get`
-  });
-  output = JSON.parse(command);
-  expect(output).to.equal(200);
-}
-
-async function header_test(source, target) {
-  const command = await helpers.curlInDeployment({
-    context: `${process.env.CLUSTER1}`,
-    namespace: 'httpbin',
-    deploymentName: source,
-    curlCommand: `curl -s ${target}:8000/get`
-  });
-  output = JSON.parse(command);
-  expect(output.headers["X-Istio-Workload"]).to.equal(process.env.REMOTE_GLOO_WAYPOINT);
-}
-
-describe("Tests all possible eastwest communication through waypoint", () => {
-  ["client-in-mesh", "client-in-ambient"].forEach(async (source) => {
-    ["remote-in-mesh.httpbin.mesh.internal", "remote-in-ambient.httpbin.mesh.internal"].forEach(async (target) => {
-      it(`${source} => ${target}`, async () => {
-        
-        await header_test(source, target);
-        
-      });
-    });
-  });
-});
-
-const fs = require('fs');
-const path = require('path');
-
-const counterFilePath = path.join(__dirname, '.test-counter');
-
-// Setup before all tests
-before(function() {
-  // Initialize counter file if it doesn't exist
-  if (!fs.existsSync(counterFilePath)) {
-    fs.writeFileSync(counterFilePath, '0');
-  }
-});
-
-// Before each test
-beforeEach(function() {
-  // Read current counter value
-  let counter = parseInt(fs.readFileSync(counterFilePath, 'utf8'));
-  
-  // Increment counter
-  counter++;
-  
-  // Save incremented value
-  fs.writeFileSync(counterFilePath, counter.toString());
-  
-  // Set environment variable
-  process.env.TEST_COUNTER = counter.toString();
-  
-  console.log(`Running test #${process.env.TEST_COUNTER}`);
-});
-EOF
-echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/multicluster-routing/tests/check-all.js.liquid from lab number 21"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 21"; exit 1; }
--->
-
-
-#### Testing Ingress Connectivity
-
-
-1. Test connectivity to in-mesh service via ingress:
-```
-curl -s  -H "Host: httpbin.istio" http://${ISTIO_INGRESS}/in-mesh/get
-```
-
-Check that the response body contains `${process.env.LOCAL_GLOO_WAYPOINT}`
-
-
-
-2. Test connectivity to in-ambient service via ingress:
-```
-curl -s  -H "Host: httpbin.istio" http://${ISTIO_INGRESS}/in-ambient/get
-```
-
-Check that the response body contains `${process.env.LOCAL_GLOO_WAYPOINT}`
-
-
-
-
-
-3. Test connectivity to global in-mesh service via ingress:
-```
-curl -s  -H "Host: httpbin.istio" http://${ISTIO_INGRESS}/global-in-mesh/get
-```
-
-Check that the response body contains `${process.env.LOCAL_GLOO_WAYPOINT}`
-
-
-
-4. Test connectivity to global in-ambient service via ingress:
-```
-curl -s  -H "Host: httpbin.istio" http://${ISTIO_INGRESS}/global-in-ambient/get
-```
-
-Check that the response body contains `${process.env.LOCAL_GLOO_WAYPOINT}`
-
-
-
-
-
-<!--bash
-cat <<'EOF' > ./test.js
-const chaiExec = require("@jsdevtools/chai-exec");
-var chai = require('chai');
-var expect = chai.expect;
-chai.use(chaiExec);
-const helpers = require('./tests/chai-http');
-
-describe("Tests all possible communication from istio ingress through waypoint", () => {
-  ["/in-ambient", "/in-mesh","/global-in-ambient", "/global-in-mesh",].forEach(async (path) => {
-    
-    it(`${path} is going through the right waypoint`, () => helpers.checkBody({ host: `http://${process.env.ISTIO_INGRESS}`, headers: [{key: 'Host', value: 'httpbin.istio'}], path: `${path}/get`, body: process.env.LOCAL_GLOO_WAYPOINT }));
-    
-  });
-});
-
-const fs = require('fs');
-const path = require('path');
-
-const counterFilePath = path.join(__dirname, '.test-counter');
-
-// Setup before all tests
-before(function() {
-  // Initialize counter file if it doesn't exist
-  if (!fs.existsSync(counterFilePath)) {
-    fs.writeFileSync(counterFilePath, '0');
-  }
-});
-
-// Before each test
-beforeEach(function() {
-  // Read current counter value
-  let counter = parseInt(fs.readFileSync(counterFilePath, 'utf8'));
-  
-  // Increment counter
-  counter++;
-  
-  // Save incremented value
-  fs.writeFileSync(counterFilePath, counter.toString());
-  
-  // Set environment variable
-  process.env.TEST_COUNTER = counter.toString();
-  
-  console.log(`Running test #${process.env.TEST_COUNTER}`);
-});
-EOF
-echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/multicluster-routing/tests/check-ingress.js.liquid from lab number 21"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 21"; exit 1; }
--->
-
-
-#### Testing Ingress Connectivity
-
-
-
-
-
-
-1. Test connectivity to remote in-mesh service via ingress:
-```
-curl -s  -H "Host: httpbin.istio" http://${ISTIO_INGRESS}/remote-in-mesh/get
-```
-
-Check that the response body contains `${process.env.REMOTE_GLOO_WAYPOINT}`
-
-
-
-2. Test connectivity to remote in-ambient service via ingress:
-```
-curl -s  -H "Host: httpbin.istio" http://${ISTIO_INGRESS}/remote-in-ambient/get
-```
-
-Check that the response body contains `${process.env.REMOTE_GLOO_WAYPOINT}`
-
-
-
-<!--bash
-cat <<'EOF' > ./test.js
-const chaiExec = require("@jsdevtools/chai-exec");
-var chai = require('chai');
-var expect = chai.expect;
-chai.use(chaiExec);
-const helpers = require('./tests/chai-http');
-
-describe("Tests all possible communication from istio ingress through waypoint", () => {
-  ["/remote-in-ambient", "/remote-in-mesh"].forEach(async (path) => {
-    
-    it(`${path} is going through the right waypoint`, () => helpers.checkBody({ host: `http://${process.env.ISTIO_INGRESS}`, headers: [{key: 'Host', value: 'httpbin.istio'}], path: `${path}/get`, body: process.env.REMOTE_GLOO_WAYPOINT }));
-    
-  });
-});
-
-const fs = require('fs');
-const path = require('path');
-
-const counterFilePath = path.join(__dirname, '.test-counter');
-
-// Setup before all tests
-before(function() {
-  // Initialize counter file if it doesn't exist
-  if (!fs.existsSync(counterFilePath)) {
-    fs.writeFileSync(counterFilePath, '0');
-  }
-});
-
-// Before each test
-beforeEach(function() {
-  // Read current counter value
-  let counter = parseInt(fs.readFileSync(counterFilePath, 'utf8'));
-  
-  // Increment counter
-  counter++;
-  
-  // Save incremented value
-  fs.writeFileSync(counterFilePath, counter.toString());
-  
-  // Set environment variable
-  process.env.TEST_COUNTER = counter.toString();
-  
-  console.log(`Running test #${process.env.TEST_COUNTER}`);
-});
-EOF
-echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/multicluster-routing/tests/check-ingress.js.liquid from lab number 21"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 21"; exit 1; }
--->
-
-
-#### Testing Ingress Connectivity
-
-
-1. Test connectivity to in-mesh service via ingress:
-```
-curl -s  -H "Host: httpbin.gloo" http://${GLOO_INGRESS}/in-mesh/get
-```
-
-Check that the response body contains `${process.env.LOCAL_GLOO_WAYPOINT}`
-
-
-
-2. Test connectivity to in-ambient service via ingress:
-```
-curl -s  -H "Host: httpbin.gloo" http://${GLOO_INGRESS}/in-ambient/get
-```
-
-Check that the response body contains `${process.env.LOCAL_GLOO_WAYPOINT}`
-
-
-
-
-
-3. Test connectivity to global in-mesh service via ingress:
-```
-curl -s  -H "Host: httpbin.gloo" http://${GLOO_INGRESS}/global-in-mesh/get
-```
-
-Check that the response body contains `${process.env.LOCAL_GLOO_WAYPOINT}`
-
-
-
-4. Test connectivity to global in-ambient service via ingress:
-```
-curl -s  -H "Host: httpbin.gloo" http://${GLOO_INGRESS}/global-in-ambient/get
-```
-
-Check that the response body contains `${process.env.LOCAL_GLOO_WAYPOINT}`
-
-
-
-
-
-<!--bash
-cat <<'EOF' > ./test.js
-const chaiExec = require("@jsdevtools/chai-exec");
-var chai = require('chai');
-var expect = chai.expect;
-chai.use(chaiExec);
-const helpers = require('./tests/chai-http');
-
-describe("Tests all possible communication from gloo ingress through waypoint", () => {
-  ["/in-ambient", "/in-mesh","/global-in-ambient", "/global-in-mesh",].forEach(async (path) => {
-    
-    it(`${path} is going through the right waypoint`, () => helpers.checkBody({ host: `http://${process.env.GLOO_INGRESS}`, headers: [{key: 'Host', value: 'httpbin.gloo'}], path: `${path}/get`, body: process.env.LOCAL_GLOO_WAYPOINT }));
-    
-  });
-});
-
-const fs = require('fs');
-const path = require('path');
-
-const counterFilePath = path.join(__dirname, '.test-counter');
-
-// Setup before all tests
-before(function() {
-  // Initialize counter file if it doesn't exist
-  if (!fs.existsSync(counterFilePath)) {
-    fs.writeFileSync(counterFilePath, '0');
-  }
-});
-
-// Before each test
-beforeEach(function() {
-  // Read current counter value
-  let counter = parseInt(fs.readFileSync(counterFilePath, 'utf8'));
-  
-  // Increment counter
-  counter++;
-  
-  // Save incremented value
-  fs.writeFileSync(counterFilePath, counter.toString());
-  
-  // Set environment variable
-  process.env.TEST_COUNTER = counter.toString();
-  
-  console.log(`Running test #${process.env.TEST_COUNTER}`);
-});
-EOF
-echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/multicluster-routing/tests/check-ingress.js.liquid from lab number 21"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 21"; exit 1; }
--->
-
-
-#### Testing Ingress Connectivity
-
-
-
-
-
-
-1. Test connectivity to remote in-mesh service via ingress:
-```
-curl -s  -H "Host: httpbin.gloo" http://${GLOO_INGRESS}/remote-in-mesh/get
-```
-
-Check that the response body contains `${process.env.REMOTE_GLOO_WAYPOINT}`
-
-
-
-2. Test connectivity to remote in-ambient service via ingress:
-```
-curl -s  -H "Host: httpbin.gloo" http://${GLOO_INGRESS}/remote-in-ambient/get
-```
-
-Check that the response body contains `${process.env.REMOTE_GLOO_WAYPOINT}`
-
-
-
-<!--bash
-cat <<'EOF' > ./test.js
-const chaiExec = require("@jsdevtools/chai-exec");
-var chai = require('chai');
-var expect = chai.expect;
-chai.use(chaiExec);
-const helpers = require('./tests/chai-http');
-
-describe("Tests all possible communication from gloo ingress through waypoint", () => {
-  ["/remote-in-ambient", "/remote-in-mesh"].forEach(async (path) => {
-    
-    it(`${path} is going through the right waypoint`, () => helpers.checkBody({ host: `http://${process.env.GLOO_INGRESS}`, headers: [{key: 'Host', value: 'httpbin.gloo'}], path: `${path}/get`, body: process.env.REMOTE_GLOO_WAYPOINT }));
-    
-  });
-});
-
-const fs = require('fs');
-const path = require('path');
-
-const counterFilePath = path.join(__dirname, '.test-counter');
-
-// Setup before all tests
-before(function() {
-  // Initialize counter file if it doesn't exist
-  if (!fs.existsSync(counterFilePath)) {
-    fs.writeFileSync(counterFilePath, '0');
-  }
-});
-
-// Before each test
-beforeEach(function() {
-  // Read current counter value
-  let counter = parseInt(fs.readFileSync(counterFilePath, 'utf8'));
-  
-  // Increment counter
-  counter++;
-  
-  // Save incremented value
-  fs.writeFileSync(counterFilePath, counter.toString());
-  
-  // Set environment variable
-  process.env.TEST_COUNTER = counter.toString();
-  
-  console.log(`Running test #${process.env.TEST_COUNTER}`);
-});
-EOF
-echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/multicluster-routing/tests/check-ingress.js.liquid from lab number 21"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 21"; exit 1; }
--->
-
-Let's use Istio Waypoint:
-
-```bash
-kubectl --context ${CLUSTER1} -n httpbin label svc in-mesh istio.io/use-waypoint=waypoint --overwrite
-kubectl --context ${CLUSTER1} -n httpbin label svc in-ambient istio.io/use-waypoint=waypoint --overwrite
-kubectl --context ${CLUSTER2} -n httpbin label svc in-mesh istio.io/use-waypoint=waypoint --overwrite
-kubectl --context ${CLUSTER2} -n httpbin label svc in-ambient istio.io/use-waypoint=waypoint --overwrite
-kubectl --context ${CLUSTER2} -n httpbin label svc remote-in-mesh istio.io/use-waypoint=waypoint --overwrite
-kubectl --context ${CLUSTER2} -n httpbin label svc remote-in-ambient istio.io/use-waypoint=waypoint --overwrite
-kubectl --context ${CLUSTER1} -n httpbin rollout restart deploy client-in-mesh
-kubectl --context ${CLUSTER1} -n httpbin rollout status deploy client-in-mesh
-kubectl --context ${CLUSTER1} -n httpbin rollout restart deploy httpbin-gateway-istio-istio
-kubectl --context ${CLUSTER1} -n httpbin rollout status deploy httpbin-gateway-istio-istio
-kubectl --context ${CLUSTER1} -n httpbin rollout restart deploy gloo-proxy-httpbin-gateway-gloo
-kubectl --context ${CLUSTER1} -n httpbin rollout status deploy gloo-proxy-httpbin-gateway-gloo
-```
-
-### Scenario 6: Remote only Istio waypoints
-
-<!--bash
-echo "Scenario 6: Remote only Istio waypoints"
--->
-
-Let's delete the local waypoints:
-
-```bash
-kubectl --context ${CLUSTER1} -n httpbin delete gateway waypoint
-kubectl --context ${CLUSTER1} -n httpbin delete gateway gloo-waypoint
-kubectl --context ${CLUSTER1} -n httpbin label svc in-mesh istio.io/use-waypoint-
-kubectl --context ${CLUSTER1} -n httpbin label svc in-mesh istio.io/ingress-use-waypoint-
-kubectl --context ${CLUSTER1} -n httpbin label svc in-ambient istio.io/use-waypoint-
-kubectl --context ${CLUSTER1} -n httpbin label svc in-ambient istio.io/ingress-use-waypoint-
-kubectl --context ${CLUSTER1} -n httpbin rollout restart deploy client-in-mesh
-kubectl --context ${CLUSTER1} -n httpbin rollout status deploy client-in-mesh
-kubectl --context ${CLUSTER1} -n httpbin rollout restart deploy httpbin-gateway-istio-istio
-kubectl --context ${CLUSTER1} -n httpbin rollout status deploy httpbin-gateway-istio-istio
-kubectl --context ${CLUSTER1} -n httpbin rollout restart deploy gloo-proxy-httpbin-gateway-gloo
-kubectl --context ${CLUSTER1} -n httpbin rollout status deploy gloo-proxy-httpbin-gateway-gloo
+kubectl --context ${CLUSTER1} -n httpbin rollout restart deploy gloo-proxy-httpbin-gateway-gloo-gateway
+kubectl --context ${CLUSTER1} -n httpbin rollout status deploy gloo-proxy-httpbin-gateway-gloo-gateway
+export REMOTE_SOLO_WAYPOINT=$(kubectl --context ${CLUSTER2} -n httpbin get pods -l gateway.networking.k8s.io/gateway-name=gloo-gateway-waypoint -o jsonpath='{.items[0].metadata.name}')
 ```
 
 
@@ -10947,6 +11455,406 @@ Expected output: `200`
 
 
 
+#### Testing Ingress Connectivity (istio ISTIO_INGRESS)
+
+
+1. Test connectivity to in-mesh service via ingress:
+```
+curl -s -o /dev/null -w "%{http_code}" -H "Host: httpbin.istio" http://${ISTIO_INGRESS}/in-mesh/get
+```
+
+Expected output: `200`
+
+
+
+2. Test connectivity to in-ambient service via ingress:
+```
+curl -s -o /dev/null -w "%{http_code}" -H "Host: httpbin.istio" http://${ISTIO_INGRESS}/in-ambient/get
+```
+
+Expected output: `200`
+
+
+
+
+
+3. Test connectivity to global in-mesh service via ingress:
+```
+curl -s -o /dev/null -w "%{http_code}" -H "Host: httpbin.istio" http://${ISTIO_INGRESS}/global-in-mesh/get
+```
+
+Expected output: `200`
+
+
+
+4. Test connectivity to global in-ambient service via ingress:
+```
+curl -s -o /dev/null -w "%{http_code}" -H "Host: httpbin.istio" http://${ISTIO_INGRESS}/global-in-ambient/get
+```
+
+Expected output: `200`
+
+
+
+
+
+5. Test connectivity to remote in-mesh service via ingress:
+```
+curl -s -o /dev/null -w "%{http_code}" -H "Host: httpbin.istio" http://${ISTIO_INGRESS}/remote-in-mesh/get
+```
+
+Expected output: `200`
+
+
+
+6. Test connectivity to remote in-ambient service via ingress:
+```
+curl -s -o /dev/null -w "%{http_code}" -H "Host: httpbin.istio" http://${ISTIO_INGRESS}/remote-in-ambient/get
+```
+
+Expected output: `200`
+
+
+
+#### Testing Ingress Connectivity (gloo-gateway SOLO_INGRESS)
+
+
+1. Test connectivity to in-mesh service via ingress:
+```
+curl -s -o /dev/null -w "%{http_code}" -H "Host: httpbin.gloo-gateway" http://${SOLO_INGRESS}/in-mesh/get
+```
+
+Expected output: `200`
+
+
+
+2. Test connectivity to in-ambient service via ingress:
+```
+curl -s -o /dev/null -w "%{http_code}" -H "Host: httpbin.gloo-gateway" http://${SOLO_INGRESS}/in-ambient/get
+```
+
+Expected output: `200`
+
+
+
+
+
+3. Test connectivity to global in-mesh service via ingress:
+```
+curl -s -o /dev/null -w "%{http_code}" -H "Host: httpbin.gloo-gateway" http://${SOLO_INGRESS}/global-in-mesh/get
+```
+
+Expected output: `200`
+
+
+
+4. Test connectivity to global in-ambient service via ingress:
+```
+curl -s -o /dev/null -w "%{http_code}" -H "Host: httpbin.gloo-gateway" http://${SOLO_INGRESS}/global-in-ambient/get
+```
+
+Expected output: `200`
+
+
+
+
+
+5. Test connectivity to remote in-mesh service via ingress:
+```
+curl -s -o /dev/null -w "%{http_code}" -H "Host: httpbin.gloo-gateway" http://${SOLO_INGRESS}/remote-in-mesh/get
+```
+
+Expected output: `200`
+
+
+
+6. Test connectivity to remote in-ambient service via ingress:
+```
+curl -s -o /dev/null -w "%{http_code}" -H "Host: httpbin.gloo-gateway" http://${SOLO_INGRESS}/remote-in-ambient/get
+```
+
+Expected output: `200`
+
+
+
+
+#### From client-in-mesh
+
+
+1. Test connectivity to in-mesh service:
+```
+kubectl --context ${CLUSTER1} exec -n httpbin $(kubectl --context ${CLUSTER1} get pod -l app=client-in-mesh -n httpbin -o jsonpath='{.items[0].metadata.name}') -- curl -s  in-mesh.httpbin.svc.cluster.local:8000/get
+```
+
+Check that the response headers include `X-Istio-Workload: $LOCAL_SOLO_WAYPOINT`
+
+
+
+2. Test connectivity to in-ambient service:
+```
+kubectl --context ${CLUSTER1} exec -n httpbin $(kubectl --context ${CLUSTER1} get pod -l app=client-in-mesh -n httpbin -o jsonpath='{.items[0].metadata.name}') -- curl -s  in-ambient.httpbin.svc.cluster.local:8000/get
+```
+
+Check that the response headers include `X-Istio-Workload: $LOCAL_SOLO_WAYPOINT`
+
+
+
+
+
+3. Test connectivity to global in-mesh service:
+```
+kubectl --context ${CLUSTER1} exec -n httpbin $(kubectl --context ${CLUSTER1} get pod -l app=client-in-mesh -n httpbin -o jsonpath='{.items[0].metadata.name}') -- curl -s  in-mesh.httpbin.mesh.internal:8000/get
+```
+
+Check that the response headers include `X-Istio-Workload: $LOCAL_SOLO_WAYPOINT`
+
+
+
+4. Test connectivity to global in-ambient service:
+```
+kubectl --context ${CLUSTER1} exec -n httpbin $(kubectl --context ${CLUSTER1} get pod -l app=client-in-mesh -n httpbin -o jsonpath='{.items[0].metadata.name}') -- curl -s  in-ambient.httpbin.mesh.internal:8000/get
+```
+
+Check that the response headers include `X-Istio-Workload: $LOCAL_SOLO_WAYPOINT`
+
+
+
+
+
+
+
+#### From client-in-ambient
+
+
+1. Test connectivity to in-mesh service:
+```
+kubectl --context ${CLUSTER1} exec -n httpbin $(kubectl --context ${CLUSTER1} get pod -l app=client-in-ambient -n httpbin -o jsonpath='{.items[0].metadata.name}') -- curl -s  in-mesh.httpbin.svc.cluster.local:8000/get
+```
+
+Check that the response headers include `X-Istio-Workload: $LOCAL_SOLO_WAYPOINT`
+
+
+
+2. Test connectivity to in-ambient service:
+```
+kubectl --context ${CLUSTER1} exec -n httpbin $(kubectl --context ${CLUSTER1} get pod -l app=client-in-ambient -n httpbin -o jsonpath='{.items[0].metadata.name}') -- curl -s  in-ambient.httpbin.svc.cluster.local:8000/get
+```
+
+Check that the response headers include `X-Istio-Workload: $LOCAL_SOLO_WAYPOINT`
+
+
+
+
+
+3. Test connectivity to global in-mesh service:
+```
+kubectl --context ${CLUSTER1} exec -n httpbin $(kubectl --context ${CLUSTER1} get pod -l app=client-in-ambient -n httpbin -o jsonpath='{.items[0].metadata.name}') -- curl -s  in-mesh.httpbin.mesh.internal:8000/get
+```
+
+Check that the response headers include `X-Istio-Workload: $LOCAL_SOLO_WAYPOINT`
+
+
+
+4. Test connectivity to global in-ambient service:
+```
+kubectl --context ${CLUSTER1} exec -n httpbin $(kubectl --context ${CLUSTER1} get pod -l app=client-in-ambient -n httpbin -o jsonpath='{.items[0].metadata.name}') -- curl -s  in-ambient.httpbin.mesh.internal:8000/get
+```
+
+Check that the response headers include `X-Istio-Workload: $LOCAL_SOLO_WAYPOINT`
+
+
+
+
+
+
+#### From client-in-mesh
+
+
+
+
+
+
+1. Test connectivity to remote in-mesh service:
+```
+kubectl --context ${CLUSTER1} exec -n httpbin $(kubectl --context ${CLUSTER1} get pod -l app=client-in-mesh -n httpbin -o jsonpath='{.items[0].metadata.name}') -- curl -s  remote-in-mesh.httpbin.mesh.internal:8000/get
+```
+
+Check that the response headers include `X-Istio-Workload: $REMOTE_SOLO_WAYPOINT`
+
+
+
+2. Test connectivity to remote in-ambient service:
+```
+kubectl --context ${CLUSTER1} exec -n httpbin $(kubectl --context ${CLUSTER1} get pod -l app=client-in-mesh -n httpbin -o jsonpath='{.items[0].metadata.name}') -- curl -s  remote-in-ambient.httpbin.mesh.internal:8000/get
+```
+
+Check that the response headers include `X-Istio-Workload: $REMOTE_SOLO_WAYPOINT`
+
+
+
+
+
+#### From client-in-ambient
+
+
+
+
+
+
+1. Test connectivity to remote in-mesh service:
+```
+kubectl --context ${CLUSTER1} exec -n httpbin $(kubectl --context ${CLUSTER1} get pod -l app=client-in-ambient -n httpbin -o jsonpath='{.items[0].metadata.name}') -- curl -s  remote-in-mesh.httpbin.mesh.internal:8000/get
+```
+
+Check that the response headers include `X-Istio-Workload: $REMOTE_SOLO_WAYPOINT`
+
+
+
+2. Test connectivity to remote in-ambient service:
+```
+kubectl --context ${CLUSTER1} exec -n httpbin $(kubectl --context ${CLUSTER1} get pod -l app=client-in-ambient -n httpbin -o jsonpath='{.items[0].metadata.name}') -- curl -s  remote-in-ambient.httpbin.mesh.internal:8000/get
+```
+
+Check that the response headers include `X-Istio-Workload: $REMOTE_SOLO_WAYPOINT`
+
+
+
+#### Testing Ingress Connectivity (istio ISTIO_INGRESS)
+
+
+1. Test connectivity to in-mesh service via ingress:
+```
+curl -s  -H "Host: httpbin.istio" http://${ISTIO_INGRESS}/in-mesh/get
+```
+
+Check that the response body contains `${process.env.LOCAL_SOLO_WAYPOINT}`
+
+
+
+2. Test connectivity to in-ambient service via ingress:
+```
+curl -s  -H "Host: httpbin.istio" http://${ISTIO_INGRESS}/in-ambient/get
+```
+
+Check that the response body contains `${process.env.LOCAL_SOLO_WAYPOINT}`
+
+
+
+
+
+3. Test connectivity to global in-mesh service via ingress:
+```
+curl -s  -H "Host: httpbin.istio" http://${ISTIO_INGRESS}/global-in-mesh/get
+```
+
+Check that the response body contains `${process.env.LOCAL_SOLO_WAYPOINT}`
+
+
+
+4. Test connectivity to global in-ambient service via ingress:
+```
+curl -s  -H "Host: httpbin.istio" http://${ISTIO_INGRESS}/global-in-ambient/get
+```
+
+Check that the response body contains `${process.env.LOCAL_SOLO_WAYPOINT}`
+
+
+
+
+
+#### Testing Ingress Connectivity (istio ISTIO_INGRESS)
+
+
+
+
+
+
+1. Test connectivity to remote in-mesh service via ingress:
+```
+curl -s  -H "Host: httpbin.istio" http://${ISTIO_INGRESS}/remote-in-mesh/get
+```
+
+Check that the response body contains `${process.env.REMOTE_SOLO_WAYPOINT}`
+
+
+
+2. Test connectivity to remote in-ambient service via ingress:
+```
+curl -s  -H "Host: httpbin.istio" http://${ISTIO_INGRESS}/remote-in-ambient/get
+```
+
+Check that the response body contains `${process.env.REMOTE_SOLO_WAYPOINT}`
+
+
+
+#### Testing Ingress Connectivity (gloo-gateway SOLO_INGRESS)
+
+
+1. Test connectivity to in-mesh service via ingress:
+```
+curl -s  -H "Host: httpbin.gloo-gateway" http://${SOLO_INGRESS}/in-mesh/get
+```
+
+Check that the response body contains `${process.env.LOCAL_SOLO_WAYPOINT}`
+
+
+
+2. Test connectivity to in-ambient service via ingress:
+```
+curl -s  -H "Host: httpbin.gloo-gateway" http://${SOLO_INGRESS}/in-ambient/get
+```
+
+Check that the response body contains `${process.env.LOCAL_SOLO_WAYPOINT}`
+
+
+
+
+
+3. Test connectivity to global in-mesh service via ingress:
+```
+curl -s  -H "Host: httpbin.gloo-gateway" http://${SOLO_INGRESS}/global-in-mesh/get
+```
+
+Check that the response body contains `${process.env.LOCAL_SOLO_WAYPOINT}`
+
+
+
+4. Test connectivity to global in-ambient service via ingress:
+```
+curl -s  -H "Host: httpbin.gloo-gateway" http://${SOLO_INGRESS}/global-in-ambient/get
+```
+
+Check that the response body contains `${process.env.LOCAL_SOLO_WAYPOINT}`
+
+
+
+
+
+#### Testing Ingress Connectivity (gloo-gateway SOLO_INGRESS)
+
+
+
+
+
+
+1. Test connectivity to remote in-mesh service via ingress:
+```
+curl -s  -H "Host: httpbin.gloo-gateway" http://${SOLO_INGRESS}/remote-in-mesh/get
+```
+
+Check that the response body contains `${process.env.REMOTE_SOLO_WAYPOINT}`
+
+
+
+2. Test connectivity to remote in-ambient service via ingress:
+```
+curl -s  -H "Host: httpbin.gloo-gateway" http://${SOLO_INGRESS}/remote-in-ambient/get
+```
+
+Check that the response body contains `${process.env.REMOTE_SOLO_WAYPOINT}`
+
+
+
 <!--bash
 cat <<'EOF' > ./test.js
 const chaiExec = require("@jsdevtools/chai-exec");
@@ -10974,17 +11882,18 @@ async function header_test(source, target) {
     curlCommand: `curl -s ${target}:8000/get`
   });
   output = JSON.parse(command);
-  expect(output.headers["X-Istio-Workload"]).to.equal(process.env.LOCAL_ISTIO_WAYPOINT);
+  expect(output.headers["X-Istio-Workload"]).to.equal(process.env.LOCAL_SOLO_WAYPOINT);
 }
 
-describe("Tests all possible eastwest communication", () => {
+describe("Tests all possible eastwest communication (Local Waypoint=gloo-gateway, Remote Waypoint=gloo-gateway, Failover=false, Authorization Policy=false)", () => {
   ["client-in-mesh", "client-in-ambient"].forEach(async (source) => {
-    ["in-mesh.httpbin.svc.cluster.local", "in-ambient.httpbin.svc.cluster.local","in-mesh.httpbin.mesh.internal", "in-ambient.httpbin.mesh.internal","remote-in-mesh.httpbin.mesh.internal", "remote-in-ambient.httpbin.mesh.internal"].forEach(async (target) => {
-      it(`${source} => ${target}`, async () => {
-        
+    ["in-mesh.httpbin.svc.cluster.local", "in-ambient.httpbin.svc.cluster.local","in-mesh.httpbin.mesh.internal", "in-ambient.httpbin.mesh.internal",].forEach(async (target) => {
+      
+      it(`${source} => LOCAL_SOLO_WAYPOINT => ${target}`, async () => {
+        await header_test(source, target);
         await status_test(source, target);
-        
       });
+      
     });
   });
 });
@@ -11019,9 +11928,451 @@ beforeEach(function() {
   console.log(`Running test #${process.env.TEST_COUNTER}`);
 });
 EOF
-echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/multicluster-routing/tests/check-all.js.liquid from lab number 21"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 21"; exit 1; }
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/multicluster-routing/tests/check-all.js.liquid from lab number 22"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 22"; exit 1; }
 -->
+<!--bash
+cat <<'EOF' > ./test.js
+const chaiExec = require("@jsdevtools/chai-exec");
+var chai = require('chai');
+var expect = chai.expect;
+chai.use(chaiExec);
+const helpers = require('./tests/chai-exec');
+
+async function status_test(source, target) {
+  const command = await helpers.curlInDeployment({
+    context: `${process.env.CLUSTER1}`,
+    namespace: 'httpbin',
+    deploymentName: source,
+    curlCommand: `curl -s -o /dev/null -w "%{http_code}" ${target}:8000/get`
+  });
+  output = JSON.parse(command);
+  expect(output).to.equal(200);
+}
+
+async function header_test(source, target) {
+  const command = await helpers.curlInDeployment({
+    context: `${process.env.CLUSTER1}`,
+    namespace: 'httpbin',
+    deploymentName: source,
+    curlCommand: `curl -s ${target}:8000/get`
+  });
+  output = JSON.parse(command);
+  expect(output.headers["X-Istio-Workload"]).to.equal(process.env.REMOTE_SOLO_WAYPOINT);
+}
+
+describe("Tests all possible eastwest communication (Local Waypoint=gloo-gateway, Remote Waypoint=gloo-gateway, Failover=false, Authorization Policy=false)", () => {
+  ["client-in-mesh", "client-in-ambient"].forEach(async (source) => {
+    ["remote-in-mesh.httpbin.mesh.internal", "remote-in-ambient.httpbin.mesh.internal"].forEach(async (target) => {
+      
+      it(`${source} => REMOTE_SOLO_WAYPOINT => ${target}`, async () => {
+        await header_test(source, target);
+        await status_test(source, target);
+      });
+      
+    });
+  });
+});
+
+const fs = require('fs');
+const path = require('path');
+
+const counterFilePath = path.join(__dirname, '.test-counter');
+
+// Setup before all tests
+before(function() {
+  // Initialize counter file if it doesn't exist
+  if (!fs.existsSync(counterFilePath)) {
+    fs.writeFileSync(counterFilePath, '0');
+  }
+});
+
+// Before each test
+beforeEach(function() {
+  // Read current counter value
+  let counter = parseInt(fs.readFileSync(counterFilePath, 'utf8'));
+  
+  // Increment counter
+  counter++;
+  
+  // Save incremented value
+  fs.writeFileSync(counterFilePath, counter.toString());
+  
+  // Set environment variable
+  process.env.TEST_COUNTER = counter.toString();
+  
+  console.log(`Running test #${process.env.TEST_COUNTER}`);
+});
+EOF
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/multicluster-routing/tests/check-all.js.liquid from lab number 22"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 22"; exit 1; }
+-->
+<!--bash
+cat <<'EOF' > ./test.js
+const chaiExec = require("@jsdevtools/chai-exec");
+var chai = require('chai');
+var expect = chai.expect;
+chai.use(chaiExec);
+const helpers = require('./tests/chai-http');
+
+describe("Tests all possible communication from istio ingress (Local Waypoint=gloo-gateway, Remote Waypoint=gloo-gateway, Failover=false, Authorization Policy=false)", () => {
+  ["/in-ambient", "/in-mesh","/global-in-ambient", "/global-in-mesh",].forEach(async (path) => {
+    it(`Ingress => ${path}`, () => helpers.checkURL({ host: `http://${process.env.ISTIO_INGRESS}`, headers: [{key: 'Host', value: 'httpbin.istio'}], path: `${path}/get`, retCode: 200 }));
+    
+    it(`Ingress => LOCAL_SOLO_WAYPOINT => ${path}`, () => helpers.checkBody({ host: `http://${process.env.ISTIO_INGRESS}`, headers: [{key: 'Host', value: 'httpbin.istio'}], path: `${path}/get`, body: process.env.LOCAL_SOLO_WAYPOINT }));
+    
+  });
+});
+
+const fs = require('fs');
+const path = require('path');
+
+const counterFilePath = path.join(__dirname, '.test-counter');
+
+// Setup before all tests
+before(function() {
+  // Initialize counter file if it doesn't exist
+  if (!fs.existsSync(counterFilePath)) {
+    fs.writeFileSync(counterFilePath, '0');
+  }
+});
+
+// Before each test
+beforeEach(function() {
+  // Read current counter value
+  let counter = parseInt(fs.readFileSync(counterFilePath, 'utf8'));
+  
+  // Increment counter
+  counter++;
+  
+  // Save incremented value
+  fs.writeFileSync(counterFilePath, counter.toString());
+  
+  // Set environment variable
+  process.env.TEST_COUNTER = counter.toString();
+  
+  console.log(`Running test #${process.env.TEST_COUNTER}`);
+});
+EOF
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/multicluster-routing/tests/check-ingress.js.liquid from lab number 22"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 22"; exit 1; }
+-->
+<!--bash
+cat <<'EOF' > ./test.js
+const chaiExec = require("@jsdevtools/chai-exec");
+var chai = require('chai');
+var expect = chai.expect;
+chai.use(chaiExec);
+const helpers = require('./tests/chai-http');
+
+describe("Tests all possible communication from gloo-gateway ingress (Local Waypoint=gloo-gateway, Remote Waypoint=gloo-gateway, Failover=false, Authorization Policy=false)", () => {
+  ["/in-ambient", "/in-mesh","/global-in-ambient", "/global-in-mesh",].forEach(async (path) => {
+    it(`Ingress => ${path}`, () => helpers.checkURL({ host: `http://${process.env.SOLO_INGRESS}`, headers: [{key: 'Host', value: 'httpbin.gloo-gateway'}], path: `${path}/get`, retCode: 200 }));
+    
+    it(`Ingress => LOCAL_SOLO_WAYPOINT => ${path}`, () => helpers.checkBody({ host: `http://${process.env.SOLO_INGRESS}`, headers: [{key: 'Host', value: 'httpbin.gloo-gateway'}], path: `${path}/get`, body: process.env.LOCAL_SOLO_WAYPOINT }));
+    
+  });
+});
+
+const fs = require('fs');
+const path = require('path');
+
+const counterFilePath = path.join(__dirname, '.test-counter');
+
+// Setup before all tests
+before(function() {
+  // Initialize counter file if it doesn't exist
+  if (!fs.existsSync(counterFilePath)) {
+    fs.writeFileSync(counterFilePath, '0');
+  }
+});
+
+// Before each test
+beforeEach(function() {
+  // Read current counter value
+  let counter = parseInt(fs.readFileSync(counterFilePath, 'utf8'));
+  
+  // Increment counter
+  counter++;
+  
+  // Save incremented value
+  fs.writeFileSync(counterFilePath, counter.toString());
+  
+  // Set environment variable
+  process.env.TEST_COUNTER = counter.toString();
+  
+  console.log(`Running test #${process.env.TEST_COUNTER}`);
+});
+EOF
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/multicluster-routing/tests/check-ingress.js.liquid from lab number 22"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 22"; exit 1; }
+-->
+<!--bash
+cat <<'EOF' > ./test.js
+const chaiExec = require("@jsdevtools/chai-exec");
+var chai = require('chai');
+var expect = chai.expect;
+chai.use(chaiExec);
+const helpers = require('./tests/chai-http');
+
+describe("Tests all possible communication from istio ingress (Local Waypoint=gloo-gateway, Remote Waypoint=gloo-gateway, Failover=false, Authorization Policy=false)", () => {
+  ["/remote-in-ambient", "/remote-in-mesh"].forEach(async (path) => {
+    it(`Ingress => ${path}`, () => helpers.checkURL({ host: `http://${process.env.ISTIO_INGRESS}`, headers: [{key: 'Host', value: 'httpbin.istio'}], path: `${path}/get`, retCode: 200 }));
+    
+    it(`Ingress => REMOTE_SOLO_WAYPOINT => ${path}`, () => helpers.checkBody({ host: `http://${process.env.ISTIO_INGRESS}`, headers: [{key: 'Host', value: 'httpbin.istio'}], path: `${path}/get`, body: process.env.REMOTE_SOLO_WAYPOINT }));
+    
+  });
+});
+
+const fs = require('fs');
+const path = require('path');
+
+const counterFilePath = path.join(__dirname, '.test-counter');
+
+// Setup before all tests
+before(function() {
+  // Initialize counter file if it doesn't exist
+  if (!fs.existsSync(counterFilePath)) {
+    fs.writeFileSync(counterFilePath, '0');
+  }
+});
+
+// Before each test
+beforeEach(function() {
+  // Read current counter value
+  let counter = parseInt(fs.readFileSync(counterFilePath, 'utf8'));
+  
+  // Increment counter
+  counter++;
+  
+  // Save incremented value
+  fs.writeFileSync(counterFilePath, counter.toString());
+  
+  // Set environment variable
+  process.env.TEST_COUNTER = counter.toString();
+  
+  console.log(`Running test #${process.env.TEST_COUNTER}`);
+});
+EOF
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/multicluster-routing/tests/check-ingress.js.liquid from lab number 22"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 22"; exit 1; }
+-->
+<!--bash
+cat <<'EOF' > ./test.js
+const chaiExec = require("@jsdevtools/chai-exec");
+var chai = require('chai');
+var expect = chai.expect;
+chai.use(chaiExec);
+const helpers = require('./tests/chai-http');
+
+describe("Tests all possible communication from gloo-gateway ingress (Local Waypoint=gloo-gateway, Remote Waypoint=gloo-gateway, Failover=false, Authorization Policy=false)", () => {
+  ["/remote-in-ambient", "/remote-in-mesh"].forEach(async (path) => {
+    it(`Ingress => ${path}`, () => helpers.checkURL({ host: `http://${process.env.SOLO_INGRESS}`, headers: [{key: 'Host', value: 'httpbin.gloo-gateway'}], path: `${path}/get`, retCode: 200 }));
+    
+    it(`Ingress => REMOTE_SOLO_WAYPOINT => ${path}`, () => helpers.checkBody({ host: `http://${process.env.SOLO_INGRESS}`, headers: [{key: 'Host', value: 'httpbin.gloo-gateway'}], path: `${path}/get`, body: process.env.REMOTE_SOLO_WAYPOINT }));
+    
+  });
+});
+
+const fs = require('fs');
+const path = require('path');
+
+const counterFilePath = path.join(__dirname, '.test-counter');
+
+// Setup before all tests
+before(function() {
+  // Initialize counter file if it doesn't exist
+  if (!fs.existsSync(counterFilePath)) {
+    fs.writeFileSync(counterFilePath, '0');
+  }
+});
+
+// Before each test
+beforeEach(function() {
+  // Read current counter value
+  let counter = parseInt(fs.readFileSync(counterFilePath, 'utf8'));
+  
+  // Increment counter
+  counter++;
+  
+  // Save incremented value
+  fs.writeFileSync(counterFilePath, counter.toString());
+  
+  // Set environment variable
+  process.env.TEST_COUNTER = counter.toString();
+  
+  console.log(`Running test #${process.env.TEST_COUNTER}`);
+});
+EOF
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/multicluster-routing/tests/check-ingress.js.liquid from lab number 22"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 22"; exit 1; }
+-->
+
+Let's use Istio Waypoint:
+
+```bash
+kubectl --context ${CLUSTER1} -n httpbin label svc in-mesh istio.io/use-waypoint=waypoint --overwrite
+kubectl --context ${CLUSTER1} -n httpbin label svc in-ambient istio.io/use-waypoint=waypoint --overwrite
+kubectl --context ${CLUSTER2} -n httpbin label svc in-mesh istio.io/use-waypoint=waypoint --overwrite
+kubectl --context ${CLUSTER2} -n httpbin label svc in-ambient istio.io/use-waypoint=waypoint --overwrite
+kubectl --context ${CLUSTER2} -n httpbin label svc remote-in-mesh istio.io/use-waypoint=waypoint --overwrite
+kubectl --context ${CLUSTER2} -n httpbin label svc remote-in-ambient istio.io/use-waypoint=waypoint --overwrite
+kubectl --context ${CLUSTER1} -n httpbin rollout restart deploy client-in-mesh
+kubectl --context ${CLUSTER1} -n httpbin rollout status deploy client-in-mesh
+kubectl --context ${CLUSTER1} -n httpbin rollout restart deploy httpbin-gateway-istio-istio
+kubectl --context ${CLUSTER1} -n httpbin rollout status deploy httpbin-gateway-istio-istio
+kubectl --context ${CLUSTER1} -n httpbin rollout restart deploy gloo-proxy-httpbin-gateway-gloo-gateway
+kubectl --context ${CLUSTER1} -n httpbin rollout status deploy gloo-proxy-httpbin-gateway-gloo-gateway
+```
+
+### Scenario 6: Remote only Istio waypoints
+
+
+<!--bash
+echo "Scenario 6: Remote only Istio waypoints"
+-->
+
+Let's delete the local waypoints:
+
+```bash
+kubectl --context ${CLUSTER1} -n httpbin delete gateway waypoint
+kubectl --context ${CLUSTER1} -n httpbin delete gateway gloo-gateway
+kubectl --context ${CLUSTER1} -n httpbin label svc in-mesh istio.io/use-waypoint-
+kubectl --context ${CLUSTER1} -n httpbin label svc in-mesh istio.io/ingress-use-waypoint-
+kubectl --context ${CLUSTER1} -n httpbin label svc in-ambient istio.io/use-waypoint-
+kubectl --context ${CLUSTER1} -n httpbin label svc in-ambient istio.io/ingress-use-waypoint-
+kubectl --context ${CLUSTER1} -n httpbin rollout restart deploy client-in-mesh
+kubectl --context ${CLUSTER1} -n httpbin rollout status deploy client-in-mesh
+kubectl --context ${CLUSTER1} -n httpbin rollout restart deploy httpbin-gateway-istio-istio
+kubectl --context ${CLUSTER1} -n httpbin rollout status deploy httpbin-gateway-istio-istio
+kubectl --context ${CLUSTER1} -n httpbin rollout restart deploy gloo-proxy-httpbin-gateway-gloo-gateway
+kubectl --context ${CLUSTER1} -n httpbin rollout status deploy gloo-proxy-httpbin-gateway-gloo-gateway
+```
+
+
+
+#### From client-in-mesh
+
+
+1. Test connectivity to in-mesh service:
+```
+kubectl --context ${CLUSTER1} exec -n httpbin $(kubectl --context ${CLUSTER1} get pod -l app=client-in-mesh -n httpbin -o jsonpath='{.items[0].metadata.name}') -- curl -s -o /dev/null -w "%{http_code}" in-mesh.httpbin.svc.cluster.local:8000/get
+```
+
+Expected output: `200`
+
+
+
+2. Test connectivity to in-ambient service:
+```
+kubectl --context ${CLUSTER1} exec -n httpbin $(kubectl --context ${CLUSTER1} get pod -l app=client-in-mesh -n httpbin -o jsonpath='{.items[0].metadata.name}') -- curl -s -o /dev/null -w "%{http_code}" in-ambient.httpbin.svc.cluster.local:8000/get
+```
+
+Expected output: `200`
+
+
+
+
+
+3. Test connectivity to global in-mesh service:
+```
+kubectl --context ${CLUSTER1} exec -n httpbin $(kubectl --context ${CLUSTER1} get pod -l app=client-in-mesh -n httpbin -o jsonpath='{.items[0].metadata.name}') -- curl -s -o /dev/null -w "%{http_code}" in-mesh.httpbin.mesh.internal:8000/get
+```
+
+Expected output: `200`
+
+
+
+4. Test connectivity to global in-ambient service:
+```
+kubectl --context ${CLUSTER1} exec -n httpbin $(kubectl --context ${CLUSTER1} get pod -l app=client-in-mesh -n httpbin -o jsonpath='{.items[0].metadata.name}') -- curl -s -o /dev/null -w "%{http_code}" in-ambient.httpbin.mesh.internal:8000/get
+```
+
+Expected output: `200`
+
+
+
+
+
+5. Test connectivity to remote in-mesh service:
+```
+kubectl --context ${CLUSTER1} exec -n httpbin $(kubectl --context ${CLUSTER1} get pod -l app=client-in-mesh -n httpbin -o jsonpath='{.items[0].metadata.name}') -- curl -s -o /dev/null -w "%{http_code}" remote-in-mesh.httpbin.mesh.internal:8000/get
+```
+
+Expected output: `200`
+
+
+
+6. Test connectivity to remote in-ambient service:
+```
+kubectl --context ${CLUSTER1} exec -n httpbin $(kubectl --context ${CLUSTER1} get pod -l app=client-in-mesh -n httpbin -o jsonpath='{.items[0].metadata.name}') -- curl -s -o /dev/null -w "%{http_code}" remote-in-ambient.httpbin.mesh.internal:8000/get
+```
+
+Expected output: `200`
+
+
+
+
+
+#### From client-in-ambient
+
+
+1. Test connectivity to in-mesh service:
+```
+kubectl --context ${CLUSTER1} exec -n httpbin $(kubectl --context ${CLUSTER1} get pod -l app=client-in-ambient -n httpbin -o jsonpath='{.items[0].metadata.name}') -- curl -s -o /dev/null -w "%{http_code}" in-mesh.httpbin.svc.cluster.local:8000/get
+```
+
+Expected output: `200`
+
+
+
+2. Test connectivity to in-ambient service:
+```
+kubectl --context ${CLUSTER1} exec -n httpbin $(kubectl --context ${CLUSTER1} get pod -l app=client-in-ambient -n httpbin -o jsonpath='{.items[0].metadata.name}') -- curl -s -o /dev/null -w "%{http_code}" in-ambient.httpbin.svc.cluster.local:8000/get
+```
+
+Expected output: `200`
+
+
+
+
+
+3. Test connectivity to global in-mesh service:
+```
+kubectl --context ${CLUSTER1} exec -n httpbin $(kubectl --context ${CLUSTER1} get pod -l app=client-in-ambient -n httpbin -o jsonpath='{.items[0].metadata.name}') -- curl -s -o /dev/null -w "%{http_code}" in-mesh.httpbin.mesh.internal:8000/get
+```
+
+Expected output: `200`
+
+
+
+4. Test connectivity to global in-ambient service:
+```
+kubectl --context ${CLUSTER1} exec -n httpbin $(kubectl --context ${CLUSTER1} get pod -l app=client-in-ambient -n httpbin -o jsonpath='{.items[0].metadata.name}') -- curl -s -o /dev/null -w "%{http_code}" in-ambient.httpbin.mesh.internal:8000/get
+```
+
+Expected output: `200`
+
+
+
+
+
+5. Test connectivity to remote in-mesh service:
+```
+kubectl --context ${CLUSTER1} exec -n httpbin $(kubectl --context ${CLUSTER1} get pod -l app=client-in-ambient -n httpbin -o jsonpath='{.items[0].metadata.name}') -- curl -s -o /dev/null -w "%{http_code}" remote-in-mesh.httpbin.mesh.internal:8000/get
+```
+
+Expected output: `200`
+
+
+
+6. Test connectivity to remote in-ambient service:
+```
+kubectl --context ${CLUSTER1} exec -n httpbin $(kubectl --context ${CLUSTER1} get pod -l app=client-in-ambient -n httpbin -o jsonpath='{.items[0].metadata.name}') -- curl -s -o /dev/null -w "%{http_code}" remote-in-ambient.httpbin.mesh.internal:8000/get
+```
+
+Expected output: `200`
+
 
 
 
@@ -11077,6 +12428,131 @@ Check that the response headers include `X-Istio-Workload: $REMOTE_ISTIO_WAYPOIN
 
 
 
+#### Testing Ingress Connectivity (istio ISTIO_INGRESS)
+
+
+
+
+
+
+1. Test connectivity to remote in-mesh service via ingress:
+```
+curl -s  -H "Host: httpbin.istio" http://${ISTIO_INGRESS}/remote-in-mesh/get
+```
+
+Check that the response body contains `${process.env.REMOTE_ISTIO_WAYPOINT}`
+
+
+
+2. Test connectivity to remote in-ambient service via ingress:
+```
+curl -s  -H "Host: httpbin.istio" http://${ISTIO_INGRESS}/remote-in-ambient/get
+```
+
+Check that the response body contains `${process.env.REMOTE_ISTIO_WAYPOINT}`
+
+
+
+#### Testing Ingress Connectivity (gloo-gateway SOLO_INGRESS)
+
+
+
+
+
+
+1. Test connectivity to remote in-mesh service via ingress:
+```
+curl -s  -H "Host: httpbin.gloo-gateway" http://${SOLO_INGRESS}/remote-in-mesh/get
+```
+
+Check that the response body contains `${process.env.REMOTE_ISTIO_WAYPOINT}`
+
+
+
+2. Test connectivity to remote in-ambient service via ingress:
+```
+curl -s  -H "Host: httpbin.gloo-gateway" http://${SOLO_INGRESS}/remote-in-ambient/get
+```
+
+Check that the response body contains `${process.env.REMOTE_ISTIO_WAYPOINT}`
+
+
+
+<!--bash
+cat <<'EOF' > ./test.js
+const chaiExec = require("@jsdevtools/chai-exec");
+var chai = require('chai');
+var expect = chai.expect;
+chai.use(chaiExec);
+const helpers = require('./tests/chai-exec');
+
+async function status_test(source, target) {
+  const command = await helpers.curlInDeployment({
+    context: `${process.env.CLUSTER1}`,
+    namespace: 'httpbin',
+    deploymentName: source,
+    curlCommand: `curl -s -o /dev/null -w "%{http_code}" ${target}:8000/get`
+  });
+  output = JSON.parse(command);
+  expect(output).to.equal(200);
+}
+
+async function header_test(source, target) {
+  const command = await helpers.curlInDeployment({
+    context: `${process.env.CLUSTER1}`,
+    namespace: 'httpbin',
+    deploymentName: source,
+    curlCommand: `curl -s ${target}:8000/get`
+  });
+  output = JSON.parse(command);
+  expect(output.headers["X-Istio-Workload"]).to.equal(process.env.LOCAL_ISTIO_WAYPOINT);
+}
+
+describe("Tests all possible eastwest communication (Local Waypoint=None, Remote Waypoint=Istio, Failover=false, Authorization Policy=false)", () => {
+  ["client-in-mesh", "client-in-ambient"].forEach(async (source) => {
+    ["in-mesh.httpbin.svc.cluster.local", "in-ambient.httpbin.svc.cluster.local","in-mesh.httpbin.mesh.internal", "in-ambient.httpbin.mesh.internal",].forEach(async (target) => {
+      
+      it(`${source} => ${target}`, async () => {
+        await status_test(source, target);
+      });
+      
+    });
+  });
+});
+
+const fs = require('fs');
+const path = require('path');
+
+const counterFilePath = path.join(__dirname, '.test-counter');
+
+// Setup before all tests
+before(function() {
+  // Initialize counter file if it doesn't exist
+  if (!fs.existsSync(counterFilePath)) {
+    fs.writeFileSync(counterFilePath, '0');
+  }
+});
+
+// Before each test
+beforeEach(function() {
+  // Read current counter value
+  let counter = parseInt(fs.readFileSync(counterFilePath, 'utf8'));
+  
+  // Increment counter
+  counter++;
+  
+  // Save incremented value
+  fs.writeFileSync(counterFilePath, counter.toString());
+  
+  // Set environment variable
+  process.env.TEST_COUNTER = counter.toString();
+  
+  console.log(`Running test #${process.env.TEST_COUNTER}`);
+});
+EOF
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/multicluster-routing/tests/check-all.js.liquid from lab number 22"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 22"; exit 1; }
+-->
 <!--bash
 cat <<'EOF' > ./test.js
 const chaiExec = require("@jsdevtools/chai-exec");
@@ -11107,14 +12583,15 @@ async function header_test(source, target) {
   expect(output.headers["X-Istio-Workload"]).to.equal(process.env.REMOTE_ISTIO_WAYPOINT);
 }
 
-describe("Tests all possible eastwest communication through waypoint", () => {
+describe("Tests all possible eastwest communication (Local Waypoint=None, Remote Waypoint=Istio, Failover=false, Authorization Policy=false)", () => {
   ["client-in-mesh", "client-in-ambient"].forEach(async (source) => {
     ["remote-in-mesh.httpbin.mesh.internal", "remote-in-ambient.httpbin.mesh.internal"].forEach(async (target) => {
-      it(`${source} => ${target}`, async () => {
-        
+      
+      it(`${source} => REMOTE_ISTIO_WAYPOINT => ${target}`, async () => {
         await header_test(source, target);
-        
+        await status_test(source, target);
       });
+      
     });
   });
 });
@@ -11149,36 +12626,9 @@ beforeEach(function() {
   console.log(`Running test #${process.env.TEST_COUNTER}`);
 });
 EOF
-echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/multicluster-routing/tests/check-all.js.liquid from lab number 21"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 21"; exit 1; }
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/multicluster-routing/tests/check-all.js.liquid from lab number 22"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 22"; exit 1; }
 -->
-
-
-#### Testing Ingress Connectivity
-
-
-
-
-
-
-1. Test connectivity to remote in-mesh service via ingress:
-```
-curl -s  -H "Host: httpbin.istio" http://${ISTIO_INGRESS}/remote-in-mesh/get
-```
-
-Check that the response body contains `${process.env.REMOTE_ISTIO_WAYPOINT}`
-
-
-
-2. Test connectivity to remote in-ambient service via ingress:
-```
-curl -s  -H "Host: httpbin.istio" http://${ISTIO_INGRESS}/remote-in-ambient/get
-```
-
-Check that the response body contains `${process.env.REMOTE_ISTIO_WAYPOINT}`
-
-
-
 <!--bash
 cat <<'EOF' > ./test.js
 const chaiExec = require("@jsdevtools/chai-exec");
@@ -11187,10 +12637,9 @@ var expect = chai.expect;
 chai.use(chaiExec);
 const helpers = require('./tests/chai-http');
 
-describe("Tests all possible communication from istio ingress through waypoint", () => {
-  ["/remote-in-ambient", "/remote-in-mesh"].forEach(async (path) => {
-    
-    it(`${path} is going through the right waypoint`, () => helpers.checkBody({ host: `http://${process.env.ISTIO_INGRESS}`, headers: [{key: 'Host', value: 'httpbin.istio'}], path: `${path}/get`, body: process.env.REMOTE_ISTIO_WAYPOINT }));
+describe("Tests all possible communication from istio ingress (Local Waypoint=None, Remote Waypoint=Istio, Failover=false, Authorization Policy=false)", () => {
+  ["/in-ambient", "/in-mesh","/global-in-ambient", "/global-in-mesh",].forEach(async (path) => {
+    it(`Ingress => ${path}`, () => helpers.checkURL({ host: `http://${process.env.ISTIO_INGRESS}`, headers: [{key: 'Host', value: 'httpbin.istio'}], path: `${path}/get`, retCode: 200 }));
     
   });
 });
@@ -11225,36 +12674,9 @@ beforeEach(function() {
   console.log(`Running test #${process.env.TEST_COUNTER}`);
 });
 EOF
-echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/multicluster-routing/tests/check-ingress.js.liquid from lab number 21"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 21"; exit 1; }
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/multicluster-routing/tests/check-ingress.js.liquid from lab number 22"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 22"; exit 1; }
 -->
-
-
-#### Testing Ingress Connectivity
-
-
-
-
-
-
-1. Test connectivity to remote in-mesh service via ingress:
-```
-curl -s  -H "Host: httpbin.gloo" http://${GLOO_INGRESS}/remote-in-mesh/get
-```
-
-Check that the response body contains `${process.env.REMOTE_ISTIO_WAYPOINT}`
-
-
-
-2. Test connectivity to remote in-ambient service via ingress:
-```
-curl -s  -H "Host: httpbin.gloo" http://${GLOO_INGRESS}/remote-in-ambient/get
-```
-
-Check that the response body contains `${process.env.REMOTE_ISTIO_WAYPOINT}`
-
-
-
 <!--bash
 cat <<'EOF' > ./test.js
 const chaiExec = require("@jsdevtools/chai-exec");
@@ -11263,10 +12685,9 @@ var expect = chai.expect;
 chai.use(chaiExec);
 const helpers = require('./tests/chai-http');
 
-describe("Tests all possible communication from gloo ingress through waypoint", () => {
-  ["/remote-in-ambient", "/remote-in-mesh"].forEach(async (path) => {
-    
-    it(`${path} is going through the right waypoint`, () => helpers.checkBody({ host: `http://${process.env.GLOO_INGRESS}`, headers: [{key: 'Host', value: 'httpbin.gloo'}], path: `${path}/get`, body: process.env.REMOTE_ISTIO_WAYPOINT }));
+describe("Tests all possible communication from gloo-gateway ingress (Local Waypoint=None, Remote Waypoint=Istio, Failover=false, Authorization Policy=false)", () => {
+  ["/in-ambient", "/in-mesh","/global-in-ambient", "/global-in-mesh",].forEach(async (path) => {
+    it(`Ingress => ${path}`, () => helpers.checkURL({ host: `http://${process.env.SOLO_INGRESS}`, headers: [{key: 'Host', value: 'httpbin.gloo-gateway'}], path: `${path}/get`, retCode: 200 }));
     
   });
 });
@@ -11301,8 +12722,108 @@ beforeEach(function() {
   console.log(`Running test #${process.env.TEST_COUNTER}`);
 });
 EOF
-echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/multicluster-routing/tests/check-ingress.js.liquid from lab number 21"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 21"; exit 1; }
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/multicluster-routing/tests/check-ingress.js.liquid from lab number 22"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 22"; exit 1; }
+-->
+<!--bash
+cat <<'EOF' > ./test.js
+const chaiExec = require("@jsdevtools/chai-exec");
+var chai = require('chai');
+var expect = chai.expect;
+chai.use(chaiExec);
+const helpers = require('./tests/chai-http');
+
+describe("Tests all possible communication from istio ingress (Local Waypoint=None, Remote Waypoint=Istio, Failover=false, Authorization Policy=false)", () => {
+  ["/remote-in-ambient", "/remote-in-mesh"].forEach(async (path) => {
+    it(`Ingress => ${path}`, () => helpers.checkURL({ host: `http://${process.env.ISTIO_INGRESS}`, headers: [{key: 'Host', value: 'httpbin.istio'}], path: `${path}/get`, retCode: 200 }));
+    
+    it(`Ingress => REMOTE_ISTIO_WAYPOINT => ${path}`, () => helpers.checkBody({ host: `http://${process.env.ISTIO_INGRESS}`, headers: [{key: 'Host', value: 'httpbin.istio'}], path: `${path}/get`, body: process.env.REMOTE_ISTIO_WAYPOINT }));
+    
+  });
+});
+
+const fs = require('fs');
+const path = require('path');
+
+const counterFilePath = path.join(__dirname, '.test-counter');
+
+// Setup before all tests
+before(function() {
+  // Initialize counter file if it doesn't exist
+  if (!fs.existsSync(counterFilePath)) {
+    fs.writeFileSync(counterFilePath, '0');
+  }
+});
+
+// Before each test
+beforeEach(function() {
+  // Read current counter value
+  let counter = parseInt(fs.readFileSync(counterFilePath, 'utf8'));
+  
+  // Increment counter
+  counter++;
+  
+  // Save incremented value
+  fs.writeFileSync(counterFilePath, counter.toString());
+  
+  // Set environment variable
+  process.env.TEST_COUNTER = counter.toString();
+  
+  console.log(`Running test #${process.env.TEST_COUNTER}`);
+});
+EOF
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/multicluster-routing/tests/check-ingress.js.liquid from lab number 22"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 22"; exit 1; }
+-->
+<!--bash
+cat <<'EOF' > ./test.js
+const chaiExec = require("@jsdevtools/chai-exec");
+var chai = require('chai');
+var expect = chai.expect;
+chai.use(chaiExec);
+const helpers = require('./tests/chai-http');
+
+describe("Tests all possible communication from gloo-gateway ingress (Local Waypoint=None, Remote Waypoint=Istio, Failover=false, Authorization Policy=false)", () => {
+  ["/remote-in-ambient", "/remote-in-mesh"].forEach(async (path) => {
+    it(`Ingress => ${path}`, () => helpers.checkURL({ host: `http://${process.env.SOLO_INGRESS}`, headers: [{key: 'Host', value: 'httpbin.gloo-gateway'}], path: `${path}/get`, retCode: 200 }));
+    
+    it(`Ingress => REMOTE_ISTIO_WAYPOINT => ${path}`, () => helpers.checkBody({ host: `http://${process.env.SOLO_INGRESS}`, headers: [{key: 'Host', value: 'httpbin.gloo-gateway'}], path: `${path}/get`, body: process.env.REMOTE_ISTIO_WAYPOINT }));
+    
+  });
+});
+
+const fs = require('fs');
+const path = require('path');
+
+const counterFilePath = path.join(__dirname, '.test-counter');
+
+// Setup before all tests
+before(function() {
+  // Initialize counter file if it doesn't exist
+  if (!fs.existsSync(counterFilePath)) {
+    fs.writeFileSync(counterFilePath, '0');
+  }
+});
+
+// Before each test
+beforeEach(function() {
+  // Read current counter value
+  let counter = parseInt(fs.readFileSync(counterFilePath, 'utf8'));
+  
+  // Increment counter
+  counter++;
+  
+  // Save incremented value
+  fs.writeFileSync(counterFilePath, counter.toString());
+  
+  // Set environment variable
+  process.env.TEST_COUNTER = counter.toString();
+  
+  console.log(`Running test #${process.env.TEST_COUNTER}`);
+});
+EOF
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/multicluster-routing/tests/check-ingress.js.liquid from lab number 22"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 22"; exit 1; }
 -->
 
 ### Scenario 6b: Remote only Istio waypoints with AuthorizationPolicy
@@ -11325,7 +12846,7 @@ spec:
   - kind: ServiceEntry
     group: "networking.istio.io"
     name: autogen.httpbin.remote-in-ambient
-  # for Gloo waypoints
+  # for Product waypoints
   - kind: Service
     group: ""
     name: remote-in-ambient
@@ -11337,7 +12858,7 @@ spec:
         - cluster1/ns/httpbin/sa/httpbin-gateway-istio-istio
     - source:
         principals:
-        - cluster1/ns/httpbin/sa/gloo-proxy-httpbin-gateway-gloo
+        - cluster1/ns/httpbin/sa/gloo-proxy-httpbin-gateway-gloo-gateway
     - source:
         principals:
         - cluster1/ns/httpbin/sa/client-in-ambient
@@ -11358,7 +12879,7 @@ spec:
   - kind: ServiceEntry
     group: "networking.istio.io"
     name: autogen.httpbin.remote-in-mesh
-  # for Gloo waypoints
+  # for Product waypoints
   - kind: Service
     group: ""
     name: remote-in-mesh
@@ -11370,7 +12891,7 @@ spec:
         - cluster1/ns/httpbin/sa/httpbin-gateway-istio-istio
     - source:
         principals:
-        - cluster1/ns/httpbin/sa/gloo-proxy-httpbin-gateway-gloo
+        - cluster1/ns/httpbin/sa/gloo-proxy-httpbin-gateway-gloo-gateway
     - source:
         principals:
         - cluster1/ns/httpbin/sa/client-in-ambient
@@ -11385,7 +12906,7 @@ EOF
 
 POST requests should be denied. For example:
 
-```bash,noexecute
+```bash,norun-workshop
 kubectl --context ${CLUSTER1} exec -n httpbin $(kubectl --context ${CLUSTER1} get pod -l app=client-in-ambient -n httpbin -o jsonpath='{.items[0].metadata.name}') -- curl -s -X POST remote-in-ambient.httpbin.svc.cluster.local:8000/post
 ```
 
@@ -11397,7 +12918,7 @@ var expect = chai.expect;
 chai.use(chaiExec);
 const helpers = require('./tests/chai-http');
 
-describe("AuthorizationPolicy is working properly", () => {
+describe("AuthorizationPolicy is working properly (Local Waypoint=None, Remote Waypoint=Istio, Failover=false, Authorization Policy=true)", () => {
   ["client-in-mesh", "client-in-ambient"].forEach(async (source) => {
     ["remote-in-mesh.httpbin.mesh.internal", "remote-in-ambient.httpbin.mesh.internal"].forEach(async (target) => {
       it(`${source} isn't allowed to send POST requests to ${target}`, () => {
@@ -11416,9 +12937,9 @@ describe("AuthorizationPolicy is working properly", () => {
     ["remote-in-mesh", "remote-in-ambient"].forEach(async (target) => {
       it(`Istio ingress isn't allowed to send POST requests to /${target}`, () => helpers.checkWithMethod({ host: `http://${process.env.ISTIO_INGRESS}`, method: "post", headers: [{key: 'Host', value: 'httpbin.istio'}], path: `/${target}/post`, retCode: 403 }));
       it(`Istio ingress is allowed to send GET requests to /${target}`, () => helpers.checkWithMethod({ host: `http://${process.env.ISTIO_INGRESS}`, method: "get", headers: [{key: 'Host', value: 'httpbin.istio'}], path: `/${target}/get`, retCode: 200 }));
-      // Gloo Gateway as an ingress doesn't use Istio waypoint
-      // it(`Gloo ingress isn't allowed to send POST requests to /${target}`, () => helpers.checkWithMethod({ host: `http://${process.env.GLOO_INGRESS}`, method: "post", headers: [{key: 'Host', value: 'httpbin.gloo'}], path: `/${target}/post`, retCode: 403 }));
-      // it(`Gloo ingress is allowed to send GET requests to /${target}`, () => helpers.checkWithMethod({ host: `http://${process.env.GLOO_INGRESS}`, method: "get", headers: [{key: 'Host', value: 'httpbin.gloo'}], path: `/${target}/get`, retCode: 200 }));
+
+      it(`gloo-gateway ingress isn't allowed to send POST requests to /${target}`, () => helpers.checkWithMethod({ host: `http://${process.env.SOLO_INGRESS}`, method: "post", headers: [{key: 'Host', value: 'httpbin.gloo-gateway'}], path: `/${target}/post`, retCode: 403 }));
+      it(`gloo-gateway ingress is allowed to send GET requests to /${target}`, () => helpers.checkWithMethod({ host: `http://${process.env.SOLO_INGRESS}`, method: "get", headers: [{key: 'Host', value: 'httpbin.gloo-gateway'}], path: `/${target}/get`, retCode: 200 }));
     });
   });
 });
@@ -11453,28 +12974,526 @@ beforeEach(function() {
   console.log(`Running test #${process.env.TEST_COUNTER}`);
 });
 EOF
-echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/multicluster-routing/tests/check-authorization.js.liquid from lab number 21"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 21"; exit 1; }
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/multicluster-routing/tests/check-authorization.js.liquid from lab number 22"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 22"; exit 1; }
+-->
+<!--bash
+cat <<'EOF' > ./test.js
+const chaiExec = require("@jsdevtools/chai-exec");
+var chai = require('chai');
+var expect = chai.expect;
+chai.use(chaiExec);
+const helpers = require('./tests/chai-exec');
+
+async function status_test(source, target) {
+  const command = await helpers.curlInDeployment({
+    context: `${process.env.CLUSTER1}`,
+    namespace: 'httpbin',
+    deploymentName: source,
+    curlCommand: `curl -s -o /dev/null -w "%{http_code}" ${target}:8000/get`
+  });
+  output = JSON.parse(command);
+  expect(output).to.equal(200);
+}
+
+async function header_test(source, target) {
+  const command = await helpers.curlInDeployment({
+    context: `${process.env.CLUSTER1}`,
+    namespace: 'httpbin',
+    deploymentName: source,
+    curlCommand: `curl -s ${target}:8000/get`
+  });
+  output = JSON.parse(command);
+  expect(output.headers["X-Istio-Workload"]).to.equal(process.env.LOCAL_ISTIO_WAYPOINT);
+}
+
+describe("Tests all possible eastwest communication (Local Waypoint=None, Remote Waypoint=Istio, Failover=false, Authorization Policy=true)", () => {
+  ["client-in-mesh", "client-in-ambient"].forEach(async (source) => {
+    ["in-mesh.httpbin.svc.cluster.local", "in-ambient.httpbin.svc.cluster.local","in-mesh.httpbin.mesh.internal", "in-ambient.httpbin.mesh.internal",].forEach(async (target) => {
+      
+      it(`${source} => ${target}`, async () => {
+        await status_test(source, target);
+      });
+      
+    });
+  });
+});
+
+const fs = require('fs');
+const path = require('path');
+
+const counterFilePath = path.join(__dirname, '.test-counter');
+
+// Setup before all tests
+before(function() {
+  // Initialize counter file if it doesn't exist
+  if (!fs.existsSync(counterFilePath)) {
+    fs.writeFileSync(counterFilePath, '0');
+  }
+});
+
+// Before each test
+beforeEach(function() {
+  // Read current counter value
+  let counter = parseInt(fs.readFileSync(counterFilePath, 'utf8'));
+  
+  // Increment counter
+  counter++;
+  
+  // Save incremented value
+  fs.writeFileSync(counterFilePath, counter.toString());
+  
+  // Set environment variable
+  process.env.TEST_COUNTER = counter.toString();
+  
+  console.log(`Running test #${process.env.TEST_COUNTER}`);
+});
+EOF
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/multicluster-routing/tests/check-all.js.liquid from lab number 22"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 22"; exit 1; }
+-->
+<!--bash
+cat <<'EOF' > ./test.js
+const chaiExec = require("@jsdevtools/chai-exec");
+var chai = require('chai');
+var expect = chai.expect;
+chai.use(chaiExec);
+const helpers = require('./tests/chai-exec');
+
+async function status_test(source, target) {
+  const command = await helpers.curlInDeployment({
+    context: `${process.env.CLUSTER1}`,
+    namespace: 'httpbin',
+    deploymentName: source,
+    curlCommand: `curl -s -o /dev/null -w "%{http_code}" ${target}:8000/get`
+  });
+  output = JSON.parse(command);
+  expect(output).to.equal(200);
+}
+
+async function header_test(source, target) {
+  const command = await helpers.curlInDeployment({
+    context: `${process.env.CLUSTER1}`,
+    namespace: 'httpbin',
+    deploymentName: source,
+    curlCommand: `curl -s ${target}:8000/get`
+  });
+  output = JSON.parse(command);
+  expect(output.headers["X-Istio-Workload"]).to.equal(process.env.REMOTE_ISTIO_WAYPOINT);
+}
+
+describe("Tests all possible eastwest communication (Local Waypoint=None, Remote Waypoint=Istio, Failover=false, Authorization Policy=true)", () => {
+  ["client-in-mesh", "client-in-ambient"].forEach(async (source) => {
+    ["remote-in-mesh.httpbin.mesh.internal", "remote-in-ambient.httpbin.mesh.internal"].forEach(async (target) => {
+      
+      it(`${source} => REMOTE_ISTIO_WAYPOINT => ${target}`, async () => {
+        await header_test(source, target);
+        await status_test(source, target);
+      });
+      
+    });
+  });
+});
+
+const fs = require('fs');
+const path = require('path');
+
+const counterFilePath = path.join(__dirname, '.test-counter');
+
+// Setup before all tests
+before(function() {
+  // Initialize counter file if it doesn't exist
+  if (!fs.existsSync(counterFilePath)) {
+    fs.writeFileSync(counterFilePath, '0');
+  }
+});
+
+// Before each test
+beforeEach(function() {
+  // Read current counter value
+  let counter = parseInt(fs.readFileSync(counterFilePath, 'utf8'));
+  
+  // Increment counter
+  counter++;
+  
+  // Save incremented value
+  fs.writeFileSync(counterFilePath, counter.toString());
+  
+  // Set environment variable
+  process.env.TEST_COUNTER = counter.toString();
+  
+  console.log(`Running test #${process.env.TEST_COUNTER}`);
+});
+EOF
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/multicluster-routing/tests/check-all.js.liquid from lab number 22"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 22"; exit 1; }
+-->
+<!--bash
+cat <<'EOF' > ./test.js
+const chaiExec = require("@jsdevtools/chai-exec");
+var chai = require('chai');
+var expect = chai.expect;
+chai.use(chaiExec);
+const helpers = require('./tests/chai-http');
+
+describe("Tests all possible communication from istio ingress (Local Waypoint=None, Remote Waypoint=Istio, Failover=false, Authorization Policy=true)", () => {
+  ["/in-ambient", "/in-mesh","/global-in-ambient", "/global-in-mesh",].forEach(async (path) => {
+    it(`Ingress => ${path}`, () => helpers.checkURL({ host: `http://${process.env.ISTIO_INGRESS}`, headers: [{key: 'Host', value: 'httpbin.istio'}], path: `${path}/get`, retCode: 200 }));
+    
+  });
+});
+
+const fs = require('fs');
+const path = require('path');
+
+const counterFilePath = path.join(__dirname, '.test-counter');
+
+// Setup before all tests
+before(function() {
+  // Initialize counter file if it doesn't exist
+  if (!fs.existsSync(counterFilePath)) {
+    fs.writeFileSync(counterFilePath, '0');
+  }
+});
+
+// Before each test
+beforeEach(function() {
+  // Read current counter value
+  let counter = parseInt(fs.readFileSync(counterFilePath, 'utf8'));
+  
+  // Increment counter
+  counter++;
+  
+  // Save incremented value
+  fs.writeFileSync(counterFilePath, counter.toString());
+  
+  // Set environment variable
+  process.env.TEST_COUNTER = counter.toString();
+  
+  console.log(`Running test #${process.env.TEST_COUNTER}`);
+});
+EOF
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/multicluster-routing/tests/check-ingress.js.liquid from lab number 22"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 22"; exit 1; }
+-->
+<!--bash
+cat <<'EOF' > ./test.js
+const chaiExec = require("@jsdevtools/chai-exec");
+var chai = require('chai');
+var expect = chai.expect;
+chai.use(chaiExec);
+const helpers = require('./tests/chai-http');
+
+describe("Tests all possible communication from gloo-gateway ingress (Local Waypoint=None, Remote Waypoint=Istio, Failover=false, Authorization Policy=true)", () => {
+  ["/in-ambient", "/in-mesh","/global-in-ambient", "/global-in-mesh",].forEach(async (path) => {
+    it(`Ingress => ${path}`, () => helpers.checkURL({ host: `http://${process.env.SOLO_INGRESS}`, headers: [{key: 'Host', value: 'httpbin.gloo-gateway'}], path: `${path}/get`, retCode: 200 }));
+    
+  });
+});
+
+const fs = require('fs');
+const path = require('path');
+
+const counterFilePath = path.join(__dirname, '.test-counter');
+
+// Setup before all tests
+before(function() {
+  // Initialize counter file if it doesn't exist
+  if (!fs.existsSync(counterFilePath)) {
+    fs.writeFileSync(counterFilePath, '0');
+  }
+});
+
+// Before each test
+beforeEach(function() {
+  // Read current counter value
+  let counter = parseInt(fs.readFileSync(counterFilePath, 'utf8'));
+  
+  // Increment counter
+  counter++;
+  
+  // Save incremented value
+  fs.writeFileSync(counterFilePath, counter.toString());
+  
+  // Set environment variable
+  process.env.TEST_COUNTER = counter.toString();
+  
+  console.log(`Running test #${process.env.TEST_COUNTER}`);
+});
+EOF
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/multicluster-routing/tests/check-ingress.js.liquid from lab number 22"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 22"; exit 1; }
+-->
+<!--bash
+cat <<'EOF' > ./test.js
+const chaiExec = require("@jsdevtools/chai-exec");
+var chai = require('chai');
+var expect = chai.expect;
+chai.use(chaiExec);
+const helpers = require('./tests/chai-http');
+
+describe("Tests all possible communication from istio ingress (Local Waypoint=None, Remote Waypoint=Istio, Failover=false, Authorization Policy=true)", () => {
+  ["/remote-in-ambient", "/remote-in-mesh"].forEach(async (path) => {
+    it(`Ingress => ${path}`, () => helpers.checkURL({ host: `http://${process.env.ISTIO_INGRESS}`, headers: [{key: 'Host', value: 'httpbin.istio'}], path: `${path}/get`, retCode: 200 }));
+    
+    it(`Ingress => REMOTE_ISTIO_WAYPOINT => ${path}`, () => helpers.checkBody({ host: `http://${process.env.ISTIO_INGRESS}`, headers: [{key: 'Host', value: 'httpbin.istio'}], path: `${path}/get`, body: process.env.REMOTE_ISTIO_WAYPOINT }));
+    
+  });
+});
+
+const fs = require('fs');
+const path = require('path');
+
+const counterFilePath = path.join(__dirname, '.test-counter');
+
+// Setup before all tests
+before(function() {
+  // Initialize counter file if it doesn't exist
+  if (!fs.existsSync(counterFilePath)) {
+    fs.writeFileSync(counterFilePath, '0');
+  }
+});
+
+// Before each test
+beforeEach(function() {
+  // Read current counter value
+  let counter = parseInt(fs.readFileSync(counterFilePath, 'utf8'));
+  
+  // Increment counter
+  counter++;
+  
+  // Save incremented value
+  fs.writeFileSync(counterFilePath, counter.toString());
+  
+  // Set environment variable
+  process.env.TEST_COUNTER = counter.toString();
+  
+  console.log(`Running test #${process.env.TEST_COUNTER}`);
+});
+EOF
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/multicluster-routing/tests/check-ingress.js.liquid from lab number 22"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 22"; exit 1; }
+-->
+<!--bash
+cat <<'EOF' > ./test.js
+const chaiExec = require("@jsdevtools/chai-exec");
+var chai = require('chai');
+var expect = chai.expect;
+chai.use(chaiExec);
+const helpers = require('./tests/chai-http');
+
+describe("Tests all possible communication from gloo-gateway ingress (Local Waypoint=None, Remote Waypoint=Istio, Failover=false, Authorization Policy=true)", () => {
+  ["/remote-in-ambient", "/remote-in-mesh"].forEach(async (path) => {
+    it(`Ingress => ${path}`, () => helpers.checkURL({ host: `http://${process.env.SOLO_INGRESS}`, headers: [{key: 'Host', value: 'httpbin.gloo-gateway'}], path: `${path}/get`, retCode: 200 }));
+    
+    it(`Ingress => REMOTE_ISTIO_WAYPOINT => ${path}`, () => helpers.checkBody({ host: `http://${process.env.SOLO_INGRESS}`, headers: [{key: 'Host', value: 'httpbin.gloo-gateway'}], path: `${path}/get`, body: process.env.REMOTE_ISTIO_WAYPOINT }));
+    
+  });
+});
+
+const fs = require('fs');
+const path = require('path');
+
+const counterFilePath = path.join(__dirname, '.test-counter');
+
+// Setup before all tests
+before(function() {
+  // Initialize counter file if it doesn't exist
+  if (!fs.existsSync(counterFilePath)) {
+    fs.writeFileSync(counterFilePath, '0');
+  }
+});
+
+// Before each test
+beforeEach(function() {
+  // Read current counter value
+  let counter = parseInt(fs.readFileSync(counterFilePath, 'utf8'));
+  
+  // Increment counter
+  counter++;
+  
+  // Save incremented value
+  fs.writeFileSync(counterFilePath, counter.toString());
+  
+  // Set environment variable
+  process.env.TEST_COUNTER = counter.toString();
+  
+  console.log(`Running test #${process.env.TEST_COUNTER}`);
+});
+EOF
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/multicluster-routing/tests/check-ingress.js.liquid from lab number 22"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 22"; exit 1; }
 -->
 
-### Scenario 7: Remote only Gloo waypoints
+### Scenario 7: Remote only gloo-gateway waypoints
+
 
 <!--bash
-echo "Scenario 7: Remote only Gloo waypoints"
+echo "Scenario 7: Remote only gloo-gateway waypoints"
 -->
 
-Let's use Gloo Waypoint:
+Let's use Solo Waypoint:
 
 ```bash
-kubectl --context ${CLUSTER2} -n httpbin label svc remote-in-mesh istio.io/use-waypoint=gloo-waypoint --overwrite
-kubectl --context ${CLUSTER2} -n httpbin label svc remote-in-ambient istio.io/use-waypoint=gloo-waypoint --overwrite
+kubectl --context ${CLUSTER2} -n httpbin label svc remote-in-mesh istio.io/use-waypoint=gloo-gateway-waypoint --overwrite
+kubectl --context ${CLUSTER2} -n httpbin label svc remote-in-ambient istio.io/use-waypoint=gloo-gateway-waypoint --overwrite
 kubectl --context ${CLUSTER1} -n httpbin rollout restart deploy client-in-mesh
 kubectl --context ${CLUSTER1} -n httpbin rollout status deploy client-in-mesh
 kubectl --context ${CLUSTER1} -n httpbin rollout restart deploy httpbin-gateway-istio-istio
 kubectl --context ${CLUSTER1} -n httpbin rollout status deploy httpbin-gateway-istio-istio
-kubectl --context ${CLUSTER1} -n httpbin rollout restart deploy gloo-proxy-httpbin-gateway-gloo
-kubectl --context ${CLUSTER1} -n httpbin rollout status deploy gloo-proxy-httpbin-gateway-gloo
+kubectl --context ${CLUSTER1} -n httpbin rollout restart deploy gloo-proxy-httpbin-gateway-gloo-gateway
+kubectl --context ${CLUSTER1} -n httpbin rollout status deploy gloo-proxy-httpbin-gateway-gloo-gateway
 ```
+
+
+
+#### From client-in-mesh
+
+
+1. Test connectivity to in-mesh service:
+```
+kubectl --context ${CLUSTER1} exec -n httpbin $(kubectl --context ${CLUSTER1} get pod -l app=client-in-mesh -n httpbin -o jsonpath='{.items[0].metadata.name}') -- curl -s -o /dev/null -w "%{http_code}" in-mesh.httpbin.svc.cluster.local:8000/get
+```
+
+Expected output: `200`
+
+
+
+2. Test connectivity to in-ambient service:
+```
+kubectl --context ${CLUSTER1} exec -n httpbin $(kubectl --context ${CLUSTER1} get pod -l app=client-in-mesh -n httpbin -o jsonpath='{.items[0].metadata.name}') -- curl -s -o /dev/null -w "%{http_code}" in-ambient.httpbin.svc.cluster.local:8000/get
+```
+
+Expected output: `200`
+
+
+
+
+
+3. Test connectivity to global in-mesh service:
+```
+kubectl --context ${CLUSTER1} exec -n httpbin $(kubectl --context ${CLUSTER1} get pod -l app=client-in-mesh -n httpbin -o jsonpath='{.items[0].metadata.name}') -- curl -s -o /dev/null -w "%{http_code}" in-mesh.httpbin.mesh.internal:8000/get
+```
+
+Expected output: `200`
+
+
+
+4. Test connectivity to global in-ambient service:
+```
+kubectl --context ${CLUSTER1} exec -n httpbin $(kubectl --context ${CLUSTER1} get pod -l app=client-in-mesh -n httpbin -o jsonpath='{.items[0].metadata.name}') -- curl -s -o /dev/null -w "%{http_code}" in-ambient.httpbin.mesh.internal:8000/get
+```
+
+Expected output: `200`
+
+
+
+
+
+5. Test connectivity to remote in-mesh service:
+```
+kubectl --context ${CLUSTER1} exec -n httpbin $(kubectl --context ${CLUSTER1} get pod -l app=client-in-mesh -n httpbin -o jsonpath='{.items[0].metadata.name}') -- curl -s -o /dev/null -w "%{http_code}" remote-in-mesh.httpbin.mesh.internal:8000/get
+```
+
+Expected output: `200`
+
+
+
+6. Test connectivity to remote in-ambient service:
+```
+kubectl --context ${CLUSTER1} exec -n httpbin $(kubectl --context ${CLUSTER1} get pod -l app=client-in-mesh -n httpbin -o jsonpath='{.items[0].metadata.name}') -- curl -s -o /dev/null -w "%{http_code}" remote-in-ambient.httpbin.mesh.internal:8000/get
+```
+
+Expected output: `200`
+
+
+
+
+
+#### From client-in-ambient
+
+
+1. Test connectivity to in-mesh service:
+```
+kubectl --context ${CLUSTER1} exec -n httpbin $(kubectl --context ${CLUSTER1} get pod -l app=client-in-ambient -n httpbin -o jsonpath='{.items[0].metadata.name}') -- curl -s -o /dev/null -w "%{http_code}" in-mesh.httpbin.svc.cluster.local:8000/get
+```
+
+Expected output: `200`
+
+
+
+2. Test connectivity to in-ambient service:
+```
+kubectl --context ${CLUSTER1} exec -n httpbin $(kubectl --context ${CLUSTER1} get pod -l app=client-in-ambient -n httpbin -o jsonpath='{.items[0].metadata.name}') -- curl -s -o /dev/null -w "%{http_code}" in-ambient.httpbin.svc.cluster.local:8000/get
+```
+
+Expected output: `200`
+
+
+
+
+
+3. Test connectivity to global in-mesh service:
+```
+kubectl --context ${CLUSTER1} exec -n httpbin $(kubectl --context ${CLUSTER1} get pod -l app=client-in-ambient -n httpbin -o jsonpath='{.items[0].metadata.name}') -- curl -s -o /dev/null -w "%{http_code}" in-mesh.httpbin.mesh.internal:8000/get
+```
+
+Expected output: `200`
+
+
+
+4. Test connectivity to global in-ambient service:
+```
+kubectl --context ${CLUSTER1} exec -n httpbin $(kubectl --context ${CLUSTER1} get pod -l app=client-in-ambient -n httpbin -o jsonpath='{.items[0].metadata.name}') -- curl -s -o /dev/null -w "%{http_code}" in-ambient.httpbin.mesh.internal:8000/get
+```
+
+Expected output: `200`
+
+
+
+
+
+5. Test connectivity to remote in-mesh service:
+```
+kubectl --context ${CLUSTER1} exec -n httpbin $(kubectl --context ${CLUSTER1} get pod -l app=client-in-ambient -n httpbin -o jsonpath='{.items[0].metadata.name}') -- curl -s -o /dev/null -w "%{http_code}" remote-in-mesh.httpbin.mesh.internal:8000/get
+```
+
+Expected output: `200`
+
+
+
+6. Test connectivity to remote in-ambient service:
+```
+kubectl --context ${CLUSTER1} exec -n httpbin $(kubectl --context ${CLUSTER1} get pod -l app=client-in-ambient -n httpbin -o jsonpath='{.items[0].metadata.name}') -- curl -s -o /dev/null -w "%{http_code}" remote-in-ambient.httpbin.mesh.internal:8000/get
+```
+
+Expected output: `200`
+
+
+
+
+#### From client-in-mesh
+
+
+
+
+
+
+1. Test connectivity to remote in-mesh service:
+```
+kubectl --context ${CLUSTER1} exec -n httpbin $(kubectl --context ${CLUSTER1} get pod -l app=client-in-mesh -n httpbin -o jsonpath='{.items[0].metadata.name}') -- curl -s  remote-in-mesh.httpbin.mesh.internal:8000/get
+```
+
+Check that the response headers include `X-Istio-Workload: $REMOTE_SOLO_WAYPOINT`
+
+
+
+2. Test connectivity to remote in-ambient service:
+```
+kubectl --context ${CLUSTER1} exec -n httpbin $(kubectl --context ${CLUSTER1} get pod -l app=client-in-mesh -n httpbin -o jsonpath='{.items[0].metadata.name}') -- curl -s  remote-in-ambient.httpbin.mesh.internal:8000/get
+```
+
+Check that the response headers include `X-Istio-Workload: $REMOTE_SOLO_WAYPOINT`
 
 
 
@@ -11492,7 +13511,7 @@ kubectl --context ${CLUSTER1} -n httpbin rollout status deploy gloo-proxy-httpbi
 kubectl --context ${CLUSTER1} exec -n httpbin $(kubectl --context ${CLUSTER1} get pod -l app=client-in-ambient -n httpbin -o jsonpath='{.items[0].metadata.name}') -- curl -s  remote-in-mesh.httpbin.mesh.internal:8000/get
 ```
 
-Check that the response headers include `X-Istio-Workload: $REMOTE_GLOO_WAYPOINT`
+Check that the response headers include `X-Istio-Workload: $REMOTE_SOLO_WAYPOINT`
 
 
 
@@ -11501,7 +13520,57 @@ Check that the response headers include `X-Istio-Workload: $REMOTE_GLOO_WAYPOINT
 kubectl --context ${CLUSTER1} exec -n httpbin $(kubectl --context ${CLUSTER1} get pod -l app=client-in-ambient -n httpbin -o jsonpath='{.items[0].metadata.name}') -- curl -s  remote-in-ambient.httpbin.mesh.internal:8000/get
 ```
 
-Check that the response headers include `X-Istio-Workload: $REMOTE_GLOO_WAYPOINT`
+Check that the response headers include `X-Istio-Workload: $REMOTE_SOLO_WAYPOINT`
+
+
+
+#### Testing Ingress Connectivity (istio ISTIO_INGRESS)
+
+
+
+
+
+
+1. Test connectivity to remote in-mesh service via ingress:
+```
+curl -s  -H "Host: httpbin.istio" http://${ISTIO_INGRESS}/remote-in-mesh/get
+```
+
+Check that the response body contains `${process.env.REMOTE_SOLO_WAYPOINT}`
+
+
+
+2. Test connectivity to remote in-ambient service via ingress:
+```
+curl -s  -H "Host: httpbin.istio" http://${ISTIO_INGRESS}/remote-in-ambient/get
+```
+
+Check that the response body contains `${process.env.REMOTE_SOLO_WAYPOINT}`
+
+
+
+#### Testing Ingress Connectivity (gloo-gateway SOLO_INGRESS)
+
+
+
+
+
+
+1. Test connectivity to remote in-mesh service via ingress:
+```
+curl -s  -H "Host: httpbin.gloo-gateway" http://${SOLO_INGRESS}/remote-in-mesh/get
+```
+
+Check that the response body contains `${process.env.REMOTE_SOLO_WAYPOINT}`
+
+
+
+2. Test connectivity to remote in-ambient service via ingress:
+```
+curl -s  -H "Host: httpbin.gloo-gateway" http://${SOLO_INGRESS}/remote-in-ambient/get
+```
+
+Check that the response body contains `${process.env.REMOTE_SOLO_WAYPOINT}`
 
 
 
@@ -11532,17 +13601,17 @@ async function header_test(source, target) {
     curlCommand: `curl -s ${target}:8000/get`
   });
   output = JSON.parse(command);
-  expect(output.headers["X-Istio-Workload"]).to.equal(process.env.REMOTE_GLOO_WAYPOINT);
+  expect(output.headers["X-Istio-Workload"]).to.equal(process.env.LOCAL_ISTIO_WAYPOINT);
 }
 
-describe("Tests all possible eastwest communication through waypoint", () => {
-  ["client-in-ambient"].forEach(async (source) => {
-    ["remote-in-mesh.httpbin.mesh.internal", "remote-in-ambient.httpbin.mesh.internal"].forEach(async (target) => {
+describe("Tests all possible eastwest communication (Local Waypoint=None, Remote Waypoint=gloo-gateway, Failover=false, Authorization Policy=false)", () => {
+  ["client-in-mesh", "client-in-ambient"].forEach(async (source) => {
+    ["in-mesh.httpbin.svc.cluster.local", "in-ambient.httpbin.svc.cluster.local","in-mesh.httpbin.mesh.internal", "in-ambient.httpbin.mesh.internal",].forEach(async (target) => {
+      
       it(`${source} => ${target}`, async () => {
-        
-        await header_test(source, target);
-        
+        await status_test(source, target);
       });
+      
     });
   });
 });
@@ -11577,36 +13646,85 @@ beforeEach(function() {
   console.log(`Running test #${process.env.TEST_COUNTER}`);
 });
 EOF
-echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/multicluster-routing/tests/check-all.js.liquid from lab number 21"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 21"; exit 1; }
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/multicluster-routing/tests/check-all.js.liquid from lab number 22"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 22"; exit 1; }
 -->
+<!--bash
+cat <<'EOF' > ./test.js
+const chaiExec = require("@jsdevtools/chai-exec");
+var chai = require('chai');
+var expect = chai.expect;
+chai.use(chaiExec);
+const helpers = require('./tests/chai-exec');
 
+async function status_test(source, target) {
+  const command = await helpers.curlInDeployment({
+    context: `${process.env.CLUSTER1}`,
+    namespace: 'httpbin',
+    deploymentName: source,
+    curlCommand: `curl -s -o /dev/null -w "%{http_code}" ${target}:8000/get`
+  });
+  output = JSON.parse(command);
+  expect(output).to.equal(200);
+}
 
-#### Testing Ingress Connectivity
+async function header_test(source, target) {
+  const command = await helpers.curlInDeployment({
+    context: `${process.env.CLUSTER1}`,
+    namespace: 'httpbin',
+    deploymentName: source,
+    curlCommand: `curl -s ${target}:8000/get`
+  });
+  output = JSON.parse(command);
+  expect(output.headers["X-Istio-Workload"]).to.equal(process.env.REMOTE_SOLO_WAYPOINT);
+}
 
+describe("Tests all possible eastwest communication (Local Waypoint=None, Remote Waypoint=gloo-gateway, Failover=false, Authorization Policy=false)", () => {
+  ["client-in-mesh", "client-in-ambient"].forEach(async (source) => {
+    ["remote-in-mesh.httpbin.mesh.internal", "remote-in-ambient.httpbin.mesh.internal"].forEach(async (target) => {
+      
+      it(`${source} => REMOTE_SOLO_WAYPOINT => ${target}`, async () => {
+        await header_test(source, target);
+        await status_test(source, target);
+      });
+      
+    });
+  });
+});
 
+const fs = require('fs');
+const path = require('path');
 
+const counterFilePath = path.join(__dirname, '.test-counter');
 
+// Setup before all tests
+before(function() {
+  // Initialize counter file if it doesn't exist
+  if (!fs.existsSync(counterFilePath)) {
+    fs.writeFileSync(counterFilePath, '0');
+  }
+});
 
-
-1. Test connectivity to remote in-mesh service via ingress:
-```
-curl -s  -H "Host: httpbin.istio" http://${ISTIO_INGRESS}/remote-in-mesh/get
-```
-
-Check that the response body contains `${process.env.REMOTE_GLOO_WAYPOINT}`
-
-
-
-2. Test connectivity to remote in-ambient service via ingress:
-```
-curl -s  -H "Host: httpbin.istio" http://${ISTIO_INGRESS}/remote-in-ambient/get
-```
-
-Check that the response body contains `${process.env.REMOTE_GLOO_WAYPOINT}`
-
-
-
+// Before each test
+beforeEach(function() {
+  // Read current counter value
+  let counter = parseInt(fs.readFileSync(counterFilePath, 'utf8'));
+  
+  // Increment counter
+  counter++;
+  
+  // Save incremented value
+  fs.writeFileSync(counterFilePath, counter.toString());
+  
+  // Set environment variable
+  process.env.TEST_COUNTER = counter.toString();
+  
+  console.log(`Running test #${process.env.TEST_COUNTER}`);
+});
+EOF
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/multicluster-routing/tests/check-all.js.liquid from lab number 22"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 22"; exit 1; }
+-->
 <!--bash
 cat <<'EOF' > ./test.js
 const chaiExec = require("@jsdevtools/chai-exec");
@@ -11615,10 +13733,9 @@ var expect = chai.expect;
 chai.use(chaiExec);
 const helpers = require('./tests/chai-http');
 
-describe("Tests all possible communication from istio ingress through waypoint", () => {
-  ["/remote-in-ambient", "/remote-in-mesh"].forEach(async (path) => {
-    
-    it(`${path} is going through the right waypoint`, () => helpers.checkBody({ host: `http://${process.env.ISTIO_INGRESS}`, headers: [{key: 'Host', value: 'httpbin.istio'}], path: `${path}/get`, body: process.env.REMOTE_GLOO_WAYPOINT }));
+describe("Tests all possible communication from istio ingress (Local Waypoint=None, Remote Waypoint=gloo-gateway, Failover=false, Authorization Policy=false)", () => {
+  ["/in-ambient", "/in-mesh","/global-in-ambient", "/global-in-mesh",].forEach(async (path) => {
+    it(`Ingress => ${path}`, () => helpers.checkURL({ host: `http://${process.env.ISTIO_INGRESS}`, headers: [{key: 'Host', value: 'httpbin.istio'}], path: `${path}/get`, retCode: 200 }));
     
   });
 });
@@ -11653,36 +13770,9 @@ beforeEach(function() {
   console.log(`Running test #${process.env.TEST_COUNTER}`);
 });
 EOF
-echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/multicluster-routing/tests/check-ingress.js.liquid from lab number 21"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 21"; exit 1; }
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/multicluster-routing/tests/check-ingress.js.liquid from lab number 22"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 22"; exit 1; }
 -->
-
-
-#### Testing Ingress Connectivity
-
-
-
-
-
-
-1. Test connectivity to remote in-mesh service via ingress:
-```
-curl -s  -H "Host: httpbin.gloo" http://${GLOO_INGRESS}/remote-in-mesh/get
-```
-
-Check that the response body contains `${process.env.REMOTE_GLOO_WAYPOINT}`
-
-
-
-2. Test connectivity to remote in-ambient service via ingress:
-```
-curl -s  -H "Host: httpbin.gloo" http://${GLOO_INGRESS}/remote-in-ambient/get
-```
-
-Check that the response body contains `${process.env.REMOTE_GLOO_WAYPOINT}`
-
-
-
 <!--bash
 cat <<'EOF' > ./test.js
 const chaiExec = require("@jsdevtools/chai-exec");
@@ -11691,10 +13781,9 @@ var expect = chai.expect;
 chai.use(chaiExec);
 const helpers = require('./tests/chai-http');
 
-describe("Tests all possible communication from gloo ingress through waypoint", () => {
-  ["/remote-in-ambient", "/remote-in-mesh"].forEach(async (path) => {
-    
-    it(`${path} is going through the right waypoint`, () => helpers.checkBody({ host: `http://${process.env.GLOO_INGRESS}`, headers: [{key: 'Host', value: 'httpbin.gloo'}], path: `${path}/get`, body: process.env.REMOTE_GLOO_WAYPOINT }));
+describe("Tests all possible communication from gloo-gateway ingress (Local Waypoint=None, Remote Waypoint=gloo-gateway, Failover=false, Authorization Policy=false)", () => {
+  ["/in-ambient", "/in-mesh","/global-in-ambient", "/global-in-mesh",].forEach(async (path) => {
+    it(`Ingress => ${path}`, () => helpers.checkURL({ host: `http://${process.env.SOLO_INGRESS}`, headers: [{key: 'Host', value: 'httpbin.gloo-gateway'}], path: `${path}/get`, retCode: 200 }));
     
   });
 });
@@ -11729,19 +13818,120 @@ beforeEach(function() {
   console.log(`Running test #${process.env.TEST_COUNTER}`);
 });
 EOF
-echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/multicluster-routing/tests/check-ingress.js.liquid from lab number 21"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 21"; exit 1; }
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/multicluster-routing/tests/check-ingress.js.liquid from lab number 22"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 22"; exit 1; }
+-->
+<!--bash
+cat <<'EOF' > ./test.js
+const chaiExec = require("@jsdevtools/chai-exec");
+var chai = require('chai');
+var expect = chai.expect;
+chai.use(chaiExec);
+const helpers = require('./tests/chai-http');
+
+describe("Tests all possible communication from istio ingress (Local Waypoint=None, Remote Waypoint=gloo-gateway, Failover=false, Authorization Policy=false)", () => {
+  ["/remote-in-ambient", "/remote-in-mesh"].forEach(async (path) => {
+    it(`Ingress => ${path}`, () => helpers.checkURL({ host: `http://${process.env.ISTIO_INGRESS}`, headers: [{key: 'Host', value: 'httpbin.istio'}], path: `${path}/get`, retCode: 200 }));
+    
+    it(`Ingress => REMOTE_SOLO_WAYPOINT => ${path}`, () => helpers.checkBody({ host: `http://${process.env.ISTIO_INGRESS}`, headers: [{key: 'Host', value: 'httpbin.istio'}], path: `${path}/get`, body: process.env.REMOTE_SOLO_WAYPOINT }));
+    
+  });
+});
+
+const fs = require('fs');
+const path = require('path');
+
+const counterFilePath = path.join(__dirname, '.test-counter');
+
+// Setup before all tests
+before(function() {
+  // Initialize counter file if it doesn't exist
+  if (!fs.existsSync(counterFilePath)) {
+    fs.writeFileSync(counterFilePath, '0');
+  }
+});
+
+// Before each test
+beforeEach(function() {
+  // Read current counter value
+  let counter = parseInt(fs.readFileSync(counterFilePath, 'utf8'));
+  
+  // Increment counter
+  counter++;
+  
+  // Save incremented value
+  fs.writeFileSync(counterFilePath, counter.toString());
+  
+  // Set environment variable
+  process.env.TEST_COUNTER = counter.toString();
+  
+  console.log(`Running test #${process.env.TEST_COUNTER}`);
+});
+EOF
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/multicluster-routing/tests/check-ingress.js.liquid from lab number 22"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 22"; exit 1; }
+-->
+<!--bash
+cat <<'EOF' > ./test.js
+const chaiExec = require("@jsdevtools/chai-exec");
+var chai = require('chai');
+var expect = chai.expect;
+chai.use(chaiExec);
+const helpers = require('./tests/chai-http');
+
+describe("Tests all possible communication from gloo-gateway ingress (Local Waypoint=None, Remote Waypoint=gloo-gateway, Failover=false, Authorization Policy=false)", () => {
+  ["/remote-in-ambient", "/remote-in-mesh"].forEach(async (path) => {
+    it(`Ingress => ${path}`, () => helpers.checkURL({ host: `http://${process.env.SOLO_INGRESS}`, headers: [{key: 'Host', value: 'httpbin.gloo-gateway'}], path: `${path}/get`, retCode: 200 }));
+    
+    it(`Ingress => REMOTE_SOLO_WAYPOINT => ${path}`, () => helpers.checkBody({ host: `http://${process.env.SOLO_INGRESS}`, headers: [{key: 'Host', value: 'httpbin.gloo-gateway'}], path: `${path}/get`, body: process.env.REMOTE_SOLO_WAYPOINT }));
+    
+  });
+});
+
+const fs = require('fs');
+const path = require('path');
+
+const counterFilePath = path.join(__dirname, '.test-counter');
+
+// Setup before all tests
+before(function() {
+  // Initialize counter file if it doesn't exist
+  if (!fs.existsSync(counterFilePath)) {
+    fs.writeFileSync(counterFilePath, '0');
+  }
+});
+
+// Before each test
+beforeEach(function() {
+  // Read current counter value
+  let counter = parseInt(fs.readFileSync(counterFilePath, 'utf8'));
+  
+  // Increment counter
+  counter++;
+  
+  // Save incremented value
+  fs.writeFileSync(counterFilePath, counter.toString());
+  
+  // Set environment variable
+  process.env.TEST_COUNTER = counter.toString();
+  
+  console.log(`Running test #${process.env.TEST_COUNTER}`);
+});
+EOF
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/multicluster-routing/tests/check-ingress.js.liquid from lab number 22"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 22"; exit 1; }
 -->
 
-### Scenario 7b: Remote only Gloo waypoints with AuthorizationPolicy
+### Scenario 7b: Remote only gloo-gateway waypoints with AuthorizationPolicy
+
 
 <!--bash
-echo "Scenario 7b: Remote only Gloo waypoints with AuthorizationPolicy"
+echo "Scenario 7b: Remote only gloo-gateway waypoints with AuthorizationPolicy"
 -->
 
 POST requests should be denied. For example:
 
-```bash,noexecute
+```bash,norun-workshop
 kubectl --context ${CLUSTER1} exec -n httpbin $(kubectl --context ${CLUSTER1} get pod -l app=client-in-ambient -n httpbin -o jsonpath='{.items[0].metadata.name}') -- curl -s -X POST remote-in-ambient.httpbin.svc.cluster.local:8000/post
 ```
 
@@ -11753,7 +13943,7 @@ var expect = chai.expect;
 chai.use(chaiExec);
 const helpers = require('./tests/chai-http');
 
-describe("AuthorizationPolicy is working properly", () => {
+describe("AuthorizationPolicy is working properly (Local Waypoint=None, Remote Waypoint=gloo-gateway, Failover=false, Authorization Policy=true)", () => {
   ["client-in-mesh", "client-in-ambient"].forEach(async (source) => {
     ["remote-in-mesh.httpbin.mesh.internal", "remote-in-ambient.httpbin.mesh.internal"].forEach(async (target) => {
       it(`${source} isn't allowed to send POST requests to ${target}`, () => {
@@ -11772,9 +13962,9 @@ describe("AuthorizationPolicy is working properly", () => {
     ["remote-in-mesh", "remote-in-ambient"].forEach(async (target) => {
       it(`Istio ingress isn't allowed to send POST requests to /${target}`, () => helpers.checkWithMethod({ host: `http://${process.env.ISTIO_INGRESS}`, method: "post", headers: [{key: 'Host', value: 'httpbin.istio'}], path: `/${target}/post`, retCode: 403 }));
       it(`Istio ingress is allowed to send GET requests to /${target}`, () => helpers.checkWithMethod({ host: `http://${process.env.ISTIO_INGRESS}`, method: "get", headers: [{key: 'Host', value: 'httpbin.istio'}], path: `/${target}/get`, retCode: 200 }));
-      // Gloo Gateway as an ingress doesn't use Istio waypoint
-      // it(`Gloo ingress isn't allowed to send POST requests to /${target}`, () => helpers.checkWithMethod({ host: `http://${process.env.GLOO_INGRESS}`, method: "post", headers: [{key: 'Host', value: 'httpbin.gloo'}], path: `/${target}/post`, retCode: 403 }));
-      // it(`Gloo ingress is allowed to send GET requests to /${target}`, () => helpers.checkWithMethod({ host: `http://${process.env.GLOO_INGRESS}`, method: "get", headers: [{key: 'Host', value: 'httpbin.gloo'}], path: `/${target}/get`, retCode: 200 }));
+
+      it(`gloo-gateway ingress isn't allowed to send POST requests to /${target}`, () => helpers.checkWithMethod({ host: `http://${process.env.SOLO_INGRESS}`, method: "post", headers: [{key: 'Host', value: 'httpbin.gloo-gateway'}], path: `/${target}/post`, retCode: 403 }));
+      it(`gloo-gateway ingress is allowed to send GET requests to /${target}`, () => helpers.checkWithMethod({ host: `http://${process.env.SOLO_INGRESS}`, method: "get", headers: [{key: 'Host', value: 'httpbin.gloo-gateway'}], path: `/${target}/get`, retCode: 200 }));
     });
   });
 });
@@ -11809,8 +13999,355 @@ beforeEach(function() {
   console.log(`Running test #${process.env.TEST_COUNTER}`);
 });
 EOF
-echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/multicluster-routing/tests/check-authorization.js.liquid from lab number 21"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 21"; exit 1; }
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/multicluster-routing/tests/check-authorization.js.liquid from lab number 22"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 22"; exit 1; }
+-->
+<!--bash
+cat <<'EOF' > ./test.js
+const chaiExec = require("@jsdevtools/chai-exec");
+var chai = require('chai');
+var expect = chai.expect;
+chai.use(chaiExec);
+const helpers = require('./tests/chai-exec');
+
+async function status_test(source, target) {
+  const command = await helpers.curlInDeployment({
+    context: `${process.env.CLUSTER1}`,
+    namespace: 'httpbin',
+    deploymentName: source,
+    curlCommand: `curl -s -o /dev/null -w "%{http_code}" ${target}:8000/get`
+  });
+  output = JSON.parse(command);
+  expect(output).to.equal(200);
+}
+
+async function header_test(source, target) {
+  const command = await helpers.curlInDeployment({
+    context: `${process.env.CLUSTER1}`,
+    namespace: 'httpbin',
+    deploymentName: source,
+    curlCommand: `curl -s ${target}:8000/get`
+  });
+  output = JSON.parse(command);
+  expect(output.headers["X-Istio-Workload"]).to.equal(process.env.LOCAL_ISTIO_WAYPOINT);
+}
+
+describe("Tests all possible eastwest communication (Local Waypoint=None, Remote Waypoint=gloo-gateway, Failover=false, Authorization Policy=true)", () => {
+  ["client-in-mesh", "client-in-ambient"].forEach(async (source) => {
+    ["in-mesh.httpbin.svc.cluster.local", "in-ambient.httpbin.svc.cluster.local","in-mesh.httpbin.mesh.internal", "in-ambient.httpbin.mesh.internal",].forEach(async (target) => {
+      
+      it(`${source} => ${target}`, async () => {
+        await status_test(source, target);
+      });
+      
+    });
+  });
+});
+
+const fs = require('fs');
+const path = require('path');
+
+const counterFilePath = path.join(__dirname, '.test-counter');
+
+// Setup before all tests
+before(function() {
+  // Initialize counter file if it doesn't exist
+  if (!fs.existsSync(counterFilePath)) {
+    fs.writeFileSync(counterFilePath, '0');
+  }
+});
+
+// Before each test
+beforeEach(function() {
+  // Read current counter value
+  let counter = parseInt(fs.readFileSync(counterFilePath, 'utf8'));
+  
+  // Increment counter
+  counter++;
+  
+  // Save incremented value
+  fs.writeFileSync(counterFilePath, counter.toString());
+  
+  // Set environment variable
+  process.env.TEST_COUNTER = counter.toString();
+  
+  console.log(`Running test #${process.env.TEST_COUNTER}`);
+});
+EOF
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/multicluster-routing/tests/check-all.js.liquid from lab number 22"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 22"; exit 1; }
+-->
+<!--bash
+cat <<'EOF' > ./test.js
+const chaiExec = require("@jsdevtools/chai-exec");
+var chai = require('chai');
+var expect = chai.expect;
+chai.use(chaiExec);
+const helpers = require('./tests/chai-exec');
+
+async function status_test(source, target) {
+  const command = await helpers.curlInDeployment({
+    context: `${process.env.CLUSTER1}`,
+    namespace: 'httpbin',
+    deploymentName: source,
+    curlCommand: `curl -s -o /dev/null -w "%{http_code}" ${target}:8000/get`
+  });
+  output = JSON.parse(command);
+  expect(output).to.equal(200);
+}
+
+async function header_test(source, target) {
+  const command = await helpers.curlInDeployment({
+    context: `${process.env.CLUSTER1}`,
+    namespace: 'httpbin',
+    deploymentName: source,
+    curlCommand: `curl -s ${target}:8000/get`
+  });
+  output = JSON.parse(command);
+  expect(output.headers["X-Istio-Workload"]).to.equal(process.env.REMOTE_SOLO_WAYPOINT);
+}
+
+describe("Tests all possible eastwest communication (Local Waypoint=None, Remote Waypoint=gloo-gateway, Failover=false, Authorization Policy=true)", () => {
+  ["client-in-mesh", "client-in-ambient"].forEach(async (source) => {
+    ["remote-in-mesh.httpbin.mesh.internal", "remote-in-ambient.httpbin.mesh.internal"].forEach(async (target) => {
+      
+      it(`${source} => REMOTE_SOLO_WAYPOINT => ${target}`, async () => {
+        await header_test(source, target);
+        await status_test(source, target);
+      });
+      
+    });
+  });
+});
+
+const fs = require('fs');
+const path = require('path');
+
+const counterFilePath = path.join(__dirname, '.test-counter');
+
+// Setup before all tests
+before(function() {
+  // Initialize counter file if it doesn't exist
+  if (!fs.existsSync(counterFilePath)) {
+    fs.writeFileSync(counterFilePath, '0');
+  }
+});
+
+// Before each test
+beforeEach(function() {
+  // Read current counter value
+  let counter = parseInt(fs.readFileSync(counterFilePath, 'utf8'));
+  
+  // Increment counter
+  counter++;
+  
+  // Save incremented value
+  fs.writeFileSync(counterFilePath, counter.toString());
+  
+  // Set environment variable
+  process.env.TEST_COUNTER = counter.toString();
+  
+  console.log(`Running test #${process.env.TEST_COUNTER}`);
+});
+EOF
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/multicluster-routing/tests/check-all.js.liquid from lab number 22"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 22"; exit 1; }
+-->
+<!--bash
+cat <<'EOF' > ./test.js
+const chaiExec = require("@jsdevtools/chai-exec");
+var chai = require('chai');
+var expect = chai.expect;
+chai.use(chaiExec);
+const helpers = require('./tests/chai-http');
+
+describe("Tests all possible communication from istio ingress (Local Waypoint=None, Remote Waypoint=gloo-gateway, Failover=false, Authorization Policy=true)", () => {
+  ["/in-ambient", "/in-mesh","/global-in-ambient", "/global-in-mesh",].forEach(async (path) => {
+    it(`Ingress => ${path}`, () => helpers.checkURL({ host: `http://${process.env.ISTIO_INGRESS}`, headers: [{key: 'Host', value: 'httpbin.istio'}], path: `${path}/get`, retCode: 200 }));
+    
+  });
+});
+
+const fs = require('fs');
+const path = require('path');
+
+const counterFilePath = path.join(__dirname, '.test-counter');
+
+// Setup before all tests
+before(function() {
+  // Initialize counter file if it doesn't exist
+  if (!fs.existsSync(counterFilePath)) {
+    fs.writeFileSync(counterFilePath, '0');
+  }
+});
+
+// Before each test
+beforeEach(function() {
+  // Read current counter value
+  let counter = parseInt(fs.readFileSync(counterFilePath, 'utf8'));
+  
+  // Increment counter
+  counter++;
+  
+  // Save incremented value
+  fs.writeFileSync(counterFilePath, counter.toString());
+  
+  // Set environment variable
+  process.env.TEST_COUNTER = counter.toString();
+  
+  console.log(`Running test #${process.env.TEST_COUNTER}`);
+});
+EOF
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/multicluster-routing/tests/check-ingress.js.liquid from lab number 22"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 22"; exit 1; }
+-->
+<!--bash
+cat <<'EOF' > ./test.js
+const chaiExec = require("@jsdevtools/chai-exec");
+var chai = require('chai');
+var expect = chai.expect;
+chai.use(chaiExec);
+const helpers = require('./tests/chai-http');
+
+describe("Tests all possible communication from gloo-gateway ingress (Local Waypoint=None, Remote Waypoint=gloo-gateway, Failover=false, Authorization Policy=true)", () => {
+  ["/in-ambient", "/in-mesh","/global-in-ambient", "/global-in-mesh",].forEach(async (path) => {
+    it(`Ingress => ${path}`, () => helpers.checkURL({ host: `http://${process.env.SOLO_INGRESS}`, headers: [{key: 'Host', value: 'httpbin.gloo-gateway'}], path: `${path}/get`, retCode: 200 }));
+    
+  });
+});
+
+const fs = require('fs');
+const path = require('path');
+
+const counterFilePath = path.join(__dirname, '.test-counter');
+
+// Setup before all tests
+before(function() {
+  // Initialize counter file if it doesn't exist
+  if (!fs.existsSync(counterFilePath)) {
+    fs.writeFileSync(counterFilePath, '0');
+  }
+});
+
+// Before each test
+beforeEach(function() {
+  // Read current counter value
+  let counter = parseInt(fs.readFileSync(counterFilePath, 'utf8'));
+  
+  // Increment counter
+  counter++;
+  
+  // Save incremented value
+  fs.writeFileSync(counterFilePath, counter.toString());
+  
+  // Set environment variable
+  process.env.TEST_COUNTER = counter.toString();
+  
+  console.log(`Running test #${process.env.TEST_COUNTER}`);
+});
+EOF
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/multicluster-routing/tests/check-ingress.js.liquid from lab number 22"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 22"; exit 1; }
+-->
+<!--bash
+cat <<'EOF' > ./test.js
+const chaiExec = require("@jsdevtools/chai-exec");
+var chai = require('chai');
+var expect = chai.expect;
+chai.use(chaiExec);
+const helpers = require('./tests/chai-http');
+
+describe("Tests all possible communication from istio ingress (Local Waypoint=None, Remote Waypoint=gloo-gateway, Failover=false, Authorization Policy=true)", () => {
+  ["/remote-in-ambient", "/remote-in-mesh"].forEach(async (path) => {
+    it(`Ingress => ${path}`, () => helpers.checkURL({ host: `http://${process.env.ISTIO_INGRESS}`, headers: [{key: 'Host', value: 'httpbin.istio'}], path: `${path}/get`, retCode: 200 }));
+    
+    it(`Ingress => REMOTE_SOLO_WAYPOINT => ${path}`, () => helpers.checkBody({ host: `http://${process.env.ISTIO_INGRESS}`, headers: [{key: 'Host', value: 'httpbin.istio'}], path: `${path}/get`, body: process.env.REMOTE_SOLO_WAYPOINT }));
+    
+  });
+});
+
+const fs = require('fs');
+const path = require('path');
+
+const counterFilePath = path.join(__dirname, '.test-counter');
+
+// Setup before all tests
+before(function() {
+  // Initialize counter file if it doesn't exist
+  if (!fs.existsSync(counterFilePath)) {
+    fs.writeFileSync(counterFilePath, '0');
+  }
+});
+
+// Before each test
+beforeEach(function() {
+  // Read current counter value
+  let counter = parseInt(fs.readFileSync(counterFilePath, 'utf8'));
+  
+  // Increment counter
+  counter++;
+  
+  // Save incremented value
+  fs.writeFileSync(counterFilePath, counter.toString());
+  
+  // Set environment variable
+  process.env.TEST_COUNTER = counter.toString();
+  
+  console.log(`Running test #${process.env.TEST_COUNTER}`);
+});
+EOF
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/multicluster-routing/tests/check-ingress.js.liquid from lab number 22"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 22"; exit 1; }
+-->
+<!--bash
+cat <<'EOF' > ./test.js
+const chaiExec = require("@jsdevtools/chai-exec");
+var chai = require('chai');
+var expect = chai.expect;
+chai.use(chaiExec);
+const helpers = require('./tests/chai-http');
+
+describe("Tests all possible communication from gloo-gateway ingress (Local Waypoint=None, Remote Waypoint=gloo-gateway, Failover=false, Authorization Policy=true)", () => {
+  ["/remote-in-ambient", "/remote-in-mesh"].forEach(async (path) => {
+    it(`Ingress => ${path}`, () => helpers.checkURL({ host: `http://${process.env.SOLO_INGRESS}`, headers: [{key: 'Host', value: 'httpbin.gloo-gateway'}], path: `${path}/get`, retCode: 200 }));
+    
+    it(`Ingress => REMOTE_SOLO_WAYPOINT => ${path}`, () => helpers.checkBody({ host: `http://${process.env.SOLO_INGRESS}`, headers: [{key: 'Host', value: 'httpbin.gloo-gateway'}], path: `${path}/get`, body: process.env.REMOTE_SOLO_WAYPOINT }));
+    
+  });
+});
+
+const fs = require('fs');
+const path = require('path');
+
+const counterFilePath = path.join(__dirname, '.test-counter');
+
+// Setup before all tests
+before(function() {
+  // Initialize counter file if it doesn't exist
+  if (!fs.existsSync(counterFilePath)) {
+    fs.writeFileSync(counterFilePath, '0');
+  }
+});
+
+// Before each test
+beforeEach(function() {
+  // Read current counter value
+  let counter = parseInt(fs.readFileSync(counterFilePath, 'utf8'));
+  
+  // Increment counter
+  counter++;
+  
+  // Save incremented value
+  fs.writeFileSync(counterFilePath, counter.toString());
+  
+  // Set environment variable
+  process.env.TEST_COUNTER = counter.toString();
+  
+  console.log(`Running test #${process.env.TEST_COUNTER}`);
+});
+EOF
+echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/ambient/multicluster-routing/tests/check-ingress.js.liquid from lab number 22"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 22"; exit 1; }
 -->
 
 
