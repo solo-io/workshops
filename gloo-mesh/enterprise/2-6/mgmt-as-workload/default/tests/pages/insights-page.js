@@ -6,10 +6,18 @@ class InsightsPage extends BasePage {
 
     // Selectors
     this.insightTypeQuickFilters = {
-      healthy: '[data-testid="health-count-box-healthy"]',
-      warning: '[data-testid="health-count-box-warning"]',
-      error: '[data-testid="health-count-box-error"]',
-      healthy_2_7: '[data-testid="health-count-healthy-ui-unit-testing"]'
+      healthy: [
+        '[data-testid="health-count-box-healthy"]',
+        '[data-testid="health-count-healthy-ui-unit-testing"]'
+      ],
+      warning: [
+        '[data-testid="health-count-box-warning"]',
+        '[data-testid="health-count-warning-ui-unit-testing"]'
+      ],
+      error: [
+        '[data-testid="health-count-box-error"]',
+        '[data-testid="health-count-erronenous-ui-unit-testing"]',
+      ],
     };
     this.clusterDropdownButtonSelectors = [
       '[data-testid="filter by cluster...-dropdown"] button',
@@ -25,7 +33,8 @@ class InsightsPage extends BasePage {
   }
 
   async getQuickFiltersResourcesCount(filterType) {
-    return parseInt(await this.page.$eval(this.insightTypeQuickFilters[filterType], el => el.textContent));
+    const quickFilterSelectorName = await this.findVisibleSelector(this.insightTypeQuickFilters[filterType]);
+    return parseInt(await this.page.$eval(quickFilterSelectorName, el => el.textContent));
   }
 
   async openFilterByTypeDropdown() {
