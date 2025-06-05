@@ -13,6 +13,7 @@ class GraphPage extends BasePage {
     this.ciliumNodesButton = '[data-testid="graph-cilium-toggle"]';
     this.disableCiliumNodesButton = '[data-testid="graph-cilium-toggle"][aria-checked="true"]';
     this.enableCiliumNodesButton = '[data-testid="graph-cilium-toggle"][aria-checked="false"]';
+    this.viewGraphButton = '[data-testid="filter-overlay-submit-button-ui-unit-testing"]';
 
     this.originalUISelectors = {
       clusterDropdownButton: '[data-testid="cluster-dropdown"] button',
@@ -24,12 +25,26 @@ class GraphPage extends BasePage {
       namespaceDropdownButton: '[data-testid="namespaces-dropdown"] button',
       centerButton: '[data-testid="graph-fit-view-button"]',
     };
+
+    this.clusterDropdownButtonSelectors = [
+      '[data-testid="cluster-dropdown"] button',
+      '[data-testid="clusters-dropdown"] button',
+    ];
+
+    this.namespaceDropdownButtonSelectors = [
+      '[data-testid="namespace-dropdown"] button',
+      '[data-testid="namespaces-dropdown"] button',
+    ];
+
+    this.centerButtonSelectors = [
+      '[data-testid="graph-center-button"]',
+      '[data-testid="graph-fit-view-button"]',
+    ]
   }
 
   async selectClusters(clusters) {
-    const selector = this[await this.getCurrentGlooUISelectors()]['clusterDropdownButton'];
-    await this.page.waitForSelector(selector, { visible: true });
-    await this.page.$$eval(selector, elHandles => elHandles.forEach(el => el.click()));
+    const clusterDropdownButton = await this.findVisibleSelector(this.clusterDropdownButtonSelectors);
+    await this.page.$$eval(clusterDropdownButton, elHandles => elHandles.forEach(el => el.click()));
     for (const cluster of clusters) {
       await this.page.waitForSelector(this.selectCheckbox(cluster), { visible: true });
       await this.page.$$eval(this.selectCheckbox(cluster), elHandles => elHandles.forEach(el => el.click()));
@@ -38,9 +53,8 @@ class GraphPage extends BasePage {
   }
 
   async selectNamespaces(namespaces) {
-    const selector = this[await this.getCurrentGlooUISelectors()]['namespaceDropdownButton'];
-    await this.page.waitForSelector(selector, { visible: true });
-    await this.page.$$eval(selector, elHandles => elHandles.forEach(el => el.click()));
+    const namespaceDropdownButton = await this.findVisibleSelector(this.namespaceDropdownButtonSelectors);
+    await this.page.$$eval(namespaceDropdownButton, elHandles => elHandles.forEach(el => el.click()));
     for (const namespace of namespaces) {
       await this.page.waitForSelector(this.selectCheckbox(namespace), { visible: true });
       await this.page.$$eval(this.selectCheckbox(namespace), elHandles => elHandles.forEach(el => el.click()));
@@ -52,6 +66,14 @@ class GraphPage extends BasePage {
     await this.page.waitForSelector(this.layoutSettingsButton, { visible: true, timeout: 5000 });
     await this.page.$$eval(this.layoutSettingsButton, elHandles => elHandles.forEach(el => el.click()));
     await new Promise(resolve => setTimeout(resolve, 1000));
+  }
+
+  async checkViewGraphButton() {
+    const viewGraphButtonExists = await this.page.$(this.viewGraphButton) !== null;
+    if (viewGraphButtonExists) {
+      await this.page.waitForSelector(this.viewGraphButton, { visible: true, timeout: 5000 });
+      await this.page.click(this.viewGraphButton);
+    }
   }
 
   async enableCiliumNodes() {
@@ -71,16 +93,14 @@ class GraphPage extends BasePage {
   }
 
   async fullscreenGraph() {
-    //await this.page.click(this.fullscreenButton);
-    await this.page.screenshot({path: 'blah.png', omitBackground: true})
-    await this.page.$$eval(this.fullscreenButton, elHandles => elHandles.forEach(el => el.click()));
+    await this.page.waitForSelector(this.fullscreenButton, {visible: true, timeout: 5000});
+    await this.page.click(this.fullscreenButton);
     await new Promise(resolve => setTimeout(resolve, 150));
   }
 
   async centerGraph() {
-    //await this.page.click(this.centerButton);
-    const selector = this[await this.getCurrentGlooUISelectors()]['centerButton'];
-    await this.page.$$eval(selector, elHandles => elHandles.forEach(el => el.click()));
+    const centerButton = await this.findVisibleSelector(this.centerButtonSelectors);
+    await this.page.$$eval(centerButton, elHandles => elHandles.forEach(el => el.click()));
     await new Promise(resolve => setTimeout(resolve, 150));
   }
 
