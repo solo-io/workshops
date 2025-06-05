@@ -5,7 +5,7 @@ class OverviewPage extends BasePage {
     super(page)
 
     // Selectors
-    this.listedWorkspacesLinks = 'div[data-testid="overview-area"] div[data-testid="solo-link"]';
+    this.listedWorkspacesLinks = 'div[data-testid="overview-area"] [data-testid="solo-link"]';
     this.licensesButtons = [
       'button[data-testid="topbar-licenses-toggle"]',
       'div[data-testid="topbar-licenses-toggle"] button',

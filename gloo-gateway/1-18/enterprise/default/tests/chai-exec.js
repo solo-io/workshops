@@ -81,6 +81,30 @@ global = {
     cli.stdout.should.contain(deployment);
   },
 
+  checkStatefulSetHasRunningReplica: async ({ context, namespace, statefulSet }) => {
+    let _context = "";
+    if (context) {
+      _context = `--context ${context}`;
+    }
+    let command = "kubectl " + _context + " -n " + namespace + " get sts " + statefulSet + " -o jsonpath='{.status}'";
+    debugLog(`Executing command: ${command}`);
+    let cli = chaiExec(command);
+
+    debugLog(`Command output (stdout): ${cli.stdout}`);
+    debugLog(`Command error (stderr): ${cli.stderr}`);
+
+    cli.stderr.should.be.empty;
+    let readyReplicas = JSON.parse(cli.stdout.slice(1, -1)).readyReplicas || 0;
+    debugLog(`StatefulSet ${statefulSet} - Ready replicas: ${readyReplicas}`);
+
+    if (readyReplicas < 1) {
+      debugLog(`StatefulSet ${statefulSet} in ${context} has no ready replicas, retrying...`);
+      await utils.sleep(1000);
+    }
+    cli.should.exit.with.code(0);
+    readyReplicas.should.be.at.least(1);
+  },
+
   checkDeploymentsWithLabels: async ({ context, namespace, labels, instances }) => {
     let _context = "";
     if (context) {
@@ -278,9 +302,14 @@ global = {
     debugLog(`Command output (stdout): ${cli.stdout}`);
     return cli.stdout;
   },
-  curlInPod: ({ curlCommand, podName, namespace }) => {
+  curlInPod: ({ curlCommand, podName, namespace, context }) => {
+    let _context = "";
+    if (context) {
+      _context = `--context ${context}`;
+    }
     debugLog(`Executing curl command: ${curlCommand} on pod: ${podName} in namespace: ${namespace}`);
-    const cli = chaiExec(curlCommand);
+    let execCommand = `kubectl ${_context} -n ${namespace} debug -i -q ${podName} --image=radial/busyboxplus:curl -- ${curlCommand}`;
+    const cli = chaiExec(execCommand);
     debugLog(`Curl command output (stdout): ${cli.stdout}`);
     return cli.stdout;
   },
@@ -292,11 +321,85 @@ global = {
     debugLog(`Executing curl command: ${curlCommand} on deployment: ${deploymentName} in namespace: ${namespace} and context: ${_context}`);
     let getPodCommand = `kubectl ${_context} -n ${namespace} get pods -l app=${deploymentName} -o jsonpath='{.items[0].metadata.name}'`;
     let podName = chaiExec(getPodCommand).stdout.trim();
+    if (podName === "") {
+      getPodCommand = `kubectl ${_context} -n ${namespace} get pods -l app.kubernetes.io/name=${deploymentName} -o jsonpath='{.items[0].metadata.name}'`;
+      podName = chaiExec(getPodCommand).stdout.trim();
+    }
     debugLog(`Pod selected for curl command: ${podName}`);
-    let execCommand = `kubectl ${_context} -n ${namespace} exec ${podName} -- ${curlCommand}`;
+    let execCommand = `kubectl ${_context} -n ${namespace} debug ${podName} -i --image=curlimages/curl --quiet -- ${curlCommand}`;
+    debugLog(`Executing debug command: ${execCommand}`);
     const cli = chaiExec(execCommand);
     debugLog(`Curl command output (stdout): ${cli.stdout}`);
     return cli.stdout;
+  },
+
+  curlWithPortForward: async ({ resource, resourceType = 'svc', targetPort, localPort, namespace, context, curlCommand, timeoutMs = 10000 }) => {
+    let _context = "";
+    if (context) {
+      _context = `--context ${context}`;
+    }
+
+    // Start port-forwarding in the background
+    debugLog(`Setting up port-forward from local port ${localPort} to ${resourceType}/${resource} port ${targetPort} in namespace ${namespace}`);
+    const portForwardCommand = `kubectl ${_context} -n ${namespace} port-forward ${resourceType}/${resource} ${localPort}:${targetPort}`;
+
+    // Use spawn to start the process in background mode
+    const { spawn } = require('child_process');
+    const portForward = spawn('sh', ['-c', portForwardCommand], {
+      detached: true,
+      stdio: ['ignore', 'pipe', 'pipe']
+    });
+
+    // Set up stdout and stderr handling for debugging
+    let portForwardOutput = '';
+    portForward.stdout.on('data', (data) => {
+      portForwardOutput += data.toString();
+    });
+
+    let portForwardError = '';
+    portForward.stderr.on('data', (data) => {
+      portForwardError += data.toString();
+    });
+
+    // Wait for port-forward to be established
+    debugLog(`Waiting for port-forward to be established...`);
+    await new Promise(resolve => setTimeout(resolve, 2000));
+
+    try {
+      // Execute curl command to the forwarded port
+      const modifiedCurlCommand = curlCommand.replace(/localhost:(\d+)/, `localhost:${localPort}`);
+      debugLog(`Executing curl command: ${modifiedCurlCommand}`);
+
+      // Set a timeout for the curl command
+      const execWithTimeout = new Promise((resolve, reject) => {
+        const cli = chaiExec(modifiedCurlCommand);
+        resolve(cli);
+
+        setTimeout(() => {
+          reject(new Error(`Curl command timed out after ${timeoutMs}ms`));
+        }, timeoutMs);
+      });
+
+      const cli = await execWithTimeout;
+      debugLog(`Curl command output (stdout): ${cli.stdout}`);
+      debugLog(`Curl command error (stderr): ${cli.stderr}`);
+
+      return cli.stdout;
+    } catch (error) {
+      debugLog(`Error during curl execution: ${error.message}`);
+      throw error;
+    } finally {
+      // Cleanup: kill the port-forward process
+      debugLog(`Cleaning up port-forward process (PID: ${portForward.pid})`);
+      if (portForward.pid) {
+        process.kill(-portForward.pid, 'SIGTERM');
+      }
+
+      debugLog(`Port-forward stdout: ${portForwardOutput}`);
+      if (portForwardError) {
+        debugLog(`Port-forward stderr: ${portForwardError}`);
+      }
+    }
   },
 };
 
