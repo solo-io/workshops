@@ -162,7 +162,7 @@ async function recognizeTextFromScreenshot(imagePath, expectedWords = [], glooUI
     targetColor = { r: 53, g: 57, b: 59 };
   }
   console.log(`Using targetColor profile: ${util.inspect(targetColor, { depth: null })} for ${glooUILayoutSelector}.`);
-  const whitelist = expectedWords.join('').replace(/\s+/g, '');
+  const whitelist = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz.-';
   const extractedImages = await extractTextBoxes(imagePath, targetColor);
 
   const recognizedTexts = [];
