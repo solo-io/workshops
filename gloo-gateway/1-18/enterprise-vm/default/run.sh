@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 source /root/.env 2>/dev/null || true
 source ./scripts/assert.sh
-gsutil cp gs://gloo-ee-vm/1.18.9/gloo-control.deb .
-gsutil cp gs://gloo-ee-vm/1.18.9/gloo-gateway.deb .
-gsutil cp gs://gloo-ee-vm/1.18.9/gloo-extensions.deb .
+curl -L https://storage.googleapis.com/gloo-ee-vm/1.18.11/gloo-control.deb -o gloo-control.deb
+curl -L https://storage.googleapis.com/gloo-ee-vm/1.18.11/gloo-gateway.deb -o gloo-gateway.deb
+curl -L https://storage.googleapis.com/gloo-ee-vm/1.18.11/gloo-extensions.deb -o gloo-extensions.deb
 docker run --name some-redis -d -p 6379:6379 redis
 sudo dpkg -i gloo-control.deb
 sudo dpkg -i gloo-gateway.deb
@@ -148,8 +148,27 @@ EOF
 export PROXY_IP=127.0.0.1
 RETRY_COUNT=0
 MAX_RETRIES=60
-GLOO_PROXY_SVC=$(kubectl --context ${CLUSTER1} -n gloo-system get svc gloo-proxy-http -oname)
-while [[ -z "$PROXY_IP" && $RETRY_COUNT -lt $MAX_RETRIES && $GLOO_PROXY_SVC ]]; do
+while true; do
+  GLOO_PROXY_SVC=$(kubectl --context ${CLUSTER1} -n gloo-system get svc gloo-proxy-http -oname 2>/dev/null || echo "")
+  if [[ -n "$GLOO_PROXY_SVC" ]]; then
+    echo "Service gloo-proxy-http has been created."
+    break
+  fi
+
+  RETRY_COUNT=$((RETRY_COUNT + 1))
+  if [[ $RETRY_COUNT -ge $MAX_RETRIES ]]; then
+    echo "Warning: Maximum retries reached. Service gloo-proxy-http could not be found."
+    break
+  fi
+
+  echo "Waiting for service gloo-proxy-http to be created... Attempt $RETRY_COUNT/$MAX_RETRIES"
+  sleep 1
+done
+
+# Then, wait for the IP to be assigned
+RETRY_COUNT=0
+MAX_RETRIES=60
+while [[ -z "$PROXY_IP" && $RETRY_COUNT -lt $MAX_RETRIES && -n "$GLOO_PROXY_SVC" ]]; do
   echo "Waiting for PROXY_IP to be assigned... Attempt $((RETRY_COUNT + 1))/$MAX_RETRIES"
   PROXY_IP=$(kubectl --context ${CLUSTER1} -n gloo-system get svc gloo-proxy-http -o jsonpath='{.status.loadBalancer.ingress[0].ip}{.status.loadBalancer.ingress[0].hostname}')
   RETRY_COUNT=$((RETRY_COUNT + 1))
@@ -177,7 +196,7 @@ else
   echo "IP has been resolved to: $IP"
 fi
 
-./scripts/register-domain.sh httpbin.example.com ${PROXY_IP}
+./scripts/register-domain.sh httpbin.example.com ${IP}
 
 cat <<'EOF' > ./test.js
 const helpersHttp = require('./tests/chai-http');

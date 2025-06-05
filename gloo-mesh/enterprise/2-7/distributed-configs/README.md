@@ -157,7 +157,7 @@ timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --e
 Install the Kubernetes Gateway and the Gloo CRDs in the management plane.
 
 ```bash
-kubectl --context ${MGMT} apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.2.0/standard-install.yaml
+kubectl --context ${MGMT} apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.3.0/experimental-install.yaml
 
 helm upgrade -i -n gloo-system \
 --repo https://storage.googleapis.com/solo-public-helm \
@@ -279,7 +279,7 @@ export ENDPOINT_GLOO_MESH_UI=$(kubectl --context ${MGMT} -n gloo-mesh get svc gl
 
 Check that the variables have correct values:
 
-```bash,noexecute
+```bash,norun-workshop
 echo $HOST_GLOO_MESH
 echo $ENDPOINT_GLOO_MESH
 ```
@@ -416,7 +416,7 @@ EOF
 
 You can check the cluster(s) have been registered correctly in the Gloo UI or by using the following commands:
 
-```bash,noexecute
+```bash,norun-workshop
 meshctl --kubecontext ${MGMT} check
 ```
 
@@ -637,7 +637,7 @@ You can follow the progress using the following command:
 echo -n Waiting for httpbin pods to be ready...
 kubectl --context ${CLUSTER1} -n httpbin rollout status deployment
 -->
-```bash,noexecute
+```bash,norun-workshop
 kubectl --context ${CLUSTER1} -n httpbin get pods
 ```
 
@@ -844,7 +844,7 @@ You can follow the progress using the following command:
 echo -n Waiting for httpbin pods to be ready...
 kubectl --context ${CLUSTER2} -n httpbin rollout status deployment
 -->
-```bash,noexecute
+```bash,norun-workshop
 kubectl --context ${CLUSTER2} -n httpbin get pods
 ```
 
@@ -884,7 +884,7 @@ We're going to use the Helm option.
 Install the Kubernetes Gateway API CRDs as they do not come installed by default on most Kubernetes clusters.
 
 ```bash
-kubectl --context $CLUSTER1 apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.2.0/standard-install.yaml
+kubectl --context $CLUSTER1 apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.3.0/experimental-install.yaml
 ```
 
 Next, install Gloo Gateway. This command installs the Gloo Gateway control plane into the namespace `gloo-system`.
@@ -968,7 +968,7 @@ We're going to use the Helm option.
 Install the Kubernetes Gateway API CRDs as they do not come installed by default on most Kubernetes clusters.
 
 ```bash
-kubectl --context $CLUSTER2 apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.2.0/standard-install.yaml
+kubectl --context $CLUSTER2 apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.3.0/experimental-install.yaml
 ```
 
 Next, install Gloo Gateway. This command installs the Gloo Gateway control plane into the namespace `gloo-system`.
@@ -1142,11 +1142,11 @@ EOF
 
 After a brief delay, Gloo Mesh will distribute the Gateway and HTTPRoute configurations to the registered clusters (cluster1 and cluster2). Verify that these resources have been created in the `gloo-gateway-config` namespace of each cluster.
 
-```bash,noexecute
+```bash,norun-workshop
 kubectl --context $CLUSTER1 -n gloo-gateway-config get gtw,httproute
 ```
 
-```bash,noexecute
+```bash,norun-workshop
 kubectl --context $CLUSTER2 -n gloo-gateway-config get gtw,httproute,pod,svc
 ```
 
@@ -1210,14 +1210,14 @@ EOF
 
 Validate that the traffic reaches the `httpbin1` service in Cluster1 by sending a request to the Gateway IP and checking the response:
 
-```bash,noexecute
+```bash,norun-workshop
 export GATEWAY_IP_CLUSTER1=$(kubectl --context $CLUSTER1 -n gloo-gateway-config get svc gloo-proxy-generic-gateway-gloo-gateway-config -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
 curl -i -H "Host: httpbin" $GATEWAY_IP_CLUSTER1/get
 ```
 
 Validate the same for the second cluster:
 
-```bash,noexecute
+```bash,norun-workshop
 export GATEWAY_IP_CLUSTER2=$(kubectl --context $CLUSTER2 -n gloo-gateway-config get svc gloo-proxy-generic-gateway-gloo-gateway-config -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
 curl -i -H "Host: httpbin" $GATEWAY_IP_CLUSTER2/get
 ```
