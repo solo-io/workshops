@@ -1,0 +1,108 @@
+{
+  "realm": "workshop",
+  "enabled": true,
+  "displayName": "solo.io",
+  "accessTokenLifespan": 1800,
+  "sslRequired": "none",
+  "users": [
+    {
+      "username": "user1",
+      "enabled": true,
+      "email": "user1@example.com",
+      "attributes": {
+        "group": [
+          "users"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "secretData": "{\"value\":\"JsfNbCOIdZUbyBJ+BT+VoGI91Ec2rWLOvkLPDaX8e9k=\",\"salt\":\"P5rtFkGtPfoaryJ6PizUJw==\",\"additionalParameters\":{}}",
+          "credentialData": "{\"hashIterations\":27500,\"algorithm\":\"pbkdf2-sha256\",\"additionalParameters\":{}}"
+        }
+      ]
+    },
+    {
+      "username": "user2",
+      "enabled": true,
+      "email": "user2@solo.io",
+      "attributes": {
+        "group": [
+          "users"
+        ],
+        "show_personal_data": [
+          "false"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "secretData": "{\"value\":\"RITBVPdh5pvXOa4JzJ5pZTE0rG96zhnQNmSsKCf83aU=\",\"salt\":\"drB9e5Smf3cbfUfF3FUerw==\",\"additionalParameters\":{}}",
+          "credentialData": "{\"hashIterations\":27500,\"algorithm\":\"pbkdf2-sha256\",\"additionalParameters\":{}}"
+        }
+      ]
+    }
+  ],
+  "clients": [
+    {
+      "clientId": "gloo-ext-auth",
+      "secret": "hKcDcqmUKCrPkyDJtCw066hTLzUbAiri",
+      "redirectUris": [
+        "https://*"
+      ],
+      "webOrigins": [
+        "+"
+      ],
+      "authorizationServicesEnabled": true,
+      "directAccessGrantsEnabled": true,
+      "serviceAccountsEnabled": true,
+      "protocolMappers": [
+        {
+          "name": "group",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "config": {
+            "claim.name": "group",
+            "user.attribute": "group",
+            "access.token.claim": "true",
+            "id.token.claim": "true"
+          }
+        },
+        {
+          "name": "show_personal_data",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "config": {
+            "claim.name": "show_personal_data",
+            "user.attribute": "show_personal_data",
+            "access.token.claim": "true",
+            "id.token.claim": "true"
+          }
+        },
+        {
+          "name": "name",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-property-mapper",
+          "config": {
+            "claim.name": "name",
+            "user.attribute": "username",
+            "access.token.claim": "true",
+            "id.token.claim": "true"
+          }
+        }
+      ]
+    }
+  ],
+  "components": {
+    "org.keycloak.userprofile.UserProfileProvider": [
+      {
+        "providerId": "declarative-user-profile",
+        "config": {
+          "kc.user.profile.config": [
+            "{\"attributes\":[{\"name\":\"username\"},{\"name\":\"email\"}],\"unmanagedAttributePolicy\":\"ENABLED\"}"
+          ]
+        }
+      }
+    ]
+  }
+}

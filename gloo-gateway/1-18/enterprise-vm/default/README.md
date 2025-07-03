@@ -82,9 +82,9 @@ You can find more information about Gloo Gateway in the official documentation: 
 Download Gloo Gateway packages:
 
 ```bash
-curl -L https://storage.googleapis.com/gloo-ee-vm/1.18.11/gloo-control.deb -o gloo-control.deb
-curl -L https://storage.googleapis.com/gloo-ee-vm/1.18.11/gloo-gateway.deb -o gloo-gateway.deb
-curl -L https://storage.googleapis.com/gloo-ee-vm/1.18.11/gloo-extensions.deb -o gloo-extensions.deb
+curl -L https://storage.googleapis.com/gloo-ee-vm/1.18.14/gloo-control.deb -o gloo-control.deb
+curl -L https://storage.googleapis.com/gloo-ee-vm/1.18.14/gloo-gateway.deb -o gloo-gateway.deb
+curl -L https://storage.googleapis.com/gloo-ee-vm/1.18.14/gloo-extensions.deb -o gloo-extensions.deb
 ```
 
 Deploy Redis on Docker:
@@ -374,11 +374,11 @@ fi
 -->
 Configure your hosts file to resolve httpbin.example.com with the IP address of the proxy by executing the following command:
 
+
 ```bash
-
 ./scripts/register-domain.sh httpbin.example.com ${IP}
-
 ```
+
 
 
 Try to access the application through HTTP:
@@ -653,6 +653,7 @@ EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/expose-httpbin/tests/redirect-http-to-https.test.js.liquid from lab number 3"
 timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 3"; exit 1; }
 -->
+
 
 
 

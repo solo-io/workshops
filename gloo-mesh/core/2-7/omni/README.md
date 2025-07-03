@@ -9,7 +9,7 @@ source ./scripts/assert.sh
 <img src="images/document-gloo-mesh.svg" style="height: 100px;"/>
 </center>
 
-# <center>Gloo Mesh Core (2.7.3) Ambient</center>
+# <center>Gloo Mesh Core (2.7.4) Ambient</center>
 
 
 
@@ -140,7 +140,7 @@ timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --e
 Before we get started, let's install the `meshctl` CLI:
 
 ```bash
-export GLOO_MESH_VERSION=v2.7.3
+export GLOO_MESH_VERSION=v2.7.4
 curl -sL https://run.solo.io/meshctl/install | sh -
 export PATH=$HOME/.gloo-mesh/bin:$PATH
 ```
@@ -185,13 +185,13 @@ helm upgrade --install gloo-platform-crds gloo-platform-crds \
   --kube-context ${MGMT} \
   --set featureGates.insightsConfiguration=true \
   --set installEnterpriseCrds=false \
-  --version 2.7.3
+  --version 2.7.4
 
 helm upgrade --install gloo-platform-mgmt gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${MGMT} \
-  --version 2.7.3 \
+  --version 2.7.4 \
   -f -<<EOF
 licensing:
   glooTrialLicenseKey: ${GLOO_MESH_LICENSE_KEY}
@@ -349,13 +349,13 @@ helm upgrade --install gloo-platform-crds gloo-platform-crds \
   --namespace gloo-mesh \
   --set installEnterpriseCrds=false \
   --kube-context ${CLUSTER2} \
-  --version 2.7.3
+  --version 2.7.4
 
 helm upgrade --install gloo-platform-agent gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${CLUSTER2} \
-  --version 2.7.3 \
+  --version 2.7.4 \
   -f -<<EOF
 common:
   cluster: cluster2
@@ -506,7 +506,7 @@ Now the mesh workloads in each cluster will trust the certificates from the othe
 
 ## Lab 4 - Deploy or upgrade Gloo Operator <a name="lab-4---deploy-or-upgrade-gloo-operator-"></a>
 
-In this section, we will install Gloo Operator, which will handle the lifecycle of Istio control planes.
+In this section, we will install Gloo Operator, which will handle the lifecycle of Istio control planes and Gloo Gateway Enterprise.
 
 ### Install or Upgrade Gloo Operator
 
@@ -514,7 +514,7 @@ Gloo Operator is a Kubernetes operator that manages the lifecycle of Istio Contr
 
 ```bash
 gcloud auth configure-docker us-docker.pkg.dev --quiet
-export GLOO_OPERATOR_VERSION=0.2.4-rc.0
+export GLOO_OPERATOR_VERSION=0.2.5
 
 kubectl --context "${CLUSTER1}" create ns gloo-mesh
 
@@ -526,6 +526,7 @@ manager:
   env:
     POD_NAMESPACE: gloo-mesh
     SOLO_ISTIO_LICENSE_KEY: ${GLOO_MESH_LICENSE_KEY}
+    GLOO_GATEWAY_LICENSE_KEY: ${LICENSE_KEY}
 EOF
 kubectl --context "${CLUSTER2}" create ns gloo-mesh
 
@@ -537,6 +538,7 @@ manager:
   env:
     POD_NAMESPACE: gloo-mesh
     SOLO_ISTIO_LICENSE_KEY: ${GLOO_MESH_LICENSE_KEY}
+    GLOO_GATEWAY_LICENSE_KEY: ${LICENSE_KEY}
 EOF
 ```
 
@@ -2417,7 +2419,6 @@ kubectl --context $CLUSTER1 label namespace gloo-system istio.io/dataplane-mode=
 Next install Gloo Gateway. This command installs the Gloo Gateway control plane into the namespace `gloo-system`.
 
 ```bash
-
 helm repo add gloo-ee-helm https://storage.googleapis.com/gloo-ee-helm
 helm repo update
 helm upgrade -i -n gloo-system \
@@ -2427,7 +2428,6 @@ helm upgrade -i -n gloo-system \
   --kube-context $CLUSTER1 \
   --set-string license_key=$LICENSE_KEY \
   -f -<<EOF
-
 gloo:
   kubeGateway:
     enabled: true
@@ -2865,11 +2865,11 @@ fi
 -->
 Configure your hosts file to resolve httpbin.example.com with the IP address of the proxy by executing the following command:
 
+
 ```bash
-
 ./scripts/register-domain.sh httpbin.example.com ${IP}
-
 ```
+
 
 
 Try to access the application through HTTP:
@@ -3141,6 +3141,7 @@ EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/imported/gloo-gateway/templates/steps/apps/httpbin/expose-httpbin/tests/redirect-http-to-https.test.js.liquid from lab number 14"
 timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 14"; exit 1; }
 -->
+
 
 
 
@@ -4491,7 +4492,6 @@ kubectl --context $CLUSTER2 label namespace gloo-system istio.io/dataplane-mode=
 Next install Gloo Gateway. This command installs the Gloo Gateway control plane into the namespace `gloo-system`.
 
 ```bash
-
 helm repo add gloo-ee-helm https://storage.googleapis.com/gloo-ee-helm
 helm repo update
 helm upgrade -i -n gloo-system \
@@ -4501,7 +4501,6 @@ helm upgrade -i -n gloo-system \
   --kube-context $CLUSTER2 \
   --set-string license_key=$LICENSE_KEY \
   -f -<<EOF
-
 gloo:
   kubeGateway:
     enabled: true

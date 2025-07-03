@@ -121,7 +121,7 @@ timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --e
 
 ## Lab 2 - Deploy Gloo Gateway <a name="lab-2---deploy-gloo-gateway-"></a>
 
-You can deploy Gloo Gateway with the `glooctl` CLI or declaratively using Helm.
+You can deploy Gloo Gateway with the `glooctl` CLI or declaratively using Helm or using Gloo Operator.
 
 We're going to use the Helm option.
 
@@ -141,7 +141,7 @@ helm repo update
 helm upgrade -i -n gloo-system \
   gloo-gateway solo-public-helm/gloo \
   --create-namespace \
-  --version 1.18.19 \
+  --version 1.18.21 \
   --kube-context $CLUSTER1 \
   -f -<<EOF
 kubeGateway:
@@ -526,11 +526,11 @@ fi
 -->
 Configure your hosts file to resolve httpbin.example.com with the IP address of the proxy by executing the following command:
 
+
 ```bash
-
 ./scripts/register-domain.sh httpbin.example.com ${IP}
-
 ```
+
 
 
 Try to access the application through HTTP:
@@ -802,6 +802,7 @@ EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/expose-httpbin/tests/redirect-http-to-https.test.js.liquid from lab number 4"
 timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 4"; exit 1; }
 -->
+
 
 
 
