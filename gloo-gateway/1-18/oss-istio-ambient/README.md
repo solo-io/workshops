@@ -164,7 +164,7 @@ describe("istio_version is at least 1.23.0", () => {
   it("version should be at least 1.23.0", () => {
     // Compare the string istio_version to the number 1.23.0
     // example 1.23.0-patch0 is valid, but 1.22.6 is not
-    let version = "1.23.2";
+    let version = "1.23.6-patch1";
     let versionParts = version.split('-')[0].split('.');
     let major = parseInt(versionParts[0]);
     let minor = parseInt(versionParts[1]);
@@ -229,7 +229,7 @@ kubectl --context ${CLUSTER1} create ns istio-system
 helm upgrade --install istio-base oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/base \
 --namespace istio-system \
 --kube-context=${CLUSTER1} \
---version 1.23.2-solo \
+--version 1.23.6-patch1-solo \
 --create-namespace \
 -f - <<EOF
 defaultRevision: ""
@@ -239,14 +239,14 @@ EOF
 helm upgrade --install istiod oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/istiod \
 --namespace istio-system \
 --kube-context=${CLUSTER1} \
---version 1.23.2-solo \
+--version 1.23.6-patch1-solo \
 --create-namespace \
 -f - <<EOF
 global:
   hub: us-docker.pkg.dev/gloo-mesh/istio-<enterprise_istio_repo>
   proxy:
     clusterDomain: cluster.local
-  tag: 1.23.2-solo
+  tag: 1.23.6-patch1-solo
   multiCluster:
     clusterName: cluster1
   meshID: mesh1
@@ -273,12 +273,12 @@ EOF
 helm upgrade --install istio-cni oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/cni \
 --namespace kube-system \
 --kube-context=${CLUSTER1} \
---version 1.23.2-solo \
+--version 1.23.6-patch1-solo \
 --create-namespace \
 -f - <<EOF
 global:
   hub: us-docker.pkg.dev/gloo-mesh/istio-<enterprise_istio_repo>
-  proxy: 1.23.2-solo
+  proxy: 1.23.6-patch1-solo
 profile: ambient
 cni:
   ambient:
@@ -291,7 +291,7 @@ EOF
 helm upgrade --install ztunnel oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/ztunnel \
 --namespace istio-system \
 --kube-context=${CLUSTER1} \
---version 1.23.2-solo \
+--version 1.23.6-patch1-solo \
 --create-namespace \
 -f - <<EOF
 configValidation: true
@@ -307,7 +307,7 @@ namespace: istio-system
 profile: ambient
 proxy:
   clusterDomain: cluster.local
-tag: 1.23.2-solo
+tag: 1.23.6-patch1-solo
 terminationGracePeriodSeconds: 29
 variant: distroless
 EOF
@@ -315,7 +315,7 @@ EOF
 helm upgrade --install istio-ingressgateway oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/gateway \
 --namespace istio-gateways \
 --kube-context=${CLUSTER1} \
---version 1.23.2-solo \
+--version 1.23.6-patch1-solo \
 --create-namespace \
 -f - <<EOF
 autoscaling:
@@ -412,7 +412,7 @@ timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --e
 
 ## Lab 3 - Deploy Gloo Gateway <a name="lab-3---deploy-gloo-gateway-"></a>
 
-You can deploy Gloo Gateway with the `glooctl` CLI or declaratively using Helm.
+You can deploy Gloo Gateway with the `glooctl` CLI or declaratively using Helm or using Gloo Operator.
 
 We're going to use the Helm option.
 
@@ -432,7 +432,7 @@ helm repo update
 helm upgrade -i -n gloo-system \
   gloo-gateway solo-public-helm/gloo \
   --create-namespace \
-  --version 1.18.19 \
+  --version 1.18.21 \
   --kube-context $CLUSTER1 \
   -f -<<EOF
 kubeGateway:
@@ -823,11 +823,11 @@ fi
 -->
 Configure your hosts file to resolve httpbin.example.com with the IP address of the proxy by executing the following command:
 
+
 ```bash
-
 ./scripts/register-domain.sh httpbin.example.com ${IP}
-
 ```
+
 
 
 Try to access the application through HTTP:
@@ -1099,6 +1099,7 @@ EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/expose-httpbin/tests/redirect-http-to-https.test.js.liquid from lab number 5"
 timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 5"; exit 1; }
 -->
+
 
 
 
