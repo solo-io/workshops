@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 source /root/.env 2>/dev/null || true
 source ./scripts/assert.sh
-curl -L https://storage.googleapis.com/gloo-ee-vm/1.18.11/gloo-control.deb -o gloo-control.deb
-curl -L https://storage.googleapis.com/gloo-ee-vm/1.18.11/gloo-gateway.deb -o gloo-gateway.deb
-curl -L https://storage.googleapis.com/gloo-ee-vm/1.18.11/gloo-extensions.deb -o gloo-extensions.deb
+curl -L https://storage.googleapis.com/gloo-ee-vm/1.18.14/gloo-control.deb -o gloo-control.deb
+curl -L https://storage.googleapis.com/gloo-ee-vm/1.18.14/gloo-gateway.deb -o gloo-gateway.deb
+curl -L https://storage.googleapis.com/gloo-ee-vm/1.18.14/gloo-extensions.deb -o gloo-extensions.deb
 docker run --name some-redis -d -p 6379:6379 redis
 sudo dpkg -i gloo-control.deb
 sudo dpkg -i gloo-gateway.deb
@@ -195,9 +195,7 @@ else
   echo "PROXY_IP has been assigned: $PROXY_IP"
   echo "IP has been resolved to: $IP"
 fi
-
 ./scripts/register-domain.sh httpbin.example.com ${IP}
-
 cat <<'EOF' > ./test.js
 const helpersHttp = require('./tests/chai-http');
 
