@@ -21,7 +21,7 @@ describe("Clusters are healthy", () => {
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/deploy-kind-clusters/tests/cluster-healthy.test.js.liquid from lab number 1"
 timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 1"; exit 1; }
-export GLOO_MESH_VERSION=v2.7.3
+export GLOO_MESH_VERSION=v2.7.4
 curl -sL https://run.solo.io/meshctl/install | sh -
 export PATH=$HOME/.gloo-mesh/bin:$PATH
 cat <<'EOF' > ./test.js
@@ -59,13 +59,13 @@ helm upgrade --install gloo-platform-crds gloo-platform-crds \
   --kube-context ${MGMT} \
   --set featureGates.insightsConfiguration=true \
   --set installEnterpriseCrds=false \
-  --version 2.7.3
+  --version 2.7.4
 
 helm upgrade --install gloo-platform-mgmt gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${MGMT} \
-  --version 2.7.3 \
+  --version 2.7.4 \
   -f -<<EOF
 licensing:
   glooTrialLicenseKey: ${GLOO_MESH_LICENSE_KEY}
@@ -194,13 +194,13 @@ helm upgrade --install gloo-platform-crds gloo-platform-crds \
   --namespace gloo-mesh \
   --set installEnterpriseCrds=false \
   --kube-context ${CLUSTER2} \
-  --version 2.7.3
+  --version 2.7.4
 
 helm upgrade --install gloo-platform-agent gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${CLUSTER2} \
-  --version 2.7.3 \
+  --version 2.7.4 \
   -f -<<EOF
 common:
   cluster: cluster2
@@ -290,7 +290,7 @@ kubectl --context ${CLUSTER2} -n istio-system create secret generic cacerts \
   --from-file=certs/root-cert.pem \
   --from-file=cert-chain.pem=certs/${CLUSTER2}/ca-cert.pem
 gcloud auth configure-docker us-docker.pkg.dev --quiet
-export GLOO_OPERATOR_VERSION=0.2.4-rc.0
+export GLOO_OPERATOR_VERSION=0.2.5
 
 kubectl --context "${CLUSTER1}" create ns gloo-mesh
 
@@ -302,6 +302,7 @@ manager:
   env:
     POD_NAMESPACE: gloo-mesh
     SOLO_ISTIO_LICENSE_KEY: ${GLOO_MESH_LICENSE_KEY}
+    GLOO_GATEWAY_LICENSE_KEY: ${LICENSE_KEY}
 EOF
 kubectl --context "${CLUSTER2}" create ns gloo-mesh
 
@@ -313,6 +314,7 @@ manager:
   env:
     POD_NAMESPACE: gloo-mesh
     SOLO_ISTIO_LICENSE_KEY: ${GLOO_MESH_LICENSE_KEY}
+    GLOO_GATEWAY_LICENSE_KEY: ${LICENSE_KEY}
 EOF
 cat <<'EOF' > ./test.js
 const helpers = require('./tests/chai-exec');
@@ -1871,7 +1873,6 @@ timeout 300 bash -c 'while [[ "$(curl -m 2 -s -o /dev/null -w ''%{http_code}'' $
 kubectl --context $CLUSTER1 apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.3.0/experimental-install.yaml
 kubectl --context $CLUSTER1 create namespace gloo-system
 kubectl --context $CLUSTER1 label namespace gloo-system istio.io/dataplane-mode=ambient
-
 helm repo add gloo-ee-helm https://storage.googleapis.com/gloo-ee-helm
 helm repo update
 helm upgrade -i -n gloo-system \
@@ -1881,7 +1882,6 @@ helm upgrade -i -n gloo-system \
   --kube-context $CLUSTER1 \
   --set-string license_key=$LICENSE_KEY \
   -f -<<EOF
-
 gloo:
   kubeGateway:
     enabled: true
@@ -2061,9 +2061,7 @@ else
   echo "PROXY_IP has been assigned: $PROXY_IP"
   echo "IP has been resolved to: $IP"
 fi
-
 ./scripts/register-domain.sh httpbin.example.com ${IP}
-
 cat <<'EOF' > ./test.js
 const helpersHttp = require('./tests/chai-http');
 
@@ -2844,7 +2842,6 @@ kubectl delete --context ${CLUSTER1} -n httpbin httplisteneroption cache
 kubectl --context $CLUSTER2 apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.3.0/experimental-install.yaml
 kubectl --context $CLUSTER2 create namespace gloo-system
 kubectl --context $CLUSTER2 label namespace gloo-system istio.io/dataplane-mode=ambient
-
 helm repo add gloo-ee-helm https://storage.googleapis.com/gloo-ee-helm
 helm repo update
 helm upgrade -i -n gloo-system \
@@ -2854,7 +2851,6 @@ helm upgrade -i -n gloo-system \
   --kube-context $CLUSTER2 \
   --set-string license_key=$LICENSE_KEY \
   -f -<<EOF
-
 gloo:
   kubeGateway:
     enabled: true
