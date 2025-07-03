@@ -703,7 +703,7 @@ kubectl --context ${CLUSTER1} create ns istio-system
 helm upgrade --install istio-base oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/base \
 --namespace istio-system \
 --kube-context=${CLUSTER1} \
---version 1.23.2-solo \
+--version 1.23.6-patch1-solo \
 --create-namespace \
 -f - <<EOF
 defaultRevision: ""
@@ -713,14 +713,14 @@ EOF
 helm upgrade --install istiod-1-23 oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/istiod \
 --namespace istio-system \
 --kube-context=${CLUSTER1} \
---version 1.23.2-solo \
+--version 1.23.6-patch1-solo \
 --create-namespace \
 -f - <<EOF
 global:
   hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
   proxy:
     clusterDomain: cluster.local
-  tag: 1.23.2-solo
+  tag: 1.23.6-patch1-solo
   multiCluster:
     clusterName: cluster1
   meshID: mesh1
@@ -745,7 +745,7 @@ EOF
 helm upgrade --install istio-ingressgateway-1-23 oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/gateway \
 --namespace istio-gateways \
 --kube-context=${CLUSTER1} \
---version 1.23.2-solo \
+--version 1.23.6-patch1-solo \
 --create-namespace \
 -f - <<EOF
 autoscaling:
@@ -763,7 +763,7 @@ EOF
 helm upgrade --install istio-eastwestgateway-1-23 oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/gateway \
 --namespace istio-gateways \
 --kube-context=${CLUSTER1} \
---version 1.23.2-solo \
+--version 1.23.6-patch1-solo \
 --create-namespace \
 -f - <<EOF
 autoscaling:
@@ -798,7 +798,7 @@ kubectl --context ${CLUSTER2} create ns istio-system
 helm upgrade --install istio-base oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/base \
 --namespace istio-system \
 --kube-context=${CLUSTER2} \
---version 1.23.2-solo \
+--version 1.23.6-patch1-solo \
 --create-namespace \
 -f - <<EOF
 defaultRevision: ""
@@ -808,14 +808,14 @@ EOF
 helm upgrade --install istiod-1-23 oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/istiod \
 --namespace istio-system \
 --kube-context=${CLUSTER2} \
---version 1.23.2-solo \
+--version 1.23.6-patch1-solo \
 --create-namespace \
 -f - <<EOF
 global:
   hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
   proxy:
     clusterDomain: cluster.local
-  tag: 1.23.2-solo
+  tag: 1.23.6-patch1-solo
   multiCluster:
     clusterName: cluster2
   meshID: mesh1
@@ -840,7 +840,7 @@ EOF
 helm upgrade --install istio-ingressgateway-1-23 oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/gateway \
 --namespace istio-gateways \
 --kube-context=${CLUSTER2} \
---version 1.23.2-solo \
+--version 1.23.6-patch1-solo \
 --create-namespace \
 -f - <<EOF
 autoscaling:
@@ -858,7 +858,7 @@ EOF
 helm upgrade --install istio-eastwestgateway-1-23 oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/gateway \
 --namespace istio-gateways \
 --kube-context=${CLUSTER2} \
---version 1.23.2-solo \
+--version 1.23.6-patch1-solo \
 --create-namespace \
 -f - <<EOF
 autoscaling:
@@ -2609,17 +2609,15 @@ kubectl --context $CLUSTER1 apply -f https://github.com/kubernetes-sigs/gateway-
 Next install Gloo Gateway. This command installs the Gloo Gateway control plane into the namespace `gloo-system`.
 
 ```bash
-
 helm repo add gloo-ee-helm https://storage.googleapis.com/gloo-ee-helm
 helm repo update
 helm upgrade -i -n gloo-system \
   gloo-gateway gloo-ee-helm/gloo-ee \
   --create-namespace \
-  --version 1.18.11 \
+  --version 1.18.14 \
   --kube-context $CLUSTER1 \
   --set-string license_key=$LICENSE_KEY \
   -f -<<EOF
-
 gloo:
   kubeGateway:
     enabled: true
@@ -2686,7 +2684,6 @@ Here is the expected output:
 
 ```,nocopy
 NAME                                         READY   STATUS      RESTARTS   AGE
-caching-service-79cf55ccbb-dcvgp             1/1     Running     0          69s
 extauth-58f68c5cd5-gxgxc                     1/1     Running     0          69s
 gateway-portal-web-server-5c5d58d8d5-7lzwg   1/1     Running     0          69s
 gloo-7d8994697-lfg5x                         1/1     Running     0          69s
@@ -3039,11 +3036,11 @@ fi
 -->
 Configure your hosts file to resolve httpbin.example.com with the IP address of the proxy by executing the following command:
 
+
 ```bash
-
 ./scripts/register-domain.sh httpbin.example.com ${IP}
-
 ```
+
 
 
 Try to access the application through HTTP:
@@ -3315,6 +3312,7 @@ EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/expose-httpbin/tests/redirect-http-to-https.test.js.liquid from lab number 14"
 timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 14"; exit 1; }
 -->
+
 
 
 
@@ -4685,6 +4683,7 @@ EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/virtual-destination/tests/productpage-available-cluster2.test.js.liquid from lab number 18"
 timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 18"; exit 1; }
 -->
+
 
 
 
