@@ -35,17 +35,15 @@ EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/deploy-amazon-pod-identity-webhook/tests/pods-available.test.js.liquid from lab number 2"
 timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 2"; exit 1; }
 kubectl --context $CLUSTER1 apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.3.0/experimental-install.yaml
-
 helm repo add gloo-ee-helm https://storage.googleapis.com/gloo-ee-helm
 helm repo update
 helm upgrade -i -n gloo-system \
   gloo-gateway gloo-ee-helm/gloo-ee \
   --create-namespace \
-  --version 1.18.11 \
+  --version 1.18.14 \
   --kube-context $CLUSTER1 \
   --set-string license_key=$LICENSE_KEY \
   -f -<<EOF
-
 gloo:
   kubeGateway:
     enabled: true
@@ -207,9 +205,7 @@ else
   echo "PROXY_IP has been assigned: $PROXY_IP"
   echo "IP has been resolved to: $IP"
 fi
-
 ./scripts/register-domain.sh httpbin.example.com ${IP}
-
 cat <<'EOF' > ./test.js
 const helpersHttp = require('./tests/chai-http');
 
