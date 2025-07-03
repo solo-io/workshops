@@ -18,17 +18,15 @@ EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/deploy-kind-clusters/tests/cluster-healthy.test.js.liquid from lab number 1"
 timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 1"; exit 1; }
 kubectl --context $CLUSTER1 apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.3.0/experimental-install.yaml
-
 helm repo add gloo-ee-helm https://storage.googleapis.com/gloo-ee-helm
 helm repo update
 helm upgrade -i -n gloo-system \
   gloo-gateway gloo-ee-helm/gloo-ee \
   --create-namespace \
-  --version 1.18.11 \
+  --version 1.18.14 \
   --kube-context $CLUSTER1 \
   --set-string license_key=$LICENSE_KEY \
   -f -<<EOF
-
 gloo:
   kubeGateway:
     enabled: true
@@ -182,11 +180,11 @@ EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/ai-gateway/ai-credential-management/tests/environment-variables.test.js.liquid from lab number 4"
 timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=0 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 4"; exit 1; }
 kubectl --context $CLUSTER1 create secret generic openai-secret -n gloo-system \
-    --from-literal="Authorization=Bearer $OPENAI_API_KEY" \
-    --dry-run=client -oyaml | kubectl --context $CLUSTER1 apply -f -
+  --from-literal="Authorization=Bearer $OPENAI_API_KEY" \
+  --dry-run=client -oyaml | kubectl --context $CLUSTER1 apply -f -
 kubectl --context $CLUSTER1 create secret generic mistral-secret -n gloo-system \
-    --from-literal="Authorization=Bearer $MISTRAL_API_KEY" \
-    --dry-run=client -oyaml | kubectl --context $CLUSTER1 apply -f -
+  --from-literal="Authorization=Bearer $MISTRAL_API_KEY" \
+  --dry-run=client -oyaml | kubectl --context $CLUSTER1 apply -f -
 kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: gloo.solo.io/v1
 kind: Upstream
@@ -658,7 +656,7 @@ spec:
       retryOn: 'retriable-status-codes'
       retriableStatusCodes:
       - 429
-      numRetries: 3
+      numRetries: 2
       previousPriorities:
         updateFrequency: 1
 EOF
