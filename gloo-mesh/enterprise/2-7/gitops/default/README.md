@@ -9,7 +9,7 @@ source ./scripts/assert.sh
 <img src="images/document-gloo-mesh.svg" style="height: 100px;"/>
 </center>
 
-# <center>Gloo Mesh Enterprise (2.7.3)</center>
+# <center>Gloo Mesh Enterprise (2.7.4)</center>
 
 
 
@@ -605,7 +605,7 @@ kubectl --context ${MGMT} -n default wait --for=delete pod/nginx --timeout=30s
 Before we get started, let's install the `meshctl` CLI:
 
 ```bash
-export GLOO_MESH_VERSION=v2.7.3
+export GLOO_MESH_VERSION=v2.7.4
 curl -sL https://run.solo.io/meshctl/install | sh -
 export PATH=$HOME/.gloo-mesh/bin:$PATH
 ```
@@ -758,7 +758,7 @@ spec:
   sources:
   - chart: gloo-platform-crds
     repoURL: https://storage.googleapis.com/gloo-platform/helm-charts
-    targetRevision: 2.7.3
+    targetRevision: 2.7.4
     helm:
       releaseName: gloo-platform-crds
       parameters:
@@ -766,7 +766,7 @@ spec:
         value: "true"
   - chart: gloo-platform
     repoURL: https://storage.googleapis.com/gloo-platform/helm-charts
-    targetRevision: 2.7.3
+    targetRevision: 2.7.4
     helm:
       releaseName: gloo-platform
       valueFiles:
@@ -1068,7 +1068,7 @@ spec:
       sources:
       - chart: gloo-platform-crds
         repoURL: https://storage.googleapis.com/gloo-platform/helm-charts
-        targetRevision: 2.7.3
+        targetRevision: 2.7.4
         helm:
           releaseName: gloo-platform-crds
           parameters:
@@ -1076,7 +1076,7 @@ spec:
             value: "true"
       - chart: gloo-platform
         repoURL: https://storage.googleapis.com/gloo-platform/helm-charts
-        targetRevision: 2.7.3
+        targetRevision: 2.7.4
         helm:
           releaseName: gloo-platform
           valueFiles:
@@ -1539,7 +1539,7 @@ spec:
       istioOperatorSpec:
         profile: minimal
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.24.5-solo
+        tag: 1.24.6-solo
         namespace: istio-system
         values:
           global:
@@ -1589,7 +1589,7 @@ spec:
       istioOperatorSpec:
         profile: minimal
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.24.5-solo
+        tag: 1.24.6-solo
         namespace: istio-system
         values:
           global:
@@ -1657,7 +1657,7 @@ spec:
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.24.5-solo
+        tag: 1.24.6-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -1684,7 +1684,7 @@ spec:
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.24.5-solo
+        tag: 1.24.6-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -1718,7 +1718,7 @@ spec:
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.24.5-solo
+        tag: 1.24.6-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -1745,7 +1745,7 @@ spec:
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.24.5-solo
+        tag: 1.24.6-solo
         values:
           gateways:
             istio-ingressgateway:
@@ -2665,7 +2665,7 @@ spec:
       sources:
       - chart: gloo-platform
         repoURL: https://storage.googleapis.com/gloo-platform/helm-charts
-        targetRevision: 2.7.3
+        targetRevision: 2.7.4
         helm:
           releaseName: gloo-platform
           valueFiles:
@@ -5060,8 +5060,8 @@ echo
 -->
 
 ```bash,norun-workshop
-export GLOO_AGENT_URL=https://storage.googleapis.com/gloo-platform/vm/v2.7.3/gloo-workload-agent.deb
-export ISTIO_URL=https://storage.googleapis.com/solo-workshops/istio-binaries/1.24.5/istio-sidecar.deb
+export GLOO_AGENT_URL=https://storage.googleapis.com/gloo-platform/vm/v2.7.4/gloo-workload-agent.deb
+export ISTIO_URL=https://storage.googleapis.com/solo-workshops/istio-binaries/1.24.6/istio-sidecar.deb
 docker exec vm1 meshctl ew onboard --install \
   --attestor token \
   --join-token ${JOIN_TOKEN} \
@@ -5077,8 +5077,8 @@ docker exec vm1 meshctl ew onboard --install \
   --ext-workload virtualmachines/${VM_APP}
 ```
 <!--bash
-export GLOO_AGENT_URL=https://storage.googleapis.com/gloo-platform/vm/v2.7.3/gloo-workload-agent.deb
-export ISTIO_URL=https://storage.googleapis.com/solo-workshops/istio-binaries/1.24.5/istio-sidecar.deb
+export GLOO_AGENT_URL=https://storage.googleapis.com/gloo-platform/vm/v2.7.4/gloo-workload-agent.deb
+export ISTIO_URL=https://storage.googleapis.com/solo-workshops/istio-binaries/1.24.6/istio-sidecar.deb
 echo -n Trying to onboard the VM...
 MAX_ATTEMPTS=10
 ATTEMPTS=0
@@ -5315,7 +5315,7 @@ spec:
       istioOperatorSpec:
         profile: empty
         hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
-        tag: 1.24.5-solo
+        tag: 1.24.6-solo
         components:
           egressGateways:
             - enabled: true

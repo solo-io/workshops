@@ -23,7 +23,7 @@ describe("Clusters are healthy", () => {
 EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/deploy-kind-clusters/tests/cluster-healthy.test.js.liquid from lab number 1"
 timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 1"; exit 1; }
-export GLOO_MESH_VERSION=v2.6.0
+export GLOO_MESH_VERSION=v2.9.1
 curl -sL https://run.solo.io/meshctl/install | sh -
 export PATH=$HOME/.gloo-mesh/bin:$PATH
 cat <<'EOF' > ./test.js
@@ -59,13 +59,13 @@ helm upgrade --install gloo-platform-crds gloo-platform-crds \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${MGMT} \
-  --version 2.6.0
+  --version 2.9.1
 
 helm upgrade --install gloo-platform gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${MGMT} \
-  --version 2.6.0 \
+  --version 2.9.1 \
   -f -<<EOF
 licensing:
   glooTrialLicenseKey: ${GLOO_MESH_LICENSE_KEY}
@@ -182,13 +182,13 @@ helm upgrade --install gloo-platform-crds gloo-platform-crds \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${CLUSTER1} \
-  --version 2.6.0
+  --version 2.9.1
 
 helm upgrade --install gloo-platform gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${CLUSTER1} \
-  --version 2.6.0 \
+  --version 2.9.1 \
   -f -<<EOF
 common:
   cluster: cluster1
@@ -228,13 +228,13 @@ helm upgrade --install gloo-platform-crds gloo-platform-crds \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${CLUSTER2} \
-  --version 2.6.0
+  --version 2.9.1
 
 helm upgrade --install gloo-platform gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${CLUSTER2} \
-  --version 2.6.0 \
+  --version 2.9.1 \
   -f -<<EOF
 common:
   cluster: cluster2
@@ -476,7 +476,7 @@ kubectl --context ${CLUSTER1} create ns istio-system
 helm upgrade --install istio-base oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/base \
 --namespace istio-system \
 --kube-context=${CLUSTER1} \
---version 1.23.2-solo \
+--version 1.23.6-patch1-solo \
 --create-namespace \
 -f - <<EOF
 defaultRevision: ""
@@ -486,14 +486,14 @@ EOF
 helm upgrade --install istiod-1-23 oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/istiod \
 --namespace istio-system \
 --kube-context=${CLUSTER1} \
---version 1.23.2-solo \
+--version 1.23.6-patch1-solo \
 --create-namespace \
 -f - <<EOF
 global:
   hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
   proxy:
     clusterDomain: cluster.local
-  tag: 1.23.2-solo
+  tag: 1.23.6-patch1-solo
   multiCluster:
     clusterName: cluster1
   meshID: mesh1
@@ -518,7 +518,7 @@ EOF
 helm upgrade --install istio-ingressgateway-1-23 oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/gateway \
 --namespace istio-gateways \
 --kube-context=${CLUSTER1} \
---version 1.23.2-solo \
+--version 1.23.6-patch1-solo \
 --create-namespace \
 -f - <<EOF
 autoscaling:
@@ -536,7 +536,7 @@ EOF
 helm upgrade --install istio-eastwestgateway-1-23 oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/gateway \
 --namespace istio-gateways \
 --kube-context=${CLUSTER1} \
---version 1.23.2-solo \
+--version 1.23.6-patch1-solo \
 --create-namespace \
 -f - <<EOF
 autoscaling:
@@ -558,7 +558,7 @@ kubectl --context ${CLUSTER2} create ns istio-system
 helm upgrade --install istio-base oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/base \
 --namespace istio-system \
 --kube-context=${CLUSTER2} \
---version 1.23.2-solo \
+--version 1.23.6-patch1-solo \
 --create-namespace \
 -f - <<EOF
 defaultRevision: ""
@@ -568,14 +568,14 @@ EOF
 helm upgrade --install istiod-1-23 oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/istiod \
 --namespace istio-system \
 --kube-context=${CLUSTER2} \
---version 1.23.2-solo \
+--version 1.23.6-patch1-solo \
 --create-namespace \
 -f - <<EOF
 global:
   hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
   proxy:
     clusterDomain: cluster.local
-  tag: 1.23.2-solo
+  tag: 1.23.6-patch1-solo
   multiCluster:
     clusterName: cluster2
   meshID: mesh1
@@ -600,7 +600,7 @@ EOF
 helm upgrade --install istio-ingressgateway-1-23 oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/gateway \
 --namespace istio-gateways \
 --kube-context=${CLUSTER2} \
---version 1.23.2-solo \
+--version 1.23.6-patch1-solo \
 --create-namespace \
 -f - <<EOF
 autoscaling:
@@ -618,7 +618,7 @@ EOF
 helm upgrade --install istio-eastwestgateway-1-23 oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/gateway \
 --namespace istio-gateways \
 --kube-context=${CLUSTER2} \
---version 1.23.2-solo \
+--version 1.23.6-patch1-solo \
 --create-namespace \
 -f - <<EOF
 autoscaling:
@@ -956,7 +956,7 @@ helm upgrade --install gloo-platform gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh-addons \
   --kube-context ${CLUSTER1} \
-  --version 2.6.0 \
+  --version 2.9.1 \
   -f -<<EOF
 common:
   cluster: cluster1
@@ -980,7 +980,7 @@ helm upgrade --install gloo-platform gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh-addons \
   --kube-context ${CLUSTER2} \
-  --version 2.6.0 \
+  --version 2.9.1 \
   -f -<<EOF
 common:
   cluster: cluster2
@@ -1942,17 +1942,15 @@ timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --e
 echo "Waiting for Keycloak to be ready at $KEYCLOAK_URL/realms/workshop/protocol/openid-connect/token"
 timeout 300 bash -c 'while [[ "$(curl -m 2 -s -o /dev/null -w ''%{http_code}'' $KEYCLOAK_URL/realms/workshop/protocol/openid-connect/token)" != "405" ]]; do printf '.';sleep 1; done' || false
 kubectl --context $CLUSTER1 apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.3.0/experimental-install.yaml
-
 helm repo add gloo-ee-helm https://storage.googleapis.com/gloo-ee-helm
 helm repo update
 helm upgrade -i -n gloo-system \
   gloo-gateway gloo-ee-helm/gloo-ee \
   --create-namespace \
-  --version 1.18.11 \
+  --version 1.18.14 \
   --kube-context $CLUSTER1 \
   --set-string license_key=$LICENSE_KEY \
   -f -<<EOF
-
 gloo:
   kubeGateway:
     enabled: true
@@ -2119,9 +2117,7 @@ else
   echo "PROXY_IP has been assigned: $PROXY_IP"
   echo "IP has been resolved to: $IP"
 fi
-
 ./scripts/register-domain.sh httpbin.example.com ${IP}
-
 cat <<'EOF' > ./test.js
 const helpersHttp = require('./tests/chai-http');
 

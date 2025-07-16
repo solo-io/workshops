@@ -160,7 +160,7 @@ timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --e
 Before we get started, let's install the `meshctl` CLI:
 
 ```bash
-export GLOO_MESH_VERSION=v2.6.0
+export GLOO_MESH_VERSION=v2.9.1
 curl -sL https://run.solo.io/meshctl/install | sh -
 export PATH=$HOME/.gloo-mesh/bin:$PATH
 ```
@@ -202,13 +202,13 @@ helm upgrade --install gloo-platform-crds gloo-platform-crds \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${MGMT} \
-  --version 2.6.0
+  --version 2.9.1
 
 helm upgrade --install gloo-platform-mgmt gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${MGMT} \
-  --version 2.6.0 \
+  --version 2.9.1 \
   -f -<<EOF
 licensing:
   glooTrialLicenseKey: ${GLOO_MESH_LICENSE_KEY}
@@ -364,7 +364,7 @@ kubectl --context ${CLUSTER1} create ns istio-system
 helm upgrade --install istio-base oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/base \
 --namespace istio-system \
 --kube-context=${CLUSTER1} \
---version 1.23.2-solo \
+--version 1.23.6-patch1-solo \
 --create-namespace \
 -f - <<EOF
 defaultRevision: ""
@@ -374,14 +374,14 @@ EOF
 helm upgrade --install istiod-1-23 oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/istiod \
 --namespace istio-system \
 --kube-context=${CLUSTER1} \
---version 1.23.2-solo \
+--version 1.23.6-patch1-solo \
 --create-namespace \
 -f - <<EOF
 global:
   hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
   proxy:
     clusterDomain: cluster.local
-  tag: 1.23.2-solo
+  tag: 1.23.6-patch1-solo
   multiCluster:
     clusterName: cluster1
   meshID: mesh1
@@ -406,7 +406,7 @@ EOF
 helm upgrade --install istio-ingressgateway-1-23 oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/gateway \
 --namespace istio-gateways \
 --kube-context=${CLUSTER1} \
---version 1.23.2-solo \
+--version 1.23.6-patch1-solo \
 --create-namespace \
 -f - <<EOF
 autoscaling:
@@ -761,7 +761,7 @@ helm upgrade --install gloo-platform gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh-addons \
   --kube-context ${CLUSTER1} \
-  --version 2.6.0 \
+  --version 2.9.1 \
   -f -<<EOF
 common:
   cluster: cluster1
@@ -2102,6 +2102,80 @@ This diagram shows the flow of the request (with the Istio ingress gateway lever
 ![Gloo Mesh Gateway Extauth](images/steps/gloo-mesh-2-0/gateway-extauth-oauth/gloo-mesh-gateway-extauth.svg)
 
 
+You can also extract array claims in headers.
+
+Let's update the `ExtAuthPolicy` to do that.
+
+```bash
+kubectl apply --context ${CLUSTER1} -f - <<EOF
+apiVersion: security.policy.gloo.solo.io/v2
+kind: ExtAuthPolicy
+metadata:
+  name: httpbin
+  namespace: httpbin
+spec:
+  applyToRoutes:
+  - route:
+      labels:
+        oauth: "true"
+  config:
+    server:
+      name: ext-auth-server
+      namespace: gloo-mesh-addons
+      cluster: cluster1
+    glooAuth:
+      configs:
+      - oauth2:
+          oidcAuthorizationCode:
+            appUrl: "https://cluster1-httpbin.example.com"
+            callbackPath: /callback
+            clientId: ${KEYCLOAK_CLIENT}
+            clientSecretRef:
+              name: oauth
+              namespace: gloo-mesh-addons
+            issuerUrl: "${KEYCLOAK_URL}/realms/workshop/"
+            logoutPath: /logout
+            afterLogoutUrl: "https://cluster1-httpbin.example.com/get"
+            session:
+              failOnFetchFailure: true
+              redis:
+                cookieName: keycloak-session
+                options:
+                  host: redis:6379
+            scopes:
+            - email
+            headers:
+              idTokenHeader: jwt
+            identityToken:
+              claimsToHeaders:
+                - claim: email
+                  header: X-Email
+                - claim: list
+                  header: X-List
+      - opaAuth:
+          modules:
+          - name: allow-solo-email-users
+            namespace: httpbin
+          query: "data.test.allow == true"
+EOF
+```
+
+Refresh the web page. You should see a header `X-List` with the value `a, b, c`.
+
+<!--bash
+cat <<'EOF' > ./test.js
+const helpersHttp = require('./tests/chai-http');
+
+describe("Claim to header is working properly with arrays", function() {
+  const cookieString = process.env.USER2_COOKIE;
+  it('The new header has been added', () => helpersHttp.checkBody({ host: `https://cluster1-httpbin.example.com`, path: '/get', headers: [{ key: 'Cookie', value: cookieString }], body: '"X-List": "a,b,c"' }));
+});
+
+EOF
+echo "executing test dist/gloo-gateway-workshop/build/imported/gloo-mesh-2-0/templates/steps/apps/httpbin/gateway-extauth-oauth/tests/header-added-list-claim.test.js.liquid from lab number 13"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 13"; exit 1; }
+-->
+
 
 
 
@@ -3430,17 +3504,15 @@ EOF
 Next install Gloo Gateway. This command installs the Gloo Gateway control plane into the namespace `gloo-system`.
 
 ```bash
-
 helm repo add gloo-ee-helm https://storage.googleapis.com/gloo-ee-helm
 helm repo update
 helm upgrade -i -n gloo-system \
   gloo-gateway gloo-ee-helm/gloo-ee \
   --create-namespace \
-  --version 1.18.11 \
+  --version 1.18.14 \
   --kube-context $CLUSTER1 \
   --set-string license_key=$LICENSE_KEY \
   -f -<<EOF
-
 gloo:
   kubeGateway:
     enabled: true
@@ -3872,11 +3944,11 @@ fi
 -->
 Configure your hosts file to resolve httpbin.example.com with the IP address of the proxy by executing the following command:
 
+
 ```bash
-
 ./scripts/register-domain.sh httpbin.example.com ${IP}
-
 ```
+
 
 
 Try to access the application through HTTP:
@@ -4148,6 +4220,7 @@ EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/expose-httpbin/tests/redirect-http-to-https.test.js.liquid from lab number 22"
 timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 22"; exit 1; }
 -->
+
 
 
 
@@ -9385,7 +9458,7 @@ We can now configure the Gloo Gateway portal backend to use it:
 helm upgrade -i -n gloo-system \
   gloo-gateway gloo-ee-helm/gloo-ee \
   --create-namespace \
-  --version 1.18.11 \
+  --version 1.18.14 \
   --kube-context ${CLUSTER1} \
   --reuse-values \
   -f -<<EOF
@@ -9842,7 +9915,6 @@ Let's add the domain to our `/etc/hosts` file:
 ```bash
 ./scripts/register-domain.sh backstage.example.com ${PROXY_IP}
 ```
-
 You can now access the `backstage` UI using this URL: [https://backstage.example.com](https://backstage.example.com).
 
 <!--bash
