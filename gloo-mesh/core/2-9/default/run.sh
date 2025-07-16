@@ -24,7 +24,7 @@ describe("Clusters are healthy", () => {
 EOF
 echo "executing test dist/gloo-mesh-2-0-workshop/build/templates/steps/deploy-kind-clusters/tests/cluster-healthy.test.js.liquid from lab number 1"
 timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 1"; exit 1; }
-export GLOO_MESH_VERSION=v2.7.4
+export GLOO_MESH_VERSION=v2.9.1
 curl -sL https://run.solo.io/meshctl/install | sh -
 export PATH=$HOME/.gloo-mesh/bin:$PATH
 cat <<'EOF' > ./test.js
@@ -62,13 +62,13 @@ helm upgrade --install gloo-platform-crds gloo-platform-crds \
   --kube-context ${MGMT} \
   --set featureGates.insightsConfiguration=true \
   --set installEnterpriseCrds=false \
-  --version 2.7.4
+  --version 2.9.1
 
 helm upgrade --install gloo-platform gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${MGMT} \
-  --version 2.7.4 \
+  --version 2.9.1 \
   -f -<<EOF
 licensing:
   glooTrialLicenseKey: ${GLOO_MESH_LICENSE_KEY}
@@ -188,13 +188,13 @@ helm upgrade --install gloo-platform-crds gloo-platform-crds \
   --namespace gloo-mesh \
   --set installEnterpriseCrds=false \
   --kube-context ${CLUSTER1} \
-  --version 2.7.4
+  --version 2.9.1
 
 helm upgrade --install gloo-platform gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${CLUSTER1} \
-  --version 2.7.4 \
+  --version 2.9.1 \
   -f -<<EOF
 common:
   cluster: cluster1
@@ -237,13 +237,13 @@ helm upgrade --install gloo-platform-crds gloo-platform-crds \
   --namespace gloo-mesh \
   --set installEnterpriseCrds=false \
   --kube-context ${CLUSTER2} \
-  --version 2.7.4
+  --version 2.9.1
 
 helm upgrade --install gloo-platform gloo-platform \
   --repo https://storage.googleapis.com/gloo-platform/helm-charts \
   --namespace gloo-mesh \
   --kube-context ${CLUSTER2} \
-  --version 2.7.4 \
+  --version 2.9.1 \
   -f -<<EOF
 common:
   cluster: cluster2
@@ -328,7 +328,7 @@ spec:
   selector:
     app: istio-ingressgateway
     istio: ingressgateway
-    revision: 1-24
+    revision: 1-25
   type: LoadBalancer
 EOF
 
@@ -383,7 +383,7 @@ spec:
   selector:
     app: istio-ingressgateway
     istio: eastwestgateway
-    revision: 1-24
+    revision: 1-25
     topology.istio.io/network: cluster1
   type: LoadBalancer
 EOF
@@ -411,7 +411,7 @@ spec:
   selector:
     app: istio-ingressgateway
     istio: ingressgateway
-    revision: 1-24
+    revision: 1-25
   type: LoadBalancer
 EOF
 
@@ -466,7 +466,7 @@ spec:
   selector:
     app: istio-ingressgateway
     istio: eastwestgateway
-    revision: 1-24
+    revision: 1-25
     topology.istio.io/network: cluster2
   type: LoadBalancer
 EOF
@@ -474,28 +474,28 @@ kubectl --context ${CLUSTER1} create ns istio-system
 helm upgrade --install istio-base oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/base \
 --namespace istio-system \
 --kube-context=${CLUSTER1} \
---version 1.24.6-solo \
+--version 1.25.3-solo \
 --create-namespace \
 -f - <<EOF
 defaultRevision: ""
-revision: 1-24
+revision: 1-25
 EOF
 
-helm upgrade --install istiod-1-24 oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/istiod \
+helm upgrade --install istiod-1-25 oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/istiod \
 --namespace istio-system \
 --kube-context=${CLUSTER1} \
---version 1.24.6-solo \
+--version 1.25.3-solo \
 --create-namespace \
 -f - <<EOF
 global:
   hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
   proxy:
     clusterDomain: cluster.local
-  tag: 1.24.6-solo
+  tag: 1.25.3-solo
   multiCluster:
     clusterName: cluster1
   meshID: mesh1
-revision: 1-24
+revision: 1-25
 meshConfig:
   accessLogFile: /dev/stdout
   defaultConfig:
@@ -513,40 +513,40 @@ EOF
 
 
 
-helm upgrade --install istio-ingressgateway-1-24 oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/gateway \
+helm upgrade --install istio-ingressgateway-1-25 oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/gateway \
 --namespace istio-gateways \
 --kube-context=${CLUSTER1} \
---version 1.24.6-solo \
+--version 1.25.3-solo \
 --create-namespace \
 -f - <<EOF
 autoscaling:
   enabled: false
-revision: 1-24
+revision: 1-25
 imagePullPolicy: IfNotPresent
 labels:
   app: istio-ingressgateway
   istio: ingressgateway
-  revision: 1-24
+  revision: 1-25
 service:
   type: None
 EOF
 
-helm upgrade --install istio-eastwestgateway-1-24 oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/gateway \
+helm upgrade --install istio-eastwestgateway-1-25 oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/gateway \
 --namespace istio-gateways \
 --kube-context=${CLUSTER1} \
---version 1.24.6-solo \
+--version 1.25.3-solo \
 --create-namespace \
 -f - <<EOF
 autoscaling:
   enabled: false
-revision: 1-24
+revision: 1-25
 imagePullPolicy: IfNotPresent
 env:
   ISTIO_META_REQUESTED_NETWORK_VIEW: cluster1
 labels:
   app: istio-ingressgateway
   istio: eastwestgateway
-  revision: 1-24
+  revision: 1-25
   topology.istio.io/network: cluster1
 service:
   type: None
@@ -556,28 +556,28 @@ kubectl --context ${CLUSTER2} create ns istio-system
 helm upgrade --install istio-base oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/base \
 --namespace istio-system \
 --kube-context=${CLUSTER2} \
---version 1.24.6-solo \
+--version 1.25.3-solo \
 --create-namespace \
 -f - <<EOF
 defaultRevision: ""
-revision: 1-24
+revision: 1-25
 EOF
 
-helm upgrade --install istiod-1-24 oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/istiod \
+helm upgrade --install istiod-1-25 oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/istiod \
 --namespace istio-system \
 --kube-context=${CLUSTER2} \
---version 1.24.6-solo \
+--version 1.25.3-solo \
 --create-namespace \
 -f - <<EOF
 global:
   hub: us-docker.pkg.dev/gloo-mesh/istio-workshops
   proxy:
     clusterDomain: cluster.local
-  tag: 1.24.6-solo
+  tag: 1.25.3-solo
   multiCluster:
     clusterName: cluster2
   meshID: mesh1
-revision: 1-24
+revision: 1-25
 meshConfig:
   accessLogFile: /dev/stdout
   defaultConfig:
@@ -595,40 +595,40 @@ EOF
 
 
 
-helm upgrade --install istio-ingressgateway-1-24 oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/gateway \
+helm upgrade --install istio-ingressgateway-1-25 oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/gateway \
 --namespace istio-gateways \
 --kube-context=${CLUSTER2} \
---version 1.24.6-solo \
+--version 1.25.3-solo \
 --create-namespace \
 -f - <<EOF
 autoscaling:
   enabled: false
-revision: 1-24
+revision: 1-25
 imagePullPolicy: IfNotPresent
 labels:
   app: istio-ingressgateway
   istio: ingressgateway
-  revision: 1-24
+  revision: 1-25
 service:
   type: None
 EOF
 
-helm upgrade --install istio-eastwestgateway-1-24 oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/gateway \
+helm upgrade --install istio-eastwestgateway-1-25 oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/gateway \
 --namespace istio-gateways \
 --kube-context=${CLUSTER2} \
---version 1.24.6-solo \
+--version 1.25.3-solo \
 --create-namespace \
 -f - <<EOF
 autoscaling:
   enabled: false
-revision: 1-24
+revision: 1-25
 imagePullPolicy: IfNotPresent
 env:
   ISTIO_META_REQUESTED_NETWORK_VIEW: cluster2
 labels:
   app: istio-ingressgateway
   istio: eastwestgateway
-  revision: 1-24
+  revision: 1-25
   topology.istio.io/network: cluster2
 service:
   type: None
@@ -729,8 +729,8 @@ echo "executing test ./default/tests/can-resolve.test.js.liquid from lab number 
 timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 3"; exit 1; }
 kubectl --context ${CLUSTER1} create ns bookinfo-frontends
 kubectl --context ${CLUSTER1} create ns bookinfo-backends
-kubectl --context ${CLUSTER1} label namespace bookinfo-frontends istio.io/rev=1-24 --overwrite
-kubectl --context ${CLUSTER1} label namespace bookinfo-backends istio.io/rev=1-24 --overwrite
+kubectl --context ${CLUSTER1} label namespace bookinfo-frontends istio.io/rev=1-25 --overwrite
+kubectl --context ${CLUSTER1} label namespace bookinfo-backends istio.io/rev=1-25 --overwrite
 
 
 # Deploy the frontend bookinfo service in the bookinfo-frontends namespace
@@ -756,8 +756,8 @@ done"
 echo
 kubectl --context ${CLUSTER2} create ns bookinfo-frontends
 kubectl --context ${CLUSTER2} create ns bookinfo-backends
-kubectl --context ${CLUSTER2} label namespace bookinfo-frontends istio.io/rev=1-24 --overwrite
-kubectl --context ${CLUSTER2} label namespace bookinfo-backends istio.io/rev=1-24 --overwrite
+kubectl --context ${CLUSTER2} label namespace bookinfo-frontends istio.io/rev=1-25 --overwrite
+kubectl --context ${CLUSTER2} label namespace bookinfo-backends istio.io/rev=1-25 --overwrite
 
 
 # Deploy the frontend bookinfo service in the bookinfo-frontends namespace
@@ -911,7 +911,7 @@ spec:
       labels:
         app: in-mesh
         version: v1
-        istio.io/rev: 1-24
+        istio.io/rev: 1-25
     spec:
       serviceAccountName: in-mesh
       containers:
