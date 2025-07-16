@@ -37,7 +37,7 @@ helm repo add gloo-ee-helm https://storage.googleapis.com/gloo-ee-helm
 
 helm repo add glooe https://storage.googleapis.com/gloo-ee-helm
 helm repo update
-helm upgrade --install gloo-gateway gloo-ee-helm/gloo-ee --namespace gloo-system --create-namespace --version 1.18.14 \
+helm upgrade --install gloo-gateway gloo-ee-helm/gloo-ee --namespace gloo-system --create-namespace --version 1.19.1 \
   --set-string license_key=$LICENSE_KEY --devel
 sleep 2
 kubectl -n gloo-system rollout status deploy gloo gateway-proxy redis extauth rate-limit
@@ -1565,7 +1565,7 @@ helm repo update
 helm upgrade -i -n gloo-system \
   gloo-gateway gloo-ee-helm/gloo-ee \
   --create-namespace \
-  --version 1.18.14 \
+  --version 1.19.1 \
   --kube-context $CLUSTER1 \
   --set-string license_key=$LICENSE_KEY \
   -f -<<EOF
@@ -4985,7 +4985,7 @@ kubectl --context ${CLUSTER1} -n gloo-system rollout status deploy gloo-portal-i
 helm upgrade -i -n gloo-system \
   gloo-gateway gloo-ee-helm/gloo-ee \
   --create-namespace \
-  --version 1.18.14 \
+  --version 1.19.1 \
   --kube-context ${CLUSTER1} \
   --reuse-values \
   -f -<<EOF
