@@ -82,7 +82,7 @@ timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --e
 
 
 
-##  2 - Install kgateway <a name="-2---install-kgateway-"></a>
+##  2 - Lab: Install kgateway <a name="-2---lab:-install-kgateway-"></a>
 
 In this lab, you will:
 
@@ -101,10 +101,10 @@ cat <<'EOF' > ./test.js
 const helpers = require('./tests/chai-exec');
 
 describe("Gateway API CRDs", () => {
-  it('Gateways are created', () => helpers.k8sObjectIsPresent({ context: process.env.CLUSTER1, namespace: "default", k8sType: "crd", k8sObj: "gateways.gateway.networking.k8s.io" }));
-  it('Httproutes are created', () => helpers.k8sObjectIsPresent({ context: process.env.CLUSTER1, namespace: "default", k8sType: "crd", k8sObj: "httproutes.gateway.networking.k8s.io" }));
-  it('Referencegrants are created', () => helpers.k8sObjectIsPresent({ context: process.env.CLUSTER1, namespace: "default", k8sType: "crd", k8sObj: "referencegrants.gateway.networking.k8s.io" }));
-  it('Gatewayclasses are created', () => helpers.k8sObjectIsPresent({ context: process.env.CLUSTER1, namespace: "default", k8sType: "crd", k8sObj: "gatewayclasses.gateway.networking.k8s.io" }));
+  it('Gateways are created', () => helpers.k8sObjectIsPresent({ namespace: "default", k8sType: "crd", k8sObj: "gateways.gateway.networking.k8s.io" }));
+  it('Httproutes are created', () => helpers.k8sObjectIsPresent({ namespace: "default", k8sType: "crd", k8sObj: "httproutes.gateway.networking.k8s.io" }));
+  it('Referencegrants are created', () => helpers.k8sObjectIsPresent({ namespace: "default", k8sType: "crd", k8sObj: "referencegrants.gateway.networking.k8s.io" }));
+  it('Gatewayclasses are created', () => helpers.k8sObjectIsPresent({ namespace: "default", k8sType: "crd", k8sObj: "gatewayclasses.gateway.networking.k8s.io" }));
 });
 EOF
 echo "executing test dist/kgateway-workshop/build/imported/kgateway-labs/templates/steps/install/tests/check-gatewayapi.test.js.liquid from lab number 2"
@@ -113,7 +113,7 @@ timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --e
 
 Review the Gateway API CRDs:
 
-```bash,noexecute
+```bash,norun-workshop
 kubectl api-resources --api-group=gateway.networking.k8s.io
 ```
 
@@ -121,15 +121,15 @@ Install kgateway
 ================
 
 ```bash
-helm upgrade --install --create-namespace --namespace kgateway-system  \
-  --version v2.0.0-rc.1 kgateway-crds oci://cr.kgateway.dev/kgateway-dev/charts/kgateway-crds
 helm upgrade --install --create-namespace --namespace kgateway-system \
-  --version v2.0.0-rc.1 kgateway oci://cr.kgateway.dev/kgateway-dev/charts/kgateway
+  --version v2.0.1 kgateway-crds oci://cr.kgateway.dev/kgateway-dev/charts/kgateway-crds
+helm upgrade --install --create-namespace --namespace kgateway-system \
+  --version v2.0.1 kgateway oci://cr.kgateway.dev/kgateway-dev/charts/kgateway
 ```
 
 Review the pods running in the `kgateway-system` namespaced:
 
-```bash,noexecute
+```bash,norun-workshop
 kubectl get pod -n kgateway-system
 ```
 <!--bash
@@ -137,8 +137,7 @@ cat <<'EOF' > ./test.js
 const helpers = require('./tests/chai-exec');
 
 describe("kgateway", () => {
-  let cluster = process.env.CLUSTER1;
-    it('kgateway pods are ready in ' + cluster, () => helpers.checkDeployment({ context: cluster, namespace: "kgateway-system", k8sObj: "kgateway" }));
+    it('kgateway pods are ready', () => helpers.checkDeployment({ namespace: "kgateway-system", k8sObj: "kgateway" }));
 });
 EOF
 echo "executing test dist/kgateway-workshop/build/imported/kgateway-labs/templates/steps/install/tests/check-kgateway.test.js.liquid from lab number 2"
@@ -148,7 +147,7 @@ timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --e
 Review the GatewayClass resource
 ================================
 
-```bash,noexecute
+```bash,norun-workshop
 kubectl get gatewayclass kgateway -o yaml | bat -l yaml
 ```
 
@@ -186,7 +185,7 @@ cat <<'EOF' > ./test.js
 const helpers = require('./tests/chai-exec');
 
 describe("kateway GatewayClass", () => {
-  it('kgateway GatewayClass is created', () => helpers.k8sObjectIsPresent({ context: process.env.CLUSTER1, namespace: "kgateway-system", k8sType: "gatewayclass", k8sObj: "kgateway" }));
+  it('kgateway GatewayClass is created', () => helpers.k8sObjectIsPresent({ namespace: "kgateway-system", k8sType: "gatewayclass", k8sObj: "kgateway" }));
 });
 EOF
 echo "executing test dist/kgateway-workshop/build/imported/kgateway-labs/templates/steps/install/tests/check-gatewayclass.test.js.liquid from lab number 2"
@@ -207,7 +206,7 @@ Next, we look at how to provision and program a gateway.
 
 
 
-##  3 - Expose a service over HTTP <a name="-3---expose-a-service-over-http-"></a>
+##  3 - Lab: Expose a service over HTTP <a name="-3---lab:-expose-a-service-over-http-"></a>
 
 This lab walks you through the basics of the Kubernetes Gateway API.
 
@@ -237,7 +236,7 @@ The team in charge of the gateway can create a Gateway resource and configure an
 
 Inspect the gateway resource:
 
-```bash,noexecute
+```bash,norun-workshop
 bat data/steps/kgateway-labs/basics/gtw.yaml
 ```
 
@@ -255,13 +254,13 @@ kubectl wait --for=condition=Programmed=True gtw/my-gateway
 
 Inspect the `status` section of the Gateway resource you just created:
 
-```bash,noexecute
+```bash,norun-workshop
 kubectl get gtw my-gateway -o yaml | bat -l yaml
 ```
 
 Inspect the deployed gateway artifacts:
 
-```bash,noexecute
+```bash,norun-workshop
 kubectl get deploy,svc,pod
 ```
 
@@ -277,7 +276,7 @@ An application team can create an HTTPRoute resource to expose the `httpbin` app
 
 Inspect the HTTPRoute resource:
 
-```bash,noexecute
+```bash,norun-workshop
 bat data/steps/kgateway-labs/basics/route.yaml
 ```
 
@@ -297,7 +296,7 @@ kubectl wait --for=jsonpath='{.status.listeners[0].attachedRoutes}'=1 gtw my-gat
 
 Inspect the status of the route and confirm that it has a condition "Accepted" set to "True":
 
-```bash,noexecute
+```bash,norun-workshop
 kubectl get httproute httpbin -o yaml | bat -l yaml
 ```
 
@@ -312,7 +311,7 @@ export GW_IP=$(kubectl get gtw my-gateway -ojsonpath='{.status.addresses[0].valu
 
 Send a test request to `httpbin` through the gateway:
 
-```bash,noexecute
+```bash,norun-workshop
 curl http://httpbin.example.com/headers --resolve httpbin.example.com:80:$GW_IP
 ```
 
@@ -369,7 +368,7 @@ The general steps for working with the Kubernetes Gateway API are:
 
 
 
-##  4 - Configure HTTPS <a name="-4---configure-https-"></a>
+##  4 - Lab: Configure HTTPS <a name="-4---lab:-configure-https-"></a>
 
 The workload `httpbin` is exposed via an ingress gateway over HTTP.
 
@@ -382,13 +381,13 @@ We begin with a Gateway with only an HTTP listener and attached route.
 
 Capture the gateway external IP address to the environment variable `GW_IP`:
 
-```bash,noexecute
+```bash,norun-workshop
 export GW_IP=$(kubectl get gtw my-gateway -ojsonpath='{.status.addresses[0].value}')
 ```
 
 Verify that requests over HTTP succeed:
 
-```bash,noexecute
+```bash,norun-workshop
 curl -v http://httpbin.example.com/headers \
   --resolve httpbin.example.com:80:$GW_IP
 ```
@@ -414,7 +413,7 @@ kubectl create secret tls httpbin-cert \
 
 Add an https listener to the gateway, referencing the above secret:
 
-```bash,noexecute
+```bash,norun-workshop
 bat data/steps/kgateway-labs/https/gtw.yaml
 ```
 
@@ -424,7 +423,7 @@ kubectl apply -f data/steps/kgateway-labs/https/gtw.yaml
 
 ### Attach to the route to the https listener
 
-```bash,noexecute
+```bash,norun-workshop
 bat data/steps/kgateway-labs/https/route.yaml
 ```
 
@@ -436,7 +435,7 @@ kubectl apply -f data/steps/kgateway-labs/https/route.yaml
 
 Call one of the endpoints of `httpbin`, over https:
 
-```bash,noexecute
+```bash,norun-workshop
 curl -v --insecure https://httpbin.example.com/headers \
   --resolve httpbin.example.com:443:$GW_IP
 ```
@@ -459,14 +458,14 @@ Since the route we created is bound to the https listener, a request over http s
 
 Verify this:
 
-```bash,noexecute
+```bash,norun-workshop
 curl -v http://httpbin.example.com/headers \
   --resolve httpbin.example.com:80:$GW_IP
 ```
 
 Review the following HTTPRoute configuration for the http listener, with a filter to redirect the request to https with a 301 response code:
 
-```bash,noexecute
+```bash,norun-workshop
 bat data/steps/kgateway-labs/https/redirect.yaml
 ```
 
@@ -480,14 +479,14 @@ kubectl apply -f data/steps/kgateway-labs/https/redirect.yaml
 
 Verify that a request over HTTP now returns a 301 "Moved Permanently" response code:
 
-```bash,noexecute
+```bash,norun-workshop
 curl -v http://httpbin.example.com/headers \
   --resolve httpbin.example.com:80:$GW_IP
 ```
 
 Repeat the curl request, this time specifying that you wish to follow redirects (the -L flag):
 
-```bash,noexecute
+```bash,norun-workshop
 curl -v -L --insecure http://httpbin.example.com/headers \
   --resolve httpbin.example.com:80:$GW_IP \
   --resolve httpbin.example.com:443:$GW_IP
@@ -510,7 +509,7 @@ timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --e
 
 
 
-##  5 - Shared gateways <a name="-5---shared-gateways-"></a>
+##  5 - Lab: Shared gateways <a name="-5---lab:-shared-gateways-"></a>
 
 
 In this lab, you will re-implement the previous scenario, for two applications:  `httpbin`, and `bookinfo`.
@@ -571,7 +570,7 @@ The shared gateway
 
 We configure three listeners, one for port 80, and one each for port 443 for each hostname, with its tls configuration.
 
-```bash,noexecute
+```bash,norun-workshop
 bat data/steps/shared-gw/gtw.yaml
 ```
 
@@ -582,7 +581,7 @@ kubectl -n infra apply -f data/steps/kgateway-labs/shared-gw/gtw.yaml
 Routes
 ======
 
-```bash,noexecute
+```bash,norun-workshop
 bat data/steps/shared-gw/httpbin-route.yaml
 ```
 
@@ -594,7 +593,7 @@ kubectl -n httpbin apply -f data/steps/kgateway-labs/shared-gw/httpbin-route.yam
 
 Inspect the `status` section of the route:
 
-```bash,noexecute
+```bash,norun-workshop
 kubectl -n httpbin get httproute httpbin -o yaml | bat -l yaml
 ```
 
@@ -647,7 +646,7 @@ status:
 
 Configure the "allowed routes" permissions on the gateway:
 
-```bash,noexecute
+```bash,norun-workshop
 bat data/steps/shared-gw/gtw-with-allowed-routes.yaml
 ```
 
@@ -664,7 +663,7 @@ kubectl label ns bookinfo self-serve-ingress=true
 
 Check the status of the route once more:
 
-```bash,noexecute
+```bash,norun-workshop
 kubectl -n httpbin get httproute httpbin -o yaml | bat -l yaml
 ```
 
@@ -690,7 +689,7 @@ kubectl -n bookinfo apply -f data/steps/kgateway-labs/shared-gw/bookinfo-route.y
 
 Check that both routes attached successfully:
 
-```bash,noexecute
+```bash,norun-workshop
 kubectl get gtw -n infra infra-gateway -o json | jq '.status.listeners[] | {name: .name, attachedRoutes: .attachedRoutes}'
 ```
 <!--bash
@@ -711,19 +710,19 @@ Test the routes
 
 Capture the IP address associated with the shared gateway:
 
-```bash,noexecute
+```bash,norun-workshop
 export GW_IP=$(kubectl get gtw -n infra infra-gateway -ojsonpath='{.status.addresses[0].value}')
 ```
 
 Call `httpbin`:
 
-```bash,noexecute
+```bash,norun-workshop
 curl --insecure https://httpbin.example.com/headers --resolve httpbin.example.com:443:$GW_IP
 ```
 
 Call `bookinfo`:
 
-```bash,noexecute
+```bash,norun-workshop
 curl -s --insecure https://bookinfo.example.com/productpage --resolve bookinfo.example.com:443:$GW_IP | grep title
 ```
 <!--bash
@@ -745,7 +744,7 @@ Platform operators are the only ones with access to the `infra` namespace and co
 
 They configure HTTP redirect to HTTPS for all applications:
 
-```bash,noexecute
+```bash,norun-workshop
 bat data/steps/shared-gw/redirect.yaml
 ```
 
@@ -759,7 +758,7 @@ Verify that requests to each app over HTTP result in a 301 redirect:
 
 Test a request to `httpbin` over HTTP:
 
-```bash,noexecute
+```bash,norun-workshop
 curl -v http://httpbin.example.com/headers --resolve httpbin.example.com:80:$GW_IP
 ```
 
@@ -777,13 +776,13 @@ curl -v http://httpbin.example.com/headers --resolve httpbin.example.com:80:$GW_
 
 Test a request to `bookinfo` over HTTP:
 
-```bash,noexecute
+```bash,norun-workshop
 curl -v http://bookinfo.example.com/productpage --resolve bookinfo.example.com:80:$GW_IP
 ```
 
 View all routes
 
-```bash,noexecute
+```bash,norun-workshop
 kubectl get httproute -A
 ```
 
@@ -819,7 +818,7 @@ We now have separation of concerns and a well-defined process for onboarding new
 
 
 
-##  6 - HTTP routing rules <a name="-6---http-routing-rules-"></a>
+##  6 - Lab: HTTP routing rules <a name="-6---lab:-http-routing-rules-"></a>
 
 In this lab, you will explore other aspects of the HTTPRoute resource configuration, specifically [routing rules](https://gateway-api.sigs.k8s.io/api-types/httproute/#rules), and what capabilities they enable.
 
@@ -828,7 +827,7 @@ Backend References
 
 Review the specification for the `httpbin` route from the previous lesson:
 
-```bash,noexecute
+```bash,norun-workshop
 kubectl get httproute -n httpbin httpbin -o yaml | bat -l yaml
 ```
 
@@ -840,7 +839,7 @@ This allows us to define [traffic splitting](https://gateway-api.sigs.k8s.io/gui
 
 In the `bookinfo` application, expose the `reviews` service via the `/reviews` endpoint on the gateway.
 
-```bash,noexecute
+```bash,norun-workshop
 bat data/steps/routing-rules/reviews-endpoint.yaml
 ```
 
@@ -852,14 +851,14 @@ kubectl apply -f data/steps/kgateway-labs/routing-rules/reviews-endpoint.yaml
 
 Capture the gateway IP address to the environment variable `GW_IP`:
 
-```bash,noexecute
+```bash,norun-workshop
 export GW_IP=$(kubectl get gtw -n infra infra-gateway -ojsonpath='{.status.addresses[0].value}')
 ```
 
 Verify that the route functions as expected:
 
 
-```bash,noexecute
+```bash,norun-workshop
 curl -s --insecure https://bookinfo.example.com/reviews/123 --resolve bookinfo.example.com:443:$GW_IP | jq
 ```
 
@@ -904,13 +903,13 @@ kubectl apply -n bookinfo -f https://raw.githubusercontent.com/istio/istio/refs/
 
 Confirm that distinct service definitions exist for each version of the `reviews` service:
 
-```bash,noexecute
+```bash,norun-workshop
 kubectl get svc -n bookinfo
 ```
 
 Define a routing rule with two `backendRefs`, as follows:
 
-```bash,noexecute
+```bash,norun-workshop
 bat data/steps/routing-rules/reviews-split.yaml
 ```
 
@@ -922,7 +921,7 @@ kubectl apply -f data/steps/kgateway-labs/routing-rules/reviews-split.yaml
 
 Test the route:
 
-```bash,noexecute
+```bash,norun-workshop
 for i in {1..10}; do curl -s --insecure https://bookinfo.example.com/reviews/123 --resolve bookinfo.example.com:443:$GW_IP | jq .podname; done
 ```
 <!--bash
@@ -980,7 +979,7 @@ In the previous example we also saw an example of path-based matching:  exposing
 
 A good example of path-based matching is `bookinfo-route.yaml` from the previous lesson:
 
-```bash,noexecute
+```bash,norun-workshop
 bat data/steps/routing-rules/setup-bookinfo-route.yaml
 ```
 
@@ -999,7 +998,7 @@ We wish to route all requests from test users, distinguished through the presenc
 
 Review the following route configuration:
 
-```bash,noexecute
+```bash,norun-workshop
 bat data/steps/routing-rules/reviews-header-match.yaml
 ```
 
@@ -1013,7 +1012,7 @@ Test it:
 
 1. Requests to `/reviews` that do not contain a header should be handled by v2:
 
-    ```bash,noexecute
+    ```bash,norun-workshop
     curl -s --insecure https://bookinfo.example.com/reviews/123 --resolve bookinfo.example.com:443:$GW_IP | jq .podname
     ```
 <!--bash
@@ -1059,7 +1058,7 @@ timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --e
 
 2. Requests with the header `role=qa` should be handled by v3:
 
-    ```bash,noexecute
+    ```bash,norun-workshop
     curl -s --insecure -H "role: qa" https://bookinfo.example.com/reviews/123 --resolve bookinfo.example.com:443:$GW_IP | jq .podname
     ```
 <!--bash
@@ -1092,7 +1091,7 @@ We saw an example use for a filter in the https configuration lesson with the Re
 
 Here was the route in question:
 
-```bash,noexecute
+```bash,norun-workshop
 bat data/steps/routing-rules/setup-redirect.yaml
 ```
 
@@ -1109,7 +1108,7 @@ Say for example that `httpbin` needs to know whether the request it's handling c
 
 Add a header to the request named `request-type` with value `external`.
 
-```bash,noexecute
+```bash,norun-workshop
 bat data/steps/routing-rules/add-requestheader.yaml
 ```
 
@@ -1121,7 +1120,7 @@ kubectl apply -f data/steps/kgateway-labs/routing-rules/add-requestheader.yaml
 
 Ask `httpbin` for a copy of the request headers it was given:
 
-```bash,noexecute
+```bash,norun-workshop
 curl --insecure https://httpbin.example.com/headers --resolve httpbin.example.com:443:$GW_IP
 ```
 <!--bash
@@ -1155,7 +1154,7 @@ Note the presence of the header `request-type: external` in the output:
 `httpbin` has a set of endpoints with the prefix `status` that returns different response codes.
 For example, this request will produce a response code of 304 "Not Modified":
 
-```bash,noexecute
+```bash,norun-workshop
 curl -v --insecure https://httpbin.example.com/status/304 --resolve httpbin.example.com:443:$GW_IP
 ```
 
@@ -1167,7 +1166,7 @@ We can imagine that perhaps the original path prefix was `response-code/` and wa
 URL rewriting can be useful in such cases to continue supporting the old path prefix.
 For example:
 
-```bash,noexecute
+```bash,norun-workshop
 bat data/steps/routing-rules/url-rewrite.yaml
 ```
 
@@ -1181,7 +1180,7 @@ kubectl apply -f data/steps/kgateway-labs/routing-rules/url-rewrite.yaml
 
 Test it:
 
-```bash,noexecute
+```bash,norun-workshop
 curl -v --insecure https://httpbin.example.com/response-code/304 --resolve httpbin.example.com:443:$GW_IP
 ```
 
@@ -1218,7 +1217,7 @@ In a previous lesson on routing rules, we studied how the Gateway API supports t
 
 Here is the route configuration we used in that lesson:
 
-```bash,noexecute
+```bash,norun-workshop
 bat data/steps/kgateway-labs/rollouts/reviews-split.yaml
 ```
 
@@ -1305,7 +1304,7 @@ kubectl rollout status -n argo-rollouts deploy argo-rollouts
 
 Check the controller logs for confirmation that plugin was downloaded:
 
-```bash,noexecute
+```bash,norun-workshop
 kubectl logs -n argo-rollouts deploy/argo-rollouts | grep -i download
 ```
 
@@ -1321,7 +1320,7 @@ Foundations
 
 Create the Gateway `my-gateway` with a simple HTTP listener:
 
-```bash,noexecute
+```bash,norun-workshop
 bat data/steps/kgateway-labs/rollouts/gtw.yaml
 ```
 
@@ -1349,7 +1348,7 @@ timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --e
 
 Arrange for argo rollouts to have both a "stable" and "canary" service definition for the `reviews` service, that it can manipulate:
 
-```bash,noexecute
+```bash,norun-workshop
 bat data/steps/kgateway-labs/rollouts/services.yaml
 ```
 
@@ -1363,7 +1362,7 @@ kubectl apply -f data/steps/kgateway-labs/rollouts/services.yaml
 
 Configure an HTTPRoute that directs traffic to both services:
 
-```bash,noexecute
+```bash,norun-workshop
 bat data/steps/kgateway-labs/rollouts/route.yaml
 ```
 
@@ -1380,7 +1379,7 @@ Rollouts
 
 Instead of a Deployment resource for the reviews service, we use an Argo [Rollout resource](https://argoproj.github.io/argo-rollouts/features/specification/):
 
-```bash,noexecute
+```bash,norun-workshop
 bat data/steps/kgateway-labs/rollouts/rollout.yaml
 ```
 
@@ -1399,13 +1398,13 @@ kubectl apply -f data/steps/kgateway-labs/rollouts/rollout.yaml
 
 Run the following `tmux` command to configure a two-panel layout:
 
-```bash,noexecute
+```bash,norun-workshop
 tmux attach
 ```
 
 Watch the HTTPRoute weights change as Argo goes through the rollout phases of the canary release.
 
-```bash,noexecute
+```bash,norun-workshop
 kubectl argo rollouts get rollout reviews-rollout --watch
 ```
 <!--bash
@@ -1433,7 +1432,7 @@ export GW_IP=$(kubectl get gtw my-gateway -ojsonpath='{.status.addresses[0].valu
 
 Verify that the route for the `reviews` service functions:
 
-```bash,noexecute
+```bash,norun-workshop
 curl http://bookinfo.example.com/reviews/123 --resolve bookinfo.example.com:80:$GW_IP | jq
 ```
 <!--bash
@@ -1462,6 +1461,16 @@ echo "executing test dist/kgateway-workshop/build/imported/kgateway-labs/templat
 timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 7"; exit 1; }
 -->
 Trigger a rollout to v2:
+<details>
+<summary>Install Kubectl plugin for Argo Rollouts</summary>
+Download the plugin and move it to your path:
+
+```bash
+curl -LO https://github.com/argoproj/argo-rollouts/releases/latest/download/kubectl-argo-rollouts-linux-amd64
+chmod +x ./kubectl-argo-rollouts-*
+sudo mv ./kubectl-argo-* /usr/local/bin/kubectl-argo-rollouts
+```
+</details>
 
 ```bash
 kubectl argo rollouts set image reviews-rollout reviews=docker.io/istio/examples-bookinfo-reviews-v2:1.20.2
@@ -1474,7 +1483,7 @@ Verify that the first two steps of the rollout have taken place:
 
 Check the `stable` and `canary` service selectors:
 
-```bash,noexecute
+```bash,norun-workshop
 kubectl get svc -o wide -l app=reviews
 ```
 
@@ -1488,7 +1497,7 @@ reviews-stable   ClusterIP   10.43.127.185   9080/TCP   app=reviews,rollouts-pod
 
 Send a test call to the canary, using header-based matching:
 
-```bash,noexecute
+```bash,norun-workshop
 curl -H "role: qa" http://bookinfo.example.com/reviews/123 --resolve bookinfo.example.com:80:$GW_IP | jq
 ```
 <!--bash
@@ -1520,7 +1529,7 @@ Note how the json response indicates that this version of the `reviews` service 
 
 On the other hand, a call without the header in question will produce a response from the stable revision:
 
-```bash,noexecute
+```bash,norun-workshop
 curl http://bookinfo.example.com/reviews/123 --resolve bookinfo.example.com:80:$GW_IP | jq
 ```
 <!--bash
@@ -1636,18 +1645,13 @@ First of all, you need to create a `Backend` object corresponding to the AWS des
 
 ```bash
 kubectl apply --context ${CLUSTER1} -f - <<EOF
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: lambda
-  labels:
-    self-serve-ingress: "true"
----
 apiVersion: gateway.kgateway.dev/v1alpha1
 kind: Backend
 metadata:
-  name: lambda
-  namespace: lambda
+  name: lambda-echo
+  namespace: httpbin
+  labels:
+    lab: gateway-lambda
 spec:
   type: AWS
   aws:
@@ -1673,15 +1677,17 @@ Create a `Secret` object containing the AWS credentials:
 ```bash
 kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: v1
+kind: Secret
+metadata:
+  name: aws-creds
+  namespace: httpbin
+  labels:
+    lab: gateway-lambda
+type: Opaque
 stringData:
   accessKey: ${AWS_ACCESS_KEY_ID}
   secretKey: ${AWS_SECRET_ACCESS_KEY}
   sessionToken: ""
-kind: Secret
-metadata:
-  name: aws-creds
-  namespace: lambda
-type: Opaque
 EOF
 ```
 
@@ -1692,29 +1698,22 @@ kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
 metadata:
-  name: lambda
-  namespace: lambda
+  name: lambda-echo
+  namespace: httpbin
+  labels:
+    delegation.kgateway.dev/label: httpbin
+    lab: gateway-lambda
 spec:
-  parentRefs:
-    - name: infra-gateway
-      namespace: infra
-      sectionName: httpbin-https
   rules:
   - matches:
     - path:
         type: PathPrefix
         value: /lambda
     backendRefs:
-    - name: lambda
-      namespace: lambda
+    - name: lambda-echo
+      namespace: httpbin
       group: gateway.kgateway.dev
       kind: Backend
-      filters:
-        - type: ExtensionRef
-          extensionRef:
-            group: gateway.kgateway.dev
-            kind: Parameter
-            name: workshop-echo
 EOF
 ```
 
@@ -1728,7 +1727,7 @@ exports.handler = async (event) => {
 
 You should now be able to invoke the Lambda function using the following command:
 
-```bash,noexecute
+```bash,norun-workshop
 curl -ki "https://httpbin.example.com/lambda" -d '{"foo":"bar"}'
 ```
 
@@ -1761,10 +1760,13 @@ cat <<'EOF' > ./test.js
 const helpersHttp = require('./tests/chai-http');
 
 describe("Lambda integration is working properly", () => {
-  it(`Checking text 'foo' in response`, () => helpersHttp.checkBody({ host: `https://httpbin.example.com`, path: '/lambda', data: '{"foo":"bar"}', body: 'foo', match: true }));
+  if (!process.env.AWS_ACCESS_KEY_ID) {
+      console.error("[Warning] AWS_ACCESS_KEY_ID is not set");
+    }
+  it(`Checking text 'foo' in response`, () => process.env.AWS_ACCESS_KEY_ID ? helpersHttp.checkBody({ host: `https://httpbin.example.com`, path: '/lambda', data: '{"foo":"bar"}', body: 'foo', match: true }) : true);
 })
 EOF
-echo "executing test dist/kgateway-workshop/build/templates/steps/gateway-lambda/tests/check-lambda-echo.test.js.liquid from lab number 9"
+echo "executing test dist/kgateway-workshop/build/templates/steps/apps/httpbin/gateway-lambda/tests/check-lambda-echo.test.js.liquid from lab number 9"
 timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 9"; exit 1; }
 -->
 
@@ -1773,17 +1775,17 @@ Let's try the second option.
 First, delete the `Secret` object we created previously:
 
 ```bash
-kubectl --context ${CLUSTER1} delete secret -n infra aws-creds
+kubectl --context ${CLUSTER1} delete secret -n httpbin aws-creds
 ```
 
-Annotate the `infra-gateway` service account with the `eks.amazonaws.com/role-arn` annotation:
+Annotate the `http` service account with the `eks.amazonaws.com/role-arn` annotation:
 ```bash
-kubectl --context ${CLUSTER1} annotate sa -n infra infra-gateway "eks.amazonaws.com/role-arn=arn:aws:iam::253915036081:role/lambda-workshop"
+kubectl --context ${CLUSTER1} annotate sa -n kgateway-system http "eks.amazonaws.com/role-arn=arn:aws:iam::253915036081:role/lambda-workshop" --overwrite
 ```
 
-Restart the `infra-gateway` deployment to apply the changes:
+Restart the `http` deployment to apply the changes:
 ```bash
-kubectl --context ${CLUSTER1} rollout restart deployment -n infra infra-gateway
+kubectl --context ${CLUSTER1} rollout restart deployment -n kgateway-system http
 ```
 
 Now update the `Backend` object to use IRSA:
@@ -1793,15 +1795,15 @@ kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: gateway.kgateway.dev/v1alpha1
 kind: Backend
 metadata:
-  name: lambda
-  namespace: lambda
+  name: lambda-echo
+  namespace: httpbin
+  labels:
+    lab: gateway-lambda
 spec:
   type: AWS
   aws:
     region: eu-west-1
     accountId: "253915036081"
-    auth:
-      type: IRSA
     lambda:
       functionName: workshop-echo
 EOF
@@ -1809,7 +1811,7 @@ EOF
 
 You should now be able to invoke the Lambda function using the same command as before:
 
-```bash,noexecute
+```bash,norun-workshop
 curl -ki "https://httpbin.example.com/lambda" -d '{"foo":"bar"}'
 ```
 
@@ -1820,12 +1822,26 @@ cat <<'EOF' > ./test.js
 const helpersHttp = require('./tests/chai-http');
 
 describe("Lambda integration is working properly", () => {
-  it(`Checking text 'foo' in response`, () => helpersHttp.checkBody({ host: `https://httpbin.example.com`, path: '/lambda', data: '{"foo":"bar"}', body: 'foo', match: true }));
+  if (!process.env.AWS_ACCESS_KEY_ID) {
+      console.error("[Warning] AWS_ACCESS_KEY_ID is not set");
+    }
+  it(`Checking text 'foo' in response`, () => process.env.AWS_ACCESS_KEY_ID ? helpersHttp.checkBody({ host: `https://httpbin.example.com`, path: '/lambda', data: '{"foo":"bar"}', body: 'foo', match: true }) : true);
 })
 EOF
-echo "executing test dist/kgateway-workshop/build/templates/steps/gateway-lambda/tests/check-lambda-echo.test.js.liquid from lab number 9"
+echo "executing test dist/kgateway-workshop/build/templates/steps/apps/httpbin/gateway-lambda/tests/check-lambda-echo.test.js.liquid from lab number 9"
 timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 9"; exit 1; }
 -->
+
+
+
+Let's clean up the resources we created:
+
+```bash
+kubectl --context ${CLUSTER1} -n httpbin delete Backend,HTTPRoute,Secret -l 'lab=gateway-lambda'
+kubectl --context ${CLUSTER1} annotate sa -n kgateway-system http "eks.amazonaws.com/role-arn-"
+kubectl --context ${CLUSTER1} rollout status deployment -n kgateway-system http
+kubectl --context ${CLUSTER1} rollout restart deployment -n kgateway-system http
+```
 
 
 
