@@ -178,8 +178,8 @@ helm repo add gloo-ee-helm https://storage.googleapis.com/gloo-ee-helm
 
 helm repo add glooe https://storage.googleapis.com/gloo-ee-helm
 helm repo update
-helm upgrade --install gloo-gateway gloo-ee-helm/gloo-ee --namespace gloo-system \
-  --create-namespace --version 1.18.11 --set-string license_key=$LICENSE_KEY --devel
+helm upgrade --install gloo-gateway gloo-ee-helm/gloo-ee --namespace gloo-system --create-namespace --version 1.18.14 \
+  --set-string license_key=$LICENSE_KEY --devel
 ```
 
 Use the following commands to wait for the Gloo Edge components to be deployed:
@@ -2651,17 +2651,15 @@ EOF
 Next install Gloo Gateway. This command installs the Gloo Gateway control plane into the namespace `gloo-system`.
 
 ```bash
-
 helm repo add gloo-ee-helm https://storage.googleapis.com/gloo-ee-helm
 helm repo update
 helm upgrade -i -n gloo-system \
   gloo-gateway gloo-ee-helm/gloo-ee \
   --create-namespace \
-  --version 1.18.11 \
+  --version 1.18.14 \
   --kube-context $CLUSTER1 \
   --set-string license_key=$LICENSE_KEY \
   -f -<<EOF
-
 gloo:
   kubeGateway:
     enabled: true
@@ -3086,11 +3084,11 @@ fi
 -->
 Configure your hosts file to resolve httpbin.example.com with the IP address of the proxy by executing the following command:
 
+
 ```bash
-
 ./scripts/register-domain.sh httpbin.example.com ${IP}
-
 ```
+
 
 
 Try to access the application through HTTP:
@@ -3362,6 +3360,7 @@ EOF
 echo "executing test dist/gloo-gateway-workshop/build/templates/steps/apps/httpbin/expose-httpbin/tests/redirect-http-to-https.test.js.liquid from lab number 13"
 timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 13"; exit 1; }
 -->
+
 
 
 
@@ -8599,7 +8598,7 @@ We can now configure the Gloo Gateway portal backend to use it:
 helm upgrade -i -n gloo-system \
   gloo-gateway gloo-ee-helm/gloo-ee \
   --create-namespace \
-  --version 1.18.11 \
+  --version 1.18.14 \
   --kube-context ${CLUSTER1} \
   --reuse-values \
   -f -<<EOF
@@ -9056,7 +9055,6 @@ Let's add the domain to our `/etc/hosts` file:
 ```bash
 ./scripts/register-domain.sh backstage.example.com ${PROXY_IP}
 ```
-
 You can now access the `backstage` UI using this URL: [https://backstage.example.com](https://backstage.example.com).
 
 <!--bash
