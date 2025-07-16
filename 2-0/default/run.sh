@@ -24,24 +24,23 @@ cat <<'EOF' > ./test.js
 const helpers = require('./tests/chai-exec');
 
 describe("Gateway API CRDs", () => {
-  it('Gateways are created', () => helpers.k8sObjectIsPresent({ context: process.env.CLUSTER1, namespace: "default", k8sType: "crd", k8sObj: "gateways.gateway.networking.k8s.io" }));
-  it('Httproutes are created', () => helpers.k8sObjectIsPresent({ context: process.env.CLUSTER1, namespace: "default", k8sType: "crd", k8sObj: "httproutes.gateway.networking.k8s.io" }));
-  it('Referencegrants are created', () => helpers.k8sObjectIsPresent({ context: process.env.CLUSTER1, namespace: "default", k8sType: "crd", k8sObj: "referencegrants.gateway.networking.k8s.io" }));
-  it('Gatewayclasses are created', () => helpers.k8sObjectIsPresent({ context: process.env.CLUSTER1, namespace: "default", k8sType: "crd", k8sObj: "gatewayclasses.gateway.networking.k8s.io" }));
+  it('Gateways are created', () => helpers.k8sObjectIsPresent({ namespace: "default", k8sType: "crd", k8sObj: "gateways.gateway.networking.k8s.io" }));
+  it('Httproutes are created', () => helpers.k8sObjectIsPresent({ namespace: "default", k8sType: "crd", k8sObj: "httproutes.gateway.networking.k8s.io" }));
+  it('Referencegrants are created', () => helpers.k8sObjectIsPresent({ namespace: "default", k8sType: "crd", k8sObj: "referencegrants.gateway.networking.k8s.io" }));
+  it('Gatewayclasses are created', () => helpers.k8sObjectIsPresent({ namespace: "default", k8sType: "crd", k8sObj: "gatewayclasses.gateway.networking.k8s.io" }));
 });
 EOF
 echo "executing test dist/kgateway-workshop/build/imported/kgateway-labs/templates/steps/install/tests/check-gatewayapi.test.js.liquid from lab number 2"
 timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 2"; exit 1; }
-helm upgrade --install --create-namespace --namespace kgateway-system  \
-  --version v2.0.0-rc.1 kgateway-crds oci://cr.kgateway.dev/kgateway-dev/charts/kgateway-crds
 helm upgrade --install --create-namespace --namespace kgateway-system \
-  --version v2.0.0-rc.1 kgateway oci://cr.kgateway.dev/kgateway-dev/charts/kgateway
+  --version v2.0.1 kgateway-crds oci://cr.kgateway.dev/kgateway-dev/charts/kgateway-crds
+helm upgrade --install --create-namespace --namespace kgateway-system \
+  --version v2.0.1 kgateway oci://cr.kgateway.dev/kgateway-dev/charts/kgateway
 cat <<'EOF' > ./test.js
 const helpers = require('./tests/chai-exec');
 
 describe("kgateway", () => {
-  let cluster = process.env.CLUSTER1;
-    it('kgateway pods are ready in ' + cluster, () => helpers.checkDeployment({ context: cluster, namespace: "kgateway-system", k8sObj: "kgateway" }));
+    it('kgateway pods are ready', () => helpers.checkDeployment({ namespace: "kgateway-system", k8sObj: "kgateway" }));
 });
 EOF
 echo "executing test dist/kgateway-workshop/build/imported/kgateway-labs/templates/steps/install/tests/check-kgateway.test.js.liquid from lab number 2"
@@ -50,7 +49,7 @@ cat <<'EOF' > ./test.js
 const helpers = require('./tests/chai-exec');
 
 describe("kateway GatewayClass", () => {
-  it('kgateway GatewayClass is created', () => helpers.k8sObjectIsPresent({ context: process.env.CLUSTER1, namespace: "kgateway-system", k8sType: "gatewayclass", k8sObj: "kgateway" }));
+  it('kgateway GatewayClass is created', () => helpers.k8sObjectIsPresent({ namespace: "kgateway-system", k8sType: "gatewayclass", k8sObj: "kgateway" }));
 });
 EOF
 echo "executing test dist/kgateway-workshop/build/imported/kgateway-labs/templates/steps/install/tests/check-gatewayclass.test.js.liquid from lab number 2"
@@ -360,6 +359,9 @@ describe("Reviews is not calling ratings", () => {
 EOF
 echo "executing test dist/kgateway-workshop/build/imported/kgateway-labs/templates/steps/rollouts/tests/reviews-route-v1-healthy.test.js.liquid from lab number 7"
 timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 7"; exit 1; }
+curl -LO https://github.com/argoproj/argo-rollouts/releases/latest/download/kubectl-argo-rollouts-linux-amd64
+chmod +x ./kubectl-argo-rollouts-*
+sudo mv ./kubectl-argo-* /usr/local/bin/kubectl-argo-rollouts
 kubectl argo rollouts set image reviews-rollout reviews=docker.io/istio/examples-bookinfo-reviews-v2:1.20.2
 cat <<'EOF' > ./test.js
 const helpers = require('./tests/chai-exec');
@@ -438,18 +440,13 @@ EOF
 echo "executing test dist/kgateway-workshop/build/templates/steps/deploy-amazon-pod-identity-webhook/tests/pods-available.test.js.liquid from lab number 8"
 timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 8"; exit 1; }
 kubectl apply --context ${CLUSTER1} -f - <<EOF
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: lambda
-  labels:
-    self-serve-ingress: "true"
----
 apiVersion: gateway.kgateway.dev/v1alpha1
 kind: Backend
 metadata:
-  name: lambda
-  namespace: lambda
+  name: lambda-echo
+  namespace: httpbin
+  labels:
+    lab: gateway-lambda
 spec:
   type: AWS
   aws:
@@ -464,69 +461,67 @@ spec:
 EOF
 kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: v1
+kind: Secret
+metadata:
+  name: aws-creds
+  namespace: httpbin
+  labels:
+    lab: gateway-lambda
+type: Opaque
 stringData:
   accessKey: ${AWS_ACCESS_KEY_ID}
   secretKey: ${AWS_SECRET_ACCESS_KEY}
   sessionToken: ""
-kind: Secret
-metadata:
-  name: aws-creds
-  namespace: lambda
-type: Opaque
 EOF
 kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
 metadata:
-  name: lambda
-  namespace: lambda
+  name: lambda-echo
+  namespace: httpbin
+  labels:
+    delegation.kgateway.dev/label: httpbin
+    lab: gateway-lambda
 spec:
-  parentRefs:
-    - name: infra-gateway
-      namespace: infra
-      sectionName: httpbin-https
   rules:
   - matches:
     - path:
         type: PathPrefix
         value: /lambda
     backendRefs:
-    - name: lambda
-      namespace: lambda
+    - name: lambda-echo
+      namespace: httpbin
       group: gateway.kgateway.dev
       kind: Backend
-      filters:
-        - type: ExtensionRef
-          extensionRef:
-            group: gateway.kgateway.dev
-            kind: Parameter
-            name: workshop-echo
 EOF
 cat <<'EOF' > ./test.js
 const helpersHttp = require('./tests/chai-http');
 
 describe("Lambda integration is working properly", () => {
-  it(`Checking text 'foo' in response`, () => helpersHttp.checkBody({ host: `https://httpbin.example.com`, path: '/lambda', data: '{"foo":"bar"}', body: 'foo', match: true }));
+  if (!process.env.AWS_ACCESS_KEY_ID) {
+      console.error("[Warning] AWS_ACCESS_KEY_ID is not set");
+    }
+  it(`Checking text 'foo' in response`, () => process.env.AWS_ACCESS_KEY_ID ? helpersHttp.checkBody({ host: `https://httpbin.example.com`, path: '/lambda', data: '{"foo":"bar"}', body: 'foo', match: true }) : true);
 })
 EOF
-echo "executing test dist/kgateway-workshop/build/templates/steps/gateway-lambda/tests/check-lambda-echo.test.js.liquid from lab number 9"
+echo "executing test dist/kgateway-workshop/build/templates/steps/apps/httpbin/gateway-lambda/tests/check-lambda-echo.test.js.liquid from lab number 9"
 timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 9"; exit 1; }
-kubectl --context ${CLUSTER1} delete secret -n infra aws-creds
-kubectl --context ${CLUSTER1} annotate sa -n infra infra-gateway "eks.amazonaws.com/role-arn=arn:aws:iam::253915036081:role/lambda-workshop"
-kubectl --context ${CLUSTER1} rollout restart deployment -n infra infra-gateway
+kubectl --context ${CLUSTER1} delete secret -n httpbin aws-creds
+kubectl --context ${CLUSTER1} annotate sa -n kgateway-system http "eks.amazonaws.com/role-arn=arn:aws:iam::253915036081:role/lambda-workshop" --overwrite
+kubectl --context ${CLUSTER1} rollout restart deployment -n kgateway-system http
 kubectl apply --context ${CLUSTER1} -f - <<EOF
 apiVersion: gateway.kgateway.dev/v1alpha1
 kind: Backend
 metadata:
-  name: lambda
-  namespace: lambda
+  name: lambda-echo
+  namespace: httpbin
+  labels:
+    lab: gateway-lambda
 spec:
   type: AWS
   aws:
     region: eu-west-1
     accountId: "253915036081"
-    auth:
-      type: IRSA
     lambda:
       functionName: workshop-echo
 EOF
@@ -534,8 +529,15 @@ cat <<'EOF' > ./test.js
 const helpersHttp = require('./tests/chai-http');
 
 describe("Lambda integration is working properly", () => {
-  it(`Checking text 'foo' in response`, () => helpersHttp.checkBody({ host: `https://httpbin.example.com`, path: '/lambda', data: '{"foo":"bar"}', body: 'foo', match: true }));
+  if (!process.env.AWS_ACCESS_KEY_ID) {
+      console.error("[Warning] AWS_ACCESS_KEY_ID is not set");
+    }
+  it(`Checking text 'foo' in response`, () => process.env.AWS_ACCESS_KEY_ID ? helpersHttp.checkBody({ host: `https://httpbin.example.com`, path: '/lambda', data: '{"foo":"bar"}', body: 'foo', match: true }) : true);
 })
 EOF
-echo "executing test dist/kgateway-workshop/build/templates/steps/gateway-lambda/tests/check-lambda-echo.test.js.liquid from lab number 9"
+echo "executing test dist/kgateway-workshop/build/templates/steps/apps/httpbin/gateway-lambda/tests/check-lambda-echo.test.js.liquid from lab number 9"
 timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 9"; exit 1; }
+kubectl --context ${CLUSTER1} -n httpbin delete Backend,HTTPRoute,Secret -l 'lab=gateway-lambda'
+kubectl --context ${CLUSTER1} annotate sa -n kgateway-system http "eks.amazonaws.com/role-arn-"
+kubectl --context ${CLUSTER1} rollout status deployment -n kgateway-system http
+kubectl --context ${CLUSTER1} rollout restart deployment -n kgateway-system http
