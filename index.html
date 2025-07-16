@@ -53,42 +53,50 @@
 <script>
 // JSON data for "Gloo Mesh Workshops in Markdown Format"
 const jsonTable1 = {
-  "headers": ["Workshop", "default", "airgap", "gitops", "openshift", "ambient"],
+  "headers": ["Workshop", "default", "airgap", "gitops", "openshift", "ambient", "omni", "lightswitch"],
   "rows": [
     {
       "Workshop": "Gloo Mesh Core",
       "default": [
-        { "text": "2.5", "url": "https://github.com/solo-io/workshops/tree/master/gloo-mesh/core/2-5/default" },
-        { "text": "2.6", "url": "https://github.com/solo-io/workshops/tree/master/gloo-mesh/core/2-6/default" },
-        { "text": "2.7", "url": "https://github.com/solo-io/workshops/tree/master/gloo-mesh/core/2-7/default" }
+        { "text": "2.7", "url": "https://github.com/solo-io/workshops/tree/master/gloo-mesh/core/2-7/default" },
+        { "text": "2.8", "url": "https://github.com/solo-io/workshops/tree/master/gloo-mesh/core/2-8/default" },
+        { "text": "2.9", "url": "https://github.com/solo-io/workshops/tree/master/gloo-mesh/core/2-9/default" }
       ],
       "ambient": [
-        { "text": "2.6", "url": "https://github.com/solo-io/workshops/tree/master/gloo-mesh/core/2-6/ambient" },
         { "text": "2.7", "url": "https://github.com/solo-io/workshops/tree/master/gloo-mesh/core/2-7/ambient" },
-        { "text": "2.7-omni", "url": "https://github.com/solo-io/workshops/tree/master/gloo-mesh/core/2-7/omni" }
+        { "text": "2.8", "url": "https://github.com/solo-io/workshops/tree/master/gloo-mesh/core/2-8/ambient" },
+        { "text": "2.9", "url": "https://github.com/solo-io/workshops/tree/master/gloo-mesh/core/2-9/ambient" }
+      ],
+      "omni": [
+        { "text": "2.7", "url": "https://github.com/solo-io/workshops/tree/master/gloo-mesh/core/2-7/omni" },
+        { "text": "2.8", "url": "https://github.com/solo-io/workshops/tree/master/gloo-mesh/core/2-8/omni" },
+        { "text": "2.9", "url": "https://github.com/solo-io/workshops/tree/master/gloo-mesh/core/2-9/omni" }
+      ],
+      "lightswitch": [
+        { "text": "2.9", "url": "https://github.com/solo-io/workshops/tree/master/gloo-mesh/core/2-9/ambient-lightswitch" }
       ]
     },
     {
       "Workshop": "Gloo Mesh Enterprise",
       "default": [
-        { "text": "2.5", "url": "https://github.com/solo-io/workshops/tree/master/gloo-mesh/enterprise/2-5/default" },
-        { "text": "2.6", "url": "https://github.com/solo-io/workshops/tree/master/gloo-mesh/enterprise/2-6/default" },
-        { "text": "2.7", "url": "https://github.com/solo-io/workshops/tree/master/gloo-mesh/enterprise/2-7/default" }
+        { "text": "2.7", "url": "https://github.com/solo-io/workshops/tree/master/gloo-mesh/enterprise/2-7/default" },
+        { "text": "2.8", "url": "https://github.com/solo-io/workshops/tree/master/gloo-mesh/enterprise/2-8/default" },
+        { "text": "2.9", "url": "https://github.com/solo-io/workshops/tree/master/gloo-mesh/enterprise/2-9/default" }
       ],
       "airgap": [
-        { "text": "2.5", "url": "https://github.com/solo-io/workshops/tree/master/gloo-mesh/enterprise/2-5/airgap/default" },
-        { "text": "2.6", "url": "https://github.com/solo-io/workshops/tree/master/gloo-mesh/enterprise/2-6/airgap/default" },
-        { "text": "2.7", "url": "https://github.com/solo-io/workshops/tree/master/gloo-mesh/enterprise/2-7/airgap/default" }
+        { "text": "2.7", "url": "https://github.com/solo-io/workshops/tree/master/gloo-mesh/enterprise/2-7/airgap/default" },
+        { "text": "2.8", "url": "https://github.com/solo-io/workshops/tree/master/gloo-mesh/enterprise/2-8/airgap/default" },
+        { "text": "2.9", "url": "https://github.com/solo-io/workshops/tree/master/gloo-mesh/enterprise/2-9/airgap/default" }
       ],
       "gitops": [
-        { "text": "2.5", "url": "https://github.com/solo-io/workshops/tree/master/gloo-mesh/enterprise/2-5/gitops/default" },
-        { "text": "2.6", "url": "https://github.com/solo-io/workshops/tree/master/gloo-mesh/enterprise/2-6/gitops/default" },
-        { "text": "2.7", "url": "https://github.com/solo-io/workshops/tree/master/gloo-mesh/enterprise/2-7/gitops/default" }
+        { "text": "2.7", "url": "https://github.com/solo-io/workshops/tree/master/gloo-mesh/enterprise/2-7/gitops/default" },
+        { "text": "2.8", "url": "https://github.com/solo-io/workshops/tree/master/gloo-mesh/enterprise/2-8/gitops/default" },
+        { "text": "2.9", "url": "https://github.com/solo-io/workshops/tree/master/gloo-mesh/enterprise/2-9/gitops/default" }
       ],
       "openshift": [
-        { "text": "2.5", "url": "https://github.com/solo-io/workshops/tree/master/gloo-mesh/enterprise/2-5/openshift/default" },
-        { "text": "2.6", "url": "https://github.com/solo-io/workshops/tree/master/gloo-mesh/enterprise/2-6/openshift/default" },
-        { "text": "2.7", "url": "https://github.com/solo-io/workshops/tree/master/gloo-mesh/enterprise/2-7/openshift/default" }
+        { "text": "2.7", "url": "https://github.com/solo-io/workshops/tree/master/gloo-mesh/enterprise/2-7/openshift/default" },
+        { "text": "2.8", "url": "https://github.com/solo-io/workshops/tree/master/gloo-mesh/enterprise/2-8/openshift/default" },
+        { "text": "2.9", "url": "https://github.com/solo-io/workshops/tree/master/gloo-mesh/enterprise/2-9/openshift/default" }
       ],
     }
   ]
@@ -107,43 +115,47 @@ const jsonTable2 = {
     {
       "Workshop": "Gloo Gateway Open Source",
       "default": [
-        { "text": "1.17", "url": "https://github.com/solo-io/workshops/tree/master/gloo-gateway/1-17/oss/default" },
-        { "text": "1.18", "url": "https://github.com/solo-io/workshops/tree/master/gloo-gateway/1-18/oss/default" }
+        { "text": "1.18", "url": "https://github.com/solo-io/workshops/tree/master/gloo-gateway/1-18/oss/default" },
+        { "text": "1.19", "url": "https://github.com/solo-io/workshops/tree/master/gloo-gateway/1-19/oss/default" }
       ],
       "ambient": [
-        { "text": "1.17", "url": "https://github.com/solo-io/workshops/tree/master/gloo-gateway/1-17/oss-istio-ambient" },
-        { "text": "1.18", "url": "https://github.com/solo-io/workshops/tree/master/gloo-gateway/1-18/oss-istio-ambient" }
+        { "text": "1.18", "url": "https://github.com/solo-io/workshops/tree/master/gloo-gateway/1-18/oss-istio-ambient" },
+        { "text": "1.19", "url": "https://github.com/solo-io/workshops/tree/master/gloo-gateway/1-19/oss-istio-ambient" }
       ],
     },
     {
       "Workshop": "Gloo Gateway Enterprise",
       "default": [
-        { "text": "1.17", "url": "https://github.com/solo-io/workshops/tree/master/gloo-gateway/1-17/enterprise/default" },
-        { "text": "1.18", "url": "https://github.com/solo-io/workshops/tree/master/gloo-gateway/1-18/enterprise/default" }
+        { "text": "1.18", "url": "https://github.com/solo-io/workshops/tree/master/gloo-gateway/1-18/enterprise/default" },
+        { "text": "1.19", "url": "https://github.com/solo-io/workshops/tree/master/gloo-gateway/1-19/enterprise/default" }
       ],
       "vm": [
-        { "text": "1.17", "url": "https://github.com/solo-io/workshops/tree/master/gloo-gateway/1-17/enterprise-vm/default" },
-        { "text": "1.18", "url": "https://github.com/solo-io/workshops/tree/master/gloo-gateway/1-18/enterprise-vm/default" }
+        { "text": "1.18", "url": "https://github.com/solo-io/workshops/tree/master/gloo-gateway/1-18/enterprise-vm/default" },
+        { "text": "1.19", "url": "https://github.com/solo-io/workshops/tree/master/gloo-gateway/1-19/enterprise-vm/default" }
       ],
       "openshift": [
-        { "text": "1.17", "url": "https://github.com/solo-io/workshops/tree/master/gloo-gateway/1-17/openshift" },
-        { "text": "1.18", "url": "https://github.com/solo-io/workshops/tree/master/gloo-gateway/1-18/openshift" }
+        { "text": "1.18", "url": "https://github.com/solo-io/workshops/tree/master/gloo-gateway/1-18/openshift" },
+        { "text": "1.19", "url": "https://github.com/solo-io/workshops/tree/master/gloo-gateway/1-19/openshift" }
       ],
       "lambda": [
-        { "text": "1.18", "url": "https://github.com/solo-io/workshops/tree/master/gloo-gateway/1-18/enterprise/lambda" }
+        { "text": "1.18", "url": "https://github.com/solo-io/workshops/tree/master/gloo-gateway/1-18/enterprise/lambda" },
+        { "text": "1.19", "url": "https://github.com/solo-io/workshops/tree/master/gloo-gateway/1-19/enterprise/lambda" }
       ],
       "waypoint": [
-        { "text": "1.18", "url": "https://github.com/solo-io/workshops/tree/master/gloo-gateway/1-18/waypoint/default" }
+        { "text": "1.18", "url": "https://github.com/solo-io/workshops/tree/master/gloo-gateway/1-18/waypoint/default" },
+        { "text": "1.19", "url": "https://github.com/solo-io/workshops/tree/master/gloo-gateway/1-19/waypoint/default" }
       ],
       "virtual destination": [
-        { "text": "1.18", "url": "https://github.com/solo-io/workshops/tree/master/gloo-gateway/1-18/gloo-mesh-vd/default" }
+        { "text": "1.18", "url": "https://github.com/solo-io/workshops/tree/master/gloo-gateway/1-18/gloo-mesh-vd/default" },
+        { "text": "1.19", "url": "https://github.com/solo-io/workshops/tree/master/gloo-gateway/1-19/gloo-mesh-vd/default" }
       ],
       "ai": [
-        { "text": "1.18", "url": "https://github.com/solo-io/workshops/tree/master/gloo-gateway/1-18/enterprise/ai-gateway" }
+        { "text": "1.18", "url": "https://github.com/solo-io/workshops/tree/master/gloo-gateway/1-18/enterprise/ai-gateway" },
+        { "text": "1.19", "url": "https://github.com/solo-io/workshops/tree/master/gloo-gateway/1-19/enterprise/ai-gateway" }
       ],
       "ambient": [
-        { "text": "1.17", "url": "https://github.com/solo-io/workshops/tree/master/gloo-gateway/1-17/enterprise-istio-ambient/default" },
-        { "text": "1.18", "url": "https://github.com/solo-io/workshops/tree/master/gloo-gateway/1-18/enterprise-istio-ambient/default" }
+        { "text": "1.18", "url": "https://github.com/solo-io/workshops/tree/master/gloo-gateway/1-18/enterprise-istio-ambient/default" },
+        { "text": "1.19", "url": "https://github.com/solo-io/workshops/tree/master/gloo-gateway/1-19/enterprise-istio-ambient/default" }
       ],
     }
   ]
@@ -156,18 +168,22 @@ const jsonTable3 = {
     {
       "Workshop": "Gloo Mesh Core",
       "default": [
-        { "text": "2.5", "url": "https://play.instruqt.com/manage/soloio/tracks/core-2-5-default" },
-        { "text": "2.6", "url": "https://play.instruqt.com/manage/soloio/tracks/core-2-6-default" }
+        { "text": "2.7", "url": "https://play.instruqt.com/manage/soloio/tracks/core-2-7-default" },
+        { "text": "2.8", "url": "https://play.instruqt.com/manage/soloio/tracks/core-2-8-default" },
+        { "text": "2.9", "url": "https://play.instruqt.com/manage/soloio/tracks/core-2-9-default" }
       ],
       "ambient": [
-        { "text": "2.6", "url": "https://play.instruqt.com/manage/soloio/tracks/core-2-6-ambient" }
+        { "text": "2.7", "url": "https://play.instruqt.com/manage/soloio/tracks/core-2-7-ambient" },
+        { "text": "2.8", "url": "https://play.instruqt.com/manage/soloio/tracks/core-2-8-ambient" },
+        { "text": "2.9", "url": "https://play.instruqt.com/manage/soloio/tracks/core-2-9-ambient" }
       ]
     },
     {
       "Workshop": "Gloo Mesh Enterprise",
       "default": [
-        { "text": "2.5", "url": "https://play.instruqt.com/manage/soloio/tracks/enterprise-2-5-default" },
-        { "text": "2.6", "url": "https://play.instruqt.com/manage/soloio/tracks/enterprise-2-6-default" }
+        { "text": "2.7", "url": "https://play.instruqt.com/manage/soloio/tracks/enterprise-2-7-default" },
+        { "text": "2.8", "url": "https://play.instruqt.com/manage/soloio/tracks/enterprise-2-8-default" },
+        { "text": "2.9", "url": "https://play.instruqt.com/manage/soloio/tracks/enterprise-2-9-default" }
       ],
     }
   ]
@@ -186,27 +202,31 @@ const jsonTable4 = {
     {
       "Workshop": "Gloo Gateway Open Source",
       "default": [
-        { "text": "1.17", "url": "https://play.instruqt.com/manage/soloio/tracks/1-17-oss-default" },
-        { "text": "1.18", "url": "https://play.instruqt.com/manage/soloio/tracks/1-18-oss-default" }
+        { "text": "1.18", "url": "https://play.instruqt.com/manage/soloio/tracks/1-18-oss-default" },
+        { "text": "1.19", "url": "https://play.instruqt.com/manage/soloio/tracks/1-19-oss-default" }
       ],
     },
     {
       "Workshop": "Gloo Gateway Enterprise",
       "default": [
-        { "text": "1.17", "url": "https://play.instruqt.com/manage/soloio/tracks/1-17-enterprise-default" },
-        { "text": "1.18", "url": "https://play.instruqt.com/manage/soloio/tracks/1-18-enterprise-default" }
+        { "text": "1.18", "url": "https://play.instruqt.com/manage/soloio/tracks/1-18-enterprise-default" },
+        { "text": "1.19", "url": "https://play.instruqt.com/manage/soloio/tracks/1-19-enterprise-default" }
       ],
       "lambda": [
-        { "text": "1.18", "url": "https://play.instruqt.com/manage/soloio/tracks/1-18-enterprise-lambda" }
+        { "text": "1.18", "url": "https://play.instruqt.com/manage/soloio/tracks/1-18-enterprise-lambda" },
+        { "text": "1.19", "url": "https://play.instruqt.com/manage/soloio/tracks/1-19-enterprise-lambda" }
       ],
       "waypoint": [
-        { "text": "1.18", "url": "https://play.instruqt.com/manage/soloio/tracks/1-18-waypoint-default" }
+        { "text": "1.18", "url": "https://play.instruqt.com/manage/soloio/tracks/1-18-waypoint-default" },
+        { "text": "1.19", "url": "https://play.instruqt.com/manage/soloio/tracks/1-19-waypoint-default" }
       ],
       "virtual destination": [
-        { "text": "1.18", "url": "https://play.instruqt.com/manage/soloio/tracks/1-18-gloo-mesh-vd-default" }
+        { "text": "1.18", "url": "https://play.instruqt.com/manage/soloio/tracks/1-18-gloo-mesh-vd-default" },
+        { "text": "1.19", "url": "https://play.instruqt.com/manage/soloio/tracks/1-19-gloo-mesh-vd-default" }
       ],
       "ai": [
-        { "text": "1.18", "url": "https://play.instruqt.com/manage/soloio/tracks/1-18-enterprise-ai-gateway-default" }
+        { "text": "1.18", "url": "https://play.instruqt.com/manage/soloio/tracks/1-18-enterprise-ai-gateway-default" },
+        { "text": "1.19", "url": "https://play.instruqt.com/manage/soloio/tracks/1-19-enterprise-ai-gateway-default" }
       ],
     }
   ]
