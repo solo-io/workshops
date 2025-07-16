@@ -1,8 +1,17 @@
 const axios = require('axios');
 const https = require('https');
-const fs = require('fs');
+const fs = require('fs-extra');
 const { execSync } = require('child_process');
 const { JSONPath } = require('jsonpath-plus');
+
+/**
+ * Debug logging helper - only logs when DEBUG_MODE env var is set to 'true'
+ */
+function debugLog(...args) {
+  if (process.env.DEBUG_MODE === 'true') {
+    console.debug(...args);
+  }
+}
 
 /**
  * Builds kubectl command argument parts for resource selection
@@ -42,7 +51,8 @@ const buildSelectorArgs = (selector) => {
 
 module.exports = {
   executeHttpTest,
-  executeKubectlWait
+  executeKubectlWait,
+  executeCommandTest
 };
 
 /**
@@ -98,7 +108,7 @@ async function sleep(ms) {
  * @param {any} actual - The actual value to check
  * @param {object} comparison - The comparison configuration
  * @param {string} description - Optional description for logging
- * @returns {boolean} - Whether the comparison succeeded
+ * @throws {Error} - Throws error if comparison fails
  */
 function compareValue(actual, comparison, description = 'Value') {
   // Convert non-string values to string for contains and matches operations
@@ -108,37 +118,52 @@ function compareValue(actual, comparison, description = 'Value') {
   switch (comparison.comparator) {
     case 'exists':
       result = actual !== undefined && actual !== null;
-      console.debug(`${description} ${comparison.negate ? 'should not exist' : 'should exist'}: ${result ? 'exists' : 'does not exist'}`);
+      debugLog(`${description} ${comparison.negate ? 'should not exist' : 'should exist'}: ${result ? 'exists' : 'does not exist'}`);
       break;
       
     case 'equals':
       result = deepCompare(actual, comparison.value);
-      console.debug(`${description} ${comparison.negate ? 'should not equal' : 'should equal'} ${JSON.stringify(comparison.value)}: ${result ? 'match' : 'no match'}`);
+      debugLog(`${description} ${comparison.negate ? 'should not equal' : 'should equal'} ${JSON.stringify(comparison.value)} (found ${actual}): ${result ? 'match' : 'no match'}`);
       break;
       
     case 'contains':
       result = actualAsString.includes(String(comparison.value));
-      console.debug(`${description} ${comparison.negate ? 'should not contain' : 'should contain'} "${comparison.value}": ${result ? 'contains' : 'does not contain'}`);
+      debugLog(`${description} ${comparison.negate ? 'should not contain' : 'should contain'} "${comparison.value}" (found ${actual}): ${result ? 'contains' : 'does not contain'}`);
       break;
       
     case 'matches':
       result = new RegExp(comparison.value).test(actualAsString);
-      console.debug(`${description} ${comparison.negate ? 'should not match' : 'should match'} /${comparison.value}/: ${result ? 'matches' : 'does not match'}`);
+      debugLog(`${description} ${comparison.negate ? 'should not match' : 'should match'} /${comparison.value}/ (found ${actual}): ${result ? 'matches' : 'does not match'}`);
+      break;
+    
+    case 'greaterThan':
+      result = Number(actual) > Number(comparison.value);
+      debugLog(`${description} ${comparison.negate ? 'should not be greater than' : 'should be greater than'} ${comparison.value} (found ${actual}): ${result ? 'greater than' : 'not greater than'}`);
+      break;
+      
+    case 'lessThan':
+      result = Number(actual) < Number(comparison.value);
+      debugLog(`${description} ${comparison.negate ? 'should not be less than' : 'should be less than'} ${comparison.value} (found ${actual}): ${result ? 'less than' : 'not less than'}`);
       break;
       
     default:
-      console.error(`Unknown comparator: ${comparison.comparator}`);
-      return false;
+      throw new Error(`Unknown comparator: ${comparison.comparator}`);
   }
   
   // If negate is true, invert the result
-  return comparison.negate ? !result : result;
+  const finalResult = comparison.negate ? !result : result;
+  
+  if (!finalResult) {
+    const operation = comparison.negate ? `not ${comparison.comparator}` : comparison.comparator;
+    const valueStr = comparison.comparator !== 'exists' ? ` ${JSON.stringify(comparison.value)}` : '';
+    throw new Error(`${description} comparison failed: expected to ${operation}${valueStr}`);
+  }
 }
 
 /**
- * HTTP test executor - maintains the same interface as in the test framework
+ * HTTP test executor - throws on failure following Mocha conventions
  * @param {object} test - The test configuration
- * @returns {Promise<boolean>} - Promise resolving to whether the test passed
+ * @returns {Promise<void>} - Promise resolving when test passes, rejecting when it fails
  */
 async function executeHttpTest(test) {
   if (!test.http) {
@@ -152,8 +177,8 @@ async function executeHttpTest(test) {
   }
   
   try {
-    console.debug(`Executing HTTP test: ${testName}`);
-    console.debug(`Request details: ${JSON.stringify({
+    debugLog(`Executing HTTP test: ${testName}`);
+    debugLog(`Request details: ${JSON.stringify({
       method: test.http.method,
       url: test.http.url + test.http.path,
       headers: test.http.headers || {},
@@ -164,41 +189,36 @@ async function executeHttpTest(test) {
     let response;
     
     if (test.source.type === 'local') {
-      console.debug('Using local HTTP client');
+      debugLog('Using local HTTP client');
       response = await executeLocalHttpRequest(test.http);
     } else if (test.source.type === 'pod') {
       if (!test.source.selector) {
         throw new Error('Kubernetes selector is required for pod-based tests');
       }
       
-      console.debug(`Using kubectl debug to access pod ${JSON.stringify(test.source.selector)}`);
+      debugLog(`Using kubectl debug to access pod ${JSON.stringify(test.source.selector)}`);
       response = await executePodHttpRequest(test);
     } else {
       throw new Error(`Unsupported source type: ${test.source.type}`);
     }
 
     // Log the response details at debug level
-    console.debug(`Response received: ${JSON.stringify({
+    debugLog(`Response received: ${JSON.stringify({
       statusCode: response.statusCode,
       headers: response.headers,
       body: response.body
     }, null, 2)}`);
 
-    // Validate expectations
-    const success = validateHttpExpectations(response, test.expect, testName);
+    // Validate expectations - this will throw if validation fails
+    validateHttpExpectations(response, test.expect, testName);
     
-    if (success) {
-      console.debug(`Test passed: ${testName}`);
-    } else {
-      console.error(`Test failed: ${testName}`);
-    }
-    
-    return success;
+    debugLog(`Test passed: ${testName}`);
   } catch (error) {
-    console.error(`Test failed with error: ${testName}`);
-    console.error(error?.message || String(error));
-    return false;
+    debugLog(`Test failed: ${testName}`);
+    debugLog(error?.message || String(error));
+    throw error; // Re-throw to ensure Mocha catches the failure
   }
+  return true;
 }
 
 /**
@@ -207,7 +227,7 @@ async function executeHttpTest(test) {
  * @returns {Promise<object>} - The response object
  */
 async function executeLocalHttpRequest(httpConfig) {
-  console.debug(`Executing local HTTP request: ${httpConfig.method} ${httpConfig.url}${httpConfig.path}`);
+  debugLog(`Executing local HTTP request: ${httpConfig.method} ${httpConfig.url}${httpConfig.path}`);
   
   // Configure HTTPS Agent with certificates if provided
   let httpsAgent;
@@ -218,14 +238,14 @@ async function executeLocalHttpRequest(httpConfig) {
     
     // Add certificate and key if provided
     if (httpConfig.cert || httpConfig.key || httpConfig.ca) {
-      console.debug('Using SSL certificates for HTTPS request');
+      debugLog('Using SSL certificates for HTTPS request');
       
       if (httpConfig.cert) {
         try {
           agentOptions.cert = fs.readFileSync(httpConfig.cert);
-          console.debug(`Loaded certificate from ${httpConfig.cert}`);
+          debugLog(`Loaded certificate from ${httpConfig.cert}`);
         } catch (error) {
-          console.error(`Failed to read certificate file: ${error}`);
+          debugLog(`Failed to read certificate file: ${error}`);
           throw new Error(`Failed to read certificate file: ${error}`);
         }
       }
@@ -233,9 +253,9 @@ async function executeLocalHttpRequest(httpConfig) {
       if (httpConfig.key) {
         try {
           agentOptions.key = fs.readFileSync(httpConfig.key);
-          console.debug(`Loaded key from ${httpConfig.key}`);
+          debugLog(`Loaded key from ${httpConfig.key}`);
         } catch (error) {
-          console.error(`Failed to read key file: ${error}`);
+          debugLog(`Failed to read key file: ${error}`);
           throw new Error(`Failed to read key file: ${error}`);
         }
       }
@@ -243,9 +263,9 @@ async function executeLocalHttpRequest(httpConfig) {
       if (httpConfig.ca) {
         try {
           agentOptions.ca = fs.readFileSync(httpConfig.ca);
-          console.debug(`Loaded CA certificate from ${httpConfig.ca}`);
+          debugLog(`Loaded CA certificate from ${httpConfig.ca}`);
         } catch (error) {
-          console.error(`Failed to read CA certificate file: ${error}`);
+          debugLog(`Failed to read CA certificate file: ${error}`);
           throw new Error(`Failed to read CA certificate file: ${error}`);
         }
       }
@@ -255,7 +275,7 @@ async function executeLocalHttpRequest(httpConfig) {
   }
   
   if (httpConfig.skipSslVerification) {
-    console.debug(`SSL certificate verification is disabled`);
+    debugLog(`SSL certificate verification is disabled`);
   }
 
   try {
@@ -263,12 +283,13 @@ async function executeLocalHttpRequest(httpConfig) {
       method: httpConfig.method.toLowerCase(),
       url: `${httpConfig.url}${httpConfig.path}`,
       headers: httpConfig.headers || {},
+      maxRedirects: httpConfig.maxRedirects || 0,
       data: httpConfig.body,
       httpsAgent,
       validateStatus: () => true // Don't throw error on non-2xx status codes
     });
 
-    console.debug(`Response received with status code: ${response.status}`);
+    debugLog(`Response received with status code: ${response.status}`);
     
     return {
       statusCode: response.status,
@@ -276,7 +297,7 @@ async function executeLocalHttpRequest(httpConfig) {
       body: response.data,
     };
   } catch (error) {
-    console.error(`Request failed: ${error.message}`);
+    debugLog(`Request failed: ${error.message}`);
     throw error;
   }
 }
@@ -296,7 +317,7 @@ async function executePodHttpRequest(test) {
   const httpConfig = test.http;
   
   try {
-    console.debug(`Executing HTTP request via pod: ${httpConfig.method} ${httpConfig.url}${httpConfig.path}`);
+    debugLog(`Executing HTTP request via pod: ${httpConfig.method} ${httpConfig.url}${httpConfig.path}`);
     
     // Execute the Node.js HTTP request in the pod
     const stdout = await debugPodWithHttpRequest(
@@ -305,7 +326,7 @@ async function executePodHttpRequest(test) {
       container
     );
     
-    console.debug(`Debug output raw length: ${stdout.length} bytes`);
+    debugLog(`Debug output raw length: ${stdout.length} bytes`);
     
     try {
       // Find the JSON response in the output using regex to be more robust
@@ -313,28 +334,28 @@ async function executePodHttpRequest(test) {
       const match = stdout.match(responseRegex);
       
       if (!match || !match[1]) {
-        console.error(`Full pod debug output:\n${stdout}`);
+        debugLog(`Full pod debug output:\n${stdout}`);
         throw new Error('Could not find HTTP response markers in the output');
       }
       
       const jsonResponse = match[1].trim();
-      console.debug(`Extracted JSON response (${jsonResponse.length} bytes)`);
+      debugLog(`Extracted JSON response (${jsonResponse.length} bytes)`);
       
       try {
         const response = JSON.parse(jsonResponse);
-        console.debug(`Successfully parsed response from pod execution`);
+        debugLog(`Successfully parsed response from pod execution`);
         return response;
       } catch (jsonError) {
-        console.error(`Failed to parse JSON: ${jsonError.message}`);
-        console.error(`JSON content: ${jsonResponse}`);
+        debugLog(`Failed to parse JSON: ${jsonError.message}`);
+        debugLog(`JSON content: ${jsonResponse}`);
         throw new Error(`Failed to parse JSON response: ${jsonError.message}`);
       }
     } catch (parseError) {
-      console.error(`Failed to parse response: ${parseError.message || String(parseError)}`);
+      debugLog(`Failed to parse response: ${parseError.message || String(parseError)}`);
       throw new Error(`Failed to parse response: ${parseError.message || String(parseError)}`);
     }
   } catch (error) {
-    console.error(`Failed to execute pod-based request: ${error?.message || String(error)}`);
+    debugLog(`Failed to execute pod-based request: ${error?.message || String(error)}`);
     throw new Error(`Failed to execute pod-based request: ${error?.message || String(error)}`);
   }
 }
@@ -357,21 +378,21 @@ async function debugPodWithHttpRequest(selector, httpConfig, container) {
   try {
     // Get a human-readable resource description for logs
     const resourceDescription = getResourceDescription(selector);
-    console.debug(`Finding pod for ${resourceDescription}`);
+    debugLog(`Finding pod for ${resourceDescription}`);
     
     let podName;
     
     // If a specific pod name is given
     if (selector.metadata.name) {
       podName = selector.metadata.name;
-      console.debug(`Using specified pod name: ${podName}`);
+      debugLog(`Using specified pod name: ${podName}`);
     } 
     // Otherwise, use label selectors to find a pod
     else if (selector.metadata.labels && Object.keys(selector.metadata.labels).length > 0) {
       // Build kubectl command to get pod name
       const labelSelector = labelsToSelectorString(selector.metadata.labels);
       const getPodCmd = `kubectl ${context ? `--context=${context}` : ''} -n ${namespace} get pods -l ${labelSelector} -o jsonpath='{.items[0].metadata.name}'`;
-      console.debug(`Pod finder command: ${getPodCmd}`);
+      debugLog(`Pod finder command: ${getPodCmd}`);
       
       try {
         const podOutput = execSync(getPodCmd, { encoding: 'utf8' });
@@ -384,7 +405,7 @@ async function debugPodWithHttpRequest(selector, httpConfig, container) {
         throw new Error(`No pods found matching labels ${labelSelector} in namespace ${namespace}`);
       }
       
-      console.debug(`Found pod ${podName} for ${resourceDescription}`);
+      debugLog(`Found pod ${podName} for ${resourceDescription}`);
     } else {
       throw new Error('Either metadata.name or metadata.labels must be provided in Kubernetes selector for pod debug');
     }
@@ -394,7 +415,7 @@ async function debugPodWithHttpRequest(selector, httpConfig, container) {
     const script = createHttpRequestScript(httpConfig);
     
     fs.writeFileSync(tempScriptPath, script, 'utf8');
-    console.debug(`Created temporary script at ${tempScriptPath}`);
+    debugLog(`Created temporary script at ${tempScriptPath}`);
     
     try {
       // Execute debug command on the found pod with the script
@@ -403,13 +424,13 @@ async function debugPodWithHttpRequest(selector, httpConfig, container) {
       // Clean up the temporary file
       try {
         fs.unlinkSync(tempScriptPath);
-        console.debug(`Removed temporary script ${tempScriptPath}`);
+        debugLog(`Removed temporary script ${tempScriptPath}`);
       } catch (cleanupError) {
-        console.warn(`Failed to clean up temporary script: ${cleanupError.message}`);
+        debugLog(`Failed to clean up temporary script: ${cleanupError.message}`);
       }
     }
   } catch (error) {
-    console.error(`Failed to debug pod for selector ${selector.kind}/${selector.metadata.namespace || 'default'}: ${error?.message || String(error)}`);
+    debugLog(`Failed to debug pod for selector ${selector.kind}/${selector.metadata.namespace || 'default'}: ${error?.message || String(error)}`);
     throw new Error(`Failed to debug pod for selector: ${error?.message || String(error)}`);
   }
 }
@@ -425,6 +446,13 @@ const http = require('http');
 const https = require('https');
 const url = require('url');
 const fs = require('fs');
+
+// Debug logging helper - only logs when DEBUG_MODE env var is set to 'true'
+function debugLog(...args) {
+  if (process.env.DEBUG_MODE === 'true') {
+    console.log(...args);
+  }
+}
 
 // Process URL
 const fullUrl = "${httpConfig.url}${httpConfig.path}";
@@ -446,7 +474,7 @@ ${httpConfig.cert ? `// Certificate handling would go here in production code` :
 ${httpConfig.key ? `// Key handling would go here in production code` : ''}
 ${httpConfig.ca ? `// CA certificate handling would go here in production code` : ''}
 
-console.log("Starting HTTP request to " + fullUrl);
+debugLog("Starting HTTP request to " + fullUrl);
 
 // Create request
 const req = (isHttps ? https : http).request(options, (res) => {
@@ -465,10 +493,10 @@ const req = (isHttps ? https : http).request(options, (res) => {
     // Try to parse as JSON
     try {
       body = JSON.parse(data);
-      console.log("Parsed response as JSON");
+      debugLog("Parsed response as JSON");
     } catch (e) {
       body = data;
-      console.log("Keeping response as string");
+      debugLog("Keeping response as string");
     }
     
     // Create response object
@@ -505,12 +533,12 @@ ${httpConfig.body ?
     httpConfig.body : 
     JSON.stringify(httpConfig.body))};
 req.write(bodyData);
-console.log("Added request body");` : 
+debugLog("Added request body");` : 
   '// No body to add'}
 
 // Send the request
 req.end();
-console.log("Request sent, waiting for response...");
+debugLog("Request sent, waiting for response...");
 `;
 }
 
@@ -525,7 +553,7 @@ console.log("Request sent, waiting for response...");
  */
 async function debugPodWithScript(namespace, podName, scriptPath, context, container) {
   try {
-    console.debug(`Debugging pod ${namespace}/${podName} to execute HTTP request`);
+    debugLog(`Debugging pod ${namespace}/${podName} to execute HTTP request`);
     
     // Copy the script to the pod using kubectl cp
     const tempPodScript = '/tmp/http-request.js';
@@ -550,7 +578,7 @@ $(cat ${scriptPath})
 EOFSCRIPT
 node ${tempPodScript}"`;
     
-    console.debug(`Executing debug command with script`);
+    debugLog(`Executing debug command with script`);
     
     const stdout = execSync(debugCmd, { 
       encoding: 'utf8',
@@ -559,31 +587,27 @@ node ${tempPodScript}"`;
     
     return stdout;
   } catch (error) {
-    console.error(`Failed to debug pod ${namespace}/${podName}: ${error?.message || String(error)}`);
+    debugLog(`Failed to debug pod ${namespace}/${podName}: ${error?.message || String(error)}`);
     throw new Error(`Failed to debug pod ${namespace}/${podName}: ${error?.message || String(error)}`);
   }
 }
 
 /**
- * Validate HTTP expectations against a response
+ * Validate HTTP expectations against a response - throws on failure
  * @param {object} response - The HTTP response
  * @param {object} expect - The expectations
  * @param {string} testName - The test name for logging
- * @returns {boolean} - Whether all expectations are met
+ * @throws {Error} - Throws error if any expectation fails
  */
-function validateHttpExpectations(
-  response,
-  expect,
-  testName
-) {
-  console.debug(`Validating expectations for: ${testName}`);
+function validateHttpExpectations(response, expect, testName) {
+  debugLog(`Validating expectations for: ${testName}`);
 
   // 1) Status code
-  if (response.statusCode !== expect.statusCode) {
-    console.error(`Status code mismatch: expected ${expect.statusCode}, got ${response.statusCode}`);
-    return false;
+  if (expect.statusCode !== undefined &&expect.statusCode !== response.statusCode && !Array.isArray(expect.statusCode) 
+    || Array.isArray(expect.statusCode) && !expect.statusCode.includes(response.statusCode)) {
+    throw new Error(`Status code mismatch: expected ${expect.statusCode}, got ${response.statusCode}`);
   }
-  console.debug(`✓ Status code matches: ${response.statusCode}`);
+  debugLog(`✓ Status code matches: ${response.statusCode}`);
 
   const rawBody = typeof response.body === 'string'
     ? response.body
@@ -592,32 +616,44 @@ function validateHttpExpectations(
   // 2) Exact body
   if (expect.body !== undefined) {
     if (!deepCompare(response.body, expect.body)) {
-      console.error(`Body mismatch (exact):`);
-      console.error({ expected: expect.body, received: response.body });
-      return false;
+      throw new Error(`Body mismatch: expected ${JSON.stringify(expect.body)}, got ${JSON.stringify(response.body)}`);
     }
-    console.debug(`✓ Body exactly matches`);
+    debugLog(`✓ Body exactly matches`);
   }
 
   // 3) Substring
   if (expect.bodyContains) {
-    const containsNegate = typeof expect.bodyContains === 'object' && 'negate' in expect.bodyContains;
-    const containsValue = containsNegate ? expect.bodyContains.value : expect.bodyContains;
-    const negate = containsNegate ? expect.bodyContains.negate : false;
-    
-    const contains = rawBody.includes(containsValue);
-    if (negate ? contains : !contains) {
-      const message = negate 
-        ? `Body should not contain substring but does: "${containsValue}"` 
-        : `Body does not contain substring: "${containsValue}"`;
-      console.error(message);
-      return false;
+
+    const validateBodyContains = (bodyContainsItem) => {
+      debugLog(`Validating bodyContains item: ${JSON.stringify(bodyContainsItem)}`);
+      const containsNegate = typeof bodyContainsItem === 'object' && 'negate' in bodyContainsItem;
+      const matchWord = typeof bodyContainsItem === 'object' && 'matchword' in bodyContainsItem;
+      let containsValue = containsNegate ? bodyContainsItem.value : typeof bodyContainsItem === 'object' ? bodyContainsItem.value : bodyContainsItem;
+      debugLog(`negate: ${containsNegate}, matchWord: ${matchWord}, containsValue: ${containsValue}`);
+      if (containsValue.startsWith('$')) {
+        containsValue = process.env[containsValue.replace('$', '')];
+      }
+  
+      const negate = containsNegate ? bodyContainsItem.negate : false;
+      const contains = matchWord ? RegExp(`\\b${containsValue}\\b`).test(rawBody) : rawBody.includes(containsValue);
+      if (negate ? contains : !contains) {
+        const message = negate 
+          ? `Body should not contain substring but does: "${containsValue}"` 
+          : `Body does not contain substring: "${containsValue}"`;
+        throw new Error(message);
+      }
+      
+      const successMsg = negate 
+        ? `✓ Body does not contain "${containsValue}"` 
+        : `✓ Body contains "${containsValue}"`;
+      debugLog(successMsg);
     }
-    
-    const successMsg = negate 
-      ? `✓ Body does not contain "${containsValue}"` 
-      : `✓ Body contains "${containsValue}"`;
-    console.debug(successMsg);
+
+    if (Array.isArray(expect.bodyContains)) {
+      expect.bodyContains.forEach(validateBodyContains);
+    } else {
+      validateBodyContains(expect.bodyContains);
+    }
   }
 
   // 4) Regex
@@ -632,14 +668,13 @@ function validateHttpExpectations(
       const message = negate 
         ? `Body should not match regex but does: ${regexValue}` 
         : `Body does not match regex: ${regexValue}`;
-      console.error(message);
-      return false;
+      throw new Error(message);
     }
     
     const successMsg = negate 
       ? `✓ Body does not match regex ${regexValue}` 
       : `✓ Body matches regex ${regexValue}`;
-    console.debug(successMsg);
+    debugLog(successMsg);
   }
 
   // 5) JSONPath expectations
@@ -648,22 +683,19 @@ function validateHttpExpectations(
       const results = JSONPath({ path: jp.path, json: response.body });
       if (results.length === 0) {
         if (jp.negate && jp.comparator === 'exists') {
-          console.debug(`✓ JSONPath "${jp.path}" does not exist, as expected`);
+          debugLog(`✓ JSONPath "${jp.path}" does not exist, as expected`);
           continue;
         }
-        console.error(`JSONPath "${jp.path}" did not return any results`);
-        return false;
+        throw new Error(`JSONPath "${jp.path}" did not return any results`);
       }
       
-      // Use the comparison utility
-      if (!compareValue(results[0], jp, `JSONPath ${jp.path}`)) {
-        return false;
-      }
+      // Use the comparison utility (which now throws on failure)
+      compareValue(results[0], jp, `JSONPath ${jp.path}`);
       
       const successMsg = jp.negate 
         ? `✓ JSONPath ${jp.path} ${jp.comparator} NOT ${jp.value}` 
         : `✓ JSONPath ${jp.path} ${jp.comparator} ${jp.value}`;
-      console.debug(successMsg);
+      debugLog(successMsg);
     }
   }
 
@@ -675,33 +707,29 @@ function validateHttpExpectations(
       
       // For 'exists' comparator, check if the header exists
       if (headerExp.comparator === 'exists') {
-        const result = compareValue(headerValue, headerExp, `Header "${headerExp.name}"`);
-        if (!result) return false;
+        compareValue(headerValue, headerExp, `Header "${headerExp.name}"`);
         
         const existsSuccessMsg = headerExp.negate 
           ? `✓ Header "${headerExp.name}" does not exist, as expected` 
           : `✓ Header "${headerExp.name}" exists`;
-        console.debug(existsSuccessMsg);
+        debugLog(existsSuccessMsg);
         continue;
       }
       
       // For other comparators, first check if the header exists
       if (headerValue === undefined) {
-        console.error(`Header "${headerExp.name}" not found in response`);
-        return false;
+        throw new Error(`Header "${headerExp.name}" not found in response`);
       }
       
-      // Use the comparison utility
-      if (!compareValue(headerValue, headerExp, `Header "${headerExp.name}"`)) {
-        return false;
-      }
+      // Use the comparison utility (which now throws on failure)
+      compareValue(headerValue, headerExp, `Header "${headerExp.name}"`);
       
       const opString = headerExp.negate ? `does not ${headerExp.comparator}` : headerExp.comparator;
-      console.debug(`✓ Header "${headerExp.name}" ${opString} "${headerExp.value}"`);
+      debugLog(`✓ Header "${headerExp.name}" ${opString} "${headerExp.value}"`);
     }
   }
 
-  return true;
+  debugLog(`✓ All expectations validated successfully for: ${testName}`);
 }
 
 /**
@@ -733,7 +761,7 @@ function getResourceDescription(selector) {
 }
 
 /**
- * Waits for a Kubernetes resource to match a condition
+ * Waits for a Kubernetes resource to match a condition - throws on failure/timeout
  * @param {object} config - Configuration for the wait operation
  * @returns {Promise<void>} - Promise that resolves when the condition is met or rejects with an error
  */
@@ -776,21 +804,19 @@ async function executeKubectlWait(config) {
   while (Date.now() < deadline) {
     // Check if we've exceeded max retries
     if (maxRetries !== undefined && retryCount >= maxRetries) {
-      const retriesExceededMsg = `Maximum retries (${maxRetries}) exceeded while waiting for ${resourceDescription}`;
-      console.error(retriesExceededMsg);
-      throw new Error(retriesExceededMsg);
+      throw new Error(`Maximum retries (${maxRetries}) exceeded while waiting for ${resourceDescription}`);
     }
     
     try {
       // Build kubectl command with the selector args
       const cmd = `kubectl ${contextArg} ${namespaceArg} get ${kindArg} ${selectorArg} -o json`;
-      console.debug(`kubectl-get: ${cmd}`);
+      debugLog(`kubectl-get: ${cmd}`);
       
       // Execute the command
       const stdout = execSync(cmd, { encoding: 'utf8' });
 
       if (!stdout.trim()) { 
-        console.debug(`Attempt ${retryCount + 1}${maxRetries !== undefined ? `/${maxRetries}` : ''}: No output from kubectl command`);
+        debugLog(`Attempt ${retryCount + 1}${maxRetries !== undefined ? `/${maxRetries}` : ''}: No output from kubectl command`);
         retryCount++;
         await sleep(interval * 1000);
         continue;
@@ -798,7 +824,7 @@ async function executeKubectlWait(config) {
 
       const json = JSON.parse(stdout);
       if (!json) {
-        console.debug(`Attempt ${retryCount + 1}${maxRetries !== undefined ? `/${maxRetries}` : ''}: Invalid JSON response`);
+        debugLog(`Attempt ${retryCount + 1}${maxRetries !== undefined ? `/${maxRetries}` : ''}: Invalid JSON response`);
         retryCount++;
         await sleep(interval * 1000);
         continue;
@@ -808,7 +834,7 @@ async function executeKubectlWait(config) {
       if (jsonPath) {
         const matches = JSONPath({ path: jsonPath, json: json });
         if (!matches.length || matches[0] === null || matches[0] === undefined) {
-          console.debug(`Attempt ${retryCount + 1}${maxRetries !== undefined ? `/${maxRetries}` : ''}: jsonPath ${jsonPath} not found yet, retrying…`);
+          debugLog(`Attempt ${retryCount + 1}${maxRetries !== undefined ? `/${maxRetries}` : ''}: jsonPath ${jsonPath} not found yet, retrying…`);
           retryCount++;
           await sleep(interval * 1000);
           continue;
@@ -818,46 +844,46 @@ async function executeKubectlWait(config) {
         
         // Check against expected conditions if provided
         if (jsonPathExpectation) {
-          // Use the compare value function
-          const result = compareValue(
-            extractedValue, 
-            jsonPathExpectation,
-            `JSONPath ${jsonPath}`
-          );
-          
-          if (!result) {
-            console.debug(`Attempt ${retryCount + 1}${maxRetries !== undefined ? `/${maxRetries}` : ''}: Value does not meet expectation yet, retrying...`);
+          try {
+            // Use the compare value function (which now throws on failure)
+            compareValue(
+              extractedValue, 
+              jsonPathExpectation,
+              `JSONPath ${jsonPath}`
+            );
+            
+            debugLog(`Value meets expectation: ${JSON.stringify(extractedValue)}`);
+          } catch (comparisonError) {
+            debugLog(`Attempt ${retryCount + 1}${maxRetries !== undefined ? `/${maxRetries}` : ''}: ${comparisonError.message}, retrying...`);
             retryCount++;
             await sleep(interval * 1000);
             continue;
           }
-          
-          console.debug(`Value meets expectation: ${JSON.stringify(extractedValue)}`);
         } else {
           // No expectation - just checking if the value exists and is not empty
           if (extractedValue === '') {
-            console.debug(`Attempt ${retryCount + 1}${maxRetries !== undefined ? `/${maxRetries}` : ''}: Value is empty string, retrying...`);
+            debugLog(`Attempt ${retryCount + 1}${maxRetries !== undefined ? `/${maxRetries}` : ''}: Value is empty string, retrying...`);
             retryCount++;
             await sleep(interval * 1000);
             continue;
           }
-          console.debug(`Found value for ${jsonPath}: ${typeof extractedValue === 'string' ? extractedValue : JSON.stringify(extractedValue)}`);
+          debugLog(`Found value for ${jsonPath}: ${typeof extractedValue === 'string' ? extractedValue : JSON.stringify(extractedValue)}`);
         }
         
         // Only set environment variable if targetEnv is provided
         if (targetEnv) {
           const valueToSet = typeof extractedValue === 'string' ? extractedValue : JSON.stringify(extractedValue);
-          console.debug(`Setting environment variable ${targetEnv}=${valueToSet}`);
+          debugLog(`Setting environment variable ${targetEnv}=${valueToSet}`);
           process.env[targetEnv] = valueToSet;
         }
       } else {
         // If no jsonPath is provided, we just wait for the resource to exist
-        console.debug(`Resource ${resourceDescription} exists`);
+        debugLog(`Resource ${resourceDescription} exists`);
       }
       
-      return;
+      return true;
     } catch (err) {
-      console.debug(`Attempt ${retryCount + 1}${maxRetries !== undefined ? `/${maxRetries}` : ''}: lookup failed, will retry: ${err.message}`);
+      debugLog(`Attempt ${retryCount + 1}${maxRetries !== undefined ? `/${maxRetries}` : ''}: lookup failed, will retry: ${err.message}`);
       retryCount++;
       await sleep(interval * 1000);
     }
@@ -877,4 +903,426 @@ async function executeKubectlWait(config) {
   }
   
   throw new Error(errorMessage);
+}
+
+/**
+ * Command test executor - throws on failure following Mocha conventions
+ * @param {object} test - The test configuration
+ * @returns {Promise<boolean>} - Promise resolving to true when test passes, rejecting when it fails
+ */
+async function executeCommandTest(test) {
+  if (!test.command) {
+    throw new Error('Command configuration missing for command test');
+  }
+
+  // Only support object format
+  if (typeof test.command === 'string') {
+    throw new Error('Command must be an object with a "command" property. Use: { command: "your command here" }');
+  }
+
+  const commandConfig = test.command;
+
+  if (!commandConfig.command) {
+    throw new Error('Command object must have a "command" property with the command string');
+  }
+
+  // Create a descriptive test name
+  let testName = `Command: ${commandConfig.command}`;
+  if (test.source.type === 'pod' && test.source.selector) {
+    testName += ` (via pod ${test.source.selector.metadata.namespace || 'default'}/${test.source.selector.metadata.name || '<selector>'})`;
+  }
+  
+  try {
+    debugLog(`Executing command test: ${testName}`);
+    debugLog(`Command details: ${JSON.stringify({
+      command: commandConfig.command,
+      env: commandConfig.env || {},
+      workingDir: commandConfig.workingDir,
+      sourceType: test.source.type,
+      parseJson: commandConfig.parseJson || false
+    }, null, 2)}`);
+    
+    let result;
+    
+    if (test.source.type === 'local') {
+      debugLog('Using local command execution');
+      result = await executeLocalCommand(commandConfig);
+    } else if (test.source.type === 'pod') {
+      if (!test.source.selector) {
+        throw new Error('Kubernetes selector is required for pod-based command tests');
+      }
+      
+      debugLog(`Using kubectl exec to run command in pod ${JSON.stringify(test.source.selector)}`);
+      result = await executePodCommand(test, commandConfig);
+    } else {
+      throw new Error(`Unsupported source type: ${test.source.type}. Use 'local' or 'pod'`);
+    }
+    
+    // Validate expectations if provided
+    if (test.expect) {
+      validateCommandExpectations(result, test.expect, testName);
+    }
+    
+    debugLog(`✓ Command test passed: ${testName}`);
+    return true;
+    
+  } catch (error) {
+    debugLog(`✗ Command test failed: ${testName}`);
+    debugLog(`Error: ${error.message}`);
+    throw error;
+  }
+}
+
+/**
+ * Execute command locally using child_process
+ * @param {object} commandConfig - The command configuration
+ * @returns {Promise<object>} - Promise resolving to command result with stdout, stderr, exitCode
+ */
+async function executeLocalCommand(commandConfig) {
+  const { spawn } = require('child_process');
+  
+  const env = { ...process.env, ...(commandConfig.env || {}) };
+  const cwd = commandConfig.workingDir || process.cwd();
+  
+  // Execute command through shell to support pipes and other shell features
+  const cmd = process.platform === 'win32' ? 'cmd' : 'sh';
+  const args = process.platform === 'win32' ? ['/c', commandConfig.command] : ['-c', commandConfig.command];
+  
+  debugLog(`Executing shell command: ${commandConfig.command}`);
+  
+  return new Promise((resolve, reject) => {
+    const child = spawn(cmd, args, { 
+      env, 
+      cwd,
+      stdio: ['pipe', 'pipe', 'pipe']
+    });
+    
+    let stdout = '';
+    let stderr = '';
+    
+    child.stdout.on('data', (data) => {
+      stdout += data.toString();
+    });
+    
+    child.stderr.on('data', (data) => {
+      stderr += data.toString();
+    });
+    
+    child.on('close', (exitCode) => {
+      debugLog(`Command completed with exit code: ${exitCode}`);
+      debugLog(`stdout: ${stdout}`);
+      debugLog(`stderr: ${stderr}`);
+      
+      const result = {
+        stdout: stdout.trim(),
+        stderr: stderr.trim(),
+        exitCode,
+        output: stdout.trim() // alias for backwards compatibility
+      };
+      
+      // Parse JSON if requested and stdout is not empty
+      if (commandConfig.parseJson && result.stdout) {
+        try {
+          result.json = JSON.parse(result.stdout);
+          debugLog('Successfully parsed JSON output');
+        } catch (parseError) {
+          debugLog(`Failed to parse JSON: ${parseError.message}`);
+          // Don't throw here - let the test decide if JSON parsing failure is an error
+          result.jsonParseError = parseError.message;
+        }
+      }
+      
+      resolve(result);
+    });
+    
+    child.on('error', (error) => {
+      debugLog(`Command execution error: ${error.message}`);
+      reject(new Error(`Failed to execute command: ${error.message}`));
+    });
+  });
+}
+
+/**
+ * Execute command in a Kubernetes pod using kubectl exec
+ * @param {object} test - The test configuration
+ * @param {object} commandConfig - The command configuration
+ * @returns {Promise<object>} - Promise resolving to command result
+ */
+async function executePodCommand(test, commandConfig) {
+  const { selector } = test.source;
+  
+  // Build kubectl selector args
+  const selectorArgs = buildSelectorArgs(selector);
+  const { kindArg, namespaceArg, selectorArg, contextArg } = selectorArgs;
+  
+  // For pod execution, we need to get the actual pod name if using label selectors
+  let podName;
+  if (selector.metadata.name) {
+    podName = selector.metadata.name;
+  } else {
+    // Use label selector to get pod name
+    const listCmd = `kubectl ${contextArg} ${namespaceArg} get ${kindArg} ${selectorArg} -o jsonpath='{.items[0].metadata.name}'`;
+    debugLog(`Getting pod name: ${listCmd}`);
+    
+    try {
+      const result = execSync(listCmd, { encoding: 'utf8' });
+      podName = result.trim();
+      if (!podName) {
+        throw new Error('No pod found matching the selector');
+      }
+      debugLog(`Found pod: ${podName}`);
+    } catch (error) {
+      throw new Error(`Failed to find pod: ${error.message}`);
+    }
+  }
+  
+  // Use the command string directly
+  const fullCommand = commandConfig.command;
+  
+  // Prepare environment variables
+  let envPrefix = '';
+  if (commandConfig.env && Object.keys(commandConfig.env).length > 0) {
+    const envVars = Object.entries(commandConfig.env)
+      .map(([key, value]) => `${key}="${value}"`)
+      .join(' ');
+    envPrefix = `env ${envVars} `;
+  }
+  
+  // Prepare working directory
+  let cdPrefix = '';
+  if (commandConfig.workingDir) {
+    cdPrefix = `cd "${commandConfig.workingDir}" && `;
+  }
+  
+  const finalCommand = `${cdPrefix}${envPrefix}${fullCommand}`;
+  
+  // Build kubectl exec command
+  let kubectlCmd = `kubectl ${contextArg} ${namespaceArg} exec ${podName}`;
+  if (test.source.container) {
+    kubectlCmd += ` -c ${test.source.container}`;
+  }
+  kubectlCmd += ` -- sh -c "${finalCommand}"`;
+  
+  debugLog(`Executing pod command: ${kubectlCmd}`);
+  
+  try {
+    const stdout = execSync(kubectlCmd, { encoding: 'utf8' });
+    const result = {
+      stdout: stdout.trim(),
+      stderr: '', // kubectl exec combines stderr with stdout
+      exitCode: 0,
+      output: stdout.trim()
+    };
+    
+    debugLog(`Pod command completed successfully`);
+    debugLog(`stdout: ${result.stdout}`);
+    
+    // Parse JSON if requested and stdout is not empty
+    if (commandConfig.parseJson && result.stdout) {
+      try {
+        result.json = JSON.parse(result.stdout);
+        debugLog('Successfully parsed JSON output');
+      } catch (parseError) {
+        debugLog(`Failed to parse JSON: ${parseError.message}`);
+        result.jsonParseError = parseError.message;
+      }
+    }
+    
+    return result;
+    
+  } catch (error) {
+    debugLog(`Pod command failed: ${error.message}`);
+    
+    // Extract exit code from error if available
+    let exitCode = 1;
+    let stderr = '';
+    
+    if (error.status !== undefined) {
+      exitCode = error.status;
+    }
+    
+    if (error.stderr) {
+      stderr = error.stderr.toString();
+    }
+    
+    const result = {
+      stdout: error.stdout ? error.stdout.toString().trim() : '',
+      stderr: stderr.trim(),
+      exitCode,
+      output: error.stdout ? error.stdout.toString().trim() : ''
+    };
+    
+    // Parse JSON if requested, even for failed commands
+    if (commandConfig.parseJson && result.stdout) {
+      try {
+        result.json = JSON.parse(result.stdout);
+        debugLog('Successfully parsed JSON output from failed command');
+      } catch (parseError) {
+        debugLog(`Failed to parse JSON from failed command: ${parseError.message}`);
+        result.jsonParseError = parseError.message;
+      }
+    }
+    
+    return result;
+  }
+}
+
+/**
+ * Validate command test expectations
+ * @param {object} result - The command execution result
+ * @param {object} expect - The expectations configuration
+ * @param {string} testName - The test name for error messages
+ */
+function validateCommandExpectations(result, expect, testName) {
+  debugLog(`Validating expectations for: ${testName}`);
+  
+  // Validate exit code
+  if (expect.exitCode !== undefined) {
+    debugLog(`Checking exit code: expected=${expect.exitCode}, actual=${result.exitCode}`);
+    if (result.exitCode !== expect.exitCode) {
+      throw new Error(`Exit code mismatch: expected ${expect.exitCode}, got ${result.exitCode}`);
+    }
+    debugLog(`✓ Exit code matches: ${result.exitCode}`);
+  }
+  
+  // Validate stdout expectations
+  if (expect.stdout) {
+    validateOutputExpectations(result.stdout, expect.stdout, 'stdout', testName);
+  }
+  
+  // Validate stderr expectations  
+  if (expect.stderr) {
+    validateOutputExpectations(result.stderr, expect.stderr, 'stderr', testName);
+  }
+  
+  // Validate output expectations (alias for stdout)
+  if (expect.output) {
+    validateOutputExpectations(result.output, expect.output, 'output', testName);
+  }
+  
+  // Validate JSON expectations
+  if (expect.json) {
+    if (!result.json) {
+      if (result.jsonParseError) {
+        throw new Error(`JSON parsing failed: ${result.jsonParseError}`);
+      } else {
+        throw new Error('No JSON output available for validation');
+      }
+    }
+    validateJsonExpectations(result.json, expect.json, testName);
+  }
+  
+  // Validate JSON path expectations
+  if (expect.jsonPath && Array.isArray(expect.jsonPath)) {
+    if (!result.json) {
+      if (result.jsonParseError) {
+        throw new Error(`JSON parsing failed, cannot validate jsonPath: ${result.jsonParseError}`);
+      } else {
+        throw new Error('No JSON output available for jsonPath validation');
+      }
+    }
+    
+    for (const pathExp of expect.jsonPath) {
+      const matches = JSONPath({ path: pathExp.path, json: result.json });
+      if (!matches.length) {
+        throw new Error(`JSONPath "${pathExp.path}" not found in output`);
+      }
+      
+      const extractedValue = matches[0];
+      compareValue(extractedValue, pathExp, `JSONPath "${pathExp.path}"`);
+      
+      debugLog(`✓ JSONPath "${pathExp.path}" ${pathExp.comparator} "${pathExp.value}"`);
+    }
+  }
+  
+  debugLog(`✓ All expectations validated successfully for: ${testName}`);
+}
+
+/**
+ * Validate output expectations (stdout/stderr/output)
+ * @param {string} actualOutput - The actual output
+ * @param {object|string} expectations - The output expectations
+ * @param {string} outputType - Type of output (stdout/stderr/output)
+ * @param {string} testName - The test name for error messages
+ */
+function validateOutputExpectations(actualOutput, expectations, outputType, testName) {
+  // Handle simple string expectation (backwards compatibility)
+  if (typeof expectations === 'string') {
+    expectations = { contains: expectations };
+  }
+  
+  // Handle array of expectations
+  if (Array.isArray(expectations)) {
+    for (const exp of expectations) {
+      validateSingleOutputExpectation(actualOutput, exp, outputType);
+    }
+    return;
+  }
+  
+  // Handle single expectation object
+  validateSingleOutputExpectation(actualOutput, expectations, outputType);
+}
+
+/**
+ * Validate a single output expectation
+ * @param {string} actualOutput - The actual output
+ * @param {object} expectation - The expectation configuration
+ * @param {string} outputType - Type of output (stdout/stderr/output)
+ */
+function validateSingleOutputExpectation(actualOutput, expectation, outputType) {
+  debugLog(`Validating ${outputType} expectation: ${JSON.stringify(expectation)}`);
+  
+  // Support different ways to specify the expectation
+  if (expectation.contains !== undefined) {
+    compareValue(actualOutput, { comparator: 'contains', value: expectation.contains, negate: expectation.negate }, `${outputType} contains`);
+  } else if (expectation.matches !== undefined || expectation.regex !== undefined) {
+    const pattern = expectation.matches || expectation.regex;
+    compareValue(actualOutput, { comparator: 'matches', value: pattern, negate: expectation.negate }, `${outputType} matches`);
+  } else if (expectation.equals !== undefined) {
+    compareValue(actualOutput, { comparator: 'equals', value: expectation.equals, negate: expectation.negate }, `${outputType} equals`);
+  } else if (expectation.exists !== undefined) {
+    compareValue(actualOutput, { comparator: 'exists', negate: expectation.negate }, `${outputType} exists`);
+  } else {
+    // Support direct comparator format
+    compareValue(actualOutput, expectation, outputType);
+  }
+}
+
+/**
+ * Validate JSON expectations
+ * @param {object} actualJson - The parsed JSON output
+ * @param {object} expectations - The JSON expectations
+ * @param {string} testName - The test name for error messages
+ */
+function validateJsonExpectations(actualJson, expectations, testName) {
+  debugLog(`Validating JSON expectations for: ${testName}`);
+  
+  if (Array.isArray(expectations)) {
+    for (const exp of expectations) {
+      validateSingleJsonExpectation(actualJson, exp);
+    }
+  } else {
+    validateSingleJsonExpectation(actualJson, expectations);
+  }
+}
+
+/**
+ * Validate a single JSON expectation
+ * @param {object} actualJson - The parsed JSON output
+ * @param {object} expectation - The expectation configuration
+ */
+function validateSingleJsonExpectation(actualJson, expectation) {
+  if (expectation.path) {
+    // JSON path expectation
+    const matches = JSONPath({ path: expectation.path, json: actualJson });
+    if (!matches.length) {
+      throw new Error(`JSONPath "${expectation.path}" not found in output`);
+    }
+    
+    const extractedValue = matches[0];
+    compareValue(extractedValue, expectation, `JSONPath "${expectation.path}"`);
+  } else {
+    // Direct JSON comparison
+    compareValue(actualJson, expectation, 'JSON output');
+  }
 }
