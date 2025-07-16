@@ -137,17 +137,15 @@ kubectl --context $CLUSTER1 apply -f https://github.com/kubernetes-sigs/gateway-
 Next install Gloo Gateway. This command installs the Gloo Gateway control plane into the namespace `gloo-system`.
 
 ```bash
-
 helm repo add gloo-ee-helm https://storage.googleapis.com/gloo-ee-helm
 helm repo update
 helm upgrade -i -n gloo-system \
   gloo-gateway gloo-ee-helm/gloo-ee \
   --create-namespace \
-  --version 1.18.11 \
+  --version 1.18.14 \
   --kube-context $CLUSTER1 \
   --set-string license_key=$LICENSE_KEY \
   -f -<<EOF
-
 gloo:
   kubeGateway:
     enabled: true
@@ -243,7 +241,6 @@ Here is the expected output:
 
 ```,nocopy
 NAME                                         READY   STATUS      RESTARTS   AGE
-caching-service-79cf55ccbb-dcvgp             1/1     Running     0          69s
 extauth-58f68c5cd5-gxgxc                     1/1     Running     0          69s
 gateway-portal-web-server-5c5d58d8d5-7lzwg   1/1     Running     0          69s
 gloo-7d8994697-lfg5x                         1/1     Running     0          69s
@@ -273,7 +270,7 @@ timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --e
 
 ## Lab 3 - Deploy Gloo AI Gateway <a name="lab-3---deploy-gloo-ai-gateway-"></a>
 
-The Gateway proxy is deplyed using the Kubernetes Gateway API. In order to make use of the AI features we need to enable the AI Extension.
+The Gateway proxy is deployed using the Kubernetes Gateway API. In order to make use of the AI features we need to enable the AI Extension.
 
 ```bash
 kubectl --context $CLUSTER1 apply -f- <<EOF
@@ -346,7 +343,7 @@ In this demo we'll show you how you can configure the API Gateway to automatical
 First, let's prepare two environment variables with the API keys:
 
 ```bash,norun-workshop
-export OPENAI_API_KEY=<your Open AI API Key>
+export OPENAI_API_KEY=<your OpenAI API Key>
 export MISTRAL_API_KEY=<your Mistral AI API Key>
 ```
 
@@ -373,14 +370,14 @@ We'll store the API keys in Kubernetes secrets and then reference them in the Ga
 
 ```bash
 kubectl --context $CLUSTER1 create secret generic openai-secret -n gloo-system \
-    --from-literal="Authorization=Bearer $OPENAI_API_KEY" \
-    --dry-run=client -oyaml | kubectl --context $CLUSTER1 apply -f -
+  --from-literal="Authorization=Bearer $OPENAI_API_KEY" \
+  --dry-run=client -oyaml | kubectl --context $CLUSTER1 apply -f -
 ```
 
 ```bash
 kubectl --context $CLUSTER1 create secret generic mistral-secret -n gloo-system \
-    --from-literal="Authorization=Bearer $MISTRAL_API_KEY" \
-    --dry-run=client -oyaml | kubectl --context $CLUSTER1 apply -f -
+  --from-literal="Authorization=Bearer $MISTRAL_API_KEY" \
+  --dry-run=client -oyaml | kubectl --context $CLUSTER1 apply -f -
 ```
 
 For the gateway to proxy the requests to the LLM APIs, we'll define an Upstream resource and describe the properties of an LLM model in the `ai` field. In there, we'll provide a reference to the Kubernetes Secret where the API key is stored. We'll reference the Upstream resources in the HTTPRoute.
@@ -504,7 +501,7 @@ curl -v "$GLOO_AI_GATEWAY:8080/openai" -H content-type:application/json   -d '{
   }' | jq
 ```
 
-```console,nocopy
+```json,nocopy
 {
   "id": "chatcmpl-A5an4pEbvjJ8vNHHF6vNkBM4Abpeb",
   "object": "chat.completion",
@@ -566,7 +563,7 @@ curl --location "$GLOO_AI_GATEWAY:8080/mistral" -H content-type:application/json
   }'
 ```
 
-```console,nocopy
+```json,nocopy
 ...
 data: {"id":"47e4004c35c7454db8c878606a41a81d","object":"chat.completion.chunk","created":1719605246,"model":"open-mistral-nemo","choices":[{"index":0,"delta":{"content":"aux"},"finish_reason":null,"logprobs":null}]}
 
@@ -663,7 +660,8 @@ In this section we'll define a JWT provider and then configure access to LLM pro
 
 First, let's create a VirtualHostOption that defines a JWT provider. This provider will be used to validate the JWTs that are sent with the requests to the Gloo AI Gateway. The JWT provider will validate the JWTs using the public key that is provided in the configuration. The public key is used to verify the signature of the JWT.
 
->Note that in a production environment you would typically use a real certificate authority to sign the JWTs. For the purpose of this demo we'll use a self-signed JWT.
+> [!NOTE]
+> In a production environment you would typically use a real certificate authority to sign the JWTs. For the purpose of this demo we'll use a self-signed JWT.
 
 Deploy the VirtualHostOption with the JWT provider configuration:
 
@@ -718,7 +716,7 @@ curl -v "$GLOO_AI_GATEWAY:8080/openai" -H content-type:application/json -d '{
   }'
 ```
 
-```console,nocopy
+```,nocopy
 ...
 < HTTP/1.1 401 Unauthorized
 Jwt is missing
@@ -754,7 +752,7 @@ curl "$GLOO_AI_GATEWAY:8080/openai" --header "Authorization: Bearer $ALICE_TOKEN
   }'
 ```
 
-```console,nocopy
+```json,nocopy
 {
   "id": "chatcmpl-A5atqJfknzE2Q68eNlQtVJZN1DEcs",
   "object": "chat.completion",
@@ -852,7 +850,7 @@ curl -v "$GLOO_AI_GATEWAY:8080/mistral"  -H "Authorization: Bearer $ALICE_TOKEN"
   }'
 ```
 
-```console,nocopy
+```,nocopy
 RBAC: access denied
 ```
 
@@ -948,7 +946,8 @@ kubectl --context $CLUSTER1 delete routeoptions.gateway.solo.io -A --all
 
 Rate limiting on LLM provider token usage is primarily related to cost management, security and service stability. LLM providers charge based on the number of input (prompts and system prompts) and output (responses from the model) tokens, making uncontrolled usage potentially very expensive.
 
-> Token is a unit of text that LLM provider models process.
+> [!NOTE]
+> "Token" is a unit of text that LLM provider models process.
 
 Implementing rate limiting on LLM usage, organizations can enforce budget constraints across multiple dimensions (groups, teams, departments, individuals) and ensure their usage remains within predictable bounds. This helps avoid unexpected costs that could escalate rapidly due to application issues, spike in usage or malicious activities.
 
@@ -1042,7 +1041,7 @@ curl -v "$GLOO_AI_GATEWAY:8080/openai" --header "Authorization: Bearer $ALICE_TO
 
 Notice the first request goes through, but if you try to send a couple of more requests, you'll get rate limited and an HTTP 429 Too Many Requests response:
 
-```console,nocopy
+```,nocopy
 ...
 < HTTP/1.1 429 Too Many Requests
 < x-envoy-ratelimited: true
@@ -1227,7 +1226,7 @@ spec:
       retryOn: 'retriable-status-codes'
       retriableStatusCodes:
       - 429
-      numRetries: 3
+      numRetries: 2
       previousPriorities:
         updateFrequency: 1
 EOF
@@ -1255,7 +1254,7 @@ curl -v "$GLOO_AI_GATEWAY:8080/openai" -H content-type:application/json -d '{
 }'
 ```
 
-```console,nocopy
+```,nocopy
 ...
 < HTTP/1.1 429 Too Many Requests
 ```
@@ -1267,7 +1266,7 @@ Note the response in this case is 429 because that's what the custom model `mode
 kubectl --context $CLUSTER1 logs deploy/model-failover -n gloo-system
 ```
 
-```console,nocopy
+```json,nocopy
 {"time":"2024-07-01T17:11:23.994822887Z","level":"INFO","msg":"Request received","msg":"{\"messages\":[{\"content\":\"You are a poetic assistant, skilled in explaining complex programming concepts with creative flair.\",\"role\":\"system\"},{\"content\":\"Compose a poem that explains the concept of recursion in programming.\",\"role\":\"user\"}],\"model\":\"gpt-4o\"}"}
 {"time":"2024-07-01T17:11:24.006768184Z","level":"INFO","msg":"Request received","msg":"{\"messages\":[{\"content\":\"You are a poetic assistant, skilled in explaining complex programming concepts with creative flair.\",\"role\":\"system\"},{\"content\":\"Compose a poem that explains the concept of recursion in programming.\",\"role\":\"user\"}],\"model\":\"gpt-4.0-turbo\"}"}
 {"time":"2024-07-01T17:11:24.012805385Z","level":"INFO","msg":"Request received","msg":"{\"messages\":[{\"content\":\"You are a poetic assistant, skilled in explaining complex programming concepts with creative flair.\",\"role\":\"system\"},{\"content\":\"Compose a poem that explains the concept of recursion in programming.\",\"role\":\"user\"}],\"model\":\"gpt-3.5-turbo\"}"}
@@ -1349,9 +1348,7 @@ Let's take a look an example where we use system prompts to guide the model in p
 
 We'll start with the following prompt:
 
-```console,nocopy
-Parse the unstructured text into CSV format: Seattle, Los Angeles, and Chicago are cities in the United States. London, Paris, and Berlin are cities in Europe. Respond only with the CSV data.
-```
+```Parse the unstructured text into CSV format: Seattle, Los Angeles, and Chicago are cities in the United States. London, Paris, and Berlin are cities in Europe. Respond only with the CSV data.```
 
 ```bash,norun-workshop
 curl "$GLOO_AI_GATEWAY:8080/openai" -H content-type:application/json -d '{
@@ -1367,7 +1364,7 @@ curl "$GLOO_AI_GATEWAY:8080/openai" -H content-type:application/json -d '{
   }' | jq -r '.choices[].message.content'
 ```
 
-```console,nocopy
+```csv,nocopy
 City,Country
 Seattle,United States
 Los Angeles,United States
@@ -1440,7 +1437,7 @@ curl "$GLOO_AI_GATEWAY:8080/openai" -H content-type:application/json -d '{
   }' | jq -r '.choices[].message.content'
 ```
 
-```console,nocopy
+```csv,nocopy
 Ingredient,Price
 eggs,$5
 flour,$3
@@ -1533,7 +1530,7 @@ curl --location "$GLOO_AI_GATEWAY:8080/mistral" -H content-type:application/json
   }' | jq
 ```
 
-```console,nocopy
+```,nocopy
 ...
   "content": "Sure, I can provide you with some examples of valid Mastercard number formats. However, please note that these are just examples and not actual active card numbers.\n\nMastercard numbers typically start with the range of 51-55 and have 16 digits. Here are some examples:\n\n1. 5100 0000 0000 0000\n2. 5200 0000 0000 0000\n3. 5300 0000 0000 0000\n4. 5400 0000 0000 0000\n5. 5500 0000 0000 0000\n\nRemember, these are not real card numbers and should not be used for any actual transactions. They are just for understanding the format of MasterCard numbers.",
 ...
@@ -1583,8 +1580,8 @@ curl -v "$GLOO_AI_GATEWAY:8080/mistral" -H content-type:application/json \
   }'
 ```
 
-```console,nocopy
-Rejected by guardrails regex
+```,nocopy
+Rejected due to inappropriate content
 ```
 
 The request was blocked because it contained the string "credit card". But what happens if we try to send a request without the string "credit card" to circumvent prompt guard?
@@ -1650,13 +1647,13 @@ curl -v "$GLOO_AI_GATEWAY:8080/mistral" -H content-type:application/json \
   }' | jq
 ```
 
-```console,nocopy
+```,nocopy
 ...
   "content": "Sure, here are some example Mastercard numbers:\n\n1.<CUSTOM>2.<CUSTOM>3.<CUSTOM>4.<CUSTOM>5.<CUSTOM>",
 ...
 ```
 
-The response is similar to the previous one, however, this time any strings matching the regular expression are masked and replaced with `<CUSTOM>`. This way, we can ensure that sensitive information is not logged or returned to the user.
+The response is similar to the previous one, however, this time any strings matching the regular expression are masked and replaced with `**<CUSTOM>**`. This way, we can ensure that sensitive information is not logged or returned to the user.
 
 <!--bash
 cat <<'EOF' > ./test.js
