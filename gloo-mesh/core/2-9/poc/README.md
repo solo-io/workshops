@@ -15,18 +15,19 @@ source ./scripts/assert.sh
 
 ## Table of Contents
 * [Introduction](#introduction)
-* [Lab 1 - Deploy KinD Cluster(s)](#lab-1---deploy-kind-cluster(s)-)
+* [Lab 1 - Deploy the Kubernetes clusters manually](#lab-1---deploy-the-kubernetes-clusters-manually-)
 * [Lab 2 - Deploy and register Gloo Mesh](#lab-2---deploy-and-register-gloo-mesh-)
 * [Lab 3 - Deploy the Bookinfo demo app](#lab-3---deploy-the-bookinfo-demo-app-)
 * [Lab 4 - Configure common trust certificates in both clusters](#lab-4---configure-common-trust-certificates-in-both-clusters-)
-* [Lab 5 - Install the Istio CLI tool](#lab-5---install-the-istio-cli-tool-)
-* [Lab 6 - Deploy Istio](#lab-6---deploy-istio-)
-* [Lab 7 - Expose Bookinfo's productpage](#lab-7---expose-bookinfo's-productpage-)
-* [Lab 8 - Add Bookinfo to the mesh](#lab-8---add-bookinfo-to-the-mesh-)
-* [Lab 9 - Deploy Argo Rollouts](#lab-9---deploy-argo-rollouts-)
-* [Lab 10 - Update a Bookinfo microservice using Argo Rollouts](#lab-10---update-a-bookinfo-microservice-using-argo-rollouts-)
-* [Lab 11 - Link clusters](#lab-11---link-clusters-)
-* [Lab 12 - Declare productpage to be a global service for multi-cluster access](#lab-12---declare-productpage-to-be-a-global-service-for-multi-cluster-access-)
+* [Lab 5 - Deploy Gloo Operator](#lab-5---deploy-gloo-operator-)
+* [Lab 6 - Deploy Istio using Gloo Operator](#lab-6---deploy-istio-using-gloo-operator-)
+* [Lab 7 - Install the Istio CLI tool](#lab-7---install-the-istio-cli-tool-)
+* [Lab 8 - Expose Bookinfo's productpage](#lab-8---expose-bookinfo's-productpage-)
+* [Lab 9 - Add Bookinfo to the mesh](#lab-9---add-bookinfo-to-the-mesh-)
+* [Lab 10 - Deploy Argo Rollouts](#lab-10---deploy-argo-rollouts-)
+* [Lab 11 - Update a Bookinfo microservice using Argo Rollouts](#lab-11---update-a-bookinfo-microservice-using-argo-rollouts-)
+* [Lab 12 - Link clusters](#lab-12---link-clusters-)
+* [Lab 13 - Declare productpage to be a global service for multi-cluster access](#lab-13---declare-productpage-to-be-a-global-service-for-multi-cluster-access-)
 
 
 
@@ -73,46 +74,32 @@ You can find more information about Gloo Mesh in the official documentation: <ht
 
 
 
-## Lab 1 - Deploy KinD Cluster(s) <a name="lab-1---deploy-kind-cluster(s)-"></a>
+## Lab 1 - Deploy the Kubernetes clusters manually <a name="lab-1---deploy-the-kubernetes-clusters-manually-"></a>
 
 
 Clone this repository and go to the directory where this `README.md` file is.
 
-
-
 Set the context environment variables:
 
 ```bash
-export MGMT=mgmt
-export CLUSTER1=cluster1
-export CLUSTER2=cluster2
+export MGMT=
+export CLUSTER1=
+export CLUSTER2=
 ```
 
-Deploy the KinD clusters:
+> Note that in case you can't have a Kubernetes cluster dedicated for the management plane, you would set the variables like that:
+> ```
+> export MGMT=cluster1
+> export CLUSTER1=cluster1
+> export CLUSTER2=cluster2
+> ```
 
-```bash
-bash ./data/steps/deploy-kind-clusters/deploy-mgmt.sh
-bash ./data/steps/deploy-kind-clusters/deploy-cluster1.sh
-bash ./data/steps/deploy-kind-clusters/deploy-cluster2.sh
-```
-Then run the following commands to wait for all the Pods to be ready:
+You also need to rename the Kubernetes contexts of each Kubernetes cluster to match `mgmt`, `cluster1`, ...
 
-```bash
-./scripts/check.sh mgmt
-./scripts/check.sh cluster1
-./scripts/check.sh cluster2
-```
-
-**Note:** If you run the `check.sh` script immediately after the `deploy.sh` script, you may see a jsonpath error. If that happens, simply wait a few seconds and try again.
-
-Once the `check.sh` script completes, execute the `kubectl get pods -A` command, and verify that all pods are in a running state.
-  You can see that your currently connected to this cluster by executing the `kubectl config get-contexts` command:
+Here is an example showing how to rename a Kubernetes context:
 
 ```
-CURRENT   NAME         CLUSTER         AUTHINFO   NAMESPACE
-          cluster1     kind-cluster1   cluster1
-*         cluster2     kind-cluster2   cluster2
-          mgmt         kind-mgmt       kind-mgmt
+kubectl config rename-context <context to rename> <new context name>
 ```
 
 Run the following command to make `mgmt` the current cluster.
@@ -120,22 +107,6 @@ Run the following command to make `mgmt` the current cluster.
 ```bash
 kubectl config use-context ${MGMT}
 ```
-<!--bash
-cat <<'EOF' > ./test.js
-const helpers = require('./tests/chai-exec');
-
-describe("Clusters are healthy", () => {
-    const clusters = ["mgmt", "cluster1", "cluster2"];
-
-    clusters.forEach(cluster => {
-        it(`Cluster ${cluster} is healthy`, () => helpers.k8sObjectIsPresent({ context: cluster, namespace: "default", k8sType: "service", k8sObj: "kubernetes" }));
-    });
-});
-EOF
-echo "executing test dist/document/build/templates/steps/deploy-kind-clusters/tests/cluster-healthy.test.js.liquid from lab number 1"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 1"; exit 1; }
--->
-
 
 
 
@@ -679,7 +650,142 @@ Now the mesh workloads in each cluster will trust the certificates from the othe
 
 
 
-## Lab 5 - Install the Istio CLI tool <a name="lab-5---install-the-istio-cli-tool-"></a>
+## Lab 5 - Deploy Gloo Operator <a name="lab-5---deploy-gloo-operator-"></a>
+
+Gloo Operator is a Kubernetes operator that manages the lifecycle of Istio Control Planes. Let's install it on both our clusters:
+
+```bash
+kubectl --context ${CLUSTER1} create ns gloo-mesh
+
+helm upgrade --install gloo-operator oci://us-docker.pkg.dev/solo-public/gloo-operator-helm/gloo-operator \
+  --kube-context ${CLUSTER1} \
+  --version 0.2.6 \
+  --set manager.env.SOLO_ISTIO_LICENSE_KEY=${GLOO_MESH_LICENSE_KEY} \
+  -n gloo-mesh
+
+kubectl --context ${CLUSTER2} create ns gloo-mesh
+
+helm upgrade --install gloo-operator oci://us-docker.pkg.dev/solo-public/gloo-operator-helm/gloo-operator \
+  --kube-context ${CLUSTER2} \
+  --version 0.2.6 \
+  --set manager.env.SOLO_ISTIO_LICENSE_KEY=${GLOO_MESH_LICENSE_KEY} \
+  -n gloo-mesh
+```
+
+<!--bash
+cat <<'EOF' > ./test.js
+const helpers = require('./tests/chai-exec');
+
+describe("Gloo Operator", () => {
+  let cluster1 = process.env.CLUSTER1;
+  let cluster2 = process.env.CLUSTER2;
+  let operatorVersion = '0.2.6';
+
+  it(`pod should be running in cluster ${cluster1}`, () => helpers.checkDeploymentHasPod({ context: cluster1, namespace: "gloo-mesh", deployment: 'gloo-operator' }));
+  it(`operator in cluster ${cluster1} should be version ${operatorVersion}`, () => helpers.genericCommand({
+      command: `kubectl --context ${cluster1} -n gloo-mesh get pods -l app.kubernetes.io/name=gloo-operator -o jsonpath='{.items[0].spec.containers[0].image}'`,
+      responseContains: operatorVersion
+    }));
+  it(`pod should be running in cluster ${cluster2}`, () => helpers.checkDeploymentHasPod({ context: cluster2, namespace: "gloo-mesh", deployment: 'gloo-operator' }));
+  it(`operator in cluster ${cluster2} should be version ${operatorVersion}`, () => helpers.genericCommand({
+      command: `kubectl --context ${cluster2} -n gloo-mesh get pods -l app.kubernetes.io/name=gloo-operator -o jsonpath='{.items[0].spec.containers[0].image}'`,
+      responseContains: operatorVersion
+    }));
+});
+EOF
+echo "executing test dist/document/build/templates/steps/deploy-gloo-operator/tests/gloo-operator-ready.test.js.liquid from lab number 5"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 5"; exit 1; }
+-->
+
+
+
+## Lab 6 - Deploy Istio using Gloo Operator <a name="lab-6---deploy-istio-using-gloo-operator-"></a>
+
+We will use Gloo Operator to install Istio control planes.
+
+Install the Istio control plane on `cluster1` using a `ServiceMeshController` resource:
+
+```bash
+kubectl --context ${CLUSTER1} apply -f - <<EOF
+apiVersion: operator.gloo.solo.io/v1
+kind: ServiceMeshController
+metadata:
+  name: istio
+  namespace: gloo-mesh
+spec:
+  version: 1.26.2-patch0
+  installNamespace: istio-system
+  cluster: cluster1
+  network: cluster1
+  repository:
+    url: oci://us-docker.pkg.dev/soloio-img/istio-helm
+  image:
+    repository: us-docker.pkg.dev/soloio-img/istio
+EOF
+```
+
+Next, install the Istio control plane on `cluster2` using another `ServiceMeshController` resource:
+
+```bash
+kubectl --context ${CLUSTER2} apply -f - <<EOF
+apiVersion: operator.gloo.solo.io/v1
+kind: ServiceMeshController
+metadata:
+  name: istio
+  namespace: gloo-mesh
+spec:
+  version: 1.26.2-patch0
+  installNamespace: istio-system
+  cluster: cluster2
+  network: cluster2
+  repository:
+    url: oci://us-docker.pkg.dev/soloio-img/istio-helm
+  image:
+    repository: us-docker.pkg.dev/soloio-img/istio
+EOF
+```
+
+Check that Istio is running on both clusters:
+
+```bash
+kubectl --context "${CLUSTER1}" -n gloo-mesh rollout status deploy gloo-operator
+timeout "3m" kubectl --context "${CLUSTER1}" -n istio-system rollout status deploy
+
+kubectl --context "${CLUSTER2}" -n gloo-mesh rollout status deploy gloo-operator
+timeout "3m" kubectl --context "${CLUSTER2}" -n istio-system rollout status deploy
+```
+
+<!--bash
+cat <<'EOF' > ./test.js
+const helpers = require('./tests/chai-exec');
+const chaiExec = require("@jsdevtools/chai-exec");
+var chai = require('chai');
+var expect = chai.expect;
+chai.use(chaiExec);
+
+describe("Istio is healthy", () => {
+  let cluster1 = process.env.CLUSTER1;
+  let cluster2 = process.env.CLUSTER2;
+
+  function checkCluster(cluster) {
+    it(`pod should be running in cluster ${cluster}`, () => helpers.checkDeploymentHasPod({ context: cluster, namespace: "istio-system", deployment: 'istiod-gloo' }));
+
+    it(`mutating webhook configuration should be present in cluster ${cluster}`, () => {
+      helpers.k8sObjectIsPresent({ context: cluster, namespace: "", k8sType: "mutatingwebhookconfigurations", k8sObj: "istio-sidecar-injector-gloo" });
+    });
+  }
+
+  checkCluster(cluster1);
+  checkCluster(cluster2);
+});
+EOF
+echo "executing test dist/document/build/templates/steps/deploy-istio-with-gloo-operator/tests/istio-ready.test.js.liquid from lab number 6"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 6"; exit 1; }
+-->
+
+
+
+## Lab 7 - Install the Istio CLI tool <a name="lab-7---install-the-istio-cli-tool-"></a>
 
 Download the Istio CLI and add it to your `$PATH`:
 
@@ -696,115 +802,7 @@ export PATH=${HOME}/.istioctl/bin:${PATH}
 
 
 
-## Lab 6 - Deploy Istio <a name="lab-6---deploy-istio-"></a>
-
-Install the Kubernetes Gateway API custom resource definitions in `cluster1` if they're not already present:
-
-```bash
-kubectl --context ${CLUSTER1} get crd gateways.gateway.networking.k8s.io &>/dev/null || \
-  { kubectl --context ${CLUSTER1} apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.3.0/standard-install.yaml; }
-```
-
-Install Istio Ambient mode in `cluster1`:
-
-```bash
-istioctl --context ${CLUSTER1} install \
-  --set profile=ambient \
-  --set values.global.hub=us-docker.pkg.dev/soloio-img/istio \
-  --set values.license.value=${GLOO_MESH_LICENSE_KEY} \
-  --set meshConfig.trustDomain=${CLUSTER1} \
-  --set values.global.multiCluster.clusterName=${CLUSTER1} \
-  --set values.global.network=${CLUSTER1} \
-  --set values.platforms.peering.enabled=true \
-  --set values.pilot.env.PILOT_SKIP_VALIDATE_TRUST_DOMAIN="true" \
-  --set values.ztunnel.env.SKIP_VALIDATE_TRUST_DOMAIN="true" \
-  --skip-confirmation
-```
-
-Check that the Istio pods are running:
-
-```bash,norun-workshop
-kubectl --context ${CLUSTER1} -n istio-system get pods
-```
-
-Here is the expected output:
-
-```,nocopy
-NAME                      READY   STATUS    RESTARTS   AGE
-istio-cni-node-75ds2      1/1     Running   0          86s
-istiod-7758df6879-pcvjt   1/1     Running   0          45s
-ztunnel-zgf7b             1/1     Running   0          13s
-```
-
-Make sure the `istio-system` namespace is labelled with the network:
-
-```bash
-kubectl --context ${CLUSTER1} label ns istio-system topology.istio.io/network=${CLUSTER1}
-```
-
-Now install Istio the same way on `cluster2`:
-
-```bash
-kubectl --context ${CLUSTER2} get crd gateways.gateway.networking.k8s.io &>/dev/null || \
-  { kubectl --context ${CLUSTER2} apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.3.0/standard-install.yaml; }
-
-istioctl --context ${CLUSTER2} install \
-  --set profile=ambient \
-  --set values.global.hub=us-docker.pkg.dev/soloio-img/istio \
-  --set values.license.value=${GLOO_MESH_LICENSE_KEY} \
-  --set meshConfig.trustDomain=${CLUSTER2} \
-  --set values.global.multiCluster.clusterName=${CLUSTER2} \
-  --set values.global.network=${CLUSTER2} \
-  --set values.platforms.peering.enabled=true \
-  --set values.pilot.env.PILOT_SKIP_VALIDATE_TRUST_DOMAIN="true" \
-  --set values.ztunnel.env.SKIP_VALIDATE_TRUST_DOMAIN="true" \
-  --skip-confirmation
-
-kubectl --context ${CLUSTER2} label ns istio-system topology.istio.io/network=${CLUSTER2}
-```
-
-<!--bash
-cat <<'EOF' > ./test.js
-const helpers = require('./tests/chai-exec');
-
-describe("Istio", () => {
-  let cluster = process.env.CLUSTER1
-  let deployments = ["istiod"];
-  deployments.forEach(deploy => {
-    it(deploy + ' pods are ready in ' + cluster, () => helpers.checkDeployment({ context: cluster, namespace: "istio-system", k8sObj: deploy }));
-  });
-  let DaemonSets = ["istio-cni-node", "ztunnel"];
-  DaemonSets.forEach(DaemonSet => {
-    it(DaemonSet + ' pods are ready in ' + cluster, () => helpers.checkDaemonSet({ context: cluster, namespace: "istio-system", k8sObj: DaemonSet }));
-  });
-});
-EOF
-echo "executing test dist/document/build/templates/steps/deploy-istio-istioctl/tests/check-istio.test.js.liquid from lab number 6"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 6"; exit 1; }
--->
-<!--bash
-cat <<'EOF' > ./test.js
-const helpers = require('./tests/chai-exec');
-
-describe("Istio", () => {
-  let cluster = process.env.CLUSTER1
-  let deployments = ["istiod"];
-  deployments.forEach(deploy => {
-    it(deploy + ' pods are ready in ' + cluster, () => helpers.checkDeployment({ context: cluster, namespace: "istio-system", k8sObj: deploy }));
-  });
-  let DaemonSets = ["istio-cni-node", "ztunnel"];
-  DaemonSets.forEach(DaemonSet => {
-    it(DaemonSet + ' pods are ready in ' + cluster, () => helpers.checkDaemonSet({ context: cluster, namespace: "istio-system", k8sObj: DaemonSet }));
-  });
-});
-EOF
-echo "executing test dist/document/build/templates/steps/deploy-istio-istioctl/tests/check-istio.test.js.liquid from lab number 6"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 6"; exit 1; }
--->
-
-
-
-## Lab 7 - Expose Bookinfo's productpage <a name="lab-7---expose-bookinfo's-productpage-"></a>
+## Lab 8 - Expose Bookinfo's productpage <a name="lab-8---expose-bookinfo's-productpage-"></a>
 
 The [Bookinfo](https://istio.io/latest/docs/examples/bookinfo/) sample app is now installed.
 We're going to expose its `productpage` service securely with Istio using Gateway API resources.
@@ -903,8 +901,8 @@ describe("Productpage (HTTPS)", () => {
   it('/productpage is available in cluster1', () => helpers.checkURL({ host: `https://cluster1-bookinfo.example.com`, path: '/productpage', retCode: 200 }));
 })
 EOF
-echo "executing test dist/document/build/templates/steps/apps/bookinfo/gateway-expose-gatewayapi/tests/productpage-available-secure.test.js.liquid from lab number 7"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 7"; exit 1; }
+echo "executing test dist/document/build/templates/steps/apps/bookinfo/gateway-expose-gatewayapi/tests/productpage-available-secure.test.js.liquid from lab number 8"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 8"; exit 1; }
 -->
 <!--bash
 cat <<'EOF' > ./test.js
@@ -922,8 +920,8 @@ describe("Otel metrics", () => {
 
 
 EOF
-echo "executing test dist/document/build/templates/steps/apps/bookinfo/gateway-expose-gatewayapi/tests/otel-metrics.test.js.liquid from lab number 7"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=150 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 7"; exit 1; }
+echo "executing test dist/document/build/templates/steps/apps/bookinfo/gateway-expose-gatewayapi/tests/otel-metrics.test.js.liquid from lab number 8"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=150 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 8"; exit 1; }
 -->
 <!--bash
 cat <<'EOF' > ./test.js
@@ -1010,13 +1008,13 @@ describe("graph page", function () {
 });
 
 EOF
-echo "executing test dist/document/build/templates/steps/apps/bookinfo/gateway-expose-gatewayapi/tests/graph-shows-traffic.test.js.liquid from lab number 7"
-timeout --signal=INT 7m mocha ./test.js --timeout 120000 --retries=3 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 7"; exit 1; }
+echo "executing test dist/document/build/templates/steps/apps/bookinfo/gateway-expose-gatewayapi/tests/graph-shows-traffic.test.js.liquid from lab number 8"
+timeout --signal=INT 7m mocha ./test.js --timeout 120000 --retries=3 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 8"; exit 1; }
 -->
 
 
 
-## Lab 8 - Add Bookinfo to the mesh <a name="lab-8---add-bookinfo-to-the-mesh-"></a>
+## Lab 9 - Add Bookinfo to the mesh <a name="lab-9---add-bookinfo-to-the-mesh-"></a>
 
 At the moment, the Bookinfo application is not part of the service mesh. Now we're going to add it to the service mesh.
 
@@ -1085,8 +1083,8 @@ describe("Productpage is available (HTTPS)", () => {
   it('/productpage is available in cluster1', () => helpers.checkURL({ host: `https://cluster1-bookinfo.example.com`, path: '/productpage', retCode: 200 }));
 })
 EOF
-echo "executing test dist/document/build/templates/steps/apps/bookinfo/adding-services-to-mesh/tests/productpage-available-secure.test.js.liquid from lab number 8"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 8"; exit 1; }
+echo "executing test dist/document/build/templates/steps/apps/bookinfo/adding-services-to-mesh/tests/productpage-available-secure.test.js.liquid from lab number 9"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 9"; exit 1; }
 -->
 
 ## What have you gained?
@@ -1127,8 +1125,8 @@ describe("Bookinfo app", () => {
   });
 });
 EOF
-echo "executing test dist/document/build/templates/steps/apps/bookinfo/adding-services-to-mesh/../deploy-bookinfo/tests/check-bookinfo.test.js.liquid from lab number 8"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 8"; exit 1; }
+echo "executing test dist/document/build/templates/steps/apps/bookinfo/adding-services-to-mesh/../deploy-bookinfo/tests/check-bookinfo.test.js.liquid from lab number 9"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 9"; exit 1; }
 -->
 <!--bash
 cat <<'EOF' > ./test.js
@@ -1170,14 +1168,14 @@ describe("Bookinfo in " + process.env.CLUSTER2, () => {
   });
 });
 EOF
-echo "executing test dist/document/build/templates/steps/apps/bookinfo/adding-services-to-mesh/tests/bookinfo-services-in-mesh.test.js.liquid from lab number 8"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 8"; exit 1; }
+echo "executing test dist/document/build/templates/steps/apps/bookinfo/adding-services-to-mesh/tests/bookinfo-services-in-mesh.test.js.liquid from lab number 9"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 9"; exit 1; }
 -->
 
 
 
 
-## Lab 9 - Deploy Argo Rollouts <a name="lab-9---deploy-argo-rollouts-"></a>
+## Lab 10 - Deploy Argo Rollouts <a name="lab-10---deploy-argo-rollouts-"></a>
 
 [Argo Rollouts](https://argoproj.github.io/rollouts/) is a declarative progressive delivery tool for Kubernetes that we can use to update applications gradually, using a blue/green or canary strategy to manage the rollout.
 
@@ -1212,7 +1210,7 @@ Now we're ready to use Argo Rollouts to progressively update applications as par
 
 
 
-## Lab 10 - Update a Bookinfo microservice using Argo Rollouts <a name="lab-10---update-a-bookinfo-microservice-using-argo-rollouts-"></a>
+## Lab 11 - Update a Bookinfo microservice using Argo Rollouts <a name="lab-11---update-a-bookinfo-microservice-using-argo-rollouts-"></a>
 
 We're going to use Argo Rollouts to gradually deliver an upgraded version of our Bookinfo application's `reviews` microservice.
 To do this, we'll define a resource that lets Argo Rollouts know how we want it to handle updates to our application,
@@ -1546,8 +1544,8 @@ describe("reviews rollout", () => {
 });
 
 EOF
-echo "executing test dist/document/build/templates/steps/apps/bookinfo/canary-rollout-gatewayapi/tests/rollout.test.js.liquid from lab number 10"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 10"; exit 1; }
+echo "executing test dist/document/build/templates/steps/apps/bookinfo/canary-rollout-gatewayapi/tests/rollout.test.js.liquid from lab number 11"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 11"; exit 1; }
 -->
 <!--bash
 cat <<'EOF' > ./test.js
@@ -1583,8 +1581,8 @@ describe("reviews rollout for canary weight 0", () => {
 });
 
 EOF
-echo "executing test dist/document/build/templates/steps/apps/bookinfo/canary-rollout-gatewayapi/tests/route-weights.test.js.liquid from lab number 10"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 10"; exit 1; }
+echo "executing test dist/document/build/templates/steps/apps/bookinfo/canary-rollout-gatewayapi/tests/route-weights.test.js.liquid from lab number 11"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 11"; exit 1; }
 -->
 
 Now, let's trigger the rollout by updating the image of the `reviews` container
@@ -1665,8 +1663,8 @@ describe("reviews rollout", () => {
 });
 
 EOF
-echo "executing test dist/document/build/templates/steps/apps/bookinfo/canary-rollout-gatewayapi/tests/rollout.test.js.liquid from lab number 10"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 10"; exit 1; }
+echo "executing test dist/document/build/templates/steps/apps/bookinfo/canary-rollout-gatewayapi/tests/rollout.test.js.liquid from lab number 11"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 11"; exit 1; }
 -->
 <!--bash
 cat <<'EOF' > ./test.js
@@ -1702,8 +1700,8 @@ describe("reviews rollout for canary weight 0", () => {
 });
 
 EOF
-echo "executing test dist/document/build/templates/steps/apps/bookinfo/canary-rollout-gatewayapi/tests/route-weights.test.js.liquid from lab number 10"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 10"; exit 1; }
+echo "executing test dist/document/build/templates/steps/apps/bookinfo/canary-rollout-gatewayapi/tests/route-weights.test.js.liquid from lab number 11"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 11"; exit 1; }
 -->
 
 Refresh the Bookinfo application several times.
@@ -1831,8 +1829,8 @@ describe("reviews rollout", () => {
 });
 
 EOF
-echo "executing test dist/document/build/templates/steps/apps/bookinfo/canary-rollout-gatewayapi/tests/rollout.test.js.liquid from lab number 10"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 10"; exit 1; }
+echo "executing test dist/document/build/templates/steps/apps/bookinfo/canary-rollout-gatewayapi/tests/rollout.test.js.liquid from lab number 11"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 11"; exit 1; }
 -->
 <!--bash
 cat <<'EOF' > ./test.js
@@ -1868,8 +1866,8 @@ describe("reviews rollout for canary weight 50", () => {
 });
 
 EOF
-echo "executing test dist/document/build/templates/steps/apps/bookinfo/canary-rollout-gatewayapi/tests/route-weights.test.js.liquid from lab number 10"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 10"; exit 1; }
+echo "executing test dist/document/build/templates/steps/apps/bookinfo/canary-rollout-gatewayapi/tests/route-weights.test.js.liquid from lab number 11"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 11"; exit 1; }
 -->
 
 Refresh the Bookinfo application several times. Roughly half the time you should see ratings with black stars,
@@ -1943,8 +1941,8 @@ describe("reviews rollout", () => {
 });
 
 EOF
-echo "executing test dist/document/build/templates/steps/apps/bookinfo/canary-rollout-gatewayapi/tests/rollout.test.js.liquid from lab number 10"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 10"; exit 1; }
+echo "executing test dist/document/build/templates/steps/apps/bookinfo/canary-rollout-gatewayapi/tests/rollout.test.js.liquid from lab number 11"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 11"; exit 1; }
 -->
 <!--bash
 cat <<'EOF' > ./test.js
@@ -1980,8 +1978,8 @@ describe("reviews rollout for canary weight 100", () => {
 });
 
 EOF
-echo "executing test dist/document/build/templates/steps/apps/bookinfo/canary-rollout-gatewayapi/tests/route-weights.test.js.liquid from lab number 10"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 10"; exit 1; }
+echo "executing test dist/document/build/templates/steps/apps/bookinfo/canary-rollout-gatewayapi/tests/route-weights.test.js.liquid from lab number 11"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 11"; exit 1; }
 -->
 
 Refresh the Bookinfo application several times. You should now always see ratings with red stars.
@@ -2070,8 +2068,8 @@ describe("reviews rollout", () => {
 });
 
 EOF
-echo "executing test dist/document/build/templates/steps/apps/bookinfo/canary-rollout-gatewayapi/tests/rollout-final.test.js.liquid from lab number 10"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 10"; exit 1; }
+echo "executing test dist/document/build/templates/steps/apps/bookinfo/canary-rollout-gatewayapi/tests/rollout-final.test.js.liquid from lab number 11"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 11"; exit 1; }
 -->
 <!--bash
 cat <<'EOF' > ./test.js
@@ -2107,8 +2105,8 @@ describe("reviews rollout for canary weight 0", () => {
 });
 
 EOF
-echo "executing test dist/document/build/templates/steps/apps/bookinfo/canary-rollout-gatewayapi/tests/route-weights.test.js.liquid from lab number 10"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 10"; exit 1; }
+echo "executing test dist/document/build/templates/steps/apps/bookinfo/canary-rollout-gatewayapi/tests/route-weights.test.js.liquid from lab number 11"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 11"; exit 1; }
 -->
 Clean up by deleting the `Rollout` and canary service:
 
@@ -2130,7 +2128,7 @@ kubectl --context ${CLUSTER1} -n bookinfo-backends set env deploy/reviews-v2 CLU
 
 
 
-## Lab 11 - Link clusters <a name="lab-11---link-clusters-"></a>
+## Lab 12 - Link clusters <a name="lab-12---link-clusters-"></a>
 
 We'll now set up multi-cluster service discovery and routing using Istio Ambient.
 
@@ -2188,13 +2186,13 @@ describe("Istio remote gateway", function() {
   });
 });
 EOF
-echo "executing test dist/document/build/templates/steps/link-clusters-istioctl/tests/check-gateways.test.js.liquid from lab number 11"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 11"; exit 1; }
+echo "executing test dist/document/build/templates/steps/link-clusters-istioctl/tests/check-gateways.test.js.liquid from lab number 12"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 12"; exit 1; }
 -->
 
 
 
-## Lab 12 - Declare productpage to be a global service for multi-cluster access <a name="lab-12---declare-productpage-to-be-a-global-service-for-multi-cluster-access-"></a>
+## Lab 13 - Declare productpage to be a global service for multi-cluster access <a name="lab-13---declare-productpage-to-be-a-global-service-for-multi-cluster-access-"></a>
 
 To allow the `productpage` service to be accessed from other clusters, it needs to be declared as a global service.
 
@@ -2248,8 +2246,8 @@ describe("Productpage is available (HTTPS)", () => {
   it('/productpage is available in cluster1', () => helpers.checkURL({ host: `https://cluster1-bookinfo.example.com`, path: '/productpage', retCode: 200 }));
 })
 EOF
-echo "executing test dist/document/build/templates/steps/apps/bookinfo/declare-global-service/../adding-services-to-mesh/tests/productpage-available-secure.test.js.liquid from lab number 12"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 12"; exit 1; }
+echo "executing test dist/document/build/templates/steps/apps/bookinfo/declare-global-service/../adding-services-to-mesh/tests/productpage-available-secure.test.js.liquid from lab number 13"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 13"; exit 1; }
 -->
 <!--bash
 cat <<'EOF' > ./test.js
@@ -2261,8 +2259,8 @@ describe("productpage service", () => {
   it('responds from cluster1', () => helpers.genericCommand({ command: command, responseContains: "cluster1" }));
 });
 EOF
-echo "executing test dist/document/build/templates/steps/apps/bookinfo/declare-global-service/tests/productpage-from-cluster1.test.js.liquid from lab number 12"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 12"; exit 1; }
+echo "executing test dist/document/build/templates/steps/apps/bookinfo/declare-global-service/tests/productpage-from-cluster1.test.js.liquid from lab number 13"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 13"; exit 1; }
 -->
 <!--bash
 cat <<'EOF' > ./test.js
@@ -2274,8 +2272,8 @@ describe("productpage service", () => {
   it('responds from cluster2', () => helpers.genericCommand({ command: command, responseContains: "cluster2" }));
 });
 EOF
-echo "executing test dist/document/build/templates/steps/apps/bookinfo/declare-global-service/tests/productpage-from-cluster2.test.js.liquid from lab number 12"
-timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 12"; exit 1; }
+echo "executing test dist/document/build/templates/steps/apps/bookinfo/declare-global-service/tests/productpage-from-cluster2.test.js.liquid from lab number 13"
+timeout --signal=INT 3m mocha ./test.js --timeout 10000 --retries=120 --bail --exit || { DEBUG_MODE=true mocha ./test.js --timeout 120000; echo "The workshop failed in lab number 13"; exit 1; }
 -->
 
 That's it! Check that you get reviews from services in both `cluster1` and `cluster2` when you refresh the Bookinfo application several times.
